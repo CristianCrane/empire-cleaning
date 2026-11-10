@@ -13,6 +13,7 @@ import {
 import { firstNameOf } from "../../services/email/format.ts";
 import {
   catalog,
+  type Card,
   type Language,
   formats,
   inLanguage,
@@ -236,7 +237,7 @@ export const unpaidEmail = (
     jobId: string;
     clean: Clean;
     owedCents: number;
-    paymentMethod: string | null;
+    paymentMethod: Card | null;
     // it put their Service Plan On Hold
     held: boolean;
   },
@@ -252,7 +253,7 @@ export const unpaidEmail = (
       paragraph(
         notTaken(
           w.forClean(formats[lang].formatMoney(owedCents)),
-          paymentMethod,
+          paymentMethod && cardOf(lang, paymentMethod),
         ),
       ),
       cleanDetails(lang, clean),

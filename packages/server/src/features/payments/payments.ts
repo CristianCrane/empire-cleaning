@@ -1,7 +1,12 @@
 import { eq } from "drizzle-orm";
 import { log } from "#services/monitoring";
 import { currentLanguage } from "#services/request";
-import { catalog, type PaymentMethodView } from "@empire-cleaning/models";
+import {
+  catalog,
+  messages,
+  type Card,
+  type PaymentMethodView,
+} from "@empire-cleaning/models";
 import { apart, db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
@@ -30,12 +35,18 @@ export const paymentMethodOf = async (
   return saved;
 };
 
+// a saved Payment Method's card
+export const cardIn = ({ brand, last4 }: PaymentMethodRow): Card => ({
+  brand,
+  last4,
+});
+
 export const toPaymentMethodView = (
   saved: PaymentMethodRow | undefined,
 ): PaymentMethodView | null =>
   saved
     ? {
-        label: saved.label,
+        label: messages[currentLanguage()].card(saved),
         savedAt: saved.savedAt.toISOString(),
         consentedAt: saved.consentedAt.toISOString(),
       }
@@ -79,7 +90,7 @@ export const storePaymentMethod = async (
   const row = {
     clientId,
     gatewayRef: saved.paymentMethodId,
-    label: saved.label,
+    ...saved.card,
     savedAt: now,
     consentedAt: now,
   };

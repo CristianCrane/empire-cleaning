@@ -321,7 +321,7 @@ export class FakePaymentGateway implements PaymentGateway {
   private save(payerId: string, card: TestCard): SavedPaymentMethod {
     const saved = {
       paymentMethodId: this.id("pm"),
-      label: `Test card ending ${LAST4[card]}`,
+      card: { brand: "Test card", last4: LAST4[card] },
     };
     this.paymentMethods.push({ ...saved, payerId });
     this.cards.set(saved.paymentMethodId, card);

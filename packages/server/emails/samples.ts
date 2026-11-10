@@ -27,7 +27,7 @@ export const settled: Settled = {
   refundedCents: 0,
   failure: null,
   becameUnpaid: false,
-  paymentMethod: "Visa ending 4242",
+  paymentMethod: { brand: "Visa", last4: "4242" },
   plan: null,
   billed: false,
 };

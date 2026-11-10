@@ -1429,7 +1429,7 @@ const sendBill = async (
       },
       occasion,
       ...extra,
-      card: method?.label ?? null,
+      card: method && { brand: method.brand, last4: method.last4 },
       today: dayOf(clock.now()),
       billedWeekly: client.billedWeeklyFrom !== null,
       creditRefundDays: CREDIT_REFUND_DAYS,

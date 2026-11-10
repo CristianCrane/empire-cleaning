@@ -1,4 +1,9 @@
-import type { BillPayment, Named, Recurrence } from "@empire-cleaning/models";
+import type {
+  BillPayment,
+  Card,
+  Named,
+  Recurrence,
+} from "@empire-cleaning/models";
 import {
   button,
   cleanDetails,
@@ -568,11 +573,11 @@ export const quoteEmail = (
 
 // ---- accepting ----
 
-// how the Client pays: the Payment Method that paid, by its label, and the
+// how the Client pays: the Payment Method that paid, its card, and the
 // weekly Bill their cleans go on (ADR-0016), or null when each is charged
 // when it's done
 export type PaidWith = {
-  paymentMethod: string | null;
+  paymentMethod: Card | null;
   weeklyBill: BillPayment | null;
 };
 

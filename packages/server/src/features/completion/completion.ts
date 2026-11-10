@@ -195,7 +195,7 @@ const sendUnpaid = async (jobId: string, settled: Settled) => {
         jobId,
         clean: await cleanOf(job, property),
         owedCents: payment.owedCents,
-        paymentMethod: payment.paymentMethod,
+        paymentMethod: settled.paymentMethod,
         held: settled.plan === "held",
       }),
     }),

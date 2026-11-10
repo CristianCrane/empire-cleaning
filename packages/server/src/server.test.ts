@@ -224,7 +224,7 @@ test("payments go to the fake gateway, which records them", async () => {
     idempotencyKey: "refund:1",
   });
 
-  expect(deposit.saved?.label).toBe("Test card ending 4242");
+  expect(deposit.saved?.card).toEqual({ brand: "Test card", last4: "4242" });
   expect(refund.ok).toBe(true);
   expect(testPayments().charges).toMatchObject([{ amount: 5000 }]);
   expect(testPayments().refunds).toMatchObject([{ amount: 5000 }]);

@@ -1282,10 +1282,15 @@ export type QuoteSummary = {
 
 // ---- Accepting a Quote (#8) ----
 
+// a card as we keep it, without the card itself: its brand as the payment
+// provider shows it ("Visa", "American Express") and its last 4 digits,
+// worded as it's read (models' payments catalog, `card`)
+export type Card = { brand: string; last4: string };
+
 // a Client's saved Payment Method, as far as we can describe it without the
 // card itself
 export type PaymentMethodView = {
-  // e.g. "Visa ending 4242"
+  // in the reply's language, e.g. "Visa ending 4242"
   label: string;
   savedAt: string;
   // when the Client agreed to later Charges to it without them there (the

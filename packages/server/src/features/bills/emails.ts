@@ -12,6 +12,7 @@ import { firstNameOf } from "../../services/email/format.ts";
 import {
   addDays,
   catalog,
+  type Card,
   inLanguage,
   type Language,
   type UnpaidKind,
@@ -381,8 +382,8 @@ export const billEmail = (
     plan?: PlanNote | null;
     // a voided Bill's Jobs, settled each on its own instead
     settled?: SettledJob[];
-    // their Payment Method's label; null when none is saved
-    card: string | null;
+    // their Payment Method's card; null when none is saved
+    card: Card | null;
     today: string;
     // they're billed weekly still
     billedWeekly: boolean;

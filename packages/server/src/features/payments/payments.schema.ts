@@ -45,8 +45,9 @@ export const paymentMethods = pgTable("payment_methods", {
     .references(() => clients.id, { onDelete: "cascade" }),
   // the Payment Gateway's id for it, opaque to us
   gatewayRef: text("gateway_ref").notNull(),
-  // e.g. "Visa ending 4242"
-  label: text("label").notNull(),
+  // its brand and last 4, worded as they're read ("Visa ending 4242")
+  brand: text("brand").notNull(),
+  last4: text("last4").notNull(),
   savedAt: timestamp("saved_at", { withTimezone: true }).notNull(),
   // when they agreed, saving it, to later Charges without them there: the
   // Balance, and late-cancellation or No Access fees

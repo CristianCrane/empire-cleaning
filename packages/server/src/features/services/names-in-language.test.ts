@@ -28,7 +28,8 @@ import {
   signInAsOffice,
 } from "../../../tests/fixtures.ts";
 
-// What the Office names in both languages, a Service and its extras, as each
+// What the Office names in both languages, a Service and its extras, and a
+// card, as each
 // reader reads it (ADR-0025, #395): a Client or Cleaner reading Spanish sees
 // the Spanish names on every screen and in every email, the Office the
 // English, and nothing Spanish is stored
@@ -85,6 +86,13 @@ describe("names the Office gives in both languages", () => {
     const detail = (await inSpanish(client, `/api/jobs/mine/${job.id}`))
       .body as ClientJobDetail;
     expect(detail.addOns).toEqual(["Dentro del horno"]);
+    // the card it's paid with, by its brand and last 4
+    expect(detail.payment.paymentMethod).toBe("Test card terminada en 4242");
+    const card = (await inSpanish(client, "/api/payment-methods/mine"))
+      .body as {
+      label: string;
+    };
+    expect(card.label).toBe("Test card terminada en 4242");
     const [deposit] = (await inSpanish(client, "/api/payments/mine"))
       .body as ClientPayment[];
     expect(deposit!.job!.serviceName).toBe("Limpieza profunda");
@@ -108,6 +116,7 @@ describe("names the Office gives in both languages", () => {
       .body as ClientJobDetail;
     expect(english.serviceName).toBe("Deep Clean");
     expect(english.addOns).toEqual(["Inside the oven"]);
+    expect(english.payment.paymentMethod).toBe("Test card ending 4242");
   });
 
   test("a Spanish-reading Cleaner sees the Job's extras and the ones to report in Spanish, and the Client the price change", async () => {

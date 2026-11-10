@@ -51,7 +51,7 @@ export default preview(
       ],
     },
     occasion: "made",
-    card: "Visa ending 4242",
+    card: { brand: "Visa", last4: "4242" },
     today: "2026-01-12",
     billedWeekly: true,
     creditRefundDays: 30,

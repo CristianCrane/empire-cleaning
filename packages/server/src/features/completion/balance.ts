@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, isNull, ne, sql, sum } from "drizzle-orm";
 import { currentLanguage } from "#services/request";
 import {
+  type Card,
   type ChargeView,
   type JobPayment,
   formats,
@@ -174,7 +175,7 @@ export const paymentOf = async (job: Job): Promise<JobPayment> => {
   const [ledger, [owner]] = await Promise.all([
     ledgerOf(job, db),
     db
-      .select({ label: paymentMethods.label })
+      .select({ brand: paymentMethods.brand, last4: paymentMethods.last4 })
       .from(properties)
       .leftJoin(
         paymentMethods,
@@ -197,7 +198,14 @@ export const paymentOf = async (job: Job): Promise<JobPayment> => {
     paidCents: ledger.paidCents,
     billedCents: ledger.billedCents,
     owedCents: ledger.owedCents,
-    paymentMethod: owner?.label ?? null,
+    // in the reply's language
+    paymentMethod:
+      owner?.brand && owner.last4
+        ? messages[currentLanguage()].card({
+            brand: owner.brand,
+            last4: owner.last4,
+          })
+        : null,
     unpaid: unpaidOf(currentLanguage(), job.unpaidSince, job.unpaidReason),
   };
 };
@@ -210,7 +218,8 @@ export type Settled = {
   failure: string | null;
   // whether this settling made it Unpaid, when it wasn't before
   becameUnpaid: boolean;
-  paymentMethod: string | null;
+  // the card it was taken from, or would have been
+  paymentMethod: Card | null;
   // what it did to the plan of a plan Job: put it On Hold, or resumed it
   plan: "held" | "resumed" | null;
   // its money goes on its Client's weekly Bill instead (ADR-0016), so none
@@ -278,7 +287,7 @@ export const settleJob = async (
       refundedCents: 0,
       failure: null,
       becameUnpaid: false,
-      paymentMethod: method?.label ?? null,
+      paymentMethod: method && { brand: method.brand, last4: method.last4 },
       plan: null,
       billed: isBilledWeekly(job!, client, {
         lines: ledger.billedLines,

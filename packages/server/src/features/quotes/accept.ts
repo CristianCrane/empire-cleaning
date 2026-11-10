@@ -1,6 +1,12 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
-import type { QuoteOption, QuoteStatus } from "@empire-cleaning/models";
-import { catalog, dayOf, formats, inLanguage } from "@empire-cleaning/models";
+import type { Card, QuoteOption, QuoteStatus } from "@empire-cleaning/models";
+import {
+  catalog,
+  dayOf,
+  formats,
+  inLanguage,
+  messages,
+} from "@empire-cleaning/models";
 import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
 import {
@@ -21,6 +27,7 @@ import type { Job } from "../jobs/jobs.schema.ts";
 import { scheduleFor } from "../jobs/schedule.ts";
 import {
   payerFor,
+  cardIn,
   paymentMethodOf,
   storePaymentMethod,
 } from "../payments/payments.ts";
@@ -626,7 +633,7 @@ export const acceptQuote = async (
             ? said().PAYMENT_DOWN
             : acceptor.by === "client"
               ? said().cardFailed(because)
-              : `${client.name}'s ${saved!.label} didn't go through${because}, so nothing was booked. Email them a link to add another card.`,
+              : `${client.name}'s ${messages.en.card(saved!)} didn't go through${because}, so nothing was booked. Email them a link to add another card.`,
         );
       }
       if (attempt.status === "needs_approval") {
@@ -647,7 +654,7 @@ export const acceptQuote = async (
       return {
         status: "accepted",
         booked,
-        paidWith: attempt.saved?.label ?? saved?.label ?? null,
+        paidWith: attempt.saved?.card ?? (saved && cardIn(saved)) ?? null,
       } as const;
     });
   } catch (error) {
@@ -773,7 +780,7 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
   if (result.status !== "accepted") return result;
 
   const paidWith =
-    attempt.saved?.label ?? (await paymentMethodOf(client.id))!.label;
+    attempt.saved?.card ?? cardIn((await paymentMethodOf(client.id))!);
   await afterAcceptance(client, property, result.booked, offer, paidWith);
   return { status: "accepted" };
 };
@@ -824,7 +831,7 @@ const afterAcceptance = async (
   property: Property,
   { jobs, plan, replaced }: Booked,
   offer: Offer,
-  paidWith: string | null,
+  paidWith: Card | null,
 ) => {
   const paid = {
     paymentMethod: paidWith,

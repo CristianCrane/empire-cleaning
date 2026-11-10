@@ -1,4 +1,9 @@
-import type { CardForm, Language, PaymentForm } from "@empire-cleaning/models";
+import type {
+  Card,
+  CardForm,
+  Language,
+  PaymentForm,
+} from "@empire-cleaning/models";
 import env from "../../env.ts";
 import { StripePaymentGateway } from "./stripe.ts";
 
@@ -9,8 +14,8 @@ import { StripePaymentGateway } from "./stripe.ts";
 
 export type SavedPaymentMethod = {
   paymentMethodId: string;
-  // how to describe it to people, e.g. "Visa ending 4242"
-  label: string;
+  // its brand and last 4, for people to know it by
+  card: Card;
 };
 
 // where a Deposit comes from: what the Client just entered in the browser's

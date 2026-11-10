@@ -156,7 +156,7 @@ export const paymentGatewayContract = (
           chargeId: expect.any(String),
           saved: {
             paymentMethodId: expect.any(String),
-            label: expect.stringMatching(/ending 4242$/),
+            card: expect.objectContaining({ last4: "4242" }),
           },
         });
       });
@@ -240,7 +240,7 @@ export const paymentGatewayContract = (
           chargeId: null,
           saved: {
             paymentMethodId: expect.any(String),
-            label: expect.stringMatching(/ending 4444$/),
+            card: expect.objectContaining({ last4: "4444" }),
           },
         });
         expect(await t.paymentAttempts(payerId)).toBe(0);
@@ -269,7 +269,7 @@ export const paymentGatewayContract = (
 
         const saved = await savedCard(t, payerId, "amex");
 
-        expect(saved.label).toMatch(/ending 8431$/);
+        expect(saved.card.last4).toBe("8431");
       });
 
       test("an unfinished form saves nothing", async () => {

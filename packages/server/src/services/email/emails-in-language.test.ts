@@ -93,7 +93,7 @@ const clean: Clean = {
   address,
   startsAt: monday,
 };
-const card = "Visa 4242";
+const card = { brand: "Visa", last4: "4242" };
 // what the Office or a Cleaner typed, shown as written
 const typed = {
   cancelled: "El equipo está enfermo.",
@@ -572,10 +572,9 @@ const shared = new Set([
     name,
     email,
     address,
-    card,
-    clean.service,
-    "Limpieza estándar",
-    "Dentro del horno",
+    // a card's brand, as its provider names it; not the Office's names,
+    // which each language has its own of
+    card.brand,
     ...Object.values(typed),
     bill.number,
     "Jen Oficina",
