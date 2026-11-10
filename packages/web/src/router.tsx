@@ -126,6 +126,7 @@ import {
   type CleansSearch,
 } from "./screens/portal/PortalCleans.tsx";
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
+import { JobPrototype } from "./screens/job.prototype.tsx";
 import type { HomeData } from "./screens/portal/whats-next.ts";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
 import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
@@ -912,8 +913,25 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: the Office Job page's actions, details and Crew (#406), signed out
+const jobPrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/job",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string } => ({
+    case:
+      typeof search.case === "string" || typeof search.case === "number"
+        ? String(search.case)
+        : undefined,
+    layout: typeof search.layout === "string" ? search.layout : undefined,
+  }),
+  component: JobPrototype,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  jobPrototypeRoute,
   signInRoute,
   signInLinkRoute,
   confirmEmailRoute,

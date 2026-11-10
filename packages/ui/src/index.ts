@@ -58,3 +58,11 @@ export { startTour, type TourStep } from "./Tour.ts";
 // wiring for the app's router: design-system links navigate through it, and
 // apps declare their link type by augmenting RouterConfig on this module
 export { RouterProvider, type RouterConfig } from "react-aria-components";
+
+// PROTOTYPE (#406): a menu, for the Job page's "More" layout
+export {
+  Menu,
+  MenuItem,
+  MenuTrigger,
+  Popover as MenuPopover,
+} from "react-aria-components";

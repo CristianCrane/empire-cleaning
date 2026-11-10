@@ -34,6 +34,9 @@ export type ListItemProps = Omit<GridListItemProps, "children"> & {
   start?: ReactNode;
   // trailing content, e.g. a StatusBadge
   end?: ReactNode;
+  // PROTOTYPE (#406): a Button where the chevron goes, e.g. an X to take
+  // someone off; it stays beside the text on a phone
+  action?: ReactNode;
 };
 
 export function ListItem({
@@ -41,6 +44,7 @@ export function ListItem({
   description,
   start,
   end,
+  action,
   ...props
 }: ListItemProps) {
   const opens = useContext(OpensItems) || props.onAction !== undefined;
@@ -93,6 +97,9 @@ export function ListItem({
             >
               {end}
             </div>
+          )}
+          {action && (
+            <div className={`shrink-0 self-center ${beside}`}>{action}</div>
           )}
           {opens && !isDisabled && (
             <ChevronRight
