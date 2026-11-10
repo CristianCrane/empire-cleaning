@@ -1,3 +1,4 @@
+import { currentLanguage } from "#services/request";
 import { createHash, randomBytes } from "node:crypto";
 import { and, asc, count, eq, exists, gt, ilike, or, sql } from "drizzle-orm";
 import type {
@@ -136,7 +137,7 @@ export const changeOwnEmail = async (
   const verdict = rateLimit.attempt("emailChange", address);
   if (!verdict.allowed) {
     throw new TooManyRequestsError(
-      tooManyTries(verdict.retryAfterSeconds),
+      tooManyTries(currentLanguage(), verdict.retryAfterSeconds),
       verdict.retryAfterSeconds,
     );
   }

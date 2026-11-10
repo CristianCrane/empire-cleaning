@@ -1,3 +1,4 @@
+import { catalog, inLanguage, type Language } from "@empire-cleaning/models";
 import { desc, eq, sql } from "drizzle-orm";
 import type {
   AddOnChoice,
@@ -10,7 +11,7 @@ import { fieldError } from "../../middleware/errors.ts";
 import {
   currentServices,
   findService,
-  NOT_A_SERVICE,
+  notAService,
 } from "../services/services.ts";
 import { SEEDED, SEEDED_FOR_HOMES } from "../services/seeded.ts";
 import { staff } from "../staff/staff.schema.ts";
@@ -255,7 +256,7 @@ const checkServiceKeys = async (input: PriceListInput) => {
     if (addOn.serviceKeys.some((key) => !known.has(key))) {
       throw fieldError(
         ["addOns", i, "serviceKeys"],
-        NOT_A_SERVICE,
+        notAService.en,
         addOn.serviceKeys,
       );
     }
@@ -314,10 +315,11 @@ export const offeredWith = (
 
 // The Add-ons a Client can pick now for a Service, by default the first on
 // offer for homes: names only, never prices (those are on the Quote). Open
-// to everyone, as the landing page's form needs it. A business's request
-// picks none: its Site Visit comes first.
+// to everyone, as the landing page's form needs it, so named in its
+// language. A business's request picks none: its Site Visit comes first.
 export const choosableAddOns = async (
   serviceKey: string,
+  lang: Language,
 ): Promise<AddOnChoice[]> => {
   const [list, service] = await Promise.all([
     currentPriceList(),
@@ -325,6 +327,7 @@ export const choosableAddOns = async (
   ]);
   return list.addOns
     .filter((a) => offeredWith(a, service.key))
+    .map((a) => inLanguage(lang, a))
     .map(({ key, name }) => ({ key, name }));
 };
 
@@ -332,18 +335,25 @@ export const choosableAddOns = async (
 // they're told when they can't
 export const offersPremisesType = (list: PriceList, key: string) =>
   list.premisesTypes.some((t) => t.active && t.key === key);
-export const NOT_A_PREMISES_TYPE = "Pick a type of business from the list";
+export const notAPremisesType = catalog({
+  en: "Pick a type of business from the list",
+  es: "Elija un tipo de negocio de la lista",
+});
 
 // what a choice of an Add-on that isn't on offer with its Service is told
-export const NOT_AN_ADD_ON = "Pick extras from the list";
+export const notAnAddOn = catalog({
+  en: "Pick extras from the list",
+  es: "Elija adicionales de la lista",
+});
 
 // the Premises Types business premises can be described as now; open to
-// everyone, for the landing page's form
-export const choosablePremisesTypes = async (): Promise<
-  PremisesTypeChoice[]
-> => {
+// everyone, for the landing page's form, so named in its language
+export const choosablePremisesTypes = async (
+  lang: Language,
+): Promise<PremisesTypeChoice[]> => {
   const list = await currentPriceList();
   return list.premisesTypes
     .filter((p) => p.active)
+    .map((p) => inLanguage(lang, p))
     .map(({ key, name }) => ({ key, name }));
 };

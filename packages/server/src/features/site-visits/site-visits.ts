@@ -35,7 +35,7 @@ import { scheduleOn } from "../jobs/schedule.ts";
 import { busyWith, PASSED, roomOn, visitHours } from "../jobs/rules.ts";
 import {
   currentPriceList,
-  NOT_A_PREMISES_TYPE,
+  notAPremisesType,
   offersPremisesType,
 } from "../price-list/price-list.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
@@ -353,7 +353,7 @@ const findingsFor = async (property: Property, body: unknown) => {
       premisesType !== property.premisesTypeKey &&
       !offersPremisesType(list, premisesType)
     ) {
-      throw fieldError(["premisesType"], NOT_A_PREMISES_TYPE);
+      throw fieldError(["premisesType"], notAPremisesType.en);
     }
     return { ...rest, premisesTypeKey: premisesType };
   }

@@ -1,3 +1,4 @@
+import { currentLanguage } from "#services/request";
 import { Router } from "express";
 import { z } from "zod";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
@@ -19,14 +20,14 @@ router.get(
   "/add-ons",
   validate({ query: z.object({ service: z.uuid("Pick a service") }) }),
   async (req, res) => {
-    res.json(await choosableAddOns(req.query.service));
+    res.json(await choosableAddOns(req.query.service, currentLanguage()));
   },
 );
 
 // the Premises Types business premises can be described as, by name; open
 // to Guests for the same reason
 router.get("/premises-types", async (_req, res) => {
-  res.json(await choosablePremisesTypes());
+  res.json(await choosablePremisesTypes(currentLanguage()));
 });
 
 router.get("/", authorize("office_staff"), async (_req, res) => {

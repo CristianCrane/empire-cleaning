@@ -49,7 +49,7 @@ import { paymentMethodOf, toPaymentMethodView } from "../payments/payments.ts";
 import {
   choiceOf,
   currentPricing,
-  NOT_A_SERVICE,
+  notAService,
   offeredAt,
   oneOffServices,
   onOfferAt,
@@ -58,11 +58,7 @@ import {
   type Pricing,
 } from "../services/services.ts";
 import { CREW_SIZE } from "./quotes.validation.ts";
-import {
-  goesWith,
-  NOT_AN_ADD_ON,
-  ownAddOns,
-} from "../price-list/price-list.ts";
+import { goesWith, notAnAddOn, ownAddOns } from "../price-list/price-list.ts";
 import { priceLists } from "../price-list/price-list.schema.ts";
 import {
   pricedOf,
@@ -1408,7 +1404,7 @@ const draftServiceOf = (
     (s) => s.key === wanted,
   );
   if (!service) {
-    throw fieldError(["serviceKey"], NOT_A_SERVICE);
+    throw fieldError(["serviceKey"], notAService.en);
   }
   return service;
 };
@@ -1509,7 +1505,7 @@ export const saveDraft = async (
       (addOnKeys.includes(key) && !allowed.has(key)),
   );
   if (unknown !== -1) {
-    throw fieldError(["addOns", unknown], NOT_AN_ADD_ON);
+    throw fieldError(["addOns", unknown], notAnAddOn.en);
   }
 
   // typed, or following the Property (or the Client's rough one)

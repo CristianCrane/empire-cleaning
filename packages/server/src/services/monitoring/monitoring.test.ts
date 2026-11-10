@@ -13,7 +13,7 @@ describe("scrubbing", () => {
       destination: { write: (line: string) => lines.push(line) },
     });
 
-    withRequest({ requestId: "req-1" }, () =>
+    withRequest({ requestId: "req-1", language: "en" }, () =>
       logger.error(
         {
           clientId: "c1",

@@ -1,3 +1,4 @@
+import { catalog, inLanguage, type Language } from "@empire-cleaning/models";
 import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type {
   PriceList,
@@ -208,8 +209,12 @@ const latest = async () => {
     .map((r) => toService(r.service, r.authorName));
 };
 
-// what a choice of a Service that isn't on offer is told
-export const NOT_A_SERVICE = "Pick a service from the list";
+// what a choice of a Service that isn't on offer is told, in the
+// request's language (the Quote form's in Spanish too)
+export const notAService = catalog({
+  en: "Pick a service from the list",
+  es: "Elija un servicio de la lista",
+});
 
 // Every Service as it is now, active and retired. The very first read
 // creates the starting ones, so a fresh install always has them.
@@ -274,10 +279,13 @@ const icons: Record<string, ServiceIcon> = {
 };
 
 // The Services a new Quote can be asked for, in the list's order, as the
-// "Request a Quote" form offers them
-export const servicesOnOffer = async (): Promise<ServiceOffer[]> =>
+// "Request a Quote" form offers them, named in its language
+export const servicesOnOffer = async (
+  lang: Language,
+): Promise<ServiceOffer[]> =>
   (await currentServices())
     .filter((s) => s.active)
+    .map((service) => inLanguage(lang, service))
     .map((s) => ({
       key: s.key,
       name: s.name,
@@ -356,7 +364,7 @@ const checkFirstVisit = (
     );
   }
   if (!all.some((s) => s.key === recommended)) {
-    throw fieldError(["firstVisitServiceKey"], NOT_A_SERVICE);
+    throw fieldError(["firstVisitServiceKey"], notAService.en);
   }
 };
 

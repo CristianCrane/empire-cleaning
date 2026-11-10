@@ -12,6 +12,7 @@ import { firstNameOf } from "../../services/email/format.ts";
 import {
   type PropertyKind,
   type TurnDownReason,
+  catalog,
   formats,
   dayOf,
   messages,
@@ -64,24 +65,45 @@ export const quoteReceivedEmail = ({
   ],
 });
 
-// an ask for a Quote the Client has open already for `where`, as the
-// reply says it and the email to their own address
-export const alreadyAsked = (
-  why: "asked" | "sent",
-  where: string,
-  email: string | null,
-) =>
-  why === "sent"
-    ? `We've already sent you a quote for ${where}. You'll find it in your account.`
-    : `You've already asked us for a quote for ${where}. We'll email it to ${email} soon.`;
-
-// an ask for a Property the Client has already, as the other kind
-export const alreadyYours = (
-  address: string,
-  kind: PropertyKind,
-  whose: "your" | "their",
-) =>
-  `${address} is already ${whose} ${kind === "commercial" ? "business" : "home"} with us.`;
+// Why an ask can't go ahead at a Property the Client has, as the reply
+// says it, in the language of the screen that asked, and the email to their
+// own address (in English until #304)
+export const askClash = catalog({
+  en: {
+    // a Quote the Client has open already for `where`
+    alreadyAsked: (
+      why: "asked" | "sent",
+      where: string,
+      email: string | null,
+    ) =>
+      why === "sent"
+        ? `We've already sent you a quote for ${where}. You'll find it in your account.`
+        : `You've already asked us for a quote for ${where}. We'll email it to ${email} soon.`,
+    // a Property the Client has already, as the other kind
+    alreadyYours: (
+      address: string,
+      kind: PropertyKind,
+      whose: "your" | "their",
+    ) =>
+      `${address} is already ${whose} ${kind === "commercial" ? "business" : "home"} with us.`,
+    PICK_IT: "Pick it from the list to ask about it.",
+  },
+  es: {
+    alreadyAsked: (
+      why: "asked" | "sent",
+      where: string,
+      email: string | null,
+    ) =>
+      why === "sent"
+        ? `Ya le enviamos una cotización para ${where}. La encontrará en su cuenta.`
+        : `Ya nos pidió una cotización para ${where}. Se la enviaremos a ${email} pronto.`,
+    // "your" and "their" are both "su"
+    alreadyYours: (address: string, kind: PropertyKind) =>
+      `${address} ya está con nosotros como su ${kind === "commercial" ? "negocio" : "casa"}.`,
+    PICK_IT: "Elija esa dirección de la lista para pedir una cotización.",
+  },
+});
+const { alreadyAsked, alreadyYours } = askClash.en;
 
 const NOT_YOU =
   "If you didn't ask for a quote, you can ignore this email, or reply and let us know.";
