@@ -176,12 +176,24 @@ const catalogFiles = [
   "packages/models/src/messages/*.ts",
 ];
 
-// the catalog files in the checkout at `top`, by their paths from it
+// the catalog files in the checkout at `top`, by their paths from it: those
+// not added to git yet too, as the working tree has them (#405)
 export const catalogPaths = (top: string) =>
-  execFileSync("git", ["ls-files", "--", ...catalogFiles], {
-    cwd: top,
-    encoding: "utf8",
-  })
+  execFileSync(
+    "git",
+    [
+      "ls-files",
+      "--cached",
+      "--others",
+      "--exclude-standard",
+      "--",
+      ...catalogFiles,
+    ],
+    {
+      cwd: top,
+      encoding: "utf8",
+    },
+  )
     .split("\n")
     .filter(Boolean);
 
