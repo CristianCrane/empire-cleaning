@@ -8,6 +8,7 @@ import {
   signInWithLink,
   test,
   quoteSent,
+  linkIn,
 } from "./harness.ts";
 
 const olive = {
@@ -20,11 +21,6 @@ const casey = { name: "Casey Client", email: "casey@example.com" };
 // the API's clock is at 4am on Monday 5 January 2026 in New York; Quotes here
 // are for 9am on Monday 12 January
 
-const linkIn = async (subject: string) => {
-  const sent = (await emailsTo(casey.email)).find((e) => e.subject === subject);
-  return new URL(sent!.text.match(/https?:\/\/\S+/)![0]).pathname;
-};
-
 test(
   "the Client accepts from the Quote email in one step, and sees the Job booked",
   { tag: ["@smoke", "@desktop"] },
@@ -32,7 +28,7 @@ test(
     await quoteSent(page, olive, casey);
 
     const client = await (await browser.newContext()).newPage();
-    const link = await linkIn("Your quote from Empire Cleaning");
+    const link = await linkIn(casey.email, "Your quote from Empire Cleaning");
     await client.goto(link);
     await signInWithLink(client, casey.email);
     await expect(client).toHaveURL(link);
@@ -82,7 +78,9 @@ test("a declined Deposit books nothing, and another try goes through", async ({
   await quoteSent(page, olive, casey);
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
-  await client.goto(await linkIn("Your quote from Empire Cleaning"));
+  await client.goto(
+    await linkIn(casey.email, "Your quote from Empire Cleaning"),
+  );
   await failCharges("card_declined");
 
   const accept = client.getByRole("region", { name: "Pay and book" });
@@ -110,7 +108,9 @@ test("a Deposit the bank asks the Client to approve is booked once approved", as
   await quoteSent(page, olive, casey);
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
-  await client.goto(await linkIn("Your quote from Empire Cleaning"));
+  await client.goto(
+    await linkIn(casey.email, "Your quote from Empire Cleaning"),
+  );
   const accept = client.getByRole("region", { name: "Pay and book" });
 
   await requireApproval("refused");
@@ -143,7 +143,9 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
 
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
-  await client.goto(await linkIn("Add a card for Empire Cleaning"));
+  await client.goto(
+    await linkIn(casey.email, "Add a card for Empire Cleaning"),
+  );
   await expect(client.getByRole("heading", { level: 1 })).toHaveText(
     "Your card",
   );
@@ -221,7 +223,9 @@ test("a Quote whose day has filled up can't be paid for, and the Office is asked
 
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
-  await client.goto(await linkIn("Your quote from Empire Cleaning"));
+  await client.goto(
+    await linkIn(casey.email, "Your quote from Empire Cleaning"),
+  );
   await expect(
     client.getByText(
       "Sorry, Mon, Jan 12, 9:00 AM has been fully booked since we sent this Quote",
