@@ -123,7 +123,7 @@ describe("a Cleaner reading in Spanish", () => {
       })
       .expect(400);
     expect(issues(wrong.body)).toEqual({
-      condition: "Di cómo estaba la casa: ligera, moderada o intensa",
+      condition: "Di cómo estaba la casa",
       "reports.0.hours": "Usa cuartos de hora, como 1.25",
       "reports.0.reason": "Di por qué",
     });
@@ -132,6 +132,12 @@ describe("a Cleaner reading in Spanish", () => {
       .send({ reason: " " })
       .expect(400);
     expect(issues(unsaid.body)).toEqual({ reason: "Cuenta qué pasó" });
+    const tooLong = await es(agent, "post", noAccess)
+      .send({ reason: "x".repeat(501) })
+      .expect(400);
+    expect(issues(tooLong.body)).toEqual({
+      reason: "Debe tener menos de 500 caracteres",
+    });
 
     // and in English to a request that names no language
     const english = await agent

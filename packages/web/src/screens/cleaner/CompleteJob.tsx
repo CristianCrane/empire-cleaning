@@ -6,6 +6,7 @@ import {
   type Condition,
   catalog,
   oneStop,
+  theTimeEs,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -31,7 +32,6 @@ const words = catalog({
   en: {
     notMarked: "The job wasn't marked done. Please try again.",
     fixDetails: "Some details need fixing.",
-    sayHow: "Say how the home was",
     marked: "Job marked done",
     title: "Mark this job done",
     intro:
@@ -53,7 +53,6 @@ const words = catalog({
   es: {
     notMarked: "El trabajo no se marcó como terminado. Vuelve a intentarlo.",
     fixDetails: "Hay que corregir algunos datos.",
-    sayHow: "Di cómo estaba la casa",
     marked: "Trabajo marcado como terminado",
     title: "Marcar este trabajo como terminado",
     intro:
@@ -68,9 +67,7 @@ const words = catalog({
     leaveAt0: "Déjalo en 0 si la limpieza tomó más o menos lo previsto.",
     whatTookLonger: "¿Qué tomó más tiempo?",
     markedAt: (time: string, by: string) =>
-      oneStop(
-        `Marcado como terminado a ${time.startsWith("1:") ? "la" : "las"} ${time}${by}. ¡Gracias!`,
-      ),
+      oneStop(`Marcado como terminado a ${theTimeEs(time)}${by}. ¡Gracias!`),
     reported: "Lo que informaste",
     nothingDifferent: "Nada distinto de la cotización",
   },
@@ -117,7 +114,7 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
 
   const complete = async (close: () => void) => {
     if (!condition) {
-      action.fail(undefined, { condition: w.sayHow });
+      action.fail(undefined, { condition: t.SAY_CONDITION });
       return;
     }
     const ok = await action.run(

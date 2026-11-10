@@ -45,10 +45,10 @@ const words = catalog({
     eachShows: "Each clean shows here once it's done, with its receipt.",
   },
   es: {
-    about: (length: string) => `unas ${length}`,
+    about: (length: string) => `cerca de ${length}`,
     moveAsked: "Reprogramación pedida",
     visit: (visitor: string, length: string) =>
-      `${visitor}, unos ${length}, gratis`,
+      `${visitor}, cerca de ${length}, gratis`,
     needsOk: "Necesita su aprobación",
     fee: (amount: string) => `cargo de ${amount}`,
     noCharge: "Sin cargo",

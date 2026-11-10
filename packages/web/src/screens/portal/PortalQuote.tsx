@@ -154,7 +154,7 @@ const words = catalog({
       when: string,
       length: string,
     ) =>
-      `Primero iremos a ver ${premises ? "el negocio" : "su casa"}, sin costo: ${visitor} lo visita el ${when}, durante unos ${length}. Le enviamos la cotización por correo después de la visita. Para cambiar la hora, por favor llámenos.`,
+      `Primero iremos a ver ${premises ? "el negocio" : "su casa"}, sin costo: ${visitor} lo visita el ${when}, durante cerca de ${length}. Le enviamos la cotización por correo después de la visita. Para cambiar la hora, por favor llámenos.`,
     askedFor: "Lo que pidió",
     asked: "Pedida",
     yourKind: (kind: string) => `Su ${kind.toLowerCase()}`,
@@ -169,7 +169,7 @@ const words = catalog({
     yourClean: "Su limpieza",
     where: "Dónde",
     crewAbout: (cleaners: string, hours: string) =>
-      `${cleaners}, unas ${hours}`,
+      `${cleaners}, cerca de ${hours}`,
     recommend: (recommended: string, own: string) =>
       `Le recomendamos una ${recommended} para la primera visita: deja su casa en buen estado. Una ${own} cuesta menos.`,
     recommended: "Recomendada",

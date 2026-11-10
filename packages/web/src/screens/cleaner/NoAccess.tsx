@@ -1,4 +1,4 @@
-import { catalog, oneStop } from "@empire-cleaning/models";
+import { catalog, oneStop, theTimeEs } from "@empire-cleaning/models";
 import { useState } from "react";
 import { DoorClosed } from "lucide-react";
 import type { CleanerJob } from "@empire-cleaning/models";
@@ -39,7 +39,7 @@ const words = catalog({
       "Por ejemplo: nadie contestó, y la llave no estaba donde dicen las instrucciones.",
     sentAt: (time: string, by: string) =>
       oneStop(
-        `Enviado a ${time.startsWith("1:") ? "la" : "las"} ${time}${by}. Ya se les avisó al cliente y a la oficina.`,
+        `Enviado a ${theTimeEs(time)}${by}. Ya se les avisó al cliente y a la oficina.`,
       ),
   },
 });

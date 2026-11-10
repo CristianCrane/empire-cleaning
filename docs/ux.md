@@ -179,9 +179,10 @@ stays as it is (#336).
   menu, error pages, `labels.ts` and the design system's words are
   impersonal ("Se puede intentar de nuevo", "Ir a la página de inicio",
   "Intentar de nuevo"). A word that has to address its reader goes in the
-  area's own words; one whose Spanish agrees with a different noun in each
-  place (a clean is *Terminada*, a job *Terminado*) is listed as allowed in
-  `catalog-copies` (#305).
+  area's own words; English whose Spanish differs in each place, as it
+  agrees with a different noun (a clean is *Terminada*, a job *Terminado*)
+  or speaks to a Client in one and a Cleaner in the other ("Vuelva" and
+  "Vuelve a intentarlo"), is listed as allowed in `catalog-copies` (#305).
 - **Which language a screen is in** is the app's one store
   (`packages/web/src/language.ts`): the portal the Client's Preferred
   Language, the Cleaner area the Staff member's, the Office English, and

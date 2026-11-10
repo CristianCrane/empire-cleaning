@@ -57,7 +57,7 @@ const words = catalog({
     noneBooked: "No hay limpiezas reservadas.",
     noneJustNow:
       "Por ahora no hay limpiezas reservadas. Le contactaremos sobre la próxima.",
-    aboutOnSite: (hours: string) => `Unas ${hours} en el lugar`,
+    aboutOnSite: (hours: string) => `Cerca de ${hours} en el lugar`,
     didntSend: "No se envió. Vuelva a intentarlo.",
     sent: "Enviado. Le enviaremos una nueva cotización de plan de limpieza.",
     change: "Cambiar su plan",

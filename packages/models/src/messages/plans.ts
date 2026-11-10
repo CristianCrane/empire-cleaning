@@ -1,6 +1,6 @@
 import type { Recurrence } from "../index.ts";
 import { dayOf } from "../days.ts";
-import { formats } from "../format.ts";
+import { formats, theTimeEs } from "../format.ts";
 import { catalog } from "../language.ts";
 
 // What the server and the screens both say about when a Service Plan's
@@ -21,7 +21,7 @@ const planDayWhenEn = (startsAt: string | Date) =>
 const planDayWhenEs = (startsAt: string | Date) => {
   const weekday = weekdayOfStart(es, startsAt);
   const time = es.formatTime(startsAt);
-  return `los ${/[ao]$/.test(weekday) ? `${weekday}s` : weekday} ${time.startsWith("1:") ? "a la" : "a las"} ${time}`;
+  return `los ${/[ao]$/.test(weekday) ? `${weekday}s` : weekday} a ${theTimeEs(time)}`;
 };
 
 export const plans = catalog({

@@ -27,7 +27,7 @@ const words = catalog({
     open: "Open",
     area: "Area",
     areaLine: "Area: the address shows once it's yours",
-    didntWork: "That didn't work. Try again.",
+    didntWork: "That didn't work. Please try again.",
     takenOff: "Taken off your list",
     needsYou:
       "It needs a cleaner, and you're free then. The first to confirm gets it, and then sees the address, how we get in and the client.",

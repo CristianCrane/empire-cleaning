@@ -127,6 +127,11 @@ export const formats: Catalog<Formats> = {
   es: formatsIn("es"),
 };
 
+// a Spanish time with its article, as a sentence says it after "a" or
+// "hasta": "la 1:00 p.m.", "las 9:00 a.m."
+export const theTimeEs = (time: string) =>
+  `${time.startsWith("1:") ? "la" : "las"} ${time}`;
+
 // a Spanish sentence with a time in it, from the server or a screen: es-US
 // writes "9:00 a.m.", so one that ends a sentence, or a plan's days before
 // one ends, takes no second stop ("a las 9:00 a.m.", not "a.m..")

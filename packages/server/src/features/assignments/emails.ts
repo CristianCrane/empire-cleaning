@@ -72,7 +72,7 @@ const words = catalog({
           : "Estos trabajos necesitan un limpiador, y estás libre. Los más nuevos primero:",
       onSite: (hours: string, n: number) =>
         n === 1 ? "una hora en el lugar" : `unas ${hours} horas en el lugar`,
-      crew: (n: number) => (n === 1 ? "tú solo" : `con ${n} limpiadores`),
+      crew: (n: number) => (n === 1 ? "solo tú" : `con ${n} limpiadores`),
       FIRST_TO_CONFIRM: "Cada uno es para el primer limpiador que lo confirme.",
       SEE_THE_JOBS: "Ver los trabajos",
     },

@@ -36,7 +36,7 @@ import {
   rescheduleRequestOf,
   rescheduleTermsOf,
 } from "../reschedule/reschedule.ts";
-import { staff, type Staff } from "../staff/staff.schema.ts";
+import { staff, type StaffAddressee } from "../staff/staff.schema.ts";
 import { tellOfficeStaff } from "../staff/staff.ts";
 import { assignments, onCrew, type Assignment } from "./assignments.schema.ts";
 import {
@@ -212,7 +212,7 @@ export const offerAssignment = async (
 
 // tells a Cleaner they've been offered a Job, once it's saved
 export const emailOffer = (
-  member: Pick<Staff, "id" | "name" | "email" | "preferredLanguage">,
+  member: StaffAddressee,
   job: Job,
   property: Property,
 ) =>

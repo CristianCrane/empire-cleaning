@@ -1,4 +1,4 @@
-import { catalog } from "@empire-cleaning/models";
+import { catalog, theTimeEs } from "@empire-cleaning/models";
 
 // The Cleaner area's words that more than one of its files shows (its
 // navigation, breadcrumbs, the parts of a Job and its tours), in English
@@ -52,8 +52,7 @@ export const cleanerWords = catalog({
     goBack: "Volver",
     couldntGetIn: "¿No pudiste entrar?",
     done: "Terminado",
-    untilAbout: (time: string) =>
-      `hasta cerca de ${time.startsWith("1:") ? "la" : "las"} ${time}`,
+    untilAbout: (time: string) => `hasta cerca de ${theTimeEs(time)}`,
     by: (name: string | null) => (name ? ` por ${name}` : ""),
     hoursOnSite: (hours: string) => `${hours} en el lugar`,
   },

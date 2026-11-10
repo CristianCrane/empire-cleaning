@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { formats, oneStop, stopAfter } from "./format.ts";
+import { formats, oneStop, stopAfter, theTimeEs } from "./format.ts";
 
 const { en, es } = formats;
 // 9:00am in New York on Monday, January 12, 2026
@@ -86,4 +86,10 @@ describe("oneStop", () => {
 test("stopAfter ends what came before once, whether or not it has its own", () => {
   expect(stopAfter("lun, 12 de ene, 9:00 a.m.")).toBe("");
   expect(stopAfter("Mon, Jan 12, 9:00 AM")).toBe(".");
+});
+
+test("theTimeEs says one o'clock with la, the rest with las", () => {
+  expect(theTimeEs("1:30 p.m.")).toBe("la 1:30 p.m.");
+  expect(theTimeEs("9:00 a.m.")).toBe("las 9:00 a.m.");
+  expect(theTimeEs("11:00 a.m.")).toBe("las 11:00 a.m.");
 });

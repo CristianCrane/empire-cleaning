@@ -14,10 +14,13 @@ export const assignments = catalog({
     // it
     NOT_ALL_CONFIRMED:
       "Not everyone on this job has confirmed it yet, so it can't be marked done. Please call the office.",
+    // marking a Job done without its Condition
+    SAY_CONDITION: "Say how the home was",
   },
   es: {
     RELEASE_CLOSED: `Faltan menos de ${RELEASE_CUTOFF_HOURS} horas para este trabajo, así que no puedes dejarlo desde aquí. Llama a la oficina, por favor.`,
     NOT_ALL_CONFIRMED:
       "Todavía no todos en este trabajo lo han confirmado, así que no se puede marcar como terminado. Llama a la oficina, por favor.",
+    SAY_CONDITION: "Di cómo estaba la casa",
   },
 });

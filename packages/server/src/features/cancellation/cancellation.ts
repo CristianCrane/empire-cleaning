@@ -32,7 +32,7 @@ import {
   servicePlans,
   servicePlanVisits,
 } from "../service-plans/service-plans.schema.ts";
-import { staff } from "../staff/staff.schema.ts";
+import { staff, staffAddressee } from "../staff/staff.schema.ts";
 import { tellOfficeStaff } from "../staff/staff.ts";
 import { cleanOf } from "../services/services.ts";
 import {
@@ -304,12 +304,7 @@ const sendCancelled = async (
 export const tellCrew = async (job: Job) => {
   const { property } = await ownerOf(job);
   const crew = await db
-    .select({
-      id: staff.id,
-      name: staff.name,
-      email: staff.email,
-      preferredLanguage: staff.preferredLanguage,
-    })
+    .select(staffAddressee)
     .from(assignments)
     .innerJoin(staff, eq(staff.id, assignments.staffId))
     .where(and(eq(assignments.jobId, job.id), onCrew()));

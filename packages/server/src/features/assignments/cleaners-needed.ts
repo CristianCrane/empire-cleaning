@@ -8,7 +8,11 @@ import { email } from "../../services/email/index.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { scheduleFor } from "../jobs/schedule.ts";
 import { cleanersNeededEmail } from "./emails.ts";
-import { staff, type Staff } from "../staff/staff.schema.ts";
+import {
+  staff,
+  staffAddressee,
+  type StaffAddressee,
+} from "../staff/staff.schema.ts";
 import {
   assignments,
   cleanerNeededDigests,
@@ -219,7 +223,7 @@ export const cleanerNeededAgain = async (jobId: string) => {
 // ---- emails ----
 
 const sendList = async (
-  member: Pick<Staff, "id" | "name" | "email" | "preferredLanguage">,
+  member: StaffAddressee,
   soon: boolean,
   jobs: CleanerNeeded[],
 ) =>
@@ -277,15 +281,7 @@ export const emailCleanersNeeded = async () => {
   if (staffIds.length === 0) return 0;
 
   const [members, emailed] = await Promise.all([
-    db
-      .select({
-        id: staff.id,
-        name: staff.name,
-        email: staff.email,
-        preferredLanguage: staff.preferredLanguage,
-      })
-      .from(staff)
-      .where(inArray(staff.id, staffIds)),
+    db.select(staffAddressee).from(staff).where(inArray(staff.id, staffIds)),
     db
       .select()
       .from(cleanerNeededEmails)

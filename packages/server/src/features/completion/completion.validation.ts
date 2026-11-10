@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { catalog } from "@empire-cleaning/models";
+import { catalog, messages } from "@empire-cleaning/models";
 import { keepUnder, say } from "../../middleware/validation.ts";
 
 // what a Cleaner marking a Job done is told beside its fields, in the
@@ -7,7 +7,6 @@ import { keepUnder, say } from "../../middleware/validation.ts";
 // English
 const words = catalog({
   en: {
-    SAY_CONDITION: "Say how the home was: light, moderate or heavy",
     SAY_WHY: "Say why",
     CHOOSE_EXTRA: "Choose an extra",
     HOW_MANY_HOURS: "Enter how many more hours",
@@ -15,7 +14,6 @@ const words = catalog({
     QUARTER_HOURS: "Use quarter hours, like 1.25",
   },
   es: {
-    SAY_CONDITION: "Di cómo estaba la casa: ligera, moderada o intensa",
     SAY_WHY: "Di por qué",
     CHOOSE_EXTRA: "Elige un adicional",
     HOW_MANY_HOURS: "Escribe cuántas horas más",
@@ -26,7 +24,7 @@ const words = catalog({
 
 const condition = z.enum(
   ["light", "moderate", "heavy"],
-  say(words, "SAY_CONDITION"),
+  say(messages, "SAY_CONDITION"),
 );
 
 const reason = z

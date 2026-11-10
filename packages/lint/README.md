@@ -46,4 +46,4 @@ The same English in two of the screens' catalogs is a second Spanish to keep in 
 - a string, a template (its placeholders as `${…}`: `Pay bill ${n}` is `Pay bill ${…}`) and a string in a placeholder each count, under any key, in a function or through `satisfies` or `as`; one with no letter doesn't
 - the same words twice in one catalog (two states of a Quote, both "Asked for") are one place to keep in step, so aren't a copy
 
-A short word that means a different thing in two places, so its Spanish may differ (it agrees with a different noun: a Bill is Pagada, a charge Pagado), goes on its `allowed` list, with every file it's in and why; a third file still fails, and an entry that's no longer a copy fails until it's taken out.
+Words whose Spanish differs in two places, as they agree with a different noun (a Bill is Pagada, a charge Pagado) or speak to a Client (usted) in one and a Cleaner (tú) in the other, go on its `allowed` list, with every file it's in and why; a third file still fails, and an entry that's no longer a copy fails until it's taken out.

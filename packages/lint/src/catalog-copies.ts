@@ -21,8 +21,9 @@ import { children, fields, type Fields, type Node } from "./ast.ts";
 export type Place = { path: string; key: string };
 type Found = Place & { words: string; catalog: string };
 
-// a copy everyone's agreed to: a short word that means a different thing in
-// each place, so its Spanish may differ (it agrees with a different noun)
+// a copy everyone's agreed to: words whose Spanish differs in each place,
+// as it agrees with a different noun, or speaks to a Client (usted) in one
+// and a Cleaner (tú) in the other
 type Allowed = { words: string; in: string[]; why: string };
 
 export const allowed: Allowed[] = [
@@ -65,6 +66,14 @@ export const allowed: Allowed[] = [
       "packages/web/src/screens/labels.ts",
     ],
     why: "a clean is Terminada, a job Terminado",
+  },
+  {
+    words: "That didn't work. Please try again.",
+    in: [
+      "packages/web/src/screens/cleaner/CleanerNeededScreen.tsx",
+      "packages/web/src/screens/portal/words.ts",
+    ],
+    why: "usted to a Client (Vuelva a intentarlo), tú to a Cleaner (Vuelve)",
   },
   {
     words: "${…} at ${…}",

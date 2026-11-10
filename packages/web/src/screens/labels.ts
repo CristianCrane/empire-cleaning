@@ -1,4 +1,4 @@
-import { catalog, type JobStatus } from "@empire-cleaning/models";
+import { catalog, type JobStatus, theTimeEs } from "@empire-cleaning/models";
 
 // Words several screens show as they are, each once (docs/ux.md, Words):
 // part of `screenWords` (format.ts). They're apart from format.ts, which
@@ -50,12 +50,12 @@ export const labels = catalog({
     signOut: "Cerrar sesión",
     email: "Correo electrónico",
     day: "Día",
-    dayAt: (when: string, time: string) =>
-      `${when} ${time.startsWith("1:") ? "a la" : "a las"} ${time}`,
+    dayAt: (when: string, time: string) => `${when} a ${theTimeEs(time)}`,
     condition: "Estado",
     notAdded: "Aún no se agregó",
     onSite: "En el lugar",
-    about: (hours: string) => `Unas ${hours}`,
+    // "cerca de", not "unas", which would say "unas 1 h"
+    about: (hours: string) => `Cerca de ${hours}`,
     onSiteWith: (cleaners: string) => `En el lugar, ${cleaners}`,
     extras: "Adicionales",
     none: "Ninguno",
@@ -71,6 +71,8 @@ export const labels = catalog({
       cancelled: "Cancelada",
       no_access: "No se pudo entrar",
     },
+    // the generic masculine, said to anyone: whether it reads right to
+    // everyone is on #206 for Jen
     welcome: "Bienvenido",
     today: "Hoy",
     send: "Enviar",

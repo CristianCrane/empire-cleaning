@@ -131,10 +131,10 @@ const words = catalog({
     serviceAt: (service: string, address: string) => `${service} en ${address}`,
     partOfPlan: (often: string) => `Parte de su plan de limpieza, ${often}`,
     crewOnSite: (cleaners: string, hours: string) =>
-      `${cleaners}, unas ${hours} en el lugar`,
+      `${cleaners}, cerca de ${hours} en el lugar`,
     siteVisit: "Su visita previa",
     comesToSee: (visitor: string, address: string, length: string) =>
-      `${visitor} va a ver ${address} durante unos ${length}`,
+      `${visitor} va a ver ${address} durante cerca de ${length}`,
     visitFree: (phone: string) =>
       `Gratis: vemos el lugar antes de cotizar. Para cambiar la hora, llame al ${phone}.`,
     planPaused: "Su plan de limpieza está en pausa",

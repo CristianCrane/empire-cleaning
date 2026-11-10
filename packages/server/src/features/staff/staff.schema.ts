@@ -37,6 +37,19 @@ export const staff = pgTable("staff", {
 
 export type Staff = typeof staff.$inferSelect;
 
+// who an email to a Staff member goes to, in their language: a select's
+// columns, and the type it gives
+export const staffAddressee = {
+  id: staff.id,
+  name: staff.name,
+  email: staff.email,
+  preferredLanguage: staff.preferredLanguage,
+};
+export type StaffAddressee = Pick<
+  Staff,
+  "id" | "name" | "email" | "preferredLanguage"
+>;
+
 const hours = (name: string) =>
   numeric(name, { precision: 4, scale: 2, mode: "number" }).notNull();
 
