@@ -1,6 +1,11 @@
 import { createAuthClient } from "better-auth/react";
 import { magicLinkClient } from "better-auth/client/plugins";
-import type { AccountRole, Me, SignedInAccount } from "@empire-cleaning/models";
+import {
+  type AccountRole,
+  catalog,
+  type Me,
+  type SignedInAccount,
+} from "@empire-cleaning/models";
 import { identify } from "@empire-cleaning/browser-monitoring";
 import { putJson } from "./api.ts";
 import { languageHeader } from "./language.ts";
@@ -26,15 +31,22 @@ export const authClient = createAuthClient({
 // the three parts of the app, each for one role. For Staff holding both
 // roles, the Office comes first.
 export const areas = {
-  office: { role: "office_staff", label: "Office", path: "/office" },
-  cleaner: { role: "cleaner", label: "Cleaner area", path: "/cleaner" },
-  portal: { role: "client", label: "Client portal", path: "/portal" },
-} as const satisfies Record<
-  string,
-  { role: AccountRole; label: string; path: string }
->;
+  office: { role: "office_staff", path: "/office" },
+  cleaner: { role: "cleaner", path: "/cleaner" },
+  portal: { role: "client", path: "/portal" },
+} as const satisfies Record<string, { role: AccountRole; path: string }>;
 
 export type AreaId = keyof typeof areas;
+
+// each area's name, in the language of the screen naming it (ADR-0025)
+export const areaLabels = catalog({
+  en: { office: "Office", cleaner: "Cleaner area", portal: "Client portal" },
+  es: {
+    office: "Oficina",
+    cleaner: "Área de limpiadores",
+    portal: "Portal del cliente",
+  },
+});
 
 export const areasFor = (account: SignedInAccount): AreaId[] =>
   (Object.keys(areas) as AreaId[]).filter((id) =>

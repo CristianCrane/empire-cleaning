@@ -89,7 +89,6 @@ export function NewQuoteScreen() {
           // a fresh form for each Client
           key={client?.id ?? "new"}
           headingLevel={2}
-          lang="en"
           asker={{ kind: "office", client: client && homesOf(client) }}
           page={{
             before: client && (

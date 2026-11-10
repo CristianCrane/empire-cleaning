@@ -67,7 +67,7 @@ export function BillScreen() {
           </div>
         </div>
         <p className="text-fg-muted">
-          {clientName(bill.client)} · {billWeek(bill)}
+          {clientName(bill.client)} · {billWeek("en", bill)}
         </p>
       </div>
 

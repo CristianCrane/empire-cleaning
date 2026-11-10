@@ -152,7 +152,7 @@ export function ClientDetail() {
                 key={bill.id}
                 id={bill.id}
                 title={bill.number}
-                description={billLine(bill)}
+                description={billLine("en", bill)}
                 end={<BillStatusBadge bill={bill} />}
               />
             ))}

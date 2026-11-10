@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent } from "react";
 import { useRouter, useRouterState } from "@tanstack/react-router";
 import type { Me } from "@empire-cleaning/models";
-import { startTour } from "@empire-cleaning/ui";
+import { startTour, useLanguage } from "@empire-cleaning/ui";
 import { seeTour, type AreaId } from "../session.ts";
 import { toursFor, type Target } from "./tours.ts";
 
@@ -50,10 +50,11 @@ export function useTours(area: AreaId, account: Me) {
   // where the router has finished drawing, not where it's headed: its
   // location changes before the next screen's data has loaded
   const drawn = useRouterState({ select: (s) => s.resolvedLocation?.href });
+  const lang = useLanguage();
 
   // the tour for the screen drawn now, started; how to end it early
   const start = useEffectEvent(() => {
-    const forArea = toursFor[area];
+    const forArea = toursFor[area][lang] ?? toursFor[area].en;
     const route = router.state.matches.at(-1)?.fullPath;
     for (const tour of forArea.tours) {
       if (tour.route !== route || account.seenTours.includes(tour.id)) {
@@ -71,11 +72,11 @@ export function useTours(area: AreaId, account: Me) {
       if (!forArea.tours.some((t) => account.seenTours.includes(t.id))) {
         steps.unshift({
           element: undefined,
-          title: "Welcome",
+          title: forArea.welcomeTitle,
           text: forArea.welcome,
         });
       }
-      return startTour(steps, () => seeTour(tour.id));
+      return startTour(steps, () => seeTour(tour.id), lang);
     }
     return undefined;
   });

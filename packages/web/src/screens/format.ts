@@ -273,7 +273,7 @@ const words = catalog({
       cancelled: "Cancelada",
       no_access: "No se pudo entrar",
     },
-    skipped: "Omitida",
+    skipped: "Saltada",
   },
 });
 

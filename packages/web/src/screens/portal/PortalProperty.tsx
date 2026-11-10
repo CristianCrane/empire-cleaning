@@ -1,4 +1,4 @@
-import { formats } from "@empire-cleaning/models";
+import { catalog } from "@empire-cleaning/models";
 import type { Key } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
@@ -32,18 +32,63 @@ import { accessHelp } from "@empire-cleaning/quote-request";
 import { patchJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { addressOf, dayOfInstant, screenWords } from "../format.ts";
+import { addressOf, dayOfInstant } from "../format.ts";
+import { useSaid } from "../words.ts";
 import { AccessFact, ConditionFact, FloorAreaFact } from "../Fact.tsx";
 import { planWhen, quoteTitle, standingOf } from "./properties.ts";
 import { PlanStatusBadge } from "../PlanParts.tsx";
 import { ClientQuoteStatusBadge } from "../QuoteParts.tsx";
-import { requestQuote } from "./whats-next.ts";
+import { requestQuoteHref } from "./whats-next.ts";
 
-const { propertySummary, recurrenceLabel } = screenWords.en;
-
-const { formatDateTime, formatShortDay } = formats.en;
-
-const shortDayOf = (iso: string) => formatShortDay(dayOfInstant(iso));
+// in the Client's language (ADR-0025)
+const words = catalog({
+  en: {
+    businessDetails: "Business details",
+    homeDetails: "Home details",
+    yourBusiness: "Your business",
+    yourHome: "Your home",
+    conditionLine: "Condition, at the last visit",
+    accessLine: "How we get in: only your cleaners see it",
+    sizeNote:
+      "To change its size or rooms, ask us for a new quote. They set the price.",
+    plans: "Cleaning plans",
+    plan: "Cleaning plan",
+    nextClean: (when: string) => `next clean ${when}`,
+    noPlan:
+      "No cleaning plan here yet. Ask for a quote for regular cleans, with money off each one.",
+    quotes: "Quotes",
+    sent: (day: string) => `Sent ${day}`,
+    askedFor: (day: string) => `Asked for ${day}`,
+    notSaved: "How we get in wasn't saved. Please try again.",
+    saved: "Saved how we get in",
+    edit: "Edit how we get in",
+    howDoWe: "How do we get in?",
+    save: "Save",
+  },
+  es: {
+    businessDetails: "Datos del negocio",
+    homeDetails: "Datos de la casa",
+    yourBusiness: "Su negocio",
+    yourHome: "Su casa",
+    conditionLine: "Estado, en la última visita",
+    accessLine: "Cómo entramos: solo sus limpiadores lo ven",
+    sizeNote:
+      "Para cambiar su tamaño o habitaciones, pídanos una nueva cotización: de eso depende el precio.",
+    plans: "Planes de limpieza",
+    plan: "Plan de limpieza",
+    nextClean: (when: string) => `próxima limpieza el ${when}`,
+    noPlan:
+      "Aún no hay plan de limpieza aquí. Pida una cotización para limpiezas regulares, con un descuento en cada una.",
+    quotes: "Cotizaciones",
+    sent: (day: string) => `Enviada el ${day}`,
+    askedFor: (day: string) => `Pedida el ${day}`,
+    notSaved: "No se guardó cómo entramos. Vuelva a intentarlo.",
+    saved: "Se guardó cómo entramos",
+    edit: "Editar cómo entramos",
+    howDoWe: "¿Cómo entramos?",
+    save: "Guardar",
+  },
+});
 
 // One of the Client's homes, as their plan's and cleans' pages read: what it
 // is, large, then its facts across, with how we get in, changed in a dialog;
@@ -53,7 +98,10 @@ export function PortalProperty() {
   const data = useLoaderData({ from: "/portal/properties/$propertyId" });
   const { property: p } = data;
   const navigate = useNavigate();
-  const standing = standingOf(p, data);
+  const t = useSaid(words);
+  const { w } = t;
+  const shortDayOf = (iso: string) => t.formatShortDay(dayOfInstant(iso));
+  const standing = standingOf(t.lang, p, data);
   const premises = p.kind === "commercial";
   const plans = data.plans
     .filter((plan) => plan.property.id === p.id)
@@ -68,7 +116,7 @@ export function PortalProperty() {
       <div className="flex flex-col gap-4">
         <Breadcrumbs
           trail={[
-            { label: "Your details", href: linkTo({ to: "/portal/details" }) },
+            { label: t.p.yourDetails, href: linkTo({ to: "/portal/details" }) },
             { label: p.street },
           ]}
         />
@@ -80,7 +128,7 @@ export function PortalProperty() {
       </div>
 
       <Section
-        title={premises ? "Business details" : "Home details"}
+        title={premises ? w.businessDetails : w.homeDetails}
         actions={<EditAccess property={p} />}
       >
         <Card>
@@ -89,34 +137,33 @@ export function PortalProperty() {
               <IconTile icon={premises ? Building2 : House} size="lg" />
               <div className="flex min-w-0 flex-col gap-1">
                 <p className="text-sm text-fg-muted">
-                  {premises ? "Your business" : "Your home"}
+                  {premises ? w.yourBusiness : w.yourHome}
                 </p>
                 <p className="text-xl font-semibold text-fg">
-                  {propertySummary(p)}
+                  {t.propertySummary(p)}
                 </p>
               </div>
             </div>
             <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
               <FloorAreaFact property={p} />
-              <ConditionFact property={p} line="Condition, at the last visit" />
+              <ConditionFact property={p} line={w.conditionLine} />
               <AccessFact
                 property={p}
-                line="How we get in: only your cleaners see it"
+                line={w.accessLine}
                 className="sm:col-span-2"
               />
             </dl>
             <p className="border-t border-border pt-4 text-sm text-fg-muted">
-              To change its size or rooms, ask us for a new quote. They set the
-              price.
+              {w.sizeNote}
             </p>
           </div>
         </Card>
       </Section>
 
-      <Section title={plans.length > 1 ? "Cleaning plans" : "Cleaning plan"}>
+      <Section title={plans.length > 1 ? w.plans : w.plan}>
         {plans.length > 0 ? (
           <List
-            aria-label="Cleaning plans"
+            aria-label={w.plans}
             onAction={(id: Key) =>
               navigate({
                 to: "/portal/plans/$planId",
@@ -129,11 +176,11 @@ export function PortalProperty() {
                 key={plan.id}
                 id={plan.id}
                 start={<IconTile icon={CalendarClock} />}
-                title={`${recurrenceLabel[plan.recurrence]}, ${planWhen(plan)}`}
+                title={`${t.recurrenceLabel[plan.recurrence]}, ${planWhen(t.lang, plan)}`}
                 description={[
                   [...new Set(plan.days.map((d) => d.serviceName))].join(", "),
                   plan.nextStartsAt &&
-                    `next clean ${formatDateTime(plan.nextStartsAt)}`,
+                    w.nextClean(t.formatDateTime(plan.nextStartsAt)),
                 ]
                   .filter(Boolean)
                   .join(" · ")}
@@ -145,24 +192,21 @@ export function PortalProperty() {
           <Card>
             <ActionRow
               actions={
-                <ButtonLink variant="secondary" href={requestQuote.href}>
-                  {requestQuote.label}
+                <ButtonLink variant="secondary" href={requestQuoteHref}>
+                  {t.REQUEST_A_QUOTE}
                 </ButtonLink>
               }
             >
-              <p>
-                No cleaning plan here yet. Ask for a quote for regular cleans,
-                with money off each one.
-              </p>
+              <p>{w.noPlan}</p>
             </ActionRow>
           </Card>
         )}
       </Section>
 
       {quotes.length > 0 && (
-        <Section title="Quotes">
+        <Section title={w.quotes}>
           <List
-            aria-label="Quotes"
+            aria-label={w.quotes}
             onAction={(id: Key) =>
               navigate({
                 to: "/portal/quotes/$quoteId",
@@ -175,11 +219,11 @@ export function PortalProperty() {
                 key={q.id}
                 id={q.id}
                 start={<IconTile icon={FileText} />}
-                title={quoteTitle(q)}
+                title={quoteTitle(t.lang, q)}
                 description={
                   q.sentAt
-                    ? `Sent ${shortDayOf(q.sentAt)}`
-                    : `Asked for ${shortDayOf(q.createdAt)}`
+                    ? w.sent(shortDayOf(q.sentAt))
+                    : w.askedFor(shortDayOf(q.createdAt))
                 }
                 end={<ClientQuoteStatusBadge status={q.status} />}
               />
@@ -192,7 +236,9 @@ export function PortalProperty() {
 }
 
 function EditAccess({ property }: { property: PropertyView }) {
-  const action = useAction("How we get in wasn't saved. Please try again.");
+  const t = useSaid(words);
+  const { w } = t;
+  const action = useAction(w.notSaved);
 
   const save = async (text: string, close: () => void) => {
     const ok = await action.run(
@@ -200,7 +246,7 @@ function EditAccess({ property }: { property: PropertyView }) {
         patchJson(`/api/properties/${property.id}/access-instructions`, {
           accessInstructions: text || null,
         }),
-      "Saved how we get in",
+      w.saved,
     );
     if (ok) close();
   };
@@ -209,9 +255,9 @@ function EditAccess({ property }: { property: PropertyView }) {
     <DialogTrigger>
       <Button variant="text">
         <KeyRound aria-hidden size={18} />
-        Edit how we get in
+        {w.edit}
       </Button>
-      <Dialog title="How we get in">
+      <Dialog title={t.p.howWeGetIn}>
         {({ close }) => (
           <Form
             onSubmit={(e) => {
@@ -221,20 +267,20 @@ function EditAccess({ property }: { property: PropertyView }) {
             }}
           >
             <TextField
-              label="How do we get in?"
+              label={w.howDoWe}
               name="access"
               multiline
               autoFocus
-              description={accessHelp.en[property.kind]}
+              description={accessHelp[t.lang][property.kind]}
               defaultValue={property.accessInstructions ?? ""}
             />
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
               <Button variant="quiet" onPress={close}>
-                Cancel
+                {t.p.cancel}
               </Button>
               <Button type="submit" isPending={action.isPending}>
-                Save
+                {w.save}
               </Button>
             </Actions>
           </Form>

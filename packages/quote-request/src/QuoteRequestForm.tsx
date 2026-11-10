@@ -58,6 +58,7 @@ import {
   Select,
   SelectItem,
   TextField,
+  useLanguage,
 } from "@empire-cleaning/ui";
 import { loadAddOns } from "./add-ons.ts";
 import { Optional } from "./Optional.tsx";
@@ -102,10 +103,6 @@ export type Asker =
 
 export type QuoteRequestFormProps<R = QuoteAskReceipt> = {
   asker: Asker;
-  // the language it's in: the page's, or a Client's Preferred Language; the
-  // Office's is English (ADR-0025). Its requests say it, so the API's
-  // messages and the names it lists come in it too
-  lang: Language;
   // the API's origin; "" when the page is served alongside it (the web app)
   apiUrl?: string;
   // the level of the form's step headings: one below the page's heading it
@@ -193,7 +190,6 @@ const WHERE_FIELDS =
 // its messages show beside each field, on its step.
 export function QuoteRequestForm<R = QuoteAskReceipt>({
   asker,
-  lang,
   apiUrl = "",
   headingLevel = 3,
   submit,
@@ -203,6 +199,11 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   start,
   source,
 }: QuoteRequestFormProps<R>) {
+  // the language it's in, as LanguageProvider gives it: the page's, or a
+  // Client's Preferred Language; the Office's is English (ADR-0025). Its
+  // requests say it, so the API's messages and the names it lists come in
+  // it too
+  const lang = useLanguage();
   const t = formWords[lang];
   const words = asker.kind === "office" ? officeWords : t.own;
   const { openAlready, quoteEmailedTo } = messages[lang];

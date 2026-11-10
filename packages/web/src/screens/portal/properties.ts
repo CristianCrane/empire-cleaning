@@ -1,4 +1,4 @@
-import { formats, messages } from "@empire-cleaning/models";
+import { catalog, type Language } from "@empire-cleaning/models";
 import type {
   ClientUpcomingJob,
   PropertyView,
@@ -6,13 +6,30 @@ import type {
   ServicePlanSummary,
 } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
-import { dayOfInstant, screenWords } from "../format.ts";
+import { dayOfInstant } from "../format.ts";
+import { said } from "../words.ts";
 
-const { clientQuoteStatus, planStatus, quoteKindName } = screenWords.en;
-
-const { planDaysWhen } = messages.en;
-
-const { formatDateTime, formatShortDay } = formats.en;
+// in the Client's language (ADR-0025)
+const words = catalog({
+  en: {
+    quoteFor: (service: string) => `Quote for a ${service}`,
+    plan: "Cleaning plan",
+    quote: (status: string) => `Quote ${status.toLowerCase()}`,
+    sent: (service: string, day: string) => `${service}, sent ${day}`,
+    booked: "Booked",
+    asked: (service: string, day: string) => `${service}, asked ${day}`,
+    nothing: "Nothing booked",
+  },
+  es: {
+    quoteFor: (service: string) => `Cotización de ${service}`,
+    plan: "Plan de limpieza",
+    quote: (status: string) => `Cotización ${status.toLowerCase()}`,
+    sent: (service: string, day: string) => `${service}, enviada el ${day}`,
+    booked: "Reservada",
+    asked: (service: string, day: string) => `${service}, pedida el ${day}`,
+    nothing: "Nada reservado",
+  },
+});
 
 // The Client's homes on Your details, and a page each: where each stands,
 // from their plans, Quotes and cleans. (UX pass, #96)
@@ -30,24 +47,30 @@ export type Standing = {
   line: string | null;
 };
 
-const shortDayOf = (iso: string) => formatShortDay(dayOfInstant(iso));
+const shortDayOf = (lang: Language, iso: string) =>
+  said[lang].formatShortDay(dayOfInstant(iso));
 
 // "Mondays at 9:00 AM", or "Mondays at 9:00 AM and Thursdays at 1:00 PM"
-export const planWhen = (plan: Pick<ServicePlanSummary, "days">) =>
-  planDaysWhen(plan.days.flatMap((d) => d.startsAt ?? []));
+export const planWhen = (
+  lang: Language,
+  plan: Pick<ServicePlanSummary, "days">,
+) => said[lang].planDaysWhen(plan.days.flatMap((d) => d.startsAt ?? []));
 
 // a Quote as a row's title: what it's for
-export const quoteTitle = (q: QuoteSummary) =>
+export const quoteTitle = (lang: Language, q: QuoteSummary) =>
   q.kind === "service_plan"
-    ? `${quoteKindName(q.kind)}, ${q.service.name}`
-    : `Quote for a ${q.service.name}`;
+    ? `${said[lang].quoteKindName(q.kind)}, ${q.service.name}`
+    : words[lang].quoteFor(q.service.name);
 
 // the most pressing thing about a home: its plan, a Quote to answer, the
 // next clean, a Quote we're preparing, or nothing
 export function standingOf(
+  lang: Language,
   property: Pick<PropertyView, "id">,
   data: PropertiesData,
 ): Standing {
+  const w = words[lang];
+  const { clientQuoteStatus, formatDateTime, planStatus } = said[lang];
   const plan = data.plans.find(
     (p) => p.property.id === property.id && p.status !== "ended",
   );
@@ -56,17 +79,17 @@ export function standingOf(
       ? {
           tone: "warning",
           label: planStatus.on_hold.label,
-          line: planWhen(plan),
+          line: planWhen(lang, plan),
         }
-      : { tone: "success", label: "Cleaning plan", line: planWhen(plan) };
+      : { tone: "success", label: w.plan, line: planWhen(lang, plan) };
   }
   const ours = data.quotes.filter((q) => q.property.id === property.id);
   const sent = ours.find((q) => q.status === "sent");
   if (sent) {
     return {
       tone: "warning",
-      label: `Quote ${clientQuoteStatus.sent.label.toLowerCase()}`,
-      line: `${sent.service.name}, sent ${shortDayOf(sent.sentAt!)}`,
+      label: w.quote(clientQuoteStatus.sent.label),
+      line: w.sent(sent.service.name, shortDayOf(lang, sent.sentAt!)),
     };
   }
   const next = data.jobs
@@ -75,7 +98,7 @@ export function standingOf(
   if (next) {
     return {
       tone: "info",
-      label: "Booked",
+      label: w.booked,
       line: formatDateTime(next.startsAt),
     };
   }
@@ -85,9 +108,9 @@ export function standingOf(
   if (asked) {
     return {
       tone: "info",
-      label: `Quote ${clientQuoteStatus.requested.label.toLowerCase()}`,
-      line: `${asked.service.name}, asked ${shortDayOf(asked.createdAt)}`,
+      label: w.quote(clientQuoteStatus.requested.label),
+      line: w.asked(asked.service.name, shortDayOf(lang, asked.createdAt)),
     };
   }
-  return { tone: "neutral", label: "Nothing booked", line: null };
+  return { tone: "neutral", label: w.nothing, line: null };
 }

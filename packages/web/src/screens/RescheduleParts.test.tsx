@@ -10,10 +10,10 @@ const weeklyPlan = { servicePlanId: "plan", weeklyBill: "on_page" as const };
 
 describe("a second Late Reschedule's fee (#244 #5)", () => {
   test("is charged when the clean is done, for a Client charged per clean", () => {
-    expect(costForClient("late_cancellation", 5046, oneOff)).toMatch(
+    expect(costForClient("en", "late_cancellation", 5046, oneOff)).toMatch(
       /deposit is kept as a late cancellation fee, and the full price is charged when the clean is done\.$/,
     );
-    expect(costForClient("late_cancellation", 5046, plan)).toMatch(
+    expect(costForClient("en", "late_cancellation", 5046, plan)).toMatch(
       /\$50\.46 late cancellation fee, which is charged with the price when the clean is done\.$/,
     );
     expect(costForOffice("late_cancellation", 5046, plan)).toMatch(
@@ -22,10 +22,12 @@ describe("a second Late Reschedule's fee (#244 #5)", () => {
   });
 
   test("goes on that week's Bill, for a Client billed weekly", () => {
-    expect(costForClient("late_cancellation", 5046, weeklyOneOff)).toMatch(
+    expect(
+      costForClient("en", "late_cancellation", 5046, weeklyOneOff),
+    ).toMatch(
       /deposit is kept as a late cancellation fee, and the full price goes on your bill for that week\.$/,
     );
-    expect(costForClient("late_cancellation", 5046, weeklyPlan)).toMatch(
+    expect(costForClient("en", "late_cancellation", 5046, weeklyPlan)).toMatch(
       /\$50\.46 late cancellation fee, which goes on your bill for that week with the price\.$/,
     );
     expect(costForOffice("late_cancellation", 5046, weeklyOneOff)).toMatch(

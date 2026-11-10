@@ -3,15 +3,73 @@ import {
   type ClientPastJob,
   type ClientPayment,
   type PaymentMethodView,
-  formats,
-  messages,
+  catalog,
+  type Language,
 } from "@empire-cleaning/models";
 import { linkTo, type AppHref } from "../../links.ts";
 import { dayOfInstant } from "../format.ts";
+import { said } from "../words.ts";
 
-const { billNotPaid, cleanNotPaid, feeName, UPDATE_CARD } = messages.en;
-
-const { formatMoney, formatShortDay } = formats.en;
+// in the Client's language (ADR-0025)
+const words = catalog({
+  en: {
+    payBill: (n: string) => `Pay bill ${n}`,
+    seeClean: "See the clean",
+    billDue: (n: string, day: string) => `Bill ${n} is due by ${day}`,
+    andMore: (first: string, n: number) => `${first}, and ${n} more`,
+    payingWith: (card: string) => `Paying with ${card}`,
+    onPage: "You pay each bill on its page",
+    noCard: "No card saved yet",
+    refundOnBill: (n: string) => `Refund on bill ${n}`,
+    bill: (n: string) => `Bill ${n}`,
+    range: (from: string, to: string) => `${from} – ${to}`,
+    planRefund: "Refund of your cleaning plan deposit",
+    planDeposit: "Deposit for your cleaning plan",
+    towardsLast: "Goes towards your plan's last clean",
+    depositFor: (service: string) => `Deposit for ${service}`,
+    bookedFor: (day: string) => `Booked for ${day}`,
+    priceChange: (item: string) => `Price change: ${item}`,
+    approvedAfter: (day: string, service: string) =>
+      `Approved after your ${day} ${service}`,
+    priceChangeOn: (service: string) => `Price change on ${service}`,
+    approvedAfterClean: (day: string) => `Approved after your ${day} clean`,
+    serviceDay: (service: string, day: string) => `${service}, ${day}`,
+    refund: (item: string) => `Refund: ${item}`,
+    fromYour: (day: string, service: string) => `From your ${day} ${service}`,
+    refundOn: (service: string) => `Refund on ${service}`,
+    fromYourClean: (day: string) => `From your ${day} clean`,
+    yourClean: (day: string) => `Your ${day} clean`,
+  },
+  es: {
+    payBill: (n: string) => `Pagar la factura ${n}`,
+    seeClean: "Ver la limpieza",
+    billDue: (n: string, day: string) => `La factura ${n} vence el ${day}`,
+    andMore: (first: string, n: number) => `${first}, y ${n} más`,
+    payingWith: (card: string) => `Paga con ${card}`,
+    onPage: "Paga cada factura en su página",
+    noCard: "Aún no hay tarjeta guardada",
+    refundOnBill: (n: string) => `Devolución de la factura ${n}`,
+    bill: (n: string) => `Factura ${n}`,
+    range: (from: string, to: string) => `${from} – ${to}`,
+    planRefund: "Devolución del depósito de su plan de limpieza",
+    planDeposit: "Depósito de su plan de limpieza",
+    towardsLast: "Se aplica a la última limpieza de su plan",
+    depositFor: (service: string) => `Depósito de ${service}`,
+    bookedFor: (day: string) => `Reservada para el ${day}`,
+    priceChange: (item: string) => `Cambio de precio: ${item}`,
+    approvedAfter: (day: string, service: string) =>
+      `Aprobado después de su ${service} del ${day}`,
+    priceChangeOn: (service: string) => `Cambio de precio en ${service}`,
+    approvedAfterClean: (day: string) =>
+      `Aprobado después de su limpieza del ${day}`,
+    serviceDay: (service: string, day: string) => `${service}, ${day}`,
+    refund: (item: string) => `Devolución: ${item}`,
+    fromYour: (day: string, service: string) => `De su ${service} del ${day}`,
+    refundOn: (service: string) => `Devolución de ${service}`,
+    fromYourClean: (day: string) => `De su limpieza del ${day}`,
+    yourClean: (day: string) => `Su limpieza del ${day}`,
+  },
+});
 
 // The Client's Payments page: one card saying what they owe now, or that
 // it's nothing, and every payment between us after it. (UX pass, #96)
@@ -45,9 +103,12 @@ const billLink = (billId: string) =>
   linkTo({ to: "/portal/bills/$billId", params: { billId } });
 
 // "Oct 22", New York's day
-const shortDayOf = (iso: string) => formatShortDay(dayOfInstant(iso));
+const shortDayOf = (lang: Language, iso: string) =>
+  said[lang].formatShortDay(dayOfInstant(iso));
 
-export function moneyNow(data: PaymentsData): MoneyNow {
+export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
+  const w = words[lang];
+  const { billNotPaid, cleanNotPaid, formatShortDay, UPDATE_CARD } = said[lang];
   const owing: Owed[] = [
     // a Bill that couldn't be taken, or is past its due date
     ...data.bills
@@ -56,7 +117,7 @@ export function moneyNow(data: PaymentsData): MoneyNow {
         cents: b.totalCents,
         late: true,
         text: billNotPaid(b.number),
-        action: { label: `Pay bill ${b.number}`, href: billLink(b.id) },
+        action: { label: w.payBill(b.number), href: billLink(b.id) },
       })),
     // a clean, or its fee, that couldn't be charged
     ...data.pastJobs
@@ -64,12 +125,12 @@ export function moneyNow(data: PaymentsData): MoneyNow {
       .map((j) => ({
         cents: j.owedCents,
         late: true,
-        text: cleanNotPaid(shortDayOf(j.startsAt)),
+        text: cleanNotPaid(shortDayOf(lang, j.startsAt)),
         // we try one waiting on the payment service again ourselves
         action:
           j.unpaid === "waiting"
             ? {
-                label: "See the clean",
+                label: w.seeClean,
                 href: linkTo({
                   to: "/portal/jobs/$jobId",
                   params: { jobId: j.id },
@@ -89,8 +150,8 @@ export function moneyNow(data: PaymentsData): MoneyNow {
       .map((b) => ({
         cents: b.totalCents,
         late: false,
-        text: `Bill ${b.number} is due by ${formatShortDay(b.dueOn)}`,
-        action: { label: `Pay bill ${b.number}`, href: billLink(b.id) },
+        text: w.billDue(b.number, formatShortDay(b.dueOn)),
+        action: { label: w.payBill(b.number), href: billLink(b.id) },
       })),
   ];
   const [first] = owing;
@@ -101,7 +162,7 @@ export function moneyNow(data: PaymentsData): MoneyNow {
         text:
           owing.length === 1
             ? first.text
-            : `${first.text}, and ${owing.length - 1} more`,
+            : w.andMore(first.text, owing.length - 1),
         action: first.action,
       }
     : null;
@@ -109,10 +170,10 @@ export function moneyNow(data: PaymentsData): MoneyNow {
   // weekly Bills paid on their page need no card
   const onPage = data.bills[0]?.payment === "on_page";
   const paying = data.paymentMethod
-    ? `Paying with ${data.paymentMethod.label}`
+    ? w.payingWith(data.paymentMethod.label)
     : onPage
-      ? "You pay each bill on its page"
-      : "No card saved yet";
+      ? w.onPage
+      : w.noCard;
 
   return {
     owed,
@@ -129,9 +190,11 @@ export type PaymentRow = {
 };
 
 // how one payment reads in the history: what it was for first
-export function paymentRow(p: ClientPayment): PaymentRow {
-  const day = shortDayOf(p.at);
-  const cleanDay = p.job ? shortDayOf(p.job.startsAt) : null;
+export function paymentRow(p: ClientPayment, lang: Language): PaymentRow {
+  const w = words[lang];
+  const { feeName, formatShortDay } = said[lang];
+  const day = shortDayOf(lang, p.at);
+  const cleanDay = p.job ? shortDayOf(lang, p.job.startsAt) : null;
   // the clean's day, only when it isn't the payment's own
   const otherDay = cleanDay !== day ? cleanDay : null;
 
@@ -139,9 +202,12 @@ export function paymentRow(p: ClientPayment): PaymentRow {
     return {
       title:
         p.kind === "refund"
-          ? `Refund on bill ${p.bill.number}`
-          : `Bill ${p.bill.number}`,
-      line: `${formatShortDay(p.bill.weekStart)} – ${formatShortDay(p.bill.weekEnd)}`,
+          ? w.refundOnBill(p.bill.number)
+          : w.bill(p.bill.number),
+      line: w.range(
+        formatShortDay(p.bill.weekStart),
+        formatShortDay(p.bill.weekEnd),
+      ),
       href: billLink(p.bill.id),
     };
   }
@@ -151,10 +217,10 @@ export function paymentRow(p: ClientPayment): PaymentRow {
       params: { planId: p.servicePlanId },
     });
     return p.kind === "refund"
-      ? { title: "Refund of your cleaning plan deposit", href }
+      ? { title: w.planRefund, href }
       : {
-          title: "Deposit for your cleaning plan",
-          line: "Goes towards your plan's last clean",
+          title: w.planDeposit,
+          line: w.towardsLast,
           href,
         };
   }
@@ -163,50 +229,52 @@ export function paymentRow(p: ClientPayment): PaymentRow {
   switch (p.kind) {
     case "deposit":
       return {
-        title: `Deposit for ${job.serviceName}`,
-        line: `Booked for ${cleanDay}`,
+        title: w.depositFor(job.serviceName),
+        line: w.bookedFor(cleanDay!),
         href,
       };
     case "adjustment":
       return p.item
         ? {
-            title: `Price change: ${p.item}`,
-            line: `Approved after your ${cleanDay} ${job.serviceName}`,
+            title: w.priceChange(p.item),
+            line: w.approvedAfter(cleanDay!, job.serviceName),
             href,
           }
         : {
-            title: `Price change on ${job.serviceName}`,
-            line: `Approved after your ${cleanDay} clean`,
+            title: w.priceChangeOn(job.serviceName),
+            line: w.approvedAfterClean(cleanDay!),
             href,
           };
     case "fee":
       return {
         title:
           job.status === "no_access" ? feeName.no_access : feeName.cancelled,
-        line: `${job.serviceName}, ${cleanDay}`,
+        line: w.serviceDay(job.serviceName, cleanDay!),
         href,
       };
     case "refund":
       return p.item
         ? {
-            title: `Refund: ${p.item}`,
-            line: `From your ${cleanDay} ${job.serviceName}`,
+            title: w.refund(p.item),
+            line: w.fromYour(cleanDay!, job.serviceName),
             href,
           }
         : {
-            title: `Refund on ${job.serviceName}`,
-            line: otherDay ? `From your ${otherDay} clean` : undefined,
+            title: w.refundOn(job.serviceName),
+            line: otherDay ? w.fromYourClean(otherDay) : undefined,
             href,
           };
     default:
       return {
         title: job.serviceName,
-        line: otherDay ? `Your ${otherDay} clean` : undefined,
+        line: otherDay ? w.yourClean(otherDay) : undefined,
         href,
       };
   }
 }
 
 // "−$22.50" for money back
-export const signedMoney = (cents: number) =>
-  cents < 0 ? `−${formatMoney(-cents)}` : formatMoney(cents);
+export const signedMoney = (lang: Language, cents: number) => {
+  const { formatMoney } = said[lang];
+  return cents < 0 ? `−${formatMoney(-cents)}` : formatMoney(cents);
+};

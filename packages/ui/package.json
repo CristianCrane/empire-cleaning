@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./theme": "./src/theme.tsx",
+    "./language": "./src/language.ts",
     "./theme-boot": "./src/theme-boot.ts",
     "./fonts": "./src/fonts.ts",
     "./tokens.css": "./src/tokens.css",

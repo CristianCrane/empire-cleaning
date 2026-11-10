@@ -6,9 +6,6 @@ import { catalog } from "@empire-cleaning/models";
 // checks (#206). A page's words are words[languageOf(Astro.currentLocale)].
 export const words = catalog({
   en: {
-    // the language switch in the header: the other language, in its own
-    // words, leading to this page's twin
-    otherLanguage: "Español",
     signIn: "Sign in",
     home: "Home",
     breadcrumbs: "Breadcrumbs",
@@ -87,7 +84,6 @@ export const words = catalog({
     houseCleaning: "House cleaning",
   },
   es: {
-    otherLanguage: "English",
     signIn: "Iniciar sesión",
     home: "Inicio",
     breadcrumbs: "Ruta de navegación",

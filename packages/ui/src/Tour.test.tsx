@@ -6,7 +6,7 @@ import { startTour } from "./Tour.ts";
 let stop: (() => void) | undefined;
 afterEach(() => stop?.());
 
-const tourOfAButton = async (onClose: () => void) => {
+const tourOfAButton = async (onClose: () => void, lang: "en" | "es" = "en") => {
   await render(<button type="button">See your Quote</button>);
   stop = startTour(
     [
@@ -18,6 +18,7 @@ const tourOfAButton = async (onClose: () => void) => {
       },
     ],
     onClose,
+    lang,
   );
 };
 
@@ -53,4 +54,16 @@ test("what a step points at isn't marked as opening the popover", async () => {
   const target = page.getByRole("button", { name: "See your Quote" });
   await expect.element(target).not.toHaveAttribute("aria-haspopup");
   await expect.element(target).not.toHaveAttribute("aria-expanded");
+});
+
+test("its buttons are in the screen's language (ADR-0025)", async () => {
+  await tourOfAButton(vi.fn(), "es");
+  await page.getByRole("button", { name: "Siguiente" }).click();
+  await expect
+    .element(page.getByRole("button", { name: "Atrás" }))
+    .toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Cerrar" }))
+    .toBeInTheDocument();
+  await expect.element(page.getByText("2 de 2")).toBeVisible();
 });

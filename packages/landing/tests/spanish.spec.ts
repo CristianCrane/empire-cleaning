@@ -1,4 +1,4 @@
-import { LANGUAGES } from "@empire-cleaning/models";
+import { LANGUAGES, languageNames } from "@empire-cleaning/models";
 import { pages, pathOf, urlOf } from "../src/routes.ts";
 import type { Page } from "@playwright/test";
 import {
@@ -46,9 +46,7 @@ for (const page of pages) {
         ),
       ).toBe(true);
 
-      await tab
-        .getByRole("link", { name: lang === "en" ? "Español" : "English" })
-        .click();
+      await tab.getByRole("link", { name: languageNames[other] }).click();
       await expect(tab).toHaveURL(new RegExp(`${pathOf(page, other)}$`));
       await expect(tab.locator("html")).toHaveAttribute("lang", other);
     });

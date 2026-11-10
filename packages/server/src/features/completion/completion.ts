@@ -170,6 +170,26 @@ const jobWithOwner = async (jobId: string) => {
   return found;
 };
 
+// what a Charge or Refund for a price change is for, a record the Client
+// reads in their payments, in their Preferred Language as it's made
+// (ADR-0025)
+const clientLanguageOf = async (jobId: string) =>
+  (await jobWithOwner(jobId)).client.preferredLanguage;
+const itemWords = catalog({
+  en: {
+    corrected: (a: Parameters<typeof adjustmentItem>[0]) =>
+      `${messages.en.adjustmentItem(a)}, price corrected`,
+    takenOff: (a: Parameters<typeof adjustmentItem>[0]) =>
+      `${messages.en.adjustmentItem(a)}, taken off`,
+  },
+  es: {
+    corrected: (a: Parameters<typeof adjustmentItem>[0]) =>
+      `${messages.es.adjustmentItem(a)}, precio corregido`,
+    takenOff: (a: Parameters<typeof adjustmentItem>[0]) =>
+      `${messages.es.adjustmentItem(a)}, quitado`,
+  },
+});
+
 // tells the Client a Job they owe on couldn't be charged, the first time it
 // becomes Unpaid
 const sendUnpaid = async (jobId: string, settled: Settled) => {
@@ -645,7 +665,7 @@ export const correctAdjustment = async (
     .where(eq(adjustments.id, adjustmentId));
   await settleAfterCorrection(
     jobId,
-    `${adjustmentItem(adjustment)}, price corrected`,
+    itemWords[await clientLanguageOf(jobId)].corrected(adjustment),
   );
 };
 
@@ -656,7 +676,7 @@ export const removeAdjustment = async (jobId: string, adjustmentId: string) => {
   await db.delete(adjustments).where(eq(adjustments.id, adjustmentId));
   await settleAfterCorrection(
     jobId,
-    `${adjustmentItem(adjustment)}, taken off`,
+    itemWords[await clientLanguageOf(jobId)].takenOff(adjustment),
   );
 };
 
@@ -944,7 +964,10 @@ export const answerAdjustment = async (
   if (!answered) throw new ConflictError(words[currentLanguage()].ANSWERED);
   if (!approve) return;
 
-  const settled = await settleAfterChange(jobId, adjustmentItem(answered));
+  const settled = await settleAfterChange(
+    jobId,
+    messages[await clientLanguageOf(jobId)].adjustmentItem(answered),
+  );
   const { job, property, client } = await jobWithOwner(jobId);
   const payment = await paymentOf(job);
   await notify(`Receipt for Adjustment ${adjustmentId}`, async () =>

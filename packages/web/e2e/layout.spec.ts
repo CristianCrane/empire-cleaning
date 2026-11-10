@@ -18,6 +18,7 @@ import {
   requestReschedule,
   sentServicePlanQuote,
   setClock,
+  setLanguage,
   signedInAs,
   signUp,
   test,
@@ -95,6 +96,28 @@ const expectFitsEveryWidth = async (page: Page, path: string) => {
     }
   }
   expect.soft(problems).toEqual([]);
+};
+
+// the same, then in Spanish (ADR-0025, docs/ux.md: Spanish runs 20–30%
+// longer), for a Guest's or Client's screen: the signed-in person's
+// Preferred Language, or before sign-in the language of the page that linked
+// here (?lang=es). English again after
+const expectFitsInBoth = async (page: Page, path: string) => {
+  await expectFitsEveryWidth(page, path);
+  const me = await page.request.get("/api/me");
+  const client = me.ok() && (await me.json()).language !== null;
+  if (client) {
+    await setLanguage(page, "es");
+    await expectFitsEveryWidth(page, path);
+    await setLanguage(page, "en");
+  } else {
+    await expectFitsEveryWidth(
+      page,
+      `${path}${path.includes("?") ? "&" : "?"}lang=es`,
+    );
+    await expect(page.locator("html")).toHaveAttribute("lang", "es");
+    await page.evaluate(() => localStorage.removeItem("language"));
+  }
 };
 
 // the same for a dialog, opened from a page by its button: a dialog keeps its
@@ -255,7 +278,7 @@ test("the portal's screens fit every width", async ({ page }) => {
     "/portal/details",
     "/portal/payment-method",
   ]) {
-    await expectFitsEveryWidth(page, path);
+    await expectFitsInBoth(page, path);
   }
 });
 
@@ -264,13 +287,13 @@ test("page not found and something went wrong fit every width, in an area and ou
 }) => {
   await requestQuoteAsGuest(casey);
   await signedInAs(page, casey.email);
-  await expectFitsEveryWidth(page, "/no-such-page");
-  await expectFitsEveryWidth(
+  await expectFitsInBoth(page, "/no-such-page");
+  await expectFitsInBoth(
     page,
     "/portal/bills/00000000-0000-4000-8000-000000000000",
   );
   await page.route("**/api/clients/me", (route) => route.abort());
-  await expectFitsEveryWidth(page, "/portal/details");
+  await expectFitsInBoth(page, "/portal/details");
 });
 
 test("a Sent Quote fits every width, for the Office and the Client", async ({
@@ -295,7 +318,7 @@ test("a Sent Quote fits every width, for the Office and the Client", async ({
 
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
-  await expectFitsEveryWidth(
+  await expectFitsInBoth(
     client,
     quote.replace("/office/quotes/", "/portal/quotes/"),
   );
@@ -329,8 +352,8 @@ test("an Accepted Quote and the Client's upcoming Jobs fit every width", async (
   await expect(client.getByText(/^You're booked: a Deep Clean/)).toBeVisible();
 
   await expectFitsEveryWidth(page, quote);
-  await expectFitsEveryWidth(client, own);
-  await expectFitsEveryWidth(client, "/portal");
+  await expectFitsInBoth(client, own);
+  await expectFitsInBoth(client, "/portal");
 });
 
 test("a Service Plan Quote fits every width, Draft and Sent, for the Office and the Client", async ({
@@ -369,11 +392,11 @@ test("a Service Plan Quote fits every width, Draft and Sent, for the Office and 
 
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
-  await expectFitsEveryWidth(
+  await expectFitsInBoth(
     client,
     quote.replace("/office/quotes/", "/portal/quotes/"),
   );
-  await expectFitsEveryWidth(client, "/portal");
+  await expectFitsInBoth(client, "/portal");
 });
 
 test("a Service Plan fits every width, for the Office and the Client", async ({
@@ -401,8 +424,8 @@ test("a Service Plan fits every width, for the Office and the Client", async ({
   await expect(client).toHaveURL(/\/portal\/plans\/[0-9a-f-]{36}$/);
   const plan = new URL(client.url()).pathname;
 
-  await expectFitsEveryWidth(client, plan);
-  await expectFitsEveryWidth(client, "/portal");
+  await expectFitsInBoth(client, plan);
+  await expectFitsInBoth(client, "/portal");
   await expectFitsEveryWidth(
     page,
     plan.replace("/portal/plans/", "/office/service-plans/"),
@@ -417,7 +440,7 @@ test("a Service Plan fits every width, for the Office and the Client", async ({
     startsAt: "2026-01-28T14:00:00Z",
     recurrence: "fortnightly",
   });
-  await expectFitsEveryWidth(client, `/portal/quotes/${change.id}`);
+  await expectFitsInBoth(client, `/portal/quotes/${change.id}`);
   await expectFitsEveryWidth(page, `/office/quotes/${change.id}`);
 });
 
@@ -454,13 +477,13 @@ test("a Service Plan on several weekdays fits every width, Draft, Sent and start
   await expectFitsEveryWidth(page, `/office/quotes/${quote.id}`);
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
-  await expectFitsEveryWidth(client, `/portal/quotes/${quote.id}`);
+  await expectFitsInBoth(client, `/portal/quotes/${quote.id}`);
   await client.goto(`/portal/quotes/${quote.id}`);
   await client.getByRole("button", { name: /^Accept and pay/ }).click();
   await client.getByRole("link", { name: "See your cleaning plan" }).click();
   await expect(client).toHaveURL(/\/portal\/plans\/[0-9a-f-]{36}$/);
   const plan = new URL(client.url()).pathname;
-  await expectFitsEveryWidth(client, plan);
+  await expectFitsInBoth(client, plan);
   await expectFitsEveryWidth(
     page,
     plan.replace("/portal/plans/", "/office/service-plans/"),
@@ -487,7 +510,7 @@ test("cancelling, Cancelled and No Access Jobs fit every width", async ({
   await signedInAs(page, olive.email);
 
   // still to come: cancelling, with what it costs
-  await expectFitsEveryWidth(client, `/portal/jobs/${booked.id}`);
+  await expectFitsInBoth(client, `/portal/jobs/${booked.id}`);
   await expectFitsEveryWidth(page, `/office/jobs/${booked.id}`);
 
   // No Access, recorded on the day
@@ -497,7 +520,7 @@ test("cancelling, Cancelled and No Access Jobs fit every width", async ({
   await expectFitsEveryWidth(cleaner, `/cleaner/jobs/${booked.id}`);
   await recordNoAccess(booked.id, cory.id, "Nobody answered");
   await expectFitsEveryWidth(cleaner, `/cleaner/jobs/${booked.id}`);
-  await expectFitsEveryWidth(client, `/portal/jobs/${booked.id}`);
+  await expectFitsInBoth(client, `/portal/jobs/${booked.id}`);
   await expectFitsEveryWidth(page, `/office/jobs/${booked.id}`);
 
   // Cancelled, by Empire Cleaning
@@ -519,7 +542,7 @@ test("cancelling, Cancelled and No Access Jobs fit every width", async ({
     page.getByText("By Empire Cleaning, refunded in full."),
   ).toBeVisible();
   await expectFitsEveryWidth(page, `/office/jobs/${cancelled.id}`);
-  await expectFitsEveryWidth(client, `/portal/jobs/${cancelled.id}`);
+  await expectFitsInBoth(client, `/portal/jobs/${cancelled.id}`);
 });
 
 test("Reschedule Requests fit every width", async ({ page, browser }) => {
@@ -535,11 +558,11 @@ test("Reschedule Requests fit every width", async ({ page, browser }) => {
   await signedInAs(page, olive.email);
 
   // what moving costs, before asking
-  await expectFitsEveryWidth(client, `/portal/jobs/${booked.id}`);
+  await expectFitsInBoth(client, `/portal/jobs/${booked.id}`);
 
   // pending, for the Client, the Office and Needs attention
   await requestReschedule(booked.id, { date: "2026-01-14", time: "10:00" });
-  await expectFitsEveryWidth(client, `/portal/jobs/${booked.id}`);
+  await expectFitsInBoth(client, `/portal/jobs/${booked.id}`);
   await expectFitsEveryWidth(page, `/office/jobs/${booked.id}`);
   await expectFitsEveryWidth(page, "/office");
 });
@@ -547,10 +570,10 @@ test("Reschedule Requests fit every width", async ({ page, browser }) => {
 test("signing in, the welcome page and the Cleaner area fit every width", async ({
   page,
 }) => {
-  await expectFitsEveryWidth(page, "/sign-in");
+  await expectFitsInBoth(page, "/sign-in");
   // the pages an emailed link opens, before their button is pressed (#243)
-  await expectFitsEveryWidth(page, "/sign-in/link?token=unused");
-  await expectFitsEveryWidth(page, "/confirm-email?token=unused");
+  await expectFitsInBoth(page, "/sign-in/link?token=unused");
+  await expectFitsInBoth(page, "/confirm-email?token=unused");
   await createClient({
     name: "Helen Kowalski",
     email: "owner+helen@example.com",
@@ -558,7 +581,7 @@ test("signing in, the welcome page and the Cleaner area fit every width", async 
   await expectFitsEveryWidth(page, "/people?as=helen");
 
   await signedInAs(page, "new@example.com");
-  await expectFitsEveryWidth(page, "/welcome");
+  await expectFitsInBoth(page, "/welcome");
 
   // free that week, so they can be Offered it
   const cory = await addCleaner("Cory Cleaner");
@@ -610,6 +633,6 @@ test("weekly Bills fit every width, for the Office and the Client", async ({
     `/portal/bills/${billId}`,
     `/portal/plans/${planId}`,
   ]) {
-    await expectFitsEveryWidth(client, path);
+    await expectFitsInBoth(client, path);
   }
 });

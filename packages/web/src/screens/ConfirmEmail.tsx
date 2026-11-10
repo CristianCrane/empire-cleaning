@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useSearch } from "@tanstack/react-router";
 import { Mail, MailCheck, MailX } from "lucide-react";
-import { Button, ButtonLink, Notice } from "@empire-cleaning/ui";
+import { catalog } from "@empire-cleaning/models";
+import { Button, ButtonLink, Notice, useLanguage } from "@empire-cleaning/ui";
 import { ApiError, postJson } from "../api.ts";
 import { linkTo } from "../links.ts";
 import { reportUnexpected } from "../monitoring.ts";
@@ -27,6 +28,31 @@ const confirmEmail = async (token: string): Promise<EmailConfirmation> => {
   }
 };
 
+const words = catalog({
+  en: {
+    title: "Confirm your new email",
+    text: "Confirm it's yours, and we'll send your quotes and notices there.",
+    failed: "Confirming didn't work. Please try again.",
+    confirm: "Confirm my email",
+    confirmed: "Email confirmed",
+    sendTo: (email: string) =>
+      `We'll send your quotes and notices to ${email}.`,
+    notChanged: "Email not changed",
+    again: "Change it again",
+  },
+  es: {
+    title: "Confirme su nuevo correo electrónico",
+    text: "Confirme que es suyo y le enviaremos allí sus cotizaciones y avisos.",
+    failed: "No se pudo confirmar. Vuelva a intentarlo.",
+    confirm: "Confirmar mi correo electrónico",
+    confirmed: "Correo electrónico confirmado",
+    sendTo: (email: string) =>
+      `Le enviaremos sus cotizaciones y avisos a ${email}.`,
+    notChanged: "No se cambió el correo electrónico",
+    again: "Cambiarlo de nuevo",
+  },
+});
+
 // opening the link changes nothing: mail scanners open links before the
 // person does, so only the button confirms it (#243)
 export function ConfirmEmail() {
@@ -34,6 +60,7 @@ export function ConfirmEmail() {
   const [result, setResult] = useState<EmailConfirmation>();
   const [isPending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
+  const w = words[useLanguage()];
 
   const confirm = async () => {
     setPending(true);
@@ -50,39 +77,33 @@ export function ConfirmEmail() {
 
   if (!result) {
     return (
-      <MessagePage title="Confirm your new email" icon={Mail}>
-        <p className="text-fg-muted">
-          Confirm it's yours, and we'll send your quotes and notices there.
-        </p>
-        {failed && (
-          <Notice tone="danger">
-            Confirming didn't work. Please try again.
-          </Notice>
-        )}
+      <MessagePage title={w.title} icon={Mail}>
+        <p className="text-fg-muted">{w.text}</p>
+        {failed && <Notice tone="danger">{w.failed}</Notice>}
         <Button
           isPending={isPending}
           onPress={() => void confirm()}
           className="w-full"
         >
-          Confirm my email
+          {w.confirm}
         </Button>
       </MessagePage>
     );
   }
   if (result.confirmed) {
     return (
-      <MessagePage title="Email confirmed" icon={MailCheck} tone="success">
+      <MessagePage title={w.confirmed} icon={MailCheck} tone="success">
         <p className="text-fg-muted [overflow-wrap:anywhere]">
-          We'll send your quotes and notices to {result.email}.
+          {w.sendTo(result.email)}
         </p>
       </MessagePage>
     );
   }
   return (
-    <MessagePage title="Email not changed" icon={MailX} tone="danger">
+    <MessagePage title={w.notChanged} icon={MailX} tone="danger">
       <p className="text-fg-muted">{result.problem}</p>
       <ButtonLink href={linkTo({ to: "/portal/details" })}>
-        Change it again
+        {w.again}
       </ButtonLink>
     </MessagePage>
   );

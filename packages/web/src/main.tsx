@@ -10,6 +10,7 @@ import { feedbackButton } from "@empire-cleaning/browser-monitoring/feedback";
 import feedbackLook from "./feedback.css?inline";
 import { router } from "./router.tsx";
 import { forgetAccount } from "./session.ts";
+import { rememberPageLanguage } from "./language.ts";
 
 // Sentry (ADR-0007), set at build time: without VITE_SENTRY_DSN (dev, tests)
 // nothing is sent. The test site's pages carry its feedback button
@@ -24,6 +25,10 @@ startMonitoring({
 });
 
 applyThemePreference(readThemePreference());
+
+// the language of the page that linked here, such as the landing site's
+// Spanish pages (?lang=es), for the screens before sign-in
+rememberPageLanguage(window.location.search);
 
 // Who the person is and what their Account is connected to can change behind
 // the app's back: another tab signing out, asking for a Quote on the landing

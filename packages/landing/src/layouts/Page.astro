@@ -3,7 +3,7 @@ import "@empire-cleaning/ui/tokens.css";
 import { themeBootScript } from "@empire-cleaning/ui/theme-boot";
 import { firstScreenFonts } from "@empire-cleaning/ui/fonts";
 import { LANGUAGES, languageOf } from "@empire-cleaning/models";
-import { TestSiteBanner } from "@empire-cleaning/ui";
+import { LanguageProvider, TestSiteBanner } from "@empire-cleaning/ui";
 import { business, businessWords } from "../business.ts";
 import { urlOf, type Page } from "../routes.ts";
 import { isTestSite } from "../site-mode.ts";
@@ -87,7 +87,11 @@ const ogLocale = { en: "en_US", es: "es_US" };
     />
   </head>
   <body>
-    {isTestSite && <TestSiteBanner />}
+    {isTestSite && (
+      <LanguageProvider lang={lang}>
+        <TestSiteBanner />
+      </LanguageProvider>
+    )}
     <slot />
   </body>
 </html>

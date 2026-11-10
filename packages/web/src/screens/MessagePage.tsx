@@ -7,8 +7,15 @@ import {
   Link,
   type StatusTone,
   Logo,
+  useLanguage,
 } from "@empire-cleaning/ui";
+import { catalog } from "@empire-cleaning/models";
 import { linkTo } from "../links.ts";
+
+const words = catalog({
+  en: { goHome: "Go to your home page" },
+  es: { goHome: "Ir a su página de inicio" },
+});
 
 // true inside an area's layout, which already gives the page its frame
 export const InArea = createContext(false);
@@ -28,6 +35,7 @@ export function MessagePage({
   tone?: StatusTone;
   children: ReactNode;
 }) {
+  const lang = useLanguage();
   const card = (
     <Card>
       <div className="flex flex-col items-center gap-4 py-4 text-center">
@@ -36,7 +44,7 @@ export function MessagePage({
           {title}
         </Heading>
         {children}
-        <Link href={linkTo({ to: "/" })}>Go to your home page</Link>
+        <Link href={linkTo({ to: "/" })}>{words[lang].goHome}</Link>
       </div>
     </Card>
   );

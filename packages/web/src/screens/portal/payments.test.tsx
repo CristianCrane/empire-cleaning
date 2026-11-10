@@ -4,7 +4,16 @@ import type {
   ClientPastJob,
   ClientPayment,
 } from "@empire-cleaning/models";
-import { moneyNow, paymentRow, type PaymentsData } from "./payments.ts";
+import {
+  moneyNow as moneyNowIn,
+  paymentRow as paymentRowIn,
+  type PaymentsData,
+} from "./payments.ts";
+
+// in English, as these tests read them; the Spanish follows the same rules
+const moneyNow = (data: PaymentsData) => moneyNowIn(data, "en");
+const paymentRow = (p: Parameters<typeof paymentRowIn>[0]) =>
+  paymentRowIn(p, "en");
 
 // Tuesday 20 October 2026, 9am in New York
 const CLEAN = "2026-10-20T13:00:00.000Z";

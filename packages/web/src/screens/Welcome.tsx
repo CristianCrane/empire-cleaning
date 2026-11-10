@@ -1,4 +1,4 @@
-import { messages } from "@empire-cleaning/models";
+import { catalog, messages } from "@empire-cleaning/models";
 import type { ReactNode } from "react";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { QuoteRequestForm } from "@empire-cleaning/quote-request";
@@ -14,6 +14,37 @@ import {
 import { forgetAccount, signOut } from "../session.ts";
 import { quoteRequested } from "./QuoteParts.tsx";
 
+const words = catalog({
+  en: {
+    signedInAs: (email: string) => `Signed in as ${email}`,
+    signOut: "Sign out",
+    welcome: "Welcome",
+    next: "What happens next",
+    tell: "You tell us about your home",
+    tellText: "The rooms, how it's looking and when suits you.",
+    email: "We email you a quote",
+    emailText: "With the clean we'd recommend.",
+    book: "You choose and book",
+    bookText: "Pay the deposit here and your clean is booked.",
+    otherEmail:
+      "Asked us for a quote with a different email? Sign out and sign in with that one.",
+  },
+  es: {
+    signedInAs: (email: string) => `Sesión iniciada como ${email}`,
+    signOut: "Cerrar sesión",
+    welcome: "Bienvenido",
+    next: "Qué pasa después",
+    tell: "Nos cuenta sobre su casa",
+    tellText: "Las habitaciones, cómo está y cuándo le conviene.",
+    email: "Le enviamos una cotización",
+    emailText: "Con la limpieza que le recomendamos.",
+    book: "Usted elige y reserva",
+    bookText: "Pague el depósito aquí y su limpieza queda reservada.",
+    otherEmail:
+      "¿Nos pidió una cotización con otro correo electrónico? Cierre sesión e inicie sesión con ese.",
+  },
+});
+
 // for an Account connected to nothing yet (ADR-0006): someone who signed up
 // before asking for a Quote, or with a different email from their Quote
 // Request. Asking for a Quote here makes them a Client. The form in its
@@ -23,13 +54,14 @@ export function Welcome() {
   const navigate = useNavigate();
   const lang = useLanguage();
   const { ASK_US } = messages[lang];
+  const w = words[lang];
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-6 p-4 py-10">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <Logo className="w-32" />
         <span className="flex items-center gap-2 text-sm text-fg-muted">
-          Signed in as {account.email}
+          {w.signedInAs(account.email)}
           <Button
             variant="text"
             size="sm"
@@ -38,14 +70,14 @@ export function Welcome() {
               void navigate({ to: "/sign-in" });
             }}
           >
-            Sign out
+            {w.signOut}
           </Button>
         </span>
       </header>
 
       <div className="flex flex-col gap-2">
         <Heading level={1} size={2}>
-          Welcome
+          {w.welcome}
         </Heading>
         <p className="text-fg-muted">{ASK_US}</p>
       </div>
@@ -57,13 +89,12 @@ export function Welcome() {
           <QuoteRequestForm
             headingLevel={2}
             // signed up but not yet a Client, so no Preferred Language:
-            // the app's
-            lang={lang}
+            // the app's, the signed-out language
             asker={{ kind: "account", email: account.email }}
             onSubmitted={async (receipt) => {
               // now a Client: the API connected this Account straight away
               forgetAccount();
-              showToast(quoteRequested(receipt.emailedTo));
+              showToast(quoteRequested(lang, receipt.emailedTo));
               await navigate({ to: "/portal" });
             }}
           />
@@ -71,24 +102,21 @@ export function Welcome() {
         <aside className="flex flex-col gap-4 xl:sticky xl:top-6 xl:col-start-2 xl:row-start-1 xl:self-start">
           <Card>
             <Heading level={2} size={4}>
-              What happens next
+              {w.next}
             </Heading>
             <ol className="flex flex-col gap-4">
-              <Step n={1} title="You tell us about your home">
-                The rooms, how it's looking and when suits you.
+              <Step n={1} title={w.tell}>
+                {w.tellText}
               </Step>
-              <Step n={2} title="We email you a quote">
-                With the clean we'd recommend.
+              <Step n={2} title={w.email}>
+                {w.emailText}
               </Step>
-              <Step n={3} title="You choose and book">
-                Pay the deposit here and your clean is booked.
+              <Step n={3} title={w.book}>
+                {w.bookText}
               </Step>
             </ol>
           </Card>
-          <Notice>
-            Asked us for a quote with a different email? Sign out and sign in
-            with that one.
-          </Notice>
+          <Notice>{w.otherEmail}</Notice>
         </aside>
       </div>
     </main>

@@ -3,6 +3,7 @@ import type { AreaTours } from "../tours.ts";
 // The Cleaner's first-time help (#296): its tours, the first one a person
 // meets led by the value line
 export const cleanerTours = {
+  welcomeTitle: "Welcome",
   welcome: "Pick up work and find everything about each job in one place.",
   tours: [
     {

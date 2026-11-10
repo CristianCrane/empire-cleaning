@@ -1,3 +1,4 @@
+import type { Catalog } from "@empire-cleaning/models";
 import type { AreaId } from "../session.ts";
 import { cleanerTours } from "./cleaner/tours.ts";
 import { officeTours } from "./office/tours.ts";
@@ -30,18 +31,23 @@ type Tour = {
 
 export type AreaTours = {
   // the area's one line of value, leading the first of its tours a person
-  // meets
+  // meets, under its title
+  welcomeTitle: string;
   welcome: string;
   tours: Tour[];
 };
 
-// every area's: one added without tours fails the typecheck here
-export const toursFor: Record<AreaId, AreaTours> = {
+// every area's, in each language it comes in: one added without tours
+// fails the typecheck here. English always; Spanish where the area is
+// shown in it (the portal; the Cleaner area from #305; never the Office,
+// ADR-0025), so an area's English is its tours in a language it hasn't
+type InLanguages = Partial<Catalog<AreaTours>> & { en: AreaTours };
+export const toursFor: Record<AreaId, InLanguages> = {
   portal: clientTours,
-  office: officeTours,
-  cleaner: cleanerTours,
+  office: { en: officeTours },
+  cleaner: { en: cleanerTours },
 };
 
 export const tourIds = Object.values(toursFor).flatMap((area) =>
-  area.tours.map((tour) => tour.id),
+  area.en.tours.map((tour) => tour.id),
 );

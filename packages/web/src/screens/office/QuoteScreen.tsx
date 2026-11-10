@@ -775,7 +775,7 @@ function Offer({ quote, actions }: { quote: ShownQuote; actions?: ReactNode }) {
             return (
               <OfferPrice
                 key={day?.startsAt ?? option.serviceKey}
-                title={day ? planDayTitle(day) : option.serviceName}
+                title={day ? planDayTitle("en", day) : option.serviceName}
                 badge={
                   day ? (
                     <PlanSaving day={day} />

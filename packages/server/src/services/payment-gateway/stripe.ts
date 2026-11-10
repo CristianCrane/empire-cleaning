@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import type { CardForm, Language, PaymentForm } from "@empire-cleaning/models";
+import { stripeLocales } from "@empire-cleaning/models";
 import { MINUTE_MS } from "@empire-cleaning/models";
 import { monitoring } from "#services/monitoring";
 import {
@@ -65,10 +66,6 @@ const BILL_ALLOWED: ("card" | "us_bank_account")[] = [
 //   or bank debit; a bank debit is processing until it clears, which a
 //   webhook tells us.
 // - Our charge ids are PaymentIntent ids.
-// the locales Stripe words its own pages and emails in for a Customer:
-// Latin American Spanish, as ours is (ADR-0025)
-const stripeLocales: Record<Language, string> = { en: "en-US", es: "es-419" };
-
 export class StripePaymentGateway implements PaymentGateway {
   private readonly stripe: Stripe;
   private readonly publishableKey: string;

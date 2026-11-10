@@ -51,7 +51,7 @@ const data = (over: Partial<PropertiesData> = {}): PropertiesData => ({
 describe("where a Client's home stands", () => {
   test("on a plan, its weekdays", () => {
     expect(
-      standingOf(home, data({ plans: [plan()], quotes: [quote()] })),
+      standingOf("en", home, data({ plans: [plan()], quotes: [quote()] })),
     ).toEqual({
       tone: "success",
       label: "Cleaning plan",
@@ -61,13 +61,15 @@ describe("where a Client's home stands", () => {
 
   test("a plan On Hold says so", () => {
     expect(
-      standingOf(home, data({ plans: [plan({ status: "on_hold" })] })).label,
+      standingOf("en", home, data({ plans: [plan({ status: "on_hold" })] }))
+        .label,
     ).toBe("Paused");
   });
 
   test("an Ended plan, or another home's, doesn't count", () => {
     expect(
       standingOf(
+        "en",
         home,
         data({
           plans: [plan({ status: "ended" }), plan({ property: elsewhere })],
@@ -77,7 +79,9 @@ describe("where a Client's home stands", () => {
   });
 
   test("a Quote to answer comes before a clean booked", () => {
-    expect(standingOf(home, data({ quotes: [quote()], jobs: [job] }))).toEqual({
+    expect(
+      standingOf("en", home, data({ quotes: [quote()], jobs: [job] })),
+    ).toEqual({
       tone: "warning",
       label: "Quote to answer",
       line: "Deep Clean, sent Oct 28",
@@ -85,7 +89,7 @@ describe("where a Client's home stands", () => {
   });
 
   test("the next clean booked", () => {
-    expect(standingOf(home, data({ jobs: [job] }))).toEqual({
+    expect(standingOf("en", home, data({ jobs: [job] }))).toEqual({
       tone: "info",
       label: "Booked",
       line: "Mon, Nov 2, 9:00 AM",
@@ -94,7 +98,7 @@ describe("where a Client's home stands", () => {
 
   test("a Quote we're preparing", () => {
     expect(
-      standingOf(home, data({ quotes: [quote({ status: "draft" })] })),
+      standingOf("en", home, data({ quotes: [quote({ status: "draft" })] })),
     ).toEqual({
       tone: "info",
       label: "Quote asked for",

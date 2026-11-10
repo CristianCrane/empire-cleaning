@@ -6,7 +6,7 @@ import type {
   ClientSiteVisit,
   ClientUpcomingJob,
 } from "@empire-cleaning/models";
-import { formats } from "@empire-cleaning/models";
+import { catalog } from "@empire-cleaning/models";
 import {
   Button,
   DateTile,
@@ -25,13 +25,53 @@ import {
   formatHours,
   formatMinutes,
   dayOfInstant,
-  screenWords,
 } from "../format.ts";
 import { JobStatusBadge } from "../JobBadges.tsx";
+import { type Said, useSaid } from "../words.ts";
 
-const { cancelledLabel } = screenWords.en;
-
-const { formatMoney, formatTime, formatMonth } = formats.en;
+// in the Client's language (ADR-0025)
+const words = catalog({
+  en: {
+    about: (length: string) => `about ${length}`,
+    moveAsked: "Move asked",
+    siteVisit: "Site visit",
+    visit: (visitor: string, length: string) =>
+      `${visitor}, about ${length}, free`,
+    unpaid: "Unpaid",
+    needsOk: "Needs your OK",
+    fee: (amount: string) => `${amount} fee`,
+    noCharge: "No charge",
+    yourCleans: "Your cleans",
+    upcoming: "Upcoming",
+    past: "Past",
+    nothingBooked: "Nothing booked",
+    showsHere: "Your next clean shows here once it's booked.",
+    noneYet: "No cleans yet",
+    eachShows: "Each clean shows here once it's done, with its receipt.",
+    showMore: "Show more",
+  },
+  es: {
+    about: (length: string) => `unas ${length}`,
+    moveAsked: "Reprogramación pedida",
+    siteVisit: "Visita previa",
+    visit: (visitor: string, length: string) =>
+      `${visitor}, unos ${length}, gratis`,
+    unpaid: "Sin pagar",
+    needsOk: "Necesita su aprobación",
+    fee: (amount: string) => `cargo de ${amount}`,
+    noCharge: "Sin cargo",
+    yourCleans: "Sus limpiezas",
+    upcoming: "Próximas",
+    past: "Pasadas",
+    nothingBooked: "Nada reservado",
+    showsHere: "Su próxima limpieza aparecerá aquí cuando esté reservada.",
+    noneYet: "Aún no hay limpiezas",
+    eachShows:
+      "Cada limpieza aparecerá aquí cuando esté terminada, con su recibo.",
+    showMore: "Mostrar más",
+  },
+});
+type T = Said & { w: (typeof words)["en"] };
 
 // The Client's cleans: Upcoming (with their Site Visits) and Past, each by
 // month, a date tile leading each row. Only what isn't plain gets a badge:
@@ -58,69 +98,69 @@ type Row = {
 const lineOf = (parts: (string | false)[]) => parts.filter(Boolean).join(" · ");
 
 const upcomingRow =
-  (homes: number) =>
+  (t: T, homes: number) =>
   (job: ClientUpcomingJob): Row => ({
     id: job.id,
     startsAt: job.startsAt,
     title: job.serviceName,
     line: lineOf([
-      formatTime(job.startsAt),
+      t.formatTime(job.startsAt),
       homes > 1 && addressOf(job.property),
-      `about ${formatHours(job.hoursOnSite)}`,
+      t.w.about(formatHours(job.hoursOnSite)),
     ]),
     badge: job.movingTo ? (
-      <StatusBadge tone="info">Move asked</StatusBadge>
+      <StatusBadge tone="info">{t.w.moveAsked}</StatusBadge>
     ) : undefined,
     jobId: job.id,
   });
 
 const visitRow =
-  (homes: number) =>
+  (t: T, homes: number) =>
   (visit: ClientSiteVisit): Row => ({
     id: visit.id,
     startsAt: visit.startsAt,
-    title: "Site visit",
+    title: t.w.siteVisit,
     line: lineOf([
-      formatTime(visit.startsAt),
+      t.formatTime(visit.startsAt),
       homes > 1 && addressOf(visit.property),
-      `${visit.visitorName}, about ${formatMinutes(visit.minutes)}, free`,
+      t.w.visit(visit.visitorName, formatMinutes(visit.minutes)),
     ]),
   });
 
 // what's not plain about a past clean, the most pressing first
-const pastBadge = (job: ClientPastJob) => {
-  if (job.unpaid) return <StatusBadge tone="danger">Unpaid</StatusBadge>;
+const pastBadge = (t: T, job: ClientPastJob) => {
+  if (job.unpaid) return <StatusBadge tone="danger">{t.w.unpaid}</StatusBadge>;
   if (job.awaitingAnswer > 0)
-    return <StatusBadge tone="warning">Needs your OK</StatusBadge>;
+    return <StatusBadge tone="warning">{t.w.needsOk}</StatusBadge>;
   if (job.status === "no_access") return <JobStatusBadge status="no_access" />;
   if (job.status === "cancelled")
-    return <StatusBadge>{cancelledLabel(job.skipped)}</StatusBadge>;
+    return <StatusBadge>{t.cancelledLabel(job.skipped)}</StatusBadge>;
   return undefined;
 };
 
 const pastRow =
-  (homes: number) =>
+  (t: T, homes: number) =>
   (job: ClientPastJob): Row => ({
     id: job.id,
     startsAt: job.startsAt,
     title: job.serviceName,
     line: lineOf([
-      formatTime(job.startsAt),
+      t.formatTime(job.startsAt),
       homes > 1 && addressOf(job.property),
       job.status === "completed"
-        ? formatMoney(job.totalCents)
+        ? t.formatMoney(job.totalCents)
         : job.feeCents > 0
-          ? `${formatMoney(job.feeCents)} fee`
-          : "No charge",
+          ? t.w.fee(t.formatMoney(job.feeCents))
+          : t.w.noCharge,
     ]),
-    badge: pastBadge(job),
+    badge: pastBadge(t, job),
     jobId: job.id,
   });
 
-const byMonth = (rows: Row[]) => {
+const byMonth = (t: T, rows: Row[]) => {
   const months: { month: string; rows: Row[] }[] = [];
   for (const row of rows) {
-    const month = formatMonth(dayOfInstant(row.startsAt));
+    const month = t.formatMonth(dayOfInstant(row.startsAt));
     if (months.at(-1)?.month !== month) months.push({ month, rows: [] });
     months.at(-1)!.rows.push(row);
   }
@@ -135,19 +175,21 @@ export function PortalCleans() {
   const navigate = useNavigate();
   const [shown, setShown] = useState(PAGE);
   const homes = client.properties.length;
+  const t = useSaid(words);
+  const { w } = t;
 
   const upcoming = [
-    ...jobs.map(upcomingRow(homes)),
-    ...siteVisits.map(visitRow(homes)),
+    ...jobs.map(upcomingRow(t, homes)),
+    ...siteVisits.map(visitRow(t, homes)),
   ].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-  const past = pastJobs.map(pastRow(homes));
+  const past = pastJobs.map(pastRow(t, homes));
   // Upcoming, unless only Past has anything
   const tab =
     search.tab ??
     (upcoming.length === 0 && past.length > 0 ? "past" : "upcoming");
 
   const months = (rows: Row[], label: string) =>
-    byMonth(rows).map(({ month, rows }) => (
+    byMonth(t, rows).map(({ month, rows }) => (
       <section key={month} className="flex flex-col gap-2">
         <Heading level={2} size={4} className="text-fg-muted">
           {month}
@@ -179,7 +221,7 @@ export function PortalCleans() {
   return (
     <div className="flex flex-col gap-6">
       <Heading level={1} inBar>
-        Your cleans
+        {w.yourCleans}
       </Heading>
       <Tabs
         selectedKey={tab}
@@ -191,42 +233,42 @@ export function PortalCleans() {
           })
         }
       >
-        <TabList aria-label="Your cleans">
+        <TabList aria-label={w.yourCleans}>
           <Tab id="upcoming" count={upcoming.length}>
-            Upcoming
+            {w.upcoming}
           </Tab>
           <Tab id="past" count={past.length}>
-            Past
+            {w.past}
           </Tab>
         </TabList>
         <TabPanel id="upcoming" className="flex flex-col gap-6">
           {upcoming.length === 0 ? (
             <EmptyState
               icon={Sparkles}
-              title="Nothing booked"
-              description="Your next clean shows here once it's booked."
+              title={w.nothingBooked}
+              description={w.showsHere}
             />
           ) : (
-            months(upcoming, "Upcoming")
+            months(upcoming, w.upcoming)
           )}
         </TabPanel>
         <TabPanel id="past" className="flex flex-col gap-6">
           {past.length === 0 ? (
             <EmptyState
               icon={Receipt}
-              title="No cleans yet"
-              description="Each clean shows here once it's done, with its receipt."
+              title={w.noneYet}
+              description={w.eachShows}
             />
           ) : (
             <>
-              {months(past.slice(0, shown), "Past")}
+              {months(past.slice(0, shown), w.past)}
               {past.length > shown && (
                 <Button
                   variant="secondary"
                   className="self-center"
                   onPress={() => setShown(shown + PAGE)}
                 >
-                  Show more
+                  {w.showMore}
                 </Button>
               )}
             </>

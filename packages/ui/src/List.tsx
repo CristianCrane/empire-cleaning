@@ -6,6 +6,7 @@ import {
 } from "react-aria-components";
 import { ChevronRight, LoaderCircle } from "lucide-react";
 import { createContext, useContext, type ReactNode } from "react";
+import { useUiWords } from "./language.ts";
 import { composeTailwindRenderProps, focusRing } from "./utils.ts";
 
 // whether rows open something, set by the List's (or a row's own) onAction
@@ -50,6 +51,7 @@ export function ListItem({
 }: ListItemProps) {
   const opens = useContext(OpensItems) || props.onAction !== undefined;
 
+  const words = useUiWords();
   return (
     <GridListItem
       textValue={title}
@@ -73,7 +75,7 @@ export function ListItem({
           {end}
           {/* there before it's pending, so a screen reader hears it change */}
           <span role="status" className="sr-only">
-            {isPending ? "Opening" : ""}
+            {isPending ? words.opening : ""}
           </span>
           {isPending ? (
             <LoaderCircle

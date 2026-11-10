@@ -3,6 +3,7 @@ import { ToggleButton } from "react-aria-components";
 import { Moon, Sun } from "lucide-react";
 import { readStored, store } from "./stored.ts";
 import { THEME_STORAGE_KEY as STORAGE_KEY } from "./theme-boot.ts";
+import { useUiWords } from "./language.ts";
 import { focusRing } from "./utils.ts";
 
 // light unless someone chooses dark; the device's own setting isn't followed
@@ -34,7 +35,7 @@ export function ThemeToggle() {
 
   return (
     <ToggleButton
-      aria-label="Dark theme"
+      aria-label={useUiWords().darkTheme}
       isSelected={isDark}
       onChange={(dark) => {
         const next = dark ? "dark" : "light";

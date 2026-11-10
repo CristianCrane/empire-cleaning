@@ -1,4 +1,6 @@
 import type { Page } from "@playwright/test";
+import type { Language } from "@empire-cleaning/models";
+import { uiWords } from "@empire-cleaning/ui/language";
 import { cleanerTours } from "../src/screens/cleaner/tours.ts";
 import { officeTours } from "../src/screens/office/tours.ts";
 import { clientTours } from "../src/screens/portal/tours.ts";
@@ -48,13 +50,16 @@ const walkTour = async (
   page: Page,
   area: AreaTours,
   id: string,
-  { first = false, escape = false } = {},
+  { first = false, escape = false, lang = "en" as Language } = {},
 ) => {
+  const buttons = uiWords[lang];
   const tour = area.tours.find((t) => t.id === id)!;
   if (first) {
-    await expect(step(page, "Welcome")).toContainText(area.welcome);
+    await expect(step(page, area.welcomeTitle)).toContainText(area.welcome);
     await expectAccessible(page);
-    await step(page, "Welcome").getByRole("button", { name: "Next" }).click();
+    await step(page, area.welcomeTitle)
+      .getByRole("button", { name: buttons.next })
+      .click();
   }
   for (const [i, { target, title }] of tour.steps.entries()) {
     const last = i === tour.steps.length - 1;
@@ -67,7 +72,7 @@ const walkTour = async (
     if (last && escape) await page.keyboard.press("Escape");
     else {
       await step(page, title)
-        .getByRole("button", { name: last ? "Got it" : "Next" })
+        .getByRole("button", { name: last ? buttons.gotIt : buttons.next })
         .click();
     }
   }
@@ -106,15 +111,15 @@ eachTheme(() => {
     // line. Coming back to the tab asks for the Account again, and leaves
     // the tour
     await signedInAs(page, casey.email);
-    await expect(step(page, "Welcome")).toBeVisible();
+    await expect(step(page, clientTours.en.welcomeTitle)).toBeVisible();
     const lookedAgain = page.waitForResponse("**/api/me");
     await returnToTab(page);
     await lookedAgain;
-    await walkTour(page, clientTours, "portal-home-quote", { first: true });
+    await walkTour(page, clientTours.en, "portal-home-quote", { first: true });
 
     // the Quote page; closed partway, it counts as seen just the same
     await page.getByRole("link", { name: "See your quote" }).click();
-    await walkTour(page, clientTours, "portal-quote", { escape: true });
+    await walkTour(page, clientTours.en, "portal-quote", { escape: true });
 
     await page
       .getByRole("region", { name: "Pay and book" })
@@ -124,9 +129,9 @@ eachTheme(() => {
 
     // Home, once booked
     await page.getByRole("link", { name: "Home" }).first().click();
-    await walkTour(page, clientTours, "portal-home-booked");
+    await walkTour(page, clientTours.en, "portal-home-booked");
 
-    await expectEachSeen(page, clientTours);
+    await expectEachSeen(page, clientTours.en);
   });
 
   test("new Office Staff meet each of the Office's tours once, as each screen first matters", async ({

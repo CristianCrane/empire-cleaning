@@ -11,14 +11,15 @@ import {
   crewTone,
   jobLabelOf,
   jobStatusTone,
-  screenWords,
 } from "./format.ts";
-
-const { jobStatusLabel } = screenWords.en;
+import { useShared } from "./words.ts";
 
 // how a Job's statuses read, the same on every screen
 
+// in the screen's language: the Office's English, the portal's its
+// Client's (ADR-0025)
 export function JobStatusBadge({ status }: { status: JobStatus }) {
+  const { jobStatusLabel } = useShared();
   return (
     <StatusBadge tone={jobStatusTone[status]}>
       {jobStatusLabel[status]}

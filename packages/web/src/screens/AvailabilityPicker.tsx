@@ -1,9 +1,28 @@
-import { formats } from "@empire-cleaning/models";
+import { catalog } from "@empire-cleaning/models";
 import { parseDate, type CalendarDate } from "@internationalized/date";
 import { Calendar } from "@empire-cleaning/ui";
 import type { TimePickerProps } from "./CalendarGrid.tsx";
+import { useSaid } from "./words.ts";
 
-const { formatClock, formatDay } = formats.en;
+// in the Client's language (ADR-0025)
+const words = catalog({
+  en: {
+    day: "Day",
+    openOn: (day: string) => `Open times on ${day}`,
+    openTimes: (day: string) => `${day}: open times`,
+    time: (day: string, time: string, now: boolean) =>
+      `${day}, ${time}${now ? " (your clean now)" : ""}`,
+    onlyDays: "Only days with room can be picked.",
+  },
+  es: {
+    day: "Día",
+    openOn: (day: string) => `Horas libres el ${day}`,
+    openTimes: (day: string) => `${day}: horas libres`,
+    time: (day: string, time: string, now: boolean) =>
+      `${day}, ${time}${now ? " (su limpieza ahora)" : ""}`,
+    onlyDays: "Solo se pueden elegir los días con lugar.",
+  },
+});
 
 /**
  * A Client choosing a new time for their clean, the way booking anywhere
@@ -19,6 +38,7 @@ export function PickAvailableTime({
   limits = [],
   onPick,
 }: TimePickerProps) {
+  const { w, formatClock, formatDay } = useSaid(words);
   const open = limits.filter((d) => d.times.length > 0);
   const first = open[0]?.date;
   const last = open.at(-1)?.date;
@@ -37,7 +57,7 @@ export function PickAvailableTime({
     <div className="flex flex-col gap-4">
       <div className="flex justify-center">
         <Calendar<CalendarDate>
-          aria-label="Day"
+          aria-label={w.day}
           value={date ? parseDate(date) : null}
           defaultFocusedValue={parseDate(date ?? current?.date ?? first)}
           minValue={parseDate(first)}
@@ -51,10 +71,10 @@ export function PickAvailableTime({
       {date && times.length > 0 ? (
         <div
           role="group"
-          aria-label={`Open times on ${formatDay(date)}`}
+          aria-label={w.openOn(formatDay(date))}
           className="flex flex-col gap-2"
         >
-          <span className="font-semibold">{formatDay(date)}: open times</span>
+          <span className="font-semibold">{w.openTimes(formatDay(date))}</span>
           <div className="grid grid-cols-3 gap-2">
             {times.map((t) => {
               const isNow = date === current?.date && t === current?.time;
@@ -65,7 +85,7 @@ export function PickAvailableTime({
                   type="button"
                   disabled={isNow}
                   aria-pressed={chosen}
-                  aria-label={`${formatDay(date)}, ${formatClock(t)}${isNow ? " (your clean now)" : ""}`}
+                  aria-label={w.time(formatDay(date), formatClock(t), isNow)}
                   onClick={() => onPick({ date, time: t })}
                   className={`min-h-touch rounded-md font-semibold tabular-nums ${
                     isNow
@@ -82,9 +102,7 @@ export function PickAvailableTime({
           </div>
         </div>
       ) : (
-        <p className="text-sm text-fg-muted">
-          Only days with room can be picked.
-        </p>
+        <p className="text-sm text-fg-muted">{w.onlyDays}</p>
       )}
     </div>
   );

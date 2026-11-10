@@ -6,10 +6,12 @@ import type {
   RescheduleTimes,
 } from "@empire-cleaning/models";
 import {
+  catalog,
+  formats,
+  type Language,
+  messages,
   moveCostForOffice,
   type MoveCost,
-  formats,
-  messages,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -25,10 +27,59 @@ import { useLoaded } from "./load.ts";
 import { useAction } from "./action.ts";
 import type { TimePickerProps } from "./CalendarGrid.tsx";
 import { dayOfInstant, timeOfDay } from "./format.ts";
+import { useSaid } from "./words.ts";
 
-const { moveCostForClient, SAME_TIME } = messages.en;
-
-const { formatClock, formatDay, formatMoney } = formats.en;
+// in the screen's language: the Office's English, the portal's its
+// Client's (ADR-0025)
+const words = catalog({
+  en: {
+    pickNew: "Pick a new time",
+    notSent: "The request wasn't sent. Please try again.",
+    notLoaded: "The times didn't load. Please try again.",
+    pickBoth: "Pick a day and a start time",
+    day: "Day",
+    onlyDays: "Only days with room for this clean are shown.",
+    pickDay: "Pick a day",
+    startTime: "Start time",
+    onlyTimes: "New York time. Only times with cleaners free are shown.",
+    dayFirst: "New York time. Pick a day first.",
+    pickTime: "Pick a time",
+    finding: "Finding times…",
+    noDay: "There's no day with room in the next few weeks. Please call us.",
+    moveTo: "Move it to",
+    dayAt: (day: string, time: string) => `${day} at ${time}`,
+    orList: "Or pick from a list",
+    holdNew:
+      "We'll hold the new time while we confirm it. Until then, the clean stays at its current time.",
+    keep: "Keep the current time",
+    send: "Send request",
+  },
+  es: {
+    pickNew: "Elegir otra hora",
+    notSent: "No se envió la solicitud. Vuelva a intentarlo.",
+    notLoaded: "No se cargaron las horas. Vuelva a intentarlo.",
+    pickBoth: "Elija un día y una hora de inicio",
+    day: "Día",
+    onlyDays: "Solo se muestran los días con lugar para esta limpieza.",
+    pickDay: "Elija un día",
+    startTime: "Hora de inicio",
+    onlyTimes:
+      "Hora de Nueva York. Solo se muestran las horas con limpiadores libres.",
+    dayFirst: "Hora de Nueva York. Elija primero un día.",
+    pickTime: "Elija una hora",
+    finding: "Buscando horas…",
+    noDay:
+      "No hay ningún día con lugar en las próximas semanas. Por favor, llámenos.",
+    moveTo: "Reprogramarla para el",
+    dayAt: (day: string, time: string) =>
+      `${day} ${time.startsWith("1:") ? "a la" : "a las"} ${time}`,
+    orList: "O elija de una lista",
+    holdNew:
+      "Le guardamos la nueva hora mientras la confirmamos. Hasta entonces, la limpieza sigue a su hora actual.",
+    keep: "Mantener la hora actual",
+    send: "Enviar solicitud",
+  },
+});
 
 // what a Job's costs are told from, the Client's or the Office's view of it
 export type CostedJob = Pick<OfficeJob, "servicePlanId" | "weeklyBill">;
@@ -36,28 +87,30 @@ export type CostedJob = Pick<OfficeJob, "servicePlanId" | "weeklyBill">;
 // what moving it costs (moveCostForClient, moveCostForOffice), from the
 // Client's or the Office's view of the Job
 const moveCost = (
+  lang: Language,
   cost: RescheduleCost,
   feeCents: number,
   job: CostedJob,
 ): MoveCost => ({
   cost,
   feeCents,
-  fee: formatMoney(feeCents),
+  fee: formats[lang].formatMoney(feeCents),
   onPlan: job.servicePlanId !== null,
   weeklyBill: job.weeklyBill !== null,
 });
 
 export const costForClient = (
+  lang: Language,
   cost: RescheduleCost,
   feeCents: number,
   job: CostedJob,
-) => moveCostForClient(moveCost(cost, feeCents, job));
+) => messages[lang].moveCostForClient(moveCost(lang, cost, feeCents, job));
 
 export const costForOffice = (
   cost: RescheduleCost,
   feeCents: number,
   job: CostedJob,
-) => moveCostForOffice(moveCost(cost, feeCents, job));
+) => moveCostForOffice(moveCost("en", cost, feeCents, job));
 
 type Props = {
   job: { id: string; startsAt: string; hoursOnSite: number };
@@ -85,10 +138,11 @@ type Props = {
 // a dialog to choose a new time for a Job from those on offer, and send the
 // request at the cost shown
 export function ChooseNewTime(props: Props) {
+  const { w } = useSaid(words);
   return (
     <DialogTrigger>
       {props.trigger ?? <Button variant="secondary">{props.label}</Button>}
-      <Dialog title="Pick a new time" size={props.size}>
+      <Dialog title={w.pickNew} size={props.size}>
         {({ close }) => <NewTimeForm {...props} close={close} />}
       </Dialog>
     </DialogTrigger>
@@ -105,10 +159,11 @@ function NewTimeForm({
   inline = false,
   close,
 }: Props & { close: () => void }) {
+  const { w, formatClock, formatDay, SAME_TIME } = useSaid(words);
   const [date, setDate] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(timeOfDay(job.startsAt));
   // what it costs, or the days with room, may have changed since
-  const action = useAction("The request wasn't sent. Please try again.", {
+  const action = useAction(w.notSent, {
     reloadOnFailure: true,
   });
 
@@ -116,9 +171,7 @@ function NewTimeForm({
     getJson<RescheduleTimes>(`${base}/reschedule-times`),
   );
   // Send waits for the times, so a problem is the send's or else theirs
-  const problem =
-    action.problem ??
-    (failed ? "The times didn't load. Please try again." : undefined);
+  const problem = action.problem ?? (failed ? w.notLoaded : undefined);
 
   const unchanged =
     date === dayOfInstant(job.startsAt) && time === timeOfDay(job.startsAt);
@@ -134,7 +187,7 @@ function NewTimeForm({
 
   const send = async () => {
     if (!date || !time) {
-      action.fail("Pick a day and a start time");
+      action.fail(w.pickBoth);
       return;
     }
     const ok = await action.run(
@@ -154,9 +207,9 @@ function NewTimeForm({
   const fields = (
     <>
       <Select
-        label="Day"
-        description="Only days with room for this clean are shown."
-        placeholder="Pick a day"
+        label={w.day}
+        description={w.onlyDays}
+        placeholder={w.pickDay}
         selectedKey={date}
         onSelectionChange={(key) => choose(key === null ? null : String(key))}
       >
@@ -167,13 +220,9 @@ function NewTimeForm({
         ))}
       </Select>
       <Select
-        label="Start time"
-        description={
-          date
-            ? "New York time. Only times with cleaners free are shown."
-            : "New York time. Pick a day first."
-        }
-        placeholder="Pick a time"
+        label={w.startTime}
+        description={date ? w.onlyTimes : w.dayFirst}
+        placeholder={w.pickTime}
         isDisabled={!date}
         selectedKey={time}
         onSelectionChange={(key) => setTime(key === null ? null : String(key))}
@@ -202,11 +251,9 @@ function NewTimeForm({
 
   return (
     <>
-      {!times && !problem && <p className="text-fg-muted">Finding times…</p>}
+      {!times && !problem && <p className="text-fg-muted">{w.finding}</p>}
       {times && times.days.length === 0 && (
-        <Notice tone="warning">
-          There's no day with room in the next few weeks. Please call us.
-        </Notice>
+        <Notice tone="warning">{w.noDay}</Notice>
       )}
       {times && times.days.length > 0 && (
         <>
@@ -215,15 +262,13 @@ function NewTimeForm({
               {picker}
               {date && time && (
                 <p>
-                  Move it to{" "}
-                  <strong>
-                    {formatDay(date)} at {formatClock(time)}
-                  </strong>
+                  {w.moveTo}{" "}
+                  <strong>{w.dayAt(formatDay(date), formatClock(time))}</strong>
                 </p>
               )}
               <details className="text-sm">
                 <summary className="cursor-pointer font-semibold text-primary">
-                  Or pick from a list
+                  {w.orList}
                 </summary>
                 <div className="mt-3 flex flex-col gap-4">{fields}</div>
               </details>
@@ -239,22 +284,19 @@ function NewTimeForm({
       <p>
         <strong>{describeCost(terms.cost, terms.feeCents)}</strong>
       </p>
-      <p className="text-sm text-fg-muted">
-        We'll hold the new time while we confirm it. Until then, the clean stays
-        at its current time.
-      </p>
+      <p className="text-sm text-fg-muted">{w.holdNew}</p>
       {unchanged && <Notice>{SAME_TIME}</Notice>}
       {problem && <Notice tone="danger">{problem}</Notice>}
       <Actions>
         <Button variant="quiet" onPress={close}>
-          Keep the current time
+          {w.keep}
         </Button>
         <Button
           isPending={action.isPending}
           isDisabled={!times || times.days.length === 0 || unchanged}
           onPress={() => void send()}
         >
-          Send request
+          {w.send}
         </Button>
       </Actions>
     </>
