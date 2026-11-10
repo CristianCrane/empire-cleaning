@@ -127,6 +127,9 @@ describe("a pool run dry (#284)", () => {
         "db.pool.wait_max": 0,
       });
 
+      // a wait of a few ms: a warm run's is under half of one, which the
+      // measure rounds to 0
+      await new Promise((waited) => setTimeout(waited, 5));
       letGo();
       await waiting;
       samplePool(pool);
