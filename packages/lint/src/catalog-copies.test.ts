@@ -1,5 +1,9 @@
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { catalogCopies, catalogWords } from "./catalog-copies.ts";
+import { catalogCopies, catalogPaths, catalogWords } from "./catalog-copies.ts";
 
 // a screen's file whose catalog's English is `en`
 const screen = (path: string, en: string) => ({
@@ -101,5 +105,27 @@ const three = catalog({ en: { d: "Done" }, es: {} });`,
     expect(
       catalogCopies([bill, job, screen("a/Plan.tsx", 'paid: "Paid"')], allow),
     ).toHaveLength(1);
+  });
+
+  // a new catalog that isn't added to git yet counts, else its copies go
+  // unseen and an allowed copy it holds is called stale (#405)
+  it("reads catalogs git doesn't track yet, but not ignored files", () => {
+    const top = mkdtempSync(join(tmpdir(), "catalog-copies-"));
+    try {
+      const git = (...args: string[]) =>
+        execFileSync("git", args, { cwd: top, stdio: "ignore" });
+      git("init", "--quiet");
+      mkdirSync(join(top, "packages/web/src"), { recursive: true });
+      writeFileSync(join(top, ".gitignore"), "ignored.ts\n");
+      for (const name of ["added.ts", "new.ts", "ignored.ts"])
+        writeFileSync(join(top, "packages/web/src", name), "");
+      git("add", ".gitignore", "packages/web/src/added.ts");
+      expect(catalogPaths(top).sort()).toEqual([
+        "packages/web/src/added.ts",
+        "packages/web/src/new.ts",
+      ]);
+    } finally {
+      rmSync(top, { recursive: true, force: true });
+    }
   });
 });
