@@ -1,4 +1,6 @@
+import { inLanguage } from "@empire-cleaning/models";
 import type { PriceList, PropertyView } from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
 import type { Property } from "./properties.schema.ts";
 
 // "41-12 Austin St, 4B, 11375", as emails write it
@@ -8,13 +10,17 @@ export const addressOf = (p: {
   postcode: string;
 }) => [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
 
-// a Premises Type's name, from the Price List (retired ones keep theirs)
+// a Premises Type's name, from the Price List (which keeps every one,
+// retired too), in the reply's language (ADR-0025)
 const premisesTypeName = (list: PriceList, key: string) =>
-  list.premisesTypes.find((t) => t.key === key)?.name ?? "Premises";
+  inLanguage(
+    currentLanguage(),
+    list.premisesTypes.find((t) => t.key === key)!,
+  ).name;
 
 // the database guarantees each kind's details (properties_kind_details), a
 // home's rooms all known or none; business premises name their Premises
-// Type from the Price List
+// Type from the Price List. For a reply only, in its language
 export const toPropertyView = (p: Property, list: PriceList): PropertyView => {
   const base = {
     id: p.id,

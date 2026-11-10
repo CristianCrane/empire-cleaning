@@ -112,7 +112,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
       .innerJoin(staff, eq(staff.id, assignments.staffId))
       .where(eq(assignments.jobId, jobId))
       .orderBy(asc(assignments.offeredAt), asc(assignments.createdAt)),
-    addOnsOf([jobId]),
+    addOnsOf([jobId], "en"),
     scheduleOn(row.startsAt),
     db
       .select({ id: staff.id, name: staff.name, roles: staff.roles })
@@ -327,7 +327,7 @@ const cleanerJobs = async (
           mine.map((m) => m.property.id),
         ),
       ),
-    addOnsOf(jobIds),
+    addOnsOf(jobIds, currentLanguage()),
     cleanerCompletionsOf(mine.map((m) => m.job)),
   ]);
   const versions = await serviceVersions(mine.map((m) => m.job.serviceId));
@@ -342,8 +342,8 @@ const cleanerJobs = async (
     return {
       id: job.id,
       startsAt: job.startsAt.toISOString(),
-      // in the Cleaner's language where the Service has its Spanish name; the
-      // extras as the Quote named them, until #395
+      // in the Cleaner's language where the Service has its Spanish name, and
+      // so are the extras (ADR-0025)
       serviceName: inLanguage(currentLanguage(), versions.get(job.serviceId)!)
         .name,
       hoursOnSite: hoursOnSiteOf(job),

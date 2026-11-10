@@ -1,11 +1,13 @@
 import { inArray } from "drizzle-orm";
+import { inLanguage } from "@empire-cleaning/models";
 import type { AddOnChoice, PriceList } from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
 import { quoteAddOns } from "./quotes.schema.ts";
 
 // the Add-ons asked for on each Quote, in the Price List's order, named from
 // `list`, the current Price List the caller has read (retired Add-ons keep
-// their names there)
+// their names there), in the reply's language
 export const askedAddOns = async (
   quoteIds: string[],
   list: PriceList,
@@ -21,12 +23,14 @@ export const askedAddOns = async (
     .from(quoteAddOns)
     .where(inArray(quoteAddOns.quoteId, quoteIds));
   const order = new Map(list.addOns.map((a, i) => [a.key, i]));
-  const names = new Map(list.addOns.map((a) => [a.key, a.name]));
+  // in the reply's language (ADR-0025); the list keeps every key
+  const lang = currentLanguage();
+  const names = new Map(
+    list.addOns.map((a) => [a.key, inLanguage(lang, a).name]),
+  );
 
   for (const { quoteId, addOnKey } of chosen) {
-    byQuote
-      .get(quoteId)!
-      .push({ key: addOnKey, name: names.get(addOnKey) ?? "Extra" });
+    byQuote.get(quoteId)!.push({ key: addOnKey, name: names.get(addOnKey)! });
   }
   for (const choices of byQuote.values()) {
     choices.sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0));

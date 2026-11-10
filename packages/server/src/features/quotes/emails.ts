@@ -1,4 +1,4 @@
-import type { BillPayment, Recurrence } from "@empire-cleaning/models";
+import type { BillPayment, Named, Recurrence } from "@empire-cleaning/models";
 import {
   button,
   cleanDetails,
@@ -16,6 +16,7 @@ import {
   catalog,
   formats,
   dayOf,
+  inLanguage,
   messages,
   oneStop,
 } from "@empire-cleaning/models";
@@ -432,18 +433,19 @@ export const turnDownEmail = (
   };
 };
 
-// a Sent Revision, as much of it as the email shows
+// a Sent Revision, as much of it as the email shows, each Service in both
+// languages for the email to name in its own
 export type QuoteOffer = {
   number: number;
   proposedStartsAt: string;
   expiresAt: string;
-  options: { serviceName: string; recommended: boolean; totalCents: number }[];
+  options: { service: Named; recommended: boolean; totalCents: number }[];
   plan: {
     recurrence: Recurrence;
     discountPercent: number;
     roundTotalCents: number;
     days: {
-      serviceName: string;
+      service: Named;
       startsAt: string | null;
       savingCents: number;
       oneOffTotalCents: number;
@@ -471,7 +473,7 @@ const planOffer = (
           address,
           ready,
           w.oneDay(
-            day!.serviceName,
+            inLanguage(lang, day!.service).name,
             messages[lang].recurrence[plan.recurrence],
           ),
           starting,
@@ -551,7 +553,7 @@ export const quoteEmail = (
             ),
             details(
               offer.options.map((o) => ({
-                label: `${o.serviceName}${o.recommended ? w.quote.RECOMMENDED : ""}`,
+                label: `${inLanguage(lang, o.service).name}${o.recommended ? w.quote.RECOMMENDED : ""}`,
                 value: formatMoney(o.totalCents),
               })),
             ),
@@ -577,10 +579,11 @@ export type PaidWith = {
 // what a one-off Job costs and what accepting took for it
 export type Paid = PaidWith & { depositCents: number; totalCents: number };
 
-// a plan's cleans, one on each weekday, from the first
+// a plan's cleans, one on each weekday, from the first, each Service in
+// both languages
 export type PlanCleans = {
   recurrence: Recurrence;
-  cleans: { startsAt: Date; serviceName: string; totalCents: number }[];
+  cleans: { startsAt: Date; service: Named; totalCents: number }[];
 };
 
 const chargedTo = (lang: Language, paid: PaidWith) =>

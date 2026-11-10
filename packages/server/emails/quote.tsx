@@ -13,11 +13,15 @@ export default preview(
       expiresAt: wednesday.toISOString(),
       options: [
         {
-          serviceName: "Standard Clean",
+          service: { name: "Standard Clean", nameEs: "Limpieza estándar" },
           recommended: false,
           totalCents: 18000,
         },
-        { serviceName: "Deep Clean", recommended: true, totalCents: 29940 },
+        {
+          service: { name: "Deep Clean", nameEs: "Limpieza profunda" },
+          recommended: true,
+          totalCents: 29940,
+        },
       ],
       plan: null,
     },

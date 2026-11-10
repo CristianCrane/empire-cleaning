@@ -12,6 +12,7 @@ import { firstNameOf } from "../../services/email/format.ts";
 import {
   addDays,
   catalog,
+  inLanguage,
   type Language,
   type UnpaidKind,
   formats,
@@ -393,7 +394,7 @@ export const jobNamed = (
   { clean, fee }: { clean: Clean; fee: SettledJob["fee"] },
 ) => {
   const what = words[lang].jobAt(
-    clean.service,
+    inLanguage(lang, clean.service).name,
     clean.address,
     formats[lang].formatWhen(clean.startsAt),
   );

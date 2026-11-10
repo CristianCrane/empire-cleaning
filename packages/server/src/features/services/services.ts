@@ -333,18 +333,23 @@ export const serviceVersions = async (
   return new Map(ids.map((id) => [id, versions.get(id)!]));
 };
 
-// the name a Job's Service had when it was booked
+// the name a Job's Service had when it was booked, as a reader of `lang`
+// reads it: its Spanish where that version has one (ADR-0025)
 export const serviceNameOf = async (
+  lang: Language,
   serviceId: string,
   tx: Tx | typeof db = db,
-) => (await serviceVersions([serviceId], tx)).get(serviceId)!.name;
+) =>
+  inLanguage(lang, (await serviceVersions([serviceId], tx)).get(serviceId)!)
+    .name;
 
-// a Job, as an email's details give it
+// a Job, as an email's details give it, its Service in both languages for
+// the email to name in its own
 export const cleanOf = async (
   job: { serviceId: string; startsAt: Date },
   property: Parameters<typeof addressOf>[0],
 ): Promise<Clean> => ({
-  service: await serviceNameOf(job.serviceId),
+  service: (await serviceVersions([job.serviceId])).get(job.serviceId)!,
   address: addressOf(property),
   startsAt: job.startsAt,
 });

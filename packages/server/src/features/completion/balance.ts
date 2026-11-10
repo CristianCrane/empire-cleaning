@@ -233,7 +233,7 @@ const describe = async (tx: Tx, job: Job) => {
     job.status === "cancelled" || job.status === "no_access"
       ? feeName[job.status]
       : "Balance";
-  return `${what}: ${await serviceNameOf(job.serviceId, tx)} at ${addressOf(property!)}, ${formatWhen(job.startsAt)}`;
+  return `${what}: ${await serviceNameOf("en", job.serviceId, tx)} at ${addressOf(property!)}, ${formatWhen(job.startsAt)}`;
 };
 
 /**

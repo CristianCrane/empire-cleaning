@@ -13,12 +13,12 @@ export default preview(
       expiresAt: wednesday.toISOString(),
       options: [
         {
-          serviceName: "Standard Clean",
+          service: { name: "Standard Clean", nameEs: "Limpieza estándar" },
           recommended: false,
           totalCents: 16200,
         },
         {
-          serviceName: "Standard Clean",
+          service: { name: "Standard Clean", nameEs: "Limpieza estándar" },
           recommended: false,
           totalCents: 16200,
         },
@@ -29,13 +29,13 @@ export default preview(
         roundTotalCents: 32400,
         days: [
           {
-            serviceName: "Standard Clean",
+            service: { name: "Standard Clean", nameEs: "Limpieza estándar" },
             startsAt: monday.toISOString(),
             savingCents: 1800,
             oneOffTotalCents: 18000,
           },
           {
-            serviceName: "Standard Clean",
+            service: { name: "Standard Clean", nameEs: "Limpieza estándar" },
             startsAt: wednesday.toISOString(),
             savingCents: 1800,
             oneOffTotalCents: 18000,

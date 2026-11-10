@@ -2,7 +2,9 @@ import {
   catalog,
   type CleanerNeeded,
   formats,
+  inLanguage,
   type Language,
+  type Named,
 } from "@empire-cleaning/models";
 import {
   officeJobButton,
@@ -137,13 +139,17 @@ export const releasedEmail = ({
   ],
 });
 
+// a Job open to a Cleaner, as the email lists it: its Service in both
+// languages, for the email to name in its own
+export type NeededJob = Omit<CleanerNeeded, "serviceName"> & { service: Named };
+
 // "Deep Clean, Thursday, January 8 at 9:00 AM, 11375, about 3 hours on site,
 // with 2 cleaners"
-const lineFor = (lang: Language, job: CleanerNeeded) => {
+const lineFor = (lang: Language, job: NeededJob) => {
   const w = words[lang].needed;
   const { formatNumber, formatWhen } = formats[lang];
   return [
-    job.serviceName,
+    inLanguage(lang, job.service).name,
     formatWhen(new Date(job.startsAt)),
     job.postcode,
     w.onSite(formatNumber(job.hoursOnSite), job.hoursOnSite),
@@ -162,7 +168,7 @@ export const cleanersNeededEmail = (
   }: {
     name: string;
     soon: boolean;
-    jobs: CleanerNeeded[];
+    jobs: NeededJob[];
   },
 ): Email => {
   const w = words[lang].needed;

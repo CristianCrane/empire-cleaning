@@ -1,4 +1,10 @@
-import { catalog, type Language, formats } from "@empire-cleaning/models";
+import {
+  catalog,
+  formats,
+  inLanguage,
+  type Language,
+  type Named,
+} from "@empire-cleaning/models";
 
 // what every email is written from: a builder next to its feature returns
 // blocks, and the shared layout (layout.tsx) turns them into the HTML and the
@@ -80,8 +86,9 @@ export const cleansButton = (lang: Language) =>
 export const officeJobButton = (jobId: string) =>
   button("See the job", `/office/jobs/${jobId}`);
 
-// a Job or Site Visit, as the details of an email about it
-export type Clean = { service: string; address: string; startsAt: Date };
+// a Job, as the details of an email about it: its Service as the Office
+// named it in both languages, which the email names in its own (ADR-0025)
+export type Clean = { service: Named; address: string; startsAt: Date };
 
 // the labels of a clean's or a visit's details, in each language
 export const detailWords = catalog({
@@ -106,7 +113,7 @@ export const cleanDetails = (
     { label: w.WHEN, value: formatWhen(startsAt) },
     ...(was ? [{ label: w.WAS, value: formatWhen(was) }] : []),
     { label: w.WHERE, value: address },
-    { label: w.SERVICE, value: service },
+    { label: w.SERVICE, value: inLanguage(lang, service).name },
   ]);
 };
 

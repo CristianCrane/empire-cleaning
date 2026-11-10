@@ -7,7 +7,7 @@ export default preview(
     name: client.name,
     jobId,
     clean,
-    adjustment: { kind: "extra_time", addOnName: null, hours: 1 },
+    adjustment: { kind: "extra_time", addOn: null, hours: 1 },
     reason: "Heavy grease",
     totalCents: 5988,
     answerBy: wednesday,

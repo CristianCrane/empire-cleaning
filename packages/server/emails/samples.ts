@@ -17,7 +17,7 @@ export const monday = new Date("2026-01-12T14:00:00Z");
 export const wednesday = new Date("2026-01-14T15:30:00Z");
 
 export const clean: Clean = {
-  service: "Deep Clean",
+  service: { name: "Deep Clean", nameEs: "Limpieza profunda" },
   address,
   startsAt: monday,
 };

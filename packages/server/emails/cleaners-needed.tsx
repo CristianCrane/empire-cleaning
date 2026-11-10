@@ -10,7 +10,7 @@ export default preview(
       {
         jobId,
         startsAt: monday.toISOString(),
-        serviceName: "Deep Clean",
+        service: { name: "Deep Clean", nameEs: "Limpieza profunda" },
         hoursOnSite: 3,
         crewSize: 2,
         postcode: "11375",
@@ -18,7 +18,7 @@ export default preview(
       {
         jobId,
         startsAt: wednesday.toISOString(),
-        serviceName: "Standard Clean",
+        service: { name: "Standard Clean", nameEs: "Limpieza estándar" },
         hoursOnSite: 2,
         crewSize: 1,
         postcode: "11374",

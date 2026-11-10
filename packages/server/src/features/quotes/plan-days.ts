@@ -1,7 +1,9 @@
 import {
   catalog,
+  inLanguage,
   type Language,
   messages,
+  type Named,
   type Recurrence,
 } from "@empire-cleaning/models";
 
@@ -32,12 +34,12 @@ const words = catalog({
 export const describePlan = (
   lang: Language,
   recurrence: Recurrence,
-  days: { startsAt: Date; serviceName: string }[],
+  days: { startsAt: Date; service: Named }[],
   where = "",
 ) => {
   const { planDaysWhen, recurrence: often } = messages[lang];
   return words[lang].plan(
-    `${days[0]!.serviceName}${where}`,
+    `${inLanguage(lang, days[0]!.service).name}${where}`,
     often[recurrence],
     planDaysWhen(days.map((d) => d.startsAt)),
   );

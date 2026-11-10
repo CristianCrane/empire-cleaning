@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import type {
   AcceptOutcome,
@@ -371,8 +370,11 @@ export const crewedServicePlan = async () => {
 };
 
 // business premises for the Client, making them a commercial Client, who
-// can be billed weekly (ADR-0016)
+// can be billed weekly (ADR-0016): an office
 export const addPremises = async (clientId: string) => {
+  const office = (await currentPriceList()).premisesTypes.find(
+    (t) => t.name === "Office",
+  )!;
   const premises = {
     street: "200 Park Ave S",
     unit: "Floor 3",
@@ -382,7 +384,7 @@ export const addPremises = async (clientId: string) => {
     ...premises,
     clientId,
     kind: "commercial",
-    premisesTypeKey: randomUUID(),
+    premisesTypeKey: office.key,
     floorArea: 4500,
     addressKey: addressKey(premises),
   });

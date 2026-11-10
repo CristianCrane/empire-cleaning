@@ -55,6 +55,7 @@ import { endsByMidnight, passed } from "../jobs/rules.ts";
 import { charges } from "../payments/payments.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
+import { optionsIn } from "../quotes/quote-state.ts";
 import {
   quoteRevisions,
   quotes,
@@ -652,6 +653,7 @@ const summariesOf = async (plans: ServicePlan[]) => {
       .select({
         quoteId: quotes.id,
         startsAt: revisionOptions.startsAt,
+        serviceId: revisionOptions.serviceId,
         suggested: revisionOptions.suggested,
       })
       .from(revisionOptions)
@@ -662,7 +664,9 @@ const summariesOf = async (plans: ServicePlan[]) => {
           plans.map((p) => p.quoteId),
         ),
       )
-      .orderBy(asc(revisionOptions.position)),
+      .orderBy(asc(revisionOptions.position))
+      // named for the reply (ADR-0025)
+      .then((rows) => optionsIn(currentLanguage(), rows)),
   ]);
   const homeOf = new Map(homes.map((h) => [h.id, h]));
   const nextOf = new Map(next.map((n) => [n.planId, n.startsAt]));
@@ -763,7 +767,9 @@ const detailOf = async (
       .from(quotes)
       .innerJoin(quoteRevisions, eq(quoteRevisions.id, quotes.sentRevisionId))
       .where(eq(quotes.id, plan.quoteId)),
-    daysOfQuote(plan.quoteId),
+    daysOfQuote(plan.quoteId).then((rows) =>
+      optionsIn(currentLanguage(), rows),
+    ),
     db
       .select({ cents: sum(charges.amountCents).mapWith(Number) })
       .from(charges)

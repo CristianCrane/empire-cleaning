@@ -10,10 +10,14 @@ export default preview(
     plan: {
       recurrence: "weekly",
       cleans: [
-        { startsAt: monday, serviceName: "Standard Clean", totalCents: 16200 },
+        {
+          startsAt: monday,
+          service: { name: "Standard Clean", nameEs: "Limpieza estándar" },
+          totalCents: 16200,
+        },
         {
           startsAt: wednesday,
-          serviceName: "Standard Clean",
+          service: { name: "Standard Clean", nameEs: "Limpieza estándar" },
           totalCents: 16200,
         },
       ],

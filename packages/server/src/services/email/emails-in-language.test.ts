@@ -74,8 +74,9 @@ import {
 
 // Every email to a Client (#304) or a Cleaner (#305), each way it can
 // read, in their Preferred Language (ADR-0025). The data is what a Spanish reader's would be,
-// with nothing English in it, so any English left in the words is ours.
-// Names of Services and a Bill's lines stay as stored until #395
+// with nothing English in it but the names the Office gives in both
+// languages, which each email names in its own (#395), so any English left
+// in the words is ours
 
 const name = "Casey Cliente";
 const email = "casey@example.com";
@@ -83,8 +84,12 @@ const address = "41-12 Austin St, 4B, 11375";
 const jobId = "8b175f41-4cb2-481c-af0c-260413da69da";
 const monday = new Date("2026-01-12T14:00:00Z");
 const wednesday = new Date("2026-01-14T18:30:00Z");
+// a Service, an extra: the Office's names in both languages
+const deep = { name: "Deep Clean", nameEs: "Limpieza profunda" };
+const standard = { name: "Standard Clean", nameEs: "Limpieza estándar" };
+const oven = { name: "Inside the oven", nameEs: "Dentro del horno" };
 const clean: Clean = {
-  service: "Limpieza profunda",
+  service: deep,
   address,
   startsAt: monday,
 };
@@ -125,7 +130,7 @@ const bill: BillToSend = {
   voidReason: null,
   totalCents: 64800,
   taxCents: 5351,
-  lines: [{ label: "Limpieza profunda", amountCents: 64800 }],
+  lines: [{ label: address, amountCents: 64800 }],
 };
 const settledJob = (settled: Settled): SettledJob => ({
   jobId,
@@ -139,13 +144,13 @@ const offer: QuoteOffer = {
   proposedStartsAt: monday.toISOString(),
   expiresAt: wednesday.toISOString(),
   options: [
-    { serviceName: "Limpieza profunda", recommended: true, totalCents: 29940 },
-    { serviceName: "Limpieza estándar", recommended: false, totalCents: 19940 },
+    { service: deep, recommended: true, totalCents: 29940 },
+    { service: standard, recommended: false, totalCents: 19940 },
   ],
   plan: null,
 };
 const planDay = {
-  serviceName: "Limpieza estándar",
+  service: standard,
   startsAt: monday.toISOString(),
   savingCents: 2000,
   oneOffTotalCents: 19940,
@@ -153,12 +158,8 @@ const planDay = {
 const plan = {
   recurrence: "fortnightly" as const,
   cleans: [
-    { startsAt: monday, serviceName: "Limpieza estándar", totalCents: 17940 },
-    {
-      startsAt: wednesday,
-      serviceName: "Limpieza estándar",
-      totalCents: 17940,
-    },
+    { startsAt: monday, service: standard, totalCents: 17940 },
+    { startsAt: wednesday, service: standard, totalCents: 17940 },
   ],
 };
 const visit = {
@@ -169,13 +170,19 @@ const visit = {
   minutes: 30,
   place: "home" as const,
 };
-const changed = { kind: "extra_time" as const, addOnName: null, hours: 1 };
+// each kind of price change
+const changes = [
+  { kind: "extra_time" as const, addOn: null, hours: 1 },
+  { kind: "add_on_done" as const, addOn: oven, hours: null },
+  { kind: "add_on_not_done" as const, addOn: oven, hours: null },
+];
+const [changed] = changes;
 
 // a Job open to a Cleaner, as the Cleaners Needed email lists it
 const needed = (crewSize: number, hoursOnSite: number) => ({
   jobId,
   startsAt: monday.toISOString(),
-  serviceName: clean.service,
+  service: clean.service,
   hoursOnSite,
   crewSize,
   postcode: "11375",
@@ -349,21 +356,7 @@ const emailsIn = (lang: Language): Email[] => [
       jobId,
       clean,
       quotedCents: 29940,
-      adjustments: [
-        { ...changed, totalCents: 5988 },
-        {
-          kind: "add_on_done",
-          addOnName: "Dentro del horno",
-          hours: null,
-          totalCents: 2994,
-        },
-        {
-          kind: "add_on_not_done",
-          addOnName: "Dentro del horno",
-          hours: null,
-          totalCents: -2994,
-        },
-      ],
+      adjustments: changes.map((c) => ({ ...c, totalCents: 2994 })),
       totalCents: 35928,
       rescheduleFeeCents: 4000,
       depositCents: 5988,
@@ -371,24 +364,38 @@ const emailsIn = (lang: Language): Email[] => [
       settled,
     }),
   ),
-  ...[false, true].map((reminder) =>
-    proposalEmail(lang, {
-      name,
-      jobId,
-      clean,
-      adjustment: changed,
-      reason: typed.extra,
-      totalCents: 5988,
-      answerBy: wednesday,
-      reminder,
-    }),
+  ...changes.flatMap((adjustment) =>
+    [false, true].map((reminder) =>
+      proposalEmail(lang, {
+        name,
+        jobId,
+        clean,
+        adjustment,
+        reason: typed.extra,
+        totalCents: 5988,
+        answerBy: wednesday,
+        reminder,
+      }),
+    ),
   ),
   ...settlings.flatMap((settled) => [
+    ...changes.map((adjustment) =>
+      approvedEmail(lang, {
+        name,
+        jobId,
+        clean,
+        adjustment,
+        amountCents: 5988,
+        totalCents: 35928,
+        owedCents: 5988,
+        settled,
+      }),
+    ),
     approvedEmail(lang, {
       name,
       jobId,
       clean,
-      adjustment: changed,
+      adjustment: changed!,
       amountCents: 5988,
       totalCents: 35928,
       owedCents: 5988,

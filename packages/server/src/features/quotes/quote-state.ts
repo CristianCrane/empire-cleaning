@@ -24,18 +24,30 @@ import type {
   SiteVisitStage,
   Weekday,
 } from "@empire-cleaning/models";
-import { catalog, DAY_MS, HOUR_MS } from "@empire-cleaning/models";
+import {
+  catalog,
+  DAY_MS,
+  HOUR_MS,
+  inLanguage,
+  type Language,
+  type PriceBreakdown,
+} from "@empire-cleaning/models";
 import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
-import { currentPriceList } from "../price-list/price-list.ts";
+import { addOnNamesIn, currentPriceList } from "../price-list/price-list.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { toPropertyView } from "../properties/property-view.ts";
 import { servicePlans } from "../service-plans/service-plans.schema.ts";
 import { services } from "../services/services.schema.ts";
-import { choiceOf, currentServices, serviceOf } from "../services/services.ts";
+import {
+  choiceOf,
+  currentServices,
+  serviceOf,
+  serviceVersions,
+} from "../services/services.ts";
 import { siteVisitStages } from "../site-visits/site-visits.ts";
 import { askedAddOns } from "./asked-add-ons.ts";
 import {
@@ -105,7 +117,10 @@ export const askedOf = (
   quote.origin === "office"
     ? null
     : {
-        service: choiceOf(serviceOf(all, quote.askedServiceKey!)),
+        // in the reply's language, as it's only ever a reply
+        service: choiceOf(
+          inLanguage(currentLanguage(), serviceOf(all, quote.askedServiceKey!)),
+        ),
         condition: quote.condition,
         rooms: quote.rooms,
         wantsRegularService: quote.wantsRegularService,
@@ -127,7 +142,42 @@ export const sourceOf = (quote: Quote): QuoteSource | null =>
         utmCampaign: quote.utmCampaign,
       };
 
-// the options of these Revisions, by Revision
+// Options as a reader of `lang` reads them (ADR-0025): each one's Service
+// by the version it was priced with, and its Add-ons by key, named in that
+// language. Only where a reply is built: a row that's stored, or that words
+// the Office's or the payment provider's records, keeps the names it was
+// priced with
+export const optionsIn = async <
+  T extends {
+    serviceId: string;
+    suggested: PriceBreakdown;
+    addOns?: { key: string; name: string }[];
+  },
+>(
+  lang: Language,
+  rows: T[],
+): Promise<T[]> => {
+  if (lang === "en" || rows.length === 0) return rows;
+  const [versions, nameOf] = await Promise.all([
+    serviceVersions(rows.map((r) => r.serviceId)),
+    addOnNamesIn(lang),
+  ]);
+  const rename = <A extends { key: string; name: string }>(a: A): A => ({
+    ...a,
+    name: nameOf(a),
+  });
+  return rows.map((row) => ({
+    ...row,
+    suggested: {
+      ...row.suggested,
+      serviceName: inLanguage(lang, versions.get(row.serviceId)!).name,
+      addOns: row.suggested.addOns.map(rename),
+    },
+    ...(row.addOns && { addOns: row.addOns.map(rename) }),
+  }));
+};
+
+// the options of these Revisions, by Revision, named for the reply
 const optionsOfRevisions = async (revisionIds: string[]) => {
   if (revisionIds.length === 0) return new Map<string, RevisionOptionRow[]>();
   const rows = await db
@@ -135,7 +185,10 @@ const optionsOfRevisions = async (revisionIds: string[]) => {
     .from(revisionOptions)
     .where(inArray(revisionOptions.revisionId, revisionIds))
     .orderBy(asc(revisionOptions.position));
-  return Map.groupBy(rows, (o) => o.revisionId);
+  return Map.groupBy(
+    await optionsIn(currentLanguage(), rows),
+    (o) => o.revisionId,
+  );
 };
 
 // what a Revision leads with, tax included: a one-off Quote's first option,
@@ -376,7 +429,9 @@ const summaries = async (
         status: forClient && status === "draft" ? "requested" : status,
         origin: quote.origin,
         asked: askedOf(quote, addOns.get(quote.id) ?? [], all),
-        service: choiceOf(serviceOf(all, quote.serviceKey)),
+        service: choiceOf(
+          inLanguage(currentLanguage(), serviceOf(all, quote.serviceKey)),
+        ),
         client,
         property: toPropertyView(property, list),
         homePlanId,

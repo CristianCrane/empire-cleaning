@@ -75,6 +75,11 @@ import {
 } from "./pricing.ts";
 import { cleanOf, serviceNameOf } from "../services/services.ts";
 import {
+  addOnNamesIn,
+  currentPriceList,
+  namedByKey,
+} from "../price-list/price-list.ts";
+import {
   approvedEmail,
   completionUndoneEmail,
   correctedEmail,
@@ -297,7 +302,7 @@ const sendReceipt = async (jobId: string, settled: Settled) => {
         jobId,
         clean: await cleanOf(job, property),
         quotedCents: payment.quotedCents,
-        adjustments: rows.filter(counts),
+        adjustments: await forEmail(rows.filter(counts)),
         totalCents: payment.totalCents,
         rescheduleFeeCents: payment.rescheduleFeeCents,
         depositCents: deposit,
@@ -310,10 +315,36 @@ const sendReceipt = async (jobId: string, settled: Settled) => {
 
 // ---- views ----
 
-const toView = (a: Adjustment): AdjustmentView => ({
+// price changes for an email, each Add-on in both languages for the email
+// to name in its own; the name it was reported with is the English
+const forEmail = async <T extends Adjustment>(rows: T[]) => {
+  const named = namedByKey((await currentPriceList()).addOns);
+  return rows.map((a) => ({
+    ...a,
+    addOn:
+      a.addOnName === null
+        ? null
+        : named({ key: a.addOnKey ?? "", name: a.addOnName }),
+  }));
+};
+
+// the Add-on a price change reported, by `nameOf` (addOnNamesIn): the name
+// it was reported with is the English
+const reportedName = (
+  a: Pick<Adjustment, "addOnKey" | "addOnName">,
+  nameOf: (addOn: { key: string; name: string }) => string,
+) =>
+  a.addOnKey && a.addOnName
+    ? nameOf({ key: a.addOnKey, name: a.addOnName })
+    : a.addOnName;
+
+const toView = (
+  a: Adjustment,
+  nameOf: (addOn: { key: string; name: string }) => string,
+): AdjustmentView => ({
   id: a.id,
   kind: a.kind,
-  addOnName: a.addOnName,
+  addOnName: reportedName(a, nameOf),
   hours: a.hours,
   reason: a.reason,
   status: a.status,
@@ -338,14 +369,16 @@ const adjustmentsOf = (jobId: string) =>
     .where(eq(adjustments.jobId, jobId))
     .orderBy(asc(adjustments.reportedAt), asc(adjustments.createdAt));
 
-// a Completed Job's completion, for the Office; null while it's booked
+// a Completed Job's completion, for the Office, or its Client's view of it
+// (its extras in the reply's language); null while it's booked
 export const officeCompletionOf = async (
   job: Job,
 ): Promise<JobCompletion | null> => {
   if (job.status !== "completed") return null;
-  const [rows, payment, [by]] = await Promise.all([
+  const [rows, payment, addOnName, [by]] = await Promise.all([
     adjustmentsOf(job.id),
     paymentOf(job),
+    addOnNamesIn(currentLanguage()),
     job.completedBy
       ? db
           .select({ id: staff.id, name: staff.name })
@@ -357,7 +390,7 @@ export const officeCompletionOf = async (
     completedAt: job.completedAt!.toISOString(),
     completedBy: by ?? null,
     condition: job.reportedCondition!,
-    adjustments: rows.map(toView),
+    adjustments: rows.map((a) => toView(a, addOnName)),
     payment,
   };
 };
@@ -393,8 +426,11 @@ export const cleanerCompletionsOf = async (
     quotedJobs(booked),
   ]);
   const nameOf = new Map(names.map((n) => [n.id, n.name]));
-  const addOns = await addOnsOfVersions([
-    ...new Set([...quoted.values()].map((q) => q.priceListId)),
+  const [addOns, addOnName] = await Promise.all([
+    addOnsOfVersions([
+      ...new Set([...quoted.values()].map((q) => q.priceListId)),
+    ]),
+    addOnNamesIn(currentLanguage()),
   ]);
 
   const extras = list.map((job): [string, CleanerExtras] => {
@@ -406,7 +442,7 @@ export const cleanerCompletionsOf = async (
         assigned: assigned.get(job.id) === "assigned",
         outcome: completed ? "completed" : noAccess ? "no_access" : null,
         reportable: quoted.has(job.id)
-          ? reportableAddOns(quoted.get(job.id)!, addOns)
+          ? reportableAddOns(quoted.get(job.id)!, addOns, addOnName)
           : { quoted: [], others: [] },
         completion: completed
           ? {
@@ -419,7 +455,7 @@ export const cleanerCompletionsOf = async (
                 .filter((r) => r.jobId === job.id)
                 .map((r) => ({
                   kind: r.kind,
-                  addOnName: r.addOnName,
+                  addOnName: reportedName(r, addOnName),
                   hours: r.hours,
                   reason: r.reason,
                 })),
@@ -522,7 +558,7 @@ const sendProposal = async (
       name: client.name,
       jobId: job.id,
       clean: await cleanOf(job, property),
-      adjustment,
+      adjustment: (await forEmail([adjustment]))[0]!,
       reason: adjustment.reason,
       totalCents: adjustment.totalCents,
       answerBy: by,
@@ -770,7 +806,7 @@ export const ownJob = async (clientId: string, jobId: string) => {
 const clientJobOf = async (job: Job, property: Property) => ({
   id: job.id,
   startsAt: job.startsAt.toISOString(),
-  serviceName: await serviceNameOf(job.serviceId),
+  serviceName: await serviceNameOf(currentLanguage(), job.serviceId),
   crewSize: job.crewSize,
   hoursOnSite: hoursOnSiteOf(job),
   property: {
@@ -803,6 +839,7 @@ export const clientJob = async (
     payment,
     quoted,
     weeklyBill,
+    addOnName,
   ] = await Promise.all([
     officeCompletionOf(job),
     cancellationOf(job),
@@ -815,12 +852,13 @@ export const clientJob = async (
     // without a Quote to say, no extras are shown
     quotedJob(job.id).catch(() => null),
     weeklyBillOfJob(job, db),
+    addOnNamesIn(currentLanguage()),
   ]);
   return {
     ...(await clientJobOf(job, property)),
     status: job.status,
     payment,
-    addOns: quoted?.suggested.addOns.map((a) => a.name) ?? [],
+    addOns: quoted?.suggested.addOns.map(addOnName) ?? [],
     completion: completion && {
       completedAt: completion.completedAt,
       condition: completion.condition,
@@ -956,7 +994,7 @@ export const answerAdjustment = async (
         name: client.name,
         jobId,
         clean: await cleanOf(job, property),
-        adjustment: answered,
+        adjustment: (await forEmail([answered]))[0]!,
         amountCents: answered.totalCents,
         totalCents: payment.totalCents,
         owedCents: payment.owedCents,

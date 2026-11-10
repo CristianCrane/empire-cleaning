@@ -52,7 +52,7 @@ export const catalog = <T>(words: {
 // what the Office names in both languages (a Service, an Add-on, a Premises
 // Type), as a reader of `lang` sees it: the Spanish name and description
 // where they're set, the English otherwise (ADR-0025)
-type Named = {
+export type Named = {
   name: string;
   nameEs?: string | null;
   description?: string;

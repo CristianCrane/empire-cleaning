@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import type { ClientPayment, ClientPaymentKind } from "@empire-cleaning/models";
 import { addDays } from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
 import { db } from "../../db/index.ts";
 import { billNumber } from "../bills/bills.ts";
 import { bills } from "../bills/bills.schema.ts";
@@ -73,7 +74,10 @@ export const paymentHistoryFor = async (
   const names = new Map<string, string>();
   for (const { job } of ownJobs) {
     if (!names.has(job.serviceId)) {
-      names.set(job.serviceId, await serviceNameOf(job.serviceId));
+      names.set(
+        job.serviceId,
+        await serviceNameOf(currentLanguage(), job.serviceId),
+      );
     }
   }
   const jobOf = (jobId: string | null) => {
