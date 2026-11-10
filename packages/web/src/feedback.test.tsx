@@ -62,7 +62,7 @@ const clearance = (element: Element) => {
 
 test("the button sits above the phone's tab bar", async () => {
   await render(
-    <AppLayout area="Office" nav={nav} account={null} menuFoot={() => null}>
+    <AppLayout area="Office" nav={nav} foot={() => null}>
       <p>Today</p>
     </AppLayout>,
   );
@@ -74,7 +74,7 @@ test("the button sits above the phone's tab bar", async () => {
 
 test("on a page with an ActionFooter, it sits above that too, wrapped or not", async () => {
   const actions = (labels: string[]) => (
-    <AppLayout area="Cleaner" nav={nav} account={null} menuFoot={() => null}>
+    <AppLayout area="Cleaner" nav={nav} foot={() => null}>
       <ActionFooter aria-label="What to do">
         {labels.map((label) => (
           <Button key={label}>{label}</Button>

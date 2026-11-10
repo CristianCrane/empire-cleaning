@@ -30,15 +30,9 @@ const meta = {
   args: {
     area: "Office",
     nav: officeNav,
-    // the app puts its account menu here, and on a phone its parts at the
-    // ☰ menu's foot
-    account: (
-      <Button variant="quiet" className="justify-start">
-        <User aria-hidden size={20} />
-        Olive Owner
-      </Button>
-    ),
-    menuFoot: () => (
+    // the app puts the account's parts here: the sidebar's foot, and on a
+    // phone the ☰ menu's
+    foot: () => (
       <Button variant="quiet" className="justify-start">
         <LogOut aria-hidden size={20} />
         Sign out
@@ -193,10 +187,10 @@ export const Groups: Story = {
   },
 };
 
-// the portal and the Cleaner area on a phone: the tab bar keeps the
-// sections, and the account's parts sit at the foot of the ☰ menu, the
-// other language among them named in its own words, so the top bar holds
-// only the ☰ and the section (#305)
+// on a phone the tab bar keeps the shortcuts, and the account's parts sit
+// at the foot of the ☰ menu, as of the sidebar, the other language among
+// them named in its own words, so the top bar holds only the ☰ and the
+// section (#305)
 export const PhoneMenuFoot: Story = {
   globals: { viewport: { value: "phone" } },
   args: {
@@ -210,13 +204,7 @@ export const PhoneMenuFoot: Story = {
       },
       { href: "#offers", label: "Offers", icon: ClipboardPenLine },
     ],
-    account: (
-      <Button variant="quiet" className="justify-start">
-        <User aria-hidden size={20} />
-        Cory Cleaner
-      </Button>
-    ),
-    menuFoot: () => (
+    foot: () => (
       <div className="flex flex-col gap-1">
         <Button variant="quiet" className="justify-start">
           <Languages aria-hidden size={20} />
@@ -232,9 +220,9 @@ export const PhoneMenuFoot: Story = {
   play: async ({ canvas, canvasElement, userEvent }) => {
     const bar = canvas.getByRole("navigation", { name: "Cleaner area" });
     await expect(bar).toHaveTextContent("Your jobsOffers");
-    // nothing of the account in the top bar
-    await expect(canvasElement.querySelector("header")).not.toHaveTextContent(
-      "Cory Cleaner",
+    // the top bar holds only the ☰ and the section
+    await expect(canvasElement.querySelector("header")).toHaveTextContent(
+      /^Your jobs$/i,
     );
 
     await userEvent.click(canvas.getByRole("button", { name: "Menu" }));

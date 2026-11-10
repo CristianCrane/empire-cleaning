@@ -30,13 +30,8 @@ import type {
   SignedInAccount,
 } from "@empire-cleaning/models";
 import {
-  Actions,
   AppLayout,
   Button,
-  Dialog,
-  DialogTrigger,
-  List,
-  ListItem,
   Notice,
   type NavItem,
   useLanguage,
@@ -57,24 +52,20 @@ import {
   areas,
   areasFor,
   forgetAccount,
-  getAccount,
   signOut,
   type AreaId,
 } from "../session.ts";
-import { reportUnexpected } from "../monitoring.ts";
 import { useAction } from "./action.ts";
 import { useTours } from "./run-tours.ts";
 import { cleanerWords } from "./cleaner/words.ts";
 import { portalWords } from "./portal/words.ts";
 import { said } from "./words.ts";
 
-// the Account menu's words, in every area's language (ADR-0025): said to
-// Clients and Cleaners alike, so their Spanish addresses no one, neither
-// usted nor tú (docs/ux.md, Language)
+// the account's words, at the foot of the sidebar and the ☰ menu, in every
+// area's language (ADR-0025): said to Clients and Cleaners alike, so their
+// Spanish addresses no one, neither usted nor tú (docs/ux.md, Language)
 const words = catalog({
   en: {
-    account: "Account",
-    switchTo: "Switch to",
     switchToArea: (area: string) => `Switch to ${area}`,
     showTips: "Show tips again",
     tipsBack: "Tips will show again",
@@ -82,8 +73,6 @@ const words = catalog({
     languageFailed: "Couldn't change the language. Try again.",
   },
   es: {
-    account: "Cuenta",
-    switchTo: "Cambiar a",
     switchToArea: (area: string) => `Cambiar a ${area}`,
     showTips: "Volver a mostrar consejos",
     tipsBack: "Los consejos se volverán a mostrar",
@@ -223,25 +212,18 @@ export function AreaLayout({ area }: { area: AreaId }) {
     }),
   );
 
-  // on a phone, every area's account parts are at the foot of the ☰ menu;
-  // on larger screens, in the sidebar's Account menu (#305). The areas that
-  // follow the person's language offer the other one beside them; the
-  // Office is English for good
+  // every area's account parts are at the foot of the sidebar, and of the
+  // ☰ menu on a phone (#305). The areas that follow the person's language
+  // offer the other one among them; the Office is English for good
   const own = area !== "office";
-  // the ☰ menu foot's, here so the menu stays open while an area switches
+  // here, so the ☰ menu stays open while an area switches
   const footActions = useAccountActions(account, area);
 
   return (
     <AppLayout
       area={areaLabels[lang][area]}
       nav={nav}
-      account={
-        <>
-          {own && <OtherLanguage />}
-          <AccountMenu account={account} area={area} />
-        </>
-      }
-      menuFoot={({ close }) => (
+      foot={({ close }) => (
         <AccountFoot
           account={account}
           actions={footActions}
@@ -280,13 +262,12 @@ function useOffersCount(on: boolean, pathname: string) {
   return value ?? 0;
 }
 
-// what the person can do with their Account, wherever it shows (the
-// Account menu, or a phone's ☰ menu): switch to their other area (Staff
+// what the person can do with their Account, at the foot of the sidebar or
+// a phone's ☰ menu: switch to their other area (Staff
 // holding both roles, or a Cleaner who's a Client too), bring back
 // first-time help's tours, and sign out
 function useAccountActions(account: SignedInAccount, area: AreaId) {
   const navigate = useNavigate();
-  const router = useRouter();
   const otherAreas = areasFor(account).filter((id) => id !== area);
   const lang = useLanguage();
   const w = { ...words[lang], signOut: said[lang].signOut };
@@ -294,20 +275,7 @@ function useAccountActions(account: SignedInAccount, area: AreaId) {
   // the area being switched to, until it's on screen
   const [switching, setSwitching] = useState<AreaId>();
 
-  // opening the menu is when an area is chosen: look again at what the
-  // Account is connected to, and load each area it offers, its Home included,
-  // so pressing one shows it at once (the router keeps them 30 s)
-  const preloadAreas = () => {
-    forgetAccount();
-    getAccount().catch(reportUnexpected);
-    for (const id of otherAreas) {
-      // a failed load is caught by the router itself (and runs again on the
-      // visit, which PageError reports)
-      void router.preloadRoute({ to: areas[id].path });
-    }
-  };
-
-  // pressed before the area is ready, the menu stays open with the row
+  // pressed before the area is ready, a ☰ menu stays open with the item
   // pending, and goes with this area as the new one shows. Still here once
   // the switch is over, it went nowhere new (a redirect back to this area,
   // or Back pressed meanwhile), so the menu closes itself
@@ -342,83 +310,15 @@ function useAccountActions(account: SignedInAccount, area: AreaId) {
     otherAreas,
     switching,
     action,
-    preloadAreas,
     switchTo,
     showTipsAgain,
     signOutHere,
   };
 }
 
-// who's signed in, and what they can do with their Account, in a dialog: in
-// the sidebar on larger screens
-function AccountMenu({
-  account,
-  area,
-}: {
-  account: SignedInAccount;
-  area: AreaId;
-}) {
-  const a = useAccountActions(account, area);
-  const { w, switching } = a;
-
-  return (
-    <DialogTrigger onOpenChange={(isOpen) => isOpen && a.preloadAreas()}>
-      <Button variant="quiet" className="justify-start">
-        <User aria-hidden size={20} />
-        {account.name}
-      </Button>
-      <Dialog title={w.account} isBusy={switching !== undefined}>
-        {({ close }) => (
-          <>
-            <div className="flex flex-col">
-              <span className="font-semibold">{account.name}</span>
-              <span className="text-fg-muted">{account.email}</span>
-            </div>
-            {a.otherAreas.length > 0 && (
-              <List
-                aria-label={w.switchTo}
-                onAction={(id) => void a.switchTo(id as AreaId, close)}
-              >
-                {a.otherAreas.map((id) => (
-                  <ListItem
-                    key={id}
-                    id={id}
-                    title={w.switchToArea(areaLabels[a.lang][id])}
-                    isPending={switching === id}
-                    isDisabled={switching !== undefined}
-                  />
-                ))}
-              </List>
-            )}
-            {a.action.problem && (
-              <Notice tone="danger">{a.action.problem}</Notice>
-            )}
-            <Actions>
-              <Button
-                variant="quiet"
-                isPending={a.action.isPending}
-                isDisabled={switching !== undefined}
-                onPress={() => void a.showTipsAgain(close)}
-              >
-                {w.showTips}
-              </Button>
-              <Button
-                variant="quiet"
-                isDisabled={switching !== undefined}
-                onPress={() => void a.signOutHere(close)}
-              >
-                {w.signOut}
-              </Button>
-            </Actions>
-          </>
-        )}
-      </Dialog>
-    </DialogTrigger>
-  );
-}
-
-// the same, at the foot of a phone's ☰ menu, one plain item each, the
-// other language among them where the area follows it (#305)
+// who's signed in, and what they can do with their Account, one plain item
+// each, at the foot of the sidebar and of a phone's ☰ menu, the other
+// language among them where the area follows it (#305)
 function AccountFoot({
   account,
   actions: a,
@@ -431,9 +331,8 @@ function AccountFoot({
   // the other language, in an area that follows the person's
   withLanguage: boolean;
 }) {
-  // opening the ☰ menu asks nothing again, as it's how a phone moves
-  // between pages: a record connected meanwhile shows on returning to the
-  // tab (main.tsx)
+  // nothing here asks who's signed in again: a record connected meanwhile
+  // shows on returning to the tab (main.tsx)
   const { w, switching } = a;
 
   return (

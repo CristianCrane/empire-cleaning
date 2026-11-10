@@ -17,8 +17,8 @@ const olive = {
   roles: ["office_staff" as const],
 };
 
-// the app asks who you are when you sign in, open the Account menu (where an
-// area is chosen) or come back to the tab, not on every click; these are the
+// the app asks who you are when you sign in or come back to the tab, not on
+// every click; these are the
 // times it can have changed behind its back (another tab, the landing page,
 // the Office adding a record)
 
@@ -39,85 +39,39 @@ test("coming back to the tab notices a Client record connected meanwhile", async
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hi, Olive");
 });
 
-// the Account menu, on a larger screen: a phone's ☰ menu asks nothing as
-// it opens, as it's how a phone moves between pages (returning to the tab
-// does, above)
-test(
-  "switching areas notices a Client record connected meanwhile",
-  { tag: "@desktop" },
-  async ({ page, isMobile }) => {
-    test.skip(isMobile, "a phone's ☰ menu doesn't ask again as it opens");
-    await createStaff({ ...olive, roles: ["office_staff", "cleaner"] });
-    await signedInAs(page, olive.email);
-    // the app has asked who this is, and been told: Staff, nothing more
-    await expect(page).toHaveURL("/office");
-    await createClient({ email: olive.email, name: "Olive Owner" });
-
-    // the menu still offers only what it knew; opening it looks again, so the
-    // area it switches to knows
-    await openAccount(page, olive.name);
-    await switchArea(page, "Cleaner area");
-    await expect(page).toHaveURL("/cleaner");
-
-    await openAccount(page, olive.name);
-    await expect(switchItem(page, "Client portal")).toBeVisible();
-  },
-);
-
-test(
-  "switching area once the menu has been open a moment shows it at once",
-  { tag: "@desktop" },
-  async ({ page, isMobile }) => {
-    test.skip(
-      isMobile,
-      "a phone's ☰ menu doesn't load the other areas as it opens",
-    );
-    await createStaff(olive);
-    await createClient({ email: olive.email, name: olive.name });
-    await signedInAs(page, olive.email);
-    await expect(page).toHaveURL("/office");
-
-    // opening the menu loads the portal, its Home included
-    const homeLoaded = page.waitForResponse("**/api/clients/me");
-    await openAccount(page, olive.name);
-    await homeLoaded;
-
-    // from here the API answers nothing, so whatever shows came before the press
-    await page.route("**/api/**", () => {});
-    await switchArea(page, "Client portal");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "Hi, Olive",
-    );
-  },
-);
-
-test("a press before the area is ready waits in the menu, then the area shows", async ({
+test("a press before the area is ready waits, the menu with it, then the area shows", async ({
   page,
+  isMobile,
 }) => {
   await createStaff(olive);
   await createClient({ email: olive.email, name: olive.name });
   await signedInAs(page, olive.email);
   await expect(page).toHaveURL("/office");
 
-  // who's signed in answers only when let go
+  // the portal's Home answers only when let go
   let letGo = () => {};
   const held = new Promise<void>((resolve) => (letGo = resolve));
-  await page.route("**/api/me", async (route) => {
+  await page.route("**/api/clients/me", async (route) => {
     await held;
     await route.fallback();
   });
 
-  // pressed by hand, not with switchArea, to look at the menu while it waits:
-  // the Account menu on a larger screen, the ☰ menu's foot on a phone
+  // pressed by hand, not with switchArea, to look at it while it waits: at
+  // the sidebar's foot on a larger screen, the ☰ menu's on a phone
   await openAccount(page, olive.name);
   const portal = switchItem(page, "Client portal");
   await portal.click();
-  const menu = page.getByRole("dialog", { name: /^(Account|Menu)$/ });
   await expect(portal).toBeDisabled();
-  await page.keyboard.press("Escape");
-  await expect(menu).toBeVisible();
-  await expect(menu.getByRole("button", { name: "Close" })).toBeDisabled();
-  await expect(menu.getByRole("button", { name: "Sign out" })).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Sign out" }).filter({ visible: true }),
+  ).toBeDisabled();
+  const menu = page.getByRole("dialog", { name: "Menu" });
+  if (isMobile) {
+    // the ☰ menu stays open meanwhile
+    await page.keyboard.press("Escape");
+    await expect(menu).toBeVisible();
+    await expect(menu.getByRole("button", { name: "Close" })).toBeDisabled();
+  }
   await expect(
     page.getByRole("navigation", { name: "Office" }).first(),
   ).toBeVisible();

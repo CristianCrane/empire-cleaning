@@ -28,12 +28,11 @@ export type AppLayoutProps = {
   // which part of the app this is, e.g. "Office" or "Cleaner"
   area: string;
   nav: NavItem[];
-  // who is signed in and what they can do (switch area, sign out), at the
-  // foot of the sidebar on larger screens
-  account: ReactNode;
-  // the same on a phone, at the foot of the ☰ menu under a divider, the
-  // theme after it. Given `close` to close the menu
-  menuFoot: (opts: { close: () => void }) => ReactNode;
+  // who is signed in and what they can do (switch area, sign out), one
+  // plain item each, at the foot of the sidebar and of a phone's ☰ menu,
+  // under a divider, the theme after it. Given `close` to close the ☰
+  // menu it's in (the sidebar's does nothing)
+  foot: (opts: { close: () => void }) => ReactNode;
   // something pressed in the ☰ menu's foot is under way: it stays open
   menuBusy?: boolean;
   children: ReactNode;
@@ -44,7 +43,7 @@ export type AppLayoutProps = {
 // shortcuts at most (the items not inMenu), and the drawer the ☰ opens,
 // the full menu: every section as the sidebar lists them, then the
 // account's parts and the theme at its foot (#200, #305). From tablet width
-// up: a sidebar.
+// up: a sidebar, with the same foot.
 //
 // The logo is never shrunk to fit: the phone's top bar is too short for it,
 // so the bar names the section you're in and the logo heads the ☰ menu
@@ -52,8 +51,7 @@ export type AppLayoutProps = {
 export function AppLayout({
   area,
   nav,
-  account,
-  menuFoot,
+  foot,
   menuBusy = false,
   children,
 }: AppLayoutProps) {
@@ -77,10 +75,7 @@ export function AppLayout({
         <nav aria-label={area} className="flex flex-1 flex-col gap-4">
           <NavGroups items={nav} />
         </nav>
-        <div className="flex flex-col gap-3">
-          {account}
-          <ThemeToggle />
-        </div>
+        <Foot>{foot({ close: () => {} })}</Foot>
       </aside>
 
       <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2 md:hidden print:hidden">
@@ -104,10 +99,7 @@ export function AppLayout({
                   <nav aria-label={area} className="flex flex-col gap-4">
                     <NavGroups items={nav} onPress={close} />
                   </nav>
-                  <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
-                    {menuFoot({ close })}
-                    <ThemeToggle />
-                  </div>
+                  <Foot>{foot({ close })}</Foot>
                 </>
               )}
             </Drawer>
@@ -134,6 +126,17 @@ export function AppLayout({
           <TabLink key={item.label} item={item} />
         ))}
       </nav>
+    </div>
+  );
+}
+
+// the account's parts and the theme, at the foot of the sidebar or the ☰
+// menu
+function Foot({ children }: { children: ReactNode }) {
+  return (
+    <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
+      {children}
+      <ThemeToggle />
     </div>
   );
 }

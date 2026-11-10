@@ -438,33 +438,30 @@ export const goTo = async (page: Page, name: string) => {
   if (opened) await expect(page.getByRole("dialog")).toBeHidden();
 };
 
-// opens what the person can do with their Account: the Account menu, a
-// button with their name (larger screens, and the Office on a phone), or
-// else on a phone in the portal and the Cleaner area the ☰ menu, whose foot
-// holds it (#305)
+// shows what the person can do with their Account: at the sidebar's foot
+// on a larger screen, at the ☰ menu's foot on a phone, which is opened
+// first (#305)
 export const openAccount = async (page: Page, name: string) => {
-  const { item, opened } = await showInMenu(
+  await showInMenu(
     page,
     page
-      .getByRole("button", { name, exact: true })
-      .or(page.getByRole("dialog").getByText(name, { exact: true })),
+      .getByRole("complementary")
+      .or(page.getByRole("dialog"))
+      .getByText(name, { exact: true }),
   );
-  // the ☰ menu's foot is on screen; the Account menu is pressed open
-  if (!opened) await item.click();
 };
 
-// the way into another area in the open Account menu (a row) or ☰ menu (a
-// button)
-export const switchItem = (page: Page, area: string) => {
-  const name = `Switch to ${area}`;
-  return page.getByRole("row", { name }).or(page.getByRole("button", { name }));
-};
+// the way into another area, among the account's parts (openAccount)
+export const switchItem = (page: Page, area: string) =>
+  page
+    .getByRole("button", { name: `Switch to ${area}` })
+    .filter({ visible: true });
 
 // moves to another area ("Office", "Cleaner area", "Client portal") from the
-// person's Account menu, which the test has opened (openAccount), and waits
-// until the area is on screen. The URL changes at once, but until the new area is ready the
-// old one stays, its menu open (AreaLayout's AccountMenu), so a test that went
-// on at the URL could press something in the old one, which then goes (#310)
+// person's account, which the test has shown (openAccount), and waits until
+// the area is on screen. The URL changes at once, but until the new area is
+// ready the old one stays, so a test that went on at the URL could press
+// something in the old one, which then goes (#310)
 export const switchArea = async (page: Page, area: string) => {
   await switchItem(page, area).click();
   await expect(

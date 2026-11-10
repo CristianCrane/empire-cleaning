@@ -212,8 +212,7 @@ const rootRoute = createRootRoute({
   // the signed-out language. An area's is left as it is until its route says
   // its own: the screen on show keeps its language while the Account is
   // asked for again (returning to the tab), rather than flashing the
-  // signed-out one (#305). A preload (the Account menu's) changes nothing on
-  // screen
+  // signed-out one (#305). A preload changes nothing on screen
   beforeLoad: ({ preload, location }) => {
     if (!preload && !inArea(location.pathname)) {
       setAppLanguage(signedOutLanguage());
@@ -342,8 +341,7 @@ const areaLanguage: Record<AreaId, (account: Me) => Language> = {
 
 // an area is only for Accounts holding its role: anyone signed out goes to
 // sign-in (and comes back afterwards), anyone else to their own area. The
-// Account is the one remembered: opening the Account menu, where an area is
-// chosen, looks again (AreaLayout's AccountMenu), so switching to one asks
+// Account is the one remembered (session.ts), so switching to one asks
 // nothing new
 const areaRoute = <Id extends AreaId>(id: Id) =>
   createRoute({
