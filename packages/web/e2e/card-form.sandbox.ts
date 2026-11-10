@@ -6,6 +6,7 @@ import {
   linkIn,
   quoteSent,
   requestQuoteAsGuest,
+  showInMenu,
   signUp,
   signedInAs,
   test,
@@ -175,6 +176,35 @@ test("the Client saves a card as their Payment Method", async ({ page }) => {
   await enterCard(add, CARD.visa);
   await add.getByRole("button", { name: "Save card" }).click();
   await expect(page.getByText(/^Your Visa ending 4242 is saved/)).toBeVisible();
+});
+
+// Stripe's own words, its terms line among them, follow a change of
+// language without the page loading again (#305): only here does its real
+// form show them
+test("the card form's own words turn Spanish when the Client switches language", async ({
+  page,
+}) => {
+  await requestQuoteAsGuest(casey);
+  await signedInAs(page, casey.email);
+  await page.goto("/portal/payment-method");
+  const card = cardFrame(page.getByRole("region", { name: "Add a card" }));
+  await expect(
+    card.getByText(/By providing your card information/),
+  ).toBeVisible();
+
+  const { item } = await showInMenu(
+    page,
+    page.getByRole("button", { name: "Español", exact: true }),
+  );
+  await item.click();
+
+  const added = cardFrame(
+    page.getByRole("region", { name: "Agregar una tarjeta" }),
+  );
+  await expect(
+    added.getByText(/By providing your card information/),
+  ).toBeHidden();
+  await expect(added.getByText(/tarjeta/).first()).toBeVisible();
 });
 
 test("the Client pays a Bill on its page by card", async ({ page }) => {
