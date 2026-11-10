@@ -12,4 +12,7 @@ files=$(git diff --cached --name-only --diff-filter=ACMR -- 'packages/*.ts' 'pac
 [ -z "$files" ] || pnpm exec oxlint --type-aware $files
 # words-from-catalog over .astro markup, which oxlint can't see
 [ -z "$files" ] || node packages/lint/src/astro-markup.ts $files
+# the same English in two of the screens' catalogs: all of them, as a copy
+# spans files
+[ -z "$files" ] || node packages/lint/src/catalog-copies.ts
 [ -z "$files" ] || pnpm exec prettier --check $files

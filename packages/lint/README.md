@@ -1,6 +1,6 @@
 # Lint rules
 
-The repo's own lint rules, `empire/…`, as one oxlint JS plugin (`src/index.ts`, `.oxlintrc.json`'s `jsPlugins`, run by `pnpm lint`): each rule is a file of its own, registered there. JS plugins are in alpha in oxlint and not bound by semver, so each rule is tested through oxlint's own `RuleTester` (`pnpm --filter @empire-cleaning/lint test`, in CI's Checks job), and an oxlint update that changes the plugin API fails there. oxlint reads only an `.astro` file's frontmatter and `<script>`s, so `pnpm lint` and the pre-commit hook also run `src/astro-markup.ts` on the `.astro` files, which runs `words-from-catalog` over their markup (below); its own tests are plain vitest.
+The repo's own lint rules, `empire/…`, as one oxlint JS plugin (`src/index.ts`, `.oxlintrc.json`'s `jsPlugins`, run by `pnpm lint`): each rule is a file of its own, registered there. JS plugins are in alpha in oxlint and not bound by semver, so each rule is tested through oxlint's own `RuleTester` (`pnpm --filter @empire-cleaning/lint test`, in CI's Checks job), and an oxlint update that changes the plugin API fails there. oxlint reads only an `.astro` file's frontmatter and `<script>`s, so `pnpm lint` and the pre-commit hook also run `src/astro-markup.ts` on the `.astro` files, which runs `words-from-catalog` over their markup (below), and `src/catalog-copies.ts` over the screens' catalogs, as a copy spans files (below); their own tests are plain vitest.
 
 ## `empire/report-unexpected`
 
@@ -38,3 +38,12 @@ What it can't see:
 - words a branch reaches through a call: `lang === "es" ? spanish() : english()`
 
 As it looks deep, it also flags a string under a branch that isn't words, such as an Intl option or a locale tag (`lang === "en" ? "en_US" : "es_US"`): that goes in a table by language too, as `locales` does. The rule is on everywhere, tests included: a test's expected words in each language go in a table by language, not a branch.
+
+## `catalog-copies`
+
+The same English in two of the screens' catalogs is a second Spanish to keep in step, and to have checked by the owner (#206, #397). A word several screens show has one home (`docs/ux.md`, Words): the portal's in `packages/web/src/screens/portal/words.ts` (`p`), the rest in `format.ts`'s `labels`, part of `screenWords`, or models' messages when the server says it too. `src/catalog-copies.ts` reads every `catalog({ en })` in `packages/web/src` and `packages/models/src/messages` (models' messages are in what a screen says, `said`) and prints each English string that's in more than one catalog, with every file and key it's in:
+
+- a string, a template (its placeholders as `${…}`: `Pay bill ${n}` is `Pay bill ${…}`) and a string in a placeholder each count, under any key, in a function or through `satisfies` or `as`; one with no letter doesn't
+- the same words twice in one catalog (two states of a Quote, both "Asked for") are one place to keep in step, so aren't a copy
+
+A short word that means a different thing in two places, so its Spanish may differ (it agrees with a different noun: a Bill is Pagada, a charge Pagado), goes on its `allowed` list, with every file it's in and why; a third file still fails, and an entry that's no longer a copy fails until it's taken out.

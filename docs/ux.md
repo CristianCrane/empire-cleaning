@@ -168,8 +168,10 @@ stays as it is (#336).
 - **A screen's words come from its catalog, in the language it's shown
   in** (`useSaid(words)` in `packages/web/src/screens/words.ts`: its own
   words as `w`, with `formats`, `messages` and `screenWords` of that
-  language). A word more than one portal screen shows (its navigation,
-  breadcrumbs, tours) is in `portal/words.ts`, once. Never a
+  language). A word more than one screen shows is in one catalog, once:
+  the portal's (its navigation, breadcrumbs, tours) in `portal/words.ts`,
+  the rest in `format.ts`'s `labels`. `pnpm lint` fails on the same
+  English in two catalogs (`packages/lint`, `catalog-copies`). Never a
   `lang === "es" ? … : …` branch: the words differ, so they're a catalog's.
 - **Which language a screen is in** is the app's one store
   (`packages/web/src/language.ts`): the portal the Client's Preferred

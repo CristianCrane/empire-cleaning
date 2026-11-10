@@ -9,7 +9,7 @@
     "test": "pnpm --color --recursive --workspace-concurrency=1 --no-bail run test:quick",
     "check": "pnpm --color --recursive run check",
     "check:packages": "manypkg check",
-    "lint": "oxlint --type-aware packages && node packages/lint/src/astro-markup.ts $(git ls-files 'packages/*.astro')",
+    "lint": "oxlint --type-aware packages && node packages/lint/src/astro-markup.ts $(git ls-files 'packages/*.astro') && node packages/lint/src/catalog-copies.ts",
     "lint:unused": "knip",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
