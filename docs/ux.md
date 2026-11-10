@@ -183,6 +183,18 @@ stays as it is (#336).
   translate. The Office's stay that way; where a part shared with the portal
   words something only the Office reads, that stays an English string
   beside the Client's catalog word.
+- **Words are made where the reader's language is known.** A caller hands
+  a screen or an email what happened (cents, a kind, a record, a null card),
+  never a sentence or an amount already formatted: words made before it
+  were English in every Spanish email of #304 (`sendBill`'s paragraphs, a
+  settled Job's label, `?? "card"`), and a search for `.en` doesn't find
+  them.
+- **A Spanish sentence that ends on a time takes one stop.** es-US writes
+  "9:00 a.m.", so a sentence ending on a time, or on a list of them, goes
+  through models' `oneStop`, and a time a screen shows on its own (in
+  bold) is followed by `stopAfter(time)` rather than a string starting
+  with ".". Five review rounds of #304 found "a.m.." one shape at a time
+  across the portal; the emails' test fails on it.
 
 ### First-time help
 
