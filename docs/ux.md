@@ -219,7 +219,8 @@ stays as it is (#336).
   through models' `oneStop`, and a time a screen shows on its own (in
   bold) is followed by `stopAfter(time)` rather than a string starting
   with ".". Five review rounds of #304 found "a.m.." one shape at a time
-  across the portal; the emails' test fails on it.
+  across the portal; the emails' test and the layout spec (every Client
+  and Cleaner screen in Spanish) fail on it.
 - **A change of language takes effect on the screen as it is**, with no
   reload: whatever is set up once in a language (Stripe's form,
   `elements.update({ locale })`; a route deciding the screen's language)
