@@ -29,7 +29,11 @@ import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
 import { email, notify } from "../../services/email/index.ts";
-import { assignmentStatusOf, mustBeConfirmed } from "../assignments/crew.ts";
+import {
+  assignmentStatusOf,
+  mustBeConfirmed,
+  NOT_STARTED,
+} from "../assignments/crew.ts";
 import { weeklyBillOfJob } from "../bills/billed-weekly.ts";
 import {
   cancelledWithPlan,
@@ -223,7 +227,7 @@ export const completeJob = async (
       throw new ConflictError(whyNotBooked(job!.status, "completed"));
     }
     if (job!.startsAt > now) {
-      throw new ConflictError("This job hasn't started yet.");
+      throw new ConflictError(NOT_STARTED);
     }
     const status = (await assignmentStatusOf([job!], tx)).get(jobId);
     if (status !== "assigned") {

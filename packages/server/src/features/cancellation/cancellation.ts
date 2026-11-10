@@ -14,7 +14,7 @@ import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
 import { email, notify } from "../../services/email/index.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
-import { mustBeConfirmed } from "../assignments/crew.ts";
+import { mustBeConfirmed, NOT_STARTED } from "../assignments/crew.ts";
 import { clients } from "../clients/clients.schema.ts";
 import {
   paymentOf,
@@ -377,7 +377,7 @@ export const recordNoAccess = async (
       throw new ConflictError(whyNotBooked(job!.status, "no_access"));
     }
     if (job!.startsAt > clock.now()) {
-      throw new ConflictError("This job hasn't started yet.");
+      throw new ConflictError(NOT_STARTED);
     }
     await tx
       .update(jobs)

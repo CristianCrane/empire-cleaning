@@ -55,6 +55,10 @@ export const crewOf = async (jobIds: string[], tx: Tx | typeof db = db) => {
   return crews;
 };
 
+// a Cleaner completing a Job, or saying they couldn't get in, before it
+// starts
+export const NOT_STARTED = "This job hasn't started yet.";
+
 // Refuses a Cleaner acting on a Job as its crew (completing it, recording
 // No Access) until their Assignment is Confirmed; to anyone not on its crew,
 // the Job doesn't exist
