@@ -317,6 +317,8 @@ test("a Cleaner reading in Spanish takes an open job and marks it done, in tú",
     .click();
   const open = page.getByRole("grid", { name: "Disponibles para ti" });
   await expect(open.getByRole("row")).toContainText("vie, 9 de ene, 9:00 a.m.");
+  // the Service by its Spanish name
+  await expect(open.getByRole("row")).toContainText("Limpieza profunda");
   await open.getByRole("row").click();
   await expect(
     page.getByRole("region", { name: "¿Puedes tomarlo?" }),

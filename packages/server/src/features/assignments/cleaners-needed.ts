@@ -5,7 +5,6 @@ import {
   dayOf,
   HOUR_MS,
   inLanguage,
-  type Language,
   timeOf,
 } from "@empire-cleaning/models";
 import { currentLanguage } from "#services/request";
@@ -119,10 +118,11 @@ const toCleanersNeeded = (open: Opening[]): CleanerNeeded[] =>
     postcode: job.property.postcode,
   }));
 
-// the Cleaners Needed open to a Cleaner now, soonest first
-// each Job's Service by its name in `lang`, where it has one: the
-// Schedule's are the Office's, in English
-const namedIn = async (lang: Language, needed: CleanerNeeded[]) => {
+// each Job's Service by its name in the reply's language, where it has
+// one: the Schedule's are the Office's, in English. The open-jobs email
+// names them in English, as every other email does, until #395
+const inReplyLanguage = async (needed: CleanerNeeded[]) => {
+  const lang = currentLanguage();
   if (lang === "en" || needed.length === 0) return needed;
   const rows = await db
     .select({ id: jobs.id, serviceId: jobs.serviceId })
@@ -141,9 +141,9 @@ const namedIn = async (lang: Language, needed: CleanerNeeded[]) => {
   }));
 };
 
+// the Cleaners Needed open to a Cleaner now, soonest first
 export const cleanersNeededFor = async (staffId: string) =>
-  namedIn(
-    currentLanguage(),
+  inReplyLanguage(
     toCleanersNeeded(
       (await openings()).filter((o) => o.openTo.includes(staffId)),
     ),
@@ -151,8 +151,7 @@ export const cleanersNeededFor = async (staffId: string) =>
 
 // one Cleaner Needed open to a Cleaner; to anyone else it doesn't exist
 export const cleanerNeededFor = async (staffId: string, jobId: string) => {
-  const [needed] = await namedIn(
-    currentLanguage(),
+  const [needed] = await inReplyLanguage(
     toCleanersNeeded(
       (await openings(jobId)).filter((o) => o.openTo.includes(staffId)),
     ),
@@ -268,7 +267,7 @@ const sendList = async (
     ...cleanersNeededEmail(member.preferredLanguage, {
       name: member.name,
       soon,
-      jobs: await namedIn(member.preferredLanguage, jobs),
+      jobs,
     }),
   });
 
