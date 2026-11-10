@@ -219,6 +219,10 @@ stays as it is (#336).
   bold) is followed by `stopAfter(time)` rather than a string starting
   with ".". Five review rounds of #304 found "a.m.." one shape at a time
   across the portal; the emails' test fails on it.
+- **A Spanish amount that's roughly so many says "cerca de"**, never
+  "unas" or "unos" before the number, which agree with it and read "unas 1
+  h" when it's one (`labels.about`). Round 1 of #305 found it in an email
+  and four screens, each written the same way.
 
 ### First-time help
 
