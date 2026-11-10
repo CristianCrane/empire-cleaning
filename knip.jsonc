@@ -17,14 +17,10 @@
         // the config `pnpm pr:shots` (tests/e2e/shots.ts) hands Playwright
         // by path
         "tests/e2e/shots.config.ts",
-        // drizzle-kit reads every *.schema.ts (src/db/drizzle.config.ts), so
-        // their tables and enums stay exported
-        "src/db/drizzle.config.ts",
-        "src/features/**/*.schema.ts",
       ],
-      // read as entries above: loading the config would check the server's
-      // environment variables
-      "drizzle": false,
+      // drizzle-kit's config isn't at the plugin's default path
+      // (package.json's db:* scripts); its schema files stay entries
+      "drizzle": { "config": "src/db/drizzle.config.ts" },
       // pino loads it by name, in development (src/services/monitoring/log.ts)
       "ignoreDependencies": ["pino-pretty"],
       // `pnpm pr:shots` runs the web app's or the landing site's own

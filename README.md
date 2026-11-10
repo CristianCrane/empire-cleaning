@@ -45,14 +45,14 @@ pnpm run db:down
 
 Every pull request to `main`, and every push to `main`, runs `.github/workflows/ci.yml`. Each part is its own check, and they run in parallel; the slower suites are split across several jobs (shards, each counted in its matrix). A final check, All checks, passes only when every other one did, and it's the one `main` requires. A newer push to the same pull request cancels the run still going. To run the same locally (with `pnpm db:up` for the Postgres the tests use):
 
-| Check                | Locally                                                                                             |
-| -------------------- | --------------------------------------------------------------------------------------------------- |
-| Checks               | `pnpm check`, `pnpm lint`, `pnpm lint:unused`, `pnpm format:check`, `pnpm check:packages` (below)   |
-| Server tests         | `pnpm --filter @empire-cleaning/server test:quick`                                                  |
-| Seed test            | `pnpm --filter @empire-cleaning/server test:seed` (`test` runs both; `SEED_SHARD=1/2` runs a share) |
-| Design-system tests  | `pnpm --filter @empire-cleaning/ui test`                                                            |
-| Web end-to-end tests | `pnpm --filter @empire-cleaning/web test`                                                           |
-| Landing site tests   | `pnpm --filter @empire-cleaning/landing test`                                                       |
+| Check                | Locally                                                                                                               |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Checks               | `pnpm check`, `pnpm lint`, `pnpm lint:unused`, `pnpm format:check`, `pnpm check:packages`, `pnpm db:generate` (below) |
+| Server tests         | `pnpm --filter @empire-cleaning/server test:quick`                                                                    |
+| Seed test            | `pnpm --filter @empire-cleaning/server test:seed` (`test` runs both; `SEED_SHARD=1/2` runs a share)                   |
+| Design-system tests  | `pnpm --filter @empire-cleaning/ui test`                                                                              |
+| Web end-to-end tests | `pnpm --filter @empire-cleaning/web test`                                                                             |
+| Landing site tests   | `pnpm --filter @empire-cleaning/landing test`                                                                         |
 
 What the Checks job is for:
 
@@ -63,6 +63,7 @@ What the Checks job is for:
 | Unused files, exports and dependencies (`pnpm lint:unused`) | What nothing uses across the workspace: a file nothing imports, an export no other file reads, a dependency nothing loads (knip, `knip.jsonc`).                                                                                                                                                                                                                                                                                                                                                                                         |
 | Formatting (`pnpm format:check`)                            | Code Prettier would lay out differently; `pnpm format` fixes it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | Package consistency (`pnpm check:packages`)                 | Packages disagreeing on a dependency's version, or misdeclaring each other (manypkg).                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Migrations match the schema (`pnpm db:generate`)            | A schema change without its migration: generating one must find nothing new to write under `packages/server/drizzle`. It needs no environment, so it also fails if a schema file starts loading the server's (#389).                                                                                                                                                                                                                                                                                                                    |
 | Lint rule tests                                             | Our own lint rules, through oxlint's `RuleTester` (`pnpm --filter @empire-cleaning/lint test`): JS plugins are in alpha in oxlint, so an update that changes their API fails here.                                                                                                                                                                                                                                                                                                                                                      |
 | Scrubbing tests                                             | What may reach Sentry and the logs, and the browsers' Sentry setup.                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
@@ -76,7 +77,7 @@ CodeQL is GitHub's default setup, not a workflow here: it scans `main` and every
 
 # Test site
 
-The test site (ADR-0020) is described in `render.yaml`: the server, its Postgres and the two static sites on Render, at `test.empirecleaningandpro.com` (landing) and `app.test.empirecleaningandpro.com` (web app, with `/api` rewritten to the server). A push to `main` deploys it once CI passes, and migrations run before each new server starts. Production is never deployed automatically.
+The test site (ADR-0020) is described in `render.yaml`: the server, its Postgres and the two static sites on Render, at `test.empirecleaningandpro.com` (landing) and `app.test.empirecleaningandpro.com` (web app, with `/api` rewritten to the server). A push to `main` deploys it once CI passes, and migrations run before each new server starts, once its environment checks out (`env:check`). Production is never deployed automatically.
 
 `APP_MODE=test` makes it say so: a banner on every page, `[TEST]` on every email subject, and no search indexing. Its email goes only to `EMAIL_ALLOWED` addresses; the rest goes to the Office inbox with the intended recipient in the subject. To put fresh seed data on it, run the **Reset test data** Action (`.github/workflows/reset-test-data.yml`).
 

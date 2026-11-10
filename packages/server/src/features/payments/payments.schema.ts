@@ -12,7 +12,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { timestamps } from "../../db/index.ts";
+import { timestamps } from "../../db/timestamps.ts";
 import { bills } from "../bills/bills.schema.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";

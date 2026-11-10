@@ -26,8 +26,9 @@ services:
     plan: starter
     region: virginia
     buildCommand: npx --yes pnpm@11.18.0 install --frozen-lockfile
-    # migrations run on every deploy, before the new server starts
-    preDeployCommand: npm --prefix packages/server run db:migrate
+    # migrations run on every deploy, before the new server starts, and only
+    # once the server's environment is whole: db:migrate reads DB_URL alone
+    preDeployCommand: npm --prefix packages/server run env:check && npm --prefix packages/server run db:migrate
     startCommand: npm --prefix packages/server start
     healthCheckPath: /health
     # deploys main once CI passes
