@@ -14,6 +14,8 @@ import {
   signUp,
   test,
   addCleaner,
+  expectNoJobAction,
+  jobAction,
 } from "./harness.ts";
 
 const olive = {
@@ -268,7 +270,7 @@ test("Office Staff move a Job from the Job screen, at any width", async ({
   await signedInAs(page, olive.email);
   await page.goto(`/office/jobs/${job.id}`);
 
-  await page.getByRole("button", { name: "Move job" }).click();
+  await jobAction(page, "Move job");
   const dialog = page.getByRole("dialog", { name: "Move this job" });
   await expect(dialog).toContainText(
     "That's when it's booked now. Pick a different time.",
@@ -323,8 +325,7 @@ test("a Job that has started, or isn't booked, can't be moved", async ({
   await page.reload();
   await expect(block).toHaveAttribute("draggable", "false");
   await page.goto(`/office/jobs/${job.id}`);
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Move job" })).toHaveCount(0);
+  await expectNoJobAction(page, "Move job");
 });
 
 test("the Schedule passes automated accessibility checks", async ({ page }) => {
@@ -463,7 +464,7 @@ test(
     await signedInAs(page, olive.email);
     await page.goto(`/office/jobs/${job.id}`);
 
-    await page.getByRole("button", { name: "Move job" }).click();
+    await jobAction(page, "Move job");
     // the Schedule in the dialog itself, never a dialog on a dialog
     const dialog = page.getByRole("dialog", { name: "Move this job" });
     const schedule = dialog;

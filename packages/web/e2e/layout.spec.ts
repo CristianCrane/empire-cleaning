@@ -25,6 +25,7 @@ import {
   draftTheQuote,
   recordFindingsWithoutVisit,
   addCleaner,
+  jobAction,
 } from "./harness.ts";
 
 // Every screen, at the widths people actually use, from a small phone to a
@@ -530,7 +531,7 @@ test("cancelling, Cancelled and No Access Jobs fit every width", async ({
     officeEmail: olive.email,
   });
   await page.goto(`/office/jobs/${cancelled.id}`);
-  await page.getByRole("button", { name: "Cancel job" }).click();
+  await jobAction(page, "Cancel job");
   await page.getByText("Empire Cleaning can't do it").click();
   await page
     .getByRole("textbox", { name: "Why? (the client sees this)" })

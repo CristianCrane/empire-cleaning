@@ -10,6 +10,7 @@ import {
   signUp,
   startedServicePlan,
   test,
+  jobAction,
 } from "./harness.ts";
 
 // Casey's First Clean is done at 11am on Monday 12 January 2026, New York
@@ -142,7 +143,7 @@ test(
     await failCharges();
     await signedInAs(page, olive.email);
     await page.goto(`/office/jobs/${firstJob.id}`);
-    await page.getByRole("button", { name: "Cancel job" }).click();
+    await jobAction(page, "Cancel job");
     await page
       .getByRole("alertdialog", { name: "Cancel this job?" })
       .getByRole("button", { name: "Cancel job" })

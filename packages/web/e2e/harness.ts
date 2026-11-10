@@ -421,6 +421,28 @@ export const showInMenu = async (page: Page, wanted: Locator) => {
   return { item, opened: true };
 };
 
+// does one of a Job's actions on its page: from the Actions menu at the
+// end of its title row (#406)
+export const jobAction = async (page: Page, name: string) => {
+  await page.getByRole("button", { name: "Actions", exact: true }).click();
+  await page.getByRole("menuitem", { name, exact: true }).click();
+};
+
+// one of a Job's actions isn't on offer on its page: there's no Actions
+// menu, or it doesn't hold it
+export const expectNoJobAction = async (page: Page, name: string) => {
+  // the page is showing, so a missing menu isn't one still loading
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  const actions = page.getByRole("button", { name: "Actions", exact: true });
+  if ((await actions.count()) === 0) return;
+  await actions.click();
+  await expect(page.getByRole("menu")).toBeVisible();
+  await expect(page.getByRole("menuitem", { name, exact: true })).toHaveCount(
+    0,
+  );
+  await page.keyboard.press("Escape");
+};
+
 // a section in the navigation, wherever it shows
 const showNavLink = async (page: Page, name: string) => {
   const { item, opened } = await showInMenu(

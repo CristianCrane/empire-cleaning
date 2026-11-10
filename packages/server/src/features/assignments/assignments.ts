@@ -39,7 +39,7 @@ import {
   rescheduleTermsOf,
 } from "../reschedule/reschedule.ts";
 import { staff, type StaffAddressee } from "../staff/staff.schema.ts";
-import { tellOfficeStaff } from "../staff/staff.ts";
+import { selectStaff, tellOfficeStaff } from "../staff/staff.ts";
 import { assignments, onCrew, type Assignment } from "./assignments.schema.ts";
 import {
   emailCleanersNeeded,
@@ -68,12 +68,14 @@ const findJob = async (jobId: string) => {
 
 // ---- the Office ----
 
+// imageUrl: the connected Account's picture, as the Staff list shows it
 const toView = (
   assignment: Assignment,
   member: { id: string; name: string },
+  imageUrl: string | null,
 ): AssignmentView => ({
   id: assignment.id,
-  staff: { id: member.id, name: member.name },
+  staff: { id: member.id, name: member.name, imageUrl },
   status: assignment.takenOffAt ? "taken_off" : assignment.status,
   offeredAt: assignment.offeredAt.toISOString(),
   answeredAt: assignment.answeredAt?.toISOString() ?? null,
@@ -106,10 +108,8 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     weeklyBill,
   ] = await Promise.all([
     jobView(jobId),
-    db
-      .select({ assignment: assignments, member: staff })
-      .from(assignments)
-      .innerJoin(staff, eq(staff.id, assignments.staffId))
+    selectStaff({ assignment: assignments })
+      .innerJoin(assignments, eq(assignments.staffId, staff.id))
       .where(eq(assignments.jobId, jobId))
       .orderBy(asc(assignments.offeredAt), asc(assignments.createdAt)),
     addOnsOf([jobId]),
@@ -147,7 +147,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     weeklyBill,
     addOns: addOns.get(jobId)!,
     assignments: [...holding, ...released].map((r) =>
-      toView(r.assignment, r.member),
+      toView(r.assignment, r.member, r.imageUrl),
     ),
     cleanersNeeded: Math.max(row.crewSize - holding.length, 0),
     openTo,

@@ -1,6 +1,18 @@
 import { useState, type ReactNode } from "react";
 import { useLoaderData } from "@tanstack/react-router";
-import { CalendarClock, CalendarSync, CalendarX, UserPlus } from "lucide-react";
+import {
+  CalendarClock,
+  CalendarSync,
+  CalendarX,
+  CirclePlus,
+  Clock,
+  ContactRound,
+  MapPin,
+  UserPlus,
+  Users,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import {
   isOnCrew,
   type AssignmentView,
@@ -9,9 +21,8 @@ import {
 } from "@empire-cleaning/models";
 import { MORE_HOURS, officeFix } from "@empire-cleaning/models";
 import {
-  ActionBar,
   Actions,
-  IconAction,
+  Avatar,
   Breadcrumbs,
   Button,
   Card,
@@ -22,6 +33,9 @@ import {
   Link,
   List,
   ListItem,
+  MenuButton,
+  MenuItem,
+  MenuSeparator,
   Notice,
   Section,
   Select,
@@ -74,7 +88,7 @@ export function JobScreen() {
       <WhatsNext job={job} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex flex-col gap-6">
-          <Section title="Job">
+          <Section title="Job details">
             <Card>
               <JobFacts job={job} />
               {job.completion && (
@@ -109,9 +123,9 @@ export function JobScreen() {
   );
 }
 
-// the title says what and where, the time under it; beside it, what can
-// be done to the whole Job as text actions: none of them is the page's
-// main action
+// the title says what and where, the time under it; at the end of its row,
+// what can be done to the whole Job in an Actions menu: none of them is the
+// page's main action
 function JobHeader({ job }: { job: OfficeJob }) {
   const [open, setOpen] = useState<JobAction | null>(null);
   return (
@@ -122,8 +136,8 @@ function JobHeader({ job }: { job: OfficeJob }) {
           { label: "Job" },
         ]}
       />
-      <div className="flex flex-wrap items-start gap-3">
-        <div className="flex flex-col gap-1">
+      <div className="flex items-start gap-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-3">
             <Heading level={1}>
               {job.serviceName} at {placeOf(job.property)}
@@ -135,32 +149,29 @@ function JobHeader({ job }: { job: OfficeJob }) {
           </p>
         </div>
         {(job.rescheduleTerms || job.cancelTerms) && (
-          <div className="ml-auto">
-            <ActionBar aria-label="Job actions">
-              {job.rescheduleTerms && (
-                <>
-                  <IconAction
-                    icon={CalendarSync}
-                    label="Move job"
-                    onPress={() => setOpen("move")}
-                  />
-                  <IconAction
-                    icon={CalendarClock}
-                    label="Ask for a new time"
-                    onPress={() => setOpen("ask")}
-                  />
-                </>
-              )}
-              {job.cancelTerms && (
-                <IconAction
-                  icon={CalendarX}
-                  label="Cancel job"
-                  danger
-                  onPress={() => setOpen("cancel")}
-                />
-              )}
-            </ActionBar>
-          </div>
+          <MenuButton label="Actions">
+            {job.rescheduleTerms && (
+              <>
+                <MenuItem icon={CalendarSync} onAction={() => setOpen("move")}>
+                  Move job
+                </MenuItem>
+                <MenuItem icon={CalendarClock} onAction={() => setOpen("ask")}>
+                  Ask for a new time
+                </MenuItem>
+              </>
+            )}
+            {/* a rule before Cancel only with something above it */}
+            {job.rescheduleTerms && job.cancelTerms && <MenuSeparator />}
+            {job.cancelTerms && (
+              <MenuItem
+                icon={CalendarX}
+                danger
+                onAction={() => setOpen("cancel")}
+              >
+                Cancel job
+              </MenuItem>
+            )}
+          </MenuButton>
         )}
       </div>
       <JobDialogs job={job} open={open} setOpen={setOpen} />
@@ -315,13 +326,13 @@ const noticesFor = (job: OfficeJob): ReactNode[] => {
 const placeOf = (p: OfficeJob["property"]) =>
   [p.street, p.unit].filter(Boolean).join(", ");
 
-// who it's for and what it is, and while it's booked, until when it's free to move or
-// cancel
+// who it's for and what it is, and while it's booked, until when it's free
+// to move or cancel: each fact's label with its icon beside it, the value
+// after it (under it on a phone)
 function JobFacts({ job }: { job: OfficeJob }) {
   return (
     <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-      <dt className="font-semibold">Client</dt>
-      <dd>
+      <Fact icon={ContactRound} label="Client">
         <Link
           href={linkTo({
             to: "/office/clients/$clientId",
@@ -330,9 +341,8 @@ function JobFacts({ job }: { job: OfficeJob }) {
         >
           {clientName(job.client)}
         </Link>
-      </dd>
-      <dt className="font-semibold">Home</dt>
-      <dd>
+      </Fact>
+      <Fact icon={MapPin} label="Home">
         <Link
           href={linkTo({
             to: "/office/properties/$propertyId",
@@ -341,31 +351,49 @@ function JobFacts({ job }: { job: OfficeJob }) {
         >
           {addressOf(job.property)}
         </Link>
-      </dd>
-      <dt className="font-semibold">Extras</dt>
-      <dd>{job.addOns.length > 0 ? job.addOns.join(", ") : "None"}</dd>
-      <dt className="font-semibold">Cleaning hours</dt>
-      <dd>{formatHours(job.labourHours)}</dd>
-      <dt className="font-semibold">Cleaners</dt>
-      <dd>
+      </Fact>
+      <Fact icon={CirclePlus} label="Extras">
+        {job.addOns.length > 0 ? job.addOns.join(", ") : "None"}
+      </Fact>
+      <Fact icon={Clock} label="Cleaning hours">
+        {formatHours(job.labourHours)}
+      </Fact>
+      <Fact icon={Users} label="Cleaners">
         {job.crewSize}, {formatHours(job.hoursOnSite)} on site
-      </dd>
+      </Fact>
       {job.rescheduleTerms && (
-        <>
-          <dt className="font-semibold">Moving</dt>
-          <dd>Free until {formatDateTime(job.rescheduleTerms.freeUntil)}</dd>
-        </>
+        <Fact icon={CalendarSync} label="Moving">
+          Free until {formatDateTime(job.rescheduleTerms.freeUntil)}
+        </Fact>
       )}
       {job.cancelTerms && (
-        <>
-          <dt className="font-semibold">Cancelling</dt>
-          <dd>
-            Free for the client until{" "}
-            {formatDateTime(job.cancelTerms.client.freeUntil)}
-          </dd>
-        </>
+        <Fact icon={CalendarX} label="Cancelling">
+          Free for the client until{" "}
+          {formatDateTime(job.cancelTerms.client.freeUntil)}
+        </Fact>
       )}
     </dl>
+  );
+}
+
+// one of the Job's facts: its icon and label, then its value
+function Fact({
+  icon: Icon,
+  label,
+  children,
+}: {
+  icon: LucideIcon;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <>
+      <dt className="flex items-center gap-2 font-semibold">
+        <Icon aria-hidden size={18} className="shrink-0 text-fg-muted" />
+        {label}
+      </dt>
+      <dd className="max-sm:mb-2 max-sm:pl-7">{children}</dd>
+    </>
   );
 }
 
@@ -390,7 +418,9 @@ function Part({
   );
 }
 
-// who's on the Job: each Assignment Offered, Confirmed or Released
+// who's on the Job, each Assignment as the Staff list draws its people:
+// their picture, name and since when, a badge when it's not the usual
+// (Confirmed), and while it's booked an X to take them off
 function Crew({ job }: { job: OfficeJob }) {
   const confirmed = job.assignments.filter(
     (a) => a.status === "confirmed",
@@ -414,14 +444,16 @@ function Crew({ job }: { job: OfficeJob }) {
               key={a.id}
               id={a.id}
               title={a.staff.name}
+              start={<Avatar src={a.staff.imageUrl} />}
               description={sinceOf(a)}
               end={
-                <>
+                a.status !== "confirmed" && (
                   <AssignmentStateBadge state={a.status} />
-                  {booked(job) && isOnCrew(a.status) && (
-                    <Remove job={job} assignment={a} />
-                  )}
-                </>
+                )
+              }
+              action={
+                booked(job) &&
+                isOnCrew(a.status) && <Remove job={job} assignment={a} />
               }
             />
           ))}
@@ -542,8 +574,8 @@ function Remove({
 
   return (
     <DialogTrigger>
-      <Button variant="quiet" size="sm" aria-label={`Remove ${name}`}>
-        Remove
+      <Button variant="quiet" size="icon" aria-label={`Remove ${name}`}>
+        <X aria-hidden size={20} className="text-fg-muted" />
       </Button>
       <Dialog title={`Take ${name} off this job?`} role="alertdialog">
         {({ close }) => (

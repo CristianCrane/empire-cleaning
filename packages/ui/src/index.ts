@@ -3,7 +3,6 @@
 // of accessibility behaviour
 import "./tokens.css";
 
-export { ActionBar, IconAction } from "./ActionBar.tsx";
 export { ActionFooter } from "./ActionFooter.tsx";
 export { ActionRow } from "./ActionRow.tsx";
 export { Actions } from "./Actions.tsx";
@@ -28,6 +27,7 @@ export { Heading } from "./Heading.tsx";
 export { IconTile } from "./IconTile.tsx";
 export { ButtonLink, Link } from "./Link.tsx";
 export { Logo } from "./Logo.tsx";
+export { MenuButton, MenuItem, MenuSeparator } from "./Menu.tsx";
 export { useLanguage } from "./language.ts";
 export { LanguageProvider } from "./LanguageProvider.tsx";
 export { List, ListItem } from "./List.tsx";
