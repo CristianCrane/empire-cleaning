@@ -220,6 +220,14 @@ stays as it is (#336).
   bold) is followed by `stopAfter(time)` rather than a string starting
   with ".". Five review rounds of #304 found "a.m.." one shape at a time
   across the portal; the emails' test fails on it.
+- **A change of language takes effect on the screen as it is**, with no
+  reload: whatever is set up once in a language (Stripe's form,
+  `elements.update({ locale })`; a route deciding the screen's language)
+  follows the change, and no step in between shows another language. Its
+  test switches language on a screen already showing and checks what
+  shows, not only a screen opened in it. Both of #303's misses, the card
+  form and the English flash on returning to the tab, passed tests that
+  opened screens in Spanish (#305).
 - **A Spanish amount that's roughly so many says "cerca de"**, never
   "unas" or "unos" before the number, which agree with it and read "unas 1
   h" when it's one (`labels.about`). Round 1 of #305 found it in an email
