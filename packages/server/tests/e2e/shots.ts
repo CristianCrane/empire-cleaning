@@ -70,7 +70,7 @@ type Report = { suites?: Suite[]; errors?: { message?: string }[] };
 class Stop extends Error {}
 
 // the test's end on each project it ran in, in one checkout; null when the
-// base has no such test (a new one) or skips it on every project. A project
+// base has no such test (a new one). A project
 // it skips is left out, and said; anything else that isn't a passed test with
 // its screenshot, on either side, stops the run
 const shoot = (
@@ -177,8 +177,7 @@ const shoot = (
       return status !== "skipped";
     },
   );
-  if (!ran.length) {
-    if (side === "before") return null;
+  if (!ran.length && side === "after") {
     throw new Stop(
       `The test skipped on every project, after: nothing to shoot.`,
     );
@@ -326,7 +325,7 @@ const main = () => {
   for (const shot of after) {
     const old = before?.find(({ project }) => project === shot.project);
     console.log(
-      `${title}, ${shot.project}:\n\n| Before | After |\n| --- | --- |\n| ${old ? img(old) : before ? `none: skipped on ${shot.project}` : "none: a new test or skipped"} | ${img(shot)} |\n`,
+      `${title}, ${shot.project}:\n\n| Before | After |\n| --- | --- |\n| ${old ? img(old) : before ? `none: skipped on ${shot.project}` : "none: a new test"} | ${img(shot)} |\n`,
     );
   }
 };
