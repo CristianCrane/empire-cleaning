@@ -1,7 +1,8 @@
 import {
-  button,
+  cleanButton,
   cleanDetails,
   greeting,
+  officeJobButton,
   paragraph,
   type Clean,
   type Email,
@@ -26,7 +27,6 @@ const { formatMoney } = formats.en;
 
 const words = catalog({
   en: {
-    SEE_CLEAN: "See your clean",
     ON_WEEKLY_BILL: "It goes on your weekly bill.",
     // the fee, as "We couldn't take it" says it
     IT: "it",
@@ -53,7 +53,6 @@ const words = catalog({
     },
   },
   es: {
-    SEE_CLEAN: "Ver su limpieza",
     ON_WEEKLY_BILL: "Va en su factura semanal.",
     IT: "el cargo",
     chargedTo: (card: string) => `Lo cobramos a su ${card}.`,
@@ -119,11 +118,6 @@ const feeChargeLine = (lang: Language, settled: Settled) => {
 const feeTaken = (settled: Settled) =>
   settled.billed ? ON_THAT_WEEKS_BILL : "is charged";
 
-const portalButton = (lang: Language, jobId: string) =>
-  button(words[lang].SEE_CLEAN, `/portal/jobs/${jobId}`);
-const officeButton = (jobId: string) =>
-  button("See the job", `/office/jobs/${jobId}`);
-
 export type Cancelled = {
   name: string;
   jobId: string;
@@ -181,7 +175,7 @@ export const cancelledEmail = (
         ...refundLine(lang, settled),
         onPlan ? PLAN_CARRIES_ON : bookAnother[lang],
       ].map(paragraph),
-      portalButton(lang, jobId),
+      cleanButton(lang, jobId),
     ],
   };
 };
@@ -246,7 +240,7 @@ export const officeCancelledEmail = ({
       }),
     ),
     ...(settled.failure ? [paragraph(feeNotPaid(settled.failure))] : []),
-    officeButton(jobId),
+    officeJobButton(jobId),
   ],
 });
 
@@ -290,7 +284,7 @@ export const noAccessEmail = (
           ? `${PLAN_CARRIES_ON} ${w.CHECK_NEXT}`
           : `${bookAnother[lang]} ${w.CHECK_FIRST}`,
       ].map(paragraph),
-      portalButton(lang, jobId),
+      cleanButton(lang, jobId),
     ],
   };
 };
@@ -324,6 +318,6 @@ export const officeNoAccessEmail = ({
           : `${client} has been told, and the fee ${feeTaken(settled)}.`
         : `${client} has been told, and the deposit is kept as the fee.`,
     ),
-    officeButton(jobId),
+    officeJobButton(jobId),
   ],
 });

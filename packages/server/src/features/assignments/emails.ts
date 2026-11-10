@@ -5,6 +5,7 @@ import {
   type Language,
 } from "@empire-cleaning/models";
 import {
+  officeJobButton,
   button,
   cleanDetails,
   greeting,
@@ -132,7 +133,7 @@ export const releasedEmail = ({
     paragraph(`${cleaner} can't make this job, so it needs a cleaner:`),
     cleanDetails("en", clean),
     paragraph("Free cleaners can take it now, or you can offer it to someone."),
-    button("See the job", `/office/jobs/${jobId}`),
+    officeJobButton(jobId),
   ],
 });
 

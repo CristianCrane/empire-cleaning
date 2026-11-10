@@ -8,9 +8,10 @@ import {
   oneStop,
 } from "@empire-cleaning/models";
 import {
-  button,
+  cleanButton,
   cleanDetails,
   greeting,
+  officeJobButton,
   paragraph,
   type Clean,
   type Email,
@@ -20,7 +21,6 @@ import { crewWords, jobButton, jobsButton } from "../assignments/emails.ts";
 
 const words = catalog({
   en: {
-    SEE_CLEAN: "See your clean",
     turnedDown: {
       subject: "We couldn't move your clean",
       sorry: (asked: string) =>
@@ -44,7 +44,6 @@ const words = catalog({
       `A job you were on moved to ${when}, when you're not free, so you're off it.`,
   },
   es: {
-    SEE_CLEAN: "Ver su limpieza",
     turnedDown: {
       subject: "No pudimos reprogramar su limpieza",
       sorry: (asked: string) =>
@@ -70,11 +69,6 @@ const words = catalog({
   },
 });
 
-const portalButton = (lang: Language, jobId: string) =>
-  button(words[lang].SEE_CLEAN, `/portal/jobs/${jobId}`);
-const officeButton = (jobId: string) =>
-  button("See the job", `/office/jobs/${jobId}`);
-
 // to the Office: a Client asked to move a Job, to `clean`'s time
 export const rescheduleAskedEmail = ({
   client,
@@ -97,7 +91,7 @@ export const rescheduleAskedEmail = ({
     paragraph(
       `${moveCostForOffice(cost)} The new time is held for them until you confirm it or turn it down.`,
     ),
-    officeButton(jobId),
+    officeJobButton(jobId),
   ],
 });
 
@@ -129,7 +123,7 @@ export const rescheduleTurnedDownEmail = (
       ),
       paragraph(w.stays),
       cleanDetails(lang, clean),
-      portalButton(lang, jobId),
+      cleanButton(lang, jobId),
     ],
   };
 };
@@ -164,7 +158,7 @@ export const rescheduleConfirmedEmail = (
         fee: formats[lang].formatMoney(cost.feeCents),
       }),
     ),
-    portalButton(lang, jobId),
+    cleanButton(lang, jobId),
   ],
 });
 
@@ -190,7 +184,7 @@ export const jobMovedEmail = (
     paragraph(words[lang].WE_MOVED),
     cleanDetails(lang, clean, from),
     paragraph(words[lang].NO_CHARGE),
-    portalButton(lang, jobId),
+    cleanButton(lang, jobId),
   ],
 });
 

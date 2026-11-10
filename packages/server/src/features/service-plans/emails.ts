@@ -8,6 +8,7 @@ import {
   oneStop,
 } from "@empire-cleaning/models";
 import {
+  cleanButton,
   button,
   cleanDetails,
   greeting,
@@ -31,7 +32,6 @@ const words = catalog({
       NEXT: "The next clean on your cleaning plan is booked.",
       freeToSkip: (hours: number) =>
         `It was booked less than ${hours} hours ahead, so you can skip it for free.`,
-      SEE_CLEAN: "See your clean",
     },
     ended: {
       subject: "Your cleaning plan has ended",
@@ -58,7 +58,6 @@ const words = catalog({
       NEXT: "La próxima limpieza de su plan de limpieza está reservada.",
       freeToSkip: (hours: number) =>
         `Se reservó con menos de ${hours} horas de anticipación, así que puede saltarla gratis.`,
-      SEE_CLEAN: "Ver su limpieza",
     },
     ended: {
       subject: "Su plan de limpieza finalizó",
@@ -116,7 +115,7 @@ export const planCleanBookedEmail = (
         ? [paragraph(w.freeToSkip(CANCELLATION_CUTOFF_HOURS))]
         : []),
       paragraph(`${getInWords[lang].CAN_GET_IN}.`),
-      button(w.SEE_CLEAN, `/portal/jobs/${jobId}`),
+      cleanButton(lang, jobId),
     ],
   };
 };
