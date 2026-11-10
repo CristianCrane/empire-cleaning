@@ -1,6 +1,6 @@
 # Lint rules
 
-The repo's own lint rules, as oxlint JS plugins (`.oxlintrc.json`'s `jsPlugins`, run by `pnpm lint`). JS plugins are in alpha in oxlint and not bound by semver, so each rule is tested through oxlint's own `RuleTester` (`pnpm --filter @empire-cleaning/lint test`, in CI's Checks job), and an oxlint update that changes the plugin API fails there.
+The repo's own lint rules, `empire/…`, as one oxlint JS plugin (`src/index.ts`, `.oxlintrc.json`'s `jsPlugins`, run by `pnpm lint`): each rule is a file of its own, registered there. JS plugins are in alpha in oxlint and not bound by semver, so each rule is tested through oxlint's own `RuleTester` (`pnpm --filter @empire-cleaning/lint test`, in CI's Checks job), and an oxlint update that changes the plugin API fails there.
 
 ## `empire/report-unexpected`
 

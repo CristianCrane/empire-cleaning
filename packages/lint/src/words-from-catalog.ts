@@ -22,13 +22,7 @@
 // class name): those go in a table by language as well (`locales`).
 
 import { LANGUAGES } from "@empire-cleaning/models";
-import { isNode, type Node, type Rule } from "./ast.ts";
-
-// a node with its fields, read as the rule needs them
-type Fields = Node & Record<string, unknown>;
-
-const fields = (value: unknown): Fields | undefined =>
-  isNode(value) ? (value as Fields) : undefined;
+import { children, fields, type Fields, type Rule } from "./ast.ts";
 
 const isCode = (value: unknown) =>
   (LANGUAGES as readonly unknown[]).includes(value);
@@ -77,12 +71,11 @@ const holdsWords = (value: unknown): boolean => {
     case "JSXText":
       return isWord(node.value as string);
   }
-  return Object.entries(node).some(
-    ([key, child]) =>
-      key !== "parent" &&
-      !types.has(key) &&
-      !(key === "key" && node.type === "Property" && !node.computed) &&
-      !(key === "property" && node.type === "MemberExpression") &&
+  return children(node).some(
+    ([field, child]) =>
+      !types.has(field) &&
+      !(field === "key" && node.type === "Property" && !node.computed) &&
+      !(field === "property" && node.type === "MemberExpression") &&
       holdsWords(child),
   );
 };

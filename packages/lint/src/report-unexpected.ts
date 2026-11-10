@@ -9,7 +9,7 @@
 // A catch that only ever expects its throw (blocked storage) says so:
 //   // oxlint-disable-next-line empire/report-unexpected -- <why>
 
-import { isNode, type Node, type Rule } from "./ast.ts";
+import { children, fields, type Node, type Rule } from "./ast.ts";
 
 const isFunction = (node: Node) =>
   node.type === "ArrowFunctionExpression" ||
@@ -20,26 +20,24 @@ const isFunction = (node: Node) =>
 const handles = (node: Node, reporters: string[]): boolean => {
   if (node.type === "ThrowStatement") return true;
   if (node.type === "CallExpression") {
-    const { callee } = node as unknown as { callee: Node & { name?: string } };
-    if (callee.type === "Identifier" && reporters.includes(callee.name!))
+    const callee = fields(fields(node)!.callee);
+    if (
+      callee?.type === "Identifier" &&
+      reporters.includes(callee.name as string)
+    )
       return true;
   }
-  return Object.entries(node).some(
-    ([key, value]) =>
-      key !== "parent" &&
-      (Array.isArray(value) ? value : [value]).some(
-        (child) =>
-          isNode(child) && !isFunction(child) && handles(child, reporters),
-      ),
+  return children(node).some(
+    ([, child]) => !isFunction(child) && handles(child, reporters),
   );
 };
 
 // a handler given to .catch or .then
 const handlerHandles = (handler: Node, reporters: string[]) => {
-  const { name, body } = handler as { name?: string; body?: Node };
+  const { name, body } = fields(handler)!;
   return handler.type === "Identifier"
-    ? reporters.includes(name!)
-    : isFunction(handler) && handles(body!, reporters);
+    ? reporters.includes(name as string)
+    : isFunction(handler) && handles(body as Node, reporters);
 };
 
 const rule = {
