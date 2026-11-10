@@ -223,10 +223,10 @@ export function AreaLayout({ area }: { area: AreaId }) {
     }),
   );
 
-  // the person's own areas: on a phone the account's parts, the other
-  // language among them, are at the foot of a ☰ menu, the tab bar keeping
-  // the sections; on larger screens the other language sits above the
-  // Account menu (#305). The Office keeps its Account menu in the top bar
+  // on a phone, every area's account parts are at the foot of the ☰ menu;
+  // on larger screens, in the sidebar's Account menu (#305). The areas that
+  // follow the person's language offer the other one beside them; the
+  // Office is English for good
   const own = area !== "office";
 
   return (
@@ -239,13 +239,14 @@ export function AreaLayout({ area }: { area: AreaId }) {
           <AccountMenu account={account} area={area} />
         </>
       }
-      menuFoot={
-        own
-          ? ({ close }) => (
-              <AccountFoot account={account} area={area} close={close} />
-            )
-          : undefined
-      }
+      menuFoot={({ close }) => (
+        <AccountFoot
+          account={account}
+          area={area}
+          close={close}
+          withLanguage={own}
+        />
+      )}
       atHome={pathname.replace(/\/$/, "") === areas[area].path}
     >
       <InArea value>
@@ -346,8 +347,8 @@ function useAccountActions(account: SignedInAccount, area: AreaId) {
   };
 }
 
-// who's signed in, and what they can do with their Account, in a dialog: on
-// larger screens, and in the Office on a phone too
+// who's signed in, and what they can do with their Account, in a dialog: in
+// the sidebar on larger screens
 function AccountMenu({
   account,
   area,
@@ -414,16 +415,19 @@ function AccountMenu({
   );
 }
 
-// the same, at the foot of a phone's ☰ menu in the portal and the Cleaner
-// area, one plain item each, the other language among them (#305)
+// the same, at the foot of a phone's ☰ menu, one plain item each, the
+// other language among them where the area follows it (#305)
 function AccountFoot({
   account,
   area,
   close,
+  withLanguage,
 }: {
   account: SignedInAccount;
   area: AreaId;
   close: () => void;
+  // the other language, in an area that follows the person's
+  withLanguage: boolean;
 }) {
   const a = useAccountActions(account, area);
   const { w, switching, preloadAreas } = a;
@@ -443,7 +447,7 @@ function AccountFoot({
         </div>
       </div>
       <div className="flex flex-col gap-1">
-        <OtherLanguage onChanged={close} />
+        {withLanguage && <OtherLanguage onChanged={close} />}
         {a.otherAreas.map((id) => (
           <Button
             key={id}

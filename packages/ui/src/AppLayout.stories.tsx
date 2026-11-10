@@ -103,8 +103,8 @@ export const Cleaner: Story = {
   },
 };
 
-// more sections than the tab bar holds: the rest go in a drawer opened by the
-// ☰, which holds the logo too (#200)
+// more sections than the tab bar holds: the rest are only in the drawer the
+// ☰ opens, which lists every section, with the logo (#200, #305)
 export const PhoneMenu: Story = {
   globals: { viewport: { value: "phone" } },
   args: {
@@ -242,6 +242,10 @@ export const PhoneMenuFoot: Story = {
         within(menu).getByRole("button", { name: "Español" }),
       ).toBeVisible(),
     );
+    // the full menu, the tab bar's sections too
+    await expect(
+      within(menu).getByRole("link", { name: "Your jobs" }),
+    ).toHaveAttribute("aria-current", "page");
     await expect(
       within(menu).getByRole("button", { name: "Sign out" }),
     ).toBeVisible();

@@ -80,22 +80,23 @@ can change, through the same loop.
 
 ### Navigation
 
-- **A phone's tab bar holds five at most**, what's used all day. The rest
-  go in a drawer from the left, opened by a ☰ in the top bar, with the logo
-  at its head (`NavItem.inMenu`). The Office keeps Today and the Schedule
-  in the bar. Larger screens list every section in the sidebar.
+- **A phone's tab bar holds five shortcuts at most**, what's used all day;
+  the ☰ menu, a drawer from the left opened from the top bar with the logo
+  at its head, is the full menu, every section as the sidebar lists them,
+  the shortcuts too (#305). Sections that aren't shortcuts are `inMenu`:
+  the Office's tab bar keeps Today and the Schedule. Larger screens list
+  every section in the sidebar.
   ("Layout / AppLayout / Phone Menu")
 - **Related sections share a heading** in the sidebar and the ☰ menu
   (`NavItem.group`), the busiest first with none: the Office's Today and
   Schedule, then Work (Jobs, Quotes), People (Clients, Staff) and Pricing
   (Services, Prices). ("Layout / AppLayout / Groups")
-- **In the portal and the Cleaner area, a phone's top bar is the ☰ and the
-  section**: the tab bar keeps their sections, and the account's parts sit
-  at the foot of the ☰ menu under a divider, one plain item each (name and
-  email, the other language, Switch to, Show tips again, Sign out, the
-  theme). On larger screens they stay in the sidebar's Account menu
-  (`AppLayout`'s `menuFoot`). The Office keeps its Account menu in the top
-  bar. ("Layout / AppLayout / Phone Menu Foot")
+- **A phone's top bar is the ☰ and the section**, in every area: the
+  account's parts sit at the foot of the ☰ menu under a divider, one plain
+  item each (name and email, the other language in the portal and the
+  Cleaner area, Switch to, Show tips again, Sign out, the theme). On larger
+  screens they stay in the sidebar's Account menu (`AppLayout`'s
+  `menuFoot`). ("Layout / AppLayout / Phone Menu Foot")
 - **The language is changed in one press, by the other language named in
   its own words** ("Español" on an English screen, "English" on a Spanish
   one), so someone who can't read the screen's language still finds it:
@@ -261,6 +262,8 @@ stays as it is (#336).
 - **A row's title wraps, never cut.** A cut title hides what the row is:
   a payment's "Price change: 1 more hour" lost its hour at phone width,
   and Spanish runs longer. `ListItem` wraps its title, so every List does.
+  On a phone a row's badge (`end`) sits under its text rather than beside
+  it, which squeezed an address to a word a line at 320px (#305).
 - **Lean rows**: the fewest columns that drive the decision (who, where,
   status, money, age); no cell that means something different from row to
   row; no colour without a visible label.
@@ -445,4 +448,4 @@ Newest last. "Built in" is the PR (or branch) that shipped it.
 | Sign-in and the Client portal | Every portal and sign-in screen was English (#303): which language does each show, and how does a Client change theirs? | (decided on #299, no prototype) | **The Client's Preferred Language in the portal; before sign-in the language of the page they came from, or their browser's; a Language field on Your details** (the field superseded by #305's language button) | The landing site's Sign in link says the page's language (`?lang=es`), which the sign-in screens, its emailed link's page and the welcome page follow; the browser's otherwise. Signed in, the portal is in the Client's Preferred Language, which the edit dialog on Your details changes, each language named in its own words (English, Español), on every Client their Account is connected to. The design system's own words, react-aria's, Stripe's card form and pages, the Google button and the first-time help follow it; the API's messages too. Words that differ by language come from catalogs, never a branch. Services', extras' and business types' names in the portal's views, and a Bill's lines, stay English until they're worded as they're read (#395). The Spanish is a draft Jen checks on #206 | — | #303 |
 | Every email to a Client | Every email but the Quote receipt was English (#304): which language does each come in, and what of the words the Office or a Cleaner typed? | (decided on #299, no prototype) | **The Client's Preferred Language, subject to footer; the sign-in link the screen's; typed text as written** | Reminders, moves and cancellations, Quotes, receipts, Bills, payment failures, price changes, site visits and plan changes come in the Client's Preferred Language, whatever screen set off the email, the footer's area too. The sign-in link's email is in the language of the screen it was asked from, as the person may have none yet, and every link in an email opens its page in the email's language (`?lang`), signed in or not. A reason, a note or a Cleaner's report goes in as written. The Office's copy of a late Bill's reminder is its own, in English. Names of Services, a Bill's lines and a card's label stay as stored until #395. The Spanish is a draft Jen checks on #206 | — | #304 |
 | The Cleaner area and every email to a Cleaner | Every Cleaner screen, tour and email was English (#305): which language does each show, and who reads *tú* where Clients read *usted*? | (decided on #299, no prototype) | **The Staff member's Preferred Language, in tú; words every area shows address no one** | The Cleaner area follows the Staff member's Preferred Language, apart from their Client's should they be both, as the Office sets each (#306); the API's messages to a Cleaner, their tours and every email to them (offers, open jobs, moves, being taken off, cancellations, the invitation) come in it, each link opening its page in it. The Account menu, error pages and the shared labels were *usted* in Spanish, so they became impersonal (a rule above). Names of Services and extras stay English until #395. The Spanish is a draft Jen checks on #206 | — | #305 |
-| Client portal and Cleaner area > changing language, the phone's top bar | Where does a Cleaner, who has no details page, change their language (#305), and the Client, whose field sat in Your details' edit dialog? | A: the Cleaner's Account menu / B: the Account menu in both / C: a Your details page for Cleaners / D: the other language in its own words beside the Account / E: D, with a phone's account in the ☰ menu | **E, keeping the tab bar** | The user: D "makes it immediately clear for a person who doesnt speak the language", but beside the Account it crowded a phone's top bar, so "make hamburger menu consistent for mobile like the office screens"; the language item "in the bottom area of the menu same style as the others", and "the bottom bar is still useful for the most common actions", so it stays. In the sidebar, the other language sits above the Account menu; on a phone the top bar is the ☰ and the section, and the ☰ menu's foot holds the account's parts. As in the Office, the logo heads the ☰ menu, so a phone's Home (Your jobs, the portal's Home) no longer shows it above the page. The Language field left Your details. Rules above | [`prototype-language-control`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-language-control) | #305 |
+| Client portal and Cleaner area > changing language, the phone's top bar | Where does a Cleaner, who has no details page, change their language (#305), and the Client, whose field sat in Your details' edit dialog? | A: the Cleaner's Account menu / B: the Account menu in both / C: a Your details page for Cleaners / D: the other language in its own words beside the Account / E: D, with a phone's account in the ☰ menu | **E, keeping the tab bar** | The user: D "makes it immediately clear for a person who doesnt speak the language", but beside the Account it crowded a phone's top bar, so "make hamburger menu consistent for mobile like the office screens"; the language item "in the bottom area of the menu same style as the others", and "the bottom bar is still useful for the most common actions", so it stays. In the sidebar, the other language sits above the Account menu; on a phone the top bar is the ☰ and the section, and the ☰ menu's foot holds the account's parts. As in the Office, the logo heads the ☰ menu, so a phone's Home (Your jobs, the portal's Home) no longer shows it above the page. The Language field left Your details. Then, at the user's word, every area's ☰ menu lists every section, the tab bar its shortcuts, and the Office's account and theme moved to its ☰ menu's foot too, so all three areas' phone frames match. Rules above | [`prototype-language-control`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-language-control) | #305 |

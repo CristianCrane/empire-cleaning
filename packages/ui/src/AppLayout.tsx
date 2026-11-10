@@ -15,8 +15,8 @@ export type NavItem = {
   label: string;
   icon: LucideIcon;
   isCurrent?: boolean;
-  // on a phone, in the ☰ menu rather than the tab bar: for an area with more
-  // sections than the bar holds
+  // on a phone, not a shortcut in the tab bar, only in the ☰ menu (which
+  // lists every section): for an area with more sections than the bar holds
   inMenu?: boolean;
   // the heading over related sections, e.g. "People" over Clients and Staff:
   // items next to each other with the same group sit under one heading. The
@@ -42,10 +42,11 @@ export type AppLayoutProps = {
 };
 
 // the frame around every screen. On a phone: a top bar and a bottom tab bar
-// within thumb reach, five items at most; the rest (inMenu) go in a drawer
-// opened by a ☰ in the top bar (#200). With a menuFoot, the account's parts
-// are at the drawer's foot too, so the top bar holds only the ☰ and the
-// section (#305). From tablet width up: a sidebar.
+// within thumb reach, five shortcuts at most (the items not inMenu), and a
+// drawer opened by a ☰ in the top bar that is the full menu, every section
+// as the sidebar lists them (#200, #305). With a menuFoot, the account's
+// parts are at the drawer's foot, so the top bar holds only the ☰ and the
+// section. From tablet width up: a sidebar.
 //
 // The logo is never shrunk to fit: the phone's top bar is too short for it,
 // so the bar names the section you're in and the logo heads the area's home
@@ -61,7 +62,9 @@ export function AppLayout({
   const section = nav.find((item) => item.isCurrent)?.label ?? area;
   const menu = nav.filter((item) => item.inMenu);
   const tabs = nav.filter((item) => !item.inMenu);
-  // the ☰ menu, for sections the tab bar can't hold or the account's foot
+  // the ☰ menu, where there's one (sections the tab bar can't hold, or the
+  // account's foot): the full menu, every section as the sidebar lists
+  // them, the tab bar its shortcuts
   const hasMenu = menu.length > 0 || menuFoot !== undefined;
   const words = useUiWords();
   return (
@@ -106,11 +109,9 @@ export function AppLayout({
                       <Logo className="w-44" />
                       <span className="text-sm text-fg-muted">{area}</span>
                     </div>
-                    {menu.length > 0 && (
-                      <nav aria-label={area} className="flex flex-col gap-4">
-                        <NavGroups items={menu} onPress={close} />
-                      </nav>
-                    )}
+                    <nav aria-label={area} className="flex flex-col gap-4">
+                      <NavGroups items={nav} onPress={close} />
+                    </nav>
                     {menuFoot && (
                       <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
                         {menuFoot({ close })}
