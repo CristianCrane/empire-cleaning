@@ -20,6 +20,8 @@ How each package's tests work, and how to run them, is in its README (`packages/
 
 **Switch area with `switchArea(page, area)` from `packages/web/e2e/harness.ts`, never by pressing "Switch to …" and waiting on the URL.** Open the person's Account menu first; `switchArea` presses the row and waits until the new area is on screen. The URL changes at once, but until the new area is ready the old one stays on screen, its menu open, so a test that goes on at the URL can press something in the old area, which the new one then throws away. It passed alone and timed out in every full local run (#310).
 
+**Show that something didn't happen by what the page shows instead, never by `toBeHidden()` alone after a navigation.** A check that a thing is hidden passes at once on a page still loading, so it holds whatever the page goes on to show. The real card form's declined-card case checked that Payments showed no "Deposit": it passed on its first run and failed on its second, when the page had loaded and the word was in its explanation. It now waits for the empty state, "Nothing paid yet" (#331, `packages/web/e2e/card-form.sandbox.ts`).
+
 ### Browser tests (Vitest)
 
 **Web's and ui's browser tests run in UTC, whatever the machine's zone (`timezoneId` in each `vitest.config.ts`), and a test of New York's day takes an instant whose day in UTC is another, such as 10:30pm New York time.** Run in the machine's zone, `formatDate` with no time zone passed in New York, and an instant whose day is the same in both zones passes it anywhere (#369, `packages/web/src/screens/format.test.tsx`).
