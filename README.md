@@ -69,7 +69,7 @@ What the Checks job is for:
 
 The typecheck, the lint and the format check (and the hook below) read `packages/` only: the typecheck runs each package's own, the lint's path starts there, and `.prettierignore` leaves Prettier only the TypeScript and Astro under it, so a `prettier --write` on a doc from the repo root changes nothing. So new TypeScript goes in a workspace package, a tool's too (`packages/lint`), not beside the scripts.
 
-Before each commit, a git hook (`.githooks/pre-commit`, which `pnpm install` turns on) runs the lint and the format check on the staged files under `packages/`, so most of what fails those two steps never reaches a commit. `git commit --no-verify` skips it.
+Before each commit, a git hook (`.githooks/pre-commit`, which `pnpm install` turns on) runs the lint and the format check on the staged files under `packages/` (and the catalog copies check on every catalog, as a copy spans files), so most of what fails those two steps never reaches a commit. `git commit --no-verify` skips it.
 
 CI starts `postgres_test` from `docker-compose.yml` and needs no secrets (email, payments and the clock are faked in tests). No package is built before another: each exports its TypeScript source (`exports` in its `package.json`), which the others' tools compile. When an end-to-end check fails, its Playwright report and the failed tests' traces are kept as an artifact on the run; open a trace with `pnpm --filter @empire-cleaning/web exec playwright show-trace <trace.zip>`.
 

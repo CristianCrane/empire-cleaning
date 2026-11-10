@@ -1,9 +1,9 @@
 #!/bin/sh
 #
 # Before each commit, the staged code under packages/ gets the lint and the
-# format check that CI's Checks job runs on every file (README.md), in a
-# second or two. It reads the files as they are on disk. `pnpm install` sets
-# it up; `git commit --no-verify` skips it.
+# format check that CI's Checks job runs on every file (README.md), and every
+# catalog the copies check, in a second or two. It reads the files as they
+# are on disk. `pnpm install` sets it up; `git commit --no-verify` skips it.
 
 set -e
 
