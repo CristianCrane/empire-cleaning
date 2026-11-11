@@ -10,6 +10,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { PlanCancelled } from "@empire-cleaning/models";
 import { timestamps } from "../../db/timestamps.ts";
 import { accounts } from "../auth/auth.schema.ts";
 import { condition, properties } from "../properties/properties.schema.ts";
@@ -81,7 +82,11 @@ export const jobs = pgTable(
       { onDelete: "set null" },
     ),
     lateCancellation: boolean("late_cancellation"),
+    // why, as Empire Cleaning typed it
     cancellationReason: text("cancellation_reason"),
+    // a plan clean cancelled with its plan, as it changed or ended, which
+    // each reader's words say (#395)
+    cancelledWithPlan: text("cancelled_with_plan").$type<PlanCancelled>(),
     // once No Access: when, by whom, and what happened
     noAccessAt: timestamp("no_access_at", { withTimezone: true }),
     noAccessBy: uuid("no_access_by").references(() => staff.id, {

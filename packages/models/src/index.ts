@@ -1758,12 +1758,17 @@ export type OfficeCancelInput = {
   reason?: string | null;
 };
 
+// why a plan clean was cancelled with its plan: it changed, or it ended
+export type PlanCancelled = "changed" | "ended";
+
 export type JobCancellation = {
   cancelledAt: string;
   by: CancelledBy;
-  // cancelled as its plan ended or changed, not skipped on its own
-  withPlan: boolean;
+  // cancelled as its plan changed or ended, not skipped on its own: which,
+  // for each reader's words to say (#395); null otherwise
+  withPlan: PlanCancelled | null;
   late: boolean;
+  // why, as Empire Cleaning typed it
   reason: string | null;
   feeCents: number;
   payment: JobPayment;
