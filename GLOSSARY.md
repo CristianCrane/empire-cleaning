@@ -233,7 +233,7 @@ _On screen_: the rest
 _Spanish_: el resto
 
 **Charge**:
-Money taken from a Client's Payment Method: a Deposit, a Balance, a plan Job's Late Cancellation or No Access fee, or a Bill.
+Money taken from a Client's Payment Method: a Deposit, a Balance, a plan Job's Late Cancellation or No Access fee, a Bill, or a Tip.
 _Avoid_: Payment, invoice
 _On screen_: payment
 _Spanish_: pago
@@ -259,3 +259,39 @@ _Spanish_: factura; a voided one is cancelada
 A Job whose Balance, or part of it, or whose fee failed to be charged and has not yet been recovered; or a Bill whose Charge failed, or that is still unpaid after its due date.
 _Avoid_: Overdue, outstanding, failed payment
 _Spanish_: sin pagar
+
+## Pay
+
+**Pay Rate**:
+What a Cleaner is paid for an hour of work: one for each Cleaner, set by Office Staff, and not a Service's hourly rate, which prices Quotes. A change counts from a date Office Staff pick, today unless they say otherwise; Jobs that started before it keep the old one. A Cleaner sees their own and never anyone else's. Cleaners are contractors, so pay is gross: the app keeps no tax back.
+_Avoid_: Wage, salary, hourly rate
+_Spanish_: paga por hora
+
+**Job Rate**:
+A higher rate of pay for one Job, by the hour as a Pay Rate is: Office Staff set it on a Job, or on a Service Plan so the Jobs it generates from then on carry it. It covers the time on that Job only, and each Cleaner on it is paid the higher of it and their own Pay Rate, so it never cuts anyone's pay. Office Staff may change it on a Job until a Cleaner on it is marked paid for that Pay Week. A Cleaner sees it before they Confirm. It is the only extra pay tied to a Job: there are no bonuses.
+_Avoid_: Bonus, special rate, premium, hourly rate
+_Spanish_: paga por hora del trabajo
+
+**Timekeeper**:
+A Cleaner Office Staff trust to record a Job's times: they tap Start when the crew arrives, and Completing the Job is its finish. Times a Timekeeper records count as they stand. Any other time (a Job with no Timekeeper on it, a Start nobody tapped, a Job Completed by a Cleaner who isn't one) is filled in from the Schedule and flagged for Office Staff to confirm or correct. Start records the time and nothing else, and a Job can be Completed without it. A phone's location isn't checked (ADR-0030). Only the Office reads the word.
+_Avoid_: Trusted cleaner, lead, supervisor
+
+**Pay Week**:
+The week Cleaners are paid for, which the Office pays in the week after: the same week a Bill covers (Monday to Sunday, Empire Cleaning's own days, a Job in the week it started). The first is the first full week after pay goes live; Jobs before it have no recorded times and are never added.
+_Avoid_: Pay period, payroll week
+_Spanish_: semana de paga
+
+**Pay Sheet**:
+What one Cleaner is owed for one Pay Week, worked out by the app for Office Staff to check, pay outside the app, and mark paid (ADR-0030): each day's hours and pay, their share of Tips, any Other Pay, and the total. A day runs from their first Job's start to their last Job's finish, by the times recorded for each (Timekeeper), which Office Staff may correct for one Cleaner on one Job. The time between one Job's finish and the next one's start counts, at the Cleaner's own Pay Rate, when it is no longer than the gap length, and not at all when it is longer; the gap length is one setting Office Staff keep for everyone, an hour to start. So pay is not worked from Labour Hours, nor from an Adjustment's extra time, which still only changes the Client's price (ADR-0009); and it counts time between Jobs, which Schedule room doesn't (Available Hours). Time counts to the minute, and each day's pay is rounded to the cent. Office Staff mark it paid, saying how (cash, Zelle, check), which they can't do while a time on it is still flagged or the Cleaner has no Pay Rate. Once paid it never changes: a later correction goes on the next Pay Week as Other Pay. It also shows the Cleaner's total for the year so far. A Cleaner sees their own, and Office Staff can print one or export a Pay Week. Whether a No Access visit is paid, and for how much time, isn't decided yet (#206).
+_Avoid_: Payroll, timesheet, payslip, pay stub, unpaid
+_Spanish_: hoja de paga
+
+**Other Pay**:
+An amount Office Staff add to a Pay Sheet by hand, more or less, always with a note: a supply run, a correction to a week already paid. Apart from times, rates and the gap length, it is the only way pay changes.
+_Avoid_: Adjustment, bonus, deduction, correction
+_Spanish_: otra paga
+
+**Tip**:
+Money a Client adds by card for the Cleaners on a Job, from a link in its receipt: one for a Job, within 7 days of it. Clients billed weekly aren't asked. It is charged to their Payment Method, and the Cleaners Confirmed on the Job when it was Completed share it evenly, less the payment provider's fee on that Charge; Office Staff may change the shares of one. It goes on the Pay Sheets of the Pay Week it was charged in, not the Job's, so a late one never reopens a paid Pay Sheet. Office Staff can refund it until one of those Cleaners is marked paid for that week. Cash, and money sent to a Cleaner directly, is the crew's own and never recorded (ADR-0030). Not first-time help's tours, which screens call tips ("Show tips again").
+_Avoid_: Gratuity, bonus
+_Spanish_: propina
