@@ -267,6 +267,19 @@ export const setGooglePicture = (email: string, picture: string) =>
     body: JSON.stringify({ email, picture }),
   });
 
+// Google's picture servers, stood in for on this page: each picture a 1 x 1
+// PNG. Before the page loads one
+export const serveGooglePictures = (page: Page) =>
+  page.route("https://lh3.googleusercontent.com/**", (route) =>
+    route.fulfill({
+      contentType: "image/png",
+      body: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+        "base64",
+      ),
+    }),
+  );
+
 type Email = { to: string; subject: string; text: string };
 
 export const emailsTo = (address: string): Promise<Email[]> =>
@@ -338,12 +351,14 @@ export const setLanguage = async (page: Page, language: "en" | "es") => {
 // Content-Security-Policy (vite.config.ts) blocked anything a page loads.
 // First-time help's tours dim the page and take every press, so a test meets
 // none, as if each had been seen, unless it asks to in its own page
-// (showTours, tours.spec.ts)
+// (showTours, tours.spec.ts). Under `pnpm pr:shots`, each test ends on a
+// picture of its screen at rest (prShot)
 export const test = base.extend<{
   cleanSlate: void;
   allowedByCsp: void;
   showTours: boolean;
   toursSeen: void;
+  prShot: void;
 }>({
   cleanSlate: [
     async ({}, use) => {
@@ -367,6 +382,32 @@ export const test = base.extend<{
       );
       await use();
       expect(blocked, "blocked by the Content-Security-Policy").toEqual([]);
+    },
+    { auto: true },
+  ],
+  // the screen a test ends on as a person would see it, for `pnpm pr:shots`
+  // (packages/server/tests/e2e/shots.ts): no focus ring or hover left by the
+  // last press, no toast over it (#407, #410). Playwright's own screenshot
+  // is taken before any fixture can let go of them, so this takes its own
+  prShot: [
+    // the context, not the page, so a test with no page doesn't get one
+    async ({ context }, use, testInfo) => {
+      await use();
+      const [page] = context.pages();
+      if (!process.env.PR_SHOTS_OUT || testInfo.status !== "passed" || !page)
+        return;
+      await page.mouse.move(0, 0);
+      await page.evaluate(() => {
+        (document.activeElement as HTMLElement | null)?.blur();
+        // React Aria marks only the toast region as its top layer
+        for (const toasts of document.querySelectorAll<HTMLElement>(
+          "[data-react-aria-top-layer]",
+        ))
+          toasts.style.visibility = "hidden";
+      });
+      const path = testInfo.outputPath("pr-shot.png");
+      await page.screenshot({ path, fullPage: true });
+      await testInfo.attach("pr-shot", { path, contentType: "image/png" });
     },
     { auto: true },
   ],
@@ -419,6 +460,28 @@ export const showInMenu = async (page: Page, wanted: Locator) => {
   await menu.click();
   await expect(item).toBeVisible();
   return { item, opened: true };
+};
+
+// does one of a Job's actions on its page: from the Actions menu at the
+// end of its title row (#406)
+export const jobAction = async (page: Page, name: string) => {
+  await page.getByRole("button", { name: "Actions", exact: true }).click();
+  await page.getByRole("menuitem", { name, exact: true }).click();
+};
+
+// one of a Job's actions isn't on offer on its page: there's no Actions
+// menu, or it doesn't hold it
+export const expectNoJobAction = async (page: Page, name: string) => {
+  // the page is showing, so a missing menu isn't one still loading
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  const actions = page.getByRole("button", { name: "Actions", exact: true });
+  if ((await actions.count()) === 0) return;
+  await actions.click();
+  await expect(page.getByRole("menu")).toBeVisible();
+  await expect(page.getByRole("menuitem", { name, exact: true })).toHaveCount(
+    0,
+  );
+  await page.keyboard.press("Escape");
 };
 
 // a section in the navigation, wherever it shows

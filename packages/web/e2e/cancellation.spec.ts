@@ -10,6 +10,8 @@ import {
   signUp,
   test,
   addCleaner,
+  expectNoJobAction,
+  jobAction,
 } from "./harness.ts";
 
 // the API's clock is at 4am on Monday 5 January 2026 in New York. The Job
@@ -169,14 +171,7 @@ test(
     await signedInAs(page, olive.email);
     await page.goto(`/office/jobs/${job.id}`);
 
-    // an icon in the Job's action bar, named in a tooltip
-    const actions = page.getByRole("toolbar", { name: "Job actions" });
-    const cancelJob = actions.getByRole("button", { name: "Cancel job" });
-    // a mouse moves before it rests on anything
-    await actions.hover();
-    await cancelJob.hover();
-    await expect(page.getByRole("tooltip")).toHaveText("Cancel job");
-    await cancelJob.click();
+    await jobAction(page, "Cancel job");
     const dialog = page.getByRole("alertdialog", { name: "Cancel this job?" });
     await expect(dialog).toContainText(
       /The client asked\s*A late cancellation: the \$[\d.]+ deposit is kept as the fee\./,
@@ -197,9 +192,7 @@ test(
     await expect(page.getByRole("region", { name: "History" })).toContainText(
       /Deposit of \$[\d.]+ charged.*\$[\d.]+ refunded/,
     );
-    await expect(page.getByRole("button", { name: "Cancel job" })).toHaveCount(
-      0,
-    );
+    await expectNoJobAction(page, "Cancel job");
 
     const client = await (await browser.newContext()).newPage();
     await signedInAs(client, casey.email);

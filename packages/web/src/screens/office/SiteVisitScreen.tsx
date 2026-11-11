@@ -1,11 +1,9 @@
 import { formats } from "@empire-cleaning/models";
 import { useLoaderData } from "@tanstack/react-router";
 import {
-  Building2,
   CalendarCheck,
   ClipboardCheck,
   Clock,
-  House,
   NotebookPen,
   UserRound,
 } from "lucide-react";
@@ -33,7 +31,7 @@ import {
   screenWords,
 } from "../format.ts";
 import { AccessFact, ConditionFact, Fact } from "../Fact.tsx";
-import { QuoteIcon } from "../icons.ts";
+import { homeIcon, QuoteIcon } from "../icons.ts";
 import { homeCrumbs } from "./PropertyScreen.tsx";
 import {
   CancelSiteVisit,
@@ -205,7 +203,7 @@ function VisitDetails({
               <div className="@container">
                 <dl className="grid gap-x-6 gap-y-4 @md:grid-cols-2 @3xl:grid-cols-4">
                   <Fact
-                    icon={premises ? Building2 : House}
+                    icon={homeIcon(visit.property.kind)}
                     label="What it is"
                     value={propertySummary(visit.property)}
                     className="@3xl:col-span-2"

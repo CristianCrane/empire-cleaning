@@ -1403,7 +1403,8 @@ export const isOnCrew = (status: AssignmentState): status is CrewState =>
 
 export type AssignmentView = {
   id: string;
-  staff: { id: string; name: string };
+  // imageUrl: their connected Account's picture, if any
+  staff: { id: string; name: string; imageUrl: string | null };
   status: AssignmentState;
   offeredAt: string;
   // when it was Confirmed, Released or taken off

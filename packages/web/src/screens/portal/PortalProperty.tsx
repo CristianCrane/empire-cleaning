@@ -1,13 +1,8 @@
 import { catalog } from "@empire-cleaning/models";
 import type { Key } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import {
-  Building2,
-  CalendarClock,
-  FileText,
-  House,
-  KeyRound,
-} from "lucide-react";
+import { CalendarClock, FileText, KeyRound } from "lucide-react";
+import { homeIcon } from "../icons.ts";
 import type { PropertyView } from "@empire-cleaning/models";
 import {
   ActionRow,
@@ -129,7 +124,7 @@ export function PortalProperty() {
         <Card>
           <div className="flex flex-col gap-6">
             <div className="flex items-start gap-4">
-              <IconTile icon={premises ? Building2 : House} size="lg" />
+              <IconTile icon={homeIcon(p.kind)} size="lg" />
               <div className="flex min-w-0 flex-col gap-1">
                 <p className="text-sm text-fg-muted">
                   {premises ? w.yourBusiness : t.p.yourHome}

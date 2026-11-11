@@ -108,7 +108,8 @@ describe("Offering Assignments", () => {
     expect(after.assignments).toEqual([
       {
         id: expect.any(String),
-        staff: { id: cory.id, name: "Cory Cleaner" },
+        // no Account yet, so no picture
+        staff: { id: cory.id, name: "Cory Cleaner", imageUrl: null },
         status: "offered",
         offeredAt: "2026-01-05T09:00:00.000Z",
         answeredAt: null,

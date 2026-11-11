@@ -1,12 +1,6 @@
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import {
-  Building2,
-  House,
-  Mail,
-  Phone,
-  SquarePen,
-  UserRound,
-} from "lucide-react";
+import { Mail, Phone, SquarePen, UserRound } from "lucide-react";
+import { homeIcon } from "../icons.ts";
 import { catalog, type ClientView } from "@empire-cleaning/models";
 import {
   Actions,
@@ -150,11 +144,7 @@ export function PortalDetails() {
               <ListItem
                 key={p.id}
                 id={p.id}
-                start={
-                  <IconTile
-                    icon={p.kind === "commercial" ? Building2 : House}
-                  />
-                }
+                start={<IconTile icon={homeIcon(p.kind)} />}
                 title={addressOf(p)}
                 description={[t.propertySummary(p), standing.line]
                   .filter(Boolean)

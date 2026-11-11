@@ -24,3 +24,31 @@ test("a row's title shows whole on a phone, wrapping rather than cut", async () 
   const shown = page.getByText(title).element();
   expect(shown.scrollWidth).toBeLessThanOrEqual(shown.clientWidth);
 });
+
+// a row's action stays beside its text on a phone, where its badge goes
+// under it: the X on a Job's crew lines up with the name, not the badge
+test("a row's action stays beside the text on a phone", async () => {
+  await page.viewport(320, 700);
+  await render(
+    <List aria-label="Crew">
+      <ListItem
+        id="1"
+        title="Ana Lucía Hernández-Restrepo"
+        description="Offered Nov 8"
+        start={<span className="size-10" />}
+        end={<StatusBadge tone="warning">Offered</StatusBadge>}
+        action={<button type="button">Remove</button>}
+      />
+    </List>,
+  );
+
+  const action = page.getByRole("button", { name: "Remove" }).element();
+  const title = page.getByText("Ana Lucía").element();
+  const badge = page.getByText("Offered", { exact: true }).element();
+  expect(action.getBoundingClientRect().left).toBeGreaterThan(
+    title.getBoundingClientRect().right,
+  );
+  expect(badge.getBoundingClientRect().top).toBeGreaterThan(
+    title.getBoundingClientRect().top,
+  );
+});

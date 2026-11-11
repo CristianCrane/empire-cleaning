@@ -1,13 +1,12 @@
 import { formats } from "@empire-cleaning/models";
 import { useState } from "react";
-import { CalendarCheck, CalendarClock, CalendarSync } from "lucide-react";
+import { CalendarCheck } from "lucide-react";
 import type { OfficeJob } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
   Dialog,
   DialogTrigger,
-  IconAction,
   Notice,
   TextField,
 } from "@empire-cleaning/ui";
@@ -16,7 +15,6 @@ import { ChooseNewTime, costForOffice } from "../RescheduleParts.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 import type { TimePickerProps } from "../CalendarGrid.tsx";
 import { useAction } from "../action.ts";
-import { MoveJob } from "./JobMove.tsx";
 
 const { formatDateTime } = formats.en;
 
@@ -25,30 +23,33 @@ const PickInSchedule = (props: TimePickerProps) => (
   <PickFromSchedule {...props} inline />
 );
 
-// Office Staff move the Job themselves, at no charge to the Client, or ask
-// for a new time on the Client's behalf, e.g. by phone, so moving costs
-// what it would cost them. Neither while a request waits for an answer.
-export function MoveActions({ job }: { job: OfficeJob }) {
+// Office Staff ask for a new time on the Client's behalf, e.g. by phone, so
+// moving costs what it would cost them (moving it themselves is MoveJob, at
+// no charge). Neither while a request waits for an answer: then the Job has
+// no rescheduleTerms
+export function AskForNewTime({
+  job,
+  isOpen,
+  onOpenChange,
+}: {
+  job: OfficeJob;
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+}) {
   const terms = job.rescheduleTerms;
   if (!terms) return null;
   return (
-    <>
-      <MoveJob
-        job={job}
-        trigger={<IconAction icon={CalendarSync} label="Move job" />}
-      />
-      <ChooseNewTime
-        job={job}
-        terms={terms}
-        base={`/api/jobs/${job.id}`}
-        label="Ask for a new time"
-        describeCost={(cost, feeCents) => costForOffice(cost, feeCents, job)}
-        done="Request to move sent"
-        Picker={PickInSchedule}
-        size="wide"
-        trigger={<IconAction icon={CalendarClock} label="Ask for a new time" />}
-      />
-    </>
+    <ChooseNewTime
+      job={job}
+      terms={terms}
+      base={`/api/jobs/${job.id}`}
+      describeCost={(cost, feeCents) => costForOffice(cost, feeCents, job)}
+      done="Request to move sent"
+      Picker={PickInSchedule}
+      size="wide"
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+    />
   );
 }
 
