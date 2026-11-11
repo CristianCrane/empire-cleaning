@@ -268,8 +268,8 @@ _Avoid_: Wage, salary, hourly rate
 _Spanish_: paga por hora
 
 **Job Rate**:
-An hourly rate Office Staff set on a Job, or on a Service Plan so the Jobs it generates from then on carry it, for work that should pay more. It covers the time on that Job only, and each Cleaner on it is paid the higher of it and their own Pay Rate, so it never cuts anyone's pay. Office Staff may change it on a Job until a Cleaner on it is marked paid for that Pay Week. A Cleaner sees it before they Confirm. It is the only extra pay tied to a Job: there are no bonuses.
-_Avoid_: Bonus, special rate, premium
+A higher rate of pay for one Job, by the hour as a Pay Rate is: Office Staff set it on a Job, or on a Service Plan so the Jobs it generates from then on carry it. It covers the time on that Job only, and each Cleaner on it is paid the higher of it and their own Pay Rate, so it never cuts anyone's pay. Office Staff may change it on a Job until a Cleaner on it is marked paid for that Pay Week. A Cleaner sees it before they Confirm. It is the only extra pay tied to a Job: there are no bonuses.
+_Avoid_: Bonus, special rate, premium, hourly rate
 _Spanish_: paga por hora del trabajo
 
 **Timekeeper**:
@@ -277,7 +277,7 @@ A Cleaner Office Staff trust to record a Job's times: they tap Start when the cr
 _Avoid_: Trusted cleaner, lead, supervisor
 
 **Pay Week**:
-The week Cleaners are paid for, paid the week after: the same week a Bill covers (Monday to Sunday, Empire Cleaning's own days, a Job in the week it started). The first is the first full week after pay goes live; Jobs before it have no recorded times and are never added.
+The week Cleaners are paid for, which the Office pays in the week after: the same week a Bill covers (Monday to Sunday, Empire Cleaning's own days, a Job in the week it started). The first is the first full week after pay goes live; Jobs before it have no recorded times and are never added.
 _Avoid_: Pay period, payroll week
 _Spanish_: semana de paga
 

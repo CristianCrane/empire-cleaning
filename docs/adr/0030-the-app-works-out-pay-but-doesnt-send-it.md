@@ -1,6 +1,6 @@
 # The app works out each Cleaner's pay, and the Office sends it
 
-The Office works out each Cleaner's pay by hand every week. The app knows which Jobs were done and who was on them, so it works the pay out (#416): each Cleaner's Pay Sheet for a Pay Week, gross, as Cleaners are contractors. The Office checks it, pays each Cleaner the way it does today (cash, Zelle, check), and marks the Pay Sheet paid. The app moves no money to a Cleaner. ADR-0004 stands: payouts stay outside the app. So does ADR-0009: a Cleaner's reported extra time still only changes the Client's price, and pay is worked from the times recorded for each Job.
+The Office works out each Cleaner's pay by hand every week. The app knows which Jobs were done and who was on them, so it works the pay out (#416): each Cleaner's Pay Sheet for a Pay Week, gross, as Cleaners are contractors. The Office checks it, pays each Cleaner the way it does today (cash, Zelle, check), and marks the Pay Sheet paid. The app moves no money to a Cleaner. ADR-0004 stands: the Payment Gateway still only saves a Payment Method, charges and refunds, and gains no way to send money. So does ADR-0009: a Cleaner's reported extra time still only changes the Client's price, and pay is worked from the times recorded for each Job.
 
 We chose this on 2026-11-11 over the app sending the pay through Stripe Connect, which was what we first wanted. It is the only way found for the app to send pay itself, and it costs a monthly fee the business isn't ready to pay for now. What the research found that day, each with its source:
 
