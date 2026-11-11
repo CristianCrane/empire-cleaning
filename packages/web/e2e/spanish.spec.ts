@@ -110,12 +110,14 @@ test(
     await accept.getByRole("button", { name: /^Aceptar y pagar \$/ }).click();
 
     await expect(
-      client.getByText(/^Está reservado: Deep Clean el lun, 12 de ene/),
+      // the Service by its Spanish name (#395)
+      client.getByText(/^Está reservado: Limpieza profunda el lun, 12 de ene/),
     ).toBeVisible();
     await expect(accept).toBeHidden();
 
     await client.getByRole("link", { name: "Inicio" }).first().click();
     await expect(client.getByText("Su primera limpieza")).toBeVisible();
+    await expect(client.getByText("Limpieza profunda").first()).toBeVisible();
     await expectAccessible(client);
   },
 );
