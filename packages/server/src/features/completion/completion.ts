@@ -83,6 +83,7 @@ import {
   addOnNamesIn,
   currentPriceList,
   namedByKey,
+  type Recorded,
 } from "../price-list/price-list.ts";
 import {
   approvedEmail,
@@ -328,15 +329,12 @@ const forEmail = async <T extends Adjustment>(rows: T[]) => {
 // it was reported with is the English
 const reportedName = (
   a: Pick<Adjustment, "addOnKey" | "addOnName">,
-  nameOf: (addOn: { key: string; name: string }) => string,
-) =>
-  a.addOnKey && a.addOnName
-    ? nameOf({ key: a.addOnKey, name: a.addOnName })
-    : a.addOnName;
+  nameOf: (addOn: Recorded) => string,
+) => a.addOnName && nameOf({ key: a.addOnKey, name: a.addOnName });
 
 const toView = (
   a: Adjustment,
-  nameOf: (addOn: { key: string; name: string }) => string,
+  nameOf: (addOn: Recorded) => string,
 ): AdjustmentView => ({
   id: a.id,
   kind: a.kind,

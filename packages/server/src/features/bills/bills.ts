@@ -66,7 +66,7 @@ import {
   recordTakenEarlier,
   refundFrom,
 } from "../payments/money.ts";
-import { payerFor } from "../payments/payments.ts";
+import { cardIn, payerFor } from "../payments/payments.ts";
 import {
   charges,
   paymentMethods,
@@ -1429,7 +1429,7 @@ const sendBill = async (
       },
       occasion,
       ...extra,
-      card: method && { brand: method.brand, last4: method.last4 },
+      card: method && cardIn(method),
       today: dayOf(clock.now()),
       billedWeekly: client.billedWeeklyFrom !== null,
       creditRefundDays: CREDIT_REFUND_DAYS,

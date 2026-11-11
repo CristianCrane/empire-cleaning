@@ -15,6 +15,7 @@ import {
 import { timestamps } from "../../db/timestamps.ts";
 import { bills } from "../bills/bills.schema.ts";
 import { clients } from "../clients/clients.schema.ts";
+import type { Card } from "@empire-cleaning/models";
 import type { ReportedChange } from "../completion/completion.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { servicePlans } from "../service-plans/service-plans.schema.ts";
@@ -220,3 +221,12 @@ export type Charge = typeof charges.$inferSelect;
 export type RefundAttempt = typeof refundAttempts.$inferSelect;
 export type ChargeAttempt = typeof chargeAttempts.$inferSelect;
 export type PaymentMethodRow = typeof paymentMethods.$inferSelect;
+
+// a saved Payment Method's card
+export const cardIn = ({
+  brand,
+  last4,
+}: Pick<PaymentMethodRow, "brand" | "last4">): Card => ({
+  brand,
+  last4,
+});

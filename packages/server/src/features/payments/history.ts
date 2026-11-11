@@ -151,9 +151,8 @@ export const paymentHistoryFor = async (
       messages[lang].adjustmentItem({
         ...item,
         addOnName:
-          item.addOnKey && item.addOnName
-            ? addOnName({ key: item.addOnKey, name: item.addOnName })
-            : item.addOnName,
+          item.addOnName &&
+          addOnName({ key: item.addOnKey, name: item.addOnName }),
       }),
     );
 

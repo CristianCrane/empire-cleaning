@@ -23,6 +23,7 @@ import {
   charges,
   paymentMethods,
   refunds,
+  cardIn,
   type Charge,
   type ChargeItem,
 } from "../payments/payments.schema.ts";
@@ -175,7 +176,7 @@ export const paymentOf = async (job: Job): Promise<JobPayment> => {
   const [ledger, [owner]] = await Promise.all([
     ledgerOf(job, db),
     db
-      .select({ brand: paymentMethods.brand, last4: paymentMethods.last4 })
+      .select({ method: paymentMethods })
       .from(properties)
       .leftJoin(
         paymentMethods,
@@ -199,13 +200,9 @@ export const paymentOf = async (job: Job): Promise<JobPayment> => {
     billedCents: ledger.billedCents,
     owedCents: ledger.owedCents,
     // in the reply's language
-    paymentMethod:
-      owner?.brand && owner.last4
-        ? messages[currentLanguage()].card({
-            brand: owner.brand,
-            last4: owner.last4,
-          })
-        : null,
+    paymentMethod: owner?.method
+      ? messages[currentLanguage()].card(cardIn(owner.method))
+      : null,
     unpaid: unpaidOf(currentLanguage(), job.unpaidSince, job.unpaidReason),
   };
 };
@@ -287,7 +284,7 @@ export const settleJob = async (
       refundedCents: 0,
       failure: null,
       becameUnpaid: false,
-      paymentMethod: method && { brand: method.brand, last4: method.last4 },
+      paymentMethod: method && cardIn(method),
       plan: null,
       billed: isBilledWeekly(job!, client, {
         lines: ledger.billedLines,

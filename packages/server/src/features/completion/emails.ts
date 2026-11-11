@@ -41,14 +41,12 @@ export const changedOf = <
     addOnName: string | null;
   },
 >(
-  named: (addOn: { key: string; name: string }) => Named,
+  named: (addOn: { key: string | null; name: string }) => Named,
   a: T,
 ): T & Changed => ({
   ...a,
   addOn:
-    a.addOnName === null
-      ? null
-      : named({ key: a.addOnKey ?? "", name: a.addOnName }),
+    a.addOnName === null ? null : named({ key: a.addOnKey, name: a.addOnName }),
 });
 
 // what the price change was, in `lang`: "Inside the oven, not done"

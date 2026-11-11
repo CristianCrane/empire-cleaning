@@ -4,7 +4,6 @@ import { currentLanguage } from "#services/request";
 import {
   catalog,
   messages,
-  type Card,
   type PaymentMethodView,
 } from "@empire-cleaning/models";
 import { apart, db, type Tx } from "../../db/index.ts";
@@ -16,6 +15,7 @@ import {
   PaymentMethodError,
   type SavedPaymentMethod,
 } from "../../services/payment-gateway/index.ts";
+export { cardIn } from "./payments.schema.ts";
 import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { paymentMethodLinkEmail } from "./emails.ts";
@@ -34,12 +34,6 @@ export const paymentMethodOf = async (
     .where(eq(paymentMethods.clientId, clientId));
   return saved;
 };
-
-// a saved Payment Method's card
-export const cardIn = ({ brand, last4 }: PaymentMethodRow): Card => ({
-  brand,
-  last4,
-});
 
 export const toPaymentMethodView = (
   saved: PaymentMethodRow | undefined,
