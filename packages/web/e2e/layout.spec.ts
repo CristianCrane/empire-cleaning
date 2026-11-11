@@ -32,7 +32,9 @@ import {
 // wide desktop. Functional tests read values from the DOM, which is there
 // whether or not anyone can see it, so this is what notices text squeezed out
 // of sight: an input narrower than what's typed in it, or a page that scrolls
-// sideways.
+// sideways. And it reads each screen's text for a doubled stop: es-US writes
+// "9:00 a.m.", so a sentence ending on a time without oneStop or stopAfter
+// shows "a.m.." (docs/ux.md, Language).
 const widths = [320, 375, 412, 640, 768, 1024, 1280, 1440];
 
 const problemsAt = (page: Page) =>
@@ -95,6 +97,10 @@ const expectFitsEveryWidth = async (page: Page, path: string) => {
     for (const problem of await problemsAt(page)) {
       problems.push(`${path} at ${width}px: ${problem}`);
     }
+  }
+  for (const line of (await page.locator("body").innerText()).split("\n")) {
+    if (line.includes(".."))
+      problems.push(`${path}: a doubled stop in "${line}"`);
   }
   expect.soft(problems).toEqual([]);
 };
