@@ -166,7 +166,9 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
       by: "client",
       late: false,
       feeCents: 0,
-      reason: "The cleaning plan changed",
+      // what happened, which each reader's words say (#395)
+      withPlan: "changed",
+      reason: null,
     });
 
     const confirmation = testEmail().lastTo("casey@example.com");

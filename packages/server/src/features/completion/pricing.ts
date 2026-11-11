@@ -127,14 +127,20 @@ export const addOnsOfVersions = (priceListIds: string[]) =>
 
 // what can be reported at completion: the Quote's own Add-ons, as not done,
 // and the others from its Price List version on offer with its Service, as
-// done (`addOns`: its version's, or more versions' with it)
+// done (`addOns`: its version's, or more versions' with it), each named
+// by `nameOf` (addOnNamesIn: the reply's language)
 export const reportableAddOns = (
   quoted: QuotedJob,
   addOns: PriceListAddOnRow[],
+  nameOf: (addOn: { key: string; name: string }) => string,
 ): { quoted: AddOnChoice[]; others: AddOnChoice[] } => {
   const onQuote = new Set(quoted.suggested.addOns.map((a) => a.key));
+  const choice = (a: { key: string; name: string }) => ({
+    key: a.key,
+    name: nameOf(a),
+  });
   return {
-    quoted: quoted.suggested.addOns.map(({ key, name }) => ({ key, name })),
+    quoted: quoted.suggested.addOns.map(choice),
     others: addOns
       .filter(
         (a) =>
@@ -142,7 +148,7 @@ export const reportableAddOns = (
           offeredWith(a, quoted.serviceKey) &&
           !onQuote.has(a.key),
       )
-      .map(({ key, name }) => ({ key, name })),
+      .map(choice),
   };
 };
 

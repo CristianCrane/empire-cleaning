@@ -11,11 +11,11 @@ export default preview(
     adjustments: [
       {
         kind: "add_on_done",
-        addOnName: "Inside the oven",
+        addOn: { name: "Inside the oven", nameEs: "Dentro del horno" },
         hours: null,
         totalCents: 2994,
       },
-      { kind: "extra_time", addOnName: null, hours: 1, totalCents: 5988 },
+      { kind: "extra_time", addOn: null, hours: 1, totalCents: 5988 },
     ],
     totalCents: 38922,
     rescheduleFeeCents: 0,

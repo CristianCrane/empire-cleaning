@@ -1,4 +1,9 @@
-import { catalog, inLanguage, type Language } from "@empire-cleaning/models";
+import {
+  catalog,
+  inLanguage,
+  type Language,
+  type Named,
+} from "@empire-cleaning/models";
 import { desc, eq, sql } from "drizzle-orm";
 import type {
   AddOnChoice,
@@ -329,6 +334,28 @@ export const choosableAddOns = async (
     .filter((a) => offeredWith(a, service.key))
     .map((a) => inLanguage(lang, a))
     .map(({ key, name }) => ({ key, name }));
+};
+
+// An Add-on or a Premises Type a record named ({ key, name }), with the
+// Spanish the Price List gives its key now (`list`: its Add-ons or Premises
+// Types, which keep every key, retired too), for a reply or an email to
+// name in its reader's language (ADR-0025). The name as recorded stays the
+// English, and the Spanish is never stored; a record with no key (one read
+// back from its words) has only the English
+export type Recorded = { key: string | null; name: string };
+export const namedByKey = (list: { key: string; nameEs?: string | null }[]) => {
+  const spanish = new Map(list.map((item) => [item.key, item.nameEs]));
+  return (item: Recorded): Named => ({
+    name: item.name,
+    nameEs: (item.key && spanish.get(item.key)) || null,
+  });
+};
+
+// recorded Add-ons' names as a reader of `lang` reads them, by key on the
+// current Price List: for a reply
+export const addOnNamesIn = async (lang: Language) => {
+  const named = namedByKey((await currentPriceList()).addOns);
+  return (addOn: Recorded) => inLanguage(lang, named(addOn)).name;
 };
 
 // whether premises can be described as a Premises Type now, and what

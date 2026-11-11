@@ -13,17 +13,48 @@ import {
 import { firstNameOf } from "../../services/email/format.ts";
 import {
   catalog,
+  type Card,
   type Language,
   formats,
+  inLanguage,
   messages,
+  type Named,
   oneStop,
 } from "@empire-cleaning/models";
 import { cardOf } from "../payments/emails.ts";
 import { unpaidKind } from "../payments/unpaid.ts";
 import type { Settled } from "./balance.ts";
 
-// a price change, as an email names it: "1 more hour"
-type Changed = Parameters<(typeof messages.en)["adjustmentLabel"]>[0];
+// a price change, as an email names it ("1 more hour"): its Add-on in both
+// languages, for the email to name in its own (ADR-0025)
+export type Changed = Omit<
+  Parameters<(typeof messages.en)["adjustmentLabel"]>[0],
+  "addOnName"
+> & { addOn: Named | null };
+
+// a price change a record keeps (an Adjustment, a Bill's line), for an
+// email: its Add-on in both languages, by `named` (namedByKey), the name it
+// was reported with being the English
+export const changedOf = <
+  T extends Omit<Changed, "addOn"> & {
+    addOnKey: string | null;
+    addOnName: string | null;
+  },
+>(
+  named: (addOn: { key: string | null; name: string }) => Named,
+  a: T,
+): T & Changed => ({
+  ...a,
+  addOn:
+    a.addOnName === null ? null : named({ key: a.addOnKey, name: a.addOnName }),
+});
+
+// what the price change was, in `lang`: "Inside the oven, not done"
+export const changeLabel = (lang: Language, a: Changed) =>
+  messages[lang].adjustmentLabel({
+    ...a,
+    addOnName: a.addOn && inLanguage(lang, a.addOn).name,
+  });
 
 const words = catalog({
   en: {
@@ -204,7 +235,7 @@ export const unpaidEmail = (
     jobId: string;
     clean: Clean;
     owedCents: number;
-    paymentMethod: string | null;
+    paymentMethod: Card | null;
     // it put their Service Plan On Hold
     held: boolean;
   },
@@ -220,7 +251,7 @@ export const unpaidEmail = (
       paragraph(
         notTaken(
           w.forClean(formats[lang].formatMoney(owedCents)),
-          paymentMethod,
+          paymentMethod && cardOf(lang, paymentMethod),
         ),
       ),
       cleanDetails(lang, clean),
@@ -260,7 +291,7 @@ export const receiptEmail = (
   },
 ): Email => {
   const w = words[lang].receipt;
-  const { adjustmentLabel, LATE_MOVE_FEE, PRICES_INCLUDE_TAX } = messages[lang];
+  const { LATE_MOVE_FEE, PRICES_INCLUDE_TAX } = messages[lang];
   const { formatMoney } = formats[lang];
   return {
     lang,
@@ -274,7 +305,7 @@ export const receiptEmail = (
         [
           [w.QUOTED, quotedCents],
           ...adjustments.map((a): [string, number] => [
-            adjustmentLabel(a),
+            changeLabel(lang, a),
             a.totalCents,
           ]),
         ],
@@ -335,7 +366,7 @@ export const proposalEmail = (
     subject: reminder ? w.reminderSubject : w.subject,
     blocks: [
       greeting(firstNameOf(name)),
-      paragraph(w.did(messages[lang].adjustmentLabel(adjustment), reason)),
+      paragraph(w.did(changeLabel(lang, adjustment), reason)),
       cleanDetails(lang, clean),
       paragraph(w.approveBy(formatMoney(totalCents), formatWhen(answerBy))),
       cleanButton(lang, jobId, w.ANSWER),
@@ -377,7 +408,7 @@ export const approvedEmail = (
       greeting(firstNameOf(name)),
       paragraph(
         w.thanks(
-          messages[lang].adjustmentLabel(adjustment),
+          changeLabel(lang, adjustment),
           formatMoney(amountCents),
           formatMoney(totalCents),
         ),

@@ -682,7 +682,7 @@ function Cancelled({ job }: { job: ClientJobDetail }) {
         </p>
       ) : cancellation.withPlan ? (
         <p>
-          {t.cancelledWithPlanForClient(cancellation.reason!, {
+          {t.cancelledWithPlanForClient(cancellation.withPlan, {
             feeCents: cancellation.feeCents,
             fee: t.formatMoney(cancellation.feeCents),
           })}

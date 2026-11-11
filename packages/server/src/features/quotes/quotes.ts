@@ -55,6 +55,7 @@ import {
   oneOffServices,
   onOfferAt,
   serviceNameOf,
+  serviceVersions,
   serviceOf,
   type Pricing,
 } from "../services/services.ts";
@@ -98,6 +99,7 @@ import {
   isOpen,
   needSiteVisit,
   offers,
+  optionsIn,
   revisionHistory,
   siteVisitOf,
   sourceOf,
@@ -598,7 +600,7 @@ const findingsOf = async (
     job: {
       id: job.id,
       startsAt: job.startsAt.toISOString(),
-      serviceName: await serviceNameOf(job.serviceId),
+      serviceName: await serviceNameOf("en", job.serviceId),
     },
     completedAt: completion!.completedAt,
     condition: completion!.condition,
@@ -831,7 +833,7 @@ export const clientQuote = async (
   if (!found) throw new NotFoundError("Quote not found");
   const { quote, offer, property, client } = found;
   const revision = kinded(quote, offer);
-  const rows = await optionsOf(offer.id);
+  const rows = await optionsIn(currentLanguage(), await optionsOf(offer.id));
   const status = currentStatusOf(quote, offer);
 
   return {
@@ -1957,6 +1959,12 @@ const sendTurnDownEmail = async (
 const sendQuoteEmail = async (client: Client, quote: OfficeQuote) => {
   const offer = quote.offer!;
   if (!client.email) return;
+  // each Service by the version it was priced with, for the email to name in
+  // the Client's language (one version of each Service on a Revision)
+  const rows = await optionsOf(offer.id);
+  const versions = await serviceVersions(rows.map((r) => r.serviceId));
+  const serviceOfKey = (key: string) =>
+    versions.get(rows.find((r) => r.serviceKey === key)!.serviceId)!;
   await email.send({
     to: client.email,
     ...quoteEmail(client.preferredLanguage, {
@@ -1966,6 +1974,17 @@ const sendQuoteEmail = async (client: Client, quote: OfficeQuote) => {
       address: addressOf(quote.property),
       offer: {
         ...offer,
+        options: offer.options.map((o) => ({
+          ...o,
+          service: serviceOfKey(o.serviceKey),
+        })),
+        plan: offer.plan && {
+          ...offer.plan,
+          days: offer.plan.days.map((d) => ({
+            ...d,
+            service: serviceOfKey(d.serviceKey),
+          })),
+        },
         proposedStartsAt: offer.proposedStartsAt!,
         expiresAt: offer.expiresAt!,
       },

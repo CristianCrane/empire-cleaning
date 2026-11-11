@@ -1,14 +1,36 @@
 import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import type { ClientPayment, ClientPaymentKind } from "@empire-cleaning/models";
-import { addDays } from "@empire-cleaning/models";
+import { addDays, catalog, messages } from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
 import { db } from "../../db/index.ts";
 import { billNumber } from "../bills/bills.ts";
 import { bills } from "../bills/bills.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { servicePlans } from "../service-plans/service-plans.schema.ts";
+import { addOnNamesIn } from "../price-list/price-list.ts";
 import { serviceNameOf } from "../services/services.ts";
-import { charges, refunds, type Charge } from "./payments.schema.ts";
+import {
+  charges,
+  refunds,
+  type Charge,
+  type ChargeItem,
+} from "./payments.schema.ts";
+
+// what a payment's one change to a price did, after what was changed ("Inside
+// the fridge", "1 more hour")
+const howWords = catalog({
+  en: {
+    approved: (what: string) => what,
+    corrected: (what: string) => `${what}, price corrected`,
+    taken_off: (what: string) => `${what}, taken off`,
+  },
+  es: {
+    approved: (what: string) => what,
+    corrected: (what: string) => `${what}, precio corregido`,
+    taken_off: (what: string) => `${what}, se quitó`,
+  },
+});
 
 /**
  * Every payment between a Client and us, newest first, for their Payments
@@ -73,7 +95,10 @@ export const paymentHistoryFor = async (
   const names = new Map<string, string>();
   for (const { job } of ownJobs) {
     if (!names.has(job.serviceId)) {
-      names.set(job.serviceId, await serviceNameOf(job.serviceId));
+      names.set(
+        job.serviceId,
+        await serviceNameOf(currentLanguage(), job.serviceId),
+      );
     }
   }
   const jobOf = (jobId: string | null) => {
@@ -117,6 +142,20 @@ export const paymentHistoryFor = async (
       ? "adjustment"
       : c.kind;
 
+  // each one's change to a price, worded in the reply's language
+  const lang = currentLanguage();
+  const addOnName = await addOnNamesIn(lang);
+  const said = (item: ChargeItem | null) =>
+    item &&
+    howWords[lang][item.how](
+      messages[lang].adjustmentItem({
+        ...item,
+        addOnName:
+          item.addOnName &&
+          addOnName({ key: item.addOnKey, name: item.addOnName }),
+      }),
+    );
+
   const history: ClientPayment[] = [
     ...charged.map((c) => ({
       id: c.id,
@@ -125,7 +164,7 @@ export const paymentHistoryFor = async (
       amountCents: c.amountCents,
       ...forWhat(c),
       clearing: false,
-      item: c.item,
+      item: said(c.item),
     })),
     ...given.map((r) => {
       const from = charged.find((c) => c.id === r.chargeId)!;
@@ -136,7 +175,7 @@ export const paymentHistoryFor = async (
         amountCents: -r.amountCents,
         ...forWhat(from),
         clearing: false,
-        item: r.item,
+        item: said(r.item),
       };
     }),
     // what hasn't a Charge (yet): a bank debit clearing, or paid another way

@@ -1,6 +1,7 @@
 import {
   catalog,
   type BillPayment,
+  type Card,
   type Language,
   messages,
 } from "@empire-cleaning/models";
@@ -68,7 +69,7 @@ const cardWords = catalog({
   es: { CARD: "tarjeta" },
 });
 
-// a Client's card as an email names it: its Payment Method's label, or
-// "card" where none is saved to name it by
-export const cardOf = (lang: Language, label: string | null) =>
-  label ?? cardWords[lang].CARD;
+// a Client's card as an email names it ("Visa ending 4242"), or "card"
+// where none is saved to name it by
+export const cardOf = (lang: Language, card: Card | null) =>
+  card ? messages[lang].card(card) : cardWords[lang].CARD;

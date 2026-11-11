@@ -134,7 +134,7 @@ export const siteVisitStatusLabel = {
 // on. One cancelled as the plan ended or changed isn't
 export const wasSkipped = (job: {
   servicePlanId: string | null;
-  cancellation: { by: string; withPlan: boolean } | null;
+  cancellation: { by: string; withPlan: string | null } | null;
 }) =>
   job.servicePlanId !== null &&
   job.cancellation?.by === "client" &&

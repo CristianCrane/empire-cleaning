@@ -428,11 +428,10 @@ export const recordNoAccess = async (
 
 // ---- views ----
 
-// a Job cancelled as its plan ended or changed (ending.ts, changing.ts): the
-// Client's doing, with the plan's reason, where a skip has none
-export const cancelledWithPlan = (
-  job: Pick<Job, "cancelledBy" | "cancellationReason">,
-) => job.cancelledBy === "client" && job.cancellationReason !== null;
+// a Job cancelled as its plan ended or changed (ending.ts, changing.ts),
+// not skipped on its own
+export const cancelledWithPlan = (job: Pick<Job, "cancelledWithPlan">) =>
+  job.cancelledWithPlan !== null;
 
 // a Cancelled Job's cancellation; null otherwise
 export const cancellationOf = async (
@@ -442,7 +441,7 @@ export const cancellationOf = async (
   return {
     cancelledAt: job.cancelledAt!.toISOString(),
     by: job.cancelledBy!,
-    withPlan: cancelledWithPlan(job),
+    withPlan: job.cancelledWithPlan,
     late: job.lateCancellation ?? false,
     reason: job.cancellationReason,
     feeCents: job.feeCents ?? 0,

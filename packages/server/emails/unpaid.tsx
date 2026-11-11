@@ -8,7 +8,7 @@ export default preview(
     jobId,
     clean,
     owedCents: 32934,
-    paymentMethod: "Visa ending 4242",
+    paymentMethod: { brand: "Visa", last4: "4242" },
     held: true,
   }),
 );

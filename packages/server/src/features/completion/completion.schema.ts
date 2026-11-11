@@ -9,6 +9,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { AdjustmentKind } from "@empire-cleaning/models";
 import { timestamps } from "../../db/timestamps.ts";
 import { accounts } from "../auth/auth.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
@@ -34,6 +35,24 @@ export const adjustmentStatus = pgEnum("adjustment_status", [
   "declined",
   "lapsed",
 ]);
+
+// A price change as a record that can outlive its Adjustment keeps it (a
+// Bill's line, a Charge's item): what was reported, its Add-on by key and
+// the English name it had, for the words to be made when it's read, in the
+// reader's language (#395)
+export type ReportedChange = {
+  kind: AdjustmentKind;
+  addOnKey: string | null;
+  addOnName: string | null;
+  hours: number | null;
+};
+
+export const reportedChange = ({
+  kind,
+  addOnKey,
+  addOnName,
+  hours,
+}: ReportedChange): ReportedChange => ({ kind, addOnKey, addOnName, hours });
 
 // A change to a Job's quoted price, from what Staff reported at completion,
 // priced from the Price List version the Job's Quote used. Amounts are signed

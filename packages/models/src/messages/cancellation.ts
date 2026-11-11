@@ -1,8 +1,19 @@
+import type { PlanCancelled } from "../index.ts";
 import { catalog } from "../language.ts";
 import { ON_THAT_WEEKS_BILL } from "./bills.ts";
 
 // What the server and the screens both say about cancelling or skipping a
 // clean, and about one we couldn't get in for (docs/ux.md, Words)
+
+// why a plan clean was cancelled with its plan, in each language
+const PLAN_CANCELLED: Record<PlanCancelled, string> = {
+  changed: "The cleaning plan changed",
+  ended: "The cleaning plan ended",
+};
+const PLAN_CANCELLED_ES: Record<PlanCancelled, string> = {
+  changed: "El plan de limpieza cambió",
+  ended: "El plan de limpieza terminó",
+};
 
 // cancelling is free until this long before a Job starts; after that it's a
 // Late Cancellation
@@ -54,14 +65,16 @@ export const cancellation = catalog({
         ? "There's no charge for skipping it."
         : "There's no charge for cancelling.";
     },
+    // why a plan clean was cancelled with its plan
+    planCancelled: PLAN_CANCELLED,
     // a plan Job cancelled as its plan ended or changed, not skipped, as its
     // Client is told. It's never a Late Cancellation (ending.ts,
     // changing.ts), so its only fee is one a Late Reschedule left
     cancelledWithPlanForClient: (
-      reason: string,
+      why: PlanCancelled,
       { feeCents, fee }: Pick<CancelCost, "feeCents" | "fee">,
     ) =>
-      `${reason}, so this clean was cancelled. ${feeCents > 0 ? `The ${earlierMoveFee(fee)}.` : "There's no charge for it."}`,
+      `${PLAN_CANCELLED[why]}, so this clean was cancelled. ${feeCents > 0 ? `The ${earlierMoveFee(fee)}.` : "There's no charge for it."}`,
     // the fee for a clean we couldn't get in for, as its Client is told:
     // charged as a late cancellation is
     noAccessFee: ({ onPlan, fee }: Pick<CancelCost, "onPlan" | "fee">) =>
@@ -86,11 +99,12 @@ export const cancellation = catalog({
         ? "Saltarla no tiene ningún cargo."
         : "Cancelar no tiene ningún cargo.";
     },
+    planCancelled: PLAN_CANCELLED_ES,
     cancelledWithPlanForClient: (
-      reason: string,
+      why: PlanCancelled,
       { feeCents, fee }: Pick<CancelCost, "feeCents" | "fee">,
     ) =>
-      `${reason}, así que esta limpieza se canceló. ${feeCents > 0 ? `El ${earlierMoveFeeEs(fee)}.` : "No tiene ningún cargo."}`,
+      `${PLAN_CANCELLED_ES[why]}, así que esta limpieza se canceló. ${feeCents > 0 ? `El ${earlierMoveFeeEs(fee)}.` : "No tiene ningún cargo."}`,
     noAccessFee: ({ onPlan, fee }: Pick<CancelCost, "onPlan" | "fee">) =>
       onPlan
         ? `Como en una cancelación tardía, hay un cargo de ${fee}, igual al depósito de su plan. Su depósito sigue retenido.`

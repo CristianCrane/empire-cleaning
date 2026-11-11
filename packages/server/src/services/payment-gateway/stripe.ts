@@ -472,18 +472,18 @@ const resultOf = (intent: Stripe.PaymentIntent): ChargeResult => {
 const idOf = (ref: string | { id: string } | null | undefined) =>
   typeof ref === "string" ? ref : (ref?.id ?? null);
 
-// "Visa ending 4242"; "american_express" -> "American Express"
-const labelOf = (method: Stripe.PaymentMethod) => {
-  const brand = (method.card?.display_brand ?? method.card?.brand ?? "card")
+// its brand and last 4; "american_express" -> "American Express"
+const cardOf = (method: Stripe.PaymentMethod) => ({
+  brand: (method.card?.display_brand ?? method.card?.brand ?? "card")
     .split("_")
     .map((word) => `${word[0]!.toUpperCase()}${word.slice(1)}`)
-    .join(" ");
-  return `${brand} ending ${method.card?.last4 ?? "????"}`;
-};
+    .join(" "),
+  last4: method.card?.last4 ?? "????",
+});
 
 const saved = (method: Stripe.PaymentMethod): SavedPaymentMethod => ({
   paymentMethodId: method.id,
-  label: labelOf(method),
+  card: cardOf(method),
 });
 
 const outcomeOf = (

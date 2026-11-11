@@ -118,12 +118,10 @@ const toCleanersNeeded = (open: Opening[]): CleanerNeeded[] =>
     postcode: job.property.postcode,
   }));
 
-// each Job's Service by its name in the reply's language, where it has
-// one: the Schedule's are the Office's, in English. The open-jobs email
-// names them in English, as every other email does, until #395
-const inReplyLanguage = async (needed: CleanerNeeded[]) => {
-  const lang = currentLanguage();
-  if (lang === "en" || needed.length === 0) return needed;
+// each Job with its Service as booked, in both languages, for the open-jobs
+// email to name in its own (ADR-0025)
+const withServices = async (needed: CleanerNeeded[]) => {
+  if (needed.length === 0) return [];
   const rows = await db
     .select({ id: jobs.id, serviceId: jobs.serviceId })
     .from(jobs)
@@ -137,7 +135,20 @@ const inReplyLanguage = async (needed: CleanerNeeded[]) => {
   const versions = await serviceVersions(rows.map((r) => r.serviceId));
   return needed.map((n) => ({
     ...n,
-    serviceName: inLanguage(lang, versions.get(serviceOf.get(n.jobId)!)!).name,
+    service: versions.get(serviceOf.get(n.jobId)!)!,
+  }));
+};
+
+// each Job's Service by its name in the reply's language, where it has
+// one: the Schedule's are the Office's, in English
+const inReplyLanguage = async (
+  needed: CleanerNeeded[],
+): Promise<CleanerNeeded[]> => {
+  const lang = currentLanguage();
+  if (lang === "en") return needed;
+  return (await withServices(needed)).map(({ service, ...n }) => ({
+    ...n,
+    serviceName: inLanguage(lang, service).name,
   }));
 };
 
@@ -267,7 +278,7 @@ const sendList = async (
     ...cleanersNeededEmail(member.preferredLanguage, {
       name: member.name,
       soon,
-      jobs,
+      jobs: await withServices(jobs),
     }),
   });
 

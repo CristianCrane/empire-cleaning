@@ -1,5 +1,6 @@
 import { and, asc, eq, gt, inArray, sql, type SQL } from "drizzle-orm";
-import type { ClientUpcomingJob } from "@empire-cleaning/models";
+import { inLanguage, type ClientUpcomingJob } from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { properties } from "../properties/properties.schema.ts";
@@ -81,10 +82,11 @@ export const upcomingJobsFor = async (
     )
     .orderBy(asc(jobs.startsAt));
   const versions = await serviceVersions(rows.map((r) => r.job.serviceId));
+  const lang = currentLanguage();
   return rows.map(({ job, property, servicePlanId, movingTo }) => ({
     id: job.id,
     startsAt: job.startsAt.toISOString(),
-    serviceName: versions.get(job.serviceId)!.name,
+    serviceName: inLanguage(lang, versions.get(job.serviceId)!).name,
     crewSize: job.crewSize,
     hoursOnSite: hoursOnSiteOf(job),
     property: {

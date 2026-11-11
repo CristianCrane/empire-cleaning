@@ -114,7 +114,7 @@ export const changeServicePlanTerms = async (
         cancelledBy: "client",
         cancelledByAccount: changedBy,
         lateCancellation: false,
-        cancellationReason: "The cleaning plan changed",
+        cancelledWithPlan: "changed",
         // a fee a Late Reschedule made due stays due, as when skipping
         feeCents: job.rescheduleFeeCents,
       })

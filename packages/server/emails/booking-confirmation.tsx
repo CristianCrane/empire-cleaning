@@ -9,7 +9,7 @@ export default preview(
     paid: {
       depositCents: 5988,
       totalCents: 29940,
-      paymentMethod: "Visa ending 4242",
+      paymentMethod: { brand: "Visa", last4: "4242" },
       weeklyBill: null,
     },
   }),

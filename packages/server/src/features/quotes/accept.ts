@@ -1,6 +1,12 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
-import type { QuoteOption, QuoteStatus } from "@empire-cleaning/models";
-import { catalog, dayOf, formats } from "@empire-cleaning/models";
+import type { Card, QuoteOption, QuoteStatus } from "@empire-cleaning/models";
+import {
+  catalog,
+  dayOf,
+  formats,
+  inLanguage,
+  messages,
+} from "@empire-cleaning/models";
 import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
 import {
@@ -21,6 +27,7 @@ import type { Job } from "../jobs/jobs.schema.ts";
 import { scheduleFor } from "../jobs/schedule.ts";
 import {
   payerFor,
+  cardIn,
   paymentMethodOf,
   storePaymentMethod,
 } from "../payments/payments.ts";
@@ -46,7 +53,7 @@ import {
 } from "../service-plans/service-plans.ts";
 import type { FirstJobs } from "../service-plans/first-visits.ts";
 import type { ServicePlan } from "../service-plans/service-plans.schema.ts";
-import { cleanOf } from "../services/services.ts";
+import { cleanOf, serviceVersions } from "../services/services.ts";
 import {
   bookingConfirmationEmail,
   planChangeEmail,
@@ -249,6 +256,15 @@ type Offer = {
 const describeServices = (names: string[]) =>
   formatList([...new Set(names)].map(said().aService));
 
+// the options' Services, as the request's own message names them: by the
+// version each was priced with, in its language (ADR-0025)
+const serviceNamesOf = async (rows: { serviceId: string }[]) => {
+  const versions = await serviceVersions(rows.map((r) => r.serviceId));
+  return rows.map(
+    (r) => inLanguage(currentLanguage(), versions.get(r.serviceId)!).name,
+  );
+};
+
 const offerFor = async (
   revision: KindedRevision,
   serviceKey: string | undefined,
@@ -260,10 +276,7 @@ const offerFor = async (
       throw fieldError(
         ["serviceKey"],
         said().pick(
-          formatList(
-            rows.map((r) => said().aService(r.suggested.serviceName)),
-            "or",
-          ),
+          formatList((await serviceNamesOf(rows)).map(said().aService), "or"),
         ),
       );
     }
@@ -285,9 +298,7 @@ const offerFor = async (
   // a Service Plan Quote offers its weekdays' Services, and only those
   if (serviceKey && !rows.some((r) => r.serviceKey === serviceKey)) {
     throw new ConflictError(
-      said().planFor(
-        describeServices(rows.map((r) => r.suggested.serviceName)),
-      ),
+      said().planFor(describeServices(await serviceNamesOf(rows))),
     );
   }
   const cleans = rows.map((row) => ({
@@ -622,7 +633,7 @@ export const acceptQuote = async (
             ? said().PAYMENT_DOWN
             : acceptor.by === "client"
               ? said().cardFailed(because)
-              : `${client.name}'s ${saved!.label} didn't go through${because}, so nothing was booked. Email them a link to add another card.`,
+              : `${client.name}'s ${messages.en.card(saved!)} didn't go through${because}, so nothing was booked. Email them a link to add another card.`,
         );
       }
       if (attempt.status === "needs_approval") {
@@ -643,7 +654,7 @@ export const acceptQuote = async (
       return {
         status: "accepted",
         booked,
-        paidWith: attempt.saved?.label ?? saved?.label ?? null,
+        paidWith: attempt.saved?.card ?? (saved && cardIn(saved)) ?? null,
       } as const;
     });
   } catch (error) {
@@ -769,7 +780,7 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
   if (result.status !== "accepted") return result;
 
   const paidWith =
-    attempt.saved?.label ?? (await paymentMethodOf(client.id))!.label;
+    attempt.saved?.card ?? cardIn((await paymentMethodOf(client.id))!);
   await afterAcceptance(client, property, result.booked, offer, paidWith);
   return { status: "accepted" };
 };
@@ -820,7 +831,7 @@ const afterAcceptance = async (
   property: Property,
   { jobs, plan, replaced }: Booked,
   offer: Offer,
-  paidWith: string | null,
+  paidWith: Card | null,
 ) => {
   const paid = {
     paymentMethod: paidWith,
@@ -855,15 +866,21 @@ const afterAcceptance = async (
   if (plan) await generateServicePlanJobs(plan.id);
 };
 
-// a plan's cleans, as its emails give them
-const cleansOf = (plan: ServicePlan, offer: Offer): PlanCleans => ({
-  recurrence: plan.recurrence,
-  cleans: offer.cleans.map((c) => ({
-    startsAt: c.startsAt,
-    serviceName: c.option.serviceName,
-    totalCents: c.option.totalCents,
-  })),
-});
+// a plan's cleans, as its emails give them, each Service by its version
+const cleansOf = async (
+  plan: ServicePlan,
+  offer: Offer,
+): Promise<PlanCleans> => {
+  const versions = await serviceVersions(offer.cleans.map((c) => c.serviceId));
+  return {
+    recurrence: plan.recurrence,
+    cleans: offer.cleans.map((c) => ({
+      startsAt: c.startsAt,
+      service: versions.get(c.serviceId)!,
+      totalCents: c.option.totalCents,
+    })),
+  };
+};
 
 // one email for the whole plan: its Jobs after the first get only the
 // day-before reminder
@@ -879,7 +896,7 @@ const sendPlanConfirmation = async (
     ...planConfirmationEmail(client.preferredLanguage, {
       name: client.name,
       address: addressOf(property),
-      plan: cleansOf(plan, offer),
+      plan: await cleansOf(plan, offer),
       paid,
     }),
   });
@@ -901,7 +918,7 @@ const sendPlanChangeConfirmation = async (
       name: client.name,
       address: addressOf(property),
       planId: plan.id,
-      plan: cleansOf(plan, offer),
+      plan: await cleansOf(plan, offer),
       replaced: replaced.map((j) => j.startsAt),
       paid,
     }),

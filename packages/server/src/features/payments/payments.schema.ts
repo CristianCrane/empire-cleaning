@@ -15,8 +15,16 @@ import {
 import { timestamps } from "../../db/timestamps.ts";
 import { bills } from "../bills/bills.schema.ts";
 import { clients } from "../clients/clients.schema.ts";
+import type { Card } from "@empire-cleaning/models";
+import type { ReportedChange } from "../completion/completion.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { servicePlans } from "../service-plans/service-plans.schema.ts";
+
+// the one change to a Job's price a payment moved for: approved, its price
+// corrected, or taken off
+export type ChargeItem = ReportedChange & {
+  how: "approved" | "corrected" | "taken_off";
+};
 
 // the Client as the payment provider knows them, made the first time they
 // pay or save a card; their Payment Methods are kept with it
@@ -38,8 +46,9 @@ export const paymentMethods = pgTable("payment_methods", {
     .references(() => clients.id, { onDelete: "cascade" }),
   // the Payment Gateway's id for it, opaque to us
   gatewayRef: text("gateway_ref").notNull(),
-  // e.g. "Visa ending 4242"
-  label: text("label").notNull(),
+  // its brand and last 4, worded as they're read ("Visa ending 4242")
+  brand: text("brand").notNull(),
+  last4: text("last4").notNull(),
   savedAt: timestamp("saved_at", { withTimezone: true }).notNull(),
   // when they agreed, saving it, to later Charges without them there: the
   // Balance, and late-cancellation or No Access fees
@@ -74,10 +83,10 @@ export const charges = pgTable(
     }),
     kind: chargeKind("kind").notNull(),
     amountCents: integer("amount_cents").notNull(),
-    // the one change to the price it was for, by name ("Inside the fridge",
-    // "1 more hour"), when it was taken for one; kept as words, as the
-    // Adjustment may later be taken off
-    item: text("item"),
+    // the one change to the price it was for ("Inside the fridge", "1 more
+    // hour"), when it was taken for one: kept, as the Adjustment may later be
+    // taken off, and worded as it's read (#395)
+    item: jsonb("item").$type<ChargeItem>(),
     // the Payment Gateway's id for it, for refunds
     gatewayRef: text("gateway_ref").notNull(),
     chargedAt: timestamp("charged_at", { withTimezone: true }).notNull(),
@@ -108,7 +117,7 @@ export const refunds = pgTable(
       .references(() => charges.id, { onDelete: "restrict" }),
     amountCents: integer("amount_cents").notNull(),
     // as a Charge's: the one change to the price it gave back for
-    item: text("item"),
+    item: jsonb("item").$type<ChargeItem>(),
     // the Job a Bill's Charge was refunded for, which it billed: it counts
     // against what Bills took for that Job. Never set on a Job's own
     jobId: uuid("job_id").references(() => jobs.id, { onDelete: "restrict" }),
@@ -194,7 +203,7 @@ export const refundAttempts = pgTable(
     chargeId: uuid("charge_id").notNull(),
     amountCents: integer("amount_cents").notNull(),
     // as its Refund will have them
-    item: text("item"),
+    item: jsonb("item").$type<ChargeItem>(),
     jobId: uuid("job_id"),
     creditBillId: uuid("credit_bill_id"),
     status: refundAttemptStatus("status").notNull().default("pending"),
@@ -212,3 +221,12 @@ export type Charge = typeof charges.$inferSelect;
 export type RefundAttempt = typeof refundAttempts.$inferSelect;
 export type ChargeAttempt = typeof chargeAttempts.$inferSelect;
 export type PaymentMethodRow = typeof paymentMethods.$inferSelect;
+
+// a saved Payment Method's card
+export const cardIn = ({
+  brand,
+  last4,
+}: Pick<PaymentMethodRow, "brand" | "last4">): Card => ({
+  brand,
+  last4,
+});

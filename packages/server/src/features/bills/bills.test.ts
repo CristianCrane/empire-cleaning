@@ -1118,6 +1118,15 @@ describe("putting Bills right", () => {
     expect(view.weekStart).toBe("2026-01-12");
     expect(view.lines).toHaveLength(1);
     expect(view.lines[0]!.label).toMatch(/^1 more hour: Deep Clean/);
+    // worded as it's read: the Client's in Spanish (#395)
+    const client = await signIn(casey.email);
+    const theirs = (
+      await client
+        .get(`/api/bills/mine/${next!.id}`)
+        .set("Accept-Language", "es")
+        .expect(200)
+    ).body as BillView;
+    expect(theirs.lines[0]!.label).toMatch(/^1 hora más: Limpieza profunda/);
     expect(view.totalCents).toBeGreaterThan(0);
     expect(testPayments().charges.at(-1)!.amount).toBe(view.totalCents);
   });
@@ -1183,6 +1192,20 @@ describe("putting Bills right", () => {
     expect(view.lines.every((l) => l.label.startsWith("Corrected:"))).toBe(
       true,
     );
+    // and the Client's, in Spanish: the correction and the Deposit it took
+    const client = await signIn(casey.email);
+    const theirs = (
+      await client
+        .get(`/api/bills/mine/${credit!.id}`)
+        .set("Accept-Language", "es")
+        .expect(200)
+    ).body as BillView;
+    expect(theirs.lines.map((l) => l.label).sort()).toEqual([
+      expect.stringMatching(
+        /^Corrección: Depósito pagado: Limpieza profunda en /,
+      ),
+      expect.stringMatching(/^Corrección: Limpieza profunda en /),
+    ]);
     expect(testEmail().lastTo(BILLING_EMAIL).subject).toBe(
       "Your bill EC-000002: a credit",
     );

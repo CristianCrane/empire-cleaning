@@ -64,7 +64,13 @@ describe("a Client's payment history", () => {
     await db.insert(charges).values({
       ...rest,
       amountCents: 5988,
-      item: "1 more hour",
+      item: {
+        kind: "extra_time",
+        addOnKey: null,
+        addOnName: null,
+        hours: 1,
+        how: "approved",
+      },
       gatewayRef: "fake_extra",
     });
     await db.delete(charges).where(eq(charges.id, own!.id));
@@ -79,6 +85,18 @@ describe("a Client's payment history", () => {
     expect(history.find((p) => p.kind === "adjustment")).toMatchObject({
       amountCents: 5988,
       item: "1 more hour",
+    });
+    // worded as it's read, in the Client's language (#395)
+    const client = await signIn(casey.email);
+    const theirs = (
+      await client
+        .get("/api/payments/mine")
+        .set("Accept-Language", "es")
+        .expect(200)
+    ).body as ClientPayment[];
+    expect(theirs.find((p) => p.kind === "adjustment")).toMatchObject({
+      item: "1 hora más",
+      job: { serviceName: "Limpieza profunda" },
     });
   });
 

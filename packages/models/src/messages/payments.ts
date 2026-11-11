@@ -1,4 +1,4 @@
-import type { AdjustmentKind, UnpaidKind } from "../index.ts";
+import type { AdjustmentKind, Card, UnpaidKind } from "../index.ts";
 import { formats } from "../format.ts";
 import { catalog } from "../language.ts";
 
@@ -32,6 +32,8 @@ const moreHoursEs = (a: Changed) =>
 export const payments = catalog({
   en: {
     PRICES_INCLUDE_TAX: "Prices include tax.",
+    // a saved card, by its brand and last 4: "Visa ending 4242"
+    card: ({ brand, last4 }: Card) => `${brand} ending ${last4}`,
     // a refund, as the Client is told: `amount` already formatted
     REFUND_TAKES_DAYS,
     refundedTo: (amount: string, card: string) =>
@@ -87,6 +89,7 @@ export const payments = catalog({
   },
   es: {
     PRICES_INCLUDE_TAX: "Los precios incluyen impuestos.",
+    card: ({ brand, last4 }: Card) => `${brand} terminada en ${last4}`,
     REFUND_TAKES_DAYS: REFUND_TAKES_DAYS_ES,
     refundedTo: (amount: string, card: string) =>
       `Le devolvimos ${amount} a su ${card}. ${REFUND_TAKES_DAYS_ES}`,

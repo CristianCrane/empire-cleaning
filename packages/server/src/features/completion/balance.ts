@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, isNull, ne, sql, sum } from "drizzle-orm";
 import { currentLanguage } from "#services/request";
 import {
+  type Card,
   type ChargeView,
   type JobPayment,
   formats,
@@ -22,7 +23,9 @@ import {
   charges,
   paymentMethods,
   refunds,
+  cardIn,
   type Charge,
+  type ChargeItem,
 } from "../payments/payments.schema.ts";
 import { nowTheirs, NOT_SETTLED, unpaidOf } from "../payments/unpaid.ts";
 import { properties } from "../properties/properties.schema.ts";
@@ -173,7 +176,7 @@ export const paymentOf = async (job: Job): Promise<JobPayment> => {
   const [ledger, [owner]] = await Promise.all([
     ledgerOf(job, db),
     db
-      .select({ label: paymentMethods.label })
+      .select({ method: paymentMethods })
       .from(properties)
       .leftJoin(
         paymentMethods,
@@ -196,7 +199,10 @@ export const paymentOf = async (job: Job): Promise<JobPayment> => {
     paidCents: ledger.paidCents,
     billedCents: ledger.billedCents,
     owedCents: ledger.owedCents,
-    paymentMethod: owner?.label ?? null,
+    // in the reply's language
+    paymentMethod: owner?.method
+      ? messages[currentLanguage()].card(cardIn(owner.method))
+      : null,
     unpaid: unpaidOf(currentLanguage(), job.unpaidSince, job.unpaidReason),
   };
 };
@@ -209,7 +215,8 @@ export type Settled = {
   failure: string | null;
   // whether this settling made it Unpaid, when it wasn't before
   becameUnpaid: boolean;
-  paymentMethod: string | null;
+  // the card it was taken from, or would have been
+  paymentMethod: Card | null;
   // what it did to the plan of a plan Job: put it On Hold, or resumed it
   plan: "held" | "resumed" | null;
   // its money goes on its Client's weekly Bill instead (ADR-0016), so none
@@ -233,7 +240,7 @@ const describe = async (tx: Tx, job: Job) => {
     job.status === "cancelled" || job.status === "no_access"
       ? feeName[job.status]
       : "Balance";
-  return `${what}: ${await serviceNameOf(job.serviceId, tx)} at ${addressOf(property!)}, ${formatWhen(job.startsAt)}`;
+  return `${what}: ${await serviceNameOf("en", job.serviceId, tx)} at ${addressOf(property!)}, ${formatWhen(job.startsAt)}`;
 };
 
 /**
@@ -256,7 +263,7 @@ export const settleJob = async (
   jobId: string,
   // the one change to its price that moved this money, by name, for the
   // Client's Payments page to say
-  item: string | null = null,
+  item: ChargeItem | null = null,
 ): Promise<Settled> =>
   db.transaction(async (tx) => {
     const [job] = await tx
@@ -277,7 +284,7 @@ export const settleJob = async (
       refundedCents: 0,
       failure: null,
       becameUnpaid: false,
-      paymentMethod: method?.label ?? null,
+      paymentMethod: method && cardIn(method),
       plan: null,
       billed: isBilledWeekly(job!, client, {
         lines: ledger.billedLines,
@@ -353,7 +360,7 @@ export const settleJob = async (
  */
 export const settleAfterChange = async (
   jobId: string,
-  item: string | null = null,
+  item: ChargeItem | null = null,
 ): Promise<Settled> => {
   try {
     return await settleJob(jobId, item);

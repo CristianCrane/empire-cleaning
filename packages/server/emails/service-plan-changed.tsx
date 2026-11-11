@@ -10,16 +10,23 @@ export default preview(
     plan: {
       recurrence: "weekly",
       cleans: [
-        { startsAt: monday, serviceName: "Standard Clean", totalCents: 16200 },
+        {
+          startsAt: monday,
+          service: { name: "Standard Clean", nameEs: "Limpieza estándar" },
+          totalCents: 16200,
+        },
         {
           startsAt: wednesday,
-          serviceName: "Standard Clean",
+          service: { name: "Standard Clean", nameEs: "Limpieza estándar" },
           totalCents: 16200,
         },
       ],
     },
     replaced: [monday],
     // a business billed weekly, as most plans of several days a week are
-    paid: { paymentMethod: "Visa ending 4242", weeklyBill: "automatic" },
+    paid: {
+      paymentMethod: { brand: "Visa", last4: "4242" },
+      weeklyBill: "automatic",
+    },
   }),
 );

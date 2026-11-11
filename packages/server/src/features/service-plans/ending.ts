@@ -170,7 +170,7 @@ export const endServicePlan = async (planId: string, ending: Ending) => {
           cancelledBy: "client",
           cancelledByAccount: ending.byAccountId,
           lateCancellation: false,
-          cancellationReason: "The cleaning plan ended",
+          cancelledWithPlan: "ended",
           // a fee a Late Reschedule made due stays due, as when skipping
           feeCents: job.rescheduleFeeCents,
         })

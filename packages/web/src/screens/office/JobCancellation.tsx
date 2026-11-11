@@ -8,6 +8,7 @@ import {
   type JobPayment,
   type OfficeJob,
   formats,
+  messages,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -26,6 +27,8 @@ import type { CostedJob } from "../RescheduleParts.tsx";
 const { cancelledLabel, jobStatusLabel } = screenWords.en;
 
 const { formatDateTime, formatMoney } = formats.en;
+
+const { planCancelled } = messages.en;
 
 // What cancelling costs, as the Office reads it
 const describeTerms = (terms: CancellationTerms, job: CostedJob) =>
@@ -184,6 +187,7 @@ export const howItEnded = (
       at: cancellation.cancelledAt,
       description: [
         `${why}${skipped ? "; the plan carries on" : ""}.`,
+        cancellation.withPlan && `${planCancelled[cancellation.withPlan]}.`,
         cancellation.reason,
       ]
         .filter(Boolean)
