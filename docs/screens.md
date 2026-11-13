@@ -398,8 +398,9 @@ Keeps: the Record (ux-portal). Renders through `RecordPage` (#432).
   request a quote.
 - Alerts: Unpaid (pay), price change to review, a move asked for (withdraw)
   or turned down.
-- Body: Details (`DetailsCard`: `DateTile`, the address, icon facts);
-  cancelled, no access or the receipt.
+- Body: Details (`DetailsCard`: the time large, the address, icon facts, and
+  while booked, until when it's free to move or cancel); cancelled, no
+  access or the receipt.
 
 #### Client portal > Your quote
 
