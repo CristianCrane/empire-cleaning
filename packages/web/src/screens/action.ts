@@ -11,6 +11,10 @@ export type ActionOptions = {
   reloadOnFailure?: boolean;
   // shown beside the API's field errors, when it returns some
   fieldsProblem?: string;
+  // for an action with no form or dialog around it (a Notice's, a header
+  // Button's): why it failed is a danger Toast, never drawn on the page,
+  // so never a Notice inside a Notice (#432)
+  toast?: boolean;
 };
 
 export type Action = ReturnType<typeof useActionWith>;
@@ -30,14 +34,20 @@ export const useAction = (fallback: string, options: ActionOptions = {}) => {
 // an action whose change leaves the page (it navigates there), so nothing
 // here reloads. It has no fields of its own, so a 400's field details say
 // the fallback too
-export const useLeavingAction = (fallback: string) =>
-  useActionWith(() => Promise.resolve(), fallback, { fieldsProblem: fallback });
+export const useLeavingAction = (
+  fallback: string,
+  options: Pick<ActionOptions, "toast"> = {},
+) =>
+  useActionWith(() => Promise.resolve(), fallback, {
+    fieldsProblem: fallback,
+    ...options,
+  });
 
 // useAction, given how to reload: the seam its tests use
 export const useActionWith = (
   reload: () => Promise<unknown>,
   fallback: string,
-  { reloadOnFailure = false, fieldsProblem }: ActionOptions = {},
+  { reloadOnFailure = false, fieldsProblem, toast = false }: ActionOptions = {},
 ) => {
   const [problem, setProblem] = useState<string>();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -61,16 +71,18 @@ export const useActionWith = (
       return true;
     } catch (e) {
       reportUnexpected(e);
-      if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
+      const fields = e instanceof ApiError && Object.keys(e.fieldErrors).length;
+      const said =
+        e instanceof CardProblem || (e instanceof ApiError && e.status === 409)
+          ? e.message
+          : fallback;
+      if (toast) {
+        showToast({ tone: "danger", title: fields ? fallback : said });
+      } else if (fields) {
         setFieldErrors(e.fieldErrors);
         setProblem(fieldsProblem);
       } else {
-        setProblem(
-          e instanceof CardProblem ||
-            (e instanceof ApiError && e.status === 409)
-            ? e.message
-            : fallback,
-        );
+        setProblem(said);
       }
       if (reloadOnFailure) await reload();
       return false;

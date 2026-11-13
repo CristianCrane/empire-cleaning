@@ -126,7 +126,7 @@ export function AskedFacts({ quote }: { quote: OfficeQuote }) {
 // kind. Where either kind is possible (the home's First Clean is Completed,
 // or for business premises at any time, ADR-0014), it asks which first
 export function DraftQuote({ quote }: { quote: OfficeQuote }) {
-  const { start, starting, failure } = useStartDraft();
+  const { start, starting } = useStartDraft();
   const eitherKind =
     quote.firstCleanCompleted || quote.property.kind === "commercial";
   const draft = (kind: QuoteKind) => void start({ quoteId: quote.id, kind });
@@ -149,7 +149,6 @@ export function DraftQuote({ quote }: { quote: OfficeQuote }) {
               A one-off clean, or a cleaning plan of regular cleans at a
               discount.
             </p>
-            {failure && <Notice tone="danger">{failure}</Notice>}
             <Actions>
               <Button
                 variant="quiet"
@@ -178,11 +177,6 @@ export function DraftQuote({ quote }: { quote: OfficeQuote }) {
         >
           {label}
         </Button>
-      )}
-      {failure && !eitherKind && (
-        <p role="alert" className="pt-1 text-sm text-danger-strong">
-          {failure}
-        </p>
       )}
     </>
   );

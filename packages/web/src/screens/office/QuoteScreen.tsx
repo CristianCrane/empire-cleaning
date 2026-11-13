@@ -894,58 +894,45 @@ function OfferPrice({
 // starts a new Revision of a Sent or Expired Quote, from the offer's terms,
 // and opens it; primary only when it's the one thing to do
 function NewRevision({ quote }: { quote: OfficeQuote }) {
-  const { start, starting, failure } = useStartDraft();
+  const { start, starting } = useStartDraft();
   return (
-    <>
-      <Button
-        variant="text"
-        size="sm"
-        isPending={starting !== undefined}
-        onPress={() => void start({ quoteId: quote.id, kind: quote.kind! })}
-      >
-        <Pencil aria-hidden size={16} />
-        Change quote
-      </Button>
-      {failure && <ActionProblem>{failure}</ActionProblem>}
-    </>
-  );
-}
-
-// why a button in a box didn't work, under its buttons
-function ActionProblem({ children }: { children: ReactNode }) {
-  return (
-    <p role="alert" className="basis-full text-sm text-danger-strong">
-      {children}
-    </p>
+    <Button
+      variant="text"
+      size="sm"
+      isPending={starting !== undefined}
+      onPress={() => void start({ quoteId: quote.id, kind: quote.kind! })}
+    >
+      <Pencil aria-hidden size={16} />
+      Change quote
+    </Button>
   );
 }
 
 // Office Staff never take card details: the Client adds a card from a link
 // emailed to them, before an acceptance by phone can be recorded
 function EmailCardLink({ quote }: { quote: OfficeQuote }) {
-  const action = useAction("The link wasn't sent. Please try again.");
+  const action = useAction("The link wasn't sent. Please try again.", {
+    toast: true,
+  });
   const [firstName] = quote.client.name.split(" ");
   return (
-    <>
-      <Button
-        variant="text"
-        size="sm"
-        isPending={action.isPending}
-        onPress={() =>
-          void action.run(
-            () =>
-              postJson("/api/payment-methods/requests", {
-                clientId: quote.client.id,
-              }),
-            `Link sent to ${quote.client.email}`,
-          )
-        }
-      >
-        <Mail aria-hidden size={16} />
-        Email {firstName} a link to add a card
-      </Button>
-      {action.problem && <ActionProblem>{action.problem}</ActionProblem>}
-    </>
+    <Button
+      variant="text"
+      size="sm"
+      isPending={action.isPending}
+      onPress={() =>
+        void action.run(
+          () =>
+            postJson("/api/payment-methods/requests", {
+              clientId: quote.client.id,
+            }),
+          `Link sent to ${quote.client.email}`,
+        )
+      }
+    >
+      <Mail aria-hidden size={16} />
+      Email {firstName} a link to add a card
+    </Button>
   );
 }
 

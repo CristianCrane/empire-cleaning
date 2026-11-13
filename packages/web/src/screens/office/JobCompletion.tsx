@@ -567,24 +567,24 @@ export function JobMoney({ payment }: { payment: JobPayment }) {
 // charges what a Job owes again, after a failed charge: a Balance, or the
 // fee of a plan Job that didn't happen
 export function RetryCharge({ job }: { job: OfficeJob }) {
-  const action = useAction("It wasn't tried again. Please try again.");
+  // a retry that fails is a Toast, not a Notice in the Unpaid one (WEB-5)
+  const action = useAction("It wasn't tried again. Please try again.", {
+    toast: true,
+  });
   return (
-    <div className="flex flex-col gap-2">
-      <Button
-        variant="text"
-        size="sm"
-        isPending={action.isPending}
-        onPress={() =>
-          void action.run(
-            () => postJson(`/api/jobs/${job.id}/balance/retry`),
-            "Payment taken",
-          )
-        }
-      >
-        <CreditCard aria-hidden size={16} />
-        Try the payment again
-      </Button>
-      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-    </div>
+    <Button
+      variant="text"
+      size="sm"
+      isPending={action.isPending}
+      onPress={() =>
+        void action.run(
+          () => postJson(`/api/jobs/${job.id}/balance/retry`),
+          "Payment taken",
+        )
+      }
+    >
+      <CreditCard aria-hidden size={16} />
+      Try the payment again
+    </Button>
   );
 }

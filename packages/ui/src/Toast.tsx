@@ -21,8 +21,9 @@ const toastQueue = new AriaToastQueue<ToastContent>({
   maxVisibleToasts: 3,
 });
 
-// brief confirmation of something that already happened ("Quote sent").
-// Anything the person must act on belongs on the page, not in a toast.
+// brief confirmation of something that already happened ("Quote sent"),
+// or, in danger, why an action with no form around it didn't work (useAction's
+// toast). Anything else the person must act on belongs on the page.
 export const showToast = (content: ToastContent) =>
   toastQueue.add(content, { timeout: 5000 });
 

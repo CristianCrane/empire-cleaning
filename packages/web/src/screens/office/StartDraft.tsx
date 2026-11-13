@@ -1,7 +1,7 @@
 import { Repeat } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import type { OfficeQuote, QuoteKind } from "@empire-cleaning/models";
-import { Button, Notice } from "@empire-cleaning/ui";
+import { Button } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { useLeavingAction } from "../action.ts";
 
@@ -15,11 +15,11 @@ export type DraftTarget =
 const NOT_STARTED = "The draft couldn't be started. Please try again.";
 
 // Starts a Draft (or finds the Revision already being drafted) and opens it;
-// says why if it can't. `starting` is the kind being started
+// says why in a Toast if it can't. `starting` is the kind being started
 export function useStartDraft() {
   const navigate = useNavigate();
-  // it opens the Draft
-  const action = useLeavingAction(NOT_STARTED);
+  // it opens the Draft; pressed in a Notice, a header or a dialog
+  const action = useLeavingAction(NOT_STARTED, { toast: true });
 
   const start = (target: DraftTarget) =>
     action.run(
@@ -38,7 +38,7 @@ export function useStartDraft() {
       target.kind,
     );
 
-  return { start, starting: action.pending, failure: action.problem };
+  return { start, starting: action.pending };
 }
 
 export const QUOTE_A_PLAN = "Quote a cleaning plan";
@@ -56,19 +56,16 @@ export function OfferServicePlan({
   // as the one thing to do, e.g. for a home with no Service Plan
   primary?: boolean;
 }) {
-  const { start, starting, failure } = useStartDraft();
+  const { start, starting } = useStartDraft();
   return (
-    <div className="flex flex-col gap-2">
-      <Button
-        variant={primary ? "primary" : "text"}
-        size={primary ? "md" : "sm"}
-        isPending={starting !== undefined}
-        onPress={() => void start({ propertyId, kind: "service_plan" })}
-      >
-        <Repeat aria-hidden size={primary ? 18 : 16} />
-        {label}
-      </Button>
-      {failure && <Notice tone="danger">{failure}</Notice>}
-    </div>
+    <Button
+      variant={primary ? "primary" : "text"}
+      size={primary ? "md" : "sm"}
+      isPending={starting !== undefined}
+      onPress={() => void start({ propertyId, kind: "service_plan" })}
+    >
+      <Repeat aria-hidden size={primary ? 18 : 16} />
+      {label}
+    </Button>
   );
 }
