@@ -139,6 +139,7 @@ import { PortalQuote } from "./screens/portal/PortalQuote.tsx";
 import { PortalRequest } from "./screens/portal/PortalRequest.tsx";
 import { PortalDetails } from "./screens/portal/PortalDetails.tsx";
 import { NotFound } from "./screens/NotFound.tsx";
+import { RecordPrototype } from "./screens/record.prototype.tsx";
 import { PeopleScreen, personAsked } from "./screens/PeopleScreen.tsx";
 import { PageError } from "./screens/PageError.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
@@ -912,7 +913,23 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: the Record layout and the shared page header, on made-up
+// data, signed out (#432)
+const recordPrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/record",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string } => ({
+    // ?case=1 arrives as a number
+    case: search.case === undefined ? undefined : String(search.case),
+    layout: search.layout === undefined ? undefined : String(search.layout),
+  }),
+  component: RecordPrototype,
+});
+
 const routeTree = rootRoute.addChildren([
+  recordPrototypeRoute,
   indexRoute,
   signInRoute,
   signInLinkRoute,
