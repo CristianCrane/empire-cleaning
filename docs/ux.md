@@ -12,6 +12,8 @@ words a person reads: a server message or an email too (Words).
   tried, which won and why. Check it before reworking a screen, so a choice
   isn't undone by accident.
 - **Changing a screen** says how a new UX question is settled.
+- **`docs/screens.md`** lists every screen: its route, the rule it keeps
+  and its parts in order.
 
 They came out of a screen-by-screen UX pass (#96). These aren't ADRs: they
 can change, through the same loop.
@@ -349,7 +351,9 @@ stays as it is (#336).
    before and after, from `pnpm pr:shots` (`packages/web/README.md`,
    Testing).
 5. **Record it**: a row in the decisions log below; a new rule above, and a
-   pattern in Storybook, if it carries over to other screens.
+   pattern in Storybook, if it carries over to other screens; and the
+   screen's entry in `docs/screens.md`, for a new route or a change to its
+   parts or their order.
 
 A change that only applies these rules needs no prototype; it still gets a
 row in the log.
