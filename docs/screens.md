@@ -30,7 +30,7 @@ what later screens are checked against. The landing site isn't here.
 | Signed out    | anyone                                              | `/sign-in`, `/sign-in/link`, `/confirm-email`, `/people` |
 
 The Office, Client portal and Cleaner area share one frame
-(`packages/ui/src/AppLayout.tsx`): a sidebar
+(`packages/ui/src/layouts/AppLayout.tsx`): a sidebar
 from `md`; under `md`, a top bar with ☰ and a drawer, and a tab bar at the
 foot. How sign-in and the areas' guards behave is in `packages/web/README.md`,
 Areas and sign-in.

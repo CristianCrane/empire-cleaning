@@ -10,11 +10,11 @@ import {
 } from "lucide-react";
 import { expect, waitFor, within } from "storybook/test";
 import { AppLayout, type NavItem } from "./AppLayout.tsx";
-import { Button } from "./Button.tsx";
-import { Card } from "./Card.tsx";
-import { Heading } from "./Heading.tsx";
-import { List, ListItem } from "./List.tsx";
-import { StatusBadge } from "./StatusBadge.tsx";
+import { Button } from "../Button.tsx";
+import { Card } from "../Card.tsx";
+import { Heading } from "../Heading.tsx";
+import { List, ListItem } from "../List.tsx";
+import { StatusBadge } from "../StatusBadge.tsx";
 
 const officeNav: NavItem[] = [
   { href: "#today", label: "Today", icon: LayoutDashboard, isCurrent: true },

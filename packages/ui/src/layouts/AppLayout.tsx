@@ -1,13 +1,13 @@
 import { Link, type LinkProps } from "react-aria-components";
 import { Menu, type LucideIcon } from "lucide-react";
 import { useId, type ReactNode } from "react";
-import { Button } from "./Button.tsx";
-import { DialogTrigger } from "./Dialog.tsx";
-import { Drawer } from "./Drawer.tsx";
-import { Logo } from "./Logo.tsx";
-import { ThemeToggle } from "./theme.tsx";
-import { useUiWords } from "./language.ts";
-import { focusRing } from "./utils.ts";
+import { Button } from "../Button.tsx";
+import { DialogTrigger } from "../Dialog.tsx";
+import { Drawer } from "../Drawer.tsx";
+import { Logo } from "../Logo.tsx";
+import { ThemeToggle } from "../theme.tsx";
+import { useUiWords } from "../language.ts";
+import { focusRing } from "../utils.ts";
 
 export type NavItem = {
   // whatever link type the app's router declares (see RouterProvider)

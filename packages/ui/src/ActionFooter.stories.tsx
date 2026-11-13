@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { LayoutDashboard } from "lucide-react";
 import { expect, waitFor } from "storybook/test";
 import { ActionFooter } from "./ActionFooter.tsx";
-import { AppLayout } from "./AppLayout.tsx";
+import { AppLayout } from "./layouts/AppLayout.tsx";
 import { Button } from "./Button.tsx";
 
 const meta = {
