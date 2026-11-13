@@ -29,7 +29,8 @@ what later screens are checked against. The landing site isn't here.
 | Signed in     | an Account connected to nothing                     | `/welcome`   |
 | Signed out    | anyone                                              | `/sign-in`, `/sign-in/link`, `/confirm-email`, `/people` |
 
-Every area has the same frame (`packages/ui/src/AppLayout.tsx`): a sidebar
+The Office, Client portal and Cleaner area share one frame
+(`packages/ui/src/AppLayout.tsx`): a sidebar
 from `md`; under `md`, a top bar with ☰ and a drawer, and a tab bar at the
 foot. How sign-in and the areas' guards behave is in `packages/web/README.md`,
 Areas and sign-in.
@@ -56,8 +57,8 @@ decisions-log row, where one exists), then its parts top to bottom:
 
 ## Route index
 
-"Screen" names the entry under Each screen. Three paths only redirect and
-draw nothing; Not found and Something went wrong have no path.
+"Screen" names the entry under Each screen. Some paths only
+redirect (Screen: none); Not found and Something went wrong have no path.
 
 | Path                             | Screen                          | For                                                                                                      | File                              | Type         |
 | -------------------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------- | --------------------------------- | ------------ |
@@ -476,7 +477,7 @@ settles them by editing `docs/ux.md`, not by keeping a second list here.
 | **List**         | "A growing work list is a Table"; "Dated things a person scans are grouped by month"; "Sections, not Cards, around Lists and Tables"                                                | WorkListsAsTables, SectionsNotCardsAroundLists                                | 7       |
 | **Home**         | joins "A home screen answers what's next" and "A money page answers what's owed first"; Today keeps "Lead a to-do row with what to do"                                             | WhatsNextFirstStory, OwedFirstStory, ActionFirstToDoRows                      | 4       |
 | **Form page**    | "Forms ask quietly, a few questions at a time"; "A price beside the figures that make it"; takes Service out of "Settings are read, then changed part by part", which names it      | QuietFormsInSteps                                                             | 7       |
-| **Settings**     | "Settings are read, then changed part by part", less Service (to Form page) and Staff (its member's page to Record), which it names                                                | none yet                                                                      | 2       |
+| **Settings**     | "Settings are read, then changed part by part", less Service (to Form page) and Staff (its list to List, its member's page to Record), which it names                                                | none yet                                                                      | 2       |
 | **Message page** | "A message page"; already a layout in code, `MessagePage.tsx`                                                                                                                      | MessagePagesStory                                                             | 5       |
 | **Calendar**     | "Schedules are calendars"                                                                                                                                                          | SchedulesAsCalendars                                                          | 1       |
 
