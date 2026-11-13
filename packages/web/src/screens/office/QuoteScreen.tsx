@@ -53,6 +53,7 @@ import {
   messages,
 } from "@empire-cleaning/models";
 import {
+  ActionFooter,
   Actions,
   Breadcrumbs,
   Button,
@@ -1907,8 +1908,9 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
         </Notice>
       )}
 
-      {/* the prices stay in view wherever the change was made */}
-      <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-3 border-t border-border bg-surface px-4 py-3 shadow-raised sm:mx-0 sm:rounded-lg sm:border">
+      {/* the prices stay in view wherever the change was made, in the app's
+          one bar at a page's foot, clear of a phone's tab bar (#425) */}
+      <ActionFooter aria-label="Send the quote">
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="font-semibold tabular-nums">
             {priceSummary(quote)}
@@ -1922,9 +1924,12 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
           isDisabled={!quote.client.email || quote.needsSiteVisit}
           onPress={() => void onSend()}
         >
-          Send to {quote.client.name}
+          {/* just Send, so a long name doesn't squeeze the prices; the
+              heading names who it goes to, and so does this for a screen
+              reader */}
+          Send<span className="sr-only"> to {quote.client.name}</span>
         </Button>
-      </div>
+      </ActionFooter>
     </Form>
   );
 }
