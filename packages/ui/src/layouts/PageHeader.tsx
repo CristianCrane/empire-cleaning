@@ -16,11 +16,14 @@ export type DialogState = {
 
 // Something done to the whole page's subject: a dialog it opens (given its
 // open state), another page, or a thing done straight away. `danger` undoes
-// or removes something: red, and last
+// or removes something: red, and last. `isPending` while one done straight
+// away still runs (starting a Draft): the Button, or the Actions menu, shows
+// it, so the press is seen to be heard
 export type PageAction = {
   label: string;
   icon: LucideIcon;
   danger?: boolean;
+  isPending?: boolean;
 } & (
   | { dialog: (state: DialogState) => ReactNode }
   | { href: NonNullable<LinkProps["href"]> }
@@ -110,7 +113,12 @@ function HeaderActions({ actions }: { actions: PageAction[] }) {
           {content}
         </ButtonLink>
       ) : (
-        <Button variant={variant} className="shrink-0" onPress={press(action)}>
+        <Button
+          variant={variant}
+          className="shrink-0"
+          isPending={action.isPending}
+          onPress={press(action)}
+        >
           {content}
         </Button>
       );
@@ -130,7 +138,10 @@ function HeaderActions({ actions }: { actions: PageAction[] }) {
       </MenuItem>
     );
     control = (
-      <MenuButton label={words.actions}>
+      <MenuButton
+        label={words.actions}
+        isPending={actions.some((a) => a.isPending)}
+      >
         {plain.map(item)}
         {plain.length > 0 && danger.length > 0 && <MenuSeparator />}
         {danger.map(item)}

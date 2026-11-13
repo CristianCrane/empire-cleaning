@@ -50,7 +50,7 @@ import { useAction } from "../action.ts";
 import { BillStatusBadge, billLine } from "../BillParts.tsx";
 import { addressOf, clientName, screenWords } from "../format.ts";
 import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
-import { clientTrail } from "./trails.ts";
+import { clientsCrumb } from "./trails.ts";
 
 const { propertySummary } = screenWords.en;
 
@@ -66,11 +66,10 @@ export function ClientDetail() {
     from: "/office/clients/$clientId",
   });
   const navigate = useNavigate();
-  const trail = clientTrail(client);
 
   return (
     <RecordPage
-      trail={[trail[0]!, { label: clientName(client) }]}
+      trail={[clientsCrumb, { label: clientName(client) }]}
       title={clientName(client)}
       actions={[
         {

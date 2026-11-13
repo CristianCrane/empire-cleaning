@@ -1,6 +1,7 @@
 import { type ReactNode } from "react";
 import { useLoaderData } from "@tanstack/react-router";
 import {
+  CalendarCheck,
   CalendarClock,
   CalendarSync,
   CirclePlus,
@@ -59,6 +60,12 @@ const words = catalog({
     heldThere: "Its deposit is held there",
     offPrice: "Deposit, comes off the price",
     reminder: "We'll email a reminder the day before.",
+    // until when moving it, and cancelling or skipping it, costs nothing
+    freeToMoveOr: (skip: boolean) =>
+      skip ? "Free to move or skip" : "Free to move or cancel",
+    freeToMove: "Free to move",
+    freeToCancel: (skip: boolean) => (skip ? "Free to skip" : "Free to cancel"),
+    until: (when: string) => `Until ${when}`,
     notSkipped: "Your clean wasn't skipped. Please try again.",
     notCancelled: "Your clean wasn't cancelled. Please try again.",
     feeOnPlan: (where: string) => `The fee ${where}.`,
@@ -132,6 +139,14 @@ const words = catalog({
     heldThere: "Su depósito está retenido allí",
     offPrice: "Depósito, se descuenta del precio",
     reminder: "Le enviaremos un recordatorio por correo el día antes.",
+    freeToMoveOr: (skip: boolean) =>
+      skip
+        ? "Reprogramar o saltar sin cargo"
+        : "Reprogramar o cancelar sin cargo",
+    freeToMove: "Reprogramar sin cargo",
+    freeToCancel: (skip: boolean) =>
+      skip ? "Saltar sin cargo" : "Cancelar sin cargo",
+    until: (when: string) => `Hasta el ${when}`,
     notSkipped: "No se saltó su limpieza. Vuelva a intentarlo.",
     notCancelled: "No se canceló su limpieza. Vuelva a intentarlo.",
     feeOnPlan: (where: string) => `El cargo ${where}.`,
@@ -316,6 +331,39 @@ export function PortalJob() {
   );
 }
 
+// until when it's free to move, and to cancel or skip, as the server says:
+// one Fact when the two end together, 24 hours before it (ADR-0010); two
+// when a plan clean booked later than that is free to skip until it starts
+function FreeUntil({ job }: { job: ClientJobDetail }) {
+  const t = useSaid(words);
+  const skip = !!job.servicePlanId;
+  const move = job.rescheduleTerms?.freeUntil;
+  const cancel = job.cancelTerms?.freeUntil;
+  const until = (when: string) => t.w.until(t.formatDateTime(when));
+  if (move && move === cancel)
+    return (
+      <Fact
+        icon={CalendarCheck}
+        label={t.w.freeToMoveOr(skip)}
+        value={until(move)}
+      />
+    );
+  return (
+    <>
+      {move && (
+        <Fact icon={CalendarCheck} label={t.w.freeToMove} value={until(move)} />
+      )}
+      {cancel && (
+        <Fact
+          icon={CalendarCheck}
+          label={t.w.freeToCancel(skip)}
+          value={until(cancel)}
+        />
+      )}
+    </>
+  );
+}
+
 // The clean as its Client reads it, as their plan's page does: when, large,
 // then its facts. (UX pass, #96)
 function JobDetails({ job }: { job: ClientJobDetail }) {
@@ -377,6 +425,7 @@ function JobDetails({ job }: { job: ClientJobDetail }) {
             line={deposit ? t.w.offPrice : t.deposit}
           />
         )}
+        {booked && <FreeUntil job={job} />}
       </Facts>
       {booked && <p className="text-sm text-fg-muted">{t.w.reminder}</p>}
     </DetailsCard>

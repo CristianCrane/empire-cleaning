@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { ReactNode } from "react";
 import {
   CalendarClock,
@@ -30,6 +29,7 @@ import {
   type Alert,
   type DialogState,
   type PageAction,
+  DialogTrigger,
 } from "@empire-cleaning/ui";
 import { postJson } from "../api.ts";
 import type { AppHref } from "../links.ts";
@@ -242,7 +242,7 @@ function EndPlanDialog({
   endPath,
   ...state
 }: { plan: Omit<ServicePlanView, "upcoming"> } & Omit<Viewer, "jobHref"> &
-  DialogState) {
+  Partial<DialogState>) {
   const t = useSaid(words);
   // what Ending does may have changed since the page loaded
   const action = useAction(
@@ -322,22 +322,15 @@ export function EndPlan({
   plan: Omit<ServicePlanView, "upcoming">;
   endPath: string;
 }) {
-  const [isOpen, setOpen] = useState(false);
   if (plan.status === "ended") return null;
   return (
-    <>
-      <Button variant="danger-text" size="sm" onPress={() => setOpen(true)}>
+    <DialogTrigger>
+      <Button variant="danger-text" size="sm">
         <CircleStop aria-hidden size={16} />
         End plan
       </Button>
-      <EndPlanDialog
-        plan={plan}
-        forClient={false}
-        endPath={endPath}
-        isOpen={isOpen}
-        onOpenChange={setOpen}
-      />
-    </>
+      <EndPlanDialog plan={plan} forClient={false} endPath={endPath} />
+    </DialogTrigger>
   );
 }
 

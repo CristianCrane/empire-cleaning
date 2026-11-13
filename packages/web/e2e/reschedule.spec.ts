@@ -54,6 +54,10 @@ test(
     const job = await bookedJob();
     await signedInAs(page, casey.email);
     await page.goto(`/portal/jobs/${job.id}`);
+    // until when it's free, before they look at moving it
+    await expect(
+      page.getByRole("region", { name: "Clean details" }),
+    ).toContainText("Free to move or cancelUntil Sun, Jan 11, 9:00 AM");
 
     // what it costs, said in its dialog
     await pageAction(page, "Pick a new time");

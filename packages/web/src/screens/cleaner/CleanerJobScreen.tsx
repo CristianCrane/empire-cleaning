@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
   CalendarClock,
@@ -25,6 +24,7 @@ import {
   DetailsCard,
   Facts,
   type DialogState,
+  DialogTrigger,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
@@ -272,7 +272,10 @@ function TakeOffer({ job }: { job: CleanerJob }) {
 }
 
 // dropping out: a page action's dialog, or Release's
-function ReleaseDialog({ job, ...state }: { job: CleanerJob } & DialogState) {
+function ReleaseDialog({
+  job,
+  ...state
+}: { job: CleanerJob } & Partial<DialogState>) {
   const navigate = useNavigate();
   const { w } = useSaid(words);
   // it leaves for Your jobs
@@ -311,13 +314,10 @@ function ReleaseDialog({ job, ...state }: { job: CleanerJob } & DialogState) {
 
 // the same, from its own button: on the Offer, "Not for me"
 function Release({ job, label }: { job: CleanerJob; label: string }) {
-  const [isOpen, setOpen] = useState(false);
   return (
-    <>
-      <Button variant="secondary" onPress={() => setOpen(true)}>
-        {label}
-      </Button>
-      <ReleaseDialog job={job} isOpen={isOpen} onOpenChange={setOpen} />
-    </>
+    <DialogTrigger>
+      <Button variant="secondary">{label}</Button>
+      <ReleaseDialog job={job} />
+    </DialogTrigger>
   );
 }

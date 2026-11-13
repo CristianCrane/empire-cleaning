@@ -236,7 +236,7 @@ export const BOOK_A_SITE_VISIT = "Book a site visit";
 export function BookSiteVisitDialog({
   quoteId,
   ...state
-}: { quoteId: string } & DialogState) {
+}: { quoteId: string } & Partial<DialogState>) {
   const navigate = useNavigate();
   const action = useAction("The site visit wasn't booked. Please try again.");
   return (
@@ -277,23 +277,17 @@ export function BookSiteVisit({
   quoteId: string;
   primary?: boolean;
 }) {
-  const [isOpen, setOpen] = useState(false);
   return (
-    <>
+    <DialogTrigger>
       <Button
         variant={primary ? "primary" : "text"}
         size={primary ? "md" : "sm"}
-        onPress={() => setOpen(true)}
       >
         <CalendarPlus aria-hidden size={primary ? 18 : 16} />
         {BOOK_A_SITE_VISIT}
       </Button>
-      <BookSiteVisitDialog
-        quoteId={quoteId}
-        isOpen={isOpen}
-        onOpenChange={setOpen}
-      />
-    </>
+      <BookSiteVisitDialog quoteId={quoteId} />
+    </DialogTrigger>
   );
 }
 

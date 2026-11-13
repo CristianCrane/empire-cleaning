@@ -147,6 +147,32 @@ export const OneAction: Story = {
   },
 };
 
+// an action done straight away that's still running: the menu shows it
+// and waits, so the press is seen to be heard
+export const WhilePending: Story = {
+  args: {
+    actions: [
+      {
+        label: "Change terms",
+        icon: FilePen,
+        onAction: () => {},
+        isPending: true,
+      },
+      {
+        label: "Undo completion",
+        icon: RotateCcw,
+        danger: true,
+        onAction: () => {},
+      },
+    ],
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByRole("button", { name: /Actions/ }),
+    ).toHaveAttribute("data-pending", "true");
+  },
+};
+
 // two alerts, the most pressing first; the rest a tap away
 export const Alerts: Story = {
   args: {

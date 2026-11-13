@@ -61,7 +61,7 @@ const endPath = (plan: OfficeServicePlan) =>
 // or one opened from Today. A current one is also on its home's page
 export function ServicePlanScreen() {
   const plan = useLoaderData({ from: "/office/service-plans/$planId" });
-  const { start } = useStartDraft();
+  const { start, starting } = useStartDraft();
   const endPlan = useEndPlanAction(plan, {
     forClient: false,
     endPath: endPath(plan),
@@ -81,6 +81,7 @@ export function ServicePlanScreen() {
           icon: Repeat,
           onAction: () =>
             void start({ propertyId: plan.property.id, kind: "service_plan" }),
+          isPending: !!starting,
         },
         endPlan,
       ]}
