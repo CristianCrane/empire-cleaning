@@ -377,7 +377,8 @@ Keeps: a list of homes; read, then Edit (ux-portal).
 Keeps: on the Payment Method page (ux-portal).
 
 - Header: Payments › Your card; the title; what it's for.
-- Notices: the card failed (Try again), or saved, or info.
+- Notices: the card failed (Try again, its problem a Toast), or saved, or
+  info.
 - Body: the card form (Section).
 
 #### Client portal > Request a quote

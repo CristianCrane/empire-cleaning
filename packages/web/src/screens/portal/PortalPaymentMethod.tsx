@@ -64,7 +64,8 @@ export function PortalPaymentMethod() {
   const { saved, unpaid } = useLoaderData({ from: "/portal/payment-method" });
   const card = useCardForm();
   const action = useAction(t.w.notSaved);
-  const retry = useAction(t.w.couldntRetry);
+  // a form-less action: its problem is a Toast, never a Notice in this one
+  const retry = useAction(t.w.couldntRetry, { toast: true });
   const [first] = unpaid;
   const owed = unpaid.reduce((sum, j) => sum + j.owedCents, 0);
 
@@ -122,7 +123,6 @@ export function PortalPaymentMethod() {
             )}{" "}
             {saved ? t.w.tryOrSave : t.w.saveBelow}
           </p>
-          {retry.problem && <p>{retry.problem}</p>}
         </Notice>
       ) : saved ? (
         <Notice tone="success">
