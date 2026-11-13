@@ -49,7 +49,7 @@ const { formatDate, formatMoney } = formats.en;
 // Revision: the ask itself, its Site Visit, the Suggested Price, drafting,
 // and Turning it Down (ADR-0017)
 
-export const propertyLink = (quote: OfficeQuote) =>
+const propertyLink = (quote: OfficeQuote) =>
   linkTo({
     to: "/office/properties/$propertyId",
     params: { propertyId: quote.property.id },

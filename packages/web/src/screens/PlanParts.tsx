@@ -236,7 +236,7 @@ function endingLines(t: T, terms: EndPlanTerms, forClient: boolean) {
 
 // Ending a plan, at any time: what it does now, in the dialog that confirms
 // it. On the plan's own page it's one of the page's actions
-export function EndPlanDialog({
+function EndPlanDialog({
   plan,
   forClient,
   endPath,
