@@ -35,8 +35,10 @@ can change, through the same loop.
 
 Every screen is one of seven types, and renders through the layout for its
 type (ADR-0031). The layout places the page's parts (the breadcrumbs, the
-title row and its subtitle, where actions sit, the facts grid, the bar at
-the foot); the screen fills its slots and never places those parts itself.
+title row and its subtitle, where actions sit, the bar at the foot); the
+screen fills its slots and never places those parts itself, nor lays out a
+facts grid by hand, which is the kit's, one for every screen and dialog
+(#432).
 `pnpm lint` warns where a screen does (`empire/screen-layout`,
 `packages/lint`), and its count is what the layouts still to build have
 left (#426). The layouts live in `packages/ui/src/layouts/`. Which type

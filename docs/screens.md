@@ -489,8 +489,8 @@ How the same part is done across screens of a type. "Rule" is what
 | Two columns | from `xl` | From `lg` on Office Job and Property; one column on every other Record, Office Quote included |
 | History | a `Timeline` in the right column | A Section with a Timeline and no Card (Office Job); a Section around a Card holding the Timeline (Property); the whole page a Timeline (Office Quote); none on Client, Site visit, Staff member, Office plan or any Client or Cleaner page |
 | Notices | first; one action each | Office Job stacks up to seven (`WhatsNext`), and its payment-retry Notice draws a second Notice inside itself; Your details puts a warning Notice inside a Section, above its Card; Payments puts its Notices after the owed card; the Quote adds a plan-change Notice after `WhatsNext` |
-| Title in the bar | "The heading hidden on a phone where the bar says it" | Lists, Today, Schedule, Your jobs, Offers, Cleans, Payments, Your details and Prices use `inBar`; Client Home doesn't; no Record does |
-| The bar at the foot | none (`ActionFooter` exists) | `ActionFooter` (Cleaner Job); a hand-built `sticky bottom-0` bar hidden behind the phone's tab bar (Draft quote, #425); an in-flow `Actions` row (Service, New service) |
+| Title in the bar | "A section is named once on a phone" | Lists, Today, Schedule, Your jobs, Offers, Cleans, Payments, Your details and Prices use `inBar`; Client Home doesn't; no Record does |
+| The bar at the foot | "A bar at the foot of a page is an `ActionFooter`" | `ActionFooter` (Cleaner Job); a hand-built `sticky bottom-0` bar hidden behind the phone's tab bar (Draft quote, #425); an in-flow `Actions` row (Service, New service) |
 | Explaining text | "Few words" | Long Section descriptions on Prices (every Section), the Draft's parts (Proposed time, prices worked out), Office Job's Price changes, Services' intro paragraph, the Office plan's billing sentence |
 | Space between parts | none | `gap-6` on most; `gap-4` on Staff, Schedule and Request a quote; `gap-8` on Today |
 
