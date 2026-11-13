@@ -94,6 +94,9 @@ test("a Client is told, not charged, when cancelling has become late since they 
   await setClock(SUNDAY_8_59AM);
   await signedInAs(page, casey.email);
   await page.goto(`/portal/jobs/${job.id}`);
+  await expect(
+    page.getByRole("region", { name: "Clean details" }),
+  ).toContainText("Free to move or cancelUntil Sun, Jan 11, 9:00 AM");
   await pageAction(page, "Cancel clean");
   const dialog = page.getByRole("alertdialog", { name: "Cancel your clean?" });
   await expect(dialog).toContainText("There's no charge");
@@ -108,6 +111,13 @@ test("a Client is told, not charged, when cancelling has become late since they 
     /Cancelling less than 24 hours before is a late cancellation, so your \$[\d.]+ deposit is kept as the fee\./,
   );
 
+  // and the page no longer says it's free, as it said a minute ago
+  await dialog.getByRole("button", { name: "Keep my clean" }).click();
+  const details = page.getByRole("region", { name: "Clean details" });
+  await expect(details).toContainText("Price");
+  await expect(details).not.toContainText("Free to");
+
+  await pageAction(page, "Cancel clean");
   await dialog.getByRole("button", { name: "Cancel clean" }).click();
   await expect(page.getByRole("region", { name: "Cancelled" })).toContainText(
     /Cancelling less than 24 hours before is a late cancellation, so your \$[\d.]+ deposit is kept as the fee/,

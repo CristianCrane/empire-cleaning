@@ -331,14 +331,19 @@ export function PortalJob() {
   );
 }
 
-// until when it's free to move, and to cancel or skip, as the server says:
+// until when it's free to move, and to cancel or skip, as the server says,
+// each only while it still is (the server sends the time when it's past):
 // one Fact when the two end together, 24 hours before it (ADR-0010); two
 // when a plan clean booked later than that is free to skip until it starts
 function FreeUntil({ job }: { job: ClientJobDetail }) {
   const t = useSaid(words);
   const skip = !!job.servicePlanId;
-  const move = job.rescheduleTerms?.freeUntil;
-  const cancel = job.cancelTerms?.freeUntil;
+  const { rescheduleTerms: moving, cancelTerms: cancelling } = job;
+  const move = moving?.cost === "free" ? moving.freeUntil : undefined;
+  const cancel =
+    cancelling && !cancelling.late && cancelling.feeCents === 0
+      ? cancelling.freeUntil
+      : undefined;
   const until = (when: string) => t.w.until(t.formatDateTime(when));
   if (move && move === cancel)
     return (
