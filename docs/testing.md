@@ -22,7 +22,7 @@ How each package's tests work, and how to run them, is in its README (`packages/
 
 **Show that something didn't happen by what the page shows instead, never by `toBeHidden()` alone after a navigation.** A check that a thing is hidden passes at once on a page still loading, so it holds whatever the page goes on to show. The real card form's declined-card case checked that Payments showed no "Deposit": it passed on its first run and failed on its second, when the page had loaded and the word was in its explanation. It now waits for the empty state, "Nothing paid yet" (#331, `packages/web/e2e/card-form.sandbox.ts`).
 
-**Show that an action isn't on offer where it would be, opening what holds it first.** When an action moves into a menu (a Job's Move, Ask for a new time and Cancel, #406), a check that its button is gone (`toHaveCount(0)`) passes for nothing, as it would with the action still offered. Open the menu and check its items (`expectNoJobAction` in `packages/web/e2e/harness.ts`), and give each helper that does an action a twin that rules it out.
+**Show that an action isn't on offer where it would be, opening what holds it first.** When an action moves into a menu (a Record's Actions, #406, #432), a check that its button is gone (`toHaveCount(0)`) passes for nothing, as it would with the action still offered. Open the menu and check its items (`expectNoPageAction` in `packages/web/e2e/harness.ts`, any Record's, menu or one Button), and give each helper that does an action a twin that rules it out.
 
 ### Browser tests (Vitest)
 

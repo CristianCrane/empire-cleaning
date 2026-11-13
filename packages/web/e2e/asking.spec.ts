@@ -537,7 +537,7 @@ eachTheme(() => {
 // a home's page in the portal, a Record: what it is and how we get in, its
 // one action the Button in the menu's place (#432)
 test(
-  "a Client's home has a page of its own, how we get in changed from its header",
+  "a Client's home has a page of its own, its one action in its header",
   { tag: "@desktop" },
   async ({ page }) => {
     await requestQuoteAsGuest(casey);

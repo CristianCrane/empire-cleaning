@@ -97,8 +97,8 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
 - **A bar at the foot** only for what must stay in reach on site: the
   Cleaner's Complete.
 
-("Layout / RecordPage"; "A details page: alerts, details, actions"; "All
-at once in two columns"; "Records as stories")
+("Layout / RecordPage"; "A Record: its header, two alerts, its details, its
+parts"; "A record's History beside it, from xl"; "Records as stories")
 
 ### List
 
