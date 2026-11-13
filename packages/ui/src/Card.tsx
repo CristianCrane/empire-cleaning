@@ -11,8 +11,10 @@ export type CardProps = {
   actions?: ReactNode;
   children?: ReactNode;
   className?: string;
-  // names it, untitled, as a region: what a details card is about
-  "aria-label"?: string;
+  // names it, untitled: a heading only screen readers see (what a details
+  // card is about), so it's a region and what's titled inside it keeps the
+  // outline
+  hiddenTitle?: string;
 };
 
 export function Card({
@@ -22,19 +24,23 @@ export function Card({
   actions,
   children,
   className,
-  "aria-label": label,
+  hiddenTitle,
 }: CardProps) {
   const headingId = useId();
 
   return (
     <section
-      aria-labelledby={title ? headingId : undefined}
-      aria-label={label}
+      aria-labelledby={title || hiddenTitle ? headingId : undefined}
       className={twMerge(
         "flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 text-fg shadow-raised sm:p-5 print:break-inside-avoid print:shadow-none",
         className,
       )}
     >
+      {hiddenTitle && (
+        <Heading level={headingLevel} id={headingId} className="sr-only">
+          {hiddenTitle}
+        </Heading>
+      )}
       {(title || actions) && (
         <header className="flex flex-wrap items-start gap-3">
           <div className="flex min-w-0 flex-1 flex-col gap-1">

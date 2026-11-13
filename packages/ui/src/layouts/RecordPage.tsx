@@ -142,7 +142,7 @@ export function DetailsCard({
   children?: ReactNode;
 }) {
   return (
-    <Card aria-label={label}>
+    <Card hiddenTitle={label}>
       {title && (
         <div className="flex items-center gap-4">
           {tile}
