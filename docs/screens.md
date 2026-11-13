@@ -52,7 +52,8 @@ decisions-log row, where one exists), then its parts top to bottom:
   - _Action cards_: a Section around a Card holding an `ActionRow` (its text,
     its Button).
   - _Footer_: `ActionFooter`, fixed at the foot above the tab bar.
-- **Notices**: the alerts above the body, in order.
+- **Notices**: the alerts above the body, in order. **Alerts**: a Record's,
+  as `RecordPage` draws them (two shown, the most pressing first).
 - **Body**: the parts in order. _Card_ is a titled `Section` around a `Card`;
   _Section_ is a titled `Section` around a `List`, `Table` or other content
   with no Card.
@@ -140,16 +141,19 @@ Keeps: Table + Tabs (#146).
 
 #### Office > Job
 
-Keeps: two columns (#146), Actions ▾ (#406).
+Keeps: Actions ▾ (#406). Renders through `RecordPage` (#432).
 
-- Header: Jobs › Job; "Service at street" and its status; the time under it.
-- Actions: Menu (Move job, Ask for a new time, Cancel job in red).
-- Notices: Completed, Ended, Move asked for (answer), Cleaners needed, Price
-  changes to review, Unpaid (retry, which draws its own Notice), Plan offer.
-- Body, left: Job details (Card: label-first facts with icons, then How it
-  went with Undo); Crew (Section: List, Offer); Price changes (Section:
-  Table); Money (Card).
-- History: the right column from `lg`, a Section with a Timeline, no Card.
+- Header: Jobs › Job; "Service at street" and its status.
+- Actions: Menu (Move job, Ask for a new time, Mark not done once done;
+  Cancel job in red).
+- Alerts: Ended, Move asked for (answer), Cleaners needed (offer), Price
+  changes to review, Unpaid (retry; a failed retry is a Toast), Plan offer
+  (once the First Clean is paid); two shown.
+- Body: Job details (`DetailsCard`: `DateTile`, the time large, icon facts);
+  How it went; Crew (Section: List, those on it only); Money (Card: its
+  facts, price changes, How it's worked out folded).
+- History: a Card, on the right from `xl`, at the foot below; a drop-out is
+  told here.
 
 #### Office > Quotes
 
@@ -168,29 +172,29 @@ Keeps: one page, the price beside it (#164).
 
 #### Office > Quote
 
-Keeps: a record as its story (#145).
+Keeps: a record as its story (#145). Renders through `RecordPage` (#432).
 
 - Header: Quotes › client › home › kind; "kind for client", its status, and
-  a second badge while a change is being drafted; "address · summary · View
-  property".
-- Actions: Header Buttons while unsent (Book site visit, Turn down quote).
-- Notices: `WhatsNext`, then the plan-change Notice.
+  a second badge while a change is being drafted.
+- Actions: Menu while unsent (Book a site visit; Turn down in red).
+- Alerts: what's next (`alertsFor`), the plan change.
 - Body: a Timeline, Now on top holding Current quote (Card), then each
-  moment; What was asked folded (`details` around a Card).
+  moment; What was asked folded (`Fold`), the home's facts in it.
 - History: the page itself.
 
 #### Office > Draft quote
 
-Keeps: a Draft page of its own (#145).
+Keeps: a Draft page of its own (#145). A Form page; its layout comes with
+the Form slice.
 
-- Header: … › Draft quote; "Draft quote for client" and "Not sent yet";
-  "address · summary · View property".
-- Actions: Header Button (Delete draft); a hand-built sticky bar (the price,
-  save state, Send to client, the primary).
+- Header: … › Draft quote; "Draft quote for client" and "Not sent yet".
+- Actions: Header Button (Delete draft); an `ActionFooter` (the price, save
+  state, Send).
 - Notices: the client still sees the quote as sent (once it's been sent);
-  the plan-change Notice.
-- Body: What was asked (open); the first clean (folded); the draft (one Card:
-  Plan, weekdays, Service and prices, Area, Extras, Terms, Proposed time).
+  the plan change.
+- Body: What was asked (open, the home's facts in it); the first clean
+  (folded); the draft (one Card: Plan, weekdays, Service and prices, Area,
+  Extras, Terms, Proposed time).
 
 #### Office > Clients
 
@@ -201,56 +205,55 @@ Keeps: Table + status Tabs (#117).
 
 #### Office > Client
 
-Keeps: title outside the Card (#119), a fact under Contact details (#175).
+Keeps: title outside the Card (#119). Renders through `RecordPage` (#432).
 
 - Header: Clients › name; the name.
-- Actions: Header Button (New quote, the primary); Section actions (Edit
-  contact details, Edit billing).
-- Body: Contact details (Card: a `dt`/`dd` list, no icons); Properties
-  (Section: List); Billing (Card, a business); Bills (Section: List).
+- Actions: Menu (New quote, Edit contact details).
+- Body: Contact details (`DetailsCard`: icon facts); Properties (Section:
+  List); Billing (Card, a business; its Edit on its title line); Bills
+  (Section: List).
 
 #### Office > Property
 
-Keeps: two columns, history right (#155).
+Keeps: two columns, history right (#155). Renders through `RecordPage` (#432).
 
-- Header: Clients › client › address; the address; the client under it.
-- Actions: Section actions (Correct details; the plan's Change terms).
-- Notices: see it first (premises with no findings); new terms (open the
-  Quote).
-- Body, left: Home details (Card: `IconTile`, facts); the cleaning plan
-  (Card, with its billing sentence), then Ending the plan (an action card in
-  red), or an action card to set one up; Site visit.
-- History: the right column from `lg`, a Section around a Card holding the
-  Timeline.
+- Header: Clients › client › address; the address.
+- Actions: Menu (New quote, Correct details).
+- Alerts: on hold, see it first (premises with no findings), rooms missing,
+  new terms (open the Quote).
+- Body: Home details (`DetailsCard`: `IconTile`, icon facts); Cleaning plan
+  (Section: Change terms and End plan in red on its title line, the plan's
+  card), or an `ActionRow` to set one up; Site visit.
+- History: a Card, on the right from `xl`, at the foot below.
 
 #### Office > Ended cleaning plan
 
-Keeps: a details page.
+Keeps: the Record. Renders through `RecordPage` (#432).
 
-- Header: client › home › Cleaning plan; "Cleaning plan"; "client · address".
-- Body: Cleaning plan (Card: its Ended badge, facts, billing sentence); Ended
-  (Card); Jobs (Section: List).
+- Header: Clients › client › home › Cleaning plan; "Cleaning plan" and its
+  Ended badge.
+- Actions: Change terms.
+- Body: the plan (`DetailsCard`); visits waiting; Jobs (Section: List).
 
 #### Office > Site visit
 
-Keeps: one card, findings at its foot (#156).
+Keeps: the Record; findings are part of the visit (#156). Renders through `RecordPage` (#432).
 
-- Header: client › home › Site visit; "Site visit" and its status; "client ·
-  address".
-- Actions: Section actions (Move, Cancel); an `ActionRow` inside the card
-  (Record findings).
-- Notices: they've been, add what they found (warning); cancelled.
-- Body: Visit details (Card: `DateTile`, facts, then what it found).
+- Header: Clients › client › home › Site visit; "Site visit" and its status.
+- Actions: Menu while booked (Move or change; Cancel visit in red).
+- Alerts: they've been, add what they found (warning); cancelled.
+- Body: Visit details (`DetailsCard`: `DateTile`, icon facts); What it found
+  (an `ActionRow` to record it while booked, its facts once done).
 
 #### Office > Bill
 
-Keeps: one card, read like an invoice (#157).
+Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432).
 
-- Header: the letterhead (print only); Clients › client › Bill; "Bill N" and
-  its status; "client · week".
-- Actions: Header Buttons, text (Record payment, Void, Print).
-- Notices: the Client's standing.
-- Body: the Bill (Card).
+- Header: the letterhead (print only, before the layout); Clients › client ›
+  Bill N; "Bill N" and its status; the week.
+- Actions: Menu (Record a payment, Print; Cancel bill in red).
+- Alerts: the Client's standing.
+- Body: the Bill (`DetailsCard`: what it comes to, icon facts, the lines).
 
 #### Office > Staff
 
@@ -261,13 +264,13 @@ Keeps: a Section's List (#160).
 
 #### Office > Staff member
 
-Keeps: the month as a calendar (#160).
+Keeps: the month as a calendar (#160). Renders through `RecordPage` (#432).
 
-- Header: Staff › name; an Avatar, the name, their status.
-- Actions: Header Button (Deactivate, red text); Section actions (Edit; Edit
-  usual week).
-- Notices: can't sign in any more; only cleaners have working hours.
-- Body: Details (Card: facts); Working hours (Card: a month calendar).
+- Header: Staff › name; the name and their status.
+- Actions: Menu (Edit details; Deactivate in red).
+- Alerts: can't sign in any more; only cleaners have working hours.
+- Body: Details (`DetailsCard`: the Avatar, roles, email, icon facts);
+  Working hours (Card: a month calendar, Edit usual week on its title line).
 
 #### Office > Prices
 
@@ -315,21 +318,22 @@ Keeps: only theirs (ux-cleaner).
 
 #### Cleaner > Job
 
-Keeps: the details page, actions in a bar at the foot (ux-cleaner).
+Keeps: the Record, Complete in a bar at the foot (ux-cleaner). Renders through `RecordPage` (#432).
 
 - Header: Offers or Your jobs › day and time; the Service and its status.
-- Actions: while offered, an action card first (Take); once theirs, a Footer
-  (Drop out, No access, Complete).
-- Notices: not everyone has confirmed (warning); too late to drop out.
-- Body: Take (action card, while offered); Completed or No access; Details
-  (Card).
+- Actions: once theirs, Menu or one Button (No access; Drop out of this job
+  in red, before it starts); a Footer (Complete).
+- Alerts: not everyone has confirmed (warning); too late to drop out.
+- Body: Job details (`DetailsCard`: the time large, the address and
+  directions, how we get in and the rest as icon facts); while offered, Take
+  (Confirm, and Not for me beside it); Completed or No access.
 
 #### Cleaner > Cleaner needed
 
-Keeps: Cleaner needed (#148).
+Keeps: Cleaner needed (#148). Renders through `RecordPage` (#432).
 
 - Header: Offers › date and time; the Service and an Open badge.
-- Body: Take it (action card, first); Details (Card).
+- Body: Job details (`DetailsCard`); Can you take it? (Confirm, Not for me).
 
 ### Client portal
 
@@ -385,51 +389,54 @@ Keeps: steps, quiet choices (#114).
 
 #### Client portal > Clean
 
-Keeps: alerts, clean details, then action cards (ux-portal).
+Keeps: the Record (ux-portal). Renders through `RecordPage` (#432).
 
-- Header: Your cleans › date and time; the Service and its status; the
-  address.
-- Notices: Unpaid (pay), price change to approve.
-- Body: Details (Card: `DateTile`, facts; then cancelled, no access or the
-  receipt); Move (action card); Cancel (action card).
+- Header: Your cleans › date and time; the Service and its status.
+- Actions: while booked, Menu (Pick a new time; Skip or Cancel in red, its
+  dialog saying what it costs); once cancelled, a Button to the plan or to
+  request a quote.
+- Alerts: Unpaid (pay), price change to review, a move asked for (withdraw)
+  or turned down.
+- Body: Details (`DetailsCard`: `DateTile`, the address, icon facts);
+  cancelled, no access or the receipt.
 
 #### Client portal > Your quote
 
-Keeps: read like a Quote, paying under it (#165).
+Keeps: read like a Quote, paying under it (#165). Renders through `RecordPage` (#432).
 
-- Header: Home › Your quote; the title and its status; "address · updated ·
-  open until".
-- Notices: the Client's standing.
-- Body: the Quote (Card); Accept (action card, Decline a text Button in it).
+- Header: Home › Your quote; the title and its status; "updated · open
+  until", while it applies.
+- Alerts: how it ended (accepted, declined, expired), what it does to the
+  plan, booked up (decline).
+- Body: Quote details (`DetailsCard`: what it comes to, icon facts); Accept
+  (Decline beside it). While it's being prepared: what they asked for.
 
 #### Client portal > Your plan
 
-Keeps: headline, then facts across (ux-portal).
+Keeps: headline, then facts across (ux-portal). Renders through `RecordPage` (#432).
 
-- Header: Your details › street › Your plan; "Your plan" and its status; the
-  address.
-- Notices: on hold.
-- Body: Details (Card); Upcoming (Section: List); Ask to change (action
-  card); Ending (action card, red).
+- Header: Your details › street › Your plan; "Your plan" and its status.
+- Actions: Menu (Ask to change; End plan in red).
+- Alerts: on hold.
+- Body: the plan (`DetailsCard`); Upcoming (Section: List).
 
 #### Client portal > A home
 
-Keeps: a list of homes, each with its own page (ux-portal).
+Keeps: a list of homes, each with its own page (ux-portal). Renders through `RecordPage` (#432).
 
-- Header: Your details › street; the street and its standing; the full
-  address.
-- Actions: Section action (Edit access).
-- Body: Details (Card); Plans (Section: List, or an action card); Quotes
-  (Section: List).
+- Header: Your details › street; the street and its standing.
+- Actions: one Button (Edit how we get in).
+- Body: Details (`DetailsCard`: the full address, icon facts); Plans
+  (Section: List, or an `ActionRow`); Quotes (Section: List).
 
 #### Client portal > Bill
 
-Keeps: one card, read like an invoice (#157).
+Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432).
 
 - Header: letterhead; Payments › Bill N; "Bill N" and its status; the week.
-- Actions: Header Button (Print, text).
-- Notices: standing.
-- Body: Pay (Section, while due); the Bill (Card).
+- Actions: one Button (Print).
+- Alerts: standing.
+- Body: Pay (Section, while due); the Bill (`DetailsCard`).
 
 ### Signed out and signed in
 

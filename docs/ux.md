@@ -69,23 +69,36 @@ peaceful**. No screen overloads anyone with clutter and detail.
 
 ### Record
 
-A page about one thing: a Job, a Quote, a Client, a home, a Bill. Its
-layout comes with #432; it settles the page header every type shares, where
-actions sit and the facts grid.
+A page about one thing: a Job, a Quote, a Client, a home, a plan, a Site
+Visit, a Bill, a Staff member. It renders through `RecordPage`
+(`packages/ui/src/layouts/RecordPage.tsx`, #432), which places, in order:
 
-- **A details page: alerts, then the details, then what you can do.**
-  Notices first; one details card answering when, large, with an
-  `IconTile` or `DateTile`, then its facts in even columns across (each an
-  icon, a value and a muted line saying what it is; three text styles, no
-  more); then each thing they can do as its own card, its text and Button
-  on one row (`ActionRow`). ("A details page: alerts, details, actions")
-- **When every part of a record matters at once, two columns.** Notices on
-  top; the record, its people and its money left; its history right as a
-  `Timeline`. One column on a phone. The two-column grid starts at `xl`.
-  ("All at once in two columns")
-- **A record that moves through steps is its story**: a `Timeline`, newest
-  first, **Now** on top holding the record as it stands. Work in progress
-  (a Draft) has a page of its own. ("Records as stories")
+- **The page header** (the rule under Page structure).
+- **At most two alerts**, the most pressing first (danger, warning, info,
+  success), the rest behind "Show N more". Each is one Notice with at most
+  one action; never a Notice inside a Notice. What an action's failure
+  says is a Toast, not a Notice on the page (a retried charge, a plan
+  offered).
+- **The details card** (`DetailsCard`): what it is, large, behind its tile
+  (a `DateTile` for when, an `IconTile` for what, an `Avatar` for who),
+  a muted line above and below; then its facts (`Facts`, each an icon, a
+  value and a muted line), with the time, the address and how to reach
+  someone among them, not in a part of their own.
+- **Its parts**, each a Section. An action on one part stays on that part's
+  title line (End plan, red, on the plan; Billing's Edit), and so do both
+  answers to an offer (Accept and Decline, Confirm and Not for me). A part
+  with nothing in it yet offers its action (`ActionRow`). Money is one
+  part: its facts, the price changes in it, "How it's worked out" folded
+  (`Fold`).
+- **Its History**, a `Timeline` in a Card, newest first: on the right from
+  `xl`, at the foot below that. What happened (a drop-out, a Cleaner taken
+  off) is told there, not kept as a row elsewhere. A Quote's story is its
+  body, **Now** on top holding it as it stands; its Draft is a Form page.
+- **A bar at the foot** only for what must stay in reach on site: the
+  Cleaner's Complete.
+
+("Layout / RecordPage"; "A details page: alerts, details, actions"; "All
+at once in two columns"; "Records as stories")
 
 ### List
 
@@ -155,6 +168,14 @@ the page header every type shares with #437.
 
 ### Page structure
 
+- **The page header is the layout's** (`PageHeader`, `packages/ui/src/layouts/PageHeader.tsx`):
+  the breadcrumbs from the area's nav section down to this page, every
+  step; the title and its status badge; a subtitle only when it says what
+  nothing else on the page does (a Bill's week), never the title, a crumb
+  or the Client again; and the page's actions at the end of the title row,
+  one Actions ▾ menu, or a Button in its place when there's one, the
+  destructive last in red after a rule. Printed, it's the title alone.
+  ("Layout / RecordPage / Actions In The Header", "One Action")
 - **What loads holds its room.** A part that arrives after the page, like
   choices from the API, is drawn at its size first (blank tiles,
   `ChoiceTilesLoading`), so nothing jumps when it comes. ("ChoiceTiles / Loading")
@@ -565,3 +586,4 @@ Newest last. "Built in" is the PR (or branch) that shipped it.
 | Client portal, Cleaner area and their emails > names the Office gives, a Bill's lines, a card | Services, extras and types of business had Spanish names (#306), but the portal, the Cleaner area and every email still gave the English, and a Bill's lines, a payment's price change and a card were stored as English words (#395): in which language does each come? | (decided on #395, no prototype) | **The reader's: the Spanish name where the Office gave one, the English otherwise; records worded as they're read** | A Service is named by the version a record keeps, an extra or a type of business by its key on the Price List now, so a Spanish name the Office gives later shows on what's already booked; nothing Spanish is stored. A Bill's lines ("Corrección: …", "Depósito pagado: …", "Crédito de EC-…"), a payment's price change ("…, precio corregido"), a card ("Visa terminada en 4242") and a plan clean cancelled with its plan ("El plan de limpieza cambió, así que …") keep what happened and are worded where they're read, so the Office reads the same records in English. The Spanish is a draft Jen checks on #206 | — | #395 |
 | Office > Quote draft | On a phone the Draft's bar (its prices, whether it's saved, and Send) hid behind the tab bar: a sticky bar of its own, pinned at the screen's foot under the tab bar (#425) | A: Current / B: ActionFooter / C: sticky with offset | **B, ActionFooter** | The app keeps one bar at a page's foot, which already sits above the tab bar and beside the sidebar; C would be a second copy of what it does. On a wider screen it's full width beside the sidebar, like the Cleaner's Job. The button says just Send: "Send to <Client>" with a long name squeezed the prices to a word a line. The heading still names the Client, and so does the button for screen readers. A rule above | [`prototype-quote-footer`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-quote-footer) | #425 |
 | Every screen | What kinds of screen are there, and how does every screen of a kind stay alike? (#426: each screen built its own page from the kit's parts, so the same kind came out differently, 18 reports on six screens, #424) | The map's types (`docs/screens.md`, #427), agreed by the owner with her design principles | **Seven types, each with a layout every screen of it renders through** | One place to get each kind right; a lint rule (`empire/screen-layout`) warns where a screen builds its own page, 84 warnings to start, and becomes an error once every type has its layout (ADR-0031) | none: the map | #431 |
+| Every Record | How does a Record read, when each built its own header, put its actions in four places and stacked up to seven Notices (#432, reports WEB-2 to WEB-J on #424)? | A: breadcrumbs, Actions ▾ in the title row, History beside from `xl` / B: a back link, every action in a bar at the foot, one column / C: actions as buttons under the title, alerts in one To do card, History on a tab | **A, the Actions menu in the header** | One place for what can be done to the whole record: Actions ▾ at the end of the title row, a Button when there's one, the destructive last in red; an action on one part stays on that part. Two alerts at most, the rest behind Show N more. The details card holds the time and how to reach someone as icon facts; Money holds its price changes, How it's worked out folded; History in a Card, on the right from `xl`. A drop-out is told in History, not kept as a crew row; the plan offer waits until the First Clean is paid | [`prototype-record`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-record) | #432 |
