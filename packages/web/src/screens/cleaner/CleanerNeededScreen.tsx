@@ -4,15 +4,16 @@ import type { CleanerNeeded } from "@empire-cleaning/models";
 import { CalendarClock, Clock, MapPin, Users } from "lucide-react";
 import {
   ActionRow,
-  Breadcrumbs,
   Button,
   Card,
-  Heading,
   IconTile,
   Notice,
   Section,
   StatusBadge,
   Fact,
+  RecordPage,
+  DetailsCard,
+  Facts,
 } from "@empire-cleaning/ui";
 import { getJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
@@ -57,55 +58,41 @@ export function CleanerNeededScreen() {
   const { c, w } = t;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <Breadcrumbs
-          trail={[
-            { label: c.offers, href: linkTo({ to: "/cleaner/offers" }) },
-            { label: t.formatDateTime(job.startsAt) },
-          ]}
-        />
-        <div className="flex flex-wrap items-center gap-3">
-          <Heading level={1}>{job.serviceName}</Heading>
-          <StatusBadge tone="info">{w.open}</StatusBadge>
-        </div>
-      </div>
-
+    <RecordPage
+      trail={[
+        { label: c.offers, href: linkTo({ to: "/cleaner/offers" }) },
+        { label: t.formatDateTime(job.startsAt) },
+      ]}
+      title={job.serviceName}
+      status={<StatusBadge tone="info">{w.open}</StatusBadge>}
+      details={
+        <DetailsCard
+          label={c.jobDetails}
+          tile={<IconTile icon={CalendarClock} size="lg" />}
+          kicker={`${t.formatDay(dayOfInstant(job.startsAt))}, ${untilAbout(t, job.startsAt, job.hoursOnSite)}`}
+          title={
+            <span className="tabular-nums">{t.formatTime(job.startsAt)}</span>
+          }
+        >
+          <Facts>
+            <Fact
+              icon={Clock}
+              label={t.onSite}
+              value={t.about(formatHours(job.hoursOnSite))}
+            />
+            <Fact icon={Users} label={c.crew} value={crewSizeOf(t, job)} />
+            <Fact
+              icon={MapPin}
+              label={w.area}
+              value={job.postcode}
+              line={w.areaLine}
+            />
+          </Facts>
+        </DetailsCard>
+      }
+    >
       <TakeIt job={job} />
-
-      <Section title={c.jobDetails}>
-        <Card>
-          <div className="flex flex-col gap-6">
-            <div className="flex items-start gap-4">
-              <IconTile icon={CalendarClock} size="lg" />
-              <div className="flex min-w-0 flex-col gap-1">
-                <p className="text-sm text-fg-muted">
-                  {t.formatDay(dayOfInstant(job.startsAt))},{" "}
-                  {untilAbout(t, job.startsAt, job.hoursOnSite)}
-                </p>
-                <p className="text-3xl font-semibold text-fg tabular-nums">
-                  {t.formatTime(job.startsAt)}
-                </p>
-              </div>
-            </div>
-            <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-3">
-              <Fact
-                icon={Clock}
-                label={t.onSite}
-                value={t.about(formatHours(job.hoursOnSite))}
-              />
-              <Fact icon={Users} label={c.crew} value={crewSizeOf(t, job)} />
-              <Fact
-                icon={MapPin}
-                label={w.area}
-                value={job.postcode}
-                line={w.areaLine}
-              />
-            </dl>
-          </div>
-        </Card>
-      </Section>
-    </div>
+    </RecordPage>
   );
 }
 

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
   CalendarClock,
@@ -6,22 +7,24 @@ import {
   KeyRound,
   Phone,
   Users,
+  DoorClosed,
+  UserMinus,
 } from "lucide-react";
 import { catalog, type CleanerJob } from "@empire-cleaning/models";
 import {
-  ActionFooter,
   ActionRow,
   Actions,
-  Breadcrumbs,
   Button,
   Card,
   Dialog,
-  DialogTrigger,
-  Heading,
   IconTile,
   Notice,
   Section,
   Fact,
+  RecordPage,
+  DetailsCard,
+  Facts,
+  type DialogState,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
@@ -29,7 +32,7 @@ import { useAction, useLeavingAction } from "../action.ts";
 import { addressOf, dayOfInstant, formatHours } from "../format.ts";
 import { useSaid } from "../words.ts";
 import { CleanerJobBadge, directionsTo, untilAbout } from "./CleanerHome.tsx";
-import { CompleteJob, Completed, NotYet } from "./CompleteJob.tsx";
+import { CompleteJob, Completed, useNotYet } from "./CompleteJob.tsx";
 import { NoAccessRecorded, RecordNoAccess } from "./NoAccess.tsx";
 
 const words = catalog({
@@ -74,161 +77,153 @@ const words = catalog({
   },
 });
 
-// One Job as its Cleaner sees it, never with prices (UX pass, #96): an Offer
-// to them to Confirm or Release first; then its details, its time
-// large, how to get in where it's seen at the door; and what to do now in a
-// bar at the foot, in reach on site: Complete it, record No Access, or
-// Release a Job they can't make.
+// One Job as its Cleaner sees it, a Record (docs/ux.md), never with
+// prices (UX pass, #96): its details, its time large, how to get in; an
+// Offer to them to Confirm or Release; dropping out or recording No Access
+// as the page's actions; and Complete in a bar at the foot, in reach on site
 export function CleanerJobScreen() {
   const job = useLoaderData({ from: "/cleaner/jobs/$jobId" });
   const offered = job.assignment.status === "offered";
   const open = !job.outcome;
   const t = useSaid(words);
   const { c, w } = t;
-
+  const notYet = useNotYet(job);
+  const canRelease =
+    open && !offered && !job.started && job.assignment.canRelease;
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <Breadcrumbs
-          trail={[
-            offered
-              ? { label: c.offers, href: linkTo({ to: "/cleaner/offers" }) }
-              : { label: c.yourJobs, href: linkTo({ to: "/cleaner" }) },
-            {
-              label: `${t.formatDay(dayOfInstant(job.startsAt))}, ${t.formatTime(job.startsAt)}`,
-            },
-          ]}
-        />
-        <div className="flex flex-wrap items-center gap-3">
-          <Heading level={1}>{job.serviceName}</Heading>
-          <CleanerJobBadge job={job} />
-        </div>
-      </div>
-
-      <NotYet job={job} />
-      {open && !offered && !job.started && !job.assignment.canRelease && (
-        <Notice>{t.RELEASE_CLOSED}</Notice>
-      )}
+    <RecordPage
+      trail={[
+        offered
+          ? { label: c.offers, href: linkTo({ to: "/cleaner/offers" }) }
+          : { label: c.yourJobs, href: linkTo({ to: "/cleaner" }) },
+        {
+          label: `${t.formatDay(dayOfInstant(job.startsAt))}, ${t.formatTime(job.startsAt)}`,
+        },
+      ]}
+      title={job.serviceName}
+      status={<CleanerJobBadge job={job} />}
+      actions={[
+        open &&
+          !offered &&
+          job.canRecordNoAccess && {
+            label: t.jobStatusLabel.no_access,
+            icon: DoorClosed,
+            dialog: (state) => <RecordNoAccess job={job} {...state} />,
+          },
+        canRelease && {
+          label: w.dropOutOfJob,
+          icon: UserMinus,
+          danger: true,
+          dialog: (state) => <ReleaseDialog job={job} {...state} />,
+        },
+      ]}
+      alerts={[
+        notYet,
+        open &&
+          !offered &&
+          !job.started &&
+          !job.assignment.canRelease && {
+            key: "release closed",
+            children: t.RELEASE_CLOSED,
+          },
+      ]}
+      details={<JobDetails job={job} />}
+      footer={
+        open && !offered && job.canComplete
+          ? { label: w.whatToDo, children: <CompleteJob job={job} /> }
+          : undefined
+      }
+    >
       {offered && <TakeOffer job={job} />}
       {job.outcome === "completed" && <Completed job={job} />}
       {job.outcome === "no_access" && <NoAccessRecorded job={job} />}
-
-      <JobDetails job={job} />
-
-      {open &&
-        !offered &&
-        (job.canComplete ||
-          job.canRecordNoAccess ||
-          (!job.started && job.assignment.canRelease)) && (
-          <ActionFooter aria-label={w.whatToDo}>
-            {!job.started && job.assignment.canRelease && (
-              <Release job={job} label={w.dropOutOfJob} />
-            )}
-            {job.canRecordNoAccess && <RecordNoAccess job={job} />}
-            {job.canComplete && <CompleteJob job={job} />}
-          </ActionFooter>
-        )}
-    </div>
+    </RecordPage>
   );
 }
 
 // the Job as its Cleaner reads it, as the Client's and the Office's pages
-// do: when, large, then where with directions; how to get in on its own;
-// then the facts across
+// do: when, large, then where with directions; how to get in; then the facts
 function JobDetails({ job }: { job: CleanerJob }) {
   const unconfirmed = job.crew.filter((m) => m.status === "offered");
   const address = addressOf(job.property);
   const t = useSaid(words);
   const { c, w } = t;
-
   return (
-    <Section title={c.jobDetails}>
-      <Card>
-        <div className="flex flex-col gap-6">
-          <div className="flex items-start gap-4">
-            <IconTile icon={CalendarClock} size="lg" />
-            <div className="flex min-w-0 flex-col gap-1">
-              <p className="text-sm text-fg-muted">
-                {t.formatDay(dayOfInstant(job.startsAt))},{" "}
-                {untilAbout(t, job.startsAt, job.hoursOnSite)}
-              </p>
-              <p className="text-3xl font-semibold text-fg tabular-nums">
-                {t.formatTime(job.startsAt)}
-              </p>
-              <p className="text-fg [overflow-wrap:anywhere]">{address}</p>
+    <DetailsCard
+      label={c.jobDetails}
+      tile={<IconTile icon={CalendarClock} size="lg" />}
+      kicker={`${t.formatDay(dayOfInstant(job.startsAt))}, ${untilAbout(t, job.startsAt, job.hoursOnSite)}`}
+      title={<span className="tabular-nums">{t.formatTime(job.startsAt)}</span>}
+      line={
+        <>
+          <span className="block text-fg">{address}</span>
+          <a
+            className="font-semibold text-primary underline-offset-2 hover:underline"
+            href={directionsTo(address)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {c.directions}
+          </a>
+        </>
+      }
+    >
+      <Facts>
+        <Fact
+          icon={KeyRound}
+          label={t.howWeGetIn}
+          value={
+            <span className="whitespace-pre-line">
+              {job.property.accessInstructions ?? w.nothingWritten}
+            </span>
+          }
+          className="col-span-full"
+        />
+        <Fact
+          icon={Clock}
+          label={t.onSite}
+          value={t.about(formatHours(job.hoursOnSite))}
+        />
+        <Fact
+          icon={CirclePlus}
+          label={t.extras}
+          value={job.addOns.length > 0 ? t.formatList(job.addOns) : t.none}
+        />
+        <Fact
+          icon={Users}
+          label={c.crew}
+          value={
+            job.crew.length === 1
+              ? c.justYou
+              : t.formatList(job.crew.map((m) => m.name))
+          }
+          line={
+            unconfirmed.length > 0
+              ? w.notConfirmedYet(t.formatList(unconfirmed.map((m) => m.name)))
+              : job.crew.length > 1
+                ? w.allConfirmed
+                : c.crew
+          }
+        />
+        <Fact
+          icon={Phone}
+          label={w.client}
+          value={
+            job.client.phone ? (
               <a
-                className="self-start font-semibold text-primary underline-offset-2 hover:underline"
-                href={directionsTo(address)}
-                target="_blank"
-                rel="noreferrer"
+                className="font-semibold text-primary"
+                href={`tel:${job.client.phone}`}
               >
-                {c.directions}
+                {job.client.firstName}, {job.client.phone}
               </a>
-            </div>
-          </div>
-          <div className="flex gap-3 rounded-md bg-surface-sunken p-4">
-            <KeyRound
-              aria-hidden
-              size={20}
-              className="mt-0.5 shrink-0 text-fg-muted"
-            />
-            <div className="flex min-w-0 flex-col gap-1">
-              <p className="text-sm font-semibold text-fg">{t.howWeGetIn}</p>
-              <p className="whitespace-pre-line text-fg [overflow-wrap:anywhere]">
-                {job.property.accessInstructions ?? w.nothingWritten}
-              </p>
-            </div>
-          </div>
-          <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Fact
-              icon={Clock}
-              label={t.onSite}
-              value={t.about(formatHours(job.hoursOnSite))}
-            />
-            <Fact
-              icon={CirclePlus}
-              label={t.extras}
-              value={job.addOns.length > 0 ? t.formatList(job.addOns) : t.none}
-            />
-            <Fact
-              icon={Users}
-              label={c.crew}
-              value={
-                job.crew.length === 1
-                  ? c.justYou
-                  : t.formatList(job.crew.map((m) => m.name))
-              }
-              line={
-                unconfirmed.length > 0
-                  ? w.notConfirmedYet(
-                      t.formatList(unconfirmed.map((m) => m.name)),
-                    )
-                  : job.crew.length > 1
-                    ? w.allConfirmed
-                    : c.crew
-              }
-            />
-            <Fact
-              icon={Phone}
-              label={w.client}
-              value={
-                job.client.phone ? (
-                  <a
-                    className="font-semibold text-primary"
-                    href={`tel:${job.client.phone}`}
-                  >
-                    {job.client.firstName}, {job.client.phone}
-                  </a>
-                ) : (
-                  job.client.firstName
-                )
-              }
-              line={job.client.phone ? w.tapToCall : w.numberOnTheDay}
-            />
-          </dl>
-        </div>
-      </Card>
-    </Section>
+            ) : (
+              job.client.firstName
+            )
+          }
+          line={job.client.phone ? w.tapToCall : w.numberOnTheDay}
+        />
+      </Facts>
+    </DetailsCard>
   );
 }
 
@@ -276,7 +271,8 @@ function TakeOffer({ job }: { job: CleanerJob }) {
   );
 }
 
-function Release({ job, label }: { job: CleanerJob; label: string }) {
+// dropping out: a page action's dialog, or Release's
+function ReleaseDialog({ job, ...state }: { job: CleanerJob } & DialogState) {
   const navigate = useNavigate();
   const { w } = useSaid(words);
   // it leaves for Your jobs
@@ -290,28 +286,38 @@ function Release({ job, label }: { job: CleanerJob; label: string }) {
     }, w.droppedOut);
 
   return (
-    <DialogTrigger>
-      <Button variant="secondary">{label}</Button>
-      <Dialog title={w.dropOutTitle} role="alertdialog">
-        {({ close }) => (
-          <>
-            <p>{w.dropOutText}</p>
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <Button variant="quiet" onPress={close}>
-                {w.keepIt}
-              </Button>
-              <Button
-                variant="danger"
-                isPending={action.isPending}
-                onPress={() => void release(close)}
-              >
-                {w.dropOut}
-              </Button>
-            </Actions>
-          </>
-        )}
-      </Dialog>
-    </DialogTrigger>
+    <Dialog title={w.dropOutTitle} role="alertdialog" {...state}>
+      {({ close }) => (
+        <>
+          <p>{w.dropOutText}</p>
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              {w.keepIt}
+            </Button>
+            <Button
+              variant="danger"
+              isPending={action.isPending}
+              onPress={() => void release(close)}
+            >
+              {w.dropOut}
+            </Button>
+          </Actions>
+        </>
+      )}
+    </Dialog>
+  );
+}
+
+// the same, from its own button: on the Offer, "Not for me"
+function Release({ job, label }: { job: CleanerJob; label: string }) {
+  const [isOpen, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="secondary" onPress={() => setOpen(true)}>
+        {label}
+      </Button>
+      <ReleaseDialog job={job} isOpen={isOpen} onOpenChange={setOpen} />
+    </>
   );
 }

@@ -75,7 +75,6 @@ const words = catalog({
     carriesOn: "Once it's paid, your plan carries on from its next date.",
     forWhen: (when: string) => `For ${when}`,
     at: " at ",
-    openUntil: (day: string) => `Open until ${day}`,
     seeAsked: "See what you asked for",
     beforeWeQuote: "Before we quote",
     callToArrange: "We'll call to arrange a visit",
@@ -144,7 +143,6 @@ const words = catalog({
     carriesOn: "Cuando esté pagado, su plan continúa desde su próxima fecha.",
     forWhen: (when: string) => `Para el ${when}`,
     at: " en ",
-    openUntil: (day: string) => `Abierta hasta el ${day}`,
     seeAsked: "Ver lo que pidió",
     beforeWeQuote: "Antes de cotizar",
     callToArrange: "Le llamaremos para programar una visita",
@@ -460,7 +458,7 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Hero {
           .filter(Boolean)
           .join(w.at),
         ...(leadingQuote.expiresAt
-          ? [w.openUntil(dayOf(leadingQuote.expiresAt))]
+          ? [t.p.openUntil(dayOf(leadingQuote.expiresAt))]
           : []),
       ],
       action: seeQuote(t, leadingQuote.id),

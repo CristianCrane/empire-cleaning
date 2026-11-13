@@ -26,6 +26,7 @@ import {
   TextField,
   Fact,
   Facts,
+  type Alert,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
@@ -309,8 +310,8 @@ export function Completed({ job }: { job: CleanerJob }) {
   );
 }
 
-// why a Job can't be Completed yet, for a Confirmed Cleaner
-export function NotYet({ job }: { job: CleanerJob }) {
+// why a Job can't be Completed yet, for a Confirmed Cleaner: an alert
+export function useNotYet(job: CleanerJob): Alert | null {
   const { NOT_ALL_CONFIRMED } = useSaid(words);
   if (
     job.assignment.status !== "confirmed" ||
@@ -320,5 +321,5 @@ export function NotYet({ job }: { job: CleanerJob }) {
   ) {
     return null;
   }
-  return <Notice tone="warning">{NOT_ALL_CONFIRMED}</Notice>;
+  return { key: "not yet", tone: "warning", children: NOT_ALL_CONFIRMED };
 }

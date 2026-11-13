@@ -20,6 +20,8 @@ export const portalWords = catalog({
     yourCard: "Your card",
     yourPlan: "Your cleaning plan",
     seeYourPlan: "See your plan",
+    // a sent Quote, while it can be accepted
+    openUntil: (when: string) => `Open until ${when}`,
     cancel: "Cancel",
     yourCleans: "Your cleans",
     yourHome: "Your home",
@@ -54,6 +56,7 @@ export const portalWords = catalog({
     yourCard: "Su tarjeta",
     yourPlan: "Su plan de limpieza",
     seeYourPlan: "Ver su plan",
+    openUntil: (when: string) => `Abierta hasta el ${when}`,
     cancel: "Cancelar",
     yourCleans: "Sus limpiezas",
     yourHome: "Su casa",
