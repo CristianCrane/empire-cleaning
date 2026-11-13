@@ -39,6 +39,7 @@ import {
   Timeline,
   TimelineItem,
   type Crumb,
+  Fact,
 } from "@empire-cleaning/ui";
 import { patchJson } from "../../api.ts";
 import { linkTo, type AppHref } from "../../links.ts";
@@ -49,7 +50,7 @@ import {
   formatMinutes,
   screenWords,
 } from "../format.ts";
-import { AccessFact, ConditionFact, Fact, FloorAreaFact } from "../Fact.tsx";
+import { AccessFact, ConditionFact, FloorAreaFact } from "../Fact.tsx";
 import { homeIcon, QuoteIcon } from "../icons.ts";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
 import {

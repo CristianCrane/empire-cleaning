@@ -81,6 +81,7 @@ import {
   Timeline,
   TimelineItem,
   showToast,
+  Fold,
 } from "@empire-cleaning/ui";
 import { ApiError, deleteJson, patchJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
@@ -1347,18 +1348,10 @@ function OverrideFields({
 }) {
   return (
     <>
-      <details className="text-sm">
-        <summary className="cursor-pointer text-fg-muted">
-          Suggested price {formatMoney(option.suggested.priceCents)} before tax,
-          for {option.suggested.labourHours} cleaning hours.{" "}
-          <span className="font-semibold text-primary">
-            How it's worked out
-          </span>
-        </summary>
-        <div className="pt-2">
-          <PriceWorking breakdown={option.suggested} />
-        </div>
-      </details>
+      {/* the price is in its field: only how it's worked out (WEB-B) */}
+      <Fold label="How it's worked out">
+        <PriceWorking breakdown={option.suggested} />
+      </Fold>
       <Checkbox isSelected={override.on} onChange={(on) => onChange({ on })}>
         Set the {label} price yourself
       </Checkbox>
@@ -2076,14 +2069,17 @@ function PlanDayFields({
 function FirstCleanNote({ firstClean }: { firstClean: FirstCleanFindings }) {
   const { job } = firstClean;
   return (
-    <details className="group">
-      <summary className="cursor-pointer text-sm font-semibold text-primary">
-        First clean: the home was{" "}
-        {conditionLabel[firstClean.condition].toLowerCase()}
-        {firstClean.adjustments.length > 0 &&
-          `, with ${firstClean.adjustments.length} price change${firstClean.adjustments.length > 1 ? "s" : ""}`}
-      </summary>
-      <Card className="mt-2">
+    <Fold
+      label={
+        <>
+          First clean: the home was{" "}
+          {conditionLabel[firstClean.condition].toLowerCase()}
+          {firstClean.adjustments.length > 0 &&
+            `, with ${firstClean.adjustments.length} price change${firstClean.adjustments.length > 1 ? "s" : ""}`}
+        </>
+      }
+    >
+      <Card>
         <p className="text-sm text-fg-muted">
           {job.serviceName} on {formatDateTime(job.startsAt)}, done{" "}
           {formatDate(firstClean.completedAt)} ·{" "}
@@ -2115,6 +2111,6 @@ function FirstCleanNote({ firstClean }: { firstClean: FirstCleanFindings }) {
           </List>
         )}
       </Card>
-    </details>
+    </Fold>
   );
 }

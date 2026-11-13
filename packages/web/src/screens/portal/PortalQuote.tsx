@@ -31,13 +31,13 @@ import {
   RadioCard,
   RadioGroup,
   StatusBadge,
+  Fact,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { addressOf, formatHours, formatMinutes } from "../format.ts";
 import { type Said, useSaid } from "../words.ts";
-import { Fact } from "../Fact.tsx";
 import {
   AskedRows,
   PlanDayCard,

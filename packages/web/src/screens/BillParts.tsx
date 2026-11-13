@@ -18,9 +18,9 @@ import {
   Section,
   StatusBadge,
   Logo,
+  Fact,
 } from "@empire-cleaning/ui";
 import type { AppHref } from "../links.ts";
-import { Fact } from "./Fact.tsx";
 import { type Said, saidWith, useSaid } from "./words.ts";
 
 // in the screen's language: the Office's English, the portal's its

@@ -29,6 +29,7 @@ import {
   Notice,
   Section,
   StatusBadge,
+  Fact,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
@@ -38,7 +39,6 @@ import { PickAvailableTime } from "../AvailabilityPicker.tsx";
 import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
 import { addressOf, formatHours, wasSkipped } from "../format.ts";
 import { useSaid } from "../words.ts";
-import { Fact } from "../Fact.tsx";
 import { catalog, oneStop, stopAfter } from "@empire-cleaning/models";
 import { JobStatusBadge } from "../JobBadges.tsx";
 

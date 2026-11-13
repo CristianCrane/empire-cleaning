@@ -1,3 +1,4 @@
+import { Sparkles, ClipboardList } from "lucide-react";
 import { useState } from "react";
 import {
   type AddOnChoice,
@@ -23,6 +24,8 @@ import {
   RadioGroup,
   Section,
   TextField,
+  Fact,
+  Facts,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
@@ -277,24 +280,30 @@ export function Completed({ job }: { job: CleanerJob }) {
             c.by(completion.completedBy),
           )}
         </p>
-        <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-          <dt className="font-semibold">{t.condition}</dt>
-          <dd>{t.conditionLabel[completion.condition]}</dd>
-          <dt className="font-semibold">{w.reported}</dt>
-          <dd>
-            {completion.reports.length === 0 ? (
-              w.nothingDifferent
-            ) : (
-              <ul>
-                {completion.reports.map((r, i) => (
-                  <li key={i}>
-                    {t.adjustmentLabel(r)}: {r.reason}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </dd>
-        </dl>
+        <Facts>
+          <Fact
+            icon={Sparkles}
+            label={t.condition}
+            value={t.conditionLabel[completion.condition]}
+          />
+          <Fact
+            icon={ClipboardList}
+            label={w.reported}
+            value={
+              completion.reports.length === 0 ? (
+                w.nothingDifferent
+              ) : (
+                <ul>
+                  {completion.reports.map((r, i) => (
+                    <li key={i}>
+                      {t.adjustmentLabel(r)}: {r.reason}
+                    </li>
+                  ))}
+                </ul>
+              )
+            }
+          />
+        </Facts>
       </Card>
     </Section>
   );

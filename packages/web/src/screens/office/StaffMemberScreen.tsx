@@ -32,12 +32,12 @@ import {
   NumberField,
   Section,
   TextField,
+  Fact,
 } from "@empire-cleaning/ui";
 import { deleteJson, patchJson, postJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { dayOfInstant, formatHours, roleLabel, today } from "../format.ts";
-import { Fact } from "../Fact.tsx";
 import { MemberStatus, StaffFields } from "./StaffScreen.tsx";
 
 const {

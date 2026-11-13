@@ -27,12 +27,12 @@ import {
   Notice,
   Section,
   StatusBadge,
+  Fact,
 } from "@empire-cleaning/ui";
 import { postJson } from "../api.ts";
 import type { AppHref } from "../links.ts";
 import { useAction } from "./action.ts";
 import { formatHours } from "./format.ts";
-import { Fact } from "./Fact.tsx";
 import { type Said, useSaid } from "./words.ts";
 
 // what the Client reads, in their language (ADR-0025); what only the

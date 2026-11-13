@@ -12,11 +12,11 @@ import {
   Notice,
   Section,
   StatusBadge,
+  Fact,
 } from "@empire-cleaning/ui";
 import { getJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useLeavingAction } from "../action.ts";
-import { Fact } from "../Fact.tsx";
 import { dayOfInstant, formatHours } from "../format.ts";
 import { reportUnexpected } from "../../monitoring.ts";
 import { type Said, useSaid } from "../words.ts";

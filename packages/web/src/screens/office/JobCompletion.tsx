@@ -1,6 +1,14 @@
 import { formats } from "@empire-cleaning/models";
 import { useState, type ReactNode } from "react";
-import { CreditCard, Undo2 } from "lucide-react";
+import {
+  CreditCard,
+  Undo2,
+  ClipboardList,
+  MessageSquareText,
+  Building2,
+  Banknote,
+  CalendarClock,
+} from "lucide-react";
 import type {
   AdjustmentStatus,
   AdjustmentView,
@@ -28,6 +36,8 @@ import {
   TableBody,
   TableHeader,
   TextField,
+  Fact,
+  Facts,
 } from "@empire-cleaning/ui";
 import { deleteJson, patchJson, postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
@@ -265,31 +275,43 @@ function AdjustmentDialog({
       ) : (
         <>
           <div>{statusBadge[a.status]}</div>
-          <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-            <dt className="font-semibold">What happened</dt>
-            <dd>{fullChangeOf(a)}</dd>
-            <dt className="font-semibold">The cleaner said</dt>
-            <dd>"{a.reason}"</dd>
+          <Facts>
+            <Fact
+              icon={ClipboardList}
+              label="What happened"
+              value={fullChangeOf(a)}
+            />
+            <Fact
+              icon={MessageSquareText}
+              label="The cleaner said"
+              value={`"${a.reason}"`}
+            />
             {a.officeReason && (
-              <>
-                <dt className="font-semibold">The office said</dt>
-                <dd>{a.officeReason}</dd>
-              </>
+              <Fact
+                icon={Building2}
+                label="The office said"
+                value={a.officeReason}
+              />
             )}
-            <dt className="font-semibold">Price</dt>
-            <dd>
-              {signed(a.totalCents)} with tax
-              {a.status !== "reported" &&
-                a.priceCents !== a.workedOutCents &&
-                ` (worked out at ${formatMoney(Math.abs(a.workedOutCents))} before tax)`}
-            </dd>
+            <Fact
+              icon={Banknote}
+              label="Price"
+              value={`${signed(a.totalCents)} with tax`}
+              line={
+                a.status !== "reported" && a.priceCents !== a.workedOutCents
+                  ? `Worked out at ${formatMoney(Math.abs(a.workedOutCents))} before tax`
+                  : undefined
+              }
+            />
             {a.lapsesAt && (
-              <>
-                <dt className="font-semibold">Answer by</dt>
-                <dd>{formatDate(a.lapsesAt)}, or it isn't added</dd>
-              </>
+              <Fact
+                icon={CalendarClock}
+                label="Answer by"
+                value={formatDate(a.lapsesAt)}
+                line="Answer by then, or it isn't added"
+              />
             )}
-          </dl>
+          </Facts>
           {a.status === "reported" ? (
             <ReviewForm job={job} adjustment={a} close={close} />
           ) : counts(a) ? (

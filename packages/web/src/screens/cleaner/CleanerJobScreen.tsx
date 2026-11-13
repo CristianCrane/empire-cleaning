@@ -21,11 +21,11 @@ import {
   IconTile,
   Notice,
   Section,
+  Fact,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction, useLeavingAction } from "../action.ts";
-import { Fact } from "../Fact.tsx";
 import { addressOf, dayOfInstant, formatHours } from "../format.ts";
 import { useSaid } from "../words.ts";
 import { CleanerJobBadge, directionsTo, untilAbout } from "./CleanerHome.tsx";

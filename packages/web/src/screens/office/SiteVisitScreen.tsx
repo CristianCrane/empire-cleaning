@@ -21,6 +21,7 @@ import {
   Link,
   Notice,
   Section,
+  Fact,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
 import {
@@ -30,7 +31,7 @@ import {
   formatMinutes,
   screenWords,
 } from "../format.ts";
-import { AccessFact, ConditionFact, Fact } from "../Fact.tsx";
+import { AccessFact, ConditionFact } from "../Fact.tsx";
 import { homeIcon, QuoteIcon } from "../icons.ts";
 import { homeCrumbs } from "./PropertyScreen.tsx";
 import {
