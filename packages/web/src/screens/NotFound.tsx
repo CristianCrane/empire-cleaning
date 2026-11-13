@@ -1,7 +1,7 @@
 import { SearchX } from "lucide-react";
 import { catalog } from "@empire-cleaning/models";
-import { useLanguage } from "@empire-cleaning/ui";
-import { MessagePage } from "./MessagePage.tsx";
+import { MessagePage, useLanguage } from "@empire-cleaning/ui";
+import { linkTo } from "../links.ts";
 
 const words = catalog({
   en: { title: "Page not found", text: "That page doesn't exist." },
@@ -12,7 +12,7 @@ const words = catalog({
 export function NotFound() {
   const w = words[useLanguage()];
   return (
-    <MessagePage title={w.title} icon={SearchX}>
+    <MessagePage title={w.title} icon={SearchX} home={linkTo({ to: "/" })}>
       <p className="text-fg-muted">{w.text}</p>
     </MessagePage>
   );

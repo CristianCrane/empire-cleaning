@@ -2,11 +2,16 @@ import { useState } from "react";
 import { useSearch } from "@tanstack/react-router";
 import { Mail, MailCheck, MailX } from "lucide-react";
 import { catalog } from "@empire-cleaning/models";
-import { Button, ButtonLink, Notice, useLanguage } from "@empire-cleaning/ui";
+import {
+  Button,
+  ButtonLink,
+  MessagePage,
+  Notice,
+  useLanguage,
+} from "@empire-cleaning/ui";
 import { ApiError, postJson } from "../api.ts";
 import { linkTo } from "../links.ts";
 import { reportUnexpected } from "../monitoring.ts";
-import { MessagePage } from "./MessagePage.tsx";
 
 type EmailConfirmation =
   { confirmed: true; email: string } | { confirmed: false; problem: string };
@@ -61,6 +66,7 @@ export function ConfirmEmail() {
   const [isPending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
   const w = words[useLanguage()];
+  const home = linkTo({ to: "/" });
 
   const confirm = async () => {
     setPending(true);
@@ -77,7 +83,7 @@ export function ConfirmEmail() {
 
   if (!result) {
     return (
-      <MessagePage title={w.title} icon={Mail}>
+      <MessagePage title={w.title} icon={Mail} home={home}>
         <p className="text-fg-muted">{w.text}</p>
         {failed && <Notice tone="danger">{w.failed}</Notice>}
         <Button
@@ -92,7 +98,12 @@ export function ConfirmEmail() {
   }
   if (result.confirmed) {
     return (
-      <MessagePage title={w.confirmed} icon={MailCheck} tone="success">
+      <MessagePage
+        title={w.confirmed}
+        icon={MailCheck}
+        tone="success"
+        home={home}
+      >
         <p className="text-fg-muted [overflow-wrap:anywhere]">
           {w.sendTo(result.email)}
         </p>
@@ -100,7 +111,7 @@ export function ConfirmEmail() {
     );
   }
   return (
-    <MessagePage title={w.notChanged} icon={MailX} tone="danger">
+    <MessagePage title={w.notChanged} icon={MailX} tone="danger" home={home}>
       <p className="text-fg-muted">{result.problem}</p>
       <ButtonLink href={linkTo({ to: "/portal/details" })}>
         {w.again}

@@ -28,6 +28,7 @@ import { Avatar } from "./Avatar.tsx";
 import { ActionFooter } from "./ActionFooter.tsx";
 import { ActionRow } from "./ActionRow.tsx";
 import { AppLayout } from "./layouts/AppLayout.tsx";
+import { MessagePage } from "./layouts/MessagePage.tsx";
 import { Button } from "./Button.tsx";
 import { Card } from "./Card.tsx";
 import { Checkbox } from "./Checkbox.tsx";
@@ -38,7 +39,6 @@ import { ChoiceTile, ChoiceTiles } from "./ChoiceTiles.tsx";
 import { EmptyState } from "./EmptyState.tsx";
 import { Heading } from "./Heading.tsx";
 import { IconTile } from "./IconTile.tsx";
-import { Link } from "./Link.tsx";
 import { List, ListItem } from "./List.tsx";
 import { MenuButton, MenuItem, MenuSeparator } from "./Menu.tsx";
 import { Notice } from "./Notice.tsx";
@@ -1280,21 +1280,17 @@ function MessagePages() {
         </p>
       </Rule>
       <Example verdict="Do">
-        <div className="mx-auto w-full max-w-md">
-          <Card>
-            <div className="flex flex-col items-center gap-4 py-4 text-center">
-              <IconTile icon={CircleAlert} tone="warning" size="lg" />
-              <Heading level={1} size={2}>
-                Something went wrong
-              </Heading>
-              <p className="text-fg-muted">
-                We couldn't load this page. Try again in a moment.
-              </p>
-              <Button>Try again</Button>
-              <Link href="#">Go to your home page</Link>
-            </div>
-          </Card>
-        </div>
+        <MessagePage
+          title="Something went wrong"
+          icon={CircleAlert}
+          tone="warning"
+          home="#"
+        >
+          <p className="text-fg-muted">
+            We couldn't load this page. Try again in a moment.
+          </p>
+          <Button>Try again</Button>
+        </MessagePage>
       </Example>
     </div>
   );

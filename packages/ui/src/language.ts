@@ -23,6 +23,7 @@ export const uiWords = catalog({
     progress: "{{current}} of {{total}}",
     darkTheme: "Dark theme",
     testSite: "Test site: no real payments or cleans",
+    goHome: "Go to your home page",
   },
   es: {
     close: "Cerrar",
@@ -34,6 +35,7 @@ export const uiWords = catalog({
     progress: "{{current}} de {{total}}",
     darkTheme: "Tema oscuro",
     testSite: "Sitio de prueba: sin pagos ni limpiezas reales",
+    goHome: "Ir a la página de inicio",
   },
 });
 

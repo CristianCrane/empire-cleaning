@@ -41,7 +41,6 @@ import { catalog, type Language, LANGUAGES } from "@empire-cleaning/models";
 import { deleteJson, getJson, putJson } from "../api.ts";
 import { useLoaded } from "./load.ts";
 import { linkTo } from "../links.ts";
-import { InArea } from "./MessagePage.tsx";
 import { JobIcon, QuoteIcon } from "./icons.ts";
 import {
   areaLabels,
@@ -229,9 +228,7 @@ export function AreaLayout({ area }: { area: AreaId }) {
       )}
       menuBusy={footActions.switching !== undefined}
     >
-      <InArea value>
-        <Outlet />
-      </InArea>
+      <Outlet />
     </AppLayout>
   );
 }

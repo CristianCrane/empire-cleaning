@@ -1,6 +1,6 @@
 import { Link, type LinkProps } from "react-aria-components";
 import { Menu, type LucideIcon } from "lucide-react";
-import { useId, type ReactNode } from "react";
+import { createContext, useId, type ReactNode } from "react";
 import { Button } from "../Button.tsx";
 import { DialogTrigger } from "../Dialog.tsx";
 import { Drawer } from "../Drawer.tsx";
@@ -8,6 +8,10 @@ import { Logo } from "../Logo.tsx";
 import { ThemeToggle } from "../theme.tsx";
 import { useUiWords } from "../language.ts";
 import { focusRing } from "../utils.ts";
+
+// true inside AppLayout, which already gives a page its frame: a layout
+// in it (MessagePage) leaves out a frame of its own
+export const InAppLayout = createContext(false);
 
 export type NavItem = {
   // whatever link type the app's router declares (see RouterProvider)
@@ -115,7 +119,7 @@ export function AppLayout({
         tabIndex={-1}
         className="mx-auto w-full max-w-5xl min-w-0 flex-1 px-4 pt-4 pb-28 outline-none md:px-8 md:py-8 print:max-w-none print:p-0"
       >
-        {children}
+        <InAppLayout value>{children}</InAppLayout>
       </main>
 
       <nav

@@ -1,8 +1,8 @@
 import { LogIn } from "lucide-react";
 import { useSearch } from "@tanstack/react-router";
 import { catalog } from "@empire-cleaning/models";
-import { Button } from "@empire-cleaning/ui";
-import { MessagePage } from "./MessagePage.tsx";
+import { Button, MessagePage } from "@empire-cleaning/ui";
+import { linkTo } from "../links.ts";
 import { useSaid } from "./words.ts";
 
 export type SignInLinkSearch = {
@@ -31,7 +31,7 @@ export function SignInLink() {
   const { w, signIn } = useSaid(words);
 
   return (
-    <MessagePage title={w.title} icon={LogIn}>
+    <MessagePage title={w.title} icon={LogIn} home={linkTo({ to: "/" })}>
       <p className="text-fg-muted">{w.ready}</p>
       <form
         method="get"
