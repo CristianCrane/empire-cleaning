@@ -39,6 +39,18 @@ What it can't see:
 
 As it looks deep, it also flags a string under a branch that isn't words, such as an Intl option or a locale tag (`lang === "en" ? "en_US" : "es_US"`): that goes in a table by language too, as `locales` does. The rule is on everywhere, tests included: a test's expected words in each language go in a table by language, not a branch.
 
+## `empire/screen-layout`
+
+A screen renders through the layout for its type (ADR-0031, `docs/ux.md`, Screen types), never placing the page's parts itself. It warns on each part a screen places:
+
+- the kit's `Breadcrumbs` and `ActionFooter`, under whatever name they're imported as, or through `import * as`
+- the page's title: the kit's `Heading` at `level={1}`, `inBar` or not, or an `<h1>`
+- a facts grid: a `<dl>` with `grid` among its class names, but for two columns of amounts (`grid-cols-[1fr_auto]`), a receipt or a price's lines rather than facts. It warns in a screen's dialogs too: there's to be one facts grid, the kit's (#432)
+
+The layouts that place them live in the kit, `packages/ui/src/layouts/`, where the rule doesn't run: that's its allowed set, so a new layout changes nothing here. It's on in `packages/web/src/screens`, but not in tests or stories, or on the test site's People page, which has no type. It's a warning, not an error, until every type has its layout: its count is how far the layout slices have to go (#426), and #437 makes it an error.
+
+What it can't see: a level not written as `1` (`level={level}`, a spread), class names made by a call (`cn(…)`), and a part a screen reaches through a component of the kit's that isn't a layout.
+
 ## `catalog-copies`
 
 The same English in two of the screens' catalogs is a second Spanish to keep in step, and to have checked by the owner (#206, #397). A word several screens show has one home (`docs/ux.md`, Words): the portal's in `packages/web/src/screens/portal/words.ts` (`p`), the Cleaner area's in `cleaner/words.ts` (`c`), the rest in `labels.ts`, part of `screenWords`, or models' messages when the server says it too. `src/catalog-copies.ts` reads every `catalog({ en })` in `packages/web/src` and `packages/models/src/messages` (models' messages are in what a screen says, `said`) and prints each English string that's in more than one catalog, with every file and key it's in:
