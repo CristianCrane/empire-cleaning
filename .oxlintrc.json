@@ -66,8 +66,23 @@
       "rules": { "empire/report-unexpected": "error" }
     },
     {
+      // a screen renders through the layout for its type, never placing the
+      // page's parts itself (ADR-0031, packages/lint/README.md): a warning
+      // until every type has its layout (#437). The layouts live in the kit,
+      // where it doesn't run; the test site's People page has no type
+      "files": ["packages/web/src/screens/**"],
+      "rules": { "empire/screen-layout": "warn" }
+    },
+    {
+      "files": ["packages/web/src/screens/PeopleScreen.tsx"],
+      "rules": { "empire/screen-layout": "off" }
+    },
+    {
       "files": ["packages/*/src/**/*.test.*", "packages/*/src/**/*.stories.*"],
-      "rules": { "empire/report-unexpected": "off" }
+      "rules": {
+        "empire/report-unexpected": "off",
+        "empire/screen-layout": "off"
+      }
     },
     {
       // Playwright reads a fixture's dependencies from its first argument,

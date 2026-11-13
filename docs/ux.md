@@ -5,6 +5,9 @@ this before changing any screen in `packages/web`, `packages/ui`,
 `packages/quote-request` or `packages/landing`, and before writing any
 words a person reads: a server message or an email too (Words).
 
+- **Screen types** says what kinds of screen there are, the design
+  principles every one keeps, and each type's rules. Every screen renders
+  through the layout for its type (ADR-0031).
 - **The rules** below are what every screen keeps. Most have a live example
   in Storybook under **Patterns** (`packages/ui/src/Patterns.stories.tsx`),
   named in brackets.
@@ -12,8 +15,8 @@ words a person reads: a server message or an email too (Words).
   tried, which won and why. Check it before reworking a screen, so a choice
   isn't undone by accident.
 - **Changing a screen** says how a new UX question is settled.
-- **`docs/screens.md`** lists every screen: its route, the rule it keeps
-  and its parts in order.
+- **`docs/screens.md`** lists every screen: its route, its type, the rule
+  it keeps and its parts in order.
 
 They came out of a screen-by-screen UX pass (#96). These aren't ADRs: they
 can change, through the same loop.
@@ -24,16 +27,129 @@ can change, through the same loop.
   with the fewest steps for the Client (passwordless sign-in, self-serve
   choices instead of round trips to the Office), and call out any trade-off
   that adds steps.
-- **Answer the question the person came with first.** A home screen says
-  what's next; a money page, whether anything is owed; a Cleaner's list,
-  where they're working.
 - **Figures the owner edits are concrete.** Hours per room, not
   multipliers pointing at figures elsewhere; when figures combine, show a
   worked example beside them (the Service page's Example Quote).
-- **Less is more.** Rows and pages carry only what drives the decision;
-  details belong on the detail page. Offer to cut rather than add.
-- **Hide what can't happen yet.** No step shown before it applies; a
-  blocked step's unblocking action sits in the Notice that explains it.
+
+## Screen types
+
+Every screen is one of seven types, and renders through the layout for its
+type (ADR-0031). The layout places the page's parts (the breadcrumbs, the
+title row and its subtitle, where actions sit, the bar at the foot); the
+screen fills its slots and never places those parts itself, nor lays out a
+facts grid by hand, which is the kit's, one for every screen and dialog
+(#432).
+`pnpm lint` warns where a screen does (`empire/screen-layout`,
+`packages/lint`), and its count is what the layouts still to build have
+left (#426). The layouts live in `packages/ui/src/layouts/`. Which type
+each screen is: `docs/screens.md`'s Route index. A new screen takes a type
+from here; one that fits none is a new type, settled as Changing a screen
+says before it's built.
+
+### What every type keeps
+
+The owner's design principles (2026-11-13): **clear, focused, simple,
+peaceful**. No screen overloads anyone with clutter and detail.
+
+- **Lead with what the person came for** (information hierarchy). Each
+  screen starts from what this person came to see or do, and shows it
+  first and largest: a home screen, what's next; a money page, whether
+  anything is owed; a Cleaner's list, where they're working. Everything
+  else ranks below it, and what doesn't earn a place on the first view
+  moves out of it.
+- **The first view stays focused** (progressive disclosure). Explanations,
+  how a figure is worked out, history and rare actions wait behind a tap (a
+  "How it's worked out" link, a folded section, the Actions menu) until
+  they matter. No step is shown before it applies; a blocked step's
+  unblocking action sits in the Notice that explains it.
+- **Few words.** Rows and pages carry only what drives the decision;
+  details belong on the detail page. No subtitle that repeats the title or
+  the breadcrumbs, no help text that says what the screen already shows,
+  and no paragraph where a label will do. Offer to cut rather than add.
+
+### Record
+
+A page about one thing: a Job, a Quote, a Client, a home, a Bill. Its
+layout comes with #432; it settles the page header every type shares, where
+actions sit and the facts grid.
+
+- **A details page: alerts, then the details, then what you can do.**
+  Notices first; one details card answering when, large, with an
+  `IconTile` or `DateTile`, then its facts in even columns across (each an
+  icon, a value and a muted line saying what it is; three text styles, no
+  more); then each thing they can do as its own card, its text and Button
+  on one row (`ActionRow`). ("A details page: alerts, details, actions")
+- **When every part of a record matters at once, two columns.** Notices on
+  top; the record, its people and its money left; its history right as a
+  `Timeline`. One column on a phone. The two-column grid starts at `xl`.
+  ("All at once in two columns")
+- **A record that moves through steps is its story**: a `Timeline`, newest
+  first, **Now** on top holding the record as it stands. Work in progress
+  (a Draft) has a page of its own. ("Records as stories")
+
+### List
+
+Every one of something, to find one and open it: the title in the bar, at
+most one primary Button, for making a new one. Its layout comes with #433.
+It also keeps "Sections, not Cards, around Lists and Tables", "Dated things
+a person scans are grouped by month" and "An empty place offers what fills
+it".
+
+- **A growing work list is a Table**, a `Tab` per status with counts and a
+  search, both in the URL; 50 at a time with Show more once it can grow
+  without end. ("Work Lists As Tables")
+
+### Home
+
+Where an area starts: the question the person came with, answered in one
+card with the page's one primary, then what else. Its layout comes with
+#435. Today also keeps "Lead a to-do row with what to do".
+
+- **A home screen answers what's next**: one card, read left to right
+  behind a `DateTile`, with the page's one primary Button; `ShortcutTiles`
+  under it. Lists of past things live on their own pages. ("A home screen
+  answers what's next")
+- **A money page answers what's owed first**: one card (success, warning or
+  danger), its one Button; history after it, the latest few then See all.
+  ("A money page answers what's owed")
+
+### Form page
+
+A form with a page of its own, for what's too long or too often tweaked
+for a dialog. Its layout comes with #434. It also keeps "Forms ask quietly,
+a few questions at a time".
+
+- **A price beside the figures that make it** sits in a sticky aside from
+  `xl`, after the fields below it (the Service page, New Quote).
+- **A form the owner tweaks to see what it does stays one form**, with its
+  example beside it (the Service page).
+
+### Settings
+
+How things are set up, read rather than worked through. Its layout comes
+with #436.
+
+- **Settings are read, then changed part by part**: facts and rows, each
+  part changed in its own dialog (Prices, Your details).
+
+### Message page
+
+A page that only says something. Its layouts are `MessagePage` and Sign
+in's `SignInPage` (`packages/ui/src/layouts/MessagePage.tsx`): in an area,
+in its frame, nav and all; anywhere else a page of its own, the logo above.
+
+- **A message page** (Not found, Something went wrong, the sign-in link,
+  Confirm email): centred in one narrow card, a large `IconTile`, the
+  title, one line, at most one Button (what fixes it), the way home a text
+  link under it. No details a Client can't use. ("A message page: one
+  Button, home a link")
+- **Sign in is a form in the same card**: its title at the start, Google
+  first, and a line for someone new under the card.
+
+### Calendar
+
+The Schedule, one of a kind. It keeps "Schedules are calendars", and gets
+the page header every type shares with #437.
 
 ## Rules
 
@@ -45,40 +161,10 @@ can change, through the same loop.
 - **Sections, not Cards, around Lists and Tables.** A title sits on the
   page, above an untitled Card or a List; never a Card titled inside, never
   a box in a box. ("Sections Not Cards Around Lists")
-- **A details page: alerts, then the details, then what you can do.**
-  Notices first; one details card answering when, large, with an
-  `IconTile` or `DateTile`, then its facts in even columns across (each an
-  icon, a value and a muted line saying what it is; three text styles, no
-  more); then each thing they can do as its own card, its text and Button
-  on one row (`ActionRow`). ("A details page: alerts, details, actions")
-- **When every part of a record matters at once, two columns.** Notices on
-  top; the record, its people and its money left; its history right as a
-  `Timeline`. One column on a phone. The two-column grid starts at `xl`.
-  ("All at once in two columns")
-- **A price beside the figures that make it** sits in a sticky aside from
-  `xl`, after the fields below it (the Service page, New Quote).
-- **A record that moves through steps is its story**: a `Timeline`, newest
-  first, **Now** on top holding the record as it stands. Work in progress
-  (a Draft) has a page of its own. ("Records as stories")
-- **A home screen answers what's next**: one card, read left to right
-  behind a `DateTile`, with the page's one primary Button; `ShortcutTiles`
-  under it. Lists of past things live on their own pages. ("A home screen
-  answers what's next")
-- **A money page answers what's owed first**: one card (success, warning or
-  danger), its one Button; history after it, the latest few then See all.
-  ("A money page answers what's owed")
-- **Settings are read, then changed part by part**: facts and rows, each
-  part changed in its own dialog (Prices, Staff). A form the owner
-  tweaks to see what it does stays one form, with its example beside it
-  (Service).
 - **The landing site's bands alternate**, plain then raised, by their place
   on the page, not by which section they are (`band.ts`), so reordering
   sections never puts two alike together. A card takes the other colour
   from its band. The Quote form always sits on a raised band.
-- **A message page** (Not found, Something went wrong): centred in one
-  narrow card, a large `IconTile`, the title, one line, at most one Button
-  (what fixes it), the way home a text link under it. No details a Client
-  can't use. ("A message page: one Button, home a link")
 
 ### Navigation
 
@@ -109,8 +195,8 @@ can change, through the same loop.
 
 - **At most one primary Button per page.** Two primaries means neither is.
   Everything else is secondary, text or quiet.
-- **A bar at the foot of a page is an `ActionFooter`**, never a sticky bar
-  of the page's own, which pins under the phone's tab bar (#425). It holds
+- **A bar at the foot of a page is an `ActionFooter`**, which the page's
+  layout places, never a sticky bar of the page's own, which pins under the phone's tab bar (#425). It holds
   what must stay in reach while a long page scrolls (a Cleaner's Job on
   site, a Quote Draft's Send): above the tab bar on a phone, full width
   beside the sidebar on a wider screen. What it sums up (prices, whether
@@ -277,9 +363,6 @@ stays as it is (#336).
 - **Lead a to-do row with what to do** (Send a quote, Find cleaners), a
   toned `IconTile` for the kind; rows that only show things keep the name
   as the title. ("Action First To Do Rows")
-- **A growing work list is a Table**, a `Tab` per status with counts and a
-  search, both in the URL; 50 at a time with Show more once it can grow
-  without end. ("Work Lists As Tables")
 - **A row's title wraps, never cut.** A cut title hides what the row is:
   a payment's "Price change: 1 more hour" lost its hour at phone width,
   and Spanish runs longer. `ListItem` wraps its title, so every List does.
@@ -335,7 +418,7 @@ stays as it is (#336).
   ("Foundations / Logo")
 - **A section is named once on a phone.** The top bar names the section,
   so a section's own page (Jobs, Payments, Your Jobs…) hides its heading
-  on a phone with `Heading inBar`; screen readers and larger screens keep
+  on a phone (`Heading inBar`, which its layout places); screen readers and larger screens keep
   it. A heading that says more than the bar stays: "Hi, Casey" on Home, a
   Job's or a Quote's name on the pages within a section.
 - **The favicon is a separate mark**: the logo's roof and window with its
@@ -352,13 +435,16 @@ stays as it is (#336).
    becomes a PR, so it skips the change review (the `change` skill's
    Prototype rule).
 3. **Pick one** with the user, and note any tweaks.
-4. **Build it** on a `ux-<screen>` branch, with its tests (e2e on phone and
+4. **Build it** on a `ux-<screen>` branch, through the layout for its type
+   (a change to how every screen of a type looks is a change to its layout),
+   with its tests (e2e on phone and
    desktop, axe in light and dark through the harness's `expectAccessible`,
    the layout test at every width, a Guest's, Client's or Cleaner's screen
    in Spanish too, through `expectFitsInBoth`). Its PR shows the screen
    before and after, from `pnpm pr:shots` (`packages/web/README.md`,
    Testing).
-5. **Record it**: a row in the decisions log below; a new rule above, and a
+5. **Record it**: a row in the decisions log below; a new rule above (a
+   type's own under its entry in Screen types), and a
    pattern in Storybook, if it carries over to other screens; and in
    `docs/screens.md`, a new route's row in the Route index and its entry, or
    the entry of a screen whose parts or their order change.
@@ -478,3 +564,4 @@ Newest last. "Built in" is the PR (or branch) that shipped it.
 | Office > Job | Move Job, Ask for a new time and Cancel Job were icons named only in tooltips (#146), which didn't say what they do; the Job's facts were bare labels; the Crew list didn't look like the Staff list (#406) | Today's icons / outlined labelled Buttons on a row under the title / text Buttons there / Move job plus a More menu / a ⋮ menu beside the title / an outlined "Actions ▾" menu there | **An outlined "Actions ▾" menu at the end of the title row** | The user: "lets just move all the job actions into a menu, back on the same row as the title", the ⋮ "maybe too subtle", so a labelled `MenuButton`. Each item an icon and its words, Cancel job red and last after a rule; the title wraps beside it on a phone. The section is "Job details", an icon beside each fact's label (the value under it on a phone). The Crew rows are the Staff list's: picture, name, since when, a badge when it isn't Confirmed, and an ✕ where the chevron would be to take someone off (a rule above) | [`prototype-job-page-actions`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-job-page-actions) | #406 |
 | Client portal, Cleaner area and their emails > names the Office gives, a Bill's lines, a card | Services, extras and types of business had Spanish names (#306), but the portal, the Cleaner area and every email still gave the English, and a Bill's lines, a payment's price change and a card were stored as English words (#395): in which language does each come? | (decided on #395, no prototype) | **The reader's: the Spanish name where the Office gave one, the English otherwise; records worded as they're read** | A Service is named by the version a record keeps, an extra or a type of business by its key on the Price List now, so a Spanish name the Office gives later shows on what's already booked; nothing Spanish is stored. A Bill's lines ("Corrección: …", "Depósito pagado: …", "Crédito de EC-…"), a payment's price change ("…, precio corregido"), a card ("Visa terminada en 4242") and a plan clean cancelled with its plan ("El plan de limpieza cambió, así que …") keep what happened and are worded where they're read, so the Office reads the same records in English. The Spanish is a draft Jen checks on #206 | — | #395 |
 | Office > Quote draft | On a phone the Draft's bar (its prices, whether it's saved, and Send) hid behind the tab bar: a sticky bar of its own, pinned at the screen's foot under the tab bar (#425) | A: Current / B: ActionFooter / C: sticky with offset | **B, ActionFooter** | The app keeps one bar at a page's foot, which already sits above the tab bar and beside the sidebar; C would be a second copy of what it does. On a wider screen it's full width beside the sidebar, like the Cleaner's Job. The button says just Send: "Send to <Client>" with a long name squeezed the prices to a word a line. The heading still names the Client, and so does the button for screen readers. A rule above | [`prototype-quote-footer`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-quote-footer) | #425 |
+| Every screen | What kinds of screen are there, and how does every screen of a kind stay alike? (#426: each screen built its own page from the kit's parts, so the same kind came out differently, 18 reports on six screens, #424) | The map's types (`docs/screens.md`, #427), agreed by the owner with her design principles | **Seven types, each with a layout every screen of it renders through** | One place to get each kind right; a lint rule (`empire/screen-layout`) warns where a screen builds its own page, 84 warnings to start, and becomes an error once every type has its layout (ADR-0031) | none: the map | #431 |

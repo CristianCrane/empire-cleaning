@@ -4,14 +4,12 @@ import { MailCheck } from "lucide-react";
 import {
   Actions,
   Button,
-  Card,
   Form,
-  Heading,
   IconTile,
   Notice,
+  SignInPage,
   TextField,
   showToast,
-  Logo,
 } from "@empire-cleaning/ui";
 import { catalog } from "@empire-cleaning/models";
 import { authClient } from "../session.ts";
@@ -102,87 +100,82 @@ export function SignIn() {
   // Google first: one tap for anyone with a Google account. The emailed
   // link under it, for everyone else (UX pass, #96)
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 p-4">
-      <Logo className="mx-auto w-44" />
-
-      <Card>
-        <Heading level={1} size={2}>
-          {sentTo ? w.checkEmail : signIn}
-        </Heading>
-
-        {error && !sentTo && (
-          <Notice tone="warning">{w.errors[error] ?? w.failed}</Notice>
-        )}
-
-        {sentTo ? (
-          <>
-            <div className="flex items-start gap-3">
-              <IconTile icon={MailCheck} tone="success" />
-              <p>
-                {w.onItsWay} <strong>{sentTo}</strong>. {w.worksOnce}
-              </p>
-            </div>
-            <p className="text-sm text-fg-muted">{w.notThere}</p>
-            {sendFailed && <Notice tone="danger">{sendFailed}</Notice>}
-            <Actions>
-              <Button variant="text" onPress={() => setSentTo(undefined)}>
-                {w.differentEmail}
-              </Button>
-              <Button
-                variant="secondary"
-                isPending={isSending}
-                onPress={() => void sendLink(sentTo, true)}
-              >
-                {w.sendAgain}
-              </Button>
-            </Actions>
-          </>
-        ) : (
-          <>
-            <GoogleButton
-              onPress={() =>
-                void authClient.signIn.social({
-                  provider: "google",
-                  callbackURL,
-                  errorCallbackURL,
-                })
-              }
-            />
-
-            <div className="flex items-center gap-3 text-sm text-fg-muted">
-              <span className="h-px flex-1 bg-border" />
-              {w.or}
-              <span className="h-px flex-1 bg-border" />
-            </div>
-
-            <p className="text-sm text-fg-muted">{w.noPassword}</p>
-            {sendFailed && <Notice tone="danger">{sendFailed}</Notice>}
-            <Form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const email = new FormData(e.currentTarget).get("email");
-                void sendLink(String(email));
-              }}
-            >
-              <TextField
-                label={email}
-                name="email"
-                type="email"
-                autoComplete="email"
-                isRequired
-              />
-              {/* full width: the form is narrow at every screen size */}
-              <Button type="submit" isPending={isSending} className="w-full">
-                {w.emailMe}
-              </Button>
-            </Form>
-          </>
-        )}
-      </Card>
-
-      {!sentTo && (
-        <p className="text-center text-sm text-fg-muted">{w.newHere}</p>
+    <SignInPage
+      title={sentTo ? w.checkEmail : signIn}
+      after={
+        !sentTo && (
+          <p className="text-center text-sm text-fg-muted">{w.newHere}</p>
+        )
+      }
+    >
+      {error && !sentTo && (
+        <Notice tone="warning">{w.errors[error] ?? w.failed}</Notice>
       )}
-    </main>
+
+      {sentTo ? (
+        <>
+          <div className="flex items-start gap-3">
+            <IconTile icon={MailCheck} tone="success" />
+            <p>
+              {w.onItsWay} <strong>{sentTo}</strong>. {w.worksOnce}
+            </p>
+          </div>
+          <p className="text-sm text-fg-muted">{w.notThere}</p>
+          {sendFailed && <Notice tone="danger">{sendFailed}</Notice>}
+          <Actions>
+            <Button variant="text" onPress={() => setSentTo(undefined)}>
+              {w.differentEmail}
+            </Button>
+            <Button
+              variant="secondary"
+              isPending={isSending}
+              onPress={() => void sendLink(sentTo, true)}
+            >
+              {w.sendAgain}
+            </Button>
+          </Actions>
+        </>
+      ) : (
+        <>
+          <GoogleButton
+            onPress={() =>
+              void authClient.signIn.social({
+                provider: "google",
+                callbackURL,
+                errorCallbackURL,
+              })
+            }
+          />
+
+          <div className="flex items-center gap-3 text-sm text-fg-muted">
+            <span className="h-px flex-1 bg-border" />
+            {w.or}
+            <span className="h-px flex-1 bg-border" />
+          </div>
+
+          <p className="text-sm text-fg-muted">{w.noPassword}</p>
+          {sendFailed && <Notice tone="danger">{sendFailed}</Notice>}
+          <Form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const email = new FormData(e.currentTarget).get("email");
+              void sendLink(String(email));
+            }}
+          >
+            <TextField
+              label={email}
+              name="email"
+              type="email"
+              autoComplete="email"
+              isRequired
+            />
+            {/* full width: the form is narrow at every screen size */}
+            <Button type="submit" isPending={isSending} className="w-full">
+              {w.emailMe}
+            </Button>
+          </Form>
+        </>
+      )}
+    </SignInPage>
   );
 }

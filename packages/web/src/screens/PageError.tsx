@@ -2,10 +2,10 @@ import { useEffect } from "react";
 import { useRouter, type ErrorComponentProps } from "@tanstack/react-router";
 import { CircleAlert } from "lucide-react";
 import { catalog } from "@empire-cleaning/models";
-import { Button, useLanguage } from "@empire-cleaning/ui";
+import { Button, MessagePage, useLanguage } from "@empire-cleaning/ui";
 import { ApiError } from "../api.ts";
+import { linkTo } from "../links.ts";
 import { reportUnexpected } from "../monitoring.ts";
-import { MessagePage } from "./MessagePage.tsx";
 import { NotFound } from "./NotFound.tsx";
 
 // the router's screen for a page that couldn't load. The API's 404 means the
@@ -40,7 +40,12 @@ export function PageError({ error }: ErrorComponentProps) {
   }
 
   return (
-    <MessagePage title={w.title} icon={CircleAlert} tone="warning">
+    <MessagePage
+      title={w.title}
+      icon={CircleAlert}
+      tone="warning"
+      home={linkTo({ to: "/" })}
+    >
       <p className="text-fg-muted">{w.text}</p>
       {/* re-running the loaders resets this screen once they succeed */}
       <Button onPress={() => void router.invalidate()}>{w.tryAgain}</Button>

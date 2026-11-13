@@ -3,12 +3,14 @@
 // (packages/lint/README.md)
 
 import reportUnexpected from "./report-unexpected.ts";
+import screenLayout from "./screen-layout.ts";
 import wordsFromCatalog from "./words-from-catalog.ts";
 
 export default {
   meta: { name: "empire" },
   rules: {
     "report-unexpected": reportUnexpected,
+    "screen-layout": screenLayout,
     "words-from-catalog": wordsFromCatalog,
   },
 };

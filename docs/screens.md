@@ -12,10 +12,13 @@ what later screens are checked against. The landing site isn't here.
   under Each screen; a change to a screen's parts or their order changes its
   entry (`docs/ux.md`, Changing a screen). Each fact is in one place: the
   index holds path, file and type, the entry holds the parts.
-- **For slice 2** holds this map's first findings: the proposed types, how
-  screens of a type differ and where the owner's reports land. It's input to
-  slice 2 (#426), and goes once slice 2 settles the types in `docs/ux.md`;
-  keeping the map true doesn't include it.
+- **Types**: each screen's is in the Route index, one of `docs/ux.md`'s
+  Screen types, and it renders through that type's layout (ADR-0031).
+  People, on the test site alone, has none.
+- **For the layout slices** holds this map's first findings that the
+  layouts still settle: how screens of a type differ, and where the owner's
+  reports land. It goes once every type has its layout (#437); keeping the
+  map true doesn't include it.
 - The owner's review copy of this map, with screenshots, is drawn from this
   file. A correction goes here first.
 
@@ -30,7 +33,7 @@ what later screens are checked against. The landing site isn't here.
 | Signed out    | anyone                                              | `/sign-in`, `/sign-in/link`, `/confirm-email`, `/people` |
 
 The Office, Client portal and Cleaner area share one frame
-(`packages/ui/src/AppLayout.tsx`): a sidebar
+(`packages/ui/src/layouts/AppLayout.tsx`): a sidebar
 from `md`; under `md`, a top bar with ☰ and a drawer, and a tab bar at the
 foot. How sign-in and the areas' guards behave is in `packages/web/README.md`,
 Areas and sign-in.
@@ -434,7 +437,7 @@ Keeps: one card, read like an invoice (#157).
 
 Keeps: Google first (#168).
 
-- Its own page: the logo above a narrow card holding the title, a warning
+- `SignInPage`: the logo above a narrow card holding the title, a warning
   Notice (`?error=`), Continue with Google and the email form.
 
 #### Message pages
@@ -442,7 +445,7 @@ Keeps: Google first (#168).
 Keeps: a message page; centred, home a link (#168); one Button that does it
 (sign-in-button).
 
-- `MessagePage.tsx`: a narrow centred card, a large `IconTile`, the title,
+- `MessagePage`: a narrow centred card, a large `IconTile`, the title,
   one line, at most one Button, home a text link. Not found; Something went
   wrong (Try again); Sign-in link (Sign in); Confirm email (three states).
 
@@ -459,76 +462,12 @@ Keeps: a page of the demo people, test site only (ux-switch-person).
 
 - A list of people to sign in as, and a form for anyone else.
 
-## For slice 2
+## For the layout slices
 
-This map's first findings (#427), the input to slice 2 (#426). They go once
-slice 2 settles the types in `docs/ux.md`; keeping the map true doesn't
+This map's first findings (#427) that the layout slices (#432 to #437)
+still settle; the types they came with are `docs/ux.md`'s Screen types.
+They go once every type has its layout (#437); keeping the map true doesn't
 include them. Counts are as of the map's first commit.
-
-### Proposed types
-
-Each built from `docs/ux.md`'s rules by their names. Where a type joins
-rules, or moves a screen out of a rule that names it, it says so; slice 2
-settles them by editing `docs/ux.md`, not by keeping a second list here.
-
-| Type             | From `docs/ux.md`                                                                                                                                                                  | Story                                                                         | Screens |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ------- |
-| **Record**       | joins "A details page: alerts, then the details, then what you can do", "When every part of a record matters at once, two columns" and "A record that moves through steps is its story" | DetailsPageStory, AllAtOnceInTwoColumnsStory, RecordsAsStoriesStory           | 15      |
-| **List**         | "A growing work list is a Table"; "Dated things a person scans are grouped by month"; "Sections, not Cards, around Lists and Tables"                                                | WorkListsAsTables, SectionsNotCardsAroundLists                                | 7       |
-| **Home**         | joins "A home screen answers what's next" and "A money page answers what's owed first"; Today keeps "Lead a to-do row with what to do"                                             | WhatsNextFirstStory, OwedFirstStory, ActionFirstToDoRows                      | 4       |
-| **Form page**    | "Forms ask quietly, a few questions at a time"; "A price beside the figures that make it"; takes Service out of "Settings are read, then changed part by part", which names it      | QuietFormsInSteps                                                             | 7       |
-| **Settings**     | "Settings are read, then changed part by part", less Service (to Form page) and Staff (its list to List, its member's page to Record), which it names                                                | none yet                                                                      | 2       |
-| **Message page** | "A message page"; already a layout in code, `MessagePage.tsx`                                                                                                                      | MessagePagesStory                                                             | 5       |
-| **Calendar**     | "Schedules are calendars"                                                                                                                                                          | SchedulesAsCalendars                                                          | 1       |
-
-#### Record
-
-A page about one thing. The three rules it joins share their top: alerts,
-then the thing. They differ in the body: one column of details then action
-cards (the Client's and Cleaner's pages), two columns with History right
-(the Office's Job and Property), or the whole page as a Timeline (the
-Office's Quote). What every one hand-builds and differs on is the header and
-where actions go: there is no page component, so each of 19 files builds its
-own breadcrumbs, title row and subtitle, and 20 files repeat the facts grid
-by hand (`<dl className="grid gap-x-6 …">`, 24 copies).
-
-Office: Job, Quote, Client, Property, Ended cleaning plan, Site visit, Bill,
-Staff member. Client portal: Clean, Your quote, Your plan, A home, Bill.
-Cleaner: Job, Cleaner needed.
-
-#### List
-
-Title in the bar, at most one primary Button for making a new one, then a
-search, Tabs by status and a Table or month-grouped List. Office: Jobs,
-Quotes, Clients, Staff, Services. Client portal: Cleans. Cleaner: Offers.
-
-#### Home
-
-The question the person came with, answered in one card with the page's one
-primary, then what else. Office: Today. Client portal: Home, Payments.
-Cleaner: Your jobs.
-
-#### Form page
-
-Breadcrumbs and a title, then the form in Sections of Cards, a sticky price
-aside from `xl` where there's a price, and the save or send at its foot.
-Office: New quote, Draft quote, New service, Service. Client portal: Request
-a quote, Your card. Signed in: Welcome.
-
-#### Settings
-
-Facts and rows, each part changed in its own dialog. Office: Prices. Client
-portal: Your details.
-
-#### Message page
-
-A narrow centred card: a large `IconTile`, the title, one line, at most one
-Button, home a text link. Not found, Something went wrong, Sign-in link,
-Confirm email, and Sign in (its own variant: the logo above, a form inside).
-
-#### Calendar
-
-The Schedule, one of a kind.
 
 ### Differences table
 
@@ -550,9 +489,9 @@ How the same part is done across screens of a type. "Rule" is what
 | Two columns | from `xl` | From `lg` on Office Job and Property; one column on every other Record, Office Quote included |
 | History | a `Timeline` in the right column | A Section with a Timeline and no Card (Office Job); a Section around a Card holding the Timeline (Property); the whole page a Timeline (Office Quote); none on Client, Site visit, Staff member, Office plan or any Client or Cleaner page |
 | Notices | first; one action each | Office Job stacks up to seven (`WhatsNext`), and its payment-retry Notice draws a second Notice inside itself; Your details puts a warning Notice inside a Section, above its Card; Payments puts its Notices after the owed card; the Quote adds a plan-change Notice after `WhatsNext` |
-| Title in the bar | "The heading hidden on a phone where the bar says it" | Lists, Today, Schedule, Your jobs, Offers, Cleans, Payments, Your details and Prices use `inBar`; Client Home doesn't; no Record does |
-| The bar at the foot | none (`ActionFooter` exists) | `ActionFooter` (Cleaner Job); a hand-built `sticky bottom-0` bar hidden behind the phone's tab bar (Draft quote, #425); an in-flow `Actions` row (Service, New service) |
-| Explaining text | "Less is more" | Long Section descriptions on Prices (every Section), the Draft's parts (Proposed time, prices worked out), Office Job's Price changes, Services' intro paragraph, the Office plan's billing sentence |
+| Title in the bar | "A section is named once on a phone" | Lists, Today, Schedule, Your jobs, Offers, Cleans, Payments, Your details and Prices use `inBar`; Client Home doesn't; no Record does |
+| The bar at the foot | "A bar at the foot of a page is an `ActionFooter`" | `ActionFooter` (Cleaner Job); a hand-built `sticky bottom-0` bar hidden behind the phone's tab bar (Draft quote, #425); an in-flow `Actions` row (Service, New service) |
+| Explaining text | "Few words" | Long Section descriptions on Prices (every Section), the Draft's parts (Proposed time, prices worked out), Office Job's Price changes, Services' intro paragraph, the Office plan's billing sentence |
 | Space between parts | none | `gap-6` on most; `gap-4` on Staff, Schedule and Request a quote; `gap-8` on Today |
 
 ### The owner's reports, placed
