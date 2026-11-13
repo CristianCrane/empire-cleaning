@@ -14,7 +14,7 @@ import {
   Send,
   Users,
 } from "lucide-react";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import { Button } from "../Button.tsx";
 import { DateTile } from "../DateTile.tsx";
 import { Dialog } from "../Dialog.tsx";
@@ -115,11 +115,11 @@ export const ActionsInTheHeader: Story = {
     // the destructive one last, whatever order it's given in
     await expect(items.at(-1)).toHaveTextContent("Undo completion");
     await userEvent.click(items.at(-1)!);
-    await expect(
-      within(document.body).getByRole("alertdialog", {
-        name: "Undo completion?",
-      }),
-    ).toBeVisible();
+    // it fades in: visible once its animation has begun
+    const dialog = await within(document.body).findByRole("alertdialog", {
+      name: "Undo completion?",
+    });
+    await waitFor(() => expect(dialog).toBeVisible());
   },
 };
 
