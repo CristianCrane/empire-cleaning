@@ -139,6 +139,7 @@ import { PortalQuote } from "./screens/portal/PortalQuote.tsx";
 import { PortalRequest } from "./screens/portal/PortalRequest.tsx";
 import { PortalDetails } from "./screens/portal/PortalDetails.tsx";
 import { NotFound } from "./screens/NotFound.tsx";
+import { QuoteFooterPrototype } from "./screens/office/quote-footer.prototype.tsx";
 import { PeopleScreen, personAsked } from "./screens/PeopleScreen.tsx";
 import { PageError } from "./screens/PageError.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
@@ -912,7 +913,23 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: the Office's Quote Draft and its bottom bar, on made-up data,
+// signed out (#425)
+const quoteFooterPrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/quote-footer",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string } => ({
+    // ?case=1 arrives as a number
+    case: search.case === undefined ? undefined : String(search.case),
+    layout: search.layout === undefined ? undefined : String(search.layout),
+  }),
+  component: QuoteFooterPrototype,
+});
+
 const routeTree = rootRoute.addChildren([
+  quoteFooterPrototypeRoute,
   indexRoute,
   signInRoute,
   signInLinkRoute,
