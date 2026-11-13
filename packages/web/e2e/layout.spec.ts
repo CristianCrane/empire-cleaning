@@ -32,9 +32,10 @@ import {
 // wide desktop. Functional tests read values from the DOM, which is there
 // whether or not anyone can see it, so this is what notices text squeezed out
 // of sight: an input narrower than what's typed in it, or a page that scrolls
-// sideways. And it reads each screen's text for a doubled stop: es-US writes
-// "9:00 a.m.", so a sentence ending on a time without oneStop or stopAfter
-// shows "a.m.." (docs/ux.md, Language).
+// sideways, or a button or link under a bar fixed over the page (the
+// phone's tab bar, #425). And it reads each screen's text for a doubled
+// stop: es-US writes "9:00 a.m.", so a sentence ending on a time without
+// oneStop or stopAfter shows "a.m.." (docs/ux.md, Language).
 const widths = [320, 375, 412, 640, 768, 1024, 1280, 1440];
 
 const problemsAt = (page: Page) =>
@@ -84,6 +85,78 @@ const problemsAt = (page: Page) =>
           break;
         }
       }
+    }
+    // a button or link that can't be pressed for what's drawn over it, such
+    // as the phone's tab bar over a bar of the page's own (#425): the element
+    // at its centre must be it. One in a fixed or sticky box stays where it
+    // is as the page scrolls, so it's checked as the screen opens (only
+    // brought into view within its box, as a dialog's list scrolls); one in
+    // the page's flow once scrolled to the middle of the screen, which the
+    // browser stops short of at the page's ends, so the last one fails only
+    // when nothing leaves it room above the bars
+
+    // the outermost fixed or sticky box it sits in, if any
+    const barOf = (el: Element) => {
+      let bar: Element | null = null;
+      for (let at: Element | null = el; at; at = at.parentElement) {
+        const { position } = getComputedStyle(at);
+        if (position === "fixed" || position === "sticky") bar = at;
+      }
+      return bar;
+    };
+    const coverOf = (el: Element) => {
+      const box = el.getClientRects()[0];
+      if (!box) return null;
+      const hit = document.elementFromPoint(
+        box.left + box.width / 2,
+        box.top + box.height / 2,
+      );
+      if (!hit || el.contains(hit)) return null;
+      // what it's under: the bar that holds it, when there is one
+      return barOf(hit) ?? hit;
+    };
+    const srOnly = (el: Element) => {
+      for (let at: Element | null = el; at; at = at.parentElement) {
+        if (getComputedStyle(at).clipPath !== "none") return true;
+      }
+      return false;
+    };
+    const nameOf = (el: Element) =>
+      (el.getAttribute("aria-label") ?? el.textContent ?? "")
+        .trim()
+        .slice(0, 60) || el.tagName.toLowerCase();
+    const scroll = { x: window.scrollX, y: window.scrollY };
+    const controls = [
+      ...document.querySelectorAll('button, a[href], [role="button"]'),
+    ].filter(
+      (el) =>
+        // not hidden, nor in a closed <details>
+        el.checkVisibility({ visibilityProperty: true }) &&
+        // nor kept for screen readers, clipped to nothing: the skip link
+        // (sr-only), a dialog's Dismiss for them (React Aria's
+        // VisuallyHidden, around it)
+        !srOnly(el) &&
+        // nor the page behind an open dialog, nor a toast, there a moment
+        !el.closest(
+          '[aria-hidden="true"], [inert], [data-react-aria-top-layer]',
+        ),
+    );
+    const covered = new Map<Element, Element>();
+    for (const el of controls.filter((el) => barOf(el))) {
+      el.scrollIntoView({ block: "nearest", inline: "nearest" });
+      const cover = coverOf(el);
+      if (cover) covered.set(el, cover);
+    }
+    for (const el of controls.filter((el) => !barOf(el))) {
+      el.scrollIntoView({ block: "center", inline: "nearest" });
+      const cover = coverOf(el);
+      if (cover) covered.set(el, cover);
+    }
+    window.scrollTo(scroll.x, scroll.y);
+    for (const [el, cover] of covered) {
+      const label = cover.getAttribute("aria-label");
+      const what = `<${cover.tagName.toLowerCase()}${label ? ` aria-label="${label}"` : ` class="${cover.getAttribute("class")}"`}>`;
+      problems.push(`"${nameOf(el)}" is under ${what}`);
     }
     return problems;
   });
