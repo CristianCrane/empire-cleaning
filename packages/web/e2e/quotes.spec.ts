@@ -15,6 +15,8 @@ import {
   draftTheQuote,
   addCleaner,
   linkIn,
+  pageAction,
+  expectNoPageAction,
 } from "./harness.ts";
 
 const olive = {
@@ -287,7 +289,7 @@ test("the Client sees only the latest Revision, from any of its emails", async (
   // the first email's link opens the new offer, which says it's changed
   await client.goto(link);
   await expect(
-    client.getByText("41-12 Austin St, 4B, 11375 · Updated Jan 5, 2026"),
+    client.getByText("Updated Jan 5, 2026", { exact: false }),
   ).toBeVisible();
   // $250 plus 8.875% tax
   await expect(
@@ -309,7 +311,7 @@ test("Office Staff Turn down a Quote asked for, and the Client is told why", asy
   await page.goto("/office/quotes");
   await page.getByText(casey.name).click();
 
-  await page.getByRole("button", { name: "Turn down" }).click();
+  await pageAction(page, "Turn down");
   const dialog = page.getByRole("alertdialog", {
     name: "Turn down this quote?",
   });
@@ -320,7 +322,7 @@ test("Office Staff Turn down a Quote asked for, and the Client is told why", asy
   await expect(
     page.getByText(/Turned down .*: outside the area we clean\./),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Turn down" })).toBeHidden();
+  await expectNoPageAction(page, "Turn down");
   await expect(
     page.getByRole("button", { name: "Draft the quote" }),
   ).toBeHidden();
@@ -350,12 +352,14 @@ test("a Sent Quote can't be Turned down", async ({ page }) => {
   await signInAsOffice(page);
   await page.goto("/office/quotes");
   await page.getByText(casey.name).click();
-  await expect(page.getByRole("button", { name: "Turn down" })).toBeVisible();
+  await page.getByRole("button", { name: "Actions", exact: true }).click();
+  await expect(page.getByRole("menuitem", { name: "Turn down" })).toBeVisible();
+  await page.keyboard.press("Escape");
   await draftTheQuote(page);
   await proposeNextMonday(page);
   await send(page);
 
-  await expect(page.getByRole("button", { name: "Turn down" })).toBeHidden();
+  await expectNoPageAction(page, "Turn down");
 });
 
 test("old Requests links lead to Quotes", async ({ page }) => {

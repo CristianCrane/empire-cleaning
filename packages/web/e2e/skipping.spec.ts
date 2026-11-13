@@ -10,7 +10,7 @@ import {
   signUp,
   startedServicePlan,
   test,
-  jobAction,
+  pageAction,
 } from "./harness.ts";
 
 // Casey's First Clean is done at 11am on Monday 12 January 2026, New York
@@ -48,16 +48,13 @@ test(
     await signedInAs(page, casey.email);
     await page.goto(`/portal/jobs/${job.id}`);
 
-    const skip = page.getByRole("region", { name: "Need to skip this clean?" });
-    await expect(skip).toContainText(
-      "You can skip it for free until Sun, Jan 18, 9:00 AM. After that, it's a late cancellation, with a fee the same as your plan's deposit.",
-    );
-    await expect(skip).toContainText("Your cleaning plan carries on");
     await expectAccessible(page);
 
-    await skip.getByRole("button", { name: "Skip this clean" }).click();
+    // what it costs, and that the plan carries on, said in its dialog
+    await pageAction(page, "Skip this clean");
     const dialog = page.getByRole("alertdialog", { name: "Skip this clean?" });
     await expect(dialog).toContainText("There's no charge for skipping it.");
+    await expect(dialog).toContainText("Your cleaning plan carries on");
     await expectAccessible(page);
     await dialog.getByRole("button", { name: "Skip this clean" }).click();
 
@@ -67,7 +64,7 @@ test(
     await expect(skipped).toContainText(
       "Your cleaning plan carries on as usual.",
     );
-    await skipped.getByRole("link", { name: "See your cleaning plan" }).click();
+    await pageAction(page, "See your cleaning plan");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       "Your cleaning plan",
     );
@@ -86,15 +83,12 @@ test("a Client skipping late is charged the fee, and pays it once their card wor
   await signedInAs(page, casey.email);
   await page.goto(`/portal/jobs/${job.id}`);
 
-  const skip = page.getByRole("region", { name: "Need to skip this clean?" });
-  await expect(skip).toContainText(
-    "Skipping it less than 24 hours before is a late cancellation, with a $50.46 fee, the same as your plan's deposit. Your deposit stays held. The fee is charged to your card.",
+  await pageAction(page, "Skip this clean");
+  const dialog = page.getByRole("alertdialog", { name: "Skip this clean?" });
+  await expect(dialog).toContainText(
+    "a late cancellation, with a $50.46 fee, the same as your plan's deposit",
   );
-  await skip.getByRole("button", { name: "Skip this clean" }).click();
-  await page
-    .getByRole("alertdialog", { name: "Skip this clean?" })
-    .getByRole("button", { name: "Skip this clean" })
-    .click();
+  await dialog.getByRole("button", { name: "Skip this clean" }).click();
 
   await expect(page.getByText("Your clean is skipped")).toBeVisible();
   await expect(page.getByRole("region", { name: "Skipped" })).toContainText(
@@ -127,7 +121,7 @@ test(
     await signedInAs(page, olive.email);
     await page.goto(`/office/jobs/${job.id}`);
 
-    await jobAction(page, "Cancel job");
+    await pageAction(page, "Cancel job");
     const dialog = page.getByRole("alertdialog", { name: "Cancel this job?" });
     await expect(dialog).toContainText(
       "A late cancellation: a $50.46 fee, the plan's deposit amount. The plan's deposit stays held. The fee is charged.",

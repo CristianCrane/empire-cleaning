@@ -12,6 +12,8 @@ import {
   goTo,
   signInLinkFor,
   eachTheme,
+  openTheHome,
+  pageAction,
 } from "./harness.ts";
 
 const casey = { name: "Casey Client", email: "casey@example.com" };
@@ -379,14 +381,14 @@ test("Office Staff see the Quote, open the home and correct its details", async 
   await page.getByText("Casey Client").click();
   // the Quote first; its home is one step further
   await expect(page).toHaveURL(/\/office\/quotes\//);
-  await page.getByRole("link", { name: "View property" }).click();
+  await openTheHome(page);
 
   await expect(page).toHaveURL(/\/office\/properties\//);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "41-12 Austin St, 4B, 11375",
   );
   // read first, corrected in a dialog
-  await page.getByRole("button", { name: "Correct" }).click();
+  await pageAction(page, "Correct details");
   const save = page.getByRole("button", { name: "Save corrections" });
   await expect(save).toBeDisabled();
 
@@ -531,3 +533,29 @@ eachTheme(() => {
     await expectAccessible(page);
   });
 });
+
+// a home's page in the portal, a Record: what it is and how we get in, its
+// one action the Button in the menu's place (#432)
+test(
+  "a Client's home has a page of its own, how we get in changed from its header",
+  { tag: "@desktop" },
+  async ({ page }) => {
+    await requestQuoteAsGuest(casey);
+    await signInAs(page, casey.email);
+    await page.goto("/portal/details");
+    await page
+      .getByRole("grid", { name: "Your home" })
+      .getByRole("row", { name: /41-12 Austin St/ })
+      .click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "41-12 Austin St",
+    );
+    await page.reload();
+    const details = page.getByRole("region", { name: "Home details" });
+    await expect(details).toContainText("41-12 Austin St, 4B, 11375");
+    await expect(
+      page.getByRole("button", { name: "Edit how we get in" }),
+    ).toBeVisible();
+    await expectAccessible(page);
+  },
+);

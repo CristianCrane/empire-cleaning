@@ -25,7 +25,8 @@ import {
   draftTheQuote,
   recordFindingsWithoutVisit,
   addCleaner,
-  jobAction,
+  pageAction,
+  openTheHome,
 } from "./harness.ts";
 
 // Every screen, at the widths people actually use, from a small phone to a
@@ -210,7 +211,11 @@ const expectDialogFitsEveryWidth = async (
   button: string,
 ) => {
   await page.goto(path);
-  await page.getByRole("button", { name: button }).click();
+  // on a part of the page, or one of its actions
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  const onPart = page.getByRole("button", { name: button, exact: true });
+  if ((await onPart.count()) > 0) await onPart.click();
+  else await pageAction(page, button);
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   const problems: string[] = [];
@@ -251,7 +256,7 @@ test("the Office's screens fit every width", async ({ page }) => {
   await page.getByText("Casey Client").click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
   const request = new URL(page.url()).pathname;
-  await page.getByRole("link", { name: "View property" }).click();
+  await openTheHome(page);
   await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
   const property = new URL(page.url()).pathname;
   await page
@@ -308,7 +313,7 @@ test("business premises' screens fit every width, the form included", async ({
   await page.getByText(/Acme Dental Group/).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
   const request = new URL(page.url()).pathname;
-  await page.getByRole("link", { name: "View property" }).click();
+  await openTheHome(page);
   await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
   const property = new URL(page.url()).pathname;
   for (const path of [request, property, `/office/site-visits/${visit.id}`]) {
@@ -320,7 +325,7 @@ test("business premises' screens fit every width, the form included", async ({
   const sitePage = `/office/site-visits/${visit.id}`;
   await expectDialogFitsEveryWidth(page, sitePage, "Move or change");
   await expectDialogFitsEveryWidth(page, sitePage, "Record findings");
-  await page.getByRole("button", { name: "Cancel visit" }).click();
+  await pageAction(page, "Cancel visit");
   await page.getByRole("button", { name: "Cancel Site Visit" }).click();
   await expect(page.getByText("Site Visit cancelled")).toBeVisible();
   await expectDialogFitsEveryWidth(page, property, "Book a site visit");
@@ -610,7 +615,7 @@ test("cancelling, Cancelled and No Access Jobs fit every width", async ({
     officeEmail: olive.email,
   });
   await page.goto(`/office/jobs/${cancelled.id}`);
-  await jobAction(page, "Cancel job");
+  await pageAction(page, "Cancel job");
   await page.getByText("Empire Cleaning can't do it").click();
   await page
     .getByRole("textbox", { name: "Why? (the client sees this)" })

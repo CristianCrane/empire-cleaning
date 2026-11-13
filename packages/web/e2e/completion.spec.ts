@@ -14,6 +14,7 @@ import {
   test,
   addCleaner,
   linkIn,
+  pageAction,
 } from "./harness.ts";
 
 // the API's clock is at 4am on Monday 5 January 2026 in New York. The Jobs
@@ -252,9 +253,8 @@ test("Office Staff remove an Adjustment from its own dialog, confirming in the s
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await confirm.getByRole("button", { name: "Remove" }).click();
   await expect(page.getByText("Price change removed")).toBeVisible();
-  await expect(adjustments).toContainText(
-    "Nothing different from the quote was reported.",
-  );
+  // with none left, Money has no price changes to show
+  await expect(adjustments).toHaveCount(0);
 });
 
 test("Office Staff correct the Condition and undo a completion made by mistake", async ({
@@ -265,21 +265,19 @@ test("Office Staff correct the Condition and undo a completion made by mistake",
   await signedInAs(page, olive.email);
   await page.goto(`/office/jobs/${job.id}`);
 
-  const completed = page.getByRole("region", { name: "Job details" });
+  const completed = page.getByRole("region", { name: "How it went" });
   await completed.getByRole("button", { name: /Condition reported/ }).click();
   await page.getByRole("option", { name: "Light" }).click();
   await expect(page.getByText("Condition corrected")).toBeVisible();
 
-  await completed.getByRole("button", { name: "Mark not done" }).click();
+  await pageAction(page, "Mark not done");
   await page
     .getByRole("alertdialog")
     .getByRole("button", { name: "Mark not done" })
     .click();
 
   await expect(page.getByText("Marked not done")).toBeVisible();
-  await expect(
-    completed.getByRole("heading", { name: "How it went" }),
-  ).toBeHidden();
+  await expect(completed).toHaveCount(0);
   await expect(page.getByText("Staffed", { exact: true })).toBeVisible();
   expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
     "A correction to your clean",

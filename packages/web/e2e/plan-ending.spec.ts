@@ -10,7 +10,7 @@ import {
   signUp,
   startedServicePlan,
   test,
-  jobAction,
+  pageAction,
 } from "./harness.ts";
 
 // Casey's First Clean is done at 11am on Monday 12 January 2026, New York
@@ -49,9 +49,8 @@ test(
     await page.goto(`/portal/plans/${planId}`);
 
     // what Ending does is shown in the dialog that confirms it
-    const ending = page.getByRole("region", { name: "Ending your plan" });
     await expectAccessible(page);
-    await ending.getByRole("button", { name: "End plan" }).click();
+    await pageAction(page, "End plan");
     const dialog = page.getByRole("alertdialog", {
       name: "End your cleaning plan?",
     });
@@ -69,9 +68,7 @@ test(
     await dialog.getByRole("button", { name: "End plan" }).click();
 
     await expect(page.getByText("Your cleaning plan has ended")).toBeVisible();
-    await expect(page.getByRole("region", { name: "Ended" })).toContainText(
-      "Your cleaning plan ended on Jan 18",
-    );
+    await expect(page.getByText(/Ended Jan 18/)).toBeVisible();
     await expect(
       page.getByRole("grid", { name: "Your upcoming cleans" }).getByRole("row"),
     ).toHaveCount(1);
@@ -102,7 +99,7 @@ test("a Client's plan is On Hold while a fee is Unpaid, and back on once they pa
   await failCharges();
   await signedInAs(page, casey.email);
   await page.goto(`/portal/jobs/${firstJob.id}`);
-  await page.getByRole("button", { name: "Skip this clean" }).click();
+  await pageAction(page, "Skip this clean");
   await page
     .getByRole("alertdialog", { name: "Skip this clean?" })
     .getByRole("button", { name: "Skip this clean" })
@@ -143,7 +140,7 @@ test(
     await failCharges();
     await signedInAs(page, olive.email);
     await page.goto(`/office/jobs/${firstJob.id}`);
-    await jobAction(page, "Cancel job");
+    await pageAction(page, "Cancel job");
     await page
       .getByRole("alertdialog", { name: "Cancel this job?" })
       .getByRole("button", { name: "Cancel job" })
@@ -165,8 +162,11 @@ test(
       "Paused. The client's payment didn't go through for the clean on Mon, Jan 19, 9:00 AM ($50.46).",
     );
 
-    const ending = page.getByRole("region", { name: "Ending the plan" });
-    await ending.getByRole("button", { name: "End plan" }).click();
+    // on the plan, its own action (WEB-J)
+    await page
+      .getByRole("region", { name: "Cleaning plan" })
+      .getByRole("button", { name: "End plan" })
+      .click();
     const dialog = page.getByRole("alertdialog", {
       name: "End this cleaning plan?",
     });
@@ -186,5 +186,32 @@ test(
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
       "Your cleaning plan has ended",
     );
+  },
+);
+
+// an Ended plan's page, a Record of what it was: nothing left to do to it
+test(
+  "an Ended plan has a page of its own, with nothing left to do to it",
+  { tag: "@desktop" },
+  async ({ page }) => {
+    const { planId } = await planStarted();
+    await signedInAs(page, olive.email);
+    // nothing within a day of now goes ahead
+    const ended = await page.request.post(`/api/service-plans/${planId}/end`, {
+      data: { goingAhead: [] },
+    });
+    expect(ended.ok()).toBe(true);
+
+    await page.goto(`/office/service-plans/${planId}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Cleaning plan",
+    );
+    await expect(
+      page.getByText("Ended", { exact: true }).first(),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Actions", exact: true }),
+    ).toHaveCount(0);
+    await expectAccessible(page);
   },
 );

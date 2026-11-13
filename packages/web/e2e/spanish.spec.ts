@@ -17,6 +17,7 @@ import {
   showInMenu,
   signUp,
   test,
+  pageAction,
 } from "./harness.ts";
 
 // Sign-in, the Client portal (#303) and the Cleaner area (#305) in Spanish
@@ -128,11 +129,7 @@ test("a Client reading in Spanish moves a clean, then cancels it, the API answer
   const job = await bookedJob(page);
   await page.goto(`/portal/jobs/${job.id}`);
 
-  const card = page.getByRole("region", { name: "¿Necesita otra hora?" });
-  await expect(card).toContainText(
-    /Puede reprogramarla sin cargo hasta el dom, 11 de ene/,
-  );
-  await card.getByRole("button", { name: "Elegir otra hora" }).click();
+  await pageAction(page, "Elegir otra hora");
   const dialog = page.getByRole("dialog", { name: "Elegir otra hora" });
   await expect(dialog).toContainText("Reprogramarla no tiene ningún cargo.");
   await dialog.getByText("O elija de una lista").click();
@@ -142,9 +139,9 @@ test("a Client reading in Spanish moves a clean, then cancels it, the API answer
   await dialog.getByRole("button", { name: "Enviar solicitud" }).click();
 
   await expect(page.getByText("Solicitud enviada")).toBeVisible();
-  const pending = page.getByRole("region", {
-    name: "Reprogramar su limpieza",
-  });
+  const pending = page
+    .getByRole("status")
+    .filter({ hasText: "Pidió reprogramarla" });
   await expect(pending).toContainText(
     /Pidió reprogramarla para el mié, 14 de ene/,
   );
@@ -161,8 +158,7 @@ test("a Client reading in Spanish moves a clean, then cancels it, the API answer
     "No hay ninguna solicitud para reprogramar esta limpieza.",
   );
 
-  const cancel = page.getByRole("region", { name: "¿Necesita cancelar?" });
-  await cancel.getByRole("button", { name: "Cancelar limpieza" }).click();
+  await pageAction(page, "Cancelar limpieza");
   const confirm = page.getByRole("alertdialog", {
     name: "¿Cancelar su limpieza?",
   });
@@ -200,10 +196,10 @@ test("a Client reading in Spanish sees what a second late move costs", async ({
 
   await signedInAs(page, casey.email);
   await page.goto(`/portal/jobs/${job.id}`);
-  const card = page.getByRole("region", { name: "¿Necesita otra hora?" });
-  // at the top of the page, clear of the bottom navigation
-  await card.evaluate((region) => region.scrollIntoView());
-  await expect(card).toContainText(
+  await pageAction(page, "Elegir otra hora");
+  await expect(
+    page.getByRole("dialog", { name: "Elegir otra hora" }),
+  ).toContainText(
     /se conserva como cargo por cancelación tardía, y el precio completo se cobra cuando la limpieza esté terminada\./,
   );
 });

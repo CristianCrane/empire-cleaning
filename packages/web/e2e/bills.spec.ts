@@ -12,6 +12,8 @@ import {
   signedInAs,
   test,
   linkIn,
+  pageAction,
+  expectNoPageAction,
 } from "./harness.ts";
 
 // Weekly Bills for commercial Clients (ADR-0016), in the Office and the
@@ -131,7 +133,7 @@ test(
     await expect(lines).toContainText("Tax included");
     await expect(lines).toContainText("Total");
 
-    await page.getByRole("button", { name: "Record a payment" }).click();
+    await pageAction(page, "Record a payment");
     const dialog = page.getByRole("dialog", { name: "Record a payment" });
     await dialog
       .getByRole("textbox", { name: "How it was paid" })
@@ -143,9 +145,7 @@ test(
     await expect(
       page.getByRole("region", { name: "Bill details" }),
     ).toContainText("Cheque 1042");
-    await expect(
-      page.getByRole("button", { name: "Record a payment" }),
-    ).toBeHidden();
+    await expectNoPageAction(page, "Record a payment");
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
       "Your receipt for bill EC-000001",
     );
@@ -159,7 +159,7 @@ test("Office Staff void a Bill that shouldn't have gone out", async ({
   await signedInAs(page, olive.email);
   await page.goto(`/office/bills/${billId}`);
 
-  await page.getByRole("button", { name: "Cancel bill" }).click();
+  await pageAction(page, "Cancel bill");
   const dialog = page.getByRole("dialog", { name: "Cancel bill EC-000001?" });
   // a reason is needed
   await dialog.getByRole("button", { name: "Cancel bill" }).click();

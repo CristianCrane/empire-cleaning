@@ -11,6 +11,7 @@ import {
   startedServicePlan,
   startOn,
   test,
+  pageAction,
 } from "./harness.ts";
 
 // Casey's First Clean is done at 11am on Monday 12 January 2026, New York
@@ -170,7 +171,7 @@ test(
     await signedInAs(client, casey.email);
     await client.goto(`/portal/plans/${planId}`);
 
-    await client.getByRole("button", { name: "Ask to change" }).click();
+    await pageAction(client, "Ask to change");
     const dialog = client.getByRole("dialog", {
       name: "Ask to change your plan",
     });

@@ -53,7 +53,7 @@ test(
     await expect(deep).toContainText("$299.41");
     await expect(deep).toContainText("Recommended");
     await expect(deep).toContainText("Includes $24.41 tax");
-    await expect(deep).toContainText("Suggested price $275.00 before tax");
+    await expect(deep).toContainText("Suggested price, before tax$275.00");
     await expect(standard).toContainText("$194.89");
     // how it was reached, folded under the price
     await standard.getByText("How it's worked out").click();

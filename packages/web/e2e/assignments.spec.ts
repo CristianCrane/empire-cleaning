@@ -117,14 +117,11 @@ test("Office Staff take someone off a Job, leaving a Cleaner Needed", async ({
 
   await expect(page.getByText("Cory Cleaner taken off the Job")).toBeVisible();
   await expect(page.getByText("0 of 1 Cleaner Confirmed")).toBeVisible();
-  // kept, so the Office sees who was on it
-  const row = page
-    .getByRole("grid", { name: "Crew" })
-    .getByRole("row", { name: /Cory Cleaner/ });
-  // its badge, not only the line under the name ("Taken off Jan 5")
-  await expect(row.getByText("Taken off", { exact: true })).toBeVisible();
+  // off the Crew, which lists who's on it; History says who was (WEB-3)
   await expect(
-    row.getByRole("button", { name: "Remove Cory Cleaner" }),
+    page
+      .getByRole("grid", { name: "Crew" })
+      .getByRole("row", { name: /Cory Cleaner/ }),
   ).toHaveCount(0);
   await expect(page.getByRole("region", { name: "History" })).toContainText(
     "Cory Cleaner taken off",
