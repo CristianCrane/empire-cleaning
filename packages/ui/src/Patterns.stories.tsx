@@ -25,7 +25,9 @@ import {
   X,
 } from "lucide-react";
 import { Avatar } from "./Avatar.tsx";
+import { ActionFooter } from "./ActionFooter.tsx";
 import { ActionRow } from "./ActionRow.tsx";
+import { AppLayout } from "./AppLayout.tsx";
 import { Button } from "./Button.tsx";
 import { Card } from "./Card.tsx";
 import { Checkbox } from "./Checkbox.tsx";
@@ -1301,6 +1303,62 @@ function MessagePages() {
 export const MessagePagesStory: Story = {
   name: "A message page: one Button, home a link",
   render: () => <MessagePages />,
+};
+
+// what stays in reach as a long page scrolls, in the app's one bar at a
+// page's foot: never a sticky bar of the page's own, which the phone's tab
+// bar covers (#425)
+function BarAtTheFoot() {
+  return (
+    <AppLayout
+      area="Office"
+      foot={() => null}
+      nav={[
+        { href: "#today", label: "Today", icon: CalendarCheck },
+        {
+          href: "#quotes",
+          label: "Quotes",
+          icon: ClipboardPenLine,
+          isCurrent: true,
+        },
+      ]}
+    >
+      <div className="flex flex-col gap-6">
+        <Rule title="A bar at the foot is an ActionFooter">
+          <p>
+            What must stay in reach while a long page scrolls (a Cleaner's Job
+            on site, a Quote Draft's Send) goes in an <code>ActionFooter</code>:
+            above the tab bar on a phone, full width beside the sidebar on a
+            wider screen. Never a sticky bar of the page's own: it pins under
+            the tab bar. What it sums up on its left, the main action last, on
+            the right.
+          </p>
+        </Rule>
+        <div className="h-[120vh] rounded-lg bg-bg" />
+        <p>The end of the page</p>
+      </div>
+      <ActionFooter aria-label="Send the quote">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="font-semibold tabular-nums">
+            Deep Clean $385.00 · Standard Clean $210.00
+          </span>
+          <span role="status" className="text-sm text-fg-muted">
+            All changes saved
+          </span>
+        </div>
+        <Button>
+          Send<span className="sr-only"> to Maria Lopez</span>
+        </Button>
+      </ActionFooter>
+    </AppLayout>
+  );
+}
+
+export const BarAtTheFootStory: Story = {
+  name: "A bar at the foot is an ActionFooter",
+  globals: { viewport: { value: "phone" } },
+  parameters: { layout: "fullscreen" },
+  render: () => <BarAtTheFoot />,
 };
 
 export const ToursPointNeverPushStory: Story = {
