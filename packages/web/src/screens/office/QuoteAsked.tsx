@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { CircleX, FilePenLine } from "lucide-react";
+import {
+  FilePenLine,
+  CalendarDays,
+  Globe,
+  ClipboardList,
+  Ruler,
+  Sparkles,
+  BedDouble,
+} from "lucide-react";
 import type {
   OfficeQuote,
   PriceBreakdown,
@@ -17,17 +25,23 @@ import {
   Notice,
   Radio,
   RadioGroup,
+  Facts,
+  Fact,
+  type Alert,
+  type DialogState,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { BookSiteVisit } from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
-import { formatHours, roomsText, screenWords } from "../format.ts";
+import { addressOf, formatHours, roomsText, screenWords } from "../format.ts";
+import { homeIcon } from "../icons.ts";
 import { AskedRows } from "../QuoteParts.tsx";
 import { working } from "./WorkedOutQuote.tsx";
 
-const { conditionLabel, conditionText, formatFloorArea } = screenWords.en;
+const { conditionLabel, conditionText, formatFloorArea, propertySummary } =
+  screenWords.en;
 
 const { formatDate, formatMoney } = formats.en;
 
@@ -60,8 +74,8 @@ const sourceText = ({
     .join("");
 };
 
-// what the Client (or a caller) asked for, unchanged; none on a Quote the
-// Office offered unprompted
+// what the Client (or a caller) asked for, unchanged, and the home it's
+// for (WEB-8, WEB-A); none on a Quote the Office offered unprompted
 export function AskedFacts({ quote }: { quote: OfficeQuote }) {
   const { asked, property } = quote;
   if (!asked) return null;
@@ -71,54 +85,53 @@ export function AskedFacts({ quote }: { quote: OfficeQuote }) {
   const premises = property.kind === "commercial";
 
   return (
-    <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-      <dt className="font-semibold">Asked</dt>
-      <dd>
-        {formatDate(quote.createdAt)}
-        {quote.origin === "caller" && ", by phone"}
-      </dd>
+    <Facts>
+      <Fact
+        icon={homeIcon(property.kind)}
+        label="Property"
+        value={<Link href={propertyLink(quote)}>{addressOf(property)}</Link>}
+        line={propertySummary(property)}
+      />
+      <Fact
+        icon={CalendarDays}
+        label="Asked"
+        value={`${formatDate(quote.createdAt)}${quote.origin === "caller" ? ", by phone" : ""}`}
+      />
       {quote.source && (
-        <>
-          <dt className="font-semibold">From</dt>
-          <dd>{sourceText(quote.source)}</dd>
-        </>
+        <Fact icon={Globe} label="From" value={sourceText(quote.source)} />
       )}
-      <dt className="font-semibold">Service</dt>
-      <dd>{asked.service.name}</dd>
+      <Fact icon={ClipboardList} label="Service" value={asked.service.name} />
       {asked.area !== null && (
-        <>
-          <dt className="font-semibold">Area</dt>
-          <dd>About {formatFloorArea(asked.area)}</dd>
-        </>
+        <Fact
+          icon={Ruler}
+          label="Area"
+          value={`About ${formatFloorArea(asked.area)}`}
+        />
       )}
-      <dt className="font-semibold">Condition</dt>
-      <dd>
-        {conditionText(property.condition)}
-        {corrected && (
-          <span className="text-fg-muted">
-            {" "}
-            (the client said {conditionLabel[stated].toLowerCase()})
-          </span>
-        )}
-      </dd>
+      <Fact
+        icon={Sparkles}
+        label="Condition"
+        value={conditionText(property.condition)}
+        line={
+          corrected
+            ? `Condition: the client said ${conditionLabel[stated].toLowerCase()}`
+            : undefined
+        }
+      />
       {/* a Guest's ask gives a home without them none (#243): the Office
           records them */}
       {property.kind !== "commercial" &&
         property.bedrooms === null &&
         asked.rooms && (
-          <>
-            <dt className="font-semibold">Rooms</dt>
-            <dd>
-              Not recorded yet
-              <span className="text-fg-muted">
-                {" "}
-                (the client said {roomsText(asked.rooms)})
-              </span>
-            </dd>
-          </>
+          <Fact
+            icon={BedDouble}
+            label="Rooms"
+            value="Not recorded yet"
+            line={`Rooms: the client said ${roomsText(asked.rooms)}`}
+          />
         )}
       <AskedRows asked={asked} premises={premises} />
-    </dl>
+    </Facts>
   );
 }
 
@@ -185,25 +198,18 @@ export function DraftQuote({ quote }: { quote: OfficeQuote }) {
 // A Service seen first is seen before it's quoted (ADR-0018), for a home
 // too: the Office books a Site Visit, or records findings it knows already
 // on the Property
-export function SeeThePremises({ quote }: { quote: OfficeQuote }) {
-  return (
-    <Notice tone="warning" action={<BookSiteVisit quoteId={quote.id} />}>
-      <p>
-        <strong>{needsVisit(quote.property.kind)}</strong> Book one, or if you
-        know it already, record what you know on the{" "}
-        <Link
-          href={linkTo({
-            to: "/office/properties/$propertyId",
-            params: { propertyId: quote.property.id },
-          })}
-        >
-          property page
-        </Link>
-        .
-      </p>
-    </Notice>
-  );
-}
+export const seeThePremises = (quote: OfficeQuote): Alert => ({
+  key: "see",
+  tone: "warning",
+  action: <BookSiteVisit quoteId={quote.id} />,
+  children: (
+    <p>
+      <strong>{needsVisit(quote.property.kind)}</strong> Book one, or if you
+      know it already, record what you know on the{" "}
+      <Link href={propertyLink(quote)}>property page</Link>.
+    </p>
+  ),
+});
 
 // why a Quote was Turned Down, as the Office reads it; the Client's email
 // says the same in its own words
@@ -216,7 +222,10 @@ export const turnDownLabel: Record<TurnDownReason, string> = {
 // Turns Down a Requested or Draft Quote, with the reason the Client is
 // emailed; once a Revision is Sent, only the Client's Decline or Expiry
 // closes it
-export function TurnDownQuote({ quote }: { quote: OfficeQuote }) {
+export function TurnDownQuote({
+  quote,
+  ...state
+}: { quote: OfficeQuote } & DialogState) {
   const [reason, setReason] = useState<TurnDownReason>();
   const action = useAction("The quote wasn't turned down. Please try again.");
 
@@ -236,47 +245,41 @@ export function TurnDownQuote({ quote }: { quote: OfficeQuote }) {
   };
 
   return (
-    <DialogTrigger>
-      <Button variant="text" size="sm">
-        <CircleX aria-hidden size={16} />
-        Turn down
-      </Button>
-      <Dialog title="Turn down this quote?" role="alertdialog">
-        {({ close }) => (
-          <>
-            <p>
-              {quote.client.email
-                ? `${quote.client.name} is emailed to say we can't take it on, and why. They can ask again later.`
-                : `${quote.client.name} has no email, so tell them yourself. They can ask again later.`}
-            </p>
-            <RadioGroup
-              label="Why?"
-              value={reason ?? null}
-              onChange={(value) => setReason(value as TurnDownReason)}
+    <Dialog title="Turn down this quote?" role="alertdialog" {...state}>
+      {({ close }) => (
+        <>
+          <p>
+            {quote.client.email
+              ? `${quote.client.name} is emailed to say we can't take it on, and why. They can ask again later.`
+              : `${quote.client.name} has no email, so tell them yourself. They can ask again later.`}
+          </p>
+          <RadioGroup
+            label="Why?"
+            value={reason ?? null}
+            onChange={(value) => setReason(value as TurnDownReason)}
+          >
+            {(Object.keys(turnDownLabel) as TurnDownReason[]).map((r) => (
+              <Radio key={r} value={r}>
+                {turnDownLabel[r]}
+              </Radio>
+            ))}
+          </RadioGroup>
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              Keep it
+            </Button>
+            <Button
+              variant="danger"
+              isPending={action.isPending}
+              onPress={() => void turnDown(close)}
             >
-              {(Object.keys(turnDownLabel) as TurnDownReason[]).map((r) => (
-                <Radio key={r} value={r}>
-                  {turnDownLabel[r]}
-                </Radio>
-              ))}
-            </RadioGroup>
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <Button variant="quiet" onPress={close}>
-                Keep it
-              </Button>
-              <Button
-                variant="danger"
-                isPending={action.isPending}
-                onPress={() => void turnDown(close)}
-              >
-                Turn down
-              </Button>
-            </Actions>
-          </>
-        )}
-      </Dialog>
-    </DialogTrigger>
+              Turn down
+            </Button>
+          </Actions>
+        </>
+      )}
+    </Dialog>
   );
 }
 

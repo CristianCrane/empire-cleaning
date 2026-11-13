@@ -93,14 +93,15 @@ export function RecordPage({
   );
 }
 
-// never a wall of them: the first two, the rest a tap away
+// never a wall of them: the first two, the rest a tap away. On screen
+// only: what's to do about a record isn't on its printout (a Bill's)
 function Alerts({ alerts }: { alerts: Alert[] }) {
   const words = useUiWords();
   const [all, setAll] = useState(false);
   if (alerts.length === 0) return null;
   const hidden = all ? 0 : alerts.length - SHOWN;
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 print:hidden">
       {alerts.slice(0, hidden > 0 ? SHOWN : undefined).map((alert) => (
         <Notice key={alert.key} tone={alert.tone} action={alert.action}>
           {alert.children}
@@ -120,39 +121,47 @@ function Alerts({ alerts }: { alerts: Alert[] }) {
   );
 }
 
-// A Record's details card: what it is, large, led by its tile (a DateTile
-// for when, an IconTile for what, an Avatar for who), a kicker above and a
-// line below; then its Facts, and anything else about it, each ruled off
+// A Record's details card, a region named `label` ("Job details"): what
+// it is, large, led by its tile (a DateTile for when, an IconTile for what,
+// an Avatar for who), a kicker above and a line below; then its Facts, and
+// anything else about it, ruled off. A record that's only its facts (a
+// Client's contact details) has no lead
 export function DetailsCard({
+  label,
   tile,
   kicker,
   title,
   line,
   children,
 }: {
-  tile: ReactNode;
+  label: string;
+  tile?: ReactNode;
   kicker?: ReactNode;
-  title: ReactNode;
+  title?: ReactNode;
   line?: ReactNode;
   children?: ReactNode;
 }) {
   return (
-    <Card>
-      <div className="flex items-center gap-4">
-        {tile}
-        <div className="flex min-w-0 flex-col gap-1">
-          {kicker && <p className="text-sm text-fg-muted">{kicker}</p>}
-          <p className="text-xl font-semibold text-fg [overflow-wrap:anywhere]">
-            {title}
-          </p>
-          {line && <p className="text-fg-muted">{line}</p>}
-        </div>
-      </div>
-      {children && (
-        <div className="flex flex-col gap-4 border-t border-border pt-4">
-          {children}
+    <Card aria-label={label}>
+      {title && (
+        <div className="flex items-center gap-4">
+          {tile}
+          <div className="flex min-w-0 flex-col gap-1">
+            {kicker && <p className="text-sm text-fg-muted">{kicker}</p>}
+            <p className="text-xl font-semibold text-fg [overflow-wrap:anywhere]">
+              {title}
+            </p>
+            {line && <p className="text-fg-muted">{line}</p>}
+          </div>
         </div>
       )}
+      {title
+        ? children && (
+            <div className="flex flex-col gap-4 border-t border-border pt-4">
+              {children}
+            </div>
+          )
+        : children}
     </Card>
   );
 }

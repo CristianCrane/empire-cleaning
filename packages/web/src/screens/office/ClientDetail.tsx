@@ -1,5 +1,14 @@
 import { useState } from "react";
-import { Pencil } from "lucide-react";
+import {
+  Pencil,
+  UserRound,
+  Mail,
+  Phone,
+  Languages,
+  Star,
+  CalendarRange,
+  CreditCard,
+} from "lucide-react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
   type BillPayment,
@@ -12,14 +21,12 @@ import {
 } from "@empire-cleaning/models";
 import {
   Actions,
-  Breadcrumbs,
   Button,
   Card,
   Checkbox,
   Dialog,
   DialogTrigger,
   Form,
-  Heading,
   LanguageName,
   LanguagePicker,
   List,
@@ -30,6 +37,11 @@ import {
   RadioGroup,
   Section,
   TextField,
+  RecordPage,
+  DetailsCard,
+  Facts,
+  Fact,
+  type DialogState,
 } from "@empire-cleaning/ui";
 import { patchJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
@@ -38,82 +50,76 @@ import { useAction } from "../action.ts";
 import { BillStatusBadge, billLine } from "../BillParts.tsx";
 import { addressOf, clientName, screenWords } from "../format.ts";
 import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
+import { clientTrail } from "./trails.ts";
 
 const { propertySummary } = screenWords.en;
 
 const { formatDate, formatDateTime, formatDay, formatMoney } = formats.en;
 
-// a Client for the Office: their contact details, which Office Staff can
-// correct (or add an email to), and their homes, each with where it stands
-// and opening its own page, which holds its history; quoting them afresh,
-// as when they phone (#34); and for a business, how they're billed and their
-// weekly Bills (ADR-0016)
+// a Client for the Office, a Record (docs/ux.md): their contact details,
+// which Office Staff can correct (or add an email to), and their homes,
+// each with where it stands and opening its own page, which holds its
+// history; quoting them afresh, as when they phone (#34); and for a
+// business, how they're billed and their weekly Bills (ADR-0016)
 export function ClientDetail() {
   const { client, bills } = useLoaderData({
     from: "/office/clients/$clientId",
   });
   const navigate = useNavigate();
+  const trail = clientTrail(client);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <Breadcrumbs
-          trail={[
-            { label: "Clients", href: linkTo({ to: "/office/clients" }) },
-            { label: clientName(client) },
-          ]}
-        />
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Heading level={1}>{clientName(client)}</Heading>
-          <Button
-            onPress={() =>
-              void navigate({
-                to: "/office/quotes/new",
-                search: { clientId: client.id },
-              })
-            }
-          >
-            <QuoteIcon aria-hidden size={18} />
-            {NEW_QUOTE}
-          </Button>
-        </div>
-      </div>
-
-      <Section
-        title="Contact details"
-        actions={<EditContact client={client} />}
-      >
-        <Card>
-          <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+    <RecordPage
+      trail={[trail[0]!, { label: clientName(client) }]}
+      title={clientName(client)}
+      actions={[
+        {
+          label: NEW_QUOTE,
+          icon: QuoteIcon,
+          href: linkTo({
+            to: "/office/quotes/new",
+            search: { clientId: client.id },
+          }),
+        },
+        {
+          label: "Edit contact details",
+          icon: Pencil,
+          dialog: (state) => <EditContact client={client} {...state} />,
+        },
+      ]}
+      details={
+        // WEB-H: their contact details as icon facts
+        <DetailsCard label="Contact details">
+          <Facts>
             {client.businessName && (
-              <>
-                <dt className="font-semibold">Business</dt>
-                <dd>{client.businessName}</dd>
-                <dt className="font-semibold">Contact</dt>
-                <dd>{client.name}</dd>
-              </>
+              <Fact icon={UserRound} label="Contact" value={client.name} />
             )}
-            <dt className="font-semibold">Email</dt>
-            <dd className="[overflow-wrap:anywhere]">
-              {client.email ??
-                "None yet. Quotes can't be sent to them until one is added."}
-            </dd>
-            <dt className="font-semibold">Phone</dt>
-            <dd>{client.phone}</dd>
-            <dt className="font-semibold">Preferred language</dt>
-            <dd>
-              <LanguageName language={client.preferredLanguage} />
-            </dd>
+            <Fact
+              icon={Mail}
+              label="Email"
+              value={
+                client.email ??
+                "None yet: quotes can't be sent until one is added"
+              }
+            />
+            <Fact icon={Phone} label="Phone" value={client.phone} />
+            <Fact
+              icon={Languages}
+              label="Preferred language"
+              value={<LanguageName language={client.preferredLanguage} />}
+            />
             {client.reviewRequestedAt && (
-              <>
-                <dt className="font-semibold">Google review</dt>
-                <dd>Asked on {formatDate(client.reviewRequestedAt)}</dd>
-              </>
+              <Fact
+                icon={Star}
+                label="Google review"
+                value={formatDate(client.reviewRequestedAt)}
+                line="Google review asked for"
+              />
             )}
-          </dl>
-        </Card>
-      </Section>
-
+          </Facts>
+        </DetailsCard>
+      }
+    >
       <Section title="Properties">
         <List
           aria-label={`${clientName(client)}'s properties`}
@@ -165,7 +171,7 @@ export function ClientDetail() {
           </List>
         </Section>
       )}
-    </div>
+    </RecordPage>
   );
 }
 
@@ -176,28 +182,33 @@ function Billing({ client }: { client: OfficeClientView }) {
   return (
     <Section title="Billing" actions={<EditBilling client={client} />}>
       <Card>
-        <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-          <dt className="font-semibold">Billed</dt>
-          <dd>
-            {billing.weeklyFrom
-              ? `Weekly, from the week of ${formatDay(billing.weeklyFrom)}`
-              : "Per job, when each is done"}
-          </dd>
+        <Facts>
+          <Fact
+            icon={CalendarRange}
+            label="Billed"
+            value={
+              billing.weeklyFrom
+                ? `Weekly, from the week of ${formatDay(billing.weeklyFrom)}`
+                : "Per job, when each is done"
+            }
+          />
           {billing.weeklyFrom && (
-            <>
-              <dt className="font-semibold">Pays</dt>
-              <dd>
-                {billing.payment === "automatic"
+            <Fact
+              icon={CreditCard}
+              label="Pays"
+              value={
+                billing.payment === "automatic"
                   ? "Charged to their card when each bill is made"
-                  : `On each bill's page within ${billing.termsDays} ${billing.termsDays === 1 ? "day" : "days"}, by card or bank`}
-              </dd>
-            </>
+                  : `On each bill's page within ${billing.termsDays} ${billing.termsDays === 1 ? "day" : "days"}, by card or bank`
+              }
+            />
           )}
-          <dt className="font-semibold">Billing email</dt>
-          <dd className="[overflow-wrap:anywhere]">
-            {billing.billingEmail ?? "None: bills go to their own email"}
-          </dd>
-        </dl>
+          <Fact
+            icon={Mail}
+            label="Billing email"
+            value={billing.billingEmail ?? "None: bills go to their own email"}
+          />
+        </Facts>
       </Card>
     </Section>
   );
@@ -379,7 +390,10 @@ const statusLine = (status: PropertyStatus) => {
 // Preferred Language, which is this Client's alone (ADR-0025).
 // An email can be added or changed but not removed: Quotes and notices go
 // there.
-function EditContact({ client }: { client: OfficeClientView }) {
+function EditContact({
+  client,
+  ...state
+}: { client: OfficeClientView } & DialogState) {
   const action = useAction("The details weren't saved. Please try again.");
 
   const save = async (form: FormData, close: () => void) => {
@@ -398,67 +412,61 @@ function EditContact({ client }: { client: OfficeClientView }) {
   };
 
   return (
-    <DialogTrigger>
-      <Button variant="text" size="sm">
-        <Pencil aria-hidden size={16} />
-        Edit
-      </Button>
-      <Dialog title="Edit contact details">
-        {({ close }) => (
-          <Form
-            validationErrors={action.fieldErrors}
-            onSubmit={(e) => {
-              e.preventDefault();
-              void save(new FormData(e.currentTarget), close);
-            }}
-          >
-            <TextField
-              label={client.businessName ? "Contact's full name" : "Full name"}
-              name="name"
-              defaultValue={client.name}
-              isRequired
-              autoFocus
-            />
-            <TextField
-              label="Business name (optional)"
-              name="businessName"
-              autoComplete="off"
-              defaultValue={client.businessName ?? ""}
-              description="For a business: the name above is the person they deal with there."
-            />
-            <TextField
-              label={client.email ? "Email" : "Email (optional)"}
-              name="email"
-              type="email"
-              autoComplete="off"
-              defaultValue={client.email ?? ""}
-              isRequired={client.email !== null}
-              description="Their quotes and notices go here."
-            />
-            <TextField
-              label="Phone"
-              name="phone"
-              type="tel"
-              autoComplete="off"
-              defaultValue={client.phone}
-              isRequired
-            />
-            <LanguagePicker
-              name="preferredLanguage"
-              defaultValue={client.preferredLanguage}
-            />
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <Button variant="quiet" onPress={close}>
-                Cancel
-              </Button>
-              <Button type="submit" isPending={action.isPending}>
-                Save
-              </Button>
-            </Actions>
-          </Form>
-        )}
-      </Dialog>
-    </DialogTrigger>
+    <Dialog title="Edit contact details" {...state}>
+      {({ close }) => (
+        <Form
+          validationErrors={action.fieldErrors}
+          onSubmit={(e) => {
+            e.preventDefault();
+            void save(new FormData(e.currentTarget), close);
+          }}
+        >
+          <TextField
+            label={client.businessName ? "Contact's full name" : "Full name"}
+            name="name"
+            defaultValue={client.name}
+            isRequired
+            autoFocus
+          />
+          <TextField
+            label="Business name (optional)"
+            name="businessName"
+            autoComplete="off"
+            defaultValue={client.businessName ?? ""}
+            description="For a business: the name above is the person they deal with there."
+          />
+          <TextField
+            label={client.email ? "Email" : "Email (optional)"}
+            name="email"
+            type="email"
+            autoComplete="off"
+            defaultValue={client.email ?? ""}
+            isRequired={client.email !== null}
+            description="Their quotes and notices go here."
+          />
+          <TextField
+            label="Phone"
+            name="phone"
+            type="tel"
+            autoComplete="off"
+            defaultValue={client.phone}
+            isRequired
+          />
+          <LanguagePicker
+            name="preferredLanguage"
+            defaultValue={client.preferredLanguage}
+          />
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              Cancel
+            </Button>
+            <Button type="submit" isPending={action.isPending}>
+              Save
+            </Button>
+          </Actions>
+        </Form>
+      )}
+    </Dialog>
   );
 }

@@ -9,7 +9,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type {
-  ClientName,
   HomeView,
   OfficePropertyView,
   OfficeServicePlan,
@@ -22,14 +21,11 @@ import { needsVisit, formats } from "@empire-cleaning/models";
 import {
   ActionRow,
   Actions,
-  Breadcrumbs,
   Button,
   ButtonLink,
   Card,
   Dialog,
-  DialogTrigger,
   Form,
-  Heading,
   IconTile,
   List,
   ListItem,
@@ -38,18 +34,16 @@ import {
   TextField,
   Timeline,
   TimelineItem,
-  type Crumb,
   Fact,
+  RecordPage,
+  DetailsCard,
+  Facts,
+  type DialogState,
 } from "@empire-cleaning/ui";
 import { patchJson } from "../../api.ts";
 import { linkTo, type AppHref } from "../../links.ts";
 import { useAction } from "../action.ts";
-import {
-  addressOf,
-  clientName,
-  formatMinutes,
-  screenWords,
-} from "../format.ts";
+import { addressOf, formatMinutes, screenWords } from "../format.ts";
 import { AccessFact, ConditionFact, FloorAreaFact } from "../Fact.tsx";
 import { homeIcon, QuoteIcon } from "../icons.ts";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
@@ -67,85 +61,79 @@ import {
   PremisesTypeField,
   RoomFields,
 } from "./PropertyFields.tsx";
-import { PlanDetails } from "./ServicePlanScreen.tsx";
+import { PlanDetails, officePlanLinks } from "./ServicePlanScreen.tsx";
+import { useOnHold } from "../PlanParts.tsx";
 import { OfferServicePlan, QUOTE_A_PLAN } from "./StartDraft.tsx";
+import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
+import { clientTrail } from "./trails.ts";
 import { JobStatusBadge } from "../JobBadges.tsx";
 
 const { propertySummary, quoteHeadline } = screenWords.en;
 
 const { formatDate, formatDateTime } = formats.en;
 
-// A home for the Office (ADR-0011), read as a whole (UX pass, #96): what to
-// know first in Notices; then its details, its Service Plan and its Site
-// Visit on the left, and its whole history on the right, newest first. One
-// column on a phone.
+// A home for the Office (ADR-0011), a Record (docs/ux.md): what to know
+// first as alerts; then its details, its Service Plan and its Site Visit,
+// and its whole history beside them from xl, newest first
 export function PropertyScreen() {
   const { home, premisesTypes, plan, visit } = useLoaderData({
     from: "/office/properties/$propertyId",
   });
-  const history = historyOf(home);
   // new terms for its plan wait on a Quote already open: say which, first
   const { open, resumes } = quoteInTheWay(home);
   const newTerms = plan && open && !resumes ? open : undefined;
+  const premises = home.kind === "commercial";
+  const onHold = useOnHold(plan, officePlanLinks);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <Breadcrumbs
-          trail={[
-            { label: "Clients", href: linkTo({ to: "/office/clients" }) },
-            clientCrumb(home.client),
-            { label: addressOf(home) },
-          ]}
-        />
-        <div className="flex flex-col gap-1">
-          <Heading level={1}>{addressOf(home)}</Heading>
-          <p className="text-fg-muted">{clientName(home.client)}</p>
-        </div>
-      </div>
-      {home.kind === "commercial" && !home.findingsRecorded && (
-        <Notice>{SEE_IT_FIRST}</Notice>
-      )}
-      {newTerms && (
-        <Notice action={<OpenQuote quoteId={newTerms.id} />}>
-          {newTermsLine[newTerms.status as keyof typeof newTermsLine]}.
-        </Notice>
-      )}
-      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="flex flex-col gap-6">
-          <Details home={home} premisesTypes={premisesTypes} />
-          <PlanPart home={home} plan={plan} newTerms={!!newTerms} />
-          <VisitPart home={home} visit={visit} premisesTypes={premisesTypes} />
-        </div>
-        <History home={home} events={history} />
-      </div>
-    </div>
+    <RecordPage
+      trail={[...clientTrail(home.client), { label: addressOf(home) }]}
+      title={addressOf(home)}
+      actions={[
+        {
+          label: NEW_QUOTE,
+          icon: QuoteIcon,
+          href: linkTo({
+            to: "/office/quotes/new",
+            search: { clientId: home.client.id },
+          }),
+        },
+        {
+          label: "Correct details",
+          icon: SquarePen,
+          dialog: (state) => (
+            <CorrectDetails
+              home={home}
+              premisesTypes={premisesTypes}
+              {...state}
+            />
+          ),
+        },
+      ]}
+      alerts={[
+        ...onHold,
+        premises &&
+          !home.findingsRecorded && { key: "see", children: SEE_IT_FIRST },
+        !premises &&
+          home.bedrooms === null && {
+            key: "rooms",
+            tone: "warning",
+            children: roomsMissing("Correct"),
+          },
+        newTerms && {
+          key: "terms",
+          children: `${newTermsLine[newTerms.status as keyof typeof newTermsLine]}.`,
+          action: <OpenQuote quoteId={newTerms.id} />,
+        },
+      ]}
+      details={<Details home={home} />}
+      history={<History home={home} events={historyOf(home)} />}
+    >
+      <PlanPart home={home} plan={plan} newTerms={!!newTerms} />
+      <VisitPart home={home} visit={visit} premisesTypes={premisesTypes} />
+    </RecordPage>
   );
 }
-
-const clientCrumb = (client: ClientName): Crumb => ({
-  label: clientName(client),
-  href: linkTo({
-    to: "/office/clients/$clientId",
-    params: { clientId: client.id },
-  }),
-});
-
-// the crumbs for a screen below a home (a Quote or Job): its Client, then
-// the home
-export const homeCrumbs = (
-  client: ClientName,
-  home: Pick<PropertyView, "id" | "street" | "unit" | "postcode">,
-): Crumb[] => [
-  clientCrumb(client),
-  {
-    label: addressOf(home),
-    href: linkTo({
-      to: "/office/properties/$propertyId",
-      params: { propertyId: home.id },
-    }),
-  },
-];
 
 function OpenQuote({ quoteId }: { quoteId: string }) {
   return (
@@ -426,7 +414,7 @@ const historyOf = (home: OfficePropertyView): HistoryEvent[] =>
     })),
   ].sort((a, b) => (a.on < b.on ? 1 : -1));
 
-// its story, newest first, beside the rest: each thing opens its page
+// its story, newest first: each thing opens its page
 function History({
   home,
   events,
@@ -434,27 +422,21 @@ function History({
   home: OfficePropertyView;
   events: HistoryEvent[];
 }) {
-  return (
-    <Section title="History">
-      <Card>
-        {events.length === 0 ? (
-          <p className="text-center text-fg-muted">Nothing yet.</p>
-        ) : (
-          <Timeline aria-label={`History of ${addressOf(home)}`}>
-            {events.map((event) => (
-              <TimelineItem
-                key={event.id}
-                icon={event.icon}
-                title={`${event.kind} · ${event.what}`}
-                href={event.href}
-                when={formatDate(event.on)}
-                description={event.status}
-              />
-            ))}
-          </Timeline>
-        )}
-      </Card>
-    </Section>
+  return events.length === 0 ? (
+    <p className="text-center text-fg-muted">Nothing yet.</p>
+  ) : (
+    <Timeline aria-label={`History of ${addressOf(home)}`}>
+      {events.map((event) => (
+        <TimelineItem
+          key={event.id}
+          icon={event.icon}
+          title={`${event.kind} · ${event.what}`}
+          href={event.href}
+          when={formatDate(event.on)}
+          description={event.status}
+        />
+      ))}
+    </Timeline>
   );
 }
 
@@ -499,95 +481,75 @@ function useCorrection<T extends Record<string, unknown>>(
 }
 
 // What the home is, large, then the details that affect the price and how
-// it's got into, across (UX pass, #96). Clients keep what they first gave and
-// ask for a new Quote to change it; the Office corrects it in a dialog, or a
-// Site Visit's findings do (#73). The address is the Property's identity, so
-// it isn't corrected.
-function Details({
+// it's got into (UX pass, #96). Clients keep what they first gave and ask
+// for a new Quote to change it; the Office corrects it (CorrectDetails), or
+// a Site Visit's findings do (#73)
+function Details({ home }: { home: OfficePropertyView }) {
+  const premises = home.kind === "commercial";
+  return (
+    <DetailsCard
+      label={premises ? "Business details" : "Home details"}
+      tile={<IconTile icon={homeIcon(home.kind)} size="lg" />}
+      kicker={premises ? "A business" : "A home"}
+      title={propertySummary(home)}
+    >
+      <Facts>
+        <FloorAreaFact property={home} />
+        <ConditionFact property={home} line="Condition, at the last visit" />
+        <AccessFact
+          property={home}
+          line="How we get in, which the client and cleaners see"
+        />
+        <Fact
+          icon={NotebookPen}
+          label="Office notes"
+          value={
+            <span className="whitespace-pre-line">
+              {home.officeNotes || "None"}
+            </span>
+          }
+          line="Office notes, which only the office sees"
+        />
+      </Facts>
+    </DetailsCard>
+  );
+}
+
+// correcting what it is, in a dialog. The address is the Property's
+// identity, so it isn't corrected
+function CorrectDetails({
   home,
   premisesTypes,
+  ...state
 }: {
   home: OfficePropertyView;
   premisesTypes: PremisesTypeChoice[];
-}) {
-  const premises = home.kind === "commercial";
+} & DialogState) {
   return (
-    <Section
-      title={premises ? "Business details" : "Home details"}
-      actions={
-        <DialogTrigger>
-          <Button variant="text" size="sm">
-            <SquarePen aria-hidden size={16} />
-            Correct
-          </Button>
-          <Dialog
-            title={premises ? "Correct the business" : "Correct the home"}
-            size="lg"
-          >
-            {({ close }) =>
-              home.kind === "commercial" ? (
-                <PremisesDetails
-                  premises={home}
-                  officeNotes={home.officeNotes}
-                  premisesTypes={premisesTypes}
-                  close={close}
-                />
-              ) : (
-                <HomeDetails
-                  home={home}
-                  officeNotes={home.officeNotes}
-                  close={close}
-                />
-              )
-            }
-          </Dialog>
-        </DialogTrigger>
+    <Dialog
+      title={
+        home.kind === "commercial" ? "Correct the business" : "Correct the home"
       }
+      size="lg"
+      {...state}
     >
-      <Card>
-        <div className="flex flex-col gap-6">
-          <div className="flex items-start gap-4">
-            <IconTile icon={homeIcon(home.kind)} size="lg" />
-            <div className="flex min-w-0 flex-col gap-1">
-              <p className="text-sm text-fg-muted">
-                {premises ? "A business" : "A home"}
-              </p>
-              <p className="text-xl font-semibold text-fg">
-                {propertySummary(home)}
-              </p>
-            </div>
-          </div>
-          {home.kind !== "commercial" && home.bedrooms === null && (
-            <Notice tone="warning">{roomsMissing("Correct")}</Notice>
-          )}
-          {/* the columns follow the card's width, not the screen's: it
-              shares the screen with the History */}
-          <div className="@container">
-            <dl className="grid gap-x-6 gap-y-4 @md:grid-cols-2 @3xl:grid-cols-4">
-              <FloorAreaFact property={home} />
-              <ConditionFact
-                property={home}
-                line="Condition, at the last visit"
-              />
-              <AccessFact
-                property={home}
-                line="How we get in, which the client and cleaners see"
-              />
-              <Fact
-                icon={NotebookPen}
-                label="Office notes"
-                value={
-                  <span className="whitespace-pre-line">
-                    {home.officeNotes || "None"}
-                  </span>
-                }
-                line="Office notes, which only the office sees"
-              />
-            </dl>
-          </div>
-        </div>
-      </Card>
-    </Section>
+      {({ close }) =>
+        home.kind === "commercial" ? (
+          <PremisesDetails
+            premises={home}
+            officeNotes={home.officeNotes}
+            premisesTypes={premisesTypes}
+            close={close}
+          />
+        ) : (
+          <HomeDetails
+            home={home}
+            officeNotes={home.officeNotes}
+            close={close}
+          />
+        )
+      }
+    </Dialog>
   );
 }
 

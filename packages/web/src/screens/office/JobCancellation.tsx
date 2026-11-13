@@ -5,7 +5,6 @@ import {
   cancelCostForOffice,
   type CancellationTerms,
   type CancelledBy,
-  type JobPayment,
   type OfficeJob,
   formats,
   messages,
@@ -132,39 +131,6 @@ export function CancelJob({
         </>
       )}
     </Dialog>
-  );
-}
-
-// the money on a Job that didn't happen: its fee, if any, and what's been
-// paid, billed weekly or refunded. A failed charge is a Notice above, with its retry.
-export function FeeMoney({
-  feeCents,
-  payment,
-}: {
-  feeCents: number;
-  payment: JobPayment;
-}) {
-  return (
-    <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-      <dt className="font-semibold">Fee</dt>
-      <dd>{feeCents > 0 ? formatMoney(feeCents) : "None"}</dd>
-      <dt className="font-semibold">Paid</dt>
-      <dd>{formatMoney(payment.paidCents)}</dd>
-      {payment.billedCents !== 0 && (
-        <>
-          <dt className="font-semibold">On weekly bills</dt>
-          <dd>{formatMoney(payment.billedCents)}</dd>
-        </>
-      )}
-      {payment.owedCents !== 0 && (
-        <>
-          <dt className="font-semibold">
-            {payment.owedCents > 0 ? "Still owed" : "Still to refund"}
-          </dt>
-          <dd>{formatMoney(Math.abs(payment.owedCents))}</dd>
-        </>
-      )}
-    </dl>
   );
 }
 

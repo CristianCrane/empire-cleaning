@@ -11,14 +11,14 @@ import {
 } from "lucide-react";
 import type { BillSummary, BillView } from "@empire-cleaning/models";
 import {
-  Button,
-  Card,
   IconTile,
   Link,
-  Section,
   StatusBadge,
   Logo,
   Fact,
+  DetailsCard,
+  Facts,
+  type PageAction,
 } from "@empire-cleaning/ui";
 import type { AppHref } from "../links.ts";
 import { type Said, saidWith, useSaid } from "./words.ts";
@@ -228,10 +228,10 @@ const standingFact = (t: T, bill: BillView, forClient: boolean) => {
 };
 
 /**
- * A Bill in full, read like an invoice (UX pass, #96): what it comes to,
- * large, and where that stands; its week, when it was made, how it's paid
- * and how it was paid or why it was voided, across; then each line with its
- * amount, the tax in it and the total, under a divider. A line for a Job
+ * A Bill in full, its details card, read like an invoice (UX pass, #96):
+ * what it comes to, large, and where that stands; its week, when it was
+ * made, how it's paid and how it was paid or why it was voided; then each
+ * line with its amount, the tax in it and the total, under a divider. A line for a Job
  * links to it. Prints as it reads, under BillLetterhead.
  */
 export function BillDetail({
@@ -250,114 +250,100 @@ export function BillDetail({
   const row = "flex items-start justify-between gap-6";
 
   return (
-    <Section title={w.details}>
-      <Card>
-        <div className="flex flex-col gap-6">
-          <div className="flex items-start gap-4">
-            <IconTile icon={FileText} size="lg" />
-            <div className="flex min-w-0 flex-col gap-1">
-              <p className="text-sm text-fg-muted">
-                {taxIncludedOf(credit ? w.credit : total)}
-              </p>
-              <p
-                className={`text-3xl font-semibold tabular-nums ${bill.status === "void" ? "text-fg-muted line-through" : "text-fg"}`}
-              >
-                {formatMoney(Math.abs(bill.totalCents))}
-              </p>
-              <p className="text-fg-muted">{nowLine(t, bill, forClient)}</p>
-            </div>
-          </div>
-          <div className="@container">
-            <dl className="grid gap-x-6 gap-y-4 @md:grid-cols-2 @3xl:grid-cols-4">
-              <Fact
-                icon={CalendarRange}
-                label={w.week}
-                value={w.weekRange(
-                  formatDay(bill.weekStart),
-                  formatDay(bill.weekEnd),
+    <DetailsCard
+      label={w.details}
+      tile={<IconTile icon={FileText} size="lg" />}
+      kicker={taxIncludedOf(credit ? w.credit : total)}
+      title={
+        <span
+          className={`tabular-nums ${bill.status === "void" ? "text-fg-muted line-through" : ""}`}
+        >
+          {formatMoney(Math.abs(bill.totalCents))}
+        </span>
+      }
+      line={nowLine(t, bill, forClient)}
+    >
+      <Facts>
+        <Fact
+          icon={CalendarRange}
+          label={w.week}
+          value={w.weekRange(
+            formatDay(bill.weekStart),
+            formatDay(bill.weekEnd),
+          )}
+          line={w.covers}
+        />
+        <Fact
+          icon={CalendarDays}
+          label={w.made}
+          value={formatDate(bill.madeAt)}
+        />
+        <Fact
+          icon={CreditCard}
+          label={w.howPaid}
+          value={bill.payment === "automatic" ? w.automatically : w.onItsPage}
+          line={
+            bill.payment === "automatic"
+              ? forClient
+                ? w.chargedToYour
+                : "Charged to their card"
+              : w.cardOrBank
+          }
+        />
+        {standing && (
+          <Fact
+            icon={standing.icon}
+            label={standing.label}
+            value={
+              <span className="[overflow-wrap:anywhere]">{standing.value}</span>
+            }
+            line={standing.line}
+          />
+        )}
+      </Facts>
+      <div className="flex flex-col gap-3 border-t border-border pt-4">
+        <p className="font-semibold text-fg">
+          {w.whatFor}{" "}
+          <span className="text-sm font-normal text-fg-muted">
+            {w.pricesTax}
+          </span>
+        </p>
+        <div className="flex flex-col">
+          {bill.lines.map((line, i) => (
+            <div
+              key={i}
+              className={`${row} border-b border-border py-3 first:pt-0`}
+            >
+              <span className="min-w-0 [overflow-wrap:anywhere]">
+                {line.jobId ? (
+                  <Link
+                    href={jobHref(line.jobId)}
+                    className="font-normal text-fg no-underline hover:underline print:no-underline"
+                  >
+                    {line.label}
+                  </Link>
+                ) : (
+                  line.label
                 )}
-                line={w.covers}
-              />
-              <Fact
-                icon={CalendarDays}
-                label={w.made}
-                value={formatDate(bill.madeAt)}
-              />
-              <Fact
-                icon={CreditCard}
-                label={w.howPaid}
-                value={
-                  bill.payment === "automatic" ? w.automatically : w.onItsPage
-                }
-                line={
-                  bill.payment === "automatic"
-                    ? forClient
-                      ? w.chargedToYour
-                      : "Charged to their card"
-                    : w.cardOrBank
-                }
-              />
-              {standing && (
-                <Fact
-                  icon={standing.icon}
-                  label={standing.label}
-                  value={
-                    <span className="[overflow-wrap:anywhere]">
-                      {standing.value}
-                    </span>
-                  }
-                  line={standing.line}
-                />
-              )}
-            </dl>
-          </div>
-          <div className="flex flex-col gap-3 border-t border-border pt-6">
-            <p className="font-semibold text-fg">
-              {w.whatFor}{" "}
-              <span className="text-sm font-normal text-fg-muted">
-                {w.pricesTax}
               </span>
-            </p>
-            <div className="flex flex-col">
-              {bill.lines.map((line, i) => (
-                <div
-                  key={i}
-                  className={`${row} border-b border-border py-3 first:pt-0`}
-                >
-                  <span className="min-w-0 [overflow-wrap:anywhere]">
-                    {line.jobId ? (
-                      <Link
-                        href={jobHref(line.jobId)}
-                        className="font-normal text-fg no-underline hover:underline print:no-underline"
-                      >
-                        {line.label}
-                      </Link>
-                    ) : (
-                      line.label
-                    )}
-                  </span>
-                  <span className="tabular-nums">
-                    {formatMoney(line.amountCents)}
-                  </span>
-                </div>
-              ))}
-              <div className={`${row} pt-3 text-fg-muted`}>
-                <span>{w.taxIncluded}</span>
-                <span className="tabular-nums">
-                  {formatMoney(bill.taxCents)}
-                </span>
-              </div>
-              <div className={`${row} pt-1 font-semibold`}>
-                <span>{credit ? w.credit : total}</span>
-                <span className="tabular-nums">
-                  {formatMoney(Math.abs(bill.totalCents))}
-                </span>
-              </div>
+              <span className="tabular-nums">
+                {formatMoney(line.amountCents)}
+              </span>
             </div>
+          ))}
+          <div className={`${row} pt-3 text-fg-muted`}>
+            <span>{w.taxIncluded}</span>
+            <span className="tabular-nums">{formatMoney(bill.taxCents)}</span>
+          </div>
+          <div className={`${row} pt-1 font-semibold`}>
+            <span>{credit ? w.credit : total}</span>
+            <span className="tabular-nums">
+              {formatMoney(Math.abs(bill.totalCents))}
+            </span>
           </div>
         </div>
-      </Card>
-    </Section>
+      </div>
+    </DetailsCard>
   );
 }
 
@@ -371,12 +357,12 @@ export function BillLetterhead() {
   );
 }
 
-// prints the page: the Bill alone, without the app around it
-export function PrintBill() {
-  return (
-    <Button variant="text" size="sm" onPress={() => window.print()}>
-      <Printer aria-hidden size={16} />
-      {useSaid(words).w.print}
-    </Button>
-  );
+// prints the page, a page action: the Bill alone, without the app around
+// it
+export function usePrintBill(): PageAction {
+  return {
+    label: useSaid(words).w.print,
+    icon: Printer,
+    onAction: () => window.print(),
+  };
 }

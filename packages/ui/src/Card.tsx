@@ -11,6 +11,8 @@ export type CardProps = {
   actions?: ReactNode;
   children?: ReactNode;
   className?: string;
+  // names it, untitled, as a region: what a details card is about
+  "aria-label"?: string;
 };
 
 export function Card({
@@ -20,12 +22,14 @@ export function Card({
   actions,
   children,
   className,
+  "aria-label": label,
 }: CardProps) {
   const headingId = useId();
 
   return (
     <section
       aria-labelledby={title ? headingId : undefined}
+      aria-label={label}
       className={twMerge(
         "flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 text-fg shadow-raised sm:p-5 print:break-inside-avoid print:shadow-none",
         className,

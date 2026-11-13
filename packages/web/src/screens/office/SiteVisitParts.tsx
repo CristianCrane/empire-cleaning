@@ -1,11 +1,6 @@
 import { formats } from "@empire-cleaning/models";
 import { useState } from "react";
-import {
-  CalendarClock,
-  CalendarPlus,
-  CalendarX,
-  ClipboardCheck,
-} from "lucide-react";
+import { CalendarPlus, ClipboardCheck } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   parseDate,
@@ -38,6 +33,7 @@ import {
   TextField,
   TimeField,
   type StatusTone,
+  type DialogState,
 } from "@empire-cleaning/ui";
 import { getJson, postJson } from "../../api.ts";
 import { useLoaded } from "../load.ts";
@@ -233,7 +229,47 @@ function BookingForm({
   );
 }
 
-// books a Site Visit for a Quote, at its Property, then opens it
+export const BOOK_A_SITE_VISIT = "Book a site visit";
+
+// books a Site Visit for a Quote, at its Property, then opens it: a page
+// action's dialog (the Quote's), or BookSiteVisit's
+export function BookSiteVisitDialog({
+  quoteId,
+  ...state
+}: { quoteId: string } & DialogState) {
+  const navigate = useNavigate();
+  const action = useAction("The site visit wasn't booked. Please try again.");
+  return (
+    <Dialog title={BOOK_A_SITE_VISIT} size="wide" {...state}>
+      {({ close }) => (
+        <BookingForm
+          submitLabel="Book site visit"
+          action={action}
+          close={close}
+          onSubmit={async (booking) => {
+            let booked: OfficeSiteVisit | undefined;
+            await action.run(async () => {
+              booked = await postJson<OfficeSiteVisit>("/api/site-visits", {
+                ...booking,
+                quoteId,
+              });
+            }, "Site visit booked");
+            if (booked) {
+              close();
+              await navigate({
+                to: "/office/site-visits/$visitId",
+                params: { visitId: booked.id },
+              });
+            }
+          }}
+        />
+      )}
+    </Dialog>
+  );
+}
+
+// the same, from its own button: on a part (a home's Site visit) or in a
+// Notice
 export function BookSiteVisit({
   quoteId,
   primary = false,
@@ -241,120 +277,94 @@ export function BookSiteVisit({
   quoteId: string;
   primary?: boolean;
 }) {
-  const navigate = useNavigate();
-  const action = useAction("The site visit wasn't booked. Please try again.");
+  const [isOpen, setOpen] = useState(false);
   return (
-    <DialogTrigger>
+    <>
       <Button
         variant={primary ? "primary" : "text"}
         size={primary ? "md" : "sm"}
+        onPress={() => setOpen(true)}
       >
         <CalendarPlus aria-hidden size={primary ? 18 : 16} />
-        Book a site visit
+        {BOOK_A_SITE_VISIT}
       </Button>
-      <Dialog title="Book a site visit" size="wide">
-        {({ close }) => (
-          <BookingForm
-            submitLabel="Book site visit"
-            action={action}
-            close={close}
-            onSubmit={async (booking) => {
-              let booked: OfficeSiteVisit | undefined;
-              await action.run(async () => {
-                booked = await postJson<OfficeSiteVisit>("/api/site-visits", {
-                  ...booking,
-                  quoteId,
-                });
-              }, "Site visit booked");
-              if (booked) {
-                close();
-                await navigate({
-                  to: "/office/site-visits/$visitId",
-                  params: { visitId: booked.id },
-                });
-              }
-            }}
-          />
-        )}
-      </Dialog>
-    </DialogTrigger>
+      <BookSiteVisitDialog
+        quoteId={quoteId}
+        isOpen={isOpen}
+        onOpenChange={setOpen}
+      />
+    </>
   );
 }
 
-export function MoveSiteVisit({ visit }: { visit: OfficeSiteVisit }) {
+export function MoveSiteVisit({
+  visit,
+  ...state
+}: { visit: OfficeSiteVisit } & DialogState) {
   const action = useAction("The site visit wasn't changed. Please try again.");
   return (
-    <DialogTrigger>
-      <Button variant="text" size="sm">
-        <CalendarClock aria-hidden size={16} />
-        Move or change
-      </Button>
-      <Dialog title="Move this site visit" size="wide">
-        {({ close }) => (
-          <BookingForm
-            initial={visit}
-            visitId={visit.id}
-            submitLabel="Save and tell the client"
-            action={action}
-            close={close}
-            onSubmit={async (booking) => {
-              if (
-                await action.run(
-                  () => postJson(`/api/site-visits/${visit.id}/move`, booking),
-                  "Site visit changed",
-                )
+    <Dialog title="Move this site visit" size="wide" {...state}>
+      {({ close }) => (
+        <BookingForm
+          initial={visit}
+          visitId={visit.id}
+          submitLabel="Save and tell the client"
+          action={action}
+          close={close}
+          onSubmit={async (booking) => {
+            if (
+              await action.run(
+                () => postJson(`/api/site-visits/${visit.id}/move`, booking),
+                "Site visit changed",
               )
-                close();
-            }}
-          />
-        )}
-      </Dialog>
-    </DialogTrigger>
+            )
+              close();
+          }}
+        />
+      )}
+    </Dialog>
   );
 }
 
-export function CancelSiteVisit({ visit }: { visit: OfficeSiteVisit }) {
+export function CancelSiteVisit({
+  visit,
+  ...state
+}: { visit: OfficeSiteVisit } & DialogState) {
   const action = useAction(
     "The site visit wasn't cancelled. Please try again.",
   );
   return (
-    <DialogTrigger>
-      <Button variant="danger-text" size="sm">
-        <CalendarX aria-hidden size={16} />
-        Cancel visit
-      </Button>
-      <Dialog title="Cancel this site visit?" role="alertdialog">
-        {({ close }) => (
-          <>
-            <p>
-              We'll email the client that it's cancelled. Book another when
-              they're ready.
-            </p>
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <Button variant="quiet" onPress={close}>
-                Keep it
-              </Button>
-              <Button
-                variant="danger"
-                isPending={action.isPending}
-                onPress={async () => {
-                  if (
-                    await action.run(
-                      () => postJson(`/api/site-visits/${visit.id}/cancel`),
-                      "Site visit cancelled",
-                    )
+    <Dialog title="Cancel this site visit?" role="alertdialog" {...state}>
+      {({ close }) => (
+        <>
+          <p>
+            We'll email the client that it's cancelled. Book another when
+            they're ready.
+          </p>
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              Keep it
+            </Button>
+            <Button
+              variant="danger"
+              isPending={action.isPending}
+              onPress={async () => {
+                if (
+                  await action.run(
+                    () => postJson(`/api/site-visits/${visit.id}/cancel`),
+                    "Site visit cancelled",
                   )
-                    close();
-                }}
-              >
-                Cancel site visit
-              </Button>
-            </Actions>
-          </>
-        )}
-      </Dialog>
-    </DialogTrigger>
+                )
+                  close();
+              }}
+            >
+              Cancel site visit
+            </Button>
+          </Actions>
+        </>
+      )}
+    </Dialog>
   );
 }
 

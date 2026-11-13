@@ -675,6 +675,7 @@ function AllAtOnceInTwoColumns() {
         ]}
         details={
           <DetailsCard
+            label="Details"
             tile={<DateTile date="2026-10-26" />}
             kicker="Deep Clean"
             title="Mon, Oct 26, 9:00 AM"
@@ -1184,6 +1185,7 @@ function DetailsPage() {
           ]}
           details={
             <DetailsCard
+              label="Details"
               tile={<IconTile icon={CalendarClock} size="lg" />}
               kicker="One-off clean"
               title="Mon, Jan 12, 9:00 AM"

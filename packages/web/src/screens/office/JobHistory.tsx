@@ -17,7 +17,7 @@ import type {
   OfficeJob,
   RescheduleRequestStatus,
 } from "@empire-cleaning/models";
-import { Section, Timeline, TimelineItem } from "@empire-cleaning/ui";
+import { Timeline, TimelineItem } from "@empire-cleaning/ui";
 import { wasSkipped, screenWords } from "../format.ts";
 
 const { assignmentStateLabel, cancelledLabel, jobStatusLabel } = screenWords.en;
@@ -152,26 +152,22 @@ const momentsOf = (job: OfficeJob): Moment[] => {
   return moments.sort((a, b) => b.at.localeCompare(a.at));
 };
 
-// the Job's story, newest first, as a Timeline
+// the Job's story, newest first, as a Timeline, for its Record's History
 export function JobHistory({ job }: { job: OfficeJob }) {
   const moments = momentsOf(job);
-  return (
-    <Section title="History">
-      {moments.length === 0 ? (
-        <p className="text-sm text-fg-muted">Nothing has happened yet.</p>
-      ) : (
-        <Timeline aria-label="History, newest first">
-          {moments.map((m) => (
-            <TimelineItem
-              key={m.key}
-              icon={m.icon}
-              title={m.title}
-              when={formatDate(m.at)}
-              description={m.description}
-            />
-          ))}
-        </Timeline>
-      )}
-    </Section>
+  return moments.length === 0 ? (
+    <p className="text-sm text-fg-muted">Nothing has happened yet.</p>
+  ) : (
+    <Timeline aria-label="History, newest first">
+      {moments.map((m) => (
+        <TimelineItem
+          key={m.key}
+          icon={m.icon}
+          title={m.title}
+          when={formatDate(m.at)}
+          description={m.description}
+        />
+      ))}
+    </Timeline>
   );
 }

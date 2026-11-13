@@ -48,6 +48,7 @@ const history = (
 
 const details = (
   <DetailsCard
+    label="Details"
     tile={<DateTile date="2026-11-12" />}
     kicker="Deep Clean"
     title="Thu, Nov 12, 9:00 AM"
@@ -132,6 +133,7 @@ export const OneAction: Story = {
     actions: [{ label: "Print", icon: Printer, onAction: () => {} }],
     details: (
       <DetailsCard
+        label="Details"
         tile={<IconTile icon={Banknote} size="lg" />}
         kicker="To pay by Nov 14"
         title="$1,240.00"

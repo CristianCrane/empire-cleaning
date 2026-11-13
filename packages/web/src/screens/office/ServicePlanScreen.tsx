@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import { CalendarX } from "lucide-react";
+import { CalendarX, Repeat } from "lucide-react";
 import {
   parseDate,
   parseTime,
@@ -12,16 +12,12 @@ import {
   type UnplacedVisit,
   weekdayOf,
   formats,
-  cleansPaidForOffice,
 } from "@empire-cleaning/models";
 import {
   Actions,
-  Breadcrumbs,
   Button,
-  Card,
   DatePicker,
   Dialog,
-  Heading,
   IconTile,
   Link,
   List,
@@ -29,61 +25,99 @@ import {
   Notice,
   Section,
   TimeField,
+  RecordPage,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { crewOf, dayOfInstant, timeOfDay, timeOfField } from "../format.ts";
 import {
-  addressOf,
-  clientName,
-  crewOf,
-  dayOfInstant,
-  timeOfDay,
-  timeOfField,
-} from "../format.ts";
-import { EndPlan, OnHold, PlanFacts, PlanStatusBadge } from "../PlanParts.tsx";
+  EndPlan,
+  PlanCard,
+  PlanStatusBadge,
+  useEndPlanAction,
+  useOnHold,
+} from "../PlanParts.tsx";
 import { useAction } from "../action.ts";
 import { JobBadge } from "../JobBadges.tsx";
-import { homeCrumbs } from "./PropertyScreen.tsx";
+import { homeTrail } from "./trails.ts";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
-import { OfferServicePlan } from "./StartDraft.tsx";
+import { useStartDraft } from "./StartDraft.tsx";
 
 const { formatDateTime, formatDay } = formats.en;
 
-// an Ended Service Plan, on a page of its own: a current one is on its
-// home's page
+// where the Office opens what holds a plan On Hold
+export const officePlanLinks = {
+  forClient: false,
+  jobHref: (jobId: string) =>
+    linkTo({ to: "/office/jobs/$jobId", params: { jobId } }),
+  billHref: (billId: string) =>
+    linkTo({ to: "/office/bills/$billId", params: { billId } }),
+};
+
+const endPath = (plan: OfficeServicePlan) =>
+  `/api/service-plans/${plan.id}/end`;
+
+// A Service Plan on a page of its own, a Record (docs/ux.md): an Ended one,
+// or one opened from Today. A current one is also on its home's page
 export function ServicePlanScreen() {
   const plan = useLoaderData({ from: "/office/service-plans/$planId" });
+  const { start } = useStartDraft();
+  const endPlan = useEndPlanAction(plan, {
+    forClient: false,
+    endPath: endPath(plan),
+  });
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <Breadcrumbs
-          trail={[
-            ...homeCrumbs(plan.client, plan.property),
-            { label: "Cleaning plan" },
-          ]}
-        />
-        <Heading level={1}>Cleaning plan</Heading>
-        <p className="text-fg-muted">
-          {clientName(plan.client)} · {addressOf(plan.property)}
-        </p>
-      </div>
-      <PlanDetails plan={plan} />
+    <RecordPage
+      trail={[
+        ...homeTrail(plan.client, plan.property),
+        { label: "Cleaning plan" },
+      ]}
+      title="Cleaning plan"
+      status={<PlanStatusBadge status={plan.status} />}
+      actions={[
+        plan.status !== "ended" && {
+          label: "Change terms",
+          icon: Repeat,
+          onAction: () =>
+            void start({ propertyId: plan.property.id, kind: "service_plan" }),
+        },
+        endPlan,
+      ]}
+      alerts={useOnHold(plan, officePlanLinks)}
+      details={
+        <PlanCard plan={plan} forClient={false} label="Plan details">
+          <QuoteLink plan={plan} />
+        </PlanCard>
+      }
+    >
+      {plan.unplaced.length > 0 && <WaitingVisits plan={plan} />}
       <PlanJobs plan={plan} />
-    </div>
+    </RecordPage>
   );
 }
 
-// A Service Plan for the Office, as its Client reads it (UX pass, #96): why
-// it's On Hold, if it is; the dates it came round with no room, to book at
-// another time agreed with the Client or skip; then when, large, and its
-// facts across, with the way to change its terms; and Ending it for the
-// Client. Its Jobs are in its home's History
+const QuoteLink = ({ plan }: { plan: OfficeServicePlan }) => (
+  <p className="text-sm">
+    <Link
+      href={linkTo({
+        to: "/office/quotes/$quoteId",
+        params: { quoteId: plan.quoteId },
+      })}
+    >
+      Its cleaning plan quote
+    </Link>
+  </p>
+);
+
+// A home's Service Plan, a part of its page (UX pass, #96): the dates it
+// came round with no room, to book at another time agreed with the Client
+// or skip; then when, large, and its facts, with the way to change its
+// terms, and End plan on its title line (WEB-J). Why it's On Hold is the
+// page's alerts (useOnHold)
 export function PlanDetails({
   plan,
-  changeTerms = plan.status !== "ended" && (
-    <OfferServicePlan propertyId={plan.property.id} label="Change terms" />
-  ),
+  changeTerms,
 }: {
   plan: OfficeServicePlan;
   // how its terms change: a new Service Plan Quote
@@ -91,45 +125,25 @@ export function PlanDetails({
 }) {
   return (
     <>
-      <OnHold
-        plan={plan}
-        forClient={false}
-        jobHref={(jobId) =>
-          linkTo({ to: "/office/jobs/$jobId", params: { jobId } })
-        }
-        billHref={(billId) =>
-          linkTo({ to: "/office/bills/$billId", params: { billId } })
-        }
-      />
-
       {plan.unplaced.length > 0 && <WaitingVisits plan={plan} />}
-
-      <Section title="Cleaning plan" actions={changeTerms}>
-        <Card>
-          <PlanFacts
-            plan={plan}
-            forClient={false}
-            badge={<PlanStatusBadge status={plan.status} />}
-          />
-          <p className="border-t border-border pt-4 text-sm text-fg-muted">
-            {cleansPaidForOffice(plan.weeklyBill ?? "per_clean")}{" "}
-            <Link
-              href={linkTo({
-                to: "/office/quotes/$quoteId",
-                params: { quoteId: plan.quoteId },
-              })}
-            >
-              Its cleaning plan quote
-            </Link>
-          </p>
-        </Card>
+      <Section
+        title="Cleaning plan"
+        actions={
+          <>
+            {changeTerms}
+            <EndPlan plan={plan} endPath={endPath(plan)} />
+          </>
+        }
+      >
+        <PlanCard
+          plan={plan}
+          forClient={false}
+          label="Plan details"
+          badge={<PlanStatusBadge status={plan.status} />}
+        >
+          <QuoteLink plan={plan} />
+        </PlanCard>
       </Section>
-
-      <EndPlan
-        plan={plan}
-        forClient={false}
-        endPath={`/api/service-plans/${plan.id}/end`}
-      />
     </>
   );
 }
