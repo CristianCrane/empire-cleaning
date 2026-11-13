@@ -351,9 +351,9 @@ stays as it is (#336).
    before and after, from `pnpm pr:shots` (`packages/web/README.md`,
    Testing).
 5. **Record it**: a row in the decisions log below; a new rule above, and a
-   pattern in Storybook, if it carries over to other screens; and the
-   screen's entry in `docs/screens.md`, for a new route or a change to its
-   parts or their order.
+   pattern in Storybook, if it carries over to other screens; and in
+   `docs/screens.md`, a new route's row in the Route index and its entry, or
+   the entry of a screen whose parts or their order change.
 
 A change that only applies these rules needs no prototype; it still gets a
 row in the log.

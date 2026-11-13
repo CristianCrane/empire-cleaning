@@ -32,7 +32,7 @@ To add a tour, add it to its area's file and walk to it in `e2e/tours.spec.ts`. 
 
 ## Knowing where you are
 
-Pages more than one step from their area's navigation start with `Breadcrumbs`, e.g. Requests › Casey Client. The navigation marks the section a page belongs to as current (`alsoCurrentFor` in `src/screens/AreaLayout.tsx`), so a Client reached from Requests keeps Requests highlighted.
+Pages more than one step from their area's navigation start with `Breadcrumbs`, e.g. Clients › Casey Client (each screen's trail is in `docs/screens.md`). The navigation marks the section a page belongs to as current (`alsoCurrentFor` in `src/screens/AreaLayout.tsx`), so a Bill reached from a Client keeps Clients highlighted.
 
 ## Links
 
