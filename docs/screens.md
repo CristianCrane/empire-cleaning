@@ -400,8 +400,8 @@ Keeps: the Record (ux-portal). Renders through `RecordPage` (#432).
 - Alerts: Unpaid (pay), price change to review, a move asked for (withdraw)
   or turned down.
 - Body: Details (`DetailsCard`: the time large, the address, icon facts, and
-  while booked, until when it's free to move or cancel); cancelled, no
-  access or the receipt.
+  while it's still free, until when it's free to move or cancel);
+  cancelled, no access or the receipt.
 
 #### Client portal > Your quote
 
