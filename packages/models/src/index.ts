@@ -1448,8 +1448,8 @@ export type OfficeJob = ScheduledJob & {
   // active Cleaners who could be Offered it, with their Available Hours on
   // the Job's day
   cleaners: { id: string; name: string; hours: number }[];
-  // whether Office Staff can offer its Property a Service Plan from here:
-  // it's Completed, and so is the Property's First Clean
+  // whether it's time to offer its Property a Service Plan from here: it's
+  // the First Clean, paid, and a plan is due (servicePlansDue, as Today's)
   canOfferServicePlan: boolean;
 };
 

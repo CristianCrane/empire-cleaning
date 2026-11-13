@@ -171,6 +171,20 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
   };
 };
 
+// whether all a Job's money is in: it owes nothing, isn't Unpaid, and any
+// Bill that billed it (billed weekly) is paid. Till then, a plan offer for
+// its home waits (WEB-5)
+export const paidUp = async (job: Job, tx: Tx | typeof db = db) => {
+  if (job.unpaidSince) return false;
+  if ((await ledgerOf(job, tx)).owedCents > 0) return false;
+  const holding = await tx
+    .select({ status: bills.status })
+    .from(bills)
+    .innerJoin(billLines, eq(billLines.billId, bills.id))
+    .where(and(eq(billLines.jobId, job.id), ne(bills.status, "void")));
+  return holding.every((bill) => bill.status === "paid");
+};
+
 // where a Job's money stands, for the Office and its Client
 export const paymentOf = async (job: Job): Promise<JobPayment> => {
   const [ledger, [owner]] = await Promise.all([

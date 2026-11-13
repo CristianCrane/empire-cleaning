@@ -33,7 +33,7 @@ import { hoursOnSiteOf, onSchedule } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { jobView, scheduleOn, scheduledJobs } from "../jobs/schedule.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
-import { firstCleanCompleted } from "../quotes/quote-state.ts";
+import { servicePlansDue } from "../quotes/quote-state.ts";
 import {
   rescheduleRequestOf,
   rescheduleTermsOf,
@@ -125,7 +125,10 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     cancelTermsOf(row),
     rescheduleTermsOf(row),
     rescheduleRequestOf(row),
-    row.status === "completed" && firstCleanCompleted(row.propertyId),
+    row.status === "completed" &&
+      servicePlansDue([row.propertyId]).then((due) =>
+        due.some((d) => d.jobId === row.id),
+      ),
     planOfJob(jobId),
     openToOf(row),
     weeklyBillOfJob(row, db),

@@ -36,6 +36,7 @@ import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { clients } from "../clients/clients.schema.ts";
+import { paidUp } from "../completion/balance.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { addOnNamesIn, currentPriceList } from "../price-list/price-list.ts";
 import { properties } from "../properties/properties.schema.ts";
@@ -289,12 +290,14 @@ export const needSiteVisit = (all: Service[], keys: string[]) =>
 
 /**
  * The First Cleans whose Property should now be offered a Service Plan,
- * earliest Completed first: the Quote that booked the First Clean asked for
- * regular visits, and no Service Plan Quote there is open, Accepted or
- * Declined (one that Expired or was Turned Down doesn't count).
+ * earliest Completed first, at `propertyIds` or anywhere: the Quote that
+ * booked the First Clean asked for regular visits, it's paid (paidUp), and
+ * no Service Plan Quote there is open, Accepted or Declined (one that
+ * Expired or was Turned Down doesn't count). The one rule for Today's row
+ * and the First Clean's Notice.
  */
-export const servicePlansDue = async () => {
-  const firstCleans = await firstCleansOf();
+export const servicePlansDue = async (propertyIds?: string[]) => {
+  const firstCleans = await firstCleansOf(propertyIds);
   if (firstCleans.size === 0) return [];
   const [wanting, offered] = await Promise.all([
     db
@@ -329,11 +332,13 @@ export const servicePlansDue = async () => {
   const answered = new Set(
     offered.filter((q) => statusOf(q) !== "expired").map((q) => q.propertyId),
   );
-  return [...firstCleans.entries()]
-    .filter(
-      ([propertyId, { quoteId }]) =>
-        wanted.has(quoteId) && !answered.has(propertyId),
-    )
+  const due = [...firstCleans.entries()].filter(
+    ([propertyId, { quoteId }]) =>
+      wanted.has(quoteId) && !answered.has(propertyId),
+  );
+  const paid = await Promise.all(due.map(([, { job }]) => paidUp(job)));
+  return due
+    .filter((_, i) => paid[i])
     .map(([, { job }]) => ({ jobId: job.id, since: job.completedAt! }));
 };
 
