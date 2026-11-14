@@ -4,8 +4,11 @@ import {
   createStaff,
   expect,
   linkIn,
+  payAndBook,
+  payThisBill,
   quoteSent,
   requestQuoteAsGuest,
+  saveACard,
   showInMenu,
   signUp,
   signedInAs,
@@ -101,10 +104,7 @@ const onTheQuote = async (
   await client.goto(
     await linkIn(casey.email, "Your quote from Empire Cleaning"),
   );
-  return {
-    client,
-    accept: client.getByRole("region", { name: "Pay and book" }),
-  };
+  return { client, ...payAndBook(client) };
 };
 
 const booked = "You're booked: a Deep Clean on Mon, Jan 12, 9:00 AM";
@@ -113,9 +113,9 @@ test("accepting a Quote with a card takes the Deposit and saves the card", async
   page,
   browser,
 }) => {
-  const { client, accept } = await onTheQuote(page, browser);
-  await enterCard(accept, CARD.visa);
-  await accept.getByRole("button", { name: /^Accept and pay \$/ }).click();
+  const { client, form, accept } = await onTheQuote(page, browser);
+  await enterCard(form, CARD.visa);
+  await accept.click();
   await expect(client.getByText(booked)).toBeVisible();
 
   await client.goto("/portal/payment-method");
@@ -132,9 +132,9 @@ test("a card whose bank asks for 3D Secure is booked once it's approved", async 
   page,
   browser,
 }) => {
-  const { client, accept } = await onTheQuote(page, browser);
-  await enterCard(accept, CARD.approval);
-  await accept.getByRole("button", { name: /^Accept and pay \$/ }).click();
+  const { client, form, accept } = await onTheQuote(page, browser);
+  await enterCard(form, CARD.approval);
+  await accept.click();
   await approveIn3DSecure(client, "Complete");
   await expect(client.getByText(booked)).toBeVisible();
 });
@@ -143,13 +143,13 @@ test("a 3D Secure check that fails books nothing, and says so", async ({
   page,
   browser,
 }) => {
-  const { client, accept } = await onTheQuote(page, browser);
-  await enterCard(accept, CARD.approvalFails);
-  await accept.getByRole("button", { name: /^Accept and pay \$/ }).click();
+  const { client, form, accept } = await onTheQuote(page, browser);
+  await enterCard(form, CARD.approvalFails);
+  await accept.click();
   await approveIn3DSecure(client, "Fail");
   // Stripe's own words for it, which the form shows as they come
   await expect(
-    accept.getByText(/^We are unable to authenticate your payment method\./),
+    form.getByText(/^We are unable to authenticate your payment method\./),
   ).toBeVisible();
   await expect(client.getByText(booked)).toBeHidden();
 });
@@ -158,11 +158,11 @@ test("a declined card books nothing and takes nothing", async ({
   page,
   browser,
 }) => {
-  const { client, accept } = await onTheQuote(page, browser);
-  await enterCard(accept, CARD.declined);
-  await accept.getByRole("button", { name: /^Accept and pay \$/ }).click();
+  const { client, form, accept } = await onTheQuote(page, browser);
+  await enterCard(form, CARD.declined);
+  await accept.click();
   await expect(
-    accept.getByText("Your card didn't go through, so nothing was booked"),
+    form.getByText("Your card didn't go through, so nothing was booked"),
   ).toBeVisible();
 
   await client.goto("/portal/payments");
@@ -173,9 +173,9 @@ test("the Client saves a card as their Payment Method", async ({ page }) => {
   await requestQuoteAsGuest(casey);
   await signedInAs(page, casey.email);
   await page.goto("/portal/payment-method");
-  const add = page.getByRole("region", { name: "Add a card" });
-  await enterCard(add, CARD.visa);
-  await add.getByRole("button", { name: "Save card" }).click();
+  const { part, save } = saveACard(page);
+  await enterCard(part, CARD.visa);
+  await save.click();
   await expect(page.getByText(/^Your Visa ending 4242 is saved/)).toBeVisible();
 });
 
@@ -188,7 +188,7 @@ test("the card form's own words turn Spanish when the Client switches language",
   await requestQuoteAsGuest(casey);
   await signedInAs(page, casey.email);
   await page.goto("/portal/payment-method");
-  const card = cardFrame(page.getByRole("region", { name: "Add a card" }));
+  const card = cardFrame(saveACard(page).part);
   await expect(
     card.getByText(/By providing your card information/),
   ).toBeVisible();
@@ -221,10 +221,10 @@ test("the Client pays a Bill on its page by card", async ({ page }) => {
   });
   await signedInAs(page, casey.email);
   await page.goto(`/portal/bills/${billId}`);
-  const pay = page.getByRole("region", { name: "Pay this bill" });
-  const card = cardFrame(pay).getByRole("tab", { name: "Card" });
+  const { form, pay } = payThisBill(page);
+  const card = cardFrame(form).getByRole("tab", { name: "Card" });
   if (await card.isVisible()) await card.click();
-  await enterCard(pay, CARD.visa);
-  await pay.getByRole("button", { name: /^Pay \$/ }).click();
+  await enterCard(form, CARD.visa);
+  await pay.click();
   await expect(page.getByText("Thank you, your bill is paid")).toBeVisible();
 });
