@@ -51,7 +51,13 @@ const SEEDING = 4006;
 export const holdSeeding = async () => {
   const client = await db.$client.connect();
   await client.query("select pg_advisory_lock($1)", [SEEDING]);
-  return () => client.release(true);
+  // resolves once the connection has closed, and Postgres with it has let
+  // the lock go
+  return () =>
+    new Promise<void>((ended) => {
+      client.once("end", ended);
+      client.release(true);
+    });
 };
 
 // for the scheduler: runs `run` unless the seed holds the lock, saying

@@ -63,7 +63,7 @@ describe("while the seed runs", () => {
         { name: "Service Plan Jobs", run: async () => void (ran = true) },
       ]);
     } finally {
-      letGo();
+      await letGo();
     }
 
     expect(ran).toBe(false);
@@ -103,7 +103,7 @@ describe("while the seed runs", () => {
         { name: "Service Plan Jobs", run: async () => void (ran = true) },
       ]);
     } finally {
-      letGo();
+      await letGo();
     }
 
     expect(ran).toBe(false);
