@@ -109,7 +109,7 @@ test(
     await atPlanDraft(page);
 
     // above it, what the First Clean found, folded away until it's wanted
-    await page.getByText("First Clean: the home was moderate").click();
+    await page.getByRole("button", { name: /^First clean/ }).click();
     await expect(
       page.getByText("Its cleaners found the home moderate"),
     ).toBeVisible();
@@ -133,15 +133,16 @@ test(
     // the prices follow each change, without saving by hand
     await terms.getByText("Every week").click();
     await terms.getByRole("textbox", { name: "Plan discount (%)" }).fill("15");
-    const price = planCard(page, "Standard Clean, every week");
-    await price.getByText("Set the one-off price yourself").click();
-    await price
+    // set in its weekday's part, the price beside it
+    const weekday = page.getByRole("region", { name: "Weekday 1" });
+    await weekday.getByText("Set the one-off price yourself").click();
+    await weekday
       .getByRole("textbox", { name: "One-off price before tax" })
       .fill("250");
-    await price
+    await weekday
       .getByRole("textbox", { name: "Why this price" })
       .fill("Big garden room");
-    await price.getByRole("textbox", { name: "Why this price" }).blur();
+    await weekday.getByRole("textbox", { name: "Why this price" }).blur();
     // 15% off the $250 override: $212.50, with tax $231.36, against $272.19
     await expect(planCard(page, "Standard Clean, every week")).toContainText(
       "$231.36",
@@ -299,8 +300,9 @@ test("a request for a home whose First Clean is done can be answered with either
     .getByRole("button", { name: "A cleaning plan quote" })
     .click();
   await atPlanDraft(page);
-  // the same Quote's Draft, with what was asked above it
+  // the same Quote's Draft, with what was asked in it, folded
   await expect(page).toHaveURL(new RegExp(`/office/quotes/${asked}/draft$`));
+  await page.getByRole("button", { name: /^What was asked/ }).click();
   await expect(page.getByText("Wanted after the first clean")).toBeVisible();
 });
 

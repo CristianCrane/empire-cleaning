@@ -64,10 +64,9 @@ test(
       "Cleaning hours, rounded up to the quarter-hour3.25 h",
     );
     await expect(standard).toContainText("Suggested price, before tax$179.00");
+    // which prices, with how it's worked out (WEB-C)
     await expect(
-      page.getByText("from the current prices (version 1)", {
-        exact: false,
-      }),
+      standard.getByText("From your prices, version 1."),
     ).toBeVisible();
     // Quotes stays marked in the navigation
     await expectCurrentSection(page, "Quotes");
@@ -218,13 +217,11 @@ test("a saved Price List prices new Quotes, and a new Add-on appears on the form
   await draftTheQuote(page);
 
   // 3.125 h x2 = 6.25 h x $55 = $343.75, to $344, + 8.875% = $374.53
+  const standard = page.getByRole("region", { name: "Standard Clean" });
+  await expect(standard).toContainText("$374.53");
+  await standard.getByText("How it's worked out").click();
   await expect(
-    page.getByRole("region", { name: "Standard Clean" }),
-  ).toContainText("$374.53");
-  await expect(
-    page.getByText("from the current prices (version 2)", {
-      exact: false,
-    }),
+    standard.getByText("From your prices, version 2."),
   ).toBeVisible();
 });
 

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ActionFooter } from "../ActionFooter.tsx";
+import { ActionFooter, type Footer } from "../ActionFooter.tsx";
 import type { Crumb } from "../Breadcrumbs.tsx";
 import { Card } from "../Card.tsx";
 import { useUiWords } from "../language.ts";
@@ -39,7 +39,7 @@ export function RecordPage({
   // its Timeline, newest first
   history?: ReactNode;
   // the on-site main action, kept in reach in an ActionFooter named `label`
-  footer?: { label: string; children: ReactNode };
+  footer?: Footer;
   // its parts, each a Section
   children?: ReactNode;
 }) {
@@ -69,7 +69,13 @@ export function RecordPage({
         </div>
       </Beside>
       {footer && (
-        <ActionFooter aria-label={footer.label}>{footer.children}</ActionFooter>
+        <ActionFooter
+          aria-label={footer.label}
+          summary={footer.summary}
+          status={footer.status}
+        >
+          {footer.children}
+        </ActionFooter>
       )}
     </div>
   );

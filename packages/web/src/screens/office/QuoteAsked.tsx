@@ -76,6 +76,17 @@ const sourceText = ({
 
 // what the Client (or a caller) asked for, unchanged, and the home it's
 // for (WEB-8, WEB-A); none on a Quote the Office offered unprompted
+// what was asked, in a line: "Deep Clean · Apartment · 2 bedrooms · 1
+// bathroom · moderate"
+export const askedSummary = ({ asked, property }: OfficeQuote) =>
+  [
+    asked?.service.name,
+    propertySummary(property),
+    conditionText(property.condition).toLowerCase(),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
 export function AskedFacts({ quote }: { quote: OfficeQuote }) {
   const { asked, property } = quote;
   if (!asked) return null;

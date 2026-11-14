@@ -88,14 +88,14 @@ test(
     // what it comes to as it's said: 1 + 2 x 0.5 + 1 x 0.75 = 2.75 h, x $55
     // = $151 to the dollar, + 8.875%
     await expect(price).toContainText("A 2-bedroom, 1-bathroom apartment");
-    await expect(price).toContainText("Total$164.40");
+    await expect(price).toContainText("$164.40");
     await page
       .getByRole("group", { name: /extras/ })
       .getByText("Inside the oven")
       .click();
     // its 0.5 h on top: 3.25 h x $55 = $179, + 8.875%
     await expect(price).toContainText("+ Inside the oven");
-    await expect(price).toContainText("Total$194.89");
+    await expect(price).toContainText("$194.89");
     await expectAccessible(page);
     await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0123");
     await expectAccessible(page);

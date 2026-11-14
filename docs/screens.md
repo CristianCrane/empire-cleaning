@@ -171,9 +171,14 @@ Keeps: Table + filters (#109). Renders through `ListPage` (#433).
 
 Keeps: one page, the price beside it (#164).
 
-- Header: Quotes › New quote; the title; a subtitle.
-- Body: Find the client (Section: List), then the Quote form, with the price
-  so far in a sticky aside from `xl`.
+Renders through `FormPage` (#434).
+
+- Header: Quotes › New quote; the title; About this page (folded).
+- Body: one Card: Who's calling (Find the client, a List), then the Quote
+  form's steps, each open. What it comes to leads: first on a phone, a
+  sticky aside from `xl`, its working folded.
+- Actions: an `ActionFooter` (the price so far, Draft a quote), once
+  someone's calling.
 
 #### Office > Quote
 
@@ -189,17 +194,17 @@ Keeps: a record as its story (#145). Renders through `RecordPage` (#432).
 
 #### Office > Draft quote
 
-Keeps: a Draft page of its own (#145). A Form page; its layout comes with
-the Form slice.
+Keeps: a Draft page of its own (#145). Renders through `FormPage` (#434).
 
 - Header: … › Draft quote; "Draft quote for client" and "Not sent yet".
 - Actions: Header Button (Delete draft); an `ActionFooter` (the price, save
   state, Send).
-- Notices: the client still sees the quote as sent (once it's been sent);
+- Alerts: the client still sees the quote as sent (once it's been sent);
   the plan change.
-- Body: What was asked (open, the home's facts in it); the first clean
-  (folded); the draft (one Card: Plan, weekdays, Service and prices, Area,
-  Extras, Terms, Proposed time).
+- Body: one Card: What was asked and the first clean (folded); Service
+  (its own prices) or Plan and each weekday; Extras and Terms (folded);
+  Proposed time. Prices leads: first on a phone, a sticky aside from
+  `xl`, each price's working folded.
 
 #### Office > Clients
 

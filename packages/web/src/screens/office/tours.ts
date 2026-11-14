@@ -33,11 +33,12 @@ export const officeTours = {
     {
       id: "office-quote-draft",
       route: "/office/quotes/$quoteId/draft",
-      // a one-off Quote's: a Service Plan's Draft is priced by its Plan and
-      // each week instead
+      // a one-off Quote's, whose part "Service" holds its prices: a Service
+      // Plan's Draft is priced in its Plan and each weekday instead (its
+      // Plan's Service picker isn't a named part)
       steps: [
         {
-          target: { named: "Service and prices" },
+          target: { named: "Service" },
           title: "Price it",
           text: "Prices are worked out for this home from your prices. Set one yourself if it needs to be different, and say why.",
         },
