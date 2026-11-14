@@ -37,6 +37,8 @@ export const uiWords = catalog({
     found: (n: number) => `${n} found in every tab`,
     noMatch: (q: string) => `Nothing matches “${q}”`,
     clearSearch: "Clear search",
+    // a Settings list's retired rows, folded
+    retired: (n: number) => `Retired (${n})`,
   },
   es: {
     close: "Cerrar",
@@ -60,6 +62,7 @@ export const uiWords = catalog({
         : `${n} encontrados en todas las pestañas`,
     noMatch: (q: string) => `Nada coincide con “${q}”`,
     clearSearch: "Borrar la búsqueda",
+    retired: (n: number) => `Retirados (${n})`,
   },
 });
 
