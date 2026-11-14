@@ -10,7 +10,7 @@ import {
   type ServiceInput,
   formats,
 } from "@empire-cleaning/models";
-import { Card, Section, Segment, SegmentedControl } from "@empire-cleaning/ui";
+import { Segment, SegmentedControl } from "@empire-cleaning/ui";
 import { screenWords } from "../format.ts";
 import { WorkedOutQuote } from "./WorkedOutQuote.tsx";
 
@@ -94,6 +94,7 @@ const difference = (cents: number) =>
 // place, worked out as its Suggested Price is while they're typed. Try a
 // smaller or bigger place, or another Condition; with `saved`, what the
 // saved figures came to stands beside each line that changed. (UX pass, #96)
+// The Service page's aside (FormPage) draws its title and card
 export function ExampleQuote({
   input,
   saved,
@@ -129,80 +130,70 @@ export function ExampleQuote({
     : `${formatFloorArea(areas[size])}${forBusiness && type ? ` of ${type.name.toLowerCase()}` : ""}`;
 
   return (
-    <Section
-      title="Example quote"
-      description="Worked out the way a suggested price is, as you type. Extras and the plan discount come on top."
-    >
-      <Card>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3">
-            <SegmentedControl
-              label="For"
-              value={size}
-              onChange={(value) => setSize(value as Size)}
-            >
-              <Segment value="small">
-                {byRooms ? "1 bed" : "1,000 sq ft"}
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
+        <SegmentedControl
+          label="For"
+          value={size}
+          onChange={(value) => setSize(value as Size)}
+        >
+          <Segment value="small">{byRooms ? "1 bed" : "1,000 sq ft"}</Segment>
+          <Segment value="typical">{byRooms ? "2 bed" : "2,000 sq ft"}</Segment>
+          <Segment value="big">{byRooms ? "4 bed" : "5,000 sq ft"}</Segment>
+        </SegmentedControl>
+        {!byRooms && forBusiness && input.conditionApplies && (
+          <SegmentedControl
+            label="Type of business"
+            value={typeKey ?? null}
+            onChange={setTypeKey}
+          >
+            {types.map((t) => (
+              <Segment key={t.key} value={t.key}>
+                {t.name}
               </Segment>
-              <Segment value="typical">
-                {byRooms ? "2 bed" : "2,000 sq ft"}
+            ))}
+          </SegmentedControl>
+        )}
+        {input.conditionApplies && (
+          <SegmentedControl
+            label="Condition"
+            value={condition}
+            onChange={(value) => setCondition(value as Condition)}
+          >
+            {(Object.keys(conditionLabel) as Condition[]).map((c) => (
+              <Segment key={c} value={c}>
+                {conditionLabel[c]}
               </Segment>
-              <Segment value="big">{byRooms ? "4 bed" : "5,000 sq ft"}</Segment>
-            </SegmentedControl>
-            {!byRooms && forBusiness && input.conditionApplies && (
-              <SegmentedControl
-                label="Type of business"
-                value={typeKey ?? null}
-                onChange={setTypeKey}
-              >
-                {types.map((t) => (
-                  <Segment key={t.key} value={t.key}>
-                    {t.name}
-                  </Segment>
-                ))}
-              </SegmentedControl>
-            )}
-            {input.conditionApplies && (
-              <SegmentedControl
-                label="Condition"
-                value={condition}
-                onChange={(value) => setCondition(value as Condition)}
-              >
-                {(Object.keys(conditionLabel) as Condition[]).map((c) => (
-                  <Segment key={c} value={c}>
-                    {conditionLabel[c]}
-                  </Segment>
-                ))}
-              </SegmentedControl>
-            )}
-          </div>
+            ))}
+          </SegmentedControl>
+        )}
+      </div>
 
-          {now === null ? (
-            <p className="border-t border-border pt-4 text-sm text-fg-muted">
-              Fill in the figures to see what they come to.
-            </p>
-          ) : (
-            <>
-              <div className="flex flex-col gap-4 border-t border-border pt-4">
-                <WorkedOutQuote
-                  now={now}
-                  was={was}
-                  place={place}
-                  condition={input.conditionApplies ? condition : null}
-                  crewSize={list.defaultCrewSize}
-                  banner={
-                    changed && was
-                      ? was.totalCents === now.totalCents
-                        ? "Your changes leave this quote's price as it was"
-                        : `Your changes: ${difference(now.totalCents - was.totalCents)} on this quote`
-                      : undefined
-                  }
-                />
-              </div>
-            </>
-          )}
+      {now === null ? (
+        <p className="border-t border-border pt-4 text-sm text-fg-muted">
+          Fill in the figures to see what they come to.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-4 border-t border-border pt-4">
+          <WorkedOutQuote
+            now={now}
+            was={was}
+            place={place}
+            condition={input.conditionApplies ? condition : null}
+            crewSize={list.defaultCrewSize}
+            banner={
+              changed && was
+                ? was.totalCents === now.totalCents
+                  ? "Your changes leave this quote's price as it was"
+                  : `Your changes: ${difference(now.totalCents - was.totalCents)} on this quote`
+                : undefined
+            }
+          />
         </div>
-      </Card>
-    </Section>
+      )}
+      <p className="text-sm text-fg-muted">
+        Extras and the plan discount come on top.
+      </p>
+    </div>
   );
 }

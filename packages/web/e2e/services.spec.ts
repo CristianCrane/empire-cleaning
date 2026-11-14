@@ -133,6 +133,13 @@ test("Office Staff add a Service priced by area, and retire it", async ({
   ).toBeVisible();
   await expect(page.getByText("Retired", { exact: true })).toBeVisible();
 
+  // Retire's at the top, and a phone's toasts sit over the top bar and the
+  // breadcrumbs, held there while the pointer rests on them: each let go
+  // of, as someone would, the pointer kept on them so none goes mid-press
+  const toasts = page.getByRole("region", { name: /notification/ });
+  await toasts.hover();
+  const dismiss = toasts.getByRole("button", { name: "Dismiss" });
+  while ((await dismiss.count()) > 0) await dismiss.first().click();
   await page
     .getByLabel("Breadcrumbs")
     .getByRole("link", { name: "Services" })
@@ -154,6 +161,12 @@ test("Office Staff give a Service its Spanish name and description, which Spanis
   await listRows(page, "Services")
     .filter({ hasText: "Standard Clean" })
     .click();
+  // set once, so a line of what's set, opened to change
+  const whatItIs = page.getByRole("button", { name: /^What it is/ });
+  await expect(whatItIs).toContainText(
+    "Standard Clean · homes · in Spanish too",
+  );
+  await whatItIs.click();
   const nameEs = page.getByRole("textbox", {
     name: "Name in Spanish (optional)",
   });
@@ -167,6 +180,7 @@ test("Office Staff give a Service its Spanish name and description, which Spanis
   await expect(page.getByText("Service saved")).toBeVisible();
 
   await page.reload();
+  await whatItIs.click();
   await expect(nameEs).toHaveValue("Limpieza básica");
 
   // what the Quote form lists, to a Spanish reader

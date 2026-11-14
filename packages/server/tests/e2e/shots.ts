@@ -102,7 +102,7 @@ const shoot = (
       "--reporter=list,json",
       spec,
       "--grep",
-      RegExp.escape(options.title),
+      grepFor(options.title),
       ...options.projects.flatMap((project) => ["--project", project]),
     ],
     {
@@ -128,7 +128,8 @@ const shoot = (
     status: string;
     path?: string;
   }[] = [];
-  // each test by its describes and its own title, as --grep reads it
+  // each test by its describes and its own title, as it's given (--grep's
+  // own string has the tags too: grepFor)
   const walk = (suite: Suite, describes: string[]) => {
     suite.suites?.forEach((inner) => walk(inner, [...describes, inner.title]));
     for (const { title, tests } of suite.specs ?? []) {
@@ -196,6 +197,15 @@ const shoot = (
     return { project, file };
   });
 };
+
+// Playwright's --grep reads a test's describes and title with each one's
+// tags after it ("light theme @desktop the Services and …", eachTheme's),
+// so a title given as its words alone matches with any tags between them
+const grepFor = (title: string) =>
+  RegExp.escape(title).replaceAll(
+    String.raw`\x20`,
+    String.raw`(?:\x20@\S+)*\x20`,
+  );
 
 const slug = (title: string) =>
   title

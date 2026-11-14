@@ -1,13 +1,6 @@
 import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
 import { QuoteRequestForm } from "@empire-cleaning/quote-request";
-import {
-  Breadcrumbs,
-  Card,
-  Heading,
-  Link,
-  Notice,
-  showToast,
-} from "@empire-cleaning/ui";
+import { FormPage, Link, showToast } from "@empire-cleaning/ui";
 import { catalog } from "@empire-cleaning/models";
 import { useSaid } from "../words.ts";
 import { linkTo } from "../../links.ts";
@@ -38,17 +31,17 @@ export function PortalRequest() {
   );
 
   return (
-    <div className="flex flex-col gap-4">
-      <Breadcrumbs
-        trail={[
-          { label: p.home, href: linkTo({ to: "/portal" }) },
-          { label: REQUEST_A_QUOTE },
-        ]}
-      />
-      <Heading level={1}>{REQUEST_A_QUOTE}</Heading>
-      {open.length > 0 && (
-        <Notice tone="info">
-          {open.map((quote) => (
+    <FormPage
+      trail={[
+        { label: p.home, href: linkTo({ to: "/portal" }) },
+        { label: REQUEST_A_QUOTE },
+      ]}
+      title={REQUEST_A_QUOTE}
+      alerts={[
+        open.length > 0 && {
+          key: "open",
+          tone: "info",
+          children: open.map((quote) => (
             <p key={quote.id}>
               {quote.status === "sent" ? w.sentFor : w.workingOn}
               <Link
@@ -61,29 +54,28 @@ export function PortalRequest() {
               </Link>
               .
             </p>
-          ))}
-        </Notice>
-      )}
-      <Card>
-        <QuoteRequestForm
-          headingLevel={2}
-          asker={{
-            kind: "client",
-            properties: client.properties,
-            open: open.map((q) => ({
-              propertyId: q.property.id,
-              serviceKey: q.service.key,
-              kind: q.kind,
-            })),
-            businessName: client.businessName,
-          }}
-          onSubmitted={async (receipt) => {
-            showToast(quoteRequested(lang, receipt.emailedTo));
-            await router.invalidate();
-            await navigate({ to: "/portal" });
-          }}
-        />
-      </Card>
-    </div>
+          )),
+        },
+      ]}
+    >
+      <QuoteRequestForm
+        headingLevel={2}
+        asker={{
+          kind: "client",
+          properties: client.properties,
+          open: open.map((q) => ({
+            propertyId: q.property.id,
+            serviceKey: q.service.key,
+            kind: q.kind,
+          })),
+          businessName: client.businessName,
+        }}
+        onSubmitted={async (receipt) => {
+          showToast(quoteRequested(lang, receipt.emailedTo));
+          await router.invalidate();
+          await navigate({ to: "/portal" });
+        }}
+      />
+    </FormPage>
   );
 }

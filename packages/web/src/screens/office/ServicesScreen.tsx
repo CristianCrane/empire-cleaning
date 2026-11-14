@@ -11,17 +11,14 @@ import type {
   ServiceInput,
 } from "@empire-cleaning/models";
 import {
-  Actions,
-  Breadcrumbs,
   Button,
-  Card,
   Checkbox,
   Form,
-  Heading,
+  FormPage,
+  FormPart,
   ListPage,
   Notice,
   NumberField,
-  Section,
   Segment,
   SegmentedControl,
   Select,
@@ -47,6 +44,13 @@ const offeredForLabel: Record<OfferedFor, string> = {
   homes: "Homes",
   businesses: "Businesses",
   both: "Both",
+};
+
+// in a line of what's set
+const offeredForSaid: Record<OfferedFor, string> = {
+  homes: "homes",
+  businesses: "businesses",
+  both: "homes and businesses",
 };
 
 // the list's Tabs: what's on offer, then what was
@@ -127,52 +131,20 @@ export function ServiceScreen() {
   });
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <Breadcrumbs
-          trail={[
-            { label: "Services", href: linkTo({ to: "/office/services" }) },
-            { label: service.name },
-          ]}
-        />
-        <div className="flex flex-wrap items-center gap-3">
-          <Heading level={1}>{service.name}</Heading>
-          {!service.active && <StatusBadge>Retired</StatusBadge>}
-        </div>
-        <p className="text-fg-muted">
-          Version {service.version}, saved
-          {service.createdByName ? ` by ${service.createdByName}` : ""} on{" "}
-          {formatDate(service.createdAt)}.
-        </p>
-      </div>
-      {/* a new version starts the form afresh */}
-      <ServiceForm
-        key={service.id}
-        service={service}
-        services={services}
-        list={list}
-      />
-    </div>
+    // a new version starts the form afresh
+    <ServiceForm
+      key={service.id}
+      service={service}
+      services={services}
+      list={list}
+    />
   );
 }
 
 export function NewServiceScreen() {
   const { services, list } = useLoaderData({ from: "/office/services/new" });
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <Breadcrumbs
-          trail={[
-            { label: "Services", href: linkTo({ to: "/office/services" }) },
-            { label: "New service" },
-          ]}
-        />
-        <Heading level={1}>New service</Heading>
-      </div>
-      <ServiceForm services={services} list={list} />
-    </div>
-  );
+  return <ServiceForm services={services} list={list} />;
 }
 
 // Money is shown in dollars and kept in cents; a draft is what's on screen
@@ -254,6 +226,12 @@ function ServiceForm({
     toDraft(service ? inputOf(service) : blank),
   );
   const action = useAction("The service wasn't saved. Please try again.");
+  // the header's, so why it failed is a Toast. While either runs, both
+  // are pending and take no press, so they can't race to make the next
+  // version
+  const retire = useAction("The service wasn't saved. Please try again.", {
+    toast: true,
+  });
   const navigate = useNavigate();
   const set = (change: Partial<Draft>) =>
     setDraft((current) => ({ ...current, ...change }));
@@ -294,6 +272,8 @@ function ServiceForm({
         : { method, hoursPerThousandSqFt: draft.hoursPerThousandSqFt ?? 0.5 },
     );
 
+  const firstVisit = others.find((s) => s.key === draft.firstVisitServiceKey);
+
   return (
     <Form
       validationErrors={action.fieldErrors}
@@ -305,253 +285,266 @@ function ServiceForm({
         );
       }}
     >
-      {/* the form in one column; the Example Quote beside it, in view as
-          it scrolls, or after the Price on a phone */}
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <Section title="What it is">
-          <Card>
-            <TextField
-              label="Name"
-              name="name"
-              isRequired
-              value={draft.name}
-              onChange={(name) => set({ name })}
+      <FormPage
+        trail={[
+          { label: "Services", href: linkTo({ to: "/office/services" }) },
+          { label: service?.name ?? "New service" },
+        ]}
+        title={service?.name ?? "New service"}
+        status={
+          service && !service.active && <StatusBadge>Retired</StatusBadge>
+        }
+        subtitle={
+          service &&
+          `Version ${service.version}, saved${service.createdByName ? ` by ${service.createdByName}` : ""} on ${formatDate(service.createdAt)}.`
+        }
+        actions={[
+          service && {
+            label: service.active ? "Retire" : "Offer again",
+            icon: service.active ? Archive : ArchiveRestore,
+            danger: service.active,
+            isPending: retire.isPending || action.isPending,
+            onAction: () =>
+              void retire.run(
+                () =>
+                  putJson<Service>(`/api/services/${service.key}`, {
+                    ...inputOf(service),
+                    active: !service.active,
+                  }),
+                service.active
+                  ? `${service.name} retired. Quotes, plans and jobs that used it still price by it.`
+                  : `${service.name} offered again`,
+              ),
+          },
+        ]}
+        // the figures as a Quote, beside them as they're typed
+        aside={{
+          title: "Example quote",
+          children: (
+            <ExampleQuote
+              input={toInput(draft)}
+              saved={service && inputOf(service)}
+              list={list}
             />
-            <TextField
-              label="Name in Spanish (optional)"
-              name="nameEs"
-              description="Shown to clients reading in Spanish. Left blank, they see the English."
-              value={draft.nameEs ?? ""}
-              onChange={(nameEs) => set({ nameEs })}
-            />
-            <TextField
-              label="Description"
-              name="description"
-              description="A sentence or two clients see when they ask for it"
-              multiline
-              value={draft.description}
-              onChange={(description) => set({ description })}
-            />
-            <TextField
-              label="Description in Spanish (optional)"
-              name="descriptionEs"
-              description="Shown to clients reading in Spanish. Left blank, they see the English."
-              multiline
-              value={draft.descriptionEs ?? ""}
-              onChange={(descriptionEs) => set({ descriptionEs })}
-            />
-            <SegmentedControl
-              label="Offered for"
-              name="offeredFor"
-              value={draft.offeredFor}
-              onChange={(v) => setOfferedFor(v as OfferedFor)}
-            >
-              {(["homes", "businesses", "both"] as const).map((k) => (
-                <Segment key={k} value={k}>
-                  {offeredForLabel[k]}
-                </Segment>
-              ))}
-            </SegmentedControl>
-          </Card>
-        </Section>
-
-        <Section
-          title="How long it takes"
-          description="Cleaning hours, however many cleaners share them. They set the price, and how long the schedule books."
+          ),
+        }}
+        end={action.problem && <Notice tone="danger">{action.problem}</Notice>}
+        buttons={
+          <Button
+            type="submit"
+            isPending={action.isPending || retire.isPending}
+          >
+            {service ? "Save service" : "Add service"}
+          </Button>
+        }
+      >
+        {/* set once, so folded on a Service; a new one starts here */}
+        <FormPart
+          title="What it is"
+          summary={
+            service &&
+            [
+              draft.name,
+              offeredForSaid[draft.offeredFor],
+              ...(draft.nameEs ? ["in Spanish too"] : []),
+            ].join(" · ")
+          }
         >
-          <Card>
-            <SegmentedControl
-              label="Worked out"
-              name="method"
-              value={draft.method}
-              onChange={(v) => setMethod(v as PricingMethod)}
-            >
-              <Segment value="rooms" isDisabled={draft.offeredFor !== "homes"}>
-                {methodLabel.rooms}
-              </Segment>
-              <Segment value="area">{methodLabel.area}</Segment>
-            </SegmentedControl>
-            {draft.method === "rooms" ? (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {roomFields.map(({ name, label, description }) => (
-                  <NumberField
-                    key={name}
-                    label={`${label} (hours)`}
-                    name={`roomHours.${name}`}
-                    description={description}
-                    // a step counts from the least value, and typed values snap to
-                    // it: 0.05 keeps 0.4 h as typed
-                    minValue={0}
-                    step={0.05}
-                    formatOptions={{ maximumFractionDigits: 2 }}
-                    value={draft.roomHours?.[name] ?? NaN}
-                    onChange={(value) => setRoomHours({ [name]: value })}
-                  />
-                ))}
-              </div>
-            ) : (
-              <NumberField
-                label="Hours per 1,000 sq ft"
-                name="hoursPerThousandSqFt"
-                description={
-                  draft.offeredFor === "homes"
-                    ? undefined
-                    : "For an office. Other types of business take longer or shorter, as set on Prices"
-                }
-                minValue={0}
-                step={0.05}
-                formatOptions={{ maximumFractionDigits: 2 }}
-                value={draft.hoursPerThousandSqFt ?? NaN}
-                onChange={(hoursPerThousandSqFt) =>
-                  set({ hoursPerThousandSqFt })
-                }
-              />
-            )}
-            <Checkbox
-              isSelected={draft.conditionApplies}
-              onChange={(conditionApplies) => set({ conditionApplies })}
-            >
-              Takes longer the dirtier the place is (condition)
-            </Checkbox>
-          </Card>
-        </Section>
-
-        <Section
-          title="Price"
-          description="Before tax. Extras are charged at the same rate, for their own hours."
-        >
-          <Card>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <NumberField
-                label="Hourly rate"
-                name="hourlyRateCents"
-                minValue={1}
-                formatOptions={dollars}
-                value={draft.hourlyRate}
-                onChange={(hourlyRate) => set({ hourlyRate })}
-              />
-              <NumberField
-                label="Minimum price"
-                name="minimumChargeCents"
-                description="No suggested price is lower. You can still set your own price on a quote."
-                minValue={0}
-                formatOptions={dollars}
-                value={draft.minimumCharge}
-                onChange={(minimumCharge) => set({ minimumCharge })}
-              />
-            </div>
-          </Card>
-        </Section>
-
-        <div className="xl:sticky xl:top-6 xl:col-start-2 xl:row-span-6 xl:row-start-1 xl:self-start">
-          <ExampleQuote
-            input={toInput(draft)}
-            saved={service && inputOf(service)}
-            list={list}
+          <TextField
+            label="Name"
+            name="name"
+            isRequired
+            value={draft.name}
+            onChange={(name) => set({ name })}
           />
-        </div>
+          <TextField
+            label="Name in Spanish (optional)"
+            name="nameEs"
+            description="Shown to clients reading in Spanish. Left blank, they see the English."
+            value={draft.nameEs ?? ""}
+            onChange={(nameEs) => set({ nameEs })}
+          />
+          <TextField
+            label="Description"
+            name="description"
+            description="A sentence or two clients see when they ask for it"
+            multiline
+            value={draft.description}
+            onChange={(description) => set({ description })}
+          />
+          <TextField
+            label="Description in Spanish (optional)"
+            name="descriptionEs"
+            description="Shown to clients reading in Spanish. Left blank, they see the English."
+            multiline
+            value={draft.descriptionEs ?? ""}
+            onChange={(descriptionEs) => set({ descriptionEs })}
+          />
+          <SegmentedControl
+            label="Offered for"
+            name="offeredFor"
+            value={draft.offeredFor}
+            onChange={(v) => setOfferedFor(v as OfferedFor)}
+          >
+            {(["homes", "businesses", "both"] as const).map((k) => (
+              <Segment key={k} value={k}>
+                {offeredForLabel[k]}
+              </Segment>
+            ))}
+          </SegmentedControl>
+        </FormPart>
 
-        <Section title="Booking">
-          <Card>
-            <Checkbox
-              isSelected={draft.canRecur}
-              onChange={(canRecur) =>
-                set({
-                  canRecur,
-                  taxPlanPercent: canRecur
-                    ? (draft.taxPlanPercent ?? draft.taxOneOffPercent)
-                    : null,
-                })
-              }
-            >
-              Can be on a cleaning plan
-            </Checkbox>
-            <Checkbox
-              isSelected={draft.needsSiteVisit}
-              onChange={(needsSiteVisit) => set({ needsSiteVisit })}
-            >
-              Needs a site visit before a quote is sent
-            </Checkbox>
-            <Select
-              label="For a first visit, recommend"
-              name="firstVisitServiceKey"
-              description="Offered alongside it, recommended, where Empire Cleaning hasn't worked before"
-              selectedKey={draft.firstVisitServiceKey ?? NONE}
-              onSelectionChange={(key) =>
-                set({
-                  firstVisitServiceKey: key === NONE ? null : String(key),
-                })
-              }
-            >
-              <SelectItem id={NONE}>Nothing else</SelectItem>
-              {others.map((s) => (
-                <SelectItem key={s.key} id={s.key}>
-                  {s.name}
-                </SelectItem>
-              ))}
-            </Select>
-          </Card>
-        </Section>
-
-        <Section
-          title="Sales tax"
-          description="Added to its price, so clients see prices with tax. Check these with your accountant."
-        >
-          <Card>
+        <FormPart title="How long it takes">
+          <SegmentedControl
+            label="Worked out"
+            name="method"
+            value={draft.method}
+            onChange={(v) => setMethod(v as PricingMethod)}
+          >
+            <Segment value="rooms" isDisabled={draft.offeredFor !== "homes"}>
+              {methodLabel.rooms}
+            </Segment>
+            <Segment value="area">{methodLabel.area}</Segment>
+          </SegmentedControl>
+          {draft.method === "rooms" ? (
             <div className="grid gap-4 sm:grid-cols-2">
+              {roomFields.map(({ name, label, description }) => (
+                <NumberField
+                  key={name}
+                  label={`${label} (hours)`}
+                  name={`roomHours.${name}`}
+                  description={description}
+                  // a step counts from the least value, and typed values snap to
+                  // it: 0.05 keeps 0.4 h as typed
+                  minValue={0}
+                  step={0.05}
+                  formatOptions={{ maximumFractionDigits: 2 }}
+                  value={draft.roomHours?.[name] ?? NaN}
+                  onChange={(value) => setRoomHours({ [name]: value })}
+                />
+              ))}
+            </div>
+          ) : (
+            <NumberField
+              label="Hours per 1,000 sq ft"
+              name="hoursPerThousandSqFt"
+              description={
+                draft.offeredFor === "homes"
+                  ? undefined
+                  : "For an office. Other types of business take longer or shorter, as set on Prices"
+              }
+              minValue={0}
+              step={0.05}
+              formatOptions={{ maximumFractionDigits: 2 }}
+              value={draft.hoursPerThousandSqFt ?? NaN}
+              onChange={(hoursPerThousandSqFt) => set({ hoursPerThousandSqFt })}
+            />
+          )}
+          <Checkbox
+            isSelected={draft.conditionApplies}
+            onChange={(conditionApplies) => set({ conditionApplies })}
+          >
+            Takes longer the dirtier the place is (condition)
+          </Checkbox>
+        </FormPart>
+
+        <FormPart title="Price">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <NumberField
+              label="Hourly rate"
+              name="hourlyRateCents"
+              description="Before tax. Extras are charged at it too, for their own hours."
+              minValue={1}
+              formatOptions={dollars}
+              value={draft.hourlyRate}
+              onChange={(hourlyRate) => set({ hourlyRate })}
+            />
+            <NumberField
+              label="Minimum price"
+              name="minimumChargeCents"
+              description="No suggested price is lower. You can still set your own price on a quote."
+              minValue={0}
+              formatOptions={dollars}
+              value={draft.minimumCharge}
+              onChange={(minimumCharge) => set({ minimumCharge })}
+            />
+          </div>
+        </FormPart>
+
+        <FormPart
+          title="Booking"
+          summary={[
+            draft.canRecur ? "On a plan" : "Not on a plan",
+            draft.needsSiteVisit ? "a site visit first" : "no site visit",
+            firstVisit
+              ? `recommends ${firstVisit.name}`
+              : "recommends nothing else",
+          ].join(" · ")}
+        >
+          <Checkbox
+            isSelected={draft.canRecur}
+            onChange={(canRecur) =>
+              set({
+                canRecur,
+                taxPlanPercent: canRecur
+                  ? (draft.taxPlanPercent ?? draft.taxOneOffPercent)
+                  : null,
+              })
+            }
+          >
+            Can be on a cleaning plan
+          </Checkbox>
+          <Checkbox
+            isSelected={draft.needsSiteVisit}
+            onChange={(needsSiteVisit) => set({ needsSiteVisit })}
+          >
+            Needs a site visit before a quote is sent
+          </Checkbox>
+          <Select
+            label="For a first visit, recommend"
+            name="firstVisitServiceKey"
+            description="Offered alongside it, recommended, where Empire Cleaning hasn't worked before"
+            selectedKey={draft.firstVisitServiceKey ?? NONE}
+            onSelectionChange={(key) =>
+              set({
+                firstVisitServiceKey: key === NONE ? null : String(key),
+              })
+            }
+          >
+            <SelectItem id={NONE}>Nothing else</SelectItem>
+            {others.map((s) => (
+              <SelectItem key={s.key} id={s.key}>
+                {s.name}
+              </SelectItem>
+            ))}
+          </Select>
+        </FormPart>
+
+        <FormPart title="Sales tax">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <NumberField
+              label="One-off jobs (%)"
+              name="taxOneOffPercent"
+              minValue={0}
+              step={0.125}
+              formatOptions={rate}
+              value={draft.taxOneOffPercent}
+              onChange={(taxOneOffPercent) => set({ taxOneOffPercent })}
+            />
+            {draft.canRecur && (
               <NumberField
-                label="One-off jobs (%)"
-                name="taxOneOffPercent"
+                label="Cleaning plan jobs (%)"
+                name="taxPlanPercent"
                 minValue={0}
                 step={0.125}
                 formatOptions={rate}
-                value={draft.taxOneOffPercent}
-                onChange={(taxOneOffPercent) => set({ taxOneOffPercent })}
+                value={draft.taxPlanPercent ?? NaN}
+                onChange={(taxPlanPercent) => set({ taxPlanPercent })}
               />
-              {draft.canRecur && (
-                <NumberField
-                  label="Cleaning plan jobs (%)"
-                  name="taxPlanPercent"
-                  minValue={0}
-                  step={0.125}
-                  formatOptions={rate}
-                  value={draft.taxPlanPercent ?? NaN}
-                  onChange={(taxPlanPercent) => set({ taxPlanPercent })}
-                />
-              )}
-            </div>
-          </Card>
-        </Section>
-
-        <div className="flex flex-col gap-5">
-          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-          <Actions>
-            {service && (
-              <Button
-                variant={service.active ? "danger-text" : "text"}
-                onPress={() =>
-                  void save(
-                    { ...inputOf(service), active: !service.active },
-                    service.active
-                      ? `${service.name} retired. Quotes, plans and jobs that used it still price by it.`
-                      : `${service.name} offered again`,
-                  )
-                }
-              >
-                {service.active ? (
-                  <Archive aria-hidden size={18} />
-                ) : (
-                  <ArchiveRestore aria-hidden size={18} />
-                )}
-                {service.active ? "Retire" : "Offer again"}
-              </Button>
             )}
-            <Button type="submit" isPending={action.isPending}>
-              {service ? "Save service" : "Add service"}
-            </Button>
-          </Actions>
-        </div>
-      </div>
+          </div>
+        </FormPart>
+      </FormPage>
     </Form>
   );
 }
