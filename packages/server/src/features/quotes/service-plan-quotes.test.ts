@@ -18,8 +18,11 @@ import {
   signIn,
   testClock,
   testEmail,
+  testPayments,
 } from "../../../tests/harness.ts";
+import { makeDueBills } from "#features/bills";
 import {
+  billedWeek,
   casey,
   completedFirstClean,
   guestAsk,
@@ -830,6 +833,63 @@ describe("where the Office offers a Service Plan", () => {
     const booked = (await office.get(`/api/jobs/${job.id}`).expect(200))
       .body as OfficeJob;
     expect(booked.canOfferServicePlan).toBe(false);
+  });
+
+  // WEB-5: an offer to a Client whose card was just declined can wait
+  test("from the First Clean, only once it's paid, as Today", async () => {
+    const { office, job } = await firstCleanDone({ declined: true });
+    const offered = async () =>
+      ((await office.get(`/api/jobs/${job.id}`).expect(200)).body as OfficeJob)
+        .canOfferServicePlan;
+
+    expect(await offered()).toBe(false);
+    expect(await plansDue(office)).toEqual([]);
+
+    testPayments().failCharges(null);
+    await office.post(`/api/jobs/${job.id}/balance/retry`).expect(200);
+    expect(await offered()).toBe(true);
+    expect(await plansDue(office)).toHaveLength(1);
+  });
+
+  test("from a First Clean billed weekly, only once its Bill is paid", async () => {
+    const office = await signInAsOffice();
+    const me = (await office.get("/api/me").expect(200))
+      .body as SignedInAccount;
+    const { jobId, billId } = await billedWeek({
+      byAccountId: me.id,
+      failing: true,
+    });
+    const offered = async () =>
+      ((await office.get(`/api/jobs/${jobId}`).expect(200)).body as OfficeJob)
+        .canOfferServicePlan;
+
+    // on a Bill that didn't go through
+    expect(await offered()).toBe(false);
+    expect(await plansDue(office)).toEqual([]);
+
+    await office
+      .post(`/api/bills/${billId}/outside-payment`)
+      .send({ note: "Cheque 1042" })
+      .expect(200);
+    expect(await offered()).toBe(true);
+    expect(await plansDue(office)).toHaveLength(1);
+  });
+
+  test("not from a First Clean billed weekly that isn't on a Bill yet", async () => {
+    const office = await signInAsOffice();
+    const me = (await office.get("/api/me").expect(200))
+      .body as SignedInAccount;
+    const { jobId } = await billedWeek({ byAccountId: me.id, unbilled: true });
+
+    expect(
+      ((await office.get(`/api/jobs/${jobId}`).expect(200)).body as OfficeJob)
+        .canOfferServicePlan,
+    ).toBe(false);
+    expect(await plansDue(office)).toEqual([]);
+
+    testClock().set(new Date("2026-01-12T15:00:00Z"));
+    await makeDueBills();
+    expect(await plansDue(office)).toHaveLength(1);
   });
 
   test("from the Property, whose page lists its Quotes, Drafts included, and its Jobs", async () => {

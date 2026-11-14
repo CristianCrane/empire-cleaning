@@ -215,7 +215,9 @@ export const acceptedJob = async ({
  * Plan: a Deep Clean booked as acceptedJob() books it, at 9am on Monday 12
  * January, done at 11am that day by Cory, who reports the home's Condition
  * as `condition`. Its Quote asked for regular visits unless
- * `wantsRegularService` is false. The clock is left at 11am. Returns the
+ * `wantsRegularService` is false. With `declined`, the card is declined as
+ * it's done, so it's Unpaid, and Charges keep failing until
+ * failCharges(null). The clock is left at 11am. Returns the
  * Quote that booked the First Clean, its Property, and its Job.
  */
 export const completedFirstClean = async ({
@@ -223,11 +225,13 @@ export const completedFirstClean = async ({
   condition = "moderate",
   wantsRegularService,
   serviceKey,
+  declined = false,
 }: {
   byAccountId: string;
   condition?: Condition;
   wantsRegularService?: boolean;
   serviceKey?: string;
+  declined?: boolean;
 }) => {
   const cory = await createStaff({
     name: "Cory Cleaner",
@@ -251,6 +255,7 @@ export const completedFirstClean = async ({
   const offered = await offerAssignment(job.id, cory.id, byAccountId);
   await confirmAssignment(cory.id, offered.assignments[0]!.id);
   testClock().set(new Date("2026-01-12T16:00:00Z"));
+  if (declined) testPayments().failCharges();
   await completeJob(cory.id, job.id, { condition, reports: [] });
 
   const [quote] = await db

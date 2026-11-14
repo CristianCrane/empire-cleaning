@@ -1,3 +1,4 @@
+import { MessageSquarePlus } from "lucide-react";
 import type { Key } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
@@ -6,28 +7,30 @@ import {
   catalog,
 } from "@empire-cleaning/models";
 import {
-  ActionRow,
   Actions,
-  Breadcrumbs,
   Button,
-  Card,
   Dialog,
-  DialogTrigger,
   Form,
-  Heading,
   List,
   ListItem,
   Notice,
   Section,
   StatusBadge,
   TextField,
+  RecordPage,
+  type DialogState,
 } from "@empire-cleaning/ui";
 import { getJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { addressOf, formatHours } from "../format.ts";
+import { formatHours } from "../format.ts";
 import { useSaid } from "../words.ts";
-import { EndPlan, OnHold, PlanFacts, PlanStatusBadge } from "../PlanParts.tsx";
+import {
+  PlanCard,
+  PlanStatusBadge,
+  useEndPlanAction,
+  useOnHold,
+} from "../PlanParts.tsx";
 
 // in the Client's language (ADR-0025)
 const words = catalog({
@@ -42,7 +45,6 @@ const words = catalog({
     aboutOnSite: (hours: string) => `About ${hours} on site`,
     didntSend: "That didn't send. Please try again.",
     sent: "Sent. We'll send you a new cleaning plan quote.",
-    change: "Change your plan",
     askToChange: "Ask to change",
     askTitle: "Ask to change your plan",
     what: "What would you like to change?",
@@ -60,7 +62,6 @@ const words = catalog({
     aboutOnSite: (hours: string) => `Cerca de ${hours} en el lugar`,
     didntSend: "No se envió. Vuelva a intentarlo.",
     sent: "Enviado. Le enviaremos una nueva cotización de plan de limpieza.",
-    change: "Cambiar su plan",
     askToChange: "Pedir un cambio",
     askTitle: "Pedir un cambio en su plan",
     what: "¿Qué le gustaría cambiar?",
@@ -69,59 +70,61 @@ const words = catalog({
   },
 });
 
-// one of the Client's Service Plans: its terms, what each clean costs, the
-// Deposit held for it, and its cleans on the Schedule; why it's On Hold, if
-// it is; asking for different terms; and Ending it
+// one of the Client's Service Plans, a Record (docs/ux.md): its terms,
+// what each clean costs, the Deposit held for it, and its cleans on the
+// Schedule; why it's On Hold, if it is; asking for different terms; and
+// Ending it
 export function PortalPlan() {
   const t = useSaid(words);
   const plan = useLoaderData({ from: "/portal/plans/$planId" });
   const navigate = useNavigate();
   const openJob = (id: Key) =>
     navigate({ to: "/portal/jobs/$jobId", params: { jobId: String(id) } });
+  const onHold = useOnHold(plan, {
+    forClient: true,
+    jobHref: (jobId) =>
+      linkTo({ to: "/portal/jobs/$jobId", params: { jobId } }),
+    billHref: (billId) =>
+      linkTo({ to: "/portal/bills/$billId", params: { billId } }),
+  });
+
+  const endPlan = useEndPlanAction(plan, {
+    forClient: true,
+    endPath: `/api/service-plans/mine/${plan.id}/end`,
+  });
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <Breadcrumbs
-          trail={[
-            { label: t.p.yourDetails, href: linkTo({ to: "/portal/details" }) },
-            {
-              label: plan.property.street,
-              href: linkTo({
-                to: "/portal/properties/$propertyId",
-                params: { propertyId: plan.property.id },
-              }),
-            },
-            { label: t.p.yourPlan },
-          ]}
-        />
-        <div className="flex flex-wrap items-center gap-3">
-          <Heading level={1}>{t.p.yourPlan}</Heading>
-          <PlanStatusBadge status={plan.status} />
-        </div>
-        <p className="text-fg-muted">{addressOf(plan.property)}</p>
-      </div>
-
-      <OnHold
-        plan={plan}
-        forClient
-        jobHref={(jobId) =>
-          linkTo({ to: "/portal/jobs/$jobId", params: { jobId } })
-        }
-        billHref={(billId) =>
-          linkTo({ to: "/portal/bills/$billId", params: { billId } })
-        }
-      />
-
-      <Section title={t.w.details}>
-        <Card>
-          <PlanFacts plan={plan} forClient />
-          <p className="border-t border-border pt-4 text-sm text-fg-muted">
+    <RecordPage
+      trail={[
+        { label: t.p.yourDetails, href: linkTo({ to: "/portal/details" }) },
+        {
+          label: plan.property.street,
+          href: linkTo({
+            to: "/portal/properties/$propertyId",
+            params: { propertyId: plan.property.id },
+          }),
+        },
+        { label: t.p.yourPlan },
+      ]}
+      title={t.p.yourPlan}
+      status={<PlanStatusBadge status={plan.status} />}
+      actions={[
+        plan.status !== "ended" && {
+          label: t.w.askToChange,
+          icon: MessageSquarePlus,
+          dialog: (state) => <AskToChange plan={plan} {...state} />,
+        },
+        endPlan,
+      ]}
+      alerts={onHold}
+      details={
+        <PlanCard plan={plan} forClient label={t.w.details}>
+          <p className="text-sm text-fg-muted">
             {t.cleansPaid(plan.weeklyBill ?? "per_clean")} {t.w.reminder}
           </p>
-        </Card>
-      </Section>
-
+        </PlanCard>
+      }
+    >
       <Section title={t.w.upcoming} description={t.w.ahead}>
         <List
           aria-label={t.w.upcoming}
@@ -145,15 +148,7 @@ export function PortalPlan() {
           ))}
         </List>
       </Section>
-
-      {plan.status !== "ended" && <AskToChange plan={plan} />}
-
-      <EndPlan
-        plan={plan}
-        forClient
-        endPath={`/api/service-plans/mine/${plan.id}/end`}
-      />
-    </div>
+    </RecordPage>
   );
 }
 
@@ -161,7 +156,10 @@ export function PortalPlan() {
 // they'd like, which reaches the Office as a Requested Quote for the home. The
 // Office answers with a new Service Plan Quote; nothing changes until the
 // Client accepts it.
-function AskToChange({ plan }: { plan: ServicePlanView }) {
+function AskToChange({
+  plan,
+  ...state
+}: { plan: ServicePlanView } & DialogState) {
   const t = useSaid(words);
   const action = useAction(t.w.didntSend);
 
@@ -182,48 +180,34 @@ function AskToChange({ plan }: { plan: ServicePlanView }) {
   };
 
   return (
-    <Section title={t.w.change}>
-      <Card>
-        <ActionRow
-          actions={
-            <DialogTrigger>
-              <Button variant="secondary">{t.w.askToChange}</Button>
-              <Dialog title={t.w.askTitle}>
-                {({ close }) => (
-                  <Form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const form = new FormData(e.currentTarget);
-                      void ask(String(form.get("notes")), close);
-                    }}
-                  >
-                    <TextField
-                      label={t.w.what}
-                      name="notes"
-                      multiline
-                      isRequired
-                      autoFocus
-                    />
-                    {action.problem && (
-                      <Notice tone="danger">{action.problem}</Notice>
-                    )}
-                    <Actions>
-                      <Button variant="quiet" onPress={close}>
-                        {t.p.cancel}
-                      </Button>
-                      <Button type="submit" isPending={action.isPending}>
-                        {t.send}
-                      </Button>
-                    </Actions>
-                  </Form>
-                )}
-              </Dialog>
-            </DialogTrigger>
-          }
+    <Dialog title={t.w.askTitle} {...state}>
+      {({ close }) => (
+        <Form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const form = new FormData(e.currentTarget);
+            void ask(String(form.get("notes")), close);
+          }}
         >
           <p>{t.w.tellUs}</p>
-        </ActionRow>
-      </Card>
-    </Section>
+          <TextField
+            label={t.w.what}
+            name="notes"
+            multiline
+            isRequired
+            autoFocus
+          />
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              {t.p.cancel}
+            </Button>
+            <Button type="submit" isPending={action.isPending}>
+              {t.send}
+            </Button>
+          </Actions>
+        </Form>
+      )}
+    </Dialog>
   );
 }

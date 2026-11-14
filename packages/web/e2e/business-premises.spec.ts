@@ -12,6 +12,8 @@ import {
   recordFindingsWithoutVisit,
   goTo,
   saved,
+  openTheHome,
+  pageAction,
 } from "./harness.ts";
 
 const olive = {
@@ -147,9 +149,9 @@ test(
     await saved(page);
     await expectAccessible(page);
 
-    await page.getByRole("link", { name: "View property" }).click();
+    await openTheHome(page);
     await expect(page).toHaveURL(/\/office\/properties\//);
-    await page.getByRole("button", { name: "Correct" }).click();
+    await pageAction(page, "Correct details");
     await choose(page, /Type of business/, "Medical");
     await page
       .getByRole("textbox", { name: "Floor area in sq ft" })

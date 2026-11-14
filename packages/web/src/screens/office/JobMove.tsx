@@ -1,3 +1,4 @@
+import { ContactRound, CalendarClock, CalendarCheck } from "lucide-react";
 import { useState } from "react";
 import {
   parseDate,
@@ -18,6 +19,8 @@ import {
   Dialog,
   Notice,
   TimeField,
+  Fact,
+  Facts,
 } from "@empire-cleaning/ui";
 import { getJson, postJson } from "../../api.ts";
 import { useLoaded } from "../load.ts";
@@ -80,16 +83,21 @@ export function ConfirmMove({ job, to, close }: MoveProps) {
 
   return (
     <>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2">
-        <dt className="font-semibold">Job</dt>
-        <dd>{clientName(job.client)}</dd>
-        <dt className="font-semibold">From</dt>
-        <dd>{formatDateTime(job.startsAt)}</dd>
-        <dt className="font-semibold">To</dt>
-        <dd>
-          {chosen ? `${formatDay(to.date!)}, ${formatClock(to.time!)}` : "—"}
-        </dd>
-      </dl>
+      <Facts>
+        <Fact icon={ContactRound} label="Job" value={clientName(job.client)} />
+        <Fact
+          icon={CalendarClock}
+          label="From"
+          value={formatDateTime(job.startsAt)}
+        />
+        <Fact
+          icon={CalendarCheck}
+          label="To"
+          value={
+            chosen ? `${formatDay(to.date!)}, ${formatClock(to.time!)}` : "—"
+          }
+        />
+      </Facts>
       {chosen && unchanged && (
         <p className="text-sm text-fg-muted">{SAME_TIME}</p>
       )}

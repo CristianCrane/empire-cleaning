@@ -2,13 +2,13 @@ import { useLoaderData } from "@tanstack/react-router";
 import { type BillView, catalog } from "@empire-cleaning/models";
 import {
   Actions,
-  Breadcrumbs,
   Button,
   ButtonLink,
   Card,
   Section,
-  Heading,
   Notice,
+  RecordPage,
+  type Alert,
 } from "@empire-cleaning/ui";
 import { ApiError, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
@@ -17,7 +17,7 @@ import {
   BillDetail,
   BillLetterhead,
   BillStatusBadge,
-  PrintBill,
+  usePrintBill,
   billWeek,
 } from "../BillParts.tsx";
 import { useBillPaymentForm } from "./CardForm.tsx";
@@ -61,75 +61,67 @@ const words = catalog({
   },
 });
 
-// one of the Client's weekly Bills (ADR-0016), where its emails lead: the
-// whole Bill, which prints cleanly, and paying it here by card or bank debit
-// while it's due
+// one of the Client's weekly Bills (ADR-0016), a Record (docs/ux.md),
+// where its emails lead: the whole Bill, which prints cleanly, and paying it
+// here by card or bank debit while it's due
 export function PortalBill() {
   const t = useSaid(words);
   const bill = useLoaderData({ from: "/portal/bills/$billId" });
+  const print = usePrintBill();
 
   return (
-    <div className="flex flex-col gap-6">
+    <>
       <BillLetterhead />
-      <div className="flex flex-col gap-4">
-        <div className="print:hidden">
-          <Breadcrumbs
-            trail={[
-              { label: t.p.payments, href: linkTo({ to: "/portal/payments" }) },
-              { label: t.p.bill(bill.number) },
-            ]}
+      <RecordPage
+        trail={[
+          { label: t.p.payments, href: linkTo({ to: "/portal/payments" }) },
+          { label: t.p.bill(bill.number) },
+        ]}
+        title={t.p.bill(bill.number)}
+        status={<BillStatusBadge bill={bill} />}
+        subtitle={billWeek(t.lang, bill)}
+        actions={[print]}
+        alerts={[useStanding(bill)]}
+        details={
+          <BillDetail
+            bill={bill}
+            forClient
+            jobHref={(jobId) =>
+              linkTo({ to: "/portal/jobs/$jobId", params: { jobId } })
+            }
           />
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <Heading level={1}>{t.p.bill(bill.number)}</Heading>
-            <BillStatusBadge bill={bill} />
-          </div>
-          <div className="print:hidden">
-            <PrintBill />
-          </div>
-        </div>
-        <p className="text-fg-muted">{billWeek(t.lang, bill)}</p>
-      </div>
-
-      <Standing bill={bill} />
-      {bill.payable && <PayBill bill={bill} />}
-      <BillDetail
-        bill={bill}
-        forClient
-        jobHref={(jobId) =>
-          linkTo({ to: "/portal/jobs/$jobId", params: { jobId } })
         }
-      />
-    </div>
+      >
+        {bill.payable && <PayBill bill={bill} />}
+      </RecordPage>
+    </>
   );
 }
 
 // what's left to do about it, if anything
-function Standing({ bill }: { bill: BillView }) {
+function useStanding(bill: BillView): Alert | null {
   const t = useSaid(words);
   if (bill.status === "processing") {
-    return (
-      <Notice tone="info">
-        {t.w.onItsWay(t.formatMoney(bill.totalCents))} {t.BANK_CLEARING}{" "}
-        {t.w.emailOnce}
-      </Notice>
-    );
+    return {
+      key: "processing",
+      children: `${t.w.onItsWay(t.formatMoney(bill.totalCents))} ${t.BANK_CLEARING} ${t.w.emailOnce}`,
+    };
   }
   if (bill.status !== "due") return null;
   if (bill.unpaid?.kind === "late") {
-    return (
-      <Notice tone="danger">
-        {t.w.wasDue(t.formatDay(bill.dueOn), t.formatMoney(bill.totalCents))}{" "}
-        {t.PLAN_PAUSED}
-      </Notice>
-    );
+    return {
+      key: "late",
+      tone: "danger",
+      children: `${t.w.wasDue(t.formatDay(bill.dueOn), t.formatMoney(bill.totalCents))} ${t.PLAN_PAUSED}`,
+    };
   }
   if (bill.unpaid) {
     const { kind, why } = bill.unpaid;
-    return (
-      <div className="flex flex-col gap-3 print:hidden">
-        <Notice tone="danger">
+    return {
+      key: "unpaid",
+      tone: "danger",
+      children: (
+        <>
           {t.notTaken(
             t.w.forBill(t.formatMoney(bill.totalCents)),
             kind === "no_card" ? null : t.p.card,
@@ -138,25 +130,28 @@ function Standing({ bill }: { bill: BillView }) {
           {kind === "declined"
             ? t.w.payBelow(t.UPDATE_AND_RETRY)
             : t.clientFix[kind]}
-        </Notice>
-        {kind !== "waiting" && (
-          <Actions>
-            <ButtonLink
-              variant="secondary"
-              href={linkTo({ to: "/portal/payment-method" })}
-            >
-              {t.UPDATE_CARD}
-            </ButtonLink>
-          </Actions>
-        )}
-      </div>
-    );
+        </>
+      ),
+      action: kind !== "waiting" && (
+        <ButtonLink
+          variant="danger-text"
+          href={linkTo({ to: "/portal/payment-method" })}
+        >
+          {t.UPDATE_CARD}
+        </ButtonLink>
+      ),
+    };
   }
-  return bill.payment === "on_page" && bill.totalCents > 0 ? (
-    <Notice tone="warning">
-      {t.w.pleasePay(t.formatMoney(bill.totalCents), t.formatDay(bill.dueOn))}
-    </Notice>
-  ) : null;
+  return bill.payment === "on_page" && bill.totalCents > 0
+    ? {
+        key: "pay",
+        tone: "warning",
+        children: t.w.pleasePay(
+          t.formatMoney(bill.totalCents),
+          t.formatDay(bill.dueOn),
+        ),
+      }
+    : null;
 }
 
 // paying it here, by card or bank debit: a card pays at once, a bank debit

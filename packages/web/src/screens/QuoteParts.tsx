@@ -8,7 +8,8 @@ import type {
   QuoteStatus,
   ServicePlanTerms,
 } from "@empire-cleaning/models";
-import { Card, StatusBadge, useLanguage } from "@empire-cleaning/ui";
+import { Card, Fact, StatusBadge, useLanguage } from "@empire-cleaning/ui";
+import { Building2, CirclePlus, NotebookPen, Repeat } from "lucide-react";
 import { catalog, type Language, messages } from "@empire-cleaning/models";
 import { formatHours, quoteStatusLabel, quoteStatusTone } from "./format.ts";
 import { useSaid } from "./words.ts";
@@ -67,9 +68,8 @@ const useWords = () => useSaid(words);
 // how a Quote reads, the same for the Office and its Client: prices include
 // tax, as Clients always see them
 
-// the end of what was asked, in a dl after the reader's own rows: the
-// cleaning a business wants, or a home's extras and regular visits, then
-// any notes
+// the end of what was asked, as Facts after the reader's own: the cleaning
+// a business wants, or a home's extras and regular visits, then any notes
 export function AskedRows({
   asked,
   premises,
@@ -81,27 +81,36 @@ export function AskedRows({
   return (
     <>
       {premises ? (
-        <>
-          <dt className="font-semibold">{w.cleaningWanted}</dt>
-          <dd>{wantedCleaning(asked)}</dd>
-        </>
+        <Fact
+          icon={Building2}
+          label={w.cleaningWanted}
+          value={wantedCleaning(asked)}
+        />
       ) : (
         <>
-          <dt className="font-semibold">{extras}</dt>
-          <dd>
-            {asked.addOns.length > 0
-              ? asked.addOns.map((a) => a.name).join(", ")
-              : none}
-          </dd>
-          <dt className="font-semibold">{w.regularVisits}</dt>
-          <dd>{asked.wantsRegularService ? w.wantedAfter : w.notAsked}</dd>
+          <Fact
+            icon={CirclePlus}
+            label={extras}
+            value={
+              asked.addOns.length > 0
+                ? asked.addOns.map((a) => a.name).join(", ")
+                : none
+            }
+          />
+          <Fact
+            icon={Repeat}
+            label={w.regularVisits}
+            value={asked.wantsRegularService ? w.wantedAfter : w.notAsked}
+          />
         </>
       )}
       {asked.notes && (
-        <>
-          <dt className="font-semibold">{w.notes}</dt>
-          <dd className="whitespace-pre-line">{asked.notes}</dd>
-        </>
+        <Fact
+          icon={NotebookPen}
+          label={w.notes}
+          value={<span className="whitespace-pre-line">{asked.notes}</span>}
+          className="col-span-full"
+        />
       )}
     </>
   );

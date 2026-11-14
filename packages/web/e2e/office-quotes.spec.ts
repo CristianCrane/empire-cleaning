@@ -10,6 +10,7 @@ import {
   serviceKey,
   signedInAs,
   test,
+  pageAction,
 } from "./harness.ts";
 
 const olive = {
@@ -56,7 +57,7 @@ test("Office Staff set a new caller's language, see it on their page, and change
   await page.getByRole("link", { name: "their client page" }).click();
   const contact = page.getByRole("region", { name: "Contact details" });
   await expect(contact).toContainText("Preferred languageEspañol");
-  await contact.getByRole("button", { name: "Edit" }).click();
+  await pageAction(page, "Edit contact details");
   const dialog = page.getByRole("dialog", { name: "Edit contact details" });
   await expect(dialog.getByRole("radio", { name: "Español" })).toBeChecked();
   await dialog.getByText("English").click();
@@ -115,7 +116,7 @@ test(
 
     await page.getByRole("link", { name: "their client page" }).click();
     await expect(page.getByText("None yet", { exact: false })).toBeVisible();
-    await page.getByRole("button", { name: "Edit" }).click();
+    await pageAction(page, "Edit contact details");
     const dialog = page.getByRole("dialog", { name: "Edit contact details" });
     await dialog
       .getByRole("textbox", { name: "Email (optional)" })
@@ -209,10 +210,12 @@ test(
       .filter({ hasText: "Standard Clean" })
       .click();
 
-    await expect(page.getByText("(the client said moderate)")).toBeVisible();
+    await expect(
+      page.getByText("Condition: the client said moderate"),
+    ).toBeVisible();
     await expect(
       page.getByText(
-        "(the client said 2 bedrooms, 1.5 bathrooms, 1 storey, no pets)",
+        "Rooms: the client said 2 bedrooms, 1.5 bathrooms, 1 storey, no pets",
       ),
     ).toBeVisible();
     await expectAccessible(page);
@@ -226,7 +229,7 @@ test("a Client's screen starts a New quote for them", async ({ page }) => {
   await page.goto("/office/clients?tab=all");
   await page.getByRole("row", { name: /Casey Client/ }).click();
 
-  await page.getByRole("button", { name: "New quote" }).click();
+  await pageAction(page, "New quote");
 
   await expect(page).toHaveURL(/\/office\/quotes\/new\?clientId=/);
   await expect(

@@ -16,6 +16,8 @@ import {
   test,
   goTo,
   addCleaner,
+  pageAction,
+  expectNoPageAction,
 } from "./harness.ts";
 
 const olive = {
@@ -157,7 +159,7 @@ test(
 
     await signInAsOffice(page);
     await openStaffMember(page, "Cory Cleaner");
-    await page.getByRole("button", { name: "Deactivate" }).click();
+    await pageAction(page, "Deactivate");
     const confirm = page.getByRole("alertdialog", {
       name: "Deactivate Cory Cleaner?",
     });
@@ -165,9 +167,7 @@ test(
 
     await expect(page.getByText("Cory Cleaner deactivated")).toBeVisible();
     await expect(page.getByText("Deactivated", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Deactivate" })).toHaveCount(
-      0,
-    );
+    await expectNoPageAction(page, "Deactivate");
 
     // the Cleaner area is closed to them; the portal still opens
     await corysPage.goto("/cleaner");
@@ -181,7 +181,7 @@ test("the last Office Staff member can't deactivate themselves", async ({
 }) => {
   await signInAsOffice(page);
   await openStaffMember(page, "Olive Owner");
-  await page.getByRole("button", { name: "Deactivate" }).click();
+  await pageAction(page, "Deactivate");
   await page
     .getByRole("alertdialog")
     .getByRole("button", { name: "Deactivate" })
@@ -291,7 +291,7 @@ test("a day off frees a Cleaner's Jobs, and so does deactivating them, each said
   );
 
   // Friday's is what's left to free
-  await page.getByRole("button", { name: "Deactivate" }).click();
+  await pageAction(page, "Deactivate");
   const deactivate = page.getByRole("alertdialog", {
     name: "Deactivate Cory Cleaner?",
   });
@@ -336,7 +336,7 @@ test("a Cleaner's Site Visit has to go to someone else before their day off, or 
   await expect(day).not.toContainText(why);
   await day.getByRole("button", { name: "Cancel" }).click();
 
-  await page.getByRole("button", { name: "Deactivate" }).click();
+  await pageAction(page, "Deactivate");
   const deactivate = page.getByRole("alertdialog", {
     name: "Deactivate Cory Cleaner?",
   });
@@ -353,7 +353,7 @@ test("Office Staff change someone's name and roles", async ({ page }) => {
   await signInAsOffice(page);
   await openStaffMember(page, "Cory Cleaner");
 
-  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await pageAction(page, "Edit details");
   const dialog = page.getByRole("dialog", { name: "Edit Cory Cleaner" });
   await dialog.getByRole("textbox", { name: "Name" }).fill("Cory Clean");
   await dialog.getByText("Office staff: runs the business here").click();
@@ -397,7 +397,7 @@ test("Office Staff invite a Cleaner in Spanish, whose area and invitation are in
   await expect(corysPage).toHaveURL("/cleaner");
   await expect(corysPage.locator("html")).toHaveAttribute("lang", "es");
 
-  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await pageAction(page, "Edit details");
   const edit = page.getByRole("dialog", { name: "Edit Cory Cleaner" });
   await expect(edit.getByRole("radio", { name: "Español" })).toBeChecked();
   await edit.getByText("English").click();

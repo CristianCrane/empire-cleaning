@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { useLoaderData } from "@tanstack/react-router";
 import {
   CalendarClock,
@@ -11,7 +11,8 @@ import {
   UserPlus,
   Users,
   X,
-  type LucideIcon,
+  CircleCheck,
+  Undo2,
 } from "lucide-react";
 import {
   isOnCrew,
@@ -23,32 +24,32 @@ import { MORE_HOURS, officeFix } from "@empire-cleaning/models";
 import {
   Actions,
   Avatar,
-  Breadcrumbs,
   Button,
   Card,
   Dialog,
   DialogTrigger,
   Form,
-  Heading,
   Link,
   List,
   ListItem,
-  MenuButton,
-  MenuItem,
-  MenuSeparator,
   Notice,
   Section,
   Select,
   SelectItem,
+  RecordPage,
+  DetailsCard,
+  DateTile,
+  Facts,
+  Fact,
+  type Alert,
 } from "@empire-cleaning/ui";
 import { deleteJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { addressOf, clientName, formatHours, screenWords } from "../format.ts";
 import { costForOffice } from "../RescheduleParts.tsx";
-import { CancelJob, FeeMoney, howItEnded } from "./JobCancellation.tsx";
+import { CancelJob, howItEnded } from "./JobCancellation.tsx";
 import {
-  Adjustments,
   ConditionField,
   JobMoney,
   RetryCharge,
@@ -72,185 +73,87 @@ const sinceOf = (a: AssignmentView) =>
 const booked = (job: OfficeJob) => job.status === "booked";
 
 /**
- * A Job for the Office, all of it in one view: what there is to do in
- * Notices on top, then two columns, the Job, who's on it and its money on
- * the left, its story on the right, where it has room to grow. Office Staff
- * Offer it to Cleaners and take people off, move or cancel it, and once it's
- * Completed, review and correct the completion.
+ * A Job for the Office, a Record (docs/ux.md): what there is to do in
+ * alerts on top; when, who for and where; how it went, who's on it and its
+ * money; its story beside them from xl. Office Staff Offer it to Cleaners
+ * and take people off, move or cancel it, and once it's Completed, review
+ * and correct the completion.
  */
 export function JobScreen() {
   const job = useLoaderData({ from: "/office/jobs/$jobId" });
-  const lost = job.cancellation ?? job.noAccess;
+  const title = `${job.serviceName} at ${placeOf(job.property)}`;
+  const terms = job.rescheduleTerms;
 
   return (
-    <div className="flex flex-col gap-6">
-      <JobHeader job={job} />
-      <WhatsNext job={job} />
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="flex flex-col gap-6">
-          <Section title="Job details">
-            <Card>
-              <JobFacts job={job} />
-              {job.completion && (
-                <Part
-                  title="How it went"
-                  actions={<UndoCompletion job={job} />}
-                >
-                  <ConditionField job={job} completion={job.completion} />
-                </Part>
-              )}
-            </Card>
-          </Section>
-          <Crew job={job} />
-          {job.completion && <Adjustments job={job} />}
-          {(job.completion || lost) && (
-            <Section title="Money">
-              <Card>
-                {job.completion ? (
-                  <JobMoney payment={job.completion.payment} />
-                ) : (
-                  <FeeMoney feeCents={lost!.feeCents} payment={lost!.payment} />
-                )}
-              </Card>
-            </Section>
-          )}
-        </div>
-        <div className="flex flex-col gap-6">
-          <JobHistory job={job} />
-        </div>
-      </div>
-    </div>
+    <RecordPage
+      trail={[
+        { label: "Jobs", href: linkTo({ to: "/office/jobs" }) },
+        { label: title },
+      ]}
+      title={title}
+      status={<JobBadge job={job} />}
+      actions={[
+        terms && {
+          label: "Move job",
+          icon: CalendarSync,
+          dialog: (state) => <MoveJob job={job} {...state} />,
+        },
+        terms && {
+          label: "Ask for a new time",
+          icon: CalendarClock,
+          dialog: (state) => <AskForNewTime job={job} {...state} />,
+        },
+        job.cancelTerms && {
+          label: "Cancel job",
+          icon: CalendarX,
+          danger: true,
+          dialog: (state) => <CancelJob job={job} {...state} />,
+        },
+        job.completion && {
+          label: "Mark not done",
+          icon: Undo2,
+          danger: true,
+          dialog: (state) => <UndoCompletion job={job} {...state} />,
+        },
+      ]}
+      alerts={alertsFor(job)}
+      details={<JobDetails job={job} />}
+      history={<JobHistory job={job} />}
+    >
+      {job.completion && <HowItWent job={job} completion={job.completion} />}
+      <Crew job={job} />
+      <JobMoney job={job} />
+    </RecordPage>
   );
 }
 
-// the title says what and where, the time under it; at the end of its row,
-// what can be done to the whole Job in an Actions menu: none of them is the
-// page's main action
-function JobHeader({ job }: { job: OfficeJob }) {
-  const [open, setOpen] = useState<JobAction | null>(null);
-  return (
-    <div className="flex flex-col gap-4">
-      <Breadcrumbs
-        trail={[
-          { label: "Jobs", href: linkTo({ to: "/office/jobs" }) },
-          { label: "Job" },
-        ]}
-      />
-      <div className="flex items-start gap-2">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-3">
-            <Heading level={1}>
-              {job.serviceName} at {placeOf(job.property)}
-            </Heading>
-            <JobBadge job={job} />
-          </div>
-          <p className="text-lg text-fg-muted">
-            {formatDateTime(job.startsAt)}
-          </p>
-        </div>
-        {(job.rescheduleTerms || job.cancelTerms) && (
-          <MenuButton label="Actions">
-            {job.rescheduleTerms && (
-              <>
-                <MenuItem icon={CalendarSync} onAction={() => setOpen("move")}>
-                  Move job
-                </MenuItem>
-                <MenuItem icon={CalendarClock} onAction={() => setOpen("ask")}>
-                  Ask for a new time
-                </MenuItem>
-              </>
-            )}
-            {/* a rule before Cancel only with something above it */}
-            {job.rescheduleTerms && job.cancelTerms && <MenuSeparator />}
-            {job.cancelTerms && (
-              <MenuItem
-                icon={CalendarX}
-                danger
-                onAction={() => setOpen("cancel")}
-              >
-                Cancel job
-              </MenuItem>
-            )}
-          </MenuButton>
-        )}
-      </div>
-      <JobDialogs job={job} open={open} setOpen={setOpen} />
-    </div>
-  );
-}
-
-// what can be done to the whole Job, each in a dialog; which one is open
-type JobAction = "move" | "ask" | "cancel";
-
-function JobDialogs({
-  job,
-  open,
-  setOpen,
-}: {
-  job: OfficeJob;
-  open: JobAction | null;
-  setOpen: (open: JobAction | null) => void;
-}) {
-  const openAs = (action: JobAction) => ({
-    isOpen: open === action,
-    onOpenChange: (isOpen: boolean) => setOpen(isOpen ? action : null),
-  });
-  return (
-    <>
-      {job.rescheduleTerms && (
-        <>
-          <MoveJob job={job} {...openAs("move")} />
-          <AskForNewTime job={job} {...openAs("ask")} />
-        </>
-      )}
-      {job.cancelTerms && <CancelJob job={job} {...openAs("cancel")} />}
-    </>
-  );
-}
-
-// What there is to do with the Job, above it: one Notice per thing, each
+// What there is to do with the Job, above it: one alert per thing, each
 // with at most one text action, warning when it's the Office's to do; or,
-// once it isn't booked, how it ended
-function WhatsNext({ job }: { job: OfficeJob }) {
-  const notices = noticesFor(job);
-  if (notices.length === 0) return null;
-  return <div className="flex flex-col gap-3">{notices}</div>;
-}
-
-const noticesFor = (job: OfficeJob): ReactNode[] => {
-  const notices: ReactNode[] = [];
+// once it isn't booked, how it ended. Done is in How it went (WEB-5)
+const alertsFor = (job: OfficeJob): Alert[] => {
+  const alerts: Alert[] = [];
   const request = job.rescheduleRequest;
   const completion = job.completion;
   const payment =
     completion?.payment ?? job.cancellation?.payment ?? job.noAccess?.payment;
 
-  if (completion) {
-    notices.push(
-      <Notice key="completed" tone="success">
-        <p>
-          <strong>Done {formatDateTime(completion.completedAt)}</strong>
-          {completion.completedBy && ` by ${completion.completedBy.name}`}.
-        </p>
-      </Notice>,
-    );
-  }
   const ended = howItEnded(job);
   if (ended) {
-    notices.push(
-      <Notice key="ended">
+    alerts.push({
+      key: "ended",
+      children: (
         <p>
           <strong>{ended.title}.</strong> {ended.description}
         </p>
-      </Notice>,
-    );
+      ),
+    });
   }
   if (request?.status === "pending") {
-    notices.push(
-      <Notice
-        key="reschedule"
-        tone="warning"
-        action={<AnswerRequest job={job} />}
-      >
+    alerts.push({
+      key: "reschedule",
+      tone: "warning",
+      action: <AnswerRequest job={job} />,
+      children: (
         <p>
           <strong>
             {request.byClient ? "The client asked" : "The office asked"} to move
@@ -259,43 +162,47 @@ const noticesFor = (job: OfficeJob): ReactNode[] => {
           {costForOffice(request.cost, request.feeCents, job)} The new time is
           held until you answer.
         </p>
-      </Notice>,
-    );
+      ),
+    });
   }
   if (booked(job) && job.cleanersNeeded > 0) {
-    notices.push(
-      <Notice
-        key="cleaners-needed"
-        tone={
-          job.openTo.opened && job.openTo.cleaners === 0 ? "danger" : "warning"
-        }
-        action={job.cleaners.length > 0 && <OfferToCleaner job={job} />}
-      >
-        <p>
-          <strong>Needs {cleaners(job.cleanersNeeded, "more")}.</strong>
-        </p>
-        <OpenTo job={job} />
-      </Notice>,
-    );
+    alerts.push({
+      key: "cleaners-needed",
+      tone:
+        job.openTo.opened && job.openTo.cleaners === 0 ? "danger" : "warning",
+      action: job.cleaners.length > 0 && <OfferToCleaner job={job} />,
+      children: (
+        <>
+          <p>
+            <strong>Needs {cleaners(job.cleanersNeeded, "more")}.</strong>
+          </p>
+          <OpenTo job={job} />
+        </>
+      ),
+    });
   }
   const toReview =
     completion?.adjustments.filter((a) => a.status === "reported").length ?? 0;
   if (toReview > 0) {
-    notices.push(
-      <Notice key="review" tone="warning">
+    alerts.push({
+      key: "review",
+      tone: "warning",
+      children: (
         <p>
           <strong>
             The cleaner reported {toReview}{" "}
             {toReview === 1 ? "price change" : "price changes"} to check.
-          </strong>{" "}
-          Each is only added once the client approves it.
+          </strong>
         </p>
-      </Notice>,
-    );
+      ),
+    });
   }
   if (payment?.unpaid) {
-    notices.push(
-      <Notice key="unpaid" tone="danger" action={<RetryCharge job={job} />}>
+    alerts.push({
+      key: "unpaid",
+      tone: "danger",
+      action: <RetryCharge job={job} />,
+      children: (
         <p>
           <strong>
             Unpaid since {formatDate(payment.unpaid.since)}:{" "}
@@ -304,128 +211,132 @@ const noticesFor = (job: OfficeJob): ReactNode[] => {
           </strong>{" "}
           {officeFix[payment.unpaid.kind]}
         </p>
-      </Notice>,
-    );
+      ),
+    });
   }
   if (job.canOfferServicePlan) {
-    notices.push(
-      <Notice
-        key="plan"
-        action={<OfferServicePlan propertyId={job.property.id} />}
-      >
-        <p>
-          This home's first clean is done, so you can offer a cleaning plan.
-        </p>
-      </Notice>,
-    );
+    alerts.push({
+      key: "plan",
+      action: <OfferServicePlan propertyId={job.property.id} />,
+      children: <p>The first clean is paid: offer a cleaning plan.</p>,
+    });
   }
-  return notices;
+  return alerts;
 };
 
 // where a Job is, for its title: the street and unit
 const placeOf = (p: OfficeJob["property"]) =>
   [p.street, p.unit].filter(Boolean).join(", ");
 
-// who it's for and what it is, and while it's booked, until when it's free
-// to move or cancel: each fact's label with its icon beside it, the value
-// after it (under it on a phone)
-function JobFacts({ job }: { job: OfficeJob }) {
+// when, large; who it's for, where, what's in it; and while it's booked,
+// until when it's free to move or cancel (WEB-2)
+function JobDetails({ job }: { job: OfficeJob }) {
   return (
-    <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-      <LabelledFact icon={ContactRound} label="Client">
-        <Link
-          href={linkTo({
-            to: "/office/clients/$clientId",
-            params: { clientId: job.client.id },
-          })}
-        >
-          {clientName(job.client)}
-        </Link>
-      </LabelledFact>
-      <LabelledFact icon={MapPin} label="Home">
-        <Link
-          href={linkTo({
-            to: "/office/properties/$propertyId",
-            params: { propertyId: job.property.id },
-          })}
-        >
-          {addressOf(job.property)}
-        </Link>
-      </LabelledFact>
-      <LabelledFact icon={CirclePlus} label="Extras">
-        {job.addOns.length > 0 ? job.addOns.join(", ") : "None"}
-      </LabelledFact>
-      <LabelledFact icon={Clock} label="Cleaning hours">
-        {formatHours(job.labourHours)}
-      </LabelledFact>
-      <LabelledFact icon={Users} label="Cleaners">
-        {job.crewSize}, {formatHours(job.hoursOnSite)} on site
-      </LabelledFact>
-      {job.rescheduleTerms && (
-        <LabelledFact icon={CalendarSync} label="Moving">
-          Free until {formatDateTime(job.rescheduleTerms.freeUntil)}
-        </LabelledFact>
-      )}
-      {job.cancelTerms && (
-        <LabelledFact icon={CalendarX} label="Cancelling">
-          Free for the client until{" "}
-          {formatDateTime(job.cancelTerms.client.freeUntil)}
-        </LabelledFact>
-      )}
-    </dl>
+    <DetailsCard
+      label="Job details"
+      tile={<DateTile date={job.startsAt} />}
+      kicker={job.serviceName}
+      title={formatDateTime(job.startsAt)}
+      line={`${formatHours(job.hoursOnSite)} on site`}
+    >
+      <Facts>
+        <Fact
+          icon={ContactRound}
+          label="Client"
+          value={
+            <Link
+              href={linkTo({
+                to: "/office/clients/$clientId",
+                params: { clientId: job.client.id },
+              })}
+            >
+              {clientName(job.client)}
+            </Link>
+          }
+        />
+        <Fact
+          icon={MapPin}
+          label="Home"
+          value={
+            <Link
+              href={linkTo({
+                to: "/office/properties/$propertyId",
+                params: { propertyId: job.property.id },
+              })}
+            >
+              {addressOf(job.property)}
+            </Link>
+          }
+        />
+        <Fact
+          icon={CirclePlus}
+          label="Extras"
+          value={job.addOns.length > 0 ? job.addOns.join(", ") : "None"}
+        />
+        <Fact
+          icon={Clock}
+          label="Cleaning hours"
+          value={formatHours(job.labourHours)}
+        />
+        <Fact icon={Users} label="Cleaners" value={job.crewSize} />
+        {job.rescheduleTerms && (
+          <Fact
+            icon={CalendarSync}
+            label="Moving"
+            value={formatDateTime(job.rescheduleTerms.freeUntil)}
+            line="Free to move until then"
+          />
+        )}
+        {job.cancelTerms && (
+          <Fact
+            icon={CalendarX}
+            label="Cancelling"
+            value={formatDateTime(job.cancelTerms.client.freeUntil)}
+            line="Free for the client to cancel until then"
+          />
+        )}
+      </Facts>
+    </DetailsCard>
   );
 }
 
-// one of the Job's facts: its icon and label, then its value (Fact.tsx's
-// shape leads with the value instead, under it what it is)
-function LabelledFact({
-  icon: Icon,
-  label,
-  children,
+// once it's done: when and by whom, and the condition the cleaner found,
+// which the Office can correct
+function HowItWent({
+  job,
+  completion,
 }: {
-  icon: LucideIcon;
-  label: string;
-  children: ReactNode;
+  job: OfficeJob;
+  completion: NonNullable<OfficeJob["completion"]>;
 }) {
   return (
-    <>
-      <dt className="flex items-center gap-2 font-semibold">
-        <Icon aria-hidden size={18} className="shrink-0 text-fg-muted" />
-        {label}
-      </dt>
-      <dd className="max-sm:mb-2 max-sm:pl-7">{children}</dd>
-    </>
+    <Section title="How it went">
+      <Card>
+        <Facts>
+          <Fact
+            icon={CircleCheck}
+            label="Done"
+            value={formatDateTime(completion.completedAt)}
+            line={
+              completion.completedBy
+                ? `Done, by ${completion.completedBy.name}`
+                : "Done"
+            }
+          />
+        </Facts>
+        <ConditionField job={job} completion={completion} />
+      </Card>
+    </Section>
   );
 }
 
-// a part of a card, ruled off from the one above
-function Part({
-  title,
-  actions,
-  children,
-}: {
-  title: string;
-  actions?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-3 border-t border-border pt-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Heading level={3}>{title}</Heading>
-        {actions && <div className="ml-auto">{actions}</div>}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-// who's on the Job, each Assignment as the Staff list draws its people:
-// their picture, name and since when, a badge when it's not the usual
-// (Confirmed), and while it's booked an X to take them off
+// who's on the Job, each as the Staff list draws its people: their
+// picture, name and since when, a badge when it's not the usual
+// (Confirmed), and while it's booked an X to take them off. Someone who
+// dropped out or was taken off isn't on it: History says so (WEB-3)
 function Crew({ job }: { job: OfficeJob }) {
-  const confirmed = job.assignments.filter(
-    (a) => a.status === "confirmed",
-  ).length;
+  const crew = job.assignments.filter((a) => isOnCrew(a.status));
+  const confirmed = crew.filter((a) => a.status === "confirmed").length;
   return (
     <Section
       title="Crew"
@@ -436,11 +347,11 @@ function Crew({ job }: { job: OfficeJob }) {
         job.cleaners.length > 0 && <OfferToCleaner job={job} />
       }
     >
-      {job.assignments.length === 0 ? (
+      {crew.length === 0 ? (
         <p className="text-sm text-fg-muted">Nobody is on it yet.</p>
       ) : (
         <List aria-label="Crew">
-          {job.assignments.map((a) => (
+          {crew.map((a) => (
             <ListItem
               key={a.id}
               id={a.id}
@@ -452,10 +363,7 @@ function Crew({ job }: { job: OfficeJob }) {
                   <AssignmentStateBadge state={a.status} />
                 )
               }
-              action={
-                booked(job) &&
-                isOnCrew(a.status) && <Remove job={job} assignment={a} />
-              }
+              action={booked(job) && <Remove job={job} assignment={a} />}
             />
           ))}
         </List>

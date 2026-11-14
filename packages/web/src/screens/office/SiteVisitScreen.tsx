@@ -6,6 +6,8 @@ import {
   Clock,
   NotebookPen,
   UserRound,
+  CalendarClock,
+  CalendarX,
 } from "lucide-react";
 import type {
   OfficeSiteVisit,
@@ -13,26 +15,26 @@ import type {
 } from "@empire-cleaning/models";
 import {
   ActionRow,
-  Breadcrumbs,
   Card,
   DateTile,
-  Heading,
   IconTile,
   Link,
-  Notice,
   Section,
+  Fact,
+  RecordPage,
+  DetailsCard,
+  Facts,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
 import {
   addressOf,
-  clientName,
   dayOfInstant,
   formatMinutes,
   screenWords,
 } from "../format.ts";
-import { AccessFact, ConditionFact, Fact } from "../Fact.tsx";
+import { AccessFact, ConditionFact } from "../Fact.tsx";
 import { homeIcon, QuoteIcon } from "../icons.ts";
-import { homeCrumbs } from "./PropertyScreen.tsx";
+import { homeTrail } from "./trails.ts";
 import {
   CancelSiteVisit,
   MoveSiteVisit,
@@ -44,61 +46,119 @@ const { propertySummary } = screenWords.en;
 
 const { formatDateTime, formatDay, formatTime } = formats.en;
 
-// One Site Visit for the Office (ADR-0015), on a page of its own: a home's
-// page shows its current one as a row opening it
+// One Site Visit for the Office (ADR-0015), a Record (docs/ux.md): when,
+// large, behind a date tile; who, how long, how to get in and the Quote
+// it's for; then what it found, or the way to record it. A booked one is
+// moved or cancelled from the page's actions. It's free, so there's nothing
+// to charge; the Client calls to change it. A home's page shows its current
+// one as a row opening it
 export function SiteVisitScreen() {
   const { visit, premisesTypes } = useLoaderData({
     from: "/office/site-visits/$visitId",
   });
+  const booked = visit.status === "booked";
+  const premises = visit.property.kind === "commercial";
   // it has been, with nothing recorded yet: recording is what's next
   const been =
-    visit.status === "booked" &&
+    booked &&
     visit.startsAt !== null &&
     new Date(visit.startsAt).getTime() < Date.now();
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <Breadcrumbs
-          trail={[
-            ...homeCrumbs(visit.client, visit.property),
-            { label: "Site visit" },
-          ]}
-        />
-        <div className="flex flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-3">
-            <Heading level={1}>Site visit</Heading>
-            <SiteVisitBadge status={visit.status} />
-          </div>
-          <p className="text-fg-muted">
-            {clientName(visit.client)} · {addressOf(visit.property)}
-          </p>
-        </div>
-      </div>
-      {been && (
-        <Notice tone="warning">
-          {visit.visitor?.name ?? "The visitor"} has been. Add what they found
-          so you can send a quote.
-        </Notice>
-      )}
-      {visit.status === "cancelled" && (
-        <Notice>
-          Cancelled {formatDateTime(visit.cancelledAt!)}, so nothing was found.
-          You can book another from the{" "}
-          {visit.property.kind === "commercial" ? "business's" : "home's"} page.
-        </Notice>
-      )}
-      <VisitDetails visit={visit} premisesTypes={premisesTypes} been={been} />
-    </div>
+    <RecordPage
+      trail={[
+        ...homeTrail(visit.client, visit.property),
+        { label: "Site visit" },
+      ]}
+      title="Site visit"
+      status={<SiteVisitBadge status={visit.status} />}
+      actions={[
+        booked && {
+          label: "Move or change",
+          icon: CalendarClock,
+          dialog: (state) => <MoveSiteVisit visit={visit} {...state} />,
+        },
+        booked && {
+          label: "Cancel visit",
+          icon: CalendarX,
+          danger: true,
+          dialog: (state) => <CancelSiteVisit visit={visit} {...state} />,
+        },
+      ]}
+      alerts={[
+        been && {
+          key: "been",
+          tone: "warning",
+          children: `${visit.visitor?.name ?? "The visitor"} has been. Add what they found so you can send a quote.`,
+        },
+        visit.status === "cancelled" && {
+          key: "cancelled",
+          children: `Cancelled ${formatDateTime(visit.cancelledAt!)}. Book another from the ${premises ? "business's" : "home's"} page.`,
+        },
+      ]}
+      details={
+        <DetailsCard
+          label="Visit details"
+          tile={
+            visit.startsAt ? (
+              <DateTile date={visit.startsAt} />
+            ) : (
+              <IconTile icon={ClipboardCheck} size="lg" />
+            )
+          }
+          kicker={premises ? "A business" : "A home"}
+          title={
+            visit.startsAt
+              ? `${formatDay(dayOfInstant(visit.startsAt))} at ${formatTime(visit.startsAt)}`
+              : "Findings recorded, with no visit"
+          }
+          line={addressOf(visit.property)}
+        >
+          <Facts>
+            {visit.visitor && (
+              <Fact
+                icon={UserRound}
+                label="Who visits"
+                value={visit.visitor.name}
+              />
+            )}
+            {visit.startsAt && (
+              <Fact
+                icon={Clock}
+                label="How long"
+                value={formatMinutes(visit.minutes)}
+                line="Booked for"
+              />
+            )}
+            <AccessFact property={visit.property} />
+            {visit.quoteId && (
+              <Fact
+                icon={QuoteIcon}
+                label="The quote it's for"
+                value={
+                  <Link
+                    href={linkTo({
+                      to: "/office/quotes/$quoteId",
+                      params: { quoteId: visit.quoteId },
+                    })}
+                  >
+                    Open the quote
+                  </Link>
+                }
+              />
+            )}
+          </Facts>
+        </DetailsCard>
+      }
+    >
+      <Found visit={visit} premisesTypes={premisesTypes} been={been} />
+    </RecordPage>
   );
 }
 
-// The visit as one record (UX pass, #96): when, large, behind a date tile;
-// who, how long, how to get in and the Quote it's for, across; then what it
-// found, or the way to record it, at its foot. A booked one is moved or
-// cancelled from its header. It's free, so there's nothing to charge; the
-// Client calls to change it.
-function VisitDetails({
+// what it found; or, while it's booked, the way to record it, an empty
+// part offering its action
+function Found({
   visit,
   premisesTypes,
   been,
@@ -107,128 +167,51 @@ function VisitDetails({
   premisesTypes: PremisesTypeChoice[];
   been: boolean;
 }) {
-  const booked = visit.status === "booked";
-  const premises = visit.property.kind === "commercial";
-
+  if (visit.status === "cancelled") return null;
   return (
-    <Section
-      title="Visit details"
-      actions={
-        booked && (
-          <>
-            <MoveSiteVisit visit={visit} />
-            <CancelSiteVisit visit={visit} />
-          </>
-        )
-      }
-    >
+    <Section title="What it found">
       <Card>
-        <div className="flex flex-col gap-6">
-          <div className="flex items-start gap-4">
-            {visit.startsAt ? (
-              <DateTile date={visit.startsAt} />
-            ) : (
-              <IconTile icon={ClipboardCheck} size="lg" />
-            )}
-            <div className="flex min-w-0 flex-col gap-1">
-              <p className="text-sm text-fg-muted">
-                {premises ? "A business" : "A home"}
-              </p>
-              <p className="text-xl font-semibold text-fg">
-                {visit.startsAt
-                  ? `${formatDay(dayOfInstant(visit.startsAt))} at ${formatTime(visit.startsAt)}`
-                  : "Findings recorded, with no visit"}
-              </p>
-              <p className="text-fg-muted">{addressOf(visit.property)}</p>
-            </div>
-          </div>
-          <div className="@container">
-            <dl className="grid gap-x-6 gap-y-4 @md:grid-cols-2 @3xl:grid-cols-4">
-              {visit.visitor && (
-                <Fact
-                  icon={UserRound}
-                  label="Who visits"
-                  value={visit.visitor.name}
-                />
-              )}
-              {visit.startsAt && (
-                <Fact
-                  icon={Clock}
-                  label="How long"
-                  value={formatMinutes(visit.minutes)}
-                  line="Booked for"
-                />
-              )}
-              <AccessFact property={visit.property} />
-              {visit.quoteId && (
-                <Fact
-                  icon={QuoteIcon}
-                  label="The quote it's for"
-                  value={
-                    <Link
-                      href={linkTo({
-                        to: "/office/quotes/$quoteId",
-                        params: { quoteId: visit.quoteId },
-                      })}
-                    >
-                      Open the quote
-                    </Link>
-                  }
-                />
-              )}
-            </dl>
-          </div>
-          {booked && (
-            <div className="border-t border-border pt-6">
-              <ActionRow
-                actions={
-                  <RecordFindings
-                    visit={visit}
-                    premisesTypes={premisesTypes}
-                    primary={been}
-                  />
-                }
-              >
-                <p>
-                  When it's done, add what was found. It updates the{" "}
-                  {premises ? "business's" : "home's"} details so you can send a
-                  quote.
-                </p>
-              </ActionRow>
-            </div>
-          )}
-          {visit.status === "done" && (
-            <div className="flex flex-col gap-4 border-t border-border pt-6">
-              <p className="font-semibold text-fg">What it found</p>
-              <div className="@container">
-                <dl className="grid gap-x-6 gap-y-4 @md:grid-cols-2 @3xl:grid-cols-4">
-                  <Fact
-                    icon={homeIcon(visit.property.kind)}
-                    label="What it is"
-                    value={propertySummary(visit.property)}
-                    className="@3xl:col-span-2"
-                  />
-                  <ConditionFact property={visit.property} />
-                  <Fact
-                    icon={CalendarCheck}
-                    label="Recorded"
-                    value={formatDateTime(visit.doneAt!)}
-                  />
-                  <Fact
-                    icon={NotebookPen}
-                    label="Office notes"
-                    value={
-                      <span className="whitespace-pre-line">
-                        {visit.officeNotes || "None"}
-                      </span>
-                    }
-                    className="@md:col-span-2 @3xl:col-span-4"
-                  />
-                </dl>
-              </div>
-            </div>
-          )}
-        </div>
+        {visit.status === "booked" ? (
+          <ActionRow
+            actions={
+              <RecordFindings
+                visit={visit}
+                premisesTypes={premisesTypes}
+                primary={been}
+              />
+            }
+          >
+            <p>
+              When it's done, add what was found. It updates the{" "}
+              {visit.property.kind === "commercial" ? "business's" : "home's"}{" "}
+              details so you can send a quote.
+            </p>
+          </ActionRow>
+        ) : (
+          <Facts>
+            <Fact
+              icon={homeIcon(visit.property.kind)}
+              label="What it is"
+              value={propertySummary(visit.property)}
+            />
+            <ConditionFact property={visit.property} />
+            <Fact
+              icon={CalendarCheck}
+              label="Recorded"
+              value={formatDateTime(visit.doneAt!)}
+            />
+            <Fact
+              icon={NotebookPen}
+              label="Office notes"
+              value={
+                <span className="whitespace-pre-line">
+                  {visit.officeNotes || "None"}
+                </span>
+              }
+              className="col-span-full"
+            />
+          </Facts>
+        )}
       </Card>
     </Section>
   );

@@ -1,17 +1,16 @@
 import { catalog, oneStop, theTimeEs } from "@empire-cleaning/models";
 import { useState } from "react";
-import { DoorClosed } from "lucide-react";
 import type { CleanerJob } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
   Card,
   Dialog,
-  DialogTrigger,
   Form,
   Notice,
   Section,
   TextField,
+  type DialogState,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
@@ -46,8 +45,11 @@ const words = catalog({
 
 // The Cleaner couldn't get into the home. Recording it ends the Job without
 // it being Completed, and the Client and the Office are told; the Office
-// sorts out what's next.
-export function RecordNoAccess({ job }: { job: CleanerJob }) {
+// sorts out what's next. One of the page's actions
+export function RecordNoAccess({
+  job,
+  ...state
+}: { job: CleanerJob } & DialogState) {
   const [reason, setReason] = useState("");
   const t = useSaid(words);
   const { c, w } = t;
@@ -62,47 +64,37 @@ export function RecordNoAccess({ job }: { job: CleanerJob }) {
   };
 
   return (
-    <DialogTrigger>
-      <Button variant="danger-text">
-        <DoorClosed aria-hidden size={18} />
-        {t.jobStatusLabel.no_access}
-      </Button>
-      <Dialog title={c.couldntGetIn} role="alertdialog">
-        {({ close }) => (
-          <Form
-            validationErrors={action.fieldErrors}
-            onSubmit={(e) => {
-              e.preventDefault();
-              void record(close);
-            }}
-          >
-            <p>{w.first}</p>
-            <TextField
-              label={w.whatHappened}
-              name="reason"
-              description={w.example}
-              value={reason}
-              onChange={setReason}
-              multiline
-              isRequired
-            />
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <Button variant="quiet" onPress={close}>
-                {c.goBack}
-              </Button>
-              <Button
-                type="submit"
-                variant="danger"
-                isPending={action.isPending}
-              >
-                {t.send}
-              </Button>
-            </Actions>
-          </Form>
-        )}
-      </Dialog>
-    </DialogTrigger>
+    <Dialog title={c.couldntGetIn} role="alertdialog" {...state}>
+      {({ close }) => (
+        <Form
+          validationErrors={action.fieldErrors}
+          onSubmit={(e) => {
+            e.preventDefault();
+            void record(close);
+          }}
+        >
+          <p>{w.first}</p>
+          <TextField
+            label={w.whatHappened}
+            name="reason"
+            description={w.example}
+            value={reason}
+            onChange={setReason}
+            multiline
+            isRequired
+          />
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              {c.goBack}
+            </Button>
+            <Button type="submit" variant="danger" isPending={action.isPending}>
+              {t.send}
+            </Button>
+          </Actions>
+        </Form>
+      )}
+    </Dialog>
   );
 }
 

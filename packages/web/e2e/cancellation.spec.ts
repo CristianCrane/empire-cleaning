@@ -10,8 +10,8 @@ import {
   signUp,
   test,
   addCleaner,
-  expectNoJobAction,
-  jobAction,
+  expectNoPageAction,
+  pageAction,
 } from "./harness.ts";
 
 // the API's clock is at 4am on Monday 5 January 2026 in New York. The Job
@@ -50,13 +50,10 @@ test(
     await signedInAs(page, casey.email);
     await page.goto(`/portal/jobs/${job.id}`);
 
-    const cancel = page.getByRole("region", { name: "Need to cancel?" });
-    await expect(cancel).toContainText(
-      /You can cancel for free until Sun, Jan 11, 9:00 AM, and we'll refund your \$[\d.]+ deposit\./,
-    );
     await expectAccessible(page);
 
-    await cancel.getByRole("button", { name: "Cancel clean" }).click();
+    // what it costs, said in its dialog
+    await pageAction(page, "Cancel clean");
     const dialog = page.getByRole("alertdialog", {
       name: "Cancel your clean?",
     });
@@ -70,9 +67,7 @@ test(
     const cancelled = page.getByRole("region", { name: "Cancelled" });
     await expect(cancelled).toContainText("There's no charge for cancelling.");
     await expect(cancelled).toContainText(/We've refunded \$[\d.]+ to your/);
-    await expect(
-      page.getByRole("region", { name: "Need to cancel?" }),
-    ).toHaveCount(0);
+    await expectNoPageAction(page, "Cancel clean");
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
       "Your clean is cancelled",
     );
@@ -99,10 +94,10 @@ test("a Client is told, not charged, when cancelling has become late since they 
   await setClock(SUNDAY_8_59AM);
   await signedInAs(page, casey.email);
   await page.goto(`/portal/jobs/${job.id}`);
-  await page
-    .getByRole("region", { name: "Need to cancel?" })
-    .getByRole("button", { name: "Cancel clean" })
-    .click();
+  await expect(
+    page.getByRole("region", { name: "Clean details" }),
+  ).toContainText("Free to move or cancelUntil Sun, Jan 11, 9:00 AM");
+  await pageAction(page, "Cancel clean");
   const dialog = page.getByRole("alertdialog", { name: "Cancel your clean?" });
   await expect(dialog).toContainText("There's no charge");
 
@@ -116,6 +111,13 @@ test("a Client is told, not charged, when cancelling has become late since they 
     /Cancelling less than 24 hours before is a late cancellation, so your \$[\d.]+ deposit is kept as the fee\./,
   );
 
+  // and the page no longer says it's free, as it said a minute ago
+  await dialog.getByRole("button", { name: "Keep my clean" }).click();
+  const details = page.getByRole("region", { name: "Clean details" });
+  await expect(details).toContainText("Price");
+  await expect(details).not.toContainText("Free to");
+
+  await pageAction(page, "Cancel clean");
   await dialog.getByRole("button", { name: "Cancel clean" }).click();
   await expect(page.getByRole("region", { name: "Cancelled" })).toContainText(
     /Cancelling less than 24 hours before is a late cancellation, so your \$[\d.]+ deposit is kept as the fee/,
@@ -131,10 +133,7 @@ test(
     await signedInAs(page, "cory@example.com");
     await page.goto(`/cleaner/jobs/${job.id}`);
 
-    await page
-      .getByRole("group", { name: "What to do" })
-      .getByRole("button", { name: "Couldn't get in" })
-      .click();
+    await pageAction(page, "Couldn't get in");
     const dialog = page.getByRole("alertdialog", { name: "Couldn't get in?" });
     await expectAccessible(page);
     await dialog
@@ -171,7 +170,7 @@ test(
     await signedInAs(page, olive.email);
     await page.goto(`/office/jobs/${job.id}`);
 
-    await jobAction(page, "Cancel job");
+    await pageAction(page, "Cancel job");
     const dialog = page.getByRole("alertdialog", { name: "Cancel this job?" });
     await expect(dialog).toContainText(
       /The client asked\s*A late cancellation: the \$[\d.]+ deposit is kept as the fee\./,
@@ -192,7 +191,7 @@ test(
     await expect(page.getByRole("region", { name: "History" })).toContainText(
       /Deposit of \$[\d.]+ charged.*\$[\d.]+ refunded/,
     );
-    await expectNoJobAction(page, "Cancel job");
+    await expectNoPageAction(page, "Cancel job");
 
     const client = await (await browser.newContext()).newPage();
     await signedInAs(client, casey.email);

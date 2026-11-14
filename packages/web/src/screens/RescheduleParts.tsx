@@ -20,6 +20,7 @@ import {
   Notice,
   Select,
   SelectItem,
+  Fold,
 } from "@empire-cleaning/ui";
 import { getJson, postJson } from "../api.ts";
 import { useLoaded } from "./load.ts";
@@ -261,12 +262,9 @@ function NewTimeForm({
                   <strong>{dayAt(formatDay(date), formatClock(time))}</strong>
                 </p>
               )}
-              <details className="text-sm">
-                <summary className="cursor-pointer font-semibold text-primary">
-                  {w.orList}
-                </summary>
-                <div className="mt-3 flex flex-col gap-4">{fields}</div>
-              </details>
+              <Fold label={w.orList}>
+                <div className="flex flex-col gap-4">{fields}</div>
+              </Fold>
             </>
           ) : (
             <>

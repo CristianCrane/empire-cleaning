@@ -5,10 +5,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Languages,
-  Mail,
   SquarePen,
   UserCheck,
-  UserRound,
 } from "lucide-react";
 import type {
   StaffDetail,
@@ -19,25 +17,27 @@ import { hasSiteVisit, weekdayOf, formats } from "@empire-cleaning/models";
 import {
   Actions,
   Avatar,
-  Breadcrumbs,
   Button,
   ButtonLink,
   Card,
   Dialog,
   DialogTrigger,
   Form,
-  Heading,
   LanguageName,
   Notice,
   NumberField,
   Section,
   TextField,
+  Fact,
+  RecordPage,
+  DetailsCard,
+  Facts,
+  type DialogState,
 } from "@empire-cleaning/ui";
 import { deleteJson, patchJson, postJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { dayOfInstant, formatHours, roleLabel, today } from "../format.ts";
-import { Fact } from "../Fact.tsx";
 import { MemberStatus, StaffFields } from "./StaffScreen.tsx";
 
 const {
@@ -55,143 +55,140 @@ const hoursFormat = { maximumFractionDigits: 2 } as const;
 const hoursLabel = (hours: number) =>
   hours === 0 ? "Off" : formatHours(hours);
 
-// One Staff member (UX pass, #96): who they are, changed in a dialog; a
-// Cleaner's availability as a month calendar, a day opening its dialog;
-// and deactivating them
+// One Staff member (UX pass, #96), a Record (docs/ux.md): who they are,
+// changed in a dialog; a Cleaner's availability as a month calendar, a day
+// opening its dialog; and deactivating them
 export function StaffMemberScreen() {
   const member = useLoaderData({ from: "/office/staff/$staffId" });
   const isCleaner = member.roles.includes("cleaner");
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <Breadcrumbs
-          trail={[
-            { label: "Staff", href: linkTo({ to: "/office/staff" }) },
-            { label: member.name },
-          ]}
-        />
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-4">
-            <Avatar src={member.imageUrl} size="lg" />
-            <div className="flex flex-wrap items-center gap-3">
-              <Heading level={1}>{member.name}</Heading>
-              <MemberStatus member={member} />
-            </div>
-          </div>
-          {member.active && <Deactivate member={member} />}
-        </div>
-      </div>
-
-      {!member.active && (
-        <Notice>
-          {member.name} can't sign in as staff any more. Invite them again to
-          bring them back.
-        </Notice>
-      )}
-      {member.active && !isCleaner && (
-        <Notice>
-          Only cleaners have working hours, so there's nothing to set for{" "}
-          {member.name}.
-        </Notice>
-      )}
-
-      <Section
-        title="Details"
-        actions={member.active && <EditStaff member={member} />}
-      >
-        <Card>
-          <div className="@container">
-            <dl className="grid gap-x-6 gap-y-4 @md:grid-cols-2 @3xl:grid-cols-4">
-              <Fact icon={Mail} label="Email" value={member.email} />
-              <Fact
-                icon={UserRound}
-                label="Roles"
-                value={formatList(member.roles.map((r) => roleLabel[r]))}
-              />
-              <Fact
-                icon={UserCheck}
-                label="Signed up"
-                value={
-                  member.signedUp ? "Signed up" : "Not yet: invitation sent"
-                }
-                line="Their account"
-              />
-              <Fact
-                icon={Languages}
-                label="Preferred language"
-                value={<LanguageName language={member.preferredLanguage} />}
-                line="Their screens and emails"
-              />
-            </dl>
-          </div>
-        </Card>
-      </Section>
-
+    <RecordPage
+      trail={[
+        { label: "Staff", href: linkTo({ to: "/office/staff" }) },
+        { label: member.name },
+      ]}
+      title={member.name}
+      status={<MemberStatus member={member} />}
+      actions={[
+        member.active && {
+          label: "Edit details",
+          icon: SquarePen,
+          dialog: (state) => <EditStaff member={member} {...state} />,
+        },
+        member.active && {
+          label: "Deactivate",
+          icon: Ban,
+          danger: true,
+          dialog: (state) => <Deactivate member={member} {...state} />,
+        },
+      ]}
+      alerts={[
+        !member.active && {
+          key: "inactive",
+          children: `${member.name} can't sign in as staff any more. Invite them again to bring them back.`,
+        },
+        member.active &&
+          !isCleaner && {
+            key: "no hours",
+            children: `Only cleaners have working hours, so there's nothing to set for ${member.name}.`,
+          },
+      ]}
+      details={
+        <DetailsCard
+          label="Details"
+          tile={<Avatar src={member.imageUrl} size="lg" />}
+          kicker={formatList(member.roles.map((r) => roleLabel[r]))}
+          title={member.name}
+          line={member.email}
+        >
+          <Facts>
+            <Fact
+              icon={UserCheck}
+              label="Signed up"
+              value={member.signedUp ? "Signed up" : "Not yet: invitation sent"}
+              line="Their account"
+            />
+            <Fact
+              icon={Languages}
+              label="Preferred language"
+              value={<LanguageName language={member.preferredLanguage} />}
+              line="Their screens and emails"
+            />
+          </Facts>
+        </DetailsCard>
+      }
+    >
       {member.active && isCleaner && <Availability member={member} />}
-    </div>
+    </RecordPage>
   );
 }
 
 // their name, roles and language, this record's alone; their email is how
 // their account connects, so it stays (ADR-0006)
-function EditStaff({ member }: { member: StaffDetail }) {
+function EditStaff({
+  member,
+  isOpen,
+  onOpenChange,
+}: { member: StaffDetail } & DialogState) {
   const [roles, setRoles] = useState<StaffRole[]>(member.roles);
   const action = useAction("The changes weren't saved. Please try again.");
 
   return (
-    <DialogTrigger onOpenChange={(open) => open && setRoles(member.roles)}>
-      <Button variant="text" size="sm">
-        <SquarePen aria-hidden size={16} />
-        Edit
-      </Button>
-      <Dialog title={`Edit ${member.name}`}>
-        {({ close }) => (
-          <Form
-            validationErrors={action.fieldErrors}
-            onSubmit={async (e) => {
-              e.preventDefault();
-              const form = new FormData(e.currentTarget);
-              if (
-                await action.run(
-                  () =>
-                    patchJson(`/api/staff/${member.id}`, {
-                      name: form.get("name"),
-                      roles,
-                      preferredLanguage: form.get("preferredLanguage"),
-                    }),
-                  "Changes saved",
-                )
+    <Dialog
+      title={`Edit ${member.name}`}
+      isOpen={isOpen}
+      onOpenChange={(open) => {
+        // opened afresh, it starts from what's saved
+        if (!open) setRoles(member.roles);
+        onOpenChange(open);
+      }}
+    >
+      {({ close }) => (
+        <Form
+          validationErrors={action.fieldErrors}
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = new FormData(e.currentTarget);
+            if (
+              await action.run(
+                () =>
+                  patchJson(`/api/staff/${member.id}`, {
+                    name: form.get("name"),
+                    roles,
+                    preferredLanguage: form.get("preferredLanguage"),
+                  }),
+                "Changes saved",
               )
-                close();
-            }}
-          >
-            <TextField
-              label="Name"
-              name="name"
-              defaultValue={member.name}
-              isRequired
-              autoFocus
-            />
-            <StaffFields
-              language={member.preferredLanguage}
-              roles={roles}
-              onRolesChange={setRoles}
-              errors={action.fieldErrors}
-            />
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <Button variant="quiet" onPress={close}>
-                Cancel
-              </Button>
-              <Button type="submit" isPending={action.isPending}>
-                Save changes
-              </Button>
-            </Actions>
-          </Form>
-        )}
-      </Dialog>
-    </DialogTrigger>
+            )
+              close();
+          }}
+        >
+          <TextField
+            label="Name"
+            name="name"
+            defaultValue={member.name}
+            isRequired
+            autoFocus
+          />
+          <StaffFields
+            language={member.preferredLanguage}
+            roles={roles}
+            onRolesChange={setRoles}
+            errors={action.fieldErrors}
+          />
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              Cancel
+            </Button>
+            <Button type="submit" isPending={action.isPending}>
+              Save changes
+            </Button>
+          </Actions>
+        </Form>
+      )}
+    </Dialog>
   );
 }
 
@@ -304,7 +301,10 @@ function WhatItFrees({
   );
 }
 
-function Deactivate({ member }: { member: StaffDetail }) {
+function Deactivate({
+  member,
+  ...state
+}: { member: StaffDetail } & DialogState) {
   const action = useAction("They weren't deactivated. Please try again.");
   // Office Staff or not, a Site Visit of theirs needs someone else
   const jobs = jobsOf(member.holding);
@@ -319,42 +319,36 @@ function Deactivate({ member }: { member: StaffDetail }) {
   };
 
   return (
-    <DialogTrigger>
-      <Button variant="danger-text" size="sm">
-        <Ban aria-hidden size={16} />
-        Deactivate
-      </Button>
-      <Dialog title={`Deactivate ${member.name}?`} role="alertdialog">
-        {({ close }) => (
-          <>
-            <p>
-              They won't be able to sign in as staff any more. If they're a
-              client too, that still works. You can invite them again later.
-            </p>
-            <WhatItFrees
-              member={member}
-              jobs={jobs}
-              visits={visits}
-              saving="Deactivating them"
-            />
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <Button variant="quiet" onPress={close}>
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                isPending={action.isPending}
-                isDisabled={visits.length > 0}
-                onPress={() => void deactivate(close)}
-              >
-                Deactivate
-              </Button>
-            </Actions>
-          </>
-        )}
-      </Dialog>
-    </DialogTrigger>
+    <Dialog title={`Deactivate ${member.name}?`} role="alertdialog" {...state}>
+      {({ close }) => (
+        <>
+          <p>
+            They won't be able to sign in as staff any more. If they're a client
+            too, that still works. You can invite them again later.
+          </p>
+          <WhatItFrees
+            member={member}
+            jobs={jobs}
+            visits={visits}
+            saving="Deactivating them"
+          />
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              isPending={action.isPending}
+              isDisabled={visits.length > 0}
+              onPress={() => void deactivate(close)}
+            >
+              Deactivate
+            </Button>
+          </Actions>
+        </>
+      )}
+    </Dialog>
   );
 }
 

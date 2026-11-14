@@ -128,6 +128,25 @@ describe("a change that fails", () => {
     expect(result.current.problem).toBe("Some details need fixing.");
   });
 
+  test("says why in a danger Toast, for an action with no form around it", async () => {
+    const { result, run } = await setup({ toast: true });
+
+    await run(async () => {
+      throw new ApiError(409, "The card didn't go through again.");
+    });
+    await run(async () => {
+      throw new ApiError(400, "Invalid", { kind: "Pick a kind" });
+    });
+
+    expect(vi.mocked(showToast).mock.calls).toEqual([
+      [{ tone: "danger", title: "The card didn't go through again." }],
+      [{ tone: "danger", title: FALLBACK }],
+    ]);
+    // nothing on the page: no Notice inside the Notice holding it
+    expect(result.current.problem).toBeUndefined();
+    expect(result.current.fieldErrors).toEqual({});
+  });
+
   test("reloads too, when what it does may have changed", async () => {
     const { reload, run } = await setup({ reloadOnFailure: true });
 

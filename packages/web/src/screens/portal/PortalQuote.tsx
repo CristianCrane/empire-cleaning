@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ComponentProps } from "react";
 import { useLoaderData } from "@tanstack/react-router";
 import {
   CalendarClock,
@@ -6,6 +6,8 @@ import {
   FileText,
   MapPin,
   Users,
+  CalendarDays,
+  Sparkles,
 } from "lucide-react";
 import type {
   AcceptOutcome,
@@ -18,26 +20,28 @@ import type {
 } from "@empire-cleaning/models";
 import {
   Actions,
-  Breadcrumbs,
   Button,
   Card,
   Section,
   Dialog,
   DialogTrigger,
-  Heading,
   IconTile,
-  Link,
   Notice,
   RadioCard,
   RadioGroup,
   StatusBadge,
+  Fact,
+  RecordPage,
+  DetailsCard,
+  Facts,
+  type Alert,
+  ButtonLink,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { addressOf, formatHours, formatMinutes } from "../format.ts";
 import { type Said, useSaid } from "../words.ts";
-import { Fact } from "../Fact.tsx";
 import {
   AskedRows,
   PlanDayCard,
@@ -51,8 +55,7 @@ import { requestQuoteHref } from "./whats-next.ts";
 // in the Client's language (ADR-0025)
 const words = catalog({
   en: {
-    updated: (day: string) => ` · Updated ${day}`,
-    openUntil: (when: string) => ` · Open until ${when}`,
+    updated: (day: string) => `Updated ${day}`,
     comeToSee: (
       premises: boolean,
       visitor: string,
@@ -146,8 +149,7 @@ const words = catalog({
     keep: "Keep it",
   },
   es: {
-    updated: (day: string) => ` · Actualizada el ${day}`,
-    openUntil: (when: string) => ` · Abierta hasta el ${when}`,
+    updated: (day: string) => `Actualizada el ${day}`,
     comeToSee: (
       premises: boolean,
       visitor: string,
@@ -262,38 +264,43 @@ export function PortalQuote() {
   );
 }
 
-function QuoteHeader({
+// a Quote's page, a Record (docs/ux.md): the header every Quote of theirs
+// shares, then its own
+function QuotePage({
   quote,
   title,
   updatedAt = null,
   openUntil = null,
+  ...page
 }: {
   quote: ClientQuoteView;
   title: string;
   updatedAt?: string | null;
   // while an offer is open
   openUntil?: string | null;
-}) {
+} & Pick<
+  ComponentProps<typeof RecordPage>,
+  "alerts" | "details" | "children"
+>) {
   const t = useSaid(words);
+  const subtitle = [
+    // a resend replaced the offer they may have seen before
+    updatedAt && t.w.updated(t.formatDate(updatedAt)),
+    openUntil && t.p.openUntil(t.formatDateTime(openUntil)),
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
-    <div className="flex flex-col gap-4">
-      <Breadcrumbs
-        trail={[
-          { label: t.p.home, href: linkTo({ to: "/portal" }) },
-          { label: t.p.yourQuote },
-        ]}
-      />
-      <div className="flex flex-wrap items-center gap-3">
-        <Heading level={1}>{title}</Heading>
-        <ClientQuoteStatusBadge status={quote.status} />
-      </div>
-      <p className="text-fg-muted">
-        {addressOf(quote.property)}
-        {/* a resend replaced the offer they may have seen before */}
-        {updatedAt && t.w.updated(t.formatDate(updatedAt))}
-        {openUntil && t.w.openUntil(t.formatDateTime(openUntil))}
-      </p>
-    </div>
+    <RecordPage
+      trail={[
+        { label: t.p.home, href: linkTo({ to: "/portal" }) },
+        { label: t.p.yourQuote },
+      ]}
+      title={title}
+      status={<ClientQuoteStatusBadge status={quote.status} />}
+      subtitle={subtitle || undefined}
+      {...page}
+    />
   );
 }
 
@@ -306,47 +313,58 @@ function AskedQuote({ quote }: { quote: AskedQuoteView }) {
   const premises = asked.condition === null;
 
   return (
-    <div className="flex flex-col gap-6">
-      <QuoteHeader quote={quote} title={t.p.yourQuote} />
-
-      {quote.status === "turned_down" ? (
-        <Notice>
-          <p>
-            {t.turnedDown(quote.turnDownReason!)} {t.ASK_AGAIN}
-          </p>
-          <p>
-            <Link href={requestQuoteHref}>{t.REQUEST_A_QUOTE}</Link>
-          </p>
-        </Notice>
-      ) : siteVisit ? (
-        <Notice tone="info">
-          {t.w.comeToSee(
-            premises,
-            siteVisit.visitorName,
-            t.formatDateTime(siteVisit.startsAt),
-            formatMinutes(siteVisit.minutes),
-          )}
-        </Notice>
-      ) : (
-        <Notice tone="info">{t.WORKING_ON_IT}</Notice>
-      )}
-
-      <Section title={t.w.askedFor}>
-        <Card>
-          <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-            <dt className="font-semibold">{t.w.asked}</dt>
-            <dd>{t.formatDate(quote.createdAt)}</dd>
+    <QuotePage
+      quote={quote}
+      title={t.p.yourQuote}
+      alerts={[
+        quote.status === "turned_down"
+          ? {
+              key: "turned down",
+              action: (
+                <ButtonLink variant="text" href={requestQuoteHref}>
+                  {t.REQUEST_A_QUOTE}
+                </ButtonLink>
+              ),
+              children: `${t.turnedDown(quote.turnDownReason!)} ${t.ASK_AGAIN}`,
+            }
+          : siteVisit
+            ? {
+                key: "visit",
+                children: t.w.comeToSee(
+                  premises,
+                  siteVisit.visitorName,
+                  t.formatDateTime(siteVisit.startsAt),
+                  formatMinutes(siteVisit.minutes),
+                ),
+              }
+            : { key: "working", children: t.WORKING_ON_IT },
+      ]}
+      details={
+        <DetailsCard label={t.w.askedFor}>
+          <Facts>
+            <Fact
+              icon={MapPin}
+              label={t.w.where}
+              value={addressOf(quote.property)}
+              line={t.p.yourHome}
+            />
+            <Fact
+              icon={CalendarDays}
+              label={t.w.asked}
+              value={t.formatDate(quote.createdAt)}
+            />
             {!premises && (
-              <>
-                <dt className="font-semibold">{t.condition}</dt>
-                <dd>{t.conditionLabel[asked.condition!]}</dd>
-              </>
+              <Fact
+                icon={Sparkles}
+                label={t.condition}
+                value={t.conditionLabel[asked.condition!]}
+              />
             )}
             <AskedRows asked={asked} premises={premises} />
-          </dl>
-        </Card>
-      </Section>
-    </div>
+          </Facts>
+        </DetailsCard>
+      }
+    />
   );
 }
 
@@ -372,42 +390,45 @@ function OfferedQuote({
   const chosen =
     quote.options.find((o) => o.serviceKey === serviceKey) ?? quote.options[0]!;
 
+  const open = quote.status === "sent";
   return (
-    <div className="flex flex-col gap-6">
-      <QuoteHeader
-        quote={quote}
-        title={t.w.yourKind(t.quoteKindName(quote.kind))}
-        updatedAt={quote.updatedAt}
-        openUntil={quote.status === "sent" ? quote.expiresAt : null}
-      />
-
-      <Standing quote={quote} chosen={chosen} />
-      {quote.changesPlan && quote.status === "sent" && (
-        <PlanChangeNotice quote={quote} change={quote.changesPlan} />
-      )}
-
-      <QuoteDetails quote={quote} chosen={chosen} onChoose={setServiceKey} />
-
-      {quote.status === "sent" &&
-        (quote.bookable.length === 0 ? (
-          // its day filled up after it was sent: nothing to pay for
-          <>
-            <Notice tone="info">
-              {t.w.bookedUp(
-                Boolean(quote.plan && quote.plan.days.length > 1),
-                t.formatDateTime(quote.proposedStartsAt),
-              )}
-            </Notice>
-            <Actions>
-              <Decline quote={quote} />
-            </Actions>
-          </>
-        ) : quote.changesPlan ? (
+    <QuotePage
+      quote={quote}
+      title={t.w.yourKind(t.quoteKindName(quote.kind))}
+      updatedAt={quote.updatedAt}
+      openUntil={open ? quote.expiresAt : null}
+      alerts={[
+        standing(t, quote, chosen),
+        quote.changesPlan &&
+          open && {
+            key: "plan change",
+            children: (
+              <PlanChangeText quote={quote} change={quote.changesPlan} />
+            ),
+          },
+        // its day filled up after it was sent: nothing to pay for
+        open &&
+          quote.bookable.length === 0 && {
+            key: "booked up",
+            action: <Decline quote={quote} />,
+            children: t.w.bookedUp(
+              Boolean(quote.plan && quote.plan.days.length > 1),
+              t.formatDateTime(quote.proposedStartsAt),
+            ),
+          },
+      ]}
+      details={
+        <QuoteDetails quote={quote} chosen={chosen} onChoose={setServiceKey} />
+      }
+    >
+      {open &&
+        quote.bookable.length > 0 &&
+        (quote.changesPlan ? (
           <AcceptChange quote={quote} />
         ) : (
           <Accept quote={quote} chosen={chosen} paymentMethod={paymentMethod} />
         ))}
-    </div>
+    </QuotePage>
   );
 }
 
@@ -429,181 +450,163 @@ function QuoteDetails({
   const extras = chosen.addOns.map((a) => a.name).join(", ");
 
   return (
-    <Section title={t.w.details}>
-      <Card>
-        <div className="flex flex-col gap-5">
-          {/* what it comes to */}
-          <div className="flex items-start gap-3">
-            <IconTile icon={FileText} />
-            <div className="flex min-w-0 flex-col">
-              <span className="font-display text-4xl font-bold tracking-wide tabular-nums">
-                {t.formatMoney(
-                  plan && plan.days.length > 1
-                    ? plan.roundTotalCents
-                    : chosen.totalCents,
-                )}
-              </span>
-              <span className="text-sm text-fg-muted">
-                {plan
-                  ? plan.days.length > 1
-                    ? t.w.aWeekTax
-                    : t.w.aCleanTax(chosen.serviceName)
-                  : t.taxIncludedOf(chosen.serviceName)}
-              </span>
-            </div>
-          </div>
-
-          <div className="@container">
-            <dl className="grid gap-x-6 gap-y-4 @md:grid-cols-2 @3xl:grid-cols-3">
-              <Fact
-                icon={CalendarClock}
-                label={t.w.when}
-                value={
-                  plan
-                    ? t.planRhythm(plan)
-                    : t.formatDateTime(quote.proposedStartsAt)
-                }
-                line={
-                  plan
-                    ? t.w.from(t.formatDateTime(quote.proposedStartsAt))
-                    : t.w.yourClean
-                }
-              />
-              <Fact
-                icon={MapPin}
-                label={t.w.where}
-                value={addressOf(quote.property)}
-                line={t.p.yourHome}
-              />
-              <Fact
-                icon={Users}
-                label={t.onSite}
-                value={t.w.crewAbout(
-                  t.cleaners(quote.crewSize),
-                  formatHours(chosen.hoursOnSite),
-                )}
-                line={t.onSite}
-              />
-            </dl>
-          </div>
-
-          {choosing && (
-            <div className="border-t border-border pt-4">
-              <RadioGroup
-                label={t.w.yourClean}
-                description={t.w.recommend(
-                  recommended!.serviceName,
-                  own!.serviceName,
-                )}
-                layout="cards"
-                value={chosen.serviceKey}
-                onChange={onChoose}
-              >
-                {quote.options.map((option) => (
-                  <RadioCard
-                    key={option.serviceKey}
-                    value={option.serviceKey}
-                    title={option.serviceName}
-                    isDisabled={!quote.bookable.includes(option.serviceKey)}
-                    badge={
-                      option.recommended && (
-                        <StatusBadge tone="success">
-                          {t.w.recommended}
-                        </StatusBadge>
-                      )
-                    }
-                  >
-                    <span className="font-display text-3xl font-bold tabular-nums">
-                      {t.formatMoney(option.totalCents)}
-                    </span>
-                    <span className="text-sm text-fg-muted">
-                      {quote.bookable.includes(option.serviceKey)
-                        ? t.w.hoursDeposit(
-                            formatHours(option.labourHours),
-                            t.formatMoney(option.depositCents),
-                          )
-                        : t.w.noLongerFits}
-                    </span>
-                  </RadioCard>
-                ))}
-              </RadioGroup>
-            </div>
+    <DetailsCard
+      label={t.w.details}
+      tile={<IconTile icon={FileText} size="lg" />}
+      kicker={
+        plan
+          ? plan.days.length > 1
+            ? t.w.aWeekTax
+            : t.w.aCleanTax(chosen.serviceName)
+          : t.taxIncludedOf(chosen.serviceName)
+      }
+      title={
+        <span className="tabular-nums">
+          {t.formatMoney(
+            plan && plan.days.length > 1
+              ? plan.roundTotalCents
+              : chosen.totalCents,
           )}
-
-          {plan && (
-            <div className="flex flex-col gap-3 border-t border-border pt-4">
-              <p className="text-sm text-fg-muted">
-                {plan.days.length > 1 ? t.w.oneADay : ""}
-                {t.w.eachOff(plan.discountPercent)}
-              </p>
-              <div className="grid gap-4 lg:grid-cols-2">
-                {plan.days.map((day, i) => (
-                  <PlanDayCard
-                    key={day.startsAt}
-                    option={quote.options[i]!}
-                    day={day}
-                    discountPercent={plan.discountPercent}
-                  />
-                ))}
-              </div>
-            </div>
+        </span>
+      }
+    >
+      <Facts>
+        <Fact
+          icon={CalendarClock}
+          label={t.w.when}
+          value={
+            plan ? t.planRhythm(plan) : t.formatDateTime(quote.proposedStartsAt)
+          }
+          line={
+            plan
+              ? t.w.from(t.formatDateTime(quote.proposedStartsAt))
+              : t.w.yourClean
+          }
+        />
+        <Fact
+          icon={MapPin}
+          label={t.w.where}
+          value={addressOf(quote.property)}
+          line={t.p.yourHome}
+        />
+        <Fact
+          icon={Users}
+          label={t.onSite}
+          value={t.w.crewAbout(
+            t.cleaners(quote.crewSize),
+            formatHours(chosen.hoursOnSite),
           )}
+          line={t.onSite}
+        />
+      </Facts>
 
-          {/* the money, line by line */}
-          <div className="flex flex-col gap-1 border-t border-border pt-4">
-            {plan ? (
-              <>
-                {extras && (
-                  <p className="text-sm text-fg-muted">{t.w.onEvery(extras)}</p>
-                )}
-                <PlanTotals
-                  plan={plan}
-                  depositPercent={quote.depositPercent}
-                  change={quote.changesPlan}
-                />
-              </>
-            ) : (
-              <dl className="flex flex-col gap-1 text-sm">
-                <Line
-                  label={chosen.serviceName}
-                  value={t.formatMoney(chosen.priceCents)}
-                />
-                {extras && (
-                  <p className="text-fg-muted">{t.w.includes(extras)}</p>
-                )}
-                <Line label={t.w.tax} value={t.formatMoney(chosen.taxCents)} />
-                <div className="mt-1 flex justify-between gap-4 border-t border-border pt-2 text-base font-semibold text-fg">
-                  <dt>{t.total}</dt>
-                  <dd className="tabular-nums">
-                    {t.formatMoney(chosen.totalCents)}
-                  </dd>
-                </div>
-                {chosen.depositCents > 0 && (
-                  <>
-                    <Line
-                      label={t.w.deposit(
-                        quote.depositPercent,
-                        quote.status === "accepted",
-                      )}
-                      value={t.formatMoney(chosen.depositCents)}
-                      strong
-                    />
-                    <Line
-                      label={
-                        quote.weeklyBill ? t.w.restOnBill : t.w.restWhenDone
-                      }
-                      value={t.formatMoney(
-                        chosen.totalCents - chosen.depositCents,
-                      )}
-                    />
-                  </>
-                )}
-              </dl>
+      {choosing && (
+        <div className="border-t border-border pt-4">
+          <RadioGroup
+            label={t.w.yourClean}
+            description={t.w.recommend(
+              recommended!.serviceName,
+              own!.serviceName,
             )}
+            layout="cards"
+            value={chosen.serviceKey}
+            onChange={onChoose}
+          >
+            {quote.options.map((option) => (
+              <RadioCard
+                key={option.serviceKey}
+                value={option.serviceKey}
+                title={option.serviceName}
+                isDisabled={!quote.bookable.includes(option.serviceKey)}
+                badge={
+                  option.recommended && (
+                    <StatusBadge tone="success">{t.w.recommended}</StatusBadge>
+                  )
+                }
+              >
+                <span className="font-display text-3xl font-bold tabular-nums">
+                  {t.formatMoney(option.totalCents)}
+                </span>
+                <span className="text-sm text-fg-muted">
+                  {quote.bookable.includes(option.serviceKey)
+                    ? t.w.hoursDeposit(
+                        formatHours(option.labourHours),
+                        t.formatMoney(option.depositCents),
+                      )
+                    : t.w.noLongerFits}
+                </span>
+              </RadioCard>
+            ))}
+          </RadioGroup>
+        </div>
+      )}
+
+      {plan && (
+        <div className="flex flex-col gap-3 border-t border-border pt-4">
+          <p className="text-sm text-fg-muted">
+            {plan.days.length > 1 ? t.w.oneADay : ""}
+            {t.w.eachOff(plan.discountPercent)}
+          </p>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {plan.days.map((day, i) => (
+              <PlanDayCard
+                key={day.startsAt}
+                option={quote.options[i]!}
+                day={day}
+                discountPercent={plan.discountPercent}
+              />
+            ))}
           </div>
         </div>
-      </Card>
-    </Section>
+      )}
+
+      {/* the money, line by line */}
+      <div className="flex flex-col gap-1 border-t border-border pt-4">
+        {plan ? (
+          <>
+            {extras && (
+              <p className="text-sm text-fg-muted">{t.w.onEvery(extras)}</p>
+            )}
+            <PlanTotals
+              plan={plan}
+              depositPercent={quote.depositPercent}
+              change={quote.changesPlan}
+            />
+          </>
+        ) : (
+          <dl className="flex flex-col gap-1 text-sm">
+            <Line
+              label={chosen.serviceName}
+              value={t.formatMoney(chosen.priceCents)}
+            />
+            {extras && <p className="text-fg-muted">{t.w.includes(extras)}</p>}
+            <Line label={t.w.tax} value={t.formatMoney(chosen.taxCents)} />
+            <div className="mt-1 flex justify-between gap-4 border-t border-border pt-2 text-base font-semibold text-fg">
+              <dt>{t.total}</dt>
+              <dd className="tabular-nums">
+                {t.formatMoney(chosen.totalCents)}
+              </dd>
+            </div>
+            {chosen.depositCents > 0 && (
+              <>
+                <Line
+                  label={t.w.deposit(
+                    quote.depositPercent,
+                    quote.status === "accepted",
+                  )}
+                  value={t.formatMoney(chosen.depositCents)}
+                  strong
+                />
+                <Line
+                  label={quote.weeklyBill ? t.w.restOnBill : t.w.restWhenDone}
+                  value={t.formatMoney(chosen.totalCents - chosen.depositCents)}
+                />
+              </>
+            )}
+          </dl>
+        )}
+      </div>
+    </DetailsCard>
   );
 }
 
@@ -630,53 +633,54 @@ function Line({
 
 // how it ended, once it's closed; while it's open, its header says until
 // when
-function Standing({
-  quote,
-  chosen,
-}: {
-  quote: QuoteView;
-  chosen: QuoteOption;
-}) {
-  const t = useSaid(words);
+function standing(
+  t: Said & { w: (typeof words)["en"] },
+  quote: QuoteView,
+  chosen: QuoteOption,
+): Alert | null {
   const proposed = t.formatDateTime(quote.proposedStartsAt);
   switch (quote.status) {
     case "accepted":
-      return quote.servicePlanId ? (
-        <Notice tone="success">
-          {quote.changedPlan
-            ? t.w.planChanged(proposed)
-            : t.w.planStarted(proposed)}{" "}
-          {t.w.acceptedOn(t.formatDateTime(quote.acceptedAt!))}{" "}
-          <Link
+      return {
+        key: "accepted",
+        tone: "success",
+        action: quote.servicePlanId && (
+          <ButtonLink
+            variant="text"
             href={linkTo({
               to: "/portal/plans/$planId",
               params: { planId: quote.servicePlanId },
             })}
           >
             {t.p.seeYourCleaningPlan}
-          </Link>
-        </Notice>
-      ) : (
-        <Notice tone="success">
-          {t.w.booked(chosen.serviceName, proposed)}{" "}
-          {t.w.acceptedOn(t.formatDateTime(quote.acceptedAt!))}
-        </Notice>
-      );
+          </ButtonLink>
+        ),
+        children: `${
+          quote.servicePlanId
+            ? quote.changedPlan
+              ? t.w.planChanged(proposed)
+              : t.w.planStarted(proposed)
+            : t.w.booked(chosen.serviceName, proposed)
+        } ${t.w.acceptedOn(t.formatDateTime(quote.acceptedAt!))}`,
+      };
     case "declined":
-      return (
-        <Notice>{t.w.declinedOn(t.formatDateTime(quote.declinedAt!))}</Notice>
-      );
+      return {
+        key: "declined",
+        children: t.w.declinedOn(t.formatDateTime(quote.declinedAt!)),
+      };
     case "expired":
-      return (
-        <Notice>{t.w.expiredOn(t.formatDateTime(quote.expiresAt))}</Notice>
-      );
+      return {
+        key: "expired",
+        children: t.w.expiredOn(t.formatDateTime(quote.expiresAt)),
+      };
     default:
       return null;
   }
 }
 
-// what accepting a Quote for a home with a plan does to that plan
-function PlanChangeNotice({
+// what accepting a Quote for a home with a plan does to that plan, said in
+// an alert
+function PlanChangeText({
   quote,
   change,
 }: {
@@ -685,8 +689,10 @@ function PlanChangeNotice({
 }) {
   const t = useSaid(words);
   return (
-    <Notice tone="info">
-      <strong>{t.w.changesPlan}</strong>
+    <>
+      <p>
+        <strong>{t.w.changesPlan}</strong>
+      </p>
       <p>{t.w.movesTerms(t.formatDateTime(quote.proposedStartsAt))}</p>
       {change.replaces.length > 0 && (
         <p>
@@ -697,7 +703,7 @@ function PlanChangeNotice({
         </p>
       )}
       <p>{t.w.depositStays(t.formatMoney(change.depositCents))}</p>
-    </Notice>
+    </>
   );
 }
 

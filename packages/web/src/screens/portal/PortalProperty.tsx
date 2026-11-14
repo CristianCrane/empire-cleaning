@@ -7,14 +7,11 @@ import type { PropertyView } from "@empire-cleaning/models";
 import {
   ActionRow,
   Actions,
-  Breadcrumbs,
   Button,
   ButtonLink,
   Card,
   Dialog,
-  DialogTrigger,
   Form,
-  Heading,
   IconTile,
   List,
   ListItem,
@@ -22,6 +19,10 @@ import {
   Section,
   StatusBadge,
   TextField,
+  RecordPage,
+  DetailsCard,
+  Facts,
+  type DialogState,
 } from "@empire-cleaning/ui";
 import { accessHelp } from "@empire-cleaning/quote-request";
 import { patchJson } from "../../api.ts";
@@ -102,54 +103,41 @@ export function PortalProperty() {
   const quotes = data.quotes.filter((q) => q.property.id === p.id);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <Breadcrumbs
-          trail={[
-            { label: t.p.yourDetails, href: linkTo({ to: "/portal/details" }) },
-            { label: p.street },
-          ]}
-        />
-        <div className="flex flex-wrap items-center gap-3">
-          <Heading level={1}>{p.street}</Heading>
-          <StatusBadge tone={standing.tone}>{standing.label}</StatusBadge>
-        </div>
-        <p className="text-fg-muted">{addressOf(p)}</p>
-      </div>
-
-      <Section
-        title={premises ? w.businessDetails : w.homeDetails}
-        actions={<EditAccess property={p} />}
-      >
-        <Card>
-          <div className="flex flex-col gap-6">
-            <div className="flex items-start gap-4">
-              <IconTile icon={homeIcon(p.kind)} size="lg" />
-              <div className="flex min-w-0 flex-col gap-1">
-                <p className="text-sm text-fg-muted">
-                  {premises ? w.yourBusiness : t.p.yourHome}
-                </p>
-                <p className="text-xl font-semibold text-fg">
-                  {t.propertySummary(p)}
-                </p>
-              </div>
-            </div>
-            <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
-              <FloorAreaFact property={p} />
-              <ConditionFact property={p} line={w.conditionLine} />
-              <AccessFact
-                property={p}
-                line={w.accessLine}
-                className="sm:col-span-2"
-              />
-            </dl>
-            <p className="border-t border-border pt-4 text-sm text-fg-muted">
-              {w.sizeNote}
-            </p>
-          </div>
-        </Card>
-      </Section>
-
+    <RecordPage
+      trail={[
+        { label: t.p.yourDetails, href: linkTo({ to: "/portal/details" }) },
+        { label: p.street },
+      ]}
+      title={p.street}
+      status={<StatusBadge tone={standing.tone}>{standing.label}</StatusBadge>}
+      actions={[
+        {
+          label: w.edit,
+          icon: KeyRound,
+          dialog: (state) => <EditAccess property={p} {...state} />,
+        },
+      ]}
+      details={
+        <DetailsCard
+          label={premises ? w.businessDetails : w.homeDetails}
+          tile={<IconTile icon={homeIcon(p.kind)} size="lg" />}
+          kicker={premises ? w.yourBusiness : t.p.yourHome}
+          title={t.propertySummary(p)}
+          line={addressOf(p)}
+        >
+          <Facts>
+            <FloorAreaFact property={p} />
+            <ConditionFact property={p} line={w.conditionLine} />
+            <AccessFact
+              property={p}
+              line={w.accessLine}
+              className="col-span-full"
+            />
+          </Facts>
+          <p className="text-sm text-fg-muted">{w.sizeNote}</p>
+        </DetailsCard>
+      }
+    >
       <Section title={plans.length > 1 ? w.plans : t.p.cleaningPlan}>
         {plans.length > 0 ? (
           <List
@@ -221,11 +209,14 @@ export function PortalProperty() {
           </List>
         </Section>
       )}
-    </div>
+    </RecordPage>
   );
 }
 
-function EditAccess({ property }: { property: PropertyView }) {
+function EditAccess({
+  property,
+  ...state
+}: { property: PropertyView } & DialogState) {
   const t = useSaid(words);
   const { w } = t;
   const action = useAction(w.notSaved);
@@ -242,40 +233,34 @@ function EditAccess({ property }: { property: PropertyView }) {
   };
 
   return (
-    <DialogTrigger>
-      <Button variant="text">
-        <KeyRound aria-hidden size={18} />
-        {w.edit}
-      </Button>
-      <Dialog title={t.howWeGetIn}>
-        {({ close }) => (
-          <Form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const form = new FormData(e.currentTarget);
-              void save(String(form.get("access")), close);
-            }}
-          >
-            <TextField
-              label={w.howDoWe}
-              name="access"
-              multiline
-              autoFocus
-              description={accessHelp[t.lang][property.kind]}
-              defaultValue={property.accessInstructions ?? ""}
-            />
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <Button variant="quiet" onPress={close}>
-                {t.p.cancel}
-              </Button>
-              <Button type="submit" isPending={action.isPending}>
-                {w.save}
-              </Button>
-            </Actions>
-          </Form>
-        )}
-      </Dialog>
-    </DialogTrigger>
+    <Dialog title={t.howWeGetIn} {...state}>
+      {({ close }) => (
+        <Form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const form = new FormData(e.currentTarget);
+            void save(String(form.get("access")), close);
+          }}
+        >
+          <TextField
+            label={w.howDoWe}
+            name="access"
+            multiline
+            autoFocus
+            description={accessHelp[t.lang][property.kind]}
+            defaultValue={property.accessInstructions ?? ""}
+          />
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              {t.p.cancel}
+            </Button>
+            <Button type="submit" isPending={action.isPending}>
+              {w.save}
+            </Button>
+          </Actions>
+        </Form>
+      )}
+    </Dialog>
   );
 }

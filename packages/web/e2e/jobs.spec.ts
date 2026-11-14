@@ -50,9 +50,12 @@ test(
     await expect(page).toHaveURL(/\/office\/jobs\/[0-9a-f-]{36}$/);
     // a Job belongs to Jobs, whichever way it's reached
     const crumbs = page.getByLabel("Breadcrumbs");
-    await expect(crumbs.getByText("Job", { exact: true })).toHaveAttribute(
-      "aria-current",
-      "page",
+    // the trail ends at the Job, by its title
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      /^Deep Clean at /,
+    );
+    await expect(crumbs.locator("[aria-current=page]")).toHaveText(
+      /^Deep Clean at /,
     );
     await expectCurrentSection(page, "Jobs");
 

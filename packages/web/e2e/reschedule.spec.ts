@@ -13,7 +13,7 @@ import {
   signUp,
   test,
   addCleaner,
-  jobAction,
+  pageAction,
 } from "./harness.ts";
 
 // the API's clock is at 4am on Monday 5 January 2026 in New York. The Job
@@ -54,12 +54,13 @@ test(
     const job = await bookedJob();
     await signedInAs(page, casey.email);
     await page.goto(`/portal/jobs/${job.id}`);
+    // until when it's free, before they look at moving it
+    await expect(
+      page.getByRole("region", { name: "Clean details" }),
+    ).toContainText("Free to move or cancelUntil Sun, Jan 11, 9:00 AM");
 
-    const card = page.getByRole("region", { name: "Need another time?" });
-    await expect(card).toContainText(
-      "You can move it for free until Sun, Jan 11, 9:00 AM.",
-    );
-    await card.getByRole("button", { name: "Pick a new time" }).click();
+    // what it costs, said in its dialog
+    await pageAction(page, "Pick a new time");
     const dialog = page.getByRole("dialog", { name: "Pick a new time" });
     await expect(dialog).toContainText("There's no charge for moving it.");
     // the keyboard path: the same choice from a list
@@ -71,7 +72,9 @@ test(
     await dialog.getByRole("button", { name: "Send request" }).click();
 
     await expect(page.getByText("Request sent")).toBeVisible();
-    const pending = page.getByRole("region", { name: "Moving your clean" });
+    const pending = page
+      .getByRole("status")
+      .filter({ hasText: "You've asked to move it" });
     await expect(pending).toContainText(
       "You've asked to move it to Wed, Jan 14, 10:00 AM. That time is held for you while we confirm it. Until then, your clean stays booked for Mon, Jan 12, 9:00 AM.",
     );
@@ -81,9 +84,7 @@ test(
 
     await pending.getByRole("button", { name: "Withdraw request" }).click();
     await expect(page.getByText("Request withdrawn")).toBeVisible();
-    await expect(
-      page.getByRole("region", { name: "Need another time?" }),
-    ).toBeVisible();
+    await expect(pending).toHaveCount(0);
   },
 );
 
@@ -95,8 +96,10 @@ test("the portal shows a Late Reschedule's cost before it's sent", async ({
   await signedInAs(page, casey.email);
   await page.goto(`/portal/jobs/${job.id}`);
 
-  const card = page.getByRole("region", { name: "Need another time?" });
-  await expect(card).toContainText(
+  await pageAction(page, "Pick a new time");
+  await expect(
+    page.getByRole("dialog", { name: "Pick a new time" }),
+  ).toContainText(
     "Moving it less than 24 hours before is a late move. Your first one is free, and your deposit still counts toward the price.",
   );
 });
@@ -169,7 +172,7 @@ test("Office Staff turn down a Reschedule Request, and the Client sees why", asy
   await signedInAs(client, casey.email);
   await client.goto(`/portal/jobs/${job.id}`);
   await expect(
-    client.getByRole("region", { name: "Need another time?" }),
+    client.getByRole("status").filter({ hasText: "We couldn't move it" }),
   ).toContainText(
     "We couldn't move it to Wed, Jan 14, 10:00 AM. We're fully booked that morning.",
   );
@@ -199,10 +202,7 @@ test(
     await signedInAs(page, casey.email);
     await page.goto(`/portal/jobs/${job.id}`);
 
-    await page
-      .getByRole("region", { name: "Need another time?" })
-      .getByRole("button", { name: "Pick a new time" })
-      .click();
+    await pageAction(page, "Pick a new time");
     // a month in the dialog itself: only days with room can be picked,
     // then that day's open times
     const dialog = page.getByRole("dialog", { name: "Pick a new time" });
@@ -236,7 +236,7 @@ test(
     await expect(dialog).toContainText("Move it to Wed, Jan 14 at 11:00 AM");
     await dialog.getByRole("button", { name: "Send request" }).click();
     await expect(
-      page.getByRole("region", { name: "Moving your clean" }),
+      page.getByRole("status").filter({ hasText: "You've asked to move it" }),
     ).toContainText("You've asked to move it to Wed, Jan 14, 11:00 AM.");
   },
 );
@@ -249,7 +249,7 @@ test(
     await signedInAs(page, olive.email);
     await page.goto(`/office/jobs/${job.id}`);
 
-    await jobAction(page, "Ask for a new time");
+    await pageAction(page, "Ask for a new time");
     // the Schedule in the dialog itself, never a dialog on a dialog
     const dialog = page.getByRole("dialog", { name: "Pick a new time" });
     const schedule = dialog;

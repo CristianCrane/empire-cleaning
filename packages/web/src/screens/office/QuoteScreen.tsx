@@ -21,6 +21,10 @@ import {
   Trash2,
   CalendarPlus,
   type LucideIcon,
+  CircleX,
+  CalendarClock,
+  Repeat,
+  CirclePlus,
 } from "lucide-react";
 import {
   parseDate,
@@ -81,12 +85,16 @@ import {
   Timeline,
   TimelineItem,
   showToast,
+  Fold,
+  RecordPage,
+  type Alert,
+  Facts,
+  Fact,
 } from "@empire-cleaning/ui";
 import { ApiError, deleteJson, patchJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction, useLeavingAction } from "../action.ts";
 import {
-  addressOf,
   clientName,
   dayOfInstant,
   timeOfDay,
@@ -104,18 +112,21 @@ import {
   QuoteStatusBadge,
   planDayTitle,
 } from "../QuoteParts.tsx";
-import { homeCrumbs } from "./PropertyScreen.tsx";
+import { homeCrumbs } from "./trails.ts";
 import {
   AskedFacts,
   DraftQuote,
   PriceWorking,
-  SeeThePremises,
+  seeThePremises,
   TurnDownQuote,
-  propertyLink,
   turnDownLabel,
 } from "./QuoteAsked.tsx";
 import { PickFromSchedule, type Crew } from "./SchedulePicker.tsx";
-import { BookSiteVisit, visitSummary } from "./SiteVisitParts.tsx";
+import {
+  BOOK_A_SITE_VISIT,
+  BookSiteVisitDialog,
+  visitSummary,
+} from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
 import { reportUnexpected } from "../../monitoring.ts";
 
@@ -123,7 +134,6 @@ const {
   conditionLabel,
   planName,
   planRhythm,
-  propertySummary,
   recurrenceLabel,
   quoteKindName,
   formatFloorArea,
@@ -173,13 +183,54 @@ export function QuoteScreen() {
       ? shownOf({ ...quote, draft: null })
       : null;
 
+  const kind = quoteKindName(quote.kind);
+  const revising = quote.draft !== null && quote.offer !== null;
+
   return (
-    <div className="flex flex-col gap-6">
-      <QuoteHeader quote={quote} />
-      <WhatsNext quote={quote} />
-      {quote.status !== "turned_down" && shown?.changesPlan && (
-        <PlanChangeNotice quote={shown} change={shown.changesPlan} />
-      )}
+    <RecordPage
+      trail={[
+        { label: "Quotes", href: linkTo({ to: "/office/quotes" }) },
+        ...homeCrumbs(quote.client, quote.property),
+        { label: kind },
+      ]}
+      title={`${kind} for ${clientName(quote.client)}`}
+      status={
+        <>
+          <QuoteStatusBadge status={quote.status} />
+          {revising && <DraftChangesBadge />}
+        </>
+      }
+      actions={[
+        // optional, unless its Service is seen first: then an alert asks
+        // for it
+        unsent(quote) &&
+          !quote.needsSiteVisit &&
+          !quote.bookedSiteVisit && {
+            label: BOOK_A_SITE_VISIT,
+            icon: CalendarPlus,
+            dialog: (state) => (
+              <BookSiteVisitDialog quoteId={quote.id} {...state} />
+            ),
+          },
+        unsent(quote) && {
+          label: "Turn down",
+          icon: CircleX,
+          danger: true,
+          dialog: (state) => <TurnDownQuote quote={quote} {...state} />,
+        },
+      ]}
+      alerts={[
+        ...alertsFor(quote),
+        quote.status !== "turned_down" &&
+          shown?.changesPlan && {
+            key: "plan change",
+            children: (
+              <PlanChangeText quote={shown} change={shown.changesPlan} />
+            ),
+          },
+      ]}
+    >
+      {/* its story is its body: no History beside it (#145) */}
       <Timeline aria-label="This quote's story, newest first">
         {offer && (
           <TimelineItem icon={FileClock} title="Now" current>
@@ -207,50 +258,7 @@ export function QuoteScreen() {
           </TimelineItem>
         ))}
       </Timeline>
-    </div>
-  );
-}
-
-function QuoteHeader({ quote }: { quote: OfficeQuote }) {
-  const kind = quoteKindName(quote.kind);
-  const revising = quote.draft !== null && quote.offer !== null;
-  return (
-    <div className="flex flex-col gap-4">
-      <Breadcrumbs
-        trail={[
-          { label: "Quotes", href: linkTo({ to: "/office/quotes" }) },
-          ...homeCrumbs(quote.client, quote.property),
-          { label: kind },
-        ]}
-      />
-      <div className="flex flex-wrap items-center gap-3">
-        <Heading level={1}>
-          {kind} for {clientName(quote.client)}
-        </Heading>
-        <QuoteStatusBadge status={quote.status} />
-        {revising && <DraftChangesBadge />}
-        {unsent(quote) && (
-          <div className="ml-auto flex flex-wrap gap-2">
-            {/* optional, unless its Service is seen first: then the notice
-                asks for it */}
-            {!quote.needsSiteVisit && !quote.bookedSiteVisit && (
-              <BookSiteVisit quoteId={quote.id} />
-            )}
-            <TurnDownQuote quote={quote} />
-          </div>
-        )}
-      </div>
-      <PropertyLine quote={quote} />
-    </div>
-  );
-}
-
-function PropertyLine({ quote }: { quote: OfficeQuote }) {
-  return (
-    <p className="text-fg-muted">
-      {addressOf(quote.property)} · {propertySummary(quote.property)} ·{" "}
-      <Link href={propertyLink(quote)}>View property</Link>
-    </p>
+    </RecordPage>
   );
 }
 
@@ -267,16 +275,10 @@ const draftLink = (quote: OfficeQuote) =>
     params: { quoteId: quote.id },
   });
 
-// What there is to do with the Quote, above its story: one notice per
-// thing, each with at most one action (a text button: a notice is passing
+// What there is to do with the Quote, above its story: one alert per
+// thing, each with at most one action (a text button: an alert is passing
 // news, never the page's main action); or what it came to, once settled
-function WhatsNext({ quote }: { quote: OfficeQuote }) {
-  const notices = noticesFor(quote);
-  if (notices.length === 0) return null;
-  return <div className="flex flex-col gap-3">{notices}</div>;
-}
-
-const noticesFor = (quote: OfficeQuote): ReactNode[] => {
+const alertsFor = (quote: OfficeQuote): (Alert | false | null)[] => {
   const shown = shownFor(quote);
   const name = quote.client.name;
   const [firstName] = name.split(" ");
@@ -287,17 +289,14 @@ const noticesFor = (quote: OfficeQuote): ReactNode[] => {
     offer !== null && quote.status === "sent" && quote.bookable.length > 0;
   const needsCard = acceptable && !offer.changesPlan && !quote.paymentMethod;
 
-  const acceptance = acceptable && (
-    <Notice
-      key="accept"
-      action={
-        needsCard ? (
-          <EmailCardLink quote={quote} />
-        ) : (
-          <RecordAcceptance quote={offer} drafting={quote.draft?.number} />
-        )
-      }
-    >
+  const acceptance = acceptable && {
+    key: "accept",
+    action: needsCard ? (
+      <EmailCardLink quote={quote} />
+    ) : (
+      <RecordAcceptance quote={offer} drafting={quote.draft?.number} />
+    ),
+    children: (
       <p>
         <strong>
           Waiting for {firstName} to accept
@@ -310,31 +309,32 @@ const noticesFor = (quote: OfficeQuote): ReactNode[] => {
             ? "If they accept by phone, record it here. It changes their plan and charges nothing."
             : `If they accept by phone, record it here. The deposit is charged to their ${quote.paymentMethod!.label}.`}
       </p>
-    </Notice>
-  );
+    ),
+  };
 
   // a Revision being written
   if (quote.draft) {
     return [
-      <Notice
-        tone="warning"
-        key="draft"
-        action={
+      {
+        key: "draft",
+        tone: "warning",
+        action: (
           <ButtonLink variant="text" size="sm" href={draftLink(quote)}>
             <FilePenLine aria-hidden size={16} />
             Carry on with the draft
           </ButtonLink>
-        }
-      >
-        <p>
-          <strong>This draft isn't sent yet.</strong>{" "}
-          {quote.offer
-            ? stillSees(name)
-            : `Nothing reaches ${name} until you send it.`}
-        </p>
-      </Notice>,
+        ),
+        children: (
+          <p>
+            <strong>This draft isn't sent yet.</strong>{" "}
+            {quote.offer
+              ? stillSees(name)
+              : `Nothing reaches ${name} until you send it.`}
+          </p>
+        ),
+      },
       acceptance,
-    ].filter(Boolean);
+    ];
   }
 
   switch (quote.status) {
@@ -345,73 +345,86 @@ const noticesFor = (quote: OfficeQuote): ReactNode[] => {
       return acceptable
         ? [acceptance]
         : [
-            <Notice key="full" tone="danger">
-              <p>
-                {offer!.plan && offer!.plan.days.length > 1
-                  ? "One of its first days has"
-                  : `${formatDateTime(offer!.proposedStartsAt!)} has`}{" "}
-                filled up since this quote was sent, so {name} can't accept it.
-                Change the quote to another time.
-              </p>
-            </Notice>,
+            {
+              key: "full",
+              tone: "danger",
+              children: (
+                <p>
+                  {offer!.plan && offer!.plan.days.length > 1
+                    ? "One of its first days has"
+                    : `${formatDateTime(offer!.proposedStartsAt!)} has`}{" "}
+                  filled up since this quote was sent, so {name} can't accept
+                  it. Change the quote to another time.
+                </p>
+              ),
+            },
           ];
     case "expired":
       return [
-        <Notice key="expired">
-          <p>
-            <strong>Expired {formatDateTime(shown!.expiresAt!)}</strong> with no
-            answer. To offer it again, change the quote.
-          </p>
-        </Notice>,
+        {
+          key: "expired",
+          children: (
+            <p>
+              <strong>Expired {formatDateTime(shown!.expiresAt!)}</strong> with
+              no answer. To offer it again, change the quote.
+            </p>
+          ),
+        },
       ];
     case "declined":
       return [
-        <Notice key="declined">
-          <p>
-            <strong>
-              {name} declined it {formatDateTime(quote.declinedAt!)}.
-            </strong>{" "}
-            To offer something different, change the quote.
-          </p>
-        </Notice>,
+        {
+          key: "declined",
+          children: (
+            <p>
+              <strong>
+                {name} declined it {formatDateTime(quote.declinedAt!)}.
+              </strong>{" "}
+              To offer something different, change the quote.
+            </p>
+          ),
+        },
       ];
     case "accepted":
       return [
-        <Notice key="accepted" tone="success">
-          <p>
-            Accepted {formatDateTime(quote.acceptedAt!)}:{" "}
-            {quote.servicePlanId ? (
-              <Link
-                href={linkTo({
-                  to: "/office/service-plans/$planId",
-                  params: { planId: quote.servicePlanId },
-                })}
-              >
-                {quote.changedPlan
-                  ? "its cleaning plan has changed"
-                  : "its cleaning plan has started"}
-              </Link>
-            ) : (
-              `${shown!.options.find((o) => o.serviceKey === quote.acceptedServiceKey)?.serviceName}, booked`
-            )}
-            .
-          </p>
-        </Notice>,
+        {
+          key: "accepted",
+          tone: "success",
+          children: (
+            <p>
+              Accepted {formatDateTime(quote.acceptedAt!)}:{" "}
+              {quote.servicePlanId ? (
+                <Link
+                  href={linkTo({
+                    to: "/office/service-plans/$planId",
+                    params: { planId: quote.servicePlanId },
+                  })}
+                >
+                  {quote.changedPlan
+                    ? "its cleaning plan has changed"
+                    : "its cleaning plan has started"}
+                </Link>
+              ) : (
+                `${shown!.options.find((o) => o.serviceKey === quote.acceptedServiceKey)?.serviceName}, booked`
+              )}
+              .
+            </p>
+          ),
+        },
       ];
     case "turned_down":
       return [
-        <Notice key="turned-down">
-          Turned down {formatDate(quote.turnedDownAt!)}:{" "}
-          {turnDownLabel[quote.turnDownReason!].toLowerCase()}. The client can
-          ask for a new quote.
-        </Notice>,
+        {
+          key: "turned-down",
+          children: `Turned down ${formatDate(quote.turnedDownAt!)}: ${turnDownLabel[quote.turnDownReason!].toLowerCase()}. The client can ask for a new quote.`,
+        },
       ];
   }
 };
 
 // a Quote asked for, nothing drafted yet: see the premises first if they're
 // a business not yet seen (ADR-0014), else draft it
-const toQuote = (quote: OfficeQuote): ReactNode[] => {
+const toQuote = (quote: OfficeQuote): (Alert | false | null)[] => {
   const visit = quote.bookedSiteVisit;
   const visitLink = visit && (
     <Link
@@ -424,31 +437,40 @@ const toQuote = (quote: OfficeQuote): ReactNode[] => {
     </Link>
   );
   if (quote.needsSiteVisit && !visit) {
-    return [<SeeThePremises key="see" quote={quote} />];
+    return [seeThePremises(quote)];
   }
   if (quote.needsSiteVisit) {
     return [
-      <Notice key="visit">
-        <p>
-          <strong>Site visit booked:</strong> {visitLink}. Draft the quote once
-          it's done and what it found is recorded.
-        </p>
-      </Notice>,
+      {
+        key: "visit",
+        children: (
+          <p>
+            <strong>Site visit booked:</strong> {visitLink}. Draft the quote
+            once it's done and what it found is recorded.
+          </p>
+        ),
+      },
     ];
   }
   return [
-    <Notice tone="warning" key="draft" action={<DraftQuote quote={quote} />}>
-      <p>
-        <strong>
-          {quote.client.name} asked for a {quote.asked?.service.name ?? "quote"}
-          .
-        </strong>{" "}
-        Draft the quote to send them a price.
-        {visit && <> Site visit booked: {visitLink}.</>}
-      </p>
-    </Notice>,
-    quote.homePlanId && (
-      <Notice key="plan">
+    {
+      key: "draft",
+      tone: "warning",
+      action: <DraftQuote quote={quote} />,
+      children: (
+        <p>
+          <strong>
+            {quote.client.name} asked for a{" "}
+            {quote.asked?.service.name ?? "quote"}.
+          </strong>{" "}
+          Draft the quote to send them a price.
+          {visit && <> Site visit booked: {visitLink}.</>}
+        </p>
+      ),
+    },
+    !!quote.homePlanId && {
+      key: "plan",
+      children: (
         <p>
           This home has a{" "}
           <Link
@@ -461,9 +483,9 @@ const toQuote = (quote: OfficeQuote): ReactNode[] => {
           </Link>
           . A cleaning plan quote changes it once the client accepts.
         </p>
-      </Notice>
-    ),
-  ].filter(Boolean);
+      ),
+    },
+  ];
 };
 
 // throws the Draft away, once Office Staff are sure: see discardDraft
@@ -561,11 +583,12 @@ export function QuoteDraftScreen() {
             <DeleteDraft quote={quote} />
           </div>
         </div>
-        <PropertyLine quote={quote} />
       </div>
       {quote.offer && <Notice>{stillSees(quote.client.name)}</Notice>}
       {quote.changesPlan && (
-        <PlanChangeNotice quote={shownOf(quote)} change={quote.changesPlan} />
+        <Notice>
+          <PlanChangeText quote={shownOf(quote)} change={quote.changesPlan} />
+        </Notice>
       )}
       {quote.asked && <WhatWasAsked quote={quote} open />}
       {quote.firstClean && <FirstCleanNote firstClean={quote.firstClean} />}
@@ -675,14 +698,11 @@ function WhatWasAsked({
   open?: boolean;
 }) {
   return (
-    <details className="group" open={open}>
-      <summary className="cursor-pointer text-sm font-semibold text-primary">
-        What was asked
-      </summary>
-      <Card className="mt-2">
+    <Fold label="What was asked" defaultOpen={open}>
+      <Card>
         <AskedFacts quote={quote} />
       </Card>
-    </details>
+    </Fold>
   );
 }
 
@@ -690,8 +710,9 @@ function WhatWasAsked({
 const unsent = (quote: OfficeQuote) =>
   quote.status === "requested" || quote.status === "draft";
 
-// what accepting a Quote for a home with a plan does to that plan
-function PlanChangeNotice({
+// what accepting a Quote for a home with a plan does to that plan, said in
+// an alert
+function PlanChangeText({
   quote,
   change,
 }: {
@@ -702,7 +723,7 @@ function PlanChangeNotice({
     ? formatDateTime(quote.proposedStartsAt)
     : "its start";
   return (
-    <Notice>
+    <>
       <p>
         <strong>This changes {quote.client.name}'s </strong>
         <Link
@@ -726,7 +747,7 @@ function PlanChangeNotice({
         The plan's {formatMoney(change.depositCents)} deposit carries over, so
         accepting charges nothing.
       </p>
-    </Notice>
+    </>
   );
 }
 
@@ -741,35 +762,41 @@ function Offer({ quote, actions }: { quote: ShownQuote; actions?: ReactNode }) {
       actions={actions}
     >
       <Card>
-        <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-          <dt className="font-semibold">
-            {quote.changesPlan || quote.changedPlan
-              ? "New terms start"
-              : plan
-                ? "Starts"
-                : "Proposed time"}
-          </dt>
-          <dd>{formatDateTime(quote.proposedStartsAt!)}</dd>
+        <Facts>
+          <Fact
+            icon={CalendarClock}
+            label={
+              quote.changesPlan || quote.changedPlan
+                ? "New terms start"
+                : plan
+                  ? "Starts"
+                  : "Proposed time"
+            }
+            value={formatDateTime(quote.proposedStartsAt!)}
+          />
           {plan && (
-            <>
-              <dt className="font-semibold">Then</dt>
-              <dd>
-                {planRhythm(plan)}, priced for{" "}
-                {conditionLabel[plan.condition].toLowerCase()} condition
-              </dd>
-            </>
+            <Fact
+              icon={Repeat}
+              label="Then"
+              value={planRhythm(plan)}
+              line={`Then, priced for ${conditionLabel[plan.condition].toLowerCase()} condition`}
+            />
           )}
-          <dt className="font-semibold">
-            {quote.status === "expired" ? "Expired" : "Expires"}
-          </dt>
-          <dd>{formatDateTime(quote.expiresAt!)}</dd>
-          <dt className="font-semibold">Extras</dt>
-          <dd>
-            {quote.addOns.length === 0
-              ? "None"
-              : quote.addOns.map((a) => a.name).join(", ")}
-          </dd>
-        </dl>
+          <Fact
+            icon={Hourglass}
+            label={quote.status === "expired" ? "Expired" : "Expires"}
+            value={formatDateTime(quote.expiresAt!)}
+          />
+          <Fact
+            icon={CirclePlus}
+            label="Extras"
+            value={
+              quote.addOns.length === 0
+                ? "None"
+                : quote.addOns.map((a) => a.name).join(", ")
+            }
+          />
+        </Facts>
         <div className="grid gap-6 border-t border-border pt-4 lg:grid-cols-2">
           {quote.options.map((option, i) => {
             const day = plan?.days[i];
@@ -894,58 +921,45 @@ function OfferPrice({
 // starts a new Revision of a Sent or Expired Quote, from the offer's terms,
 // and opens it; primary only when it's the one thing to do
 function NewRevision({ quote }: { quote: OfficeQuote }) {
-  const { start, starting, failure } = useStartDraft();
+  const { start, starting } = useStartDraft();
   return (
-    <>
-      <Button
-        variant="text"
-        size="sm"
-        isPending={starting !== undefined}
-        onPress={() => void start({ quoteId: quote.id, kind: quote.kind! })}
-      >
-        <Pencil aria-hidden size={16} />
-        Change quote
-      </Button>
-      {failure && <ActionProblem>{failure}</ActionProblem>}
-    </>
-  );
-}
-
-// why a button in a box didn't work, under its buttons
-function ActionProblem({ children }: { children: ReactNode }) {
-  return (
-    <p role="alert" className="basis-full text-sm text-danger-strong">
-      {children}
-    </p>
+    <Button
+      variant="text"
+      size="sm"
+      isPending={starting !== undefined}
+      onPress={() => void start({ quoteId: quote.id, kind: quote.kind! })}
+    >
+      <Pencil aria-hidden size={16} />
+      Change quote
+    </Button>
   );
 }
 
 // Office Staff never take card details: the Client adds a card from a link
 // emailed to them, before an acceptance by phone can be recorded
 function EmailCardLink({ quote }: { quote: OfficeQuote }) {
-  const action = useAction("The link wasn't sent. Please try again.");
+  const action = useAction("The link wasn't sent. Please try again.", {
+    toast: true,
+  });
   const [firstName] = quote.client.name.split(" ");
   return (
-    <>
-      <Button
-        variant="text"
-        size="sm"
-        isPending={action.isPending}
-        onPress={() =>
-          void action.run(
-            () =>
-              postJson("/api/payment-methods/requests", {
-                clientId: quote.client.id,
-              }),
-            `Link sent to ${quote.client.email}`,
-          )
-        }
-      >
-        <Mail aria-hidden size={16} />
-        Email {firstName} a link to add a card
-      </Button>
-      {action.problem && <ActionProblem>{action.problem}</ActionProblem>}
-    </>
+    <Button
+      variant="text"
+      size="sm"
+      isPending={action.isPending}
+      onPress={() =>
+        void action.run(
+          () =>
+            postJson("/api/payment-methods/requests", {
+              clientId: quote.client.id,
+            }),
+          `Link sent to ${quote.client.email}`,
+        )
+      }
+    >
+      <Mail aria-hidden size={16} />
+      Email {firstName} a link to add a card
+    </Button>
   );
 }
 
@@ -1360,18 +1374,10 @@ function OverrideFields({
 }) {
   return (
     <>
-      <details className="text-sm">
-        <summary className="cursor-pointer text-fg-muted">
-          Suggested price {formatMoney(option.suggested.priceCents)} before tax,
-          for {option.suggested.labourHours} cleaning hours.{" "}
-          <span className="font-semibold text-primary">
-            How it's worked out
-          </span>
-        </summary>
-        <div className="pt-2">
-          <PriceWorking breakdown={option.suggested} />
-        </div>
-      </details>
+      {/* the price is in its field: only how it's worked out (WEB-B) */}
+      <Fold label="How it's worked out">
+        <PriceWorking breakdown={option.suggested} />
+      </Fold>
       <Checkbox isSelected={override.on} onChange={(on) => onChange({ on })}>
         Set the {label} price yourself
       </Checkbox>
@@ -2089,14 +2095,17 @@ function PlanDayFields({
 function FirstCleanNote({ firstClean }: { firstClean: FirstCleanFindings }) {
   const { job } = firstClean;
   return (
-    <details className="group">
-      <summary className="cursor-pointer text-sm font-semibold text-primary">
-        First clean: the home was{" "}
-        {conditionLabel[firstClean.condition].toLowerCase()}
-        {firstClean.adjustments.length > 0 &&
-          `, with ${firstClean.adjustments.length} price change${firstClean.adjustments.length > 1 ? "s" : ""}`}
-      </summary>
-      <Card className="mt-2">
+    <Fold
+      label={
+        <>
+          First clean: the home was{" "}
+          {conditionLabel[firstClean.condition].toLowerCase()}
+          {firstClean.adjustments.length > 0 &&
+            `, with ${firstClean.adjustments.length} price change${firstClean.adjustments.length > 1 ? "s" : ""}`}
+        </>
+      }
+    >
+      <Card>
         <p className="text-sm text-fg-muted">
           {job.serviceName} on {formatDateTime(job.startsAt)}, done{" "}
           {formatDate(firstClean.completedAt)} ·{" "}
@@ -2128,6 +2137,6 @@ function FirstCleanNote({ firstClean }: { firstClean: FirstCleanFindings }) {
           </List>
         )}
       </Card>
-    </details>
+    </Fold>
   );
 }

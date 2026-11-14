@@ -17,14 +17,17 @@ import { Popover } from "./Popover.tsx";
 // isOpen from its onAction; focus comes back to the Button as it closes.
 export function MenuButton({
   label,
+  isPending,
   children,
 }: {
   label: string;
+  // one of its items is still running: it shows so, and waits
+  isPending?: boolean;
   children: ReactNode;
 }) {
   return (
     <MenuTrigger>
-      <Button variant="secondary" className="shrink-0">
+      <Button variant="secondary" className="shrink-0" isPending={isPending}>
         {label}
         <ChevronDown aria-hidden size={18} />
       </Button>

@@ -1,12 +1,15 @@
-import { useId, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { useLoaderData } from "@tanstack/react-router";
 import {
+  CalendarCheck,
   CalendarClock,
   CalendarSync,
   CirclePlus,
   Clock,
   PiggyBank,
   Receipt as ReceiptIcon,
+  CalendarX,
+  ClipboardPenLine,
 } from "lucide-react";
 import type {
   AdjustmentView,
@@ -15,20 +18,23 @@ import type {
   JobPayment,
 } from "@empire-cleaning/models";
 import {
-  ActionRow,
   Actions,
-  Breadcrumbs,
   Button,
   ButtonLink,
-  Card,
   Dialog,
   DialogTrigger,
-  Heading,
   IconTile,
   Link,
   Notice,
-  Section,
   StatusBadge,
+  Fact,
+  RecordPage,
+  DetailsCard,
+  Facts,
+  type Alert,
+  type DialogState,
+  Card,
+  Section,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
@@ -37,8 +43,7 @@ import { requestQuoteHref } from "./whats-next.ts";
 import { PickAvailableTime } from "../AvailabilityPicker.tsx";
 import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
 import { addressOf, formatHours, wasSkipped } from "../format.ts";
-import { useSaid } from "../words.ts";
-import { Fact } from "../Fact.tsx";
+import { type Said, useSaid } from "../words.ts";
 import { catalog, oneStop, stopAfter } from "@empire-cleaning/models";
 import { JobStatusBadge } from "../JobBadges.tsx";
 
@@ -55,6 +60,12 @@ const words = catalog({
     heldThere: "Its deposit is held there",
     offPrice: "Deposit, comes off the price",
     reminder: "We'll email a reminder the day before.",
+    // until when moving it, and cancelling or skipping it, costs nothing
+    freeToMoveOr: (skip: boolean) =>
+      skip ? "Free to move or skip" : "Free to move or cancel",
+    freeToMove: "Free to move",
+    freeToCancel: (skip: boolean) => (skip ? "Free to skip" : "Free to cancel"),
+    until: (when: string) => `Until ${when}`,
     notSkipped: "Your clean wasn't skipped. Please try again.",
     notCancelled: "Your clean wasn't cancelled. Please try again.",
     feeOnPlan: (where: string) => `The fee ${where}.`,
@@ -62,8 +73,6 @@ const words = catalog({
     refundDeposit: (amount: string) => `We'll refund your ${amount} deposit.`,
     skipped: "Your clean is skipped",
     cancelled: "Your clean is cancelled",
-    needSkip: "Need to skip this clean?",
-    needCancel: "Need to cancel?",
     skipThis: "Skip this clean",
     cancelClean: "Cancel clean",
     skipQ: "Skip this clean?",
@@ -71,16 +80,8 @@ const words = catalog({
     serviceAt: (service: string, address: string, when: string) =>
       `${service} at ${address}, ${when}.`,
     keep: "Keep my clean",
-    skipFreeUntil: "You can skip it for free until",
-    skipAfter:
-      " After that, it's a late cancellation, with a fee the same as your plan's deposit.",
-    cancelFreeUntil: "You can cancel for free until",
-    andRefund: (amount: string) => `, and we'll refund your ${amount} deposit`,
-    cancelAfter:
-      " After that, it's a late cancellation, and your deposit is kept as the fee.",
     onlyThis: "Only this clean is skipped. Your cleaning plan carries on.",
     notWithdrawn: "Your request wasn't withdrawn. Please try again.",
-    moving: "Moving your clean",
     withdrawn: "Request withdrawn",
     withdraw: "Withdraw request",
     askedTo: "You've asked to move it to",
@@ -88,8 +89,6 @@ const words = catalog({
       ` That time is held for you while we confirm it. Until then, your clean stays booked for ${when}.`,
     sent: "Request sent",
     couldntMove: (when: string) => `We couldn't move it to ${when}.`,
-    moveFreeUntil: "You can move it for free until",
-    moveAfter: " After that, it's a late move, and only one per clean is free.",
     refunding: (amount: string, card: string) =>
       `We're refunding ${amount} to your ${card}.`,
     sorry: "We're sorry, we had to cancel this clean.",
@@ -140,6 +139,14 @@ const words = catalog({
     heldThere: "Su depósito está retenido allí",
     offPrice: "Depósito, se descuenta del precio",
     reminder: "Le enviaremos un recordatorio por correo el día antes.",
+    freeToMoveOr: (skip: boolean) =>
+      skip
+        ? "Reprogramar o saltar sin cargo"
+        : "Reprogramar o cancelar sin cargo",
+    freeToMove: "Reprogramar sin cargo",
+    freeToCancel: (skip: boolean) =>
+      skip ? "Saltar sin cargo" : "Cancelar sin cargo",
+    until: (when: string) => `Hasta el ${when}`,
     notSkipped: "No se saltó su limpieza. Vuelva a intentarlo.",
     notCancelled: "No se canceló su limpieza. Vuelva a intentarlo.",
     feeOnPlan: (where: string) => `El cargo ${where}.`,
@@ -148,8 +155,6 @@ const words = catalog({
       `Le devolveremos su depósito de ${amount}.`,
     skipped: "Se saltó su limpieza",
     cancelled: "Se canceló su limpieza",
-    needSkip: "¿Necesita saltar esta limpieza?",
-    needCancel: "¿Necesita cancelar?",
     skipThis: "Saltar esta limpieza",
     cancelClean: "Cancelar limpieza",
     skipQ: "¿Saltar esta limpieza?",
@@ -157,17 +162,8 @@ const words = catalog({
     serviceAt: (service: string, address: string, when: string) =>
       oneStop(`${service} en ${address}, ${when}.`),
     keep: "Mantener mi limpieza",
-    skipFreeUntil: "Puede saltarla sin cargo hasta el",
-    skipAfter:
-      " Después, es una cancelación tardía, con un cargo igual al depósito de su plan.",
-    cancelFreeUntil: "Puede cancelarla sin cargo hasta el",
-    andRefund: (amount: string) =>
-      `, y le devolveremos su depósito de ${amount}`,
-    cancelAfter:
-      " Después, es una cancelación tardía, y nos quedamos con su depósito como cargo.",
     onlyThis: "Solo se salta esta limpieza. Su plan de limpieza continúa.",
     notWithdrawn: "No se retiró su solicitud. Vuelva a intentarlo.",
-    moving: "Reprogramar su limpieza",
     withdrawn: "Solicitud retirada",
     withdraw: "Retirar solicitud",
     askedTo: "Pidió reprogramarla para el",
@@ -178,9 +174,6 @@ const words = catalog({
     sent: "Solicitud enviada",
     couldntMove: (when: string) =>
       oneStop(`No pudimos reprogramarla para el ${when}.`),
-    moveFreeUntil: "Puede reprogramarla sin cargo hasta el",
-    moveAfter:
-      " Después, es una reprogramación tardía, y solo una por limpieza es gratis.",
     refunding: (amount: string, card: string) =>
       `Le estamos devolviendo ${amount} a su ${card}.`,
     sorry: "Lo sentimos, tuvimos que cancelar esta limpieza.",
@@ -221,105 +214,177 @@ const words = catalog({
   },
 });
 
-// one of the Client's Jobs, from the links in their emails: while it's to come,
-// moving or cancelling it; once Completed, its receipt; any price change (an
-// Adjustment) proposed to them to approve or decline; if it couldn't be charged, the way to pay; and if
+// one of the Client's Jobs, a Record (docs/ux.md), from the links in
+// their emails: while it's to come, moving or cancelling it; once
+// Completed, its receipt; any price change (an Adjustment) proposed to them
+// to approve or decline; if it couldn't be charged, the way to pay; and if
 // it was Cancelled (Skipped, on a plan) or No Access, what it cost
 export function PortalJob() {
   const t = useSaid(words);
   const job = useLoaderData({ from: "/portal/jobs/$jobId" });
   const { completion } = job;
   const booked = !completion && !job.cancellation && !job.noAccess;
+  const onPlan = job.servicePlanId !== null;
+  const moving = useMoving(job);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <Breadcrumbs
-          trail={[
-            { label: t.p.yourCleans, href: linkTo({ to: "/portal/cleans" }) },
-            { label: t.formatDateTime(job.startsAt) },
-          ]}
-        />
-        <div className="flex flex-wrap items-center gap-3">
-          <Heading level={1}>{job.serviceName}</Heading>
-          {completion?.payment.unpaid ? (
-            <StatusBadge tone="danger">{t.unpaid}</StatusBadge>
-          ) : completion ? (
-            <StatusBadge tone="success">
-              {t.jobStatusLabel.completed}
-            </StatusBadge>
-          ) : job.cancellation ? (
-            <StatusBadge>{t.cancelledLabel(wasSkipped(job))}</StatusBadge>
-          ) : job.noAccess ? (
-            <JobStatusBadge status="no_access" />
-          ) : (
-            <JobStatusBadge status="booked" />
-          )}
-        </div>
-        <p className="text-fg-muted">{addressOf(job.property)}</p>
-      </div>
-
-      {/* what's needed of them first, before what the clean is */}
-      {job.payment.unpaid && <Unpaid payment={job.payment} />}
-      {completion?.adjustments
-        .filter((a) => a.status === "proposed")
-        .map((a) => (
-          <Proposal key={a.id} job={job} adjustment={a} />
-        ))}
-
-      <Section title={t.w.details}>
-        <Card className="gap-0">
-          <Part>
-            <JobDetails job={job} />
-          </Part>
-          {job.cancellation ? (
-            <>
-              <Cancelled job={job} />
-            </>
-          ) : job.noAccess ? (
-            <>
-              <NoAccess job={job} />
-            </>
-          ) : completion ? (
-            <>
-              <Receipt job={job} />
-            </>
-          ) : null}
-        </Card>
-      </Section>
-
-      {booked && (
-        <>
-          <Reschedule job={job} />
-          {job.cancelTerms && <Cancel job={job} terms={job.cancelTerms} />}
-        </>
+    <RecordPage
+      trail={[
+        { label: t.p.yourCleans, href: linkTo({ to: "/portal/cleans" }) },
+        { label: t.formatDateTime(job.startsAt) },
+      ]}
+      title={job.serviceName}
+      status={
+        completion?.payment.unpaid ? (
+          <StatusBadge tone="danger">{t.unpaid}</StatusBadge>
+        ) : completion ? (
+          <StatusBadge tone="success">{t.jobStatusLabel.completed}</StatusBadge>
+        ) : job.cancellation ? (
+          <StatusBadge>{t.cancelledLabel(wasSkipped(job))}</StatusBadge>
+        ) : job.noAccess ? (
+          <JobStatusBadge status="no_access" />
+        ) : (
+          <JobStatusBadge status="booked" />
+        )
+      }
+      actions={
+        booked
+          ? [
+              job.rescheduleTerms &&
+                job.rescheduleRequest?.status !== "pending" && {
+                  label: t.pickNewTime,
+                  icon: CalendarClock,
+                  dialog: (state) => (
+                    <ChooseNewTime
+                      job={job}
+                      terms={job.rescheduleTerms!}
+                      base={`/api/jobs/mine/${job.id}`}
+                      describeCost={(cost, feeCents) =>
+                        costForClient(t.lang, cost, feeCents, job)
+                      }
+                      done={t.w.sent}
+                      Picker={PickAvailableTime}
+                      inline
+                      {...state}
+                    />
+                  ),
+                },
+              job.cancelTerms && {
+                label: onPlan ? t.w.skipThis : t.w.cancelClean,
+                icon: CalendarX,
+                danger: true,
+                dialog: (state) => (
+                  <Cancel job={job} terms={job.cancelTerms!} {...state} />
+                ),
+              },
+            ]
+          : // after a clean that didn't happen: a plan carries on;
+            // otherwise, book again
+            completion
+            ? []
+            : [
+                onPlan
+                  ? {
+                      label: t.p.seeYourCleaningPlan,
+                      icon: CalendarSync,
+                      href: linkTo({
+                        to: "/portal/plans/$planId",
+                        params: { planId: job.servicePlanId! },
+                      }),
+                    }
+                  : {
+                      label: t.REQUEST_A_QUOTE,
+                      icon: ClipboardPenLine,
+                      href: requestQuoteHref,
+                    },
+              ]
+      }
+      // what's needed of them first, before what the clean is
+      alerts={[
+        job.payment.unpaid && unpaid(t, job.payment),
+        ...(completion?.adjustments ?? [])
+          .filter((a) => a.status === "proposed")
+          .map((a): Alert => ({
+            key: a.id,
+            tone: "warning",
+            action: <Review job={job} adjustment={a} />,
+            children: (
+              <p>
+                <strong>{t.w.pleaseApproveDot}</strong> {t.adjustmentLabel(a)},{" "}
+                {t.formatMoney(a.totalCents)}.{" "}
+                {t.w.answerBy(t.formatDate(a.lapsesAt!))}
+              </p>
+            ),
+          })),
+        booked && moving,
+      ]}
+      details={<JobDetails job={job} />}
+    >
+      {job.cancellation ? (
+        <Cancelled job={job} />
+      ) : job.noAccess ? (
+        <NoAccess job={job} />
+      ) : (
+        completion && <Receipt job={job} />
       )}
-    </div>
+    </RecordPage>
+  );
+}
+
+// until when it's free to move, and to cancel or skip, as the server says,
+// each only while it still is (the server sends the time when it's past):
+// one Fact when the two end together, 24 hours before it (ADR-0010); two
+// when a plan clean booked later than that is free to skip until it starts
+function FreeUntil({ job }: { job: ClientJobDetail }) {
+  const t = useSaid(words);
+  const skip = !!job.servicePlanId;
+  const { rescheduleTerms: moving, cancelTerms: cancelling } = job;
+  const move = moving?.cost === "free" ? moving.freeUntil : undefined;
+  const cancel =
+    cancelling && !cancelling.late && cancelling.feeCents === 0
+      ? cancelling.freeUntil
+      : undefined;
+  const until = (when: string) => t.w.until(t.formatDateTime(when));
+  if (move && move === cancel)
+    return (
+      <Fact
+        icon={CalendarCheck}
+        label={t.w.freeToMoveOr(skip)}
+        value={until(move)}
+      />
+    );
+  return (
+    <>
+      {move && (
+        <Fact icon={CalendarCheck} label={t.w.freeToMove} value={until(move)} />
+      )}
+      {cancel && (
+        <Fact
+          icon={CalendarCheck}
+          label={t.w.freeToCancel(skip)}
+          value={until(cancel)}
+        />
+      )}
+    </>
   );
 }
 
 // The clean as its Client reads it, as their plan's page does: when, large,
-// then its facts in even columns across, each an icon, a value and what the
-// value is. (UX pass, #96)
+// then its facts. (UX pass, #96)
 function JobDetails({ job }: { job: ClientJobDetail }) {
   const t = useSaid(words);
   const { payment } = job;
   const deposit = payment.charges.find((c) => c.kind === "deposit");
   const booked = !job.completion && !job.cancellation && !job.noAccess;
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-start gap-4">
-        <IconTile icon={CalendarClock} size="lg" />
-        <div className="flex min-w-0 flex-col gap-1">
-          <p className="text-sm text-fg-muted">
-            {job.servicePlanId ? t.w.partOfPlan : t.w.oneOff}
-          </p>
-          <p className="text-xl font-semibold text-fg">
-            {t.formatDateTime(job.startsAt)}
-          </p>
-        </div>
-      </div>
-      <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+    <DetailsCard
+      label={t.w.details}
+      tile={<IconTile icon={CalendarClock} size="lg" />}
+      kicker={job.servicePlanId ? t.w.partOfPlan : t.w.oneOff}
+      title={t.formatDateTime(job.startsAt)}
+      line={addressOf(job.property)}
+    >
+      <Facts>
         <Fact
           icon={ReceiptIcon}
           label={t.w.price}
@@ -365,70 +430,26 @@ function JobDetails({ job }: { job: ClientJobDetail }) {
             line={deposit ? t.w.offPrice : t.deposit}
           />
         )}
-      </dl>
+        {booked && <FreeUntil job={job} />}
+      </Facts>
       {booked && <p className="text-sm text-fg-muted">{t.w.reminder}</p>}
-    </div>
+    </DetailsCard>
   );
 }
 
-// One part of the clean's card, under a rule from the one before: its
-// title, what it says, and the Button(s) it leads to, kept right
-function Part({
+// What happened to it, a part of the page: its title, what it says
+function PartCard({
   title,
   description,
-  actions,
-  children,
-}: {
-  title?: string;
-  description?: string;
-  actions?: ReactNode;
-  children: ReactNode;
-}) {
-  const headingId = useId();
-  const head = title && (
-    <div className="flex flex-col gap-1">
-      <Heading level={3} size={4} id={headingId} className="text-fg">
-        {title}
-      </Heading>
-      {description && <p className="text-sm text-fg-muted">{description}</p>}
-    </div>
-  );
-  return (
-    <section
-      aria-labelledby={title ? headingId : undefined}
-      className="flex flex-col gap-3 border-border py-5 first:pt-0 last:pb-0 not-first:border-t"
-    >
-      {actions ? (
-        <ActionRow actions={actions}>
-          {head}
-          {children}
-        </ActionRow>
-      ) : (
-        <>
-          {head}
-          {children}
-        </>
-      )}
-    </section>
-  );
-}
-
-// An action of its own under the clean's details, as on the plan's page: its
-// title outside the card, the card's text and its Button on one row
-function ActionCard({
-  title,
-  actions,
   children,
 }: {
   title: string;
-  actions: ReactNode;
+  description?: string;
   children: ReactNode;
 }) {
   return (
-    <Section title={title}>
-      <Card>
-        <ActionRow actions={actions}>{children}</ActionRow>
-      </Card>
+    <Section title={title} description={description}>
+      <Card>{children}</Card>
     </Section>
   );
 }
@@ -441,10 +462,11 @@ function ActionCard({
 function Cancel({
   job,
   terms,
+  ...state
 }: {
   job: ClientJobDetail;
   terms: CancellationTerms;
-}) {
+} & DialogState) {
   const t = useSaid(words);
   const onPlan = job.servicePlanId !== null;
   // what it costs may have changed since the page loaded
@@ -467,11 +489,6 @@ function Cancel({
   ]
     .filter(Boolean)
     .join(" ");
-  const freeUntil = t.formatDateTime(terms.freeUntil);
-  const refund =
-    terms.refundCents > 0
-      ? t.w.andRefund(t.formatMoney(terms.refundCents))
-      : "";
 
   const cancel = async (close: () => void) => {
     const ok = await action.run(
@@ -485,150 +502,90 @@ function Cancel({
   };
 
   return (
-    <ActionCard
-      title={onPlan ? t.w.needSkip : t.w.needCancel}
-      actions={
-        <DialogTrigger>
-          <Button variant="secondary">
-            {onPlan ? t.w.skipThis : t.w.cancelClean}
-          </Button>
-          <Dialog title={onPlan ? t.w.skipQ : t.w.cancelQ} role="alertdialog">
-            {({ close }) => (
-              <>
-                <p>
-                  {t.w.serviceAt(
-                    job.serviceName,
-                    addressOf(job.property),
-                    t.formatDateTime(job.startsAt),
-                  )}
-                </p>
-                <p>
-                  <strong>{cost}</strong>
-                </p>
-                {action.problem && (
-                  <Notice tone="danger">{action.problem}</Notice>
-                )}
-                <Actions>
-                  <Button variant="quiet" onPress={close}>
-                    {t.w.keep}
-                  </Button>
-                  <Button
-                    variant="danger"
-                    isPending={action.isPending}
-                    onPress={() => void cancel(close)}
-                  >
-                    {onPlan ? t.w.skipThis : t.w.cancelClean}
-                  </Button>
-                </Actions>
-              </>
-            )}
-          </Dialog>
-        </DialogTrigger>
-      }
+    <Dialog
+      title={onPlan ? t.w.skipQ : t.w.cancelQ}
+      role="alertdialog"
+      {...state}
     >
-      {terms.late || terms.feeCents > 0 ? (
-        <p>{cost}</p>
-      ) : onPlan ? (
-        <p>
-          {t.w.skipFreeUntil} <strong>{freeUntil}</strong>
-          {stopAfter(freeUntil)}
-          {t.w.skipAfter}
-        </p>
-      ) : (
-        <p>
-          {t.w.cancelFreeUntil} <strong>{freeUntil}</strong>
-          {refund}
-          {stopAfter(refund || freeUntil)}
-          {t.w.cancelAfter}
-        </p>
+      {({ close }) => (
+        <>
+          <p>
+            {t.w.serviceAt(
+              job.serviceName,
+              addressOf(job.property),
+              t.formatDateTime(job.startsAt),
+            )}
+          </p>
+          <p>
+            <strong>{cost}</strong>
+          </p>
+          {onPlan && <p>{t.w.onlyThis}</p>}
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              {t.w.keep}
+            </Button>
+            <Button
+              variant="danger"
+              isPending={action.isPending}
+              onPress={() => void cancel(close)}
+            >
+              {onPlan ? t.w.skipThis : t.w.cancelClean}
+            </Button>
+          </Actions>
+        </>
       )}
-      {onPlan && <p>{t.w.onlyThis}</p>}
-    </ActionCard>
+    </Dialog>
   );
 }
 
-// The Client asks to move a clean still to come, seeing first what it costs
-// (ADR-0010); while the request is pending, they can withdraw it
-function Reschedule({ job }: { job: ClientJobDetail }) {
+// A move the Client asked for (ADR-0010), as an alert: while it's pending,
+// what's held and the way to withdraw it; turned down, why. Asking is the
+// page's "Pick a new time"
+function useMoving(job: ClientJobDetail): Alert | null {
   const t = useSaid(words);
-  const action = useAction(t.w.notWithdrawn);
+  const action = useAction(t.w.notWithdrawn, { toast: true });
   const request = job.rescheduleRequest;
-
   if (request?.status === "pending") {
     const asked = t.formatDateTime(request.startsAt);
-    return (
-      <ActionCard
-        title={t.w.moving}
-        actions={
-          <Button
-            variant="secondary"
-            isPending={action.pending === "withdraw"}
-            onPress={() =>
-              void action.run(
-                () =>
-                  postJson(
-                    `/api/jobs/mine/${job.id}/reschedule-request/withdraw`,
-                  ),
-                t.w.withdrawn,
-                "withdraw",
-              )
-            }
-          >
-            {t.w.withdraw}
-          </Button>
-        }
-      >
-        {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-        <p>
-          {t.w.askedTo} <strong>{asked}</strong>
-          {stopAfter(asked)}
-          {t.w.held(t.formatDateTime(job.startsAt))}
-        </p>
-        <p>{costForClient(t.lang, request.cost, request.feeCents, job)}</p>
-      </ActionCard>
-    );
+    return {
+      key: "moving",
+      action: (
+        <Button
+          variant="text"
+          isPending={action.isPending}
+          onPress={() =>
+            void action.run(
+              () =>
+                postJson(
+                  `/api/jobs/mine/${job.id}/reschedule-request/withdraw`,
+                ),
+              t.w.withdrawn,
+            )
+          }
+        >
+          {t.w.withdraw}
+        </Button>
+      ),
+      children: (
+        <>
+          <p>
+            {t.w.askedTo} <strong>{asked}</strong>
+            {stopAfter(asked)}
+            {t.w.held(t.formatDateTime(job.startsAt))}
+          </p>
+          <p>{costForClient(t.lang, request.cost, request.feeCents, job)}</p>
+        </>
+      ),
+    };
   }
-
-  const terms = job.rescheduleTerms;
-  if (!terms) return null;
-  const freeUntil = t.formatDateTime(terms.freeUntil);
-  return (
-    <ActionCard
-      title={t.p.anotherTime}
-      actions={
-        <DialogTrigger>
-          <Button variant="secondary">{t.pickNewTime}</Button>
-          <ChooseNewTime
-            job={job}
-            terms={terms}
-            base={`/api/jobs/mine/${job.id}`}
-            describeCost={(cost, feeCents) =>
-              costForClient(t.lang, cost, feeCents, job)
-            }
-            done={t.w.sent}
-            Picker={PickAvailableTime}
-            inline
-          />
-        </DialogTrigger>
-      }
-    >
-      {request?.status === "turned_down" && (
-        <Notice>
-          {t.w.couldntMove(t.formatDateTime(request.startsAt))}
-          {request.reason && ` ${request.reason}`}
-        </Notice>
-      )}
-      {terms.cost === "free" ? (
-        <p>
-          {t.w.moveFreeUntil} <strong>{freeUntil}</strong>
-          {stopAfter(freeUntil)}
-          {t.w.moveAfter}
-        </p>
-      ) : (
-        <p>{costForClient(t.lang, terms.cost, terms.feeCents, job)}</p>
-      )}
-    </ActionCard>
-  );
+  if (request?.status === "turned_down") {
+    return {
+      key: "moving",
+      children: `${t.w.couldntMove(t.formatDateTime(request.startsAt))}${request.reason ? ` ${request.reason}` : ""}`,
+    };
+  }
+  return null;
 }
 
 // what's been refunded so far, and what's still on its way
@@ -646,34 +603,16 @@ function Refund({ payment }: { payment: JobPayment }) {
   );
 }
 
-// after a clean that didn't happen: a plan carries on; otherwise, book again
-function WhatNext({ job }: { job: ClientJobDetail }) {
-  const t = useSaid(words);
-  return job.servicePlanId ? (
-    <ButtonLink
-      href={linkTo({
-        to: "/portal/plans/$planId",
-        params: { planId: job.servicePlanId },
-      })}
-    >
-      {t.p.seeYourCleaningPlan}
-    </ButtonLink>
-  ) : (
-    <ButtonLink href={requestQuoteHref}>{t.REQUEST_A_QUOTE}</ButtonLink>
-  );
-}
-
 function Cancelled({ job }: { job: ClientJobDetail }) {
   const t = useSaid(words);
   const cancellation = job.cancellation!;
   const skipped = wasSkipped(job);
   return (
-    <Part
+    <PartCard
       title={t.cancelledLabel(skipped)}
       description={oneStop(
         `${t.cancelledLabel(skipped)} ${t.formatDateTime(cancellation.cancelledAt)}.`,
       )}
-      actions={<WhatNext job={job} />}
     >
       {cancellation.by === "empire" ? (
         <p>
@@ -699,7 +638,7 @@ function Cancelled({ job }: { job: ClientJobDetail }) {
       )}
       {skipped && <p>{t.PLAN_CARRIES_ON}</p>}
       <Refund payment={cancellation.payment} />
-    </Part>
+    </PartCard>
   );
 }
 
@@ -707,7 +646,7 @@ function NoAccess({ job }: { job: ClientJobDetail }) {
   const t = useSaid(words);
   const noAccess = job.noAccess!;
   return (
-    <Part title={t.w.couldntGetIn} actions={<WhatNext job={job} />}>
+    <PartCard title={t.w.couldntGetIn}>
       <p>
         {t.w.teamCame(t.formatDateTime(noAccess.recordedAt), noAccess.reason)}
       </p>
@@ -734,29 +673,29 @@ function NoAccess({ job }: { job: ClientJobDetail }) {
         </Link>
         .
       </p>
-    </Part>
+    </PartCard>
   );
 }
 
 // A charge that failed: what it was, and the way to fix it. Saving a card
 // tries it again. Red, as it's already late. (UX pass, #96)
-function Unpaid({ payment }: { payment: JobPayment }) {
-  const t = useSaid(words);
+const unpaid = (
+  t: Said & { w: (typeof words)["en"] },
+  payment: JobPayment,
+): Alert => {
   const { kind, why } = payment.unpaid!;
-  return (
-    <Notice
-      tone="danger"
-      action={
-        kind !== "waiting" && (
-          <ButtonLink
-            variant="danger-text"
-            href={linkTo({ to: "/portal/payment-method" })}
-          >
-            {t.UPDATE_CARD}
-          </ButtonLink>
-        )
-      }
-    >
+  return {
+    key: "unpaid",
+    tone: "danger",
+    action: kind !== "waiting" && (
+      <ButtonLink
+        variant="danger-text"
+        href={linkTo({ to: "/portal/payment-method" })}
+      >
+        {t.UPDATE_CARD}
+      </ButtonLink>
+    ),
+    children: (
       <p>
         <strong>{t.p.paymentNeeded}</strong>{" "}
         {t.notTaken(
@@ -766,14 +705,14 @@ function Unpaid({ payment }: { payment: JobPayment }) {
         )}{" "}
         {t.clientFix[kind]}
       </p>
-    </Notice>
-  );
-}
+    ),
+  };
+};
 
-// A price change (an Adjustment) the Office has proposed, which they only pay if they
-// approve: a yellow alert to answer it, its one action opening the answer.
-// (UX pass, #96)
-function Proposal({
+// A price change (an Adjustment) the Office has proposed, which they only
+// pay if they approve: a yellow alert to answer it, this its one action
+// opening the answer. (UX pass, #96)
+function Review({
   job,
   adjustment,
 }: {
@@ -793,55 +732,41 @@ function Proposal({
   };
 
   return (
-    <Notice
-      tone="warning"
-      action={
-        <DialogTrigger>
-          <Button variant="text">{t.w.review}</Button>
-          <Dialog title={t.w.pleaseApprove}>
-            {({ close }) => (
-              <>
-                <p>
-                  {t.w.didMore} <strong>{t.adjustmentLabel(adjustment)}</strong>{" "}
-                  ("
-                  {adjustment.reason}").
-                  {adjustment.officeReason && ` ${adjustment.officeReason}.`}
-                </p>
-                <p>
-                  {t.w.comesTo}{" "}
-                  <strong>{t.formatMoney(adjustment.totalCents)}</strong>
-                  {t.w.onlyIfApprove(t.formatDate(adjustment.lapsesAt!))}
-                </p>
-                {action.problem && (
-                  <Notice tone="danger">{action.problem}</Notice>
-                )}
-                <Actions>
-                  <Button
-                    variant="quiet"
-                    isPending={action.pending === "decline"}
-                    onPress={() => void answer("decline", close)}
-                  >
-                    {t.p.decline}
-                  </Button>
-                  <Button
-                    isPending={action.pending === "approve"}
-                    onPress={() => void answer("approve", close)}
-                  >
-                    {t.w.approve(t.formatMoney(adjustment.totalCents))}
-                  </Button>
-                </Actions>
-              </>
-            )}
-          </Dialog>
-        </DialogTrigger>
-      }
-    >
-      <p>
-        <strong>{t.w.pleaseApproveDot}</strong> {t.adjustmentLabel(adjustment)},{" "}
-        {t.formatMoney(adjustment.totalCents)}.{" "}
-        {t.w.answerBy(t.formatDate(adjustment.lapsesAt!))}
-      </p>
-    </Notice>
+    <DialogTrigger>
+      <Button variant="text">{t.w.review}</Button>
+      <Dialog title={t.w.pleaseApprove}>
+        {({ close }) => (
+          <>
+            <p>
+              {t.w.didMore} <strong>{t.adjustmentLabel(adjustment)}</strong> ("
+              {adjustment.reason}").
+              {adjustment.officeReason && ` ${adjustment.officeReason}.`}
+            </p>
+            <p>
+              {t.w.comesTo}{" "}
+              <strong>{t.formatMoney(adjustment.totalCents)}</strong>
+              {t.w.onlyIfApprove(t.formatDate(adjustment.lapsesAt!))}
+            </p>
+            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+            <Actions>
+              <Button
+                variant="quiet"
+                isPending={action.pending === "decline"}
+                onPress={() => void answer("decline", close)}
+              >
+                {t.p.decline}
+              </Button>
+              <Button
+                isPending={action.pending === "approve"}
+                onPress={() => void answer("approve", close)}
+              >
+                {t.w.approve(t.formatMoney(adjustment.totalCents))}
+              </Button>
+            </Actions>
+          </>
+        )}
+      </Dialog>
+    </DialogTrigger>
   );
 }
 
@@ -856,7 +781,7 @@ function Receipt({ job }: { job: ClientJobDetail }) {
   );
 
   return (
-    <Part
+    <PartCard
       title={t.w.receipt}
       description={`${t.w.doneAt(t.formatDateTime(completedAt))} ${t.PRICES_INCLUDE_TAX}`}
     >
@@ -932,6 +857,6 @@ function Receipt({ job }: { job: ClientJobDetail }) {
           {t.w.restOnBill(t.formatMoney(payment.owedCents))}
         </p>
       )}
-    </Part>
+    </PartCard>
   );
 }

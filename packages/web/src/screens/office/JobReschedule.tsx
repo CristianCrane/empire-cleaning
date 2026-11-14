@@ -1,6 +1,6 @@
 import { formats } from "@empire-cleaning/models";
 import { useState } from "react";
-import { CalendarCheck } from "lucide-react";
+import { CalendarCheck, CalendarClock, Banknote } from "lucide-react";
 import type { OfficeJob } from "@empire-cleaning/models";
 import {
   Actions,
@@ -9,6 +9,8 @@ import {
   DialogTrigger,
   Notice,
   TextField,
+  Fact,
+  Facts,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { ChooseNewTime, costForOffice } from "../RescheduleParts.tsx";
@@ -103,14 +105,23 @@ function Confirm({
   const action = useAction("That didn't work. Please try again.");
   return (
     <>
-      <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-        <dt className="font-semibold">From</dt>
-        <dd>{formatDateTime(request.fromStartsAt)}</dd>
-        <dt className="font-semibold">To</dt>
-        <dd>{formatDateTime(request.startsAt)}</dd>
-        <dt className="font-semibold">Cost</dt>
-        <dd>{costForOffice(request.cost, request.feeCents, job)}</dd>
-      </dl>
+      <Facts>
+        <Fact
+          icon={CalendarClock}
+          label="From"
+          value={formatDateTime(request.fromStartsAt)}
+        />
+        <Fact
+          icon={CalendarCheck}
+          label="To"
+          value={formatDateTime(request.startsAt)}
+        />
+        <Fact
+          icon={Banknote}
+          label="Cost"
+          value={costForOffice(request.cost, request.feeCents, job)}
+        />
+      </Facts>
       <p className="text-sm text-fg-muted">
         Its cleaners are asked to confirm the new time, and we'll email them and
         the client.

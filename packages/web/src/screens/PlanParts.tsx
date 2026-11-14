@@ -16,23 +16,25 @@ import {
   oneStop,
 } from "@empire-cleaning/models";
 import {
-  ActionRow,
   Actions,
   Button,
   ButtonLink,
-  Card,
   Dialog,
-  DialogTrigger,
   IconTile,
   Notice,
-  Section,
   StatusBadge,
+  Fact,
+  DetailsCard,
+  Facts,
+  type Alert,
+  type DialogState,
+  type PageAction,
+  DialogTrigger,
 } from "@empire-cleaning/ui";
 import { postJson } from "../api.ts";
 import type { AppHref } from "../links.ts";
 import { useAction } from "./action.ts";
 import { formatHours } from "./format.ts";
-import { Fact } from "./Fact.tsx";
 import { type Said, useSaid } from "./words.ts";
 
 // what the Client reads, in their language (ADR-0025); what only the
@@ -57,15 +59,11 @@ const words = catalog({
     noMore:
       "We won't book any more cleans. You're welcome to start a new plan later.",
     notEnded: "The plan wasn't ended. Please try again.",
-    endedOn: (day: string) =>
-      `Your cleaning plan ended on ${day}. No more cleans are booked for it.`,
     hasEnded: "Your cleaning plan has ended",
-    ending: "Ending your plan",
     endPlan: "End plan",
     endQ: "End your cleaning plan?",
     cantRestart: "An ended plan can't be started again.",
     keep: "Keep my plan",
-    endAnyTime: "End your plan at any time: you'll see what it cancels first.",
     eachWeek: "Each week",
     eachClean: "Each clean",
     taxOff: (each: string, percent: number) =>
@@ -99,15 +97,11 @@ const words = catalog({
     noMore:
       "No reservaremos más limpiezas. Puede empezar un plan nuevo más adelante.",
     notEnded: "No se finalizó el plan. Vuelva a intentarlo.",
-    endedOn: (day: string) =>
-      `Su plan de limpieza finalizó el ${day}. No hay más limpiezas reservadas.`,
     hasEnded: "Su plan de limpieza finalizó",
-    ending: "Finalizar su plan",
     endPlan: "Finalizar plan",
     endQ: "¿Finalizar su plan de limpieza?",
     cantRestart: "Un plan finalizado no se puede volver a empezar.",
     keep: "Mantener mi plan",
-    endAnyTime: "Finalice su plan cuando quiera: primero verá lo que cancela.",
     eachWeek: "Cada semana",
     eachClean: "Cada limpieza",
     taxOff: (each: string, percent: number) =>
@@ -144,19 +138,18 @@ type Viewer = {
   endPath: string;
 };
 
-// why a plan is On Hold: a Notice for each Unpaid Job or Bill, its one
-// action the way to it (UX pass, #96). The first says what the hold means
-export function OnHold({
-  plan,
-  forClient,
-  jobHref,
-  billHref,
-}: {
-  plan: Omit<ServicePlanView, "upcoming">;
-  billHref: (billId: string) => AppHref;
-} & Omit<Viewer, "endPath">) {
+// why a plan is On Hold: a danger alert for each Unpaid Job or Bill, its
+// one action the way to it (UX pass, #96). The first says what the hold means
+export function useOnHold(
+  plan: Omit<ServicePlanView, "upcoming"> | null,
+  {
+    forClient,
+    jobHref,
+    billHref,
+  }: { billHref: (billId: string) => AppHref } & Omit<Viewer, "endPath">,
+): Alert[] {
   const t = useSaid(words);
-  if (plan.status !== "on_hold") return null;
+  if (plan?.status !== "on_hold") return [];
   const unpaid = [
     ...plan.unpaid.map((u) => ({
       key: u.jobId,
@@ -175,37 +168,32 @@ export function OnHold({
       label: forClient ? t.payBill(b.number) : `See bill ${b.number}`,
     })),
   ];
-  return (
-    <div className="flex flex-col gap-3">
-      {unpaid.map((u, i) => (
-        <Notice
-          key={u.key}
-          tone="danger"
-          action={
-            <ButtonLink variant="danger-text" href={u.href}>
-              {u.label}
-            </ButtonLink>
-          }
-        >
-          <p>
-            {i === 0 && (
-              <>
-                <strong>{forClient ? t.w.paused : "Paused."}</strong>{" "}
-              </>
-            )}
-            {forClient
-              ? t.w.couldntTake
-              : "The client's payment didn't go through for "}
-            {u.what}.
-            {i === 0 &&
-              (forClient
-                ? ` ${t.BOOKED_GO_AHEAD}`
-                : " Jobs already booked still go ahead, but no more are booked until it's paid.")}
-          </p>
-        </Notice>
-      ))}
-    </div>
-  );
+  return unpaid.map((u, i) => ({
+    key: u.key,
+    tone: "danger",
+    action: (
+      <ButtonLink variant="danger-text" href={u.href}>
+        {u.label}
+      </ButtonLink>
+    ),
+    children: (
+      <p>
+        {i === 0 && (
+          <>
+            <strong>{forClient ? t.w.paused : "Paused."}</strong>{" "}
+          </>
+        )}
+        {forClient
+          ? t.w.couldntTake
+          : "The client's payment didn't go through for "}
+        {u.what}.
+        {i === 0 &&
+          (forClient
+            ? ` ${t.BOOKED_GO_AHEAD}`
+            : " Jobs already booked still go ahead, but no more are booked until it's paid.")}
+      </p>
+    ),
+  }));
 }
 
 // what Ending a plan does, as sentences
@@ -246,34 +234,21 @@ function endingLines(t: T, terms: EndPlanTerms, forClient: boolean) {
   ].filter((line): line is string => typeof line === "string");
 }
 
-// Ending a plan, at any time: the button, and what it does now in the
-// dialog that confirms it
-export function EndPlan({
+// Ending a plan, at any time: what it does now, in the dialog that confirms
+// it. On the plan's own page it's one of the page's actions
+function EndPlanDialog({
   plan,
   forClient,
   endPath,
-}: { plan: Omit<ServicePlanView, "upcoming"> } & Omit<Viewer, "jobHref">) {
+  ...state
+}: { plan: Omit<ServicePlanView, "upcoming"> } & Omit<Viewer, "jobHref"> &
+  Partial<DialogState>) {
   const t = useSaid(words);
   // what Ending does may have changed since the page loaded
   const action = useAction(
     forClient ? t.w.notEnded : "The plan wasn't ended. Please try again.",
-    {
-      reloadOnFailure: true,
-    },
+    { reloadOnFailure: true },
   );
-  if (plan.status === "ended") {
-    return (
-      <Section title={forClient ? t.planStatus.ended.label : "Ended"}>
-        <Card>
-          <p>
-            {forClient
-              ? t.w.endedOn(t.formatDate(plan.endedAt!))
-              : `This cleaning plan ended on ${t.formatDate(plan.endedAt!)}. No more cleans are booked for it.`}
-          </p>
-        </Card>
-      </Section>
-    );
-  }
   const terms = plan.endTerms!;
   const lines = endingLines(t, terms, forClient);
 
@@ -286,167 +261,177 @@ export function EndPlan({
   };
 
   return (
-    <Section title={forClient ? t.w.ending : "Ending the plan"}>
-      <Card>
-        <ActionRow
-          actions={
-            <DialogTrigger>
-              <Button variant="danger">
-                <CircleStop aria-hidden size={18} />
-                {forClient ? t.w.endPlan : "End plan"}
-              </Button>
-              <Dialog
-                title={forClient ? t.w.endQ : "End this cleaning plan?"}
-                role="alertdialog"
-              >
-                {({ close }) => (
-                  <>
-                    {lines.map((line) => (
-                      <p key={line}>{line}</p>
-                    ))}
-                    <p>
-                      <strong>
-                        {forClient
-                          ? t.w.cantRestart
-                          : "An ended plan can't be started again."}
-                      </strong>
-                    </p>
-                    {action.problem && (
-                      <Notice tone="danger">{action.problem}</Notice>
-                    )}
-                    <Actions>
-                      <Button variant="quiet" onPress={close}>
-                        {forClient ? t.w.keep : "Keep the plan"}
-                      </Button>
-                      <Button
-                        variant="danger"
-                        isPending={action.isPending}
-                        onPress={() => void end(close)}
-                      >
-                        {forClient ? t.w.endPlan : "End plan"}
-                      </Button>
-                    </Actions>
-                  </>
-                )}
-              </Dialog>
-            </DialogTrigger>
-          }
-        >
+    <Dialog
+      title={forClient ? t.w.endQ : "End this cleaning plan?"}
+      role="alertdialog"
+      {...state}
+    >
+      {({ close }) => (
+        <>
+          {lines.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
           <p>
-            {forClient
-              ? t.w.endAnyTime
-              : "End it for the client at any time: you'll see what it cancels first."}
+            <strong>
+              {forClient
+                ? t.w.cantRestart
+                : "An ended plan can't be started again."}
+            </strong>
           </p>
-        </ActionRow>
-      </Card>
-    </Section>
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              {forClient ? t.w.keep : "Keep the plan"}
+            </Button>
+            <Button
+              variant="danger"
+              isPending={action.isPending}
+              onPress={() => void end(close)}
+            >
+              {forClient ? t.w.endPlan : "End plan"}
+            </Button>
+          </Actions>
+        </>
+      )}
+    </Dialog>
   );
 }
 
-// The plan as its Client and the Office read it: when, large, every weekday of it (one
-// answer to "when is my clean?"), then its facts in even columns across, each
-// an icon, a value and what the value is. Three text styles, no more.
-// (UX pass, #96)
-export function PlanFacts({
+// the plan's End plan, as a page action
+export function useEndPlanAction(
+  plan: Omit<ServicePlanView, "upcoming">,
+  viewer: Omit<Viewer, "jobHref">,
+): PageAction | false {
+  const t = useSaid(words);
+  return (
+    plan.status !== "ended" && {
+      label: viewer.forClient ? t.w.endPlan : "End plan",
+      icon: CircleStop,
+      danger: true,
+      dialog: (state) => <EndPlanDialog plan={plan} {...viewer} {...state} />,
+    }
+  );
+}
+
+// End plan on the plan's card, where the plan is a part of the page (a
+// home's): red, on its title line (WEB-J). An ended plan has none
+export function EndPlan({
+  plan,
+  endPath,
+}: {
+  plan: Omit<ServicePlanView, "upcoming">;
+  endPath: string;
+}) {
+  if (plan.status === "ended") return null;
+  return (
+    <DialogTrigger>
+      <Button variant="danger-text" size="sm">
+        <CircleStop aria-hidden size={16} />
+        End plan
+      </Button>
+      <EndPlanDialog plan={plan} forClient={false} endPath={endPath} />
+    </DialogTrigger>
+  );
+}
+
+// The plan as its Client and the Office read it, its details card: when,
+// large, every weekday of it (one answer to "when is my clean?"), then its
+// facts (UX pass, #96), and anything else below
+export function PlanCard({
   plan,
   forClient,
+  label,
   badge,
+  children,
 }: {
   plan: Omit<ServicePlanView, "upcoming">;
   forClient: boolean;
+  label: string;
   // its status, beside how often, where the page doesn't say it already
   badge?: ReactNode;
+  children?: ReactNode;
 }) {
   const t = useSaid(words);
   const [one] = plan.days;
   const several = plan.days.length > 1;
   const ended = plan.status === "ended";
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-start gap-4">
-        <IconTile icon={CalendarClock} size="lg" />
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <p className="text-sm text-fg-muted">
-              {t.recurrenceLabel[plan.recurrence]}
-            </p>
-            {badge}
-          </div>
-          {plan.days.map((day) => (
-            <p key={day.startsAt} className="text-xl font-semibold text-fg">
-              {t.planDayWhen(day.startsAt)}
-              {several && (
-                <span className="font-normal text-fg-muted">
-                  {" "}
-                  · {day.serviceName}
-                </span>
-              )}
-            </p>
-          ))}
-          {!several && <p className="text-fg-muted">{one!.serviceName}</p>}
-        </div>
-      </div>
-      {/* the columns follow the card's width, not the screen's: on the
-          Office's page for a home it shares the screen with the History */}
-      <div className="@container">
-        <dl className="grid gap-x-6 gap-y-4 @md:grid-cols-2 @3xl:grid-cols-4">
-          <Fact
-            icon={Receipt}
-            label={several ? t.w.eachWeek : t.w.eachClean}
-            value={t.formatMoney(
-              several ? plan.roundTotalCents : one!.totalCents,
-            )}
-            line={t.w.taxOff(
-              several ? t.w.eachWeek : t.w.eachClean,
-              plan.discountPercent,
-            )}
-          />
-          {several ? (
-            <Fact
-              icon={Users}
-              label={t.onSite}
-              value={plan.days
-                .map((d) => formatHours(d.hoursOnSite))
-                .join(" + ")}
-              line={t.w.onSiteEachDay}
-            />
-          ) : (
-            <Fact
-              icon={Clock}
-              label={t.onSite}
-              value={t.about(formatHours(one!.hoursOnSite))}
-              line={t.onSiteWith(t.cleaners(one!.crewSize))}
-            />
+    <DetailsCard
+      label={label}
+      tile={<IconTile icon={CalendarClock} size="lg" />}
+      kicker={
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {t.recurrenceLabel[plan.recurrence]}
+          {badge}
+        </span>
+      }
+      title={plan.days.map((day) => (
+        <span key={day.startsAt} className="block">
+          {t.planDayWhen(day.startsAt)}
+          {several && (
+            <span className="font-normal text-fg-muted">
+              {" "}
+              · {day.serviceName}
+            </span>
           )}
+        </span>
+      ))}
+      line={!several && one!.serviceName}
+    >
+      <Facts>
+        <Fact
+          icon={Receipt}
+          label={several ? t.w.eachWeek : t.w.eachClean}
+          value={t.formatMoney(
+            several ? plan.roundTotalCents : one!.totalCents,
+          )}
+          line={t.w.taxOff(
+            several ? t.w.eachWeek : t.w.eachClean,
+            plan.discountPercent,
+          )}
+        />
+        {several ? (
           <Fact
-            icon={CirclePlus}
-            label={t.extras}
-            value={plan.addOns.length > 0 ? plan.addOns.join(", ") : t.none}
+            icon={Users}
+            label={t.onSite}
+            value={plan.days.map((d) => formatHours(d.hoursOnSite)).join(" + ")}
+            line={t.w.onSiteEachDay}
           />
+        ) : (
           <Fact
-            icon={PiggyBank}
-            label={t.deposit}
-            value={
-              plan.depositCents === 0
-                ? t.none
-                : t.formatMoney(plan.depositCents)
-            }
-            line={
-              plan.depositCents === 0
-                ? t.deposit
-                : ended
-                  ? t.w.towardsLast
-                  : forClient
-                    ? t.w.offLast
-                    : "Deposit, comes off the last clean"
-            }
+            icon={Clock}
+            label={t.onSite}
+            value={t.about(formatHours(one!.hoursOnSite))}
+            line={t.onSiteWith(t.cleaners(one!.crewSize))}
           />
-        </dl>
-      </div>
+        )}
+        <Fact
+          icon={CirclePlus}
+          label={t.extras}
+          value={plan.addOns.length > 0 ? plan.addOns.join(", ") : t.none}
+        />
+        <Fact
+          icon={PiggyBank}
+          label={t.deposit}
+          value={
+            plan.depositCents === 0 ? t.none : t.formatMoney(plan.depositCents)
+          }
+          line={
+            plan.depositCents === 0
+              ? t.deposit
+              : ended
+                ? t.w.towardsLast
+                : forClient
+                  ? t.w.offLast
+                  : "Deposit, comes off the last clean"
+          }
+        />
+      </Facts>
       <p className="text-sm text-fg-muted">
         {t.w.started(t.formatDate(plan.startedAt))}
         {plan.endedAt && t.w.endedAt(t.formatDate(plan.endedAt))}
       </p>
-    </div>
+      {children}
+    </DetailsCard>
   );
 }

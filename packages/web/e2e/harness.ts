@@ -462,21 +462,42 @@ export const showInMenu = async (page: Page, wanted: Locator) => {
   return { item, opened: true };
 };
 
-// does one of a Job's actions on its page: from the Actions menu at the
-// end of its title row (#406)
-export const jobAction = async (page: Page, name: string) => {
-  await page.getByRole("button", { name: "Actions", exact: true }).click();
+// a Record's Actions menu, at the end of its title row (docs/ux.md, Page
+// structure), in either language
+const actionsMenu = (page: Page) =>
+  page.getByRole("button", { name: /^(Actions|Acciones)$/ });
+
+// does one of a Record's actions on its page: from its Actions menu, or the
+// Button in the menu's place when it's the only one (#432)
+export const pageAction = async (page: Page, name: string) => {
+  const menu = actionsMenu(page);
+  const only = page
+    .getByRole("button", { name, exact: true })
+    .or(page.getByRole("link", { name, exact: true }));
+  // whichever the page shows, once it's the page wanted
+  await expect(menu.or(only).first()).toBeVisible();
+  if ((await menu.count()) === 0) {
+    await only.click();
+    return;
+  }
+  await menu.click();
   await page.getByRole("menuitem", { name, exact: true }).click();
+  // gone, its popover too, so the dialog it opens is the only one
+  await expect(page.getByRole("menu")).toHaveCount(0);
 };
 
-// one of a Job's actions isn't on offer on its page: there's no Actions
-// menu, or it doesn't hold it
-export const expectNoJobAction = async (page: Page, name: string) => {
-  // the page is showing, so a missing menu isn't one still loading
+// one of a Record's actions isn't on offer on its page: not in its Actions
+// menu, nor the one Button in its place
+export const expectNoPageAction = async (page: Page, name: string) => {
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  const actions = page.getByRole("button", { name: "Actions", exact: true });
-  if ((await actions.count()) === 0) return;
-  await actions.click();
+  const menu = actionsMenu(page);
+  if ((await menu.count()) === 0) {
+    await expect(page.getByRole("button", { name, exact: true })).toHaveCount(
+      0,
+    );
+    return;
+  }
+  await menu.click();
   await expect(page.getByRole("menu")).toBeVisible();
   await expect(page.getByRole("menuitem", { name, exact: true })).toHaveCount(
     0,
@@ -819,3 +840,11 @@ export const recordFindingsWithoutVisit = async (page: Page) => {
   await expect(page.getByText("Findings recorded").first()).toBeVisible();
   await page.goto(quote);
 };
+
+// opens a Quote's home, from its breadcrumbs (Quotes › client › home ›
+// Quote): the crumb whose page is the home's
+export const openTheHome = (page: Page) =>
+  page
+    .getByLabel("Breadcrumbs")
+    .locator('a[href*="/office/properties/"]')
+    .click();

@@ -17,12 +17,13 @@ import {
   Section,
   StatusBadge,
   TextField,
+  Fact,
+  Facts,
 } from "@empire-cleaning/ui";
 import { patchJson } from "../../api.ts";
 import { useAction } from "../action.ts";
 import { addressOf } from "../format.ts";
 import { useSaid } from "../words.ts";
-import { Fact } from "../Fact.tsx";
 import { standingOf } from "./properties.ts";
 
 // in the Client's language (ADR-0025)
@@ -105,7 +106,7 @@ export function PortalDetails() {
           </Notice>
         )}
         <Card>
-          <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+          <Facts>
             <Fact
               icon={UserRound}
               label={w.name}
@@ -121,7 +122,7 @@ export function PortalDetails() {
               line={w.whereQuotes}
             />
             <Fact icon={Phone} label={w.phone} value={client.phone} />
-          </dl>
+          </Facts>
         </Card>
       </Section>
 

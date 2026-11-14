@@ -26,9 +26,10 @@ import {
 } from "lucide-react";
 import { Avatar } from "./Avatar.tsx";
 import { ActionFooter } from "./ActionFooter.tsx";
-import { ActionRow } from "./ActionRow.tsx";
 import { AppLayout } from "./layouts/AppLayout.tsx";
 import { MessagePage } from "./layouts/MessagePage.tsx";
+import { DetailsCard, RecordPage } from "./layouts/RecordPage.tsx";
+import { Fact, Facts } from "./Facts.tsx";
 import { Button } from "./Button.tsx";
 import { Card } from "./Card.tsx";
 import { Checkbox } from "./Checkbox.tsx";
@@ -40,7 +41,6 @@ import { EmptyState } from "./EmptyState.tsx";
 import { Heading } from "./Heading.tsx";
 import { IconTile } from "./IconTile.tsx";
 import { List, ListItem } from "./List.tsx";
-import { MenuButton, MenuItem, MenuSeparator } from "./Menu.tsx";
 import { Notice } from "./Notice.tsx";
 import { Radio, RadioGroup } from "./RadioGroup.tsx";
 import { Section } from "./Section.tsx";
@@ -105,12 +105,10 @@ const jobs = (
 );
 
 const contact = (
-  <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-    <dt className="font-semibold">Email</dt>
-    <dd>dev.patel@example.com</dd>
-    <dt className="font-semibold">Phone</dt>
-    <dd>(555) 010-4477</dd>
-  </dl>
+  <Facts>
+    <Fact icon={Mail} label="Email" value="dev.patel@example.com" />
+    <Fact icon={Phone} label="Phone" value="(555) 010-4477" />
+  </Facts>
 );
 
 function SectionsNotCards() {
@@ -131,8 +129,8 @@ function SectionsNotCards() {
           <code>text</code>
           Buttons led by an icon, on the title's line and no taller than it, so
           a Section's box starts level with its neighbour's (on a phone they
-          wrap under the title rather than squeeze it); the main action next to
-          the page title is primary, with an icon too.
+          wrap under the title rather than squeeze it). What's done to a whole
+          Record is in its header (see A Record).
         </p>
       </Rule>
       <div className="flex flex-col gap-4 md:flex-row">
@@ -425,30 +423,40 @@ function RecordsAsStories() {
     <div className="flex flex-col gap-6">
       <Rule title="A record that moves through steps is its story, Now on top">
         <p>
-          A page for something with a lifecycle, like a Quote, is a{" "}
-          <code>Timeline</code>, newest first. Above it, what there is to do, in
-          Notices. On top of it, <strong>Now</strong> holds the record as it
-          stands, in one Card (the Current quote). Below, each thing that
-          happened to it, dated, with its details folded away until they're
-          wanted. Work in progress isn't part of the story: a Draft is written
-          on a page of its own, one Card ruled off into parts, and the Quote
-          page only says it's there.
+          A Record with a lifecycle, like a Quote, is a <code>RecordPage</code>{" "}
+          whose body is a <code>Timeline</code>, newest first, and no History
+          beside it: the story is the page. On top of it, <strong>Now</strong>{" "}
+          holds the record as it stands, in one Card (the Current quote). Below,
+          each thing that happened to it, dated, with its details folded away
+          until they're wanted. Work in progress isn't part of the story: a
+          Draft is written on a page of its own, and the Quote page only says
+          it's there.
         </p>
       </Rule>
       <div className="flex flex-col gap-4 lg:flex-row">
         <Example verdict="Do">
-          <div className="flex flex-col gap-4">
-            <Notice
-              action={
-                <Button variant="text" size="sm">
-                  <Mail aria-hidden size={16} />
-                  Email Max a link
-                </Button>
-              }
-            >
-              <strong>Waiting for Max to accept.</strong> He needs a card saved
-              first.
-            </Notice>
+          <RecordPage
+            trail={[{ label: "Quotes", href: "#" }, { label: "One-off clean" }]}
+            title="One-off clean for Max Moreno"
+            status={<StatusBadge tone="info">Sent</StatusBadge>}
+            alerts={[
+              {
+                key: "card",
+                children: (
+                  <p>
+                    <strong>Waiting for Max to accept.</strong> He needs a card
+                    saved first.
+                  </p>
+                ),
+                action: (
+                  <Button variant="text" size="sm">
+                    <Mail aria-hidden size={16} />
+                    Email Max a link
+                  </Button>
+                ),
+              },
+            ]}
+          >
             <Timeline aria-label="A quote's story, newest first">
               <TimelineItem icon={FileClock} title="Now" current>
                 <Card>
@@ -462,17 +470,12 @@ function RecordsAsStories() {
                 description="$194.89 · for Tue, Oct 13, 9:00 AM"
               />
               <TimelineItem
-                icon={CalendarCheck}
-                title="Site visit done"
-                when="Oct 2"
-              />
-              <TimelineItem
                 icon={MessageSquareText}
                 title="Max asked for a quote"
                 when="Oct 1"
               />
             </Timeline>
-          </div>
+          </RecordPage>
         </Example>
         <Example verdict="Don't">
           <div className="flex flex-col gap-4">
@@ -485,9 +488,6 @@ function RecordsAsStories() {
             <Card title="Deposit">
               <p>$48.72</p>
             </Card>
-            <Button variant="secondary" className="self-end">
-              Change quote
-            </Button>
           </div>
         </Example>
       </div>
@@ -647,21 +647,15 @@ function RowsOpenOneDialog() {
 function AllAtOnceInTwoColumns() {
   return (
     <div className="flex flex-col gap-6">
-      <Rule title="When every part of a record matters at once, two columns">
+      <Rule title="A record's History beside it, in two columns from xl">
         <p>
-          A record read as a whole, every part as important as the others (a
-          Job: what it is, who's on it, its money and what happened), shows in
-          one view without scrolling: what to do in Notices on top, then two
-          columns: the record, its people and its money on the left, its history
-          on the right as a Timeline, with room to grow. What can be done to the
-          whole record is in a <code>MenuButton</code>, "Actions", at the end of
-          its title row, each item an icon and its words, one that undoes
-          something red and last. A home for the Office reads the same way: its
-          details, Service Plan and Site Visit left, its History right. A
-          details card's facts follow the card's width, not the screen's (a
-          container query), so they fit the narrower column. One column on a
-          phone. A record read as steps, where what's next matters most (a
-          Quote), is its story instead.
+          A Record read as a whole (a Job: what it is, who's on it, its money
+          and what happened) shows its parts on the left and its History on the
+          right, in a Card, from <code>xl</code>; below that, one column, the
+          History at the foot. A details card's facts follow the card's width,
+          not the screen's (a container query), so they fit the narrower column.
+          Someone who drops out or is taken off leaves the crew: the History
+          says so.
         </p>
         <p>
           Where figures make a price (a Service, New Quote on the phone), the
@@ -671,68 +665,74 @@ function AllAtOnceInTwoColumns() {
           Office's forms are one page; a Client's ask in steps.
         </p>
       </Rule>
-      <div className="flex items-start gap-2">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <Heading level={1}>Deep Clean at 30 Pine Ave</Heading>
-          <p className="text-lg text-fg-muted">Mon, Oct 26, 9:00 AM</p>
-        </div>
-        <MenuButton label="Actions">
-          <MenuItem icon={CalendarClock}>Ask for a new time</MenuItem>
-          <MenuSeparator />
-          <MenuItem icon={CalendarX} danger>
-            Cancel job
-          </MenuItem>
-        </MenuButton>
-      </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_14rem]">
-        <div className="flex flex-col gap-4">
-          <Section title="Job details">
-            <Card>
-              <p>Deep Clean · 6 cleaning hours · crew of 2</p>
-            </Card>
-          </Section>
-          <Section title="Crew" description="1 of 2 cleaners confirmed">
-            <List aria-label="Crew">
-              <ListItem
-                id="ben"
-                title="Ben Cleaner"
-                start={<Avatar />}
-                description="Confirmed Oct 21"
-                action={
-                  <Button
-                    variant="quiet"
-                    size="icon"
-                    aria-label="Remove Ben Cleaner"
-                  >
-                    <X aria-hidden size={20} className="text-fg-muted" />
-                  </Button>
-                }
+      <RecordPage
+        trail={[{ label: "Jobs", href: "#" }, { label: "Deep Clean" }]}
+        title="Deep Clean at 30 Pine Ave"
+        status={<StatusBadge tone="warning">Needs cleaners</StatusBadge>}
+        actions={[
+          { label: "Ask for a new time", icon: CalendarClock, onAction() {} },
+          { label: "Cancel job", icon: CalendarX, danger: true, onAction() {} },
+        ]}
+        details={
+          <DetailsCard
+            label="Details"
+            tile={<DateTile date="2026-10-26" />}
+            kicker="Deep Clean"
+            title="Mon, Oct 26, 9:00 AM"
+          >
+            <Facts>
+              <Fact icon={House} label="Home" value="30 Pine Ave" />
+              <Fact
+                icon={KeyRound}
+                label="How we get in"
+                value="Lockbox 4471"
               />
-            </List>
-          </Section>
-          <Section title="Money">
-            <Card>
-              <p>Total $194.89 · Paid $48.72</p>
-            </Card>
-          </Section>
-        </div>
-        <div className="flex flex-col gap-4">
-          <Section title="History">
-            <Timeline aria-label="History, newest first">
-              <TimelineItem
-                icon={CalendarCheck}
-                title="Ben Cleaner confirmed"
-                when="Oct 21"
-              />
-              <TimelineItem
-                icon={Send}
-                title="Offered to Ben Cleaner"
-                when="Oct 20"
-              />
-            </Timeline>
-          </Section>
-        </div>
-      </div>
+            </Facts>
+          </DetailsCard>
+        }
+        history={
+          <Timeline aria-label="History, newest first">
+            <TimelineItem
+              icon={UserX}
+              title="Dee Cleaner dropped out"
+              when="Oct 22"
+            />
+            <TimelineItem
+              icon={CalendarCheck}
+              title="Ben Cleaner confirmed"
+              when="Oct 21"
+            />
+          </Timeline>
+        }
+      >
+        <Section title="Crew" description="1 of 2 cleaners confirmed">
+          <List aria-label="Crew">
+            <ListItem
+              id="ben"
+              title="Ben Cleaner"
+              start={<Avatar />}
+              description="Confirmed Oct 21"
+              action={
+                <Button
+                  variant="quiet"
+                  size="icon"
+                  aria-label="Remove Ben Cleaner"
+                >
+                  <X aria-hidden size={20} className="text-fg-muted" />
+                </Button>
+              }
+            />
+          </List>
+        </Section>
+        <Section title="Money">
+          <Card>
+            <Facts>
+              <Fact icon={CircleDollarSign} label="Total" value="$194.89" />
+              <Fact icon={CreditCard} label="Deposit paid" value="$48.72" />
+            </Facts>
+          </Card>
+        </Section>
+      </RecordPage>
     </div>
   );
 }
@@ -1139,62 +1139,71 @@ function OwedFirst() {
 function DetailsPage() {
   return (
     <div className="flex flex-col gap-6">
-      <Rule title="A details page: alerts, then the details, then what you can do">
+      <Rule title="A Record: its header, two alerts, its details, its parts">
         <p>
-          What needs an answer from them goes first, as a Notice each: warning
-          for waiting on them, danger for something that failed. Its one action
-          opens the answer (a dialog, or the page that fixes it).
+          Every page about one thing is a <code>RecordPage</code>. Its header
+          has the breadcrumbs from the nav section down, every step, the title
+          and status, and what can be done to the whole record at the end of the
+          title row: one <strong>Actions ▾</strong> menu, each item an icon and
+          its words, the destructive ones last in red; or, with one action, a
+          Button in that same place.
         </p>
         <p>
-          Then one details card, titled outside: when, large, with an IconTile;
-          then its facts in even columns across, each an icon, a value and a
-          muted line saying what it is. Three text styles, no more.
+          What needs an answer goes next, as a Notice each, the most pressing
+          first, two at most and the rest behind "Show N more". A Notice holds
+          one text Button; what it does goes wrong in a Toast, never a Notice
+          inside it.
         </p>
         <p>
-          Then each thing they can do to it is a card of its own, titled
-          outside, its text and Button on one row (`ActionRow`): the Button
-          right and centred on the text, wrapping under it on a phone.
+          Then one details card: what it is, large, led by its tile; then its
+          facts in even columns across, each an icon, a value and a muted line
+          saying what it is. Then each part, a Section; an action on one part
+          (End plan on the plan) is a text Button on its title line. Only a
+          Cleaner's on-site main action sits in a bar at the foot.
         </p>
       </Rule>
       <Example verdict="Do">
-        <Notice tone="warning" action={<Button variant="text">Review</Button>}>
-          <p>
-            <strong>Please approve a price change.</strong> 1 more hour, $59.88.
-            Please answer by Jan 19, 2026.
-          </p>
-        </Notice>
-        <Section title="Clean details">
-          <Card>
-            <div className="flex items-start gap-4">
-              <IconTile icon={CalendarClock} size="lg" />
-              <div className="flex flex-col gap-1">
-                <p className="text-sm text-fg-muted">One-off clean</p>
-                <p className="text-xl font-semibold text-fg">
-                  Mon, Jan 12, 9:00 AM
+        <RecordPage
+          trail={[{ label: "Cleans", href: "#" }, { label: "Mon, Jan 12" }]}
+          title="Mon, Jan 12"
+          status={<StatusBadge tone="info">Booked</StatusBadge>}
+          actions={[
+            { label: "Pick a new time", icon: CalendarClock, onAction() {} },
+          ]}
+          alerts={[
+            {
+              key: "change",
+              tone: "warning",
+              children: (
+                <p>
+                  <strong>Please approve a price change.</strong> 1 more hour,
+                  $59.88.
                 </p>
-              </div>
-            </div>
-          </Card>
-        </Section>
-        <Section title="Need another time?">
-          <Card>
-            <ActionRow
-              actions={<Button variant="secondary">Pick a new time</Button>}
+              ),
+              action: <Button variant="text">Review</Button>,
+            },
+          ]}
+          details={
+            <DetailsCard
+              label="Details"
+              tile={<IconTile icon={CalendarClock} size="lg" />}
+              kicker="One-off clean"
+              title="Mon, Jan 12, 9:00 AM"
             >
-              <p>
-                You can move it for free until{" "}
-                <strong>Sun, Jan 11, 9:00 AM</strong>.
-              </p>
-            </ActionRow>
-          </Card>
-        </Section>
+              <Facts>
+                <Fact icon={House} label="Home" value="30 Pine Ave" />
+                <Fact icon={CircleDollarSign} label="Price" value="$194.89" />
+              </Facts>
+            </DetailsCard>
+          }
+        />
       </Example>
     </div>
   );
 }
 
 export const DetailsPageStory: Story = {
-  name: "A details page: alerts, details, actions",
+  name: "A Record: its header, two alerts, its details, its parts",
   render: () => <DetailsPage />,
 };
 
@@ -1259,7 +1268,7 @@ export const OwedFirstStory: Story = {
 };
 
 export const AllAtOnceInTwoColumnsStory: Story = {
-  name: "All at once in two columns",
+  name: "A record's History beside it, from xl",
   render: () => <AllAtOnceInTwoColumns />,
 };
 

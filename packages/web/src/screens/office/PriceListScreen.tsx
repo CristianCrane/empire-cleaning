@@ -35,11 +35,12 @@ import {
   Section,
   StatusBadge,
   TextField,
+  Fact,
+  Facts,
 } from "@empire-cleaning/ui";
 import { putJson } from "../../api.ts";
 import { useAction } from "../action.ts";
 import { formatHours, screenWords } from "../format.ts";
-import { Fact } from "../Fact.tsx";
 
 const { cleaners, conditionLabel } = screenWords.en;
 
@@ -552,11 +553,7 @@ function Figures({
       }
     >
       <Card>
-        <div className="@container">
-          <dl className="grid gap-x-6 gap-y-4 @md:grid-cols-2 @3xl:grid-cols-4">
-            {facts}
-          </dl>
-        </div>
+        <Facts>{facts}</Facts>
       </Card>
     </Section>
   );

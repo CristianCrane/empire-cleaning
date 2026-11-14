@@ -1,19 +1,29 @@
 import { formats } from "@empire-cleaning/models";
 import { useState, type ReactNode } from "react";
-import { CreditCard, Undo2 } from "lucide-react";
+import {
+  CreditCard,
+  Undo2,
+  ClipboardList,
+  MessageSquareText,
+  Building2,
+  Banknote,
+  CalendarClock,
+  Receipt,
+  CircleAlert,
+  FileText,
+  Files,
+} from "lucide-react";
 import type {
   AdjustmentStatus,
   AdjustmentView,
   Condition,
   JobCompletion,
-  JobPayment,
   OfficeJob,
 } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
   Dialog,
-  DialogTrigger,
   Form,
   Cell,
   Column,
@@ -28,6 +38,11 @@ import {
   TableBody,
   TableHeader,
   TextField,
+  Fact,
+  Facts,
+  Fold,
+  type DialogState,
+  Card,
 } from "@empire-cleaning/ui";
 import { deleteJson, patchJson, postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
@@ -180,26 +195,21 @@ const counts = (a: AdjustmentView) =>
   a.status === "applied" || a.status === "approved";
 
 /**
- * The Adjustments the Cleaner reported or the Office made, one row each:
- * what, what happened, its price and status. A row opens the Adjustment,
- * where Office Staff review an increase, or correct or remove one.
+ * The Adjustments the Cleaner reported or the Office made, in its Money
+ * (WEB-6), one row each: what, what happened, its price and status. A row
+ * opens the Adjustment, where Office Staff review an increase, or correct
+ * or remove one.
  */
-export function Adjustments({ job }: { job: OfficeJob }) {
+function Adjustments({ job }: { job: OfficeJob }) {
   const adjustments = job.completion!.adjustments;
   const [openId, setOpenId] = useState<string | null>(null);
   // the latest, once an action reloads the Job; gone if it was removed
   const open = adjustments.find((a) => a.id === openId);
+  if (adjustments.length === 0) return null;
 
   return (
-    <Section
-      title="Price changes"
-      description="What the cleaner reported that was different from the quote, priced from the quote's prices. A price that goes up is only added once the client approves it."
-    >
-      {adjustments.length === 0 ? (
-        <p className="text-sm text-fg-muted">
-          Nothing different from the quote was reported.
-        </p>
-      ) : (
+    <Section title="Price changes" headingLevel={3}>
+      {
         <Table
           aria-label="Price changes"
           onRowAction={(key) => setOpenId(String(key))}
@@ -225,7 +235,7 @@ export function Adjustments({ job }: { job: OfficeJob }) {
             )}
           </TableBody>
         </Table>
-      )}
+      }
       {open && (
         <AdjustmentDialog
           key={open.id}
@@ -265,31 +275,43 @@ function AdjustmentDialog({
       ) : (
         <>
           <div>{statusBadge[a.status]}</div>
-          <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-            <dt className="font-semibold">What happened</dt>
-            <dd>{fullChangeOf(a)}</dd>
-            <dt className="font-semibold">The cleaner said</dt>
-            <dd>"{a.reason}"</dd>
+          <Facts>
+            <Fact
+              icon={ClipboardList}
+              label="What happened"
+              value={fullChangeOf(a)}
+            />
+            <Fact
+              icon={MessageSquareText}
+              label="The cleaner said"
+              value={`"${a.reason}"`}
+            />
             {a.officeReason && (
-              <>
-                <dt className="font-semibold">The office said</dt>
-                <dd>{a.officeReason}</dd>
-              </>
+              <Fact
+                icon={Building2}
+                label="The office said"
+                value={a.officeReason}
+              />
             )}
-            <dt className="font-semibold">Price</dt>
-            <dd>
-              {signed(a.totalCents)} with tax
-              {a.status !== "reported" &&
-                a.priceCents !== a.workedOutCents &&
-                ` (worked out at ${formatMoney(Math.abs(a.workedOutCents))} before tax)`}
-            </dd>
+            <Fact
+              icon={Banknote}
+              label="Price"
+              value={`${signed(a.totalCents)} with tax`}
+              line={
+                a.status !== "reported" && a.priceCents !== a.workedOutCents
+                  ? `Worked out at ${formatMoney(Math.abs(a.workedOutCents))} before tax`
+                  : undefined
+              }
+            />
             {a.lapsesAt && (
-              <>
-                <dt className="font-semibold">Answer by</dt>
-                <dd>{formatDate(a.lapsesAt)}, or it isn't added</dd>
-              </>
+              <Fact
+                icon={CalendarClock}
+                label="Answer by"
+                value={formatDate(a.lapsesAt)}
+                line="Answer by then, or it isn't added"
+              />
             )}
-          </dl>
+          </Facts>
           {a.status === "reported" ? (
             <ReviewForm job={job} adjustment={a} close={close} />
           ) : counts(a) ? (
@@ -480,111 +502,150 @@ function ConfirmRemove({
   );
 }
 
-export function UndoCompletion({ job }: { job: OfficeJob }) {
+// for a Job marked done by mistake: opened from the Job's header
+export function UndoCompletion({
+  job,
+  ...state
+}: { job: OfficeJob } & DialogState) {
   const action = useAction("It wasn't undone. Please try again.");
   return (
-    <DialogTrigger>
-      <Button variant="text" size="sm">
-        <Undo2 aria-hidden size={16} />
-        Mark not done
-      </Button>
-      <Dialog title="Mark this job not done?" role="alertdialog">
-        {({ close }) => (
-          <>
-            <p>
-              For a job marked done by mistake. It goes back to booked, its
-              price changes are removed, and{" "}
-              {job.weeklyBill
-                ? "what its bills charged comes off the client's next bill"
-                : "everything paid except the deposit is refunded"}
-              . We email the client, and the cleaner can mark it done again.
-            </p>
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <Button variant="quiet" onPress={close}>
-                Keep it
-              </Button>
-              <Button
-                variant="danger"
-                isPending={action.isPending}
-                onPress={() =>
-                  void action
-                    .run(
-                      () => deleteJson(`/api/jobs/${job.id}/completion`),
-                      "Marked not done",
-                    )
-                    .then((ok) => ok && close())
-                }
-              >
-                Mark not done
-              </Button>
-            </Actions>
-          </>
-        )}
-      </Dialog>
-    </DialogTrigger>
+    <Dialog title="Mark this job not done?" role="alertdialog" {...state}>
+      {({ close }) => (
+        <>
+          <p>
+            For a job marked done by mistake. It goes back to booked, its price
+            changes are removed, and{" "}
+            {job.weeklyBill
+              ? "what its bills charged comes off the client's next bill"
+              : "everything paid except the deposit is refunded"}
+            . We email the client, and the cleaner can mark it done again.
+          </p>
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              Keep it
+            </Button>
+            <Button
+              variant="danger"
+              isPending={action.isPending}
+              onPress={() =>
+                void action
+                  .run(
+                    () => deleteJson(`/api/jobs/${job.id}/completion`),
+                    "Marked not done",
+                  )
+                  .then((ok) => ok && close())
+              }
+            >
+              Mark not done
+            </Button>
+          </Actions>
+        </>
+      )}
+    </Dialog>
   );
 }
 
-// a Completed Job's money, tax included. Each charge is in its History, and
-// a failed one is a Notice above, with its retry.
-export function JobMoney({ payment }: { payment: JobPayment }) {
+// What a Job's money comes to, once it's done or didn't happen (WEB-6):
+// its total or fee, what's paid and what's still owed; the price changes;
+// how it's worked out, folded. Each charge is in its History, and a failed
+// one is an alert above, with its retry.
+export function JobMoney({ job }: { job: OfficeJob }) {
+  const lost = job.cancellation ?? job.noAccess;
+  const payment = job.completion?.payment ?? lost?.payment;
+  if (!payment) return null;
+  const owed = payment.owedCents;
   return (
-    <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-      <dt className="font-semibold">Quoted</dt>
-      <dd>{formatMoney(payment.quotedCents)}</dd>
-      {payment.adjustmentsCents !== 0 && (
-        <>
-          <dt className="font-semibold">Price changes</dt>
-          <dd>{formatMoney(payment.adjustmentsCents)}</dd>
-        </>
-      )}
-      <dt className="font-semibold">Total</dt>
-      <dd>{formatMoney(payment.totalCents)}, tax included</dd>
-      <dt className="font-semibold">Paid</dt>
-      <dd>
-        {formatMoney(payment.paidCents)}
-        {payment.paymentMethod && ` by ${payment.paymentMethod}`}
-      </dd>
-      {payment.billedCents !== 0 && (
-        <>
-          <dt className="font-semibold">On weekly bills</dt>
-          <dd>{formatMoney(payment.billedCents)}</dd>
-        </>
-      )}
-      {payment.owedCents !== 0 && (
-        <>
-          <dt className="font-semibold">
-            {payment.owedCents > 0 ? "Still owed" : "To refund"}
-          </dt>
-          <dd>{formatMoney(Math.abs(payment.owedCents))}</dd>
-        </>
-      )}
-    </dl>
+    <Section title="Money">
+      <Card>
+        <Facts>
+          {job.completion ? (
+            <Fact
+              icon={Receipt}
+              label="Total"
+              value={formatMoney(payment.totalCents)}
+              line="Total, tax included"
+            />
+          ) : (
+            <Fact
+              icon={Receipt}
+              label="Fee"
+              value={lost!.feeCents > 0 ? formatMoney(lost!.feeCents) : "None"}
+            />
+          )}
+          <Fact
+            icon={CreditCard}
+            label="Paid"
+            value={formatMoney(payment.paidCents)}
+            line={
+              payment.paymentMethod
+                ? `Paid by ${payment.paymentMethod}`
+                : undefined
+            }
+          />
+          {owed !== 0 && (
+            <Fact
+              icon={owed > 0 ? CircleAlert : Undo2}
+              label={owed > 0 ? "Still owed" : "To refund"}
+              value={formatMoney(Math.abs(owed))}
+            />
+          )}
+        </Facts>
+        {(payment.billedCents !== 0 ||
+          (job.completion && payment.totalCents !== payment.quotedCents)) && (
+          <Fold label="How it's worked out">
+            <Facts>
+              {job.completion && (
+                <Fact
+                  icon={FileText}
+                  label="Quoted"
+                  value={formatMoney(payment.quotedCents)}
+                />
+              )}
+              {payment.adjustmentsCents !== 0 && (
+                <Fact
+                  icon={ClipboardList}
+                  label="Price changes"
+                  value={formatMoney(payment.adjustmentsCents)}
+                />
+              )}
+              {payment.billedCents !== 0 && (
+                <Fact
+                  icon={Files}
+                  label="On weekly bills"
+                  value={formatMoney(payment.billedCents)}
+                />
+              )}
+            </Facts>
+          </Fold>
+        )}
+      </Card>
+      {job.completion && <Adjustments job={job} />}
+    </Section>
   );
 }
 
 // charges what a Job owes again, after a failed charge: a Balance, or the
 // fee of a plan Job that didn't happen
 export function RetryCharge({ job }: { job: OfficeJob }) {
-  const action = useAction("It wasn't tried again. Please try again.");
+  // a retry that fails is a Toast, not a Notice in the Unpaid one (WEB-5)
+  const action = useAction("It wasn't tried again. Please try again.", {
+    toast: true,
+  });
   return (
-    <div className="flex flex-col gap-2">
-      <Button
-        variant="text"
-        size="sm"
-        isPending={action.isPending}
-        onPress={() =>
-          void action.run(
-            () => postJson(`/api/jobs/${job.id}/balance/retry`),
-            "Payment taken",
-          )
-        }
-      >
-        <CreditCard aria-hidden size={16} />
-        Try the payment again
-      </Button>
-      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-    </div>
+    <Button
+      variant="text"
+      size="sm"
+      isPending={action.isPending}
+      onPress={() =>
+        void action.run(
+          () => postJson(`/api/jobs/${job.id}/balance/retry`),
+          "Payment taken",
+        )
+      }
+    >
+      <CreditCard aria-hidden size={16} />
+      Try the payment again
+    </Button>
   );
 }
