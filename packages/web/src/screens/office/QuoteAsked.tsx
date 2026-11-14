@@ -298,16 +298,18 @@ export function TurnDownQuote({
 
 /**
  * A price beside the form that's working it out (#434), the Draft's and New
- * quote's: its total, large, what's said under it, then how it's worked
- * out, folded: the Suggested Price's hours and money, then `children`,
- * what that price adds (the hours on site, a plan's discount, which
- * prices). `live` reads the total out as it changes
+ * quote's: what's said over it, its total, large, what's said under it,
+ * then how it's worked out, folded: the Suggested Price's hours and money,
+ * then `children`, what that price adds (the hours on site, a plan's
+ * discount, which prices). `live` reads all but the working out as it
+ * changes, so the total is heard with what it's for
  */
 export function FoldedPrice({
   price,
   working,
   perClean,
   live,
+  over,
   under,
   children,
 }: {
@@ -317,19 +319,24 @@ export function FoldedPrice({
   working: PriceBreakdown;
   perClean?: boolean;
   live?: boolean;
+  over?: ReactNode;
   under?: ReactNode;
   children?: ReactNode;
 }) {
   return (
     <>
-      <div aria-live={live ? "polite" : undefined}>
+      <div
+        aria-live={live ? "polite" : undefined}
+        className="flex flex-col gap-1"
+      >
+        {over}
         <PriceHead
           totalCents={price.totalCents}
           taxCents={price.taxCents}
           perClean={perClean}
         />
+        {under}
       </div>
-      {under}
       <Fold label="How it's worked out">
         <div className="flex flex-col gap-3">
           <PriceWorking breakdown={working} />

@@ -34,10 +34,10 @@ import { getJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { clientName, screenWords } from "../format.ts";
 import { FoldedPrice } from "./QuoteAsked.tsx";
-import { onSite } from "./WorkedOutQuote.tsx";
+import { OnSite } from "./WorkedOutQuote.tsx";
 import { reportUnexpected } from "../../monitoring.ts";
 
-const { cleaners, formatFloorArea } = screenWords.en;
+const { formatFloorArea } = screenWords.en;
 const { formatMoney } = formats.en;
 
 export type NewQuoteSearch = { clientId?: string };
@@ -315,11 +315,11 @@ function PriceSoFar({ price }: { price: ReturnType<typeof priceSoFar> }) {
   const { now, place, condition, business, crewSize } = price;
   return (
     <div className="flex flex-col gap-3">
-      <span className="text-sm text-fg-muted">{now.serviceName}</span>
       <FoldedPrice
         price={now}
         working={now}
         live
+        over={<span className="text-sm text-fg-muted">{now.serviceName}</span>}
         under={
           <span className="text-sm text-fg-muted">
             {place}
@@ -327,13 +327,7 @@ function PriceSoFar({ price }: { price: ReturnType<typeof priceSoFar> }) {
           </span>
         }
       >
-        {/* none yet, e.g. a business with no floor area given */}
-        {now.labourHours > 0 && (
-          <p className="text-sm text-fg-muted">
-            About {onSite(now.labourHours, crewSize)} on site for{" "}
-            {cleaners(crewSize)}.
-          </p>
-        )}
+        <OnSite labourHours={now.labourHours} crewSize={crewSize} />
       </FoldedPrice>
       {business && (
         <p className="text-sm text-fg-muted">

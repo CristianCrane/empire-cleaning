@@ -9,7 +9,7 @@ const { cleaners } = screenWords.en;
 const { formatMoney } = formats.en;
 
 // About 1 h 38 min, shared by the Crew
-export const onSite = (labourHours: number, crew: number) =>
+const onSite = (labourHours: number, crew: number) =>
   formatMinutes(Math.round((labourHours / crew) * 60));
 
 // a working-out's lines, as a Quote's override and this both say them
@@ -25,6 +25,24 @@ export const working = {
   minimum: (cents: number) =>
     `At least the minimum price (${formatMoney(cents)})`,
 };
+
+// how long a Suggested Price's clean takes on site, for its Crew: "About
+// 1 h 38 min on site for 2 cleaners"
+export function OnSite({
+  labourHours,
+  crewSize,
+}: {
+  labourHours: number;
+  crewSize: number;
+}) {
+  // none yet, e.g. a business with no floor area given
+  if (labourHours <= 0) return null;
+  return (
+    <span className="text-sm text-fg-muted">
+      About {onSite(labourHours, crewSize)} on site for {cleaners(crewSize)}
+    </span>
+  );
+}
 
 // A Suggested Price read as a Quote: its total, what it's for and how long
 // it takes on site, then each line of how it's worked out. With `was`, the
@@ -72,13 +90,7 @@ export function WorkedOutQuote({
               {place}
               {condition ? `, in ${condition.toLowerCase()} condition` : ""}
             </span>
-            {/* none yet, e.g. a business with no floor area given */}
-            {now.labourHours > 0 && (
-              <span className="text-sm text-fg-muted">
-                About {onSite(now.labourHours, crewSize)} on site for{" "}
-                {cleaners(crewSize)}
-              </span>
-            )}
+            <OnSite labourHours={now.labourHours} crewSize={crewSize} />
           </div>
         </div>
       </div>
