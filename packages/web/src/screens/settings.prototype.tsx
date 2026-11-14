@@ -8,7 +8,6 @@ import {
   BadgePercent,
   Building2,
   CalendarClock,
-  ChevronRight,
   Gauge,
   Home,
   Mail,
@@ -682,9 +681,6 @@ function SummaryRows({ c, parts }: { c: SettingsCase; parts: FactsPart[] }) {
             id={p.title}
             title={p.title}
             description={p.summary}
-            end={
-              <ChevronRight aria-hidden size={18} className="text-fg-muted" />
-            }
           />
         ))}
       </List>
