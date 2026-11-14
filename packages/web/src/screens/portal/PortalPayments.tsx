@@ -3,10 +3,10 @@ import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import { CircleCheck, CreditCard, Receipt, TriangleAlert } from "lucide-react";
 import { catalog, type ClientPayment } from "@empire-cleaning/models";
 import {
+  AnswerCard,
   Button,
   ButtonLink,
   byMonth,
-  Card,
   EmptyState,
   Heading,
   IconTile,
@@ -86,33 +86,23 @@ export function PortalPayments() {
         </ButtonLink>
       </div>
 
-      <Card>
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
+      <AnswerCard
+        tile={
           <IconTile
             icon={owed ? TriangleAlert : CircleCheck}
             tone={owed ? (owed.late ? "danger" : "warning") : "success"}
             size="lg"
           />
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <Heading level={2} size={4} className="text-fg-muted">
-              {owed ? t.w.toPay : t.w.allPaid}
-            </Heading>
-            <p className="text-2xl font-semibold text-fg sm:text-3xl">
-              {owed ? t.formatMoney(owed.cents) : t.w.nothingOwed}
-            </p>
-            {owed && <p className="text-fg-muted">{owed.text}</p>}
-            <p className="text-fg-muted">{paying}</p>
-          </div>
-          {owed && (
-            <ButtonLink
-              className="shrink-0 self-start sm:self-center"
-              href={owed.action.href}
-            >
-              {owed.action.label}
-            </ButtonLink>
-          )}
-        </div>
-      </Card>
+        }
+        label={owed ? t.w.toPay : t.w.allPaid}
+        headline={owed ? t.formatMoney(owed.cents) : t.w.nothingOwed}
+        lines={[...(owed ? [owed.text] : []), paying]}
+        actions={
+          owed && (
+            <ButtonLink href={owed.action.href}>{owed.action.label}</ButtonLink>
+          )
+        }
+      />
 
       {clearing.map((bill) => (
         <Notice key={bill.id}>

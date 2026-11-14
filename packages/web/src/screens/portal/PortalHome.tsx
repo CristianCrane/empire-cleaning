@@ -1,7 +1,7 @@
 import { useLoaderData } from "@tanstack/react-router";
 import {
+  AnswerCard,
   ButtonLink,
-  Card,
   DateTile,
   Heading,
   IconTile,
@@ -112,35 +112,23 @@ export function PortalHome() {
 // is, and its one Button, the page's primary
 function HeroCard({ hero }: { hero: Hero }) {
   return (
-    <Card>
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
-        {hero.startsAt ? (
+    <AnswerCard
+      tile={
+        hero.startsAt ? (
           <DateTile date={hero.startsAt} />
         ) : (
           <IconTile icon={hero.icon} tone={hero.tone} size="lg" />
-        )}
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <Heading level={2} size={4} className="text-fg-muted">
-            {hero.label}
-          </Heading>
-          <p className="text-2xl font-semibold text-fg sm:text-3xl">
-            {hero.headline}
-          </p>
-          {hero.lines.map((line) => (
-            <p key={line} className="text-fg-muted">
-              {line}
-            </p>
-          ))}
-        </div>
-        {hero.action && typeof hero.action.href !== "string" && (
-          <ButtonLink
-            className="shrink-0 self-start sm:self-center"
-            href={hero.action.href}
-          >
-            {hero.action.label}
-          </ButtonLink>
-        )}
-      </div>
-    </Card>
+        )
+      }
+      label={hero.label}
+      headline={hero.headline}
+      lines={hero.lines}
+      actions={
+        hero.action &&
+        typeof hero.action.href !== "string" && (
+          <ButtonLink href={hero.action.href}>{hero.action.label}</ButtonLink>
+        )
+      }
+    />
   );
 }

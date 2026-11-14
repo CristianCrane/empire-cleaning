@@ -318,6 +318,31 @@ export function DatedItem({
   );
 }
 
+// One ListRow as a List's item: a DatedItem when it's dated, else a
+// ListItem led by its `start`. Its badges as `badgesOf` gives them
+export const listRowItem = (r: ListRow, searching = false) =>
+  r.at ? (
+    <DatedItem
+      key={r.id}
+      id={r.id}
+      at={r.at}
+      title={r.title}
+      description={r.description}
+      end={badgesOf(r, searching)}
+      onAction={r.onOpen}
+    />
+  ) : (
+    <ListItem
+      key={r.id}
+      id={r.id}
+      title={r.title}
+      description={r.description}
+      start={r.start}
+      end={badgesOf(r, searching)}
+      onAction={r.onOpen}
+    />
+  );
+
 // what a row shows of where it stands: its status unless that's plain in
 // its Tab (always while searching), and whatever else isn't usual
 function badgesOf(row: ListRow, searching: boolean) {
@@ -433,27 +458,7 @@ function ListBody<T>({
       : table(label, rows);
   } else {
     const item = ({ row: r }: (typeof rows)[number]) =>
-      r.at ? (
-        <DatedItem
-          key={r.id}
-          id={r.id}
-          at={r.at}
-          title={r.title}
-          description={r.description}
-          end={badgesOf(r, searching)}
-          onAction={r.onOpen}
-        />
-      ) : (
-        <ListItem
-          key={r.id}
-          id={r.id}
-          title={r.title}
-          description={r.description}
-          start={r.start}
-          end={badgesOf(r, searching)}
-          onAction={r.onOpen}
-        />
-      );
+      listRowItem(r, searching);
     list = months ? (
       months.map(({ month, items: rs }) => (
         <Month key={month} month={month}>
