@@ -272,10 +272,13 @@ test("a Client edits their contact details and Access Instructions", async ({
   await expect(page).toHaveURL("/portal/details");
 
   await expectAccessible(page);
-  // read first, changed in a dialog
-  const contact = page.getByRole("region", { name: "Contact details" });
-  await contact.getByRole("button", { name: "Edit" }).click();
-  let dialog = page.getByRole("dialog", { name: "Your contact details" });
+  // read first, a line, changed in a dialog
+  const contact = page
+    .getByRole("grid", { name: "Your details" })
+    .getByRole("row")
+    .filter({ hasText: "Contact details" });
+  await contact.click();
+  let dialog = page.getByRole("dialog", { name: "Contact details" });
   await dialog.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0123");
   await dialog.getByRole("button", { name: "Save details" }).click();
   await expect(page.getByText("Details saved")).toBeVisible();
@@ -321,14 +324,17 @@ test("a Client's new email waits for them to open the link sent to it", async ({
   await signInAs(page, casey.email);
   await page.getByRole("link", { name: "Your details", exact: true }).click();
 
-  const contact = page.getByRole("region", { name: "Contact details" });
-  await contact.getByRole("button", { name: "Edit" }).click();
-  const dialog = page.getByRole("dialog", { name: "Your contact details" });
+  const contact = page
+    .getByRole("grid", { name: "Your details" })
+    .getByRole("row")
+    .filter({ hasText: "Contact details" });
+  await contact.click();
+  const dialog = page.getByRole("dialog", { name: "Contact details" });
   await dialog.getByRole("textbox", { name: "Email" }).fill(work);
   await dialog.getByRole("button", { name: "Save details" }).click();
 
   await expect(page.getByText(`Check ${work} for a link`)).toBeVisible();
-  await expect(contact).toContainText(
+  await expect(page.getByRole("main")).toContainText(
     `We've emailed a link to ${work}. Your email changes once you open it.`,
   );
   await expect(contact).toContainText(casey.email);

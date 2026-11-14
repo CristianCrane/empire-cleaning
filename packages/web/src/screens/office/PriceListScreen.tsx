@@ -1,16 +1,7 @@
-import { formats } from "@empire-cleaning/models";
+import { dayOf, firstNameOf, formats } from "@empire-cleaning/models";
 import { useState, type ReactNode } from "react";
-import { Link, useLoaderData } from "@tanstack/react-router";
-import {
-  CalendarClock,
-  Gauge,
-  Percent,
-  PiggyBank,
-  Plus,
-  Receipt,
-  SquarePen,
-  UsersRound,
-} from "lucide-react";
+import { useLoaderData } from "@tanstack/react-router";
+import { Plus } from "lucide-react";
 import type {
   PriceList,
   PriceListAddOn,
@@ -20,23 +11,19 @@ import type {
 import {
   Actions,
   Button,
-  Card,
   Checkbox,
   Chip,
   ChipGroup,
   Dialog,
-  DialogTrigger,
   Form,
-  Heading,
-  List,
-  ListItem,
   Notice,
   NumberField,
-  Section,
+  SettingsList,
+  SettingsPage,
   StatusBadge,
   TextField,
-  Fact,
-  Facts,
+  type ListRow,
+  type SettingsPart,
 } from "@empire-cleaning/ui";
 import { putJson } from "../../api.ts";
 import { useAction } from "../action.ts";
@@ -44,7 +31,7 @@ import { formatHours, screenWords } from "../format.ts";
 
 const { cleaners, conditionLabel } = screenWords.en;
 
-const { formatDate } = formats.en;
+const { formatShortDay } = formats.en;
 
 // what's saved: every save is the whole list, as a new version
 type Draft = Omit<
@@ -76,41 +63,55 @@ const toDraft = (list: PriceList): Draft => {
 const rate = { maximumFractionDigits: 3 } as const;
 const times = (multiplier: number) => `${multiplier}×`;
 
-// The Price List read part by part: a row per Add-on and type of premises,
-// each opening its dialog, and the other figures as facts, each part changed
-// in its own dialog. A save is a new version. (UX pass, #96)
+// The Price List, a Settings page (docs/ux.md, Screen types, Settings):
+// each part of figures one row saying what it's set to, opening its
+// dialog; then the Extras and types of business, a row each opening its
+// own. A save is a new version. (#436)
 // what a change to the prices touches, here and on Services
 export const PRICES_CHANGE =
   "Changes apply to prices worked out from now on. Quotes already sent keep their prices.";
 
 export function PriceListScreen() {
   const { list, services } = useLoaderData({ from: "/office/price-list" });
+  // the starting figures can be kept as they are, as the first version
+  const keep = useSave(list);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <Heading level={1} inBar>
-          Prices
-        </Heading>
-        <p className="text-fg-muted">
-          {list.placeholder
-            ? "Starting figures"
-            : `Version ${list.version}, saved by ${list.createdByName ?? "someone"} on ${formatDate(list.createdAt)}`}
-          . {PRICES_CHANGE} Each service's hourly rate, minimum price and tax
-          are on{" "}
-          <Link to="/office/services" className="font-semibold text-primary">
-            Services
-          </Link>
-          .
-        </p>
-      </div>
-      {list.placeholder && <Placeholder list={list} />}
+    <SettingsPage
+      title="Prices"
+      subtitle={
+        list.placeholder
+          ? "Starting figures"
+          : `Version ${list.version} · saved ${formatShortDay(dayOf(new Date(list.createdAt)))} by ${firstNameOf(list.createdByName ?? "someone")}`
+      }
+      alerts={[
+        list.placeholder && {
+          key: "starting",
+          tone: "warning",
+          children:
+            "These are starting figures, not yours. Check each before you send a quote.",
+          action: (
+            <Button
+              variant="text"
+              size="sm"
+              isPending={keep.action.isPending}
+              onPress={() => void keep.save({})}
+            >
+              Keep these figures
+            </Button>
+          ),
+        },
+        !!keep.action.problem && {
+          key: "problem",
+          tone: "danger",
+          children: keep.action.problem,
+        },
+      ]}
+      parts={[condition(list), quoteDefaults(list), feeTax(list)]}
+    >
       <AddOns list={list} services={services} />
       <PremisesTypes list={list} />
-      <Condition list={list} />
-      <QuoteDefaults list={list} />
-      <FeeTax list={list} />
-    </div>
+    </SettingsPage>
   );
 }
 
@@ -133,44 +134,21 @@ const useSave = (list: PriceList) => {
   return { action, save };
 };
 
-// the starting figures can be kept as they are, as the first version
-function Placeholder({ list }: { list: PriceList }) {
-  const { action, save } = useSave(list);
-  return (
-    <>
-      <Notice
-        tone="warning"
-        action={
-          <Button
-            variant="text"
-            size="sm"
-            isPending={action.isPending}
-            onPress={() => void save({})}
-          >
-            Keep these figures
-          </Button>
-        }
-      >
-        These are placeholder figures, not Empire Cleaning's. Check each one
-        before you send any quotes.
-      </Notice>
-      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-    </>
-  );
-}
-
-// a part's dialog: its fields, then Cancel and Save
+// a part's dialog: what it is, its fields, what saving does, then Cancel
+// and Save
 function PartForm({
   action,
   onSave,
   close,
   saveLabel,
+  explain,
   children,
 }: {
   action: ReturnType<typeof useSave>["action"];
   onSave: () => void;
   close: () => void;
   saveLabel: string;
+  explain?: string;
   children: ReactNode;
 }) {
   return (
@@ -181,8 +159,10 @@ function PartForm({
         onSave();
       }}
     >
+      {explain && <p className="text-fg-muted">{explain}</p>}
       {children}
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+      <p className="text-sm text-fg-muted">{PRICES_CHANGE}</p>
       <Actions>
         <Button variant="quiet" onPress={close}>
           Cancel
@@ -195,6 +175,23 @@ function PartForm({
   );
 }
 
+// a Price List list's rows: those offered, then those retired
+const offeredAndRetired = <T extends { active: boolean }>(
+  items: T[],
+  row: (item: T, i: number) => ListRow,
+) => {
+  const rows = items.map((item, i) => ({ item, row: row(item, i) }));
+  return {
+    rows: rows.filter((r) => r.item.active).map((r) => r.row),
+    retired: rows
+      .filter((r) => !r.item.active)
+      .map((r) => ({
+        ...r.row,
+        badges: [<StatusBadge key="retired">Retired</StatusBadge>],
+      })),
+  };
+};
+
 function AddOns({ list, services }: { list: PriceList; services: Service[] }) {
   // the Add-on open, by its place in the list; the next place for a new one
   const [open, setOpen] = useState<number | null>(null);
@@ -205,41 +202,33 @@ function AddOns({ list, services }: { list: PriceList; services: Service[] }) {
       : "No service";
 
   return (
-    <Section
-      title="Extras"
-      description="For homes, businesses or both, priced by their hours. Clients asking about a home see the ones for homes. A business's are agreed after a visit."
-      actions={
-        <Button
-          variant="text"
-          size="sm"
-          onPress={() => setOpen(list.addOns.length)}
-        >
-          <Plus aria-hidden size={16} />
-          Add an extra
-        </Button>
-      }
-    >
-      {list.addOns.length > 0 && (
-        <List aria-label="Extras" onAction={(key) => setOpen(Number(key))}>
-          {list.addOns.map((addOn, i) => (
-            <ListItem
-              key={addOn.key}
-              id={i}
-              title={addOn.name}
-              description={[
-                formatHours(addOn.hours),
-                goesWith(addOn),
-                addOn.taxExempt && "Tax-exempt",
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-              end={
-                addOn.active ? undefined : <StatusBadge>Retired</StatusBadge>
-              }
-            />
-          ))}
-        </List>
-      )}
+    <>
+      <SettingsList
+        title="Extras"
+        actions={
+          <Button
+            variant="text"
+            size="sm"
+            onPress={() => setOpen(list.addOns.length)}
+          >
+            <Plus aria-hidden size={16} />
+            Add an extra
+          </Button>
+        }
+        empty="No extras yet"
+        {...offeredAndRetired(list.addOns, (addOn, i) => ({
+          id: String(i),
+          title: addOn.name,
+          description: [
+            formatHours(addOn.hours),
+            goesWith(addOn),
+            addOn.taxExempt && "Tax-exempt",
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          onOpen: () => setOpen(i),
+        }))}
+      />
       {open !== null && (
         <AddOnDialog
           list={list}
@@ -248,7 +237,7 @@ function AddOns({ list, services }: { list: PriceList; services: Service[] }) {
           close={() => setOpen(null)}
         />
       )}
-    </Section>
+    </>
   );
 }
 
@@ -369,40 +358,27 @@ function PremisesTypes({ list }: { list: PriceList }) {
   const [open, setOpen] = useState<number | null>(null);
 
   return (
-    <Section
-      title="Types of business"
-      description="How much longer or shorter each takes to clean than an office (1×), for services priced by area that condition affects."
-      actions={
-        <Button
-          variant="text"
-          size="sm"
-          onPress={() => setOpen(list.premisesTypes.length)}
-        >
-          <Plus aria-hidden size={16} />
-          Add a type of business
-        </Button>
-      }
-    >
-      {list.premisesTypes.length > 0 && (
-        <List
-          aria-label="Types of business"
-          onAction={(key) => setOpen(Number(key))}
-        >
-          {list.premisesTypes.map((premisesType, i) => (
-            <ListItem
-              key={premisesType.key}
-              id={i}
-              title={premisesType.name}
-              description={times(premisesType.multiplier)}
-              end={
-                premisesType.active ? undefined : (
-                  <StatusBadge>Retired</StatusBadge>
-                )
-              }
-            />
-          ))}
-        </List>
-      )}
+    <>
+      <SettingsList
+        title="Types of business"
+        actions={
+          <Button
+            variant="text"
+            size="sm"
+            onPress={() => setOpen(list.premisesTypes.length)}
+          >
+            <Plus aria-hidden size={16} />
+            Add a type of business
+          </Button>
+        }
+        empty="No types yet: every business is priced as an office"
+        {...offeredAndRetired(list.premisesTypes, (premisesType, i) => ({
+          id: String(i),
+          title: premisesType.name,
+          description: times(premisesType.multiplier),
+          onOpen: () => setOpen(i),
+        }))}
+      />
       {open !== null && (
         <PremisesTypeDialog
           list={list}
@@ -410,7 +386,7 @@ function PremisesTypes({ list }: { list: PriceList }) {
           close={() => setOpen(null)}
         />
       )}
-    </Section>
+    </>
   );
 }
 
@@ -498,64 +474,67 @@ function PremisesTypeDialog({
 
 type Numbers = Exclude<keyof Draft, "addOns" | "premisesTypes">;
 
-// a part of plain figures: its facts, and an Edit dialog of their fields
-function Figures({
+type Fields = (
+  figures: Partial<Draft>,
+  set: (change: Partial<Draft>) => void,
+) => ReactNode;
+
+// a part of plain figures: one row saying what they're set to, opening a
+// dialog of their fields with what they're for
+const figuresPart = (
+  list: PriceList,
+  part: {
+    id: string;
+    title: string;
+    summary: string;
+    explain: string;
+    // the figures the dialog changes
+    names: Numbers[];
+    fields: Fields;
+  },
+): SettingsPart => ({
+  id: part.id,
+  title: part.title,
+  summary: part.summary,
+  dialog: (state) => (
+    <Dialog title={part.title} {...state}>
+      {({ close }) => <FiguresForm list={list} close={close} {...part} />}
+    </Dialog>
+  ),
+});
+
+function FiguresForm({
   list,
-  title,
-  description,
   names,
-  facts,
+  explain,
   fields,
+  close,
 }: {
   list: PriceList;
-  title: string;
-  description: string;
-  // the figures the dialog changes
   names: Numbers[];
-  facts: ReactNode;
-  fields: (
-    figures: Partial<Draft>,
-    set: (change: Partial<Draft>) => void,
-  ) => ReactNode;
+  explain: string;
+  fields: Fields;
+  close: () => void;
 }) {
-  const pick = () =>
-    Object.fromEntries(
-      names.map((name) => [name, list[name]]),
-    ) as Partial<Draft>;
-  const [figures, setFigures] = useState(pick);
+  const [figures, setFigures] = useState(
+    () =>
+      Object.fromEntries(
+        names.map((name) => [name, list[name]]),
+      ) as Partial<Draft>,
+  );
   const { action, save } = useSave(list);
-
   return (
-    <Section
-      title={title}
-      description={description}
-      actions={
-        <DialogTrigger onOpenChange={(isOpen) => isOpen && setFigures(pick())}>
-          <Button variant="text" size="sm" aria-label={`Edit ${title}`}>
-            <SquarePen aria-hidden size={16} />
-            Edit
-          </Button>
-          <Dialog title={title}>
-            {({ close }) => (
-              <PartForm
-                action={action}
-                close={close}
-                saveLabel="Save"
-                onSave={() => void save(figures, close)}
-              >
-                {fields(figures, (change) =>
-                  setFigures((current) => ({ ...current, ...change })),
-                )}
-              </PartForm>
-            )}
-          </Dialog>
-        </DialogTrigger>
-      }
+    <PartForm
+      action={action}
+      close={close}
+      saveLabel="Save"
+      explain={explain}
+      onSave={() => void save(figures, close)}
     >
-      <Card>
-        <Facts>{facts}</Facts>
-      </Card>
-    </Section>
+      {fields(figures, (change) =>
+        setFigures((current) => ({ ...current, ...change })),
+      )}
+    </PartForm>
   );
 }
 
@@ -598,120 +577,76 @@ const conditionFigures = [
   ["heavy", "conditionHeavy"],
 ] as const;
 
-function Condition({ list }: { list: PriceList }) {
-  return (
-    <Figures
-      list={list}
-      title="Condition"
-      description="It multiplies a home's or business's hours, for services that condition affects. Extras aren't multiplied."
-      names={["conditionLight", "conditionModerate", "conditionHeavy"]}
-      facts={
-        <>
-          {conditionFigures.map(([c, name]) => (
-            <Fact
-              key={c}
-              icon={Gauge}
-              label={`${conditionLabel[c]} condition`}
-              value={times(list[name])}
-              line={conditionLabel[c]}
-            />
-          ))}
-        </>
-      }
-      fields={(figures, set) => {
-        const field = figure(figures, set);
-        return (
-          <div className="grid gap-4 sm:grid-cols-3">
-            {conditionFigures.map(([c, name]) =>
-              field(`${conditionLabel[c]} (×)`, name, multiplier),
-            )}
-          </div>
-        );
-      }}
-    />
-  );
-}
+const condition = (list: PriceList) =>
+  figuresPart(list, {
+    id: "condition",
+    title: "Condition",
+    summary: conditionFigures
+      .map(([c, name]) => `${conditionLabel[c]} ${times(list[name])}`)
+      .join(" · "),
+    explain:
+      "It multiplies a home's or business's hours, for services that condition affects. Extras aren't multiplied.",
+    names: ["conditionLight", "conditionModerate", "conditionHeavy"],
+    fields: (figures, set) => {
+      const field = figure(figures, set);
+      return (
+        <div className="grid gap-4 sm:grid-cols-3">
+          {conditionFigures.map(([c, name]) =>
+            field(`${conditionLabel[c]} (×)`, name, multiplier),
+          )}
+        </div>
+      );
+    },
+  });
 
-function QuoteDefaults({ list }: { list: PriceList }) {
-  return (
-    <Figures
-      list={list}
-      title="Quote defaults"
-      description="What a new quote starts with. You can change them on the quote."
-      names={[
-        "depositPercent",
-        "planDiscountPercent",
-        "quoteValidityDays",
-        "defaultCrewSize",
-      ]}
-      facts={
-        <>
-          <Fact
-            icon={PiggyBank}
-            label="Deposit"
-            value={`${list.depositPercent}%`}
-          />
-          <Fact
-            icon={Percent}
-            label="Plan discount"
-            value={`${list.planDiscountPercent}%`}
-          />
-          <Fact
-            icon={CalendarClock}
-            label="Quote valid for"
-            value={`${list.quoteValidityDays} days`}
-            line="A quote's valid for"
-          />
-          <Fact
-            icon={UsersRound}
-            label="Cleaners"
-            value={cleaners(list.defaultCrewSize)}
-          />
-        </>
-      }
-      fields={(figures, set) => {
-        const field = figure(figures, set);
-        return (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {field("Deposit (%)", "depositPercent", { min: 0, max: 100 })}
-            {field("Plan discount (%)", "planDiscountPercent", {
-              min: 0,
-              max: 100,
-            })}
-            {field("Quote valid for (days)", "quoteValidityDays", {
-              min: 1,
-              max: 90,
-            })}
-            {field("Cleaners", "defaultCrewSize", { min: 1, max: 10 })}
-          </div>
-        );
-      }}
-    />
-  );
-}
+const quoteDefaults = (list: PriceList) =>
+  figuresPart(list, {
+    id: "quote-defaults",
+    title: "Quote defaults",
+    summary: [
+      `${list.depositPercent}% deposit`,
+      `${list.planDiscountPercent}% off plans`,
+      `valid ${list.quoteValidityDays} days`,
+      cleaners(list.defaultCrewSize),
+    ].join(" · "),
+    explain: "What a new quote starts with. You can change them on the quote.",
+    names: [
+      "depositPercent",
+      "planDiscountPercent",
+      "quoteValidityDays",
+      "defaultCrewSize",
+    ],
+    fields: (figures, set) => {
+      const field = figure(figures, set);
+      return (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {field("Deposit (%)", "depositPercent", { min: 0, max: 100 })}
+          {field("Plan discount (%)", "planDiscountPercent", {
+            min: 0,
+            max: 100,
+          })}
+          {field("Quote valid for (days)", "quoteValidityDays", {
+            min: 1,
+            max: 90,
+          })}
+          {field("Cleaners", "defaultCrewSize", { min: 1, max: 10 })}
+        </div>
+      );
+    },
+  });
 
-function FeeTax({ list }: { list: PriceList }) {
-  return (
-    <Figures
-      list={list}
-      title="Sales tax on fees"
-      description="Added to late cancellation and couldn't-get-in fees. Each service has its own rates for its jobs. Check these with your accountant."
-      names={["taxFeePercent"]}
-      facts={
-        <Fact
-          icon={Receipt}
-          label="Sales tax on fees"
-          value={`${list.taxFeePercent}%`}
-          line="On each fee"
-        />
-      }
-      fields={(figures, set) =>
-        figure(figures, set)("Fees (%)", "taxFeePercent", {
-          min: 0,
-          step: 0.125,
-          formatOptions: rate,
-        })
-      }
-    />
-  );
-}
+const feeTax = (list: PriceList) =>
+  figuresPart(list, {
+    id: "fee-tax",
+    title: "Sales tax on fees",
+    summary: `${list.taxFeePercent}%`,
+    explain:
+      "Added to late cancellation and couldn't-get-in fees. Each service has its own rates for its jobs. Check these with your accountant.",
+    names: ["taxFeePercent"],
+    fields: (figures, set) =>
+      figure(figures, set)("Fees (%)", "taxFeePercent", {
+        min: 0,
+        step: 0.125,
+        formatOptions: rate,
+      }),
+  });

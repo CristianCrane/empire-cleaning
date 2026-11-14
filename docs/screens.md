@@ -290,13 +290,15 @@ Keeps: the month as a calendar (#160). Renders through `RecordPage` (#432).
 
 #### Office > Prices
 
-Keeps: read, change a part in a dialog (#161).
+Keeps: read, change a part in a dialog (#161). Renders through
+`SettingsPage` (#436).
 
-- Header: "Prices" in the bar; the version and a link.
-- Notices: a placeholder.
-- Body: Extras (Section: List); Types of business (Section: List);
-  Condition, Quote defaults, Sales tax on fees (Cards of facts, each Edit in a
-  dialog). Every Section has a long description.
+- Header: "Prices" in the bar; the version, one muted line.
+- Alerts: the starting figures, Keep these figures.
+- Body: Condition, Quote defaults, Sales tax on fees (one card, a summary
+  row each, opening its dialog: what it's for, its figures, what saving
+  does); Extras and Types of business (`SettingsList`: rows each opening
+  its dialog, the retired folded under "Retired (N)").
 
 #### Office > Services
 
@@ -392,11 +394,13 @@ Keeps: what you owe first, fixed header Button (ux-portal). Renders through
 
 #### Client portal > Your details
 
-Keeps: a list of homes; read, then Edit (ux-portal).
+Keeps: a list of homes; read, then Edit (ux-portal). Renders through
+`SettingsPage` (#436).
 
 - Header: "Your details" in the bar.
-- Body: Contact details (Section action Edit; a warning Notice, then a Card
-  of facts); Your homes (Section: List).
+- Alerts: a new email waiting on its link.
+- Body: Contact details (one card, its summary row opening its dialog);
+  Your homes (`SettingsList`: rows each opening its page).
 
 #### Client portal > Your card
 

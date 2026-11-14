@@ -1,24 +1,18 @@
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import { Mail, Phone, SquarePen, UserRound } from "lucide-react";
 import { homeIcon } from "../icons.ts";
 import { catalog, type ClientView } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
-  Card,
   Dialog,
-  DialogTrigger,
   Form,
-  Heading,
   IconTile,
-  List,
-  ListItem,
   Notice,
-  Section,
+  SettingsList,
+  SettingsPage,
   StatusBadge,
   TextField,
-  Fact,
-  Facts,
+  type DialogState,
 } from "@empire-cleaning/ui";
 import { patchJson } from "../../api.ts";
 import { useAction } from "../action.ts";
@@ -34,17 +28,10 @@ const words = catalog({
     contact: "Contact details",
     emailed: (email: string) =>
       `We've emailed a link to ${email}. Your email changes once you open it.`,
-    name: "Name",
-    whereQuotes: "Where we send your quotes",
     phone: "Phone",
-    oneHome: "How we get in, its cleaning plan and quotes are on its page.",
-    manyHomes:
-      "How we get in, cleaning plans and quotes are on each one's page.",
     notSaved: "Your details weren't saved. Please try again.",
     checkFor: (email: string) => `Check ${email} for a link`,
     saved: "Details saved",
-    edit: "Edit",
-    yourContact: "Your contact details",
     fullName: "Full name",
     emailNote:
       "Where we send your quotes. We switch to a new one once you open the link we email to it. You still sign in the way you do now.",
@@ -56,18 +43,10 @@ const words = catalog({
     contact: "Datos de contacto",
     emailed: (email: string) =>
       `Le enviamos un enlace a ${email}. Su correo cambia cuando lo abra.`,
-    name: "Nombre",
-    whereQuotes: "Adonde le enviamos las cotizaciones",
     phone: "Teléfono",
-    oneHome:
-      "Cómo entramos, su plan de limpieza y cotizaciones están en su página.",
-    manyHomes:
-      "Cómo entramos, los planes de limpieza y las cotizaciones están en la página de cada una.",
     notSaved: "No se guardaron sus datos. Vuelva a intentarlo.",
     checkFor: (email: string) => `Revise ${email} para ver el enlace`,
     saved: "Datos guardados",
-    edit: "Editar",
-    yourContact: "Sus datos de contacto",
     fullName: "Nombre completo",
     emailNote:
       "Adonde le enviamos las cotizaciones. Cambiamos al nuevo cuando abra el enlace que le enviamos. Sigue iniciando sesión como ahora.",
@@ -75,9 +54,10 @@ const words = catalog({
   },
 });
 
-// A Client's contact details, read first and changed in a dialog; then
+// A Client's details, a Settings page (docs/ux.md, Screen types,
+// Settings): their contact details as one row opening its dialog; then
 // their homes, a row each saying where it stands, each opening its own page
-// (its Access Instructions, Service Plan and Quotes). (UX pass, #96)
+// (its Access Instructions, Service Plan and Quotes). (#436)
 export function PortalDetails() {
   const data = useLoaderData({ from: "/portal/details" });
   const { client } = data;
@@ -92,79 +72,61 @@ export function PortalDetails() {
       : w.homes;
 
   return (
-    <div className="flex flex-col gap-6">
-      <Heading level={1} inBar>
-        {t.p.yourDetails}
-      </Heading>
-
-      <Section title={w.contact} actions={<EditContact client={client} />}>
-        {client.pendingEmail && (
-          <Notice tone="warning">
+    <SettingsPage
+      title={t.p.yourDetails}
+      // a new email waits on them to open its link (#243)
+      alerts={[
+        !!client.pendingEmail && {
+          key: "pending-email",
+          tone: "warning",
+          children: (
             <span className="[overflow-wrap:anywhere]">
               {w.emailed(client.pendingEmail)}
             </span>
-          </Notice>
-        )}
-        <Card>
-          <Facts>
-            <Fact
-              icon={UserRound}
-              label={w.name}
-              value={client.name}
-              line={client.businessName ?? w.name}
-            />
-            <Fact
-              icon={Mail}
-              label={t.email}
-              value={
-                <span className="[overflow-wrap:anywhere]">{client.email}</span>
-              }
-              line={w.whereQuotes}
-            />
-            <Fact icon={Phone} label={w.phone} value={client.phone} />
-          </Facts>
-        </Card>
-      </Section>
-
-      <Section
+          ),
+        },
+      ]}
+      parts={[
+        {
+          id: "contact",
+          title: w.contact,
+          summary: [client.name, client.email, client.phone].join(" · "),
+          dialog: (state) => <EditContact client={client} {...state} />,
+        },
+      ]}
+    >
+      <SettingsList
         title={homes}
-        description={client.properties.length === 1 ? w.oneHome : w.manyHomes}
-      >
-        <List
-          aria-label={homes}
-          onAction={(id) =>
-            navigate({
-              to: "/portal/properties/$propertyId",
-              params: { propertyId: String(id) },
-            })
-          }
-        >
-          {client.properties.map((p) => {
-            const standing = standingOf(t.lang, p, data);
-            return (
-              <ListItem
-                key={p.id}
-                id={p.id}
-                start={<IconTile icon={homeIcon(p.kind)} />}
-                title={addressOf(p)}
-                description={[t.propertySummary(p), standing.line]
-                  .filter(Boolean)
-                  .join(" · ")}
-                end={
-                  <StatusBadge tone={standing.tone}>
-                    {standing.label}
-                  </StatusBadge>
-                }
-              />
-            );
-          })}
-        </List>
-      </Section>
-    </div>
+        rows={client.properties.map((p) => {
+          const standing = standingOf(t.lang, p, data);
+          return {
+            id: p.id,
+            title: addressOf(p),
+            start: <IconTile icon={homeIcon(p.kind)} />,
+            description: [t.propertySummary(p), standing.line]
+              .filter(Boolean)
+              .join(" · "),
+            badges: [
+              <StatusBadge key="standing" tone={standing.tone}>
+                {standing.label}
+              </StatusBadge>,
+            ],
+            onOpen: () =>
+              void navigate({
+                to: "/portal/properties/$propertyId",
+                params: { propertyId: String(p.id) },
+              }),
+          };
+        })}
+      />
+    </SettingsPage>
   );
 }
 
-function EditContact({ client }: { client: ClientView }) {
+function EditContact({
+  client,
+  ...state
+}: { client: ClientView } & DialogState) {
   const t = useSaid(words);
   const { w } = t;
   const action = useAction(w.notSaved);
@@ -189,57 +151,51 @@ function EditContact({ client }: { client: ClientView }) {
   };
 
   return (
-    <DialogTrigger>
-      <Button variant="text">
-        <SquarePen aria-hidden size={18} />
-        {w.edit}
-      </Button>
-      <Dialog title={w.yourContact}>
-        {({ close }) => (
-          <Form
-            validationErrors={action.fieldErrors}
-            onSubmit={(e) => {
-              e.preventDefault();
-              void save(new FormData(e.currentTarget), close);
-            }}
-          >
-            <TextField
-              label={w.fullName}
-              name="name"
-              autoComplete="name"
-              isRequired
-              autoFocus
-              defaultValue={client.name}
-            />
-            <TextField
-              label={t.email}
-              name="email"
-              type="email"
-              autoComplete="email"
-              isRequired
-              description={w.emailNote}
-              defaultValue={client.email}
-            />
-            <TextField
-              label={w.phone}
-              name="phone"
-              type="tel"
-              autoComplete="tel"
-              isRequired
-              defaultValue={client.phone}
-            />
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <Button variant="quiet" onPress={close}>
-                {t.p.cancel}
-              </Button>
-              <Button type="submit" isPending={action.isPending}>
-                {w.saveDetails}
-              </Button>
-            </Actions>
-          </Form>
-        )}
-      </Dialog>
-    </DialogTrigger>
+    <Dialog title={w.contact} {...state}>
+      {({ close }) => (
+        <Form
+          validationErrors={action.fieldErrors}
+          onSubmit={(e) => {
+            e.preventDefault();
+            void save(new FormData(e.currentTarget), close);
+          }}
+        >
+          <TextField
+            label={w.fullName}
+            name="name"
+            autoComplete="name"
+            isRequired
+            autoFocus
+            defaultValue={client.name}
+          />
+          <TextField
+            label={t.email}
+            name="email"
+            type="email"
+            autoComplete="email"
+            isRequired
+            description={w.emailNote}
+            defaultValue={client.email}
+          />
+          <TextField
+            label={w.phone}
+            name="phone"
+            type="tel"
+            autoComplete="tel"
+            isRequired
+            defaultValue={client.phone}
+          />
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              {t.p.cancel}
+            </Button>
+            <Button type="submit" isPending={action.isPending}>
+              {w.saveDetails}
+            </Button>
+          </Actions>
+        </Form>
+      )}
+    </Dialog>
   );
 }
