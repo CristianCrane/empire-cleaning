@@ -154,13 +154,42 @@ card with the page's one primary, then what else. Its layout comes with
 ### Form page
 
 A form with a page of its own, for what's too long or too often tweaked
-for a dialog. Its layout comes with #434. It also keeps "Forms ask quietly,
-a few questions at a time".
+for a dialog. It renders through `FormPage`
+(`packages/ui/src/layouts/FormPage.tsx`, #434), which places, in order:
 
-- **A price beside the figures that make it** sits in a sticky aside from
-  `xl`, after the fields below it (the Service page, New Quote).
+- **The page header** (the rule under Page structure), a single page
+  action at the end of the title row, as a Record's one action (a
+  Service's Retire), what its failure says a Toast.
+- **Its alerts**, as a Record's.
+- **What the page needs explained**, folded under a line saying what it
+  is ("How your card is used"). Nothing else on it explains: no help text
+  under the page's title or a part's. A field's own description, what a
+  figure covers (Base: kitchen, living areas and entry), is the field's,
+  and stays.
+- **The whole form in one Card.** What the person came for is open; every
+  other part is one line saying what's set ("Booking: On a plan · no site
+  visit · recommends nothing else"), a tap opening it in place
+  (`FormPart`). A folded part opens itself when a field in it is found
+  wrong. A stepped form (Request a quote, Welcome) keeps its own steps,
+  Back and Next.
+- **What the fields come to** (a worked example, a price) in an aside,
+  sticky beside the card from `xl`, its right column a Record's
+  History's (`Beside`), and after the card below that.
+- **Its button at the card's foot**, after what saving agrees to (a
+  card's consent), in view. A form with a price or a Send (the Draft, New
+  quote) has an `ActionFooter` instead, its total and whether it's saved
+  on the left, the button on the right (#434's second part).
+- **Outside an area** (Welcome), a page of its own, the logo above and
+  who's signed in beside it (`PageFrame`).
+
+It also keeps "Forms ask quietly, a few questions at a time". ("Layout /
+FormPage")
+
 - **A form the owner tweaks to see what it does stays one form**, with its
   example beside it (the Service page).
+- **A form that makes a new version saves when it's pressed** (the
+  Service, each save a new version); one being written saves as it
+  changes (the Draft).
 
 ### Settings
 
@@ -621,3 +650,4 @@ Newest last. "Built in" is the PR (or branch) that shipped it.
 | Every screen | What kinds of screen are there, and how does every screen of a kind stay alike? (#426: each screen built its own page from the kit's parts, so the same kind came out differently, 18 reports on six screens, #424) | The map's types (`docs/screens.md`, #427), agreed by the owner with her design principles | **Seven types, each with a layout every screen of it renders through** | One place to get each kind right; a lint rule (`empire/screen-layout`) warns where a screen builds its own page, 84 warnings to start, and becomes an error once every type has its layout (ADR-0031) | none: the map | #431 |
 | Every Record | How does a Record read, when each built its own header, put its actions in four places and stacked up to seven Notices (#432, reports WEB-2 to WEB-J on #424)? | A: breadcrumbs, Actions ▾ in the title row, History beside from `xl` / B: a back link, every action in a bar at the foot, one column / C: actions as buttons under the title, alerts in one To do card, History on a tab | **A, the Actions menu in the header** | One place for what can be done to the whole record: Actions ▾ at the end of the title row, a Button when there's one, the destructive last in red; an action on one part stays on that part. Two alerts at most, the rest behind Show N more. The details card holds the time and how to reach someone as icon facts; Money holds its price changes, How it's worked out folded; History in a Card, on the right from `xl`. A drop-out is told in History, not kept as a crew row; the plan offer waits until the First Clean is paid | [`prototype-record`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-record) | #432 |
 | Every List | How does a List read, when each of the seven built its own page: the search above the Tabs with an All on three, two Sections on Offers, Retired folded on Services (#433)? | A: the rules as they stand, one layout / B: rows at every width, views in a menu, a badge only when unusual / C: Tabs the one split with no All, the search at their end, a Table from `md`; C1 and C2 lead a dated row with who or with where | **C, with B's badges and short lists, a dated row as C1 (C2 for a Cleaner)** | One line of Tabs with counts, which a search across them steps aside for; an Office list a Table from `md`, a Client's or Cleaner's rows; dated by month at every width, the weekday and time leading, then who for the Office, roughly where for a Cleaner (the postcode: no neighbourhood is kept), the kind of clean for a Client; a badge only when unusual; Show more (N left). Dropped, each with its place: the All Tab (a search looks through every Tab); the search's focus on load (a phone's keyboard would cover the list, and the Tabs lead now); "Showing N of M" (Show more says how many are left); Services' intro "What Empire Cleaning sells, each with its own rate" (the title says it) and "Changes apply to prices worked out from now on. Quotes already sent keep their prices." (the toast a save shows), Retired's "Not offered any more. Quotes, plans and jobs that used one still price by it." (the Tab, and the toast a retire shows); Offers' "The office picked you for these. Confirm, or let them go to someone else." (the Job's Offered to you part, with Confirm and Not for me), "Jobs in the next 7 days … The first to confirm gets each one." (the empty Tab's line says the 7 days, Cleaner needed says the first to confirm), its empty card's "When a job needs someone while you're free, it shows here." (one quiet line, as picked), and the Offered badge (the Tab says it); Cleans' empty cards' "Your next clean shows here once it's booked." and "Each clean shows here once it's done, with its receipt." (a line each: a Client has nothing to add), and the time in a row's line (it leads the title) | [`prototype-list`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-list) | #433 |
+| Every Form page | How does a Form page read, when each built its own page, a Section and Card per part with help text under it, its buttons in three places (#434; WEB-9, B, C, D on #424)? | A: a Section per part, its button in a bar / B: one Card, the parts it's for open and the rest one line of what's set, the price a sticky aside / C: steps, one part at a time | **B, one Card, its parts folded to a line** | The page starts from what the person came for, the rest a tap away, and nothing explains but one Fold. The owner settled four edges: the Draft and New quote get an ActionFooter, the rest end with their button in the card; the Service keeps its Save, the Draft saves as it changes; the price aside shows only totals, the working folded; Your card's consent stays in view. Dropped from the first five, each with its place: the Service's part descriptions ("Cleaning hours, however many cleaners share them…", "Before tax. Extras are charged at the same rate…", "Added to its price, so clients see prices with tax…") and the Example quote's "Worked out the way a suggested price is, as you type" (the example, changing as you type, says it; "Before tax" moved to Hourly rate's description; "Extras and the plan discount come on top" stays under the example); its Retire, from beside Save to the header, Save pending while it runs as before; the Example quote below `xl`, from after Price to after the card (one card can't be split); Your card's paragraph into "How your card is used"; Welcome's `<aside>` landmark, a titled region as every Form page's aside | [`prototype-form`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-form) | #434 |

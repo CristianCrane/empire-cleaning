@@ -299,12 +299,15 @@ Keeps: a work list. Renders through `ListPage` (#433).
 
 #### Office > Service, New service
 
-Keeps: one form, its example a worked-out Quote (#163).
+Keeps: one form, its example a worked-out Quote (#163). Renders through
+`FormPage` (#434).
 
-- Header: Services › name; the name, Retired badge; "Version N, saved by …".
-- Body: What it is, How long it takes, Price, Booking, Sales tax (Cards); the
-  example Quote in a sticky aside from `xl`.
-- Actions: a form footer in the flow (Retire in red, Save).
+- Header: Services › name; the name, Retired badge; "Version N, saved by …";
+  Retire (red) or Offer again.
+- Body: one Card: What it is (one line on a Service, open on a new one),
+  How long it takes, Price, Booking (one line), Sales tax; the example
+  Quote in a sticky aside from `xl`, after the card below it.
+- Actions: Save service, or Add service, at the card's foot.
 
 ### Cleaner area
 
@@ -383,20 +386,22 @@ Keeps: a list of homes; read, then Edit (ux-portal).
 
 #### Client portal > Your card
 
-Keeps: on the Payment Method page (ux-portal).
+Keeps: on the Payment Method page (ux-portal). Renders through `FormPage`
+(#434).
 
-- Header: Payments › Your card; the title; what it's for.
+- Header: Payments › Your card; the title; "How your card is used", folded.
 - Notices: the card failed (Try again, its problem a Toast), or saved, or
   info.
-- Body: the card form (Section).
+- Body: one Card: the card field; what saving agrees to, and Save card, at
+  its foot.
 
 #### Client portal > Request a quote
 
-Keeps: steps, quiet choices (#114).
+Keeps: steps, quiet choices (#114). Renders through `FormPage` (#434).
 
 - Header: Home › Request a quote; the title.
 - Notices: info.
-- Body: the Quote form in a Card.
+- Body: the Quote form in its steps, in the Card.
 
 #### Client portal > Clean
 
@@ -470,10 +475,13 @@ Keeps: a message page; centred, home a link (#168); one Button that does it
 
 #### Welcome
 
-Keeps: in steps, what's next beside (#168).
+Keeps: in steps, what's next beside (#168). Renders through `FormPage`
+(#434).
 
-- Its own page, no breadcrumbs: the logo and Sign out, a Card of steps, a
-  Notice.
+- Its own page, no breadcrumbs: the logo, who's signed in and Sign out;
+  the title, what to do here.
+- Body: the Quote form in its steps, in the Card; What happens next, its
+  steps and a Notice, in a sticky aside from `xl`.
 
 #### People
 

@@ -4,11 +4,9 @@ import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { QuoteRequestForm } from "@empire-cleaning/quote-request";
 import {
   Button,
-  Card,
-  Heading,
+  FormPage,
   Notice,
   showToast,
-  Logo,
   useLanguage,
 } from "@empire-cleaning/ui";
 import { forgetAccount, signOut } from "../session.ts";
@@ -44,8 +42,9 @@ const words = catalog({
 
 // for an Account connected to nothing yet (ADR-0006): someone who signed up
 // before asking for a Quote, or with a different email from their Quote
-// Request. Asking for a Quote here makes them a Client. The form in its
-// steps, what happens next beside it (UX pass, #96)
+// Request. Asking for a Quote here makes them a Client. A Form page of its
+// own: the form in its steps, what happens next beside it (UX pass, #96;
+// #434)
 export function Welcome() {
   const { account } = useRouteContext({ from: "/welcome" });
   const navigate = useNavigate();
@@ -54,9 +53,10 @@ export function Welcome() {
   const { w, ASK_US } = t;
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-6 p-4 py-10">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <Logo className="w-32" />
+    <FormPage
+      title={t.welcome}
+      subtitle={ASK_US}
+      account={
         <span className="flex items-center gap-2 text-sm text-fg-muted">
           {w.signedInAs(account.email)}
           <Button
@@ -70,37 +70,11 @@ export function Welcome() {
             {t.signOut}
           </Button>
         </span>
-      </header>
-
-      <div className="flex flex-col gap-2">
-        <Heading level={1} size={2}>
-          {t.welcome}
-        </Heading>
-        <p className="text-fg-muted">{ASK_US}</p>
-      </div>
-
-      {/* in one column; what happens next beside the form from xl, in view
-          as it scrolls, and after it below */}
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <Card>
-          <QuoteRequestForm
-            headingLevel={2}
-            // signed up but not yet a Client, so no Preferred Language:
-            // the app's, the signed-out language
-            asker={{ kind: "account", email: account.email }}
-            onSubmitted={async (receipt) => {
-              // now a Client: the API connected this Account straight away
-              forgetAccount();
-              showToast(quoteRequested(lang, receipt.emailedTo));
-              await navigate({ to: "/portal" });
-            }}
-          />
-        </Card>
-        <aside className="flex flex-col gap-4 xl:sticky xl:top-6 xl:col-start-2 xl:row-start-1 xl:self-start">
-          <Card>
-            <Heading level={2} size={4}>
-              {w.next}
-            </Heading>
+      }
+      aside={{
+        title: w.next,
+        children: (
+          <>
             <ol className="flex flex-col gap-4">
               <Step n={1} title={w.tell}>
                 {w.tellText}
@@ -112,11 +86,24 @@ export function Welcome() {
                 {w.bookText}
               </Step>
             </ol>
-          </Card>
-          <Notice>{w.otherEmail}</Notice>
-        </aside>
-      </div>
-    </main>
+            <Notice>{w.otherEmail}</Notice>
+          </>
+        ),
+      }}
+    >
+      <QuoteRequestForm
+        headingLevel={2}
+        // signed up but not yet a Client, so no Preferred Language: the
+        // app's, the signed-out language
+        asker={{ kind: "account", email: account.email }}
+        onSubmitted={async (receipt) => {
+          // now a Client: the API connected this Account straight away
+          forgetAccount();
+          showToast(quoteRequested(lang, receipt.emailedTo));
+          await navigate({ to: "/portal" });
+        }}
+      />
+    </FormPage>
   );
 }
 

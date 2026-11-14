@@ -1,13 +1,5 @@
 import { useLoaderData } from "@tanstack/react-router";
-import {
-  Actions,
-  Breadcrumbs,
-  Button,
-  Card,
-  Section,
-  Heading,
-  Notice,
-} from "@empire-cleaning/ui";
+import { Button, FormPage, FormPart, Notice } from "@empire-cleaning/ui";
 import { catalog } from "@empire-cleaning/models";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
@@ -22,6 +14,7 @@ const words = catalog({
     couldntRetry: "We couldn't try again. Please try later.",
     taken: "Payment taken",
     saved: "Card saved",
+    howUsed: "How your card is used",
     about:
       "We take a deposit from this card when you book. Each clean is charged to it when it's done, or goes on your weekly bill if you have one. If a payment didn't go through, saving a card here tries it again.",
     tryAgain: "Try this card again",
@@ -40,6 +33,7 @@ const words = catalog({
     couldntRetry: "No pudimos volver a intentarlo. Inténtelo más tarde.",
     taken: "Pago cobrado",
     saved: "Tarjeta guardada",
+    howUsed: "Cómo se usa su tarjeta",
     about:
       "Cobramos un depósito de esta tarjeta cuando reserva. Cada limpieza se cobra a ella cuando está terminada, o va en su factura semanal si tiene una. Si un pago no pasó, guardar una tarjeta aquí lo vuelve a intentar.",
     tryAgain: "Volver a intentar con esta tarjeta",
@@ -84,70 +78,74 @@ export function PortalPaymentMethod() {
     }, t.w.saved);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <Breadcrumbs
-          trail={[
-            { label: t.p.payments, href: linkTo({ to: "/portal/payments" }) },
-            { label: t.p.yourCard },
-          ]}
-        />
-        <Heading level={1}>{t.p.yourCard}</Heading>
-        <p className="text-fg-muted">{t.w.about}</p>
-      </div>
-
-      {first ? (
-        <Notice
-          tone="danger"
-          action={
-            saved && (
-              <Button
-                variant="danger-text"
-                isPending={retry.isPending}
-                onPress={() => void tryAgain()}
-              >
-                {t.w.tryAgain}
-              </Button>
-            )
-          }
-        >
-          <p>
-            <strong>{t.p.paymentNeeded}</strong>{" "}
-            {t.notTaken(
-              t.w.forClean(
-                t.formatMoney(owed),
-                t.shortDayOf(first.startsAt),
-                unpaid.length - 1,
+    <FormPage
+      trail={[
+        { label: t.p.payments, href: linkTo({ to: "/portal/payments" }) },
+        { label: t.p.yourCard },
+      ]}
+      title={t.p.yourCard}
+      // one at a time: a clean to pay for, else the card they have
+      alerts={[
+        first
+          ? {
+              key: "unpaid",
+              tone: "danger",
+              action: saved && (
+                <Button
+                  variant="danger-text"
+                  isPending={retry.isPending}
+                  onPress={() => void tryAgain()}
+                >
+                  {t.w.tryAgain}
+                </Button>
               ),
-              saved?.label ?? null,
-            )}{" "}
-            {saved ? t.w.tryOrSave : t.w.saveBelow}
-          </p>
-        </Notice>
-      ) : saved ? (
-        <Notice tone="success">
-          {t.w.isSaved(saved.label, t.formatDate(saved.savedAt))}
-        </Notice>
-      ) : (
-        <Notice>{t.w.noneYet}</Notice>
-      )}
-
-      <Section title={saved ? t.p.differentCard : t.w.add}>
-        <Card>
-          {card.field}
+              children: (
+                <p>
+                  <strong>{t.p.paymentNeeded}</strong>{" "}
+                  {t.notTaken(
+                    t.w.forClean(
+                      t.formatMoney(owed),
+                      t.shortDayOf(first.startsAt),
+                      unpaid.length - 1,
+                    ),
+                    saved?.label ?? null,
+                  )}{" "}
+                  {saved ? t.w.tryOrSave : t.w.saveBelow}
+                </p>
+              ),
+            }
+          : saved
+            ? {
+                key: "saved",
+                tone: "success",
+                children: t.w.isSaved(saved.label, t.formatDate(saved.savedAt)),
+              }
+            : { key: "none", children: t.w.noneYet },
+      ]}
+      about={{
+        label: t.w.howUsed,
+        children: <p className="text-sm text-fg-muted">{t.w.about}</p>,
+      }}
+      // what saving agrees to, in view above the button
+      end={
+        <>
           <ConsentNote action="saving" />
           {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-          <Actions>
-            <Button
-              isPending={action.isPending}
-              isDisabled={!card.isReady}
-              onPress={() => void save()}
-            >
-              {t.w.save}
-            </Button>
-          </Actions>
-        </Card>
-      </Section>
-    </div>
+        </>
+      }
+      buttons={
+        <Button
+          isPending={action.isPending}
+          isDisabled={!card.isReady}
+          onPress={() => void save()}
+        >
+          {t.w.save}
+        </Button>
+      }
+    >
+      <FormPart title={saved ? t.p.differentCard : t.w.add}>
+        {card.field}
+      </FormPart>
+    </FormPage>
   );
 }
