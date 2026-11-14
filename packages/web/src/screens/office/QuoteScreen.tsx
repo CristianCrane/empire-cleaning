@@ -1517,8 +1517,11 @@ function AreaField({
 function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
   const navigate = useNavigate();
   const router = useRouter();
-  const [quote, setQuote] = useState(() => shownOf(loaded));
-  const [fields, setFields] = useState(() => toFields(shownOf(loaded)));
+  // the Draft as last saved, and its revision as shown: what's said
+  // above the form (the plan it changes, from when) follows each save
+  const [draft, setDraft] = useState(loaded);
+  const quote = shownOf(draft);
+  const [fields, setFields] = useState(() => toFields(quote));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [failure, setFailure] = useState<string>();
   const [saveState, setSaveState] = useState<SaveState>("saved");
@@ -1589,12 +1592,10 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
       if (!again && edit === saved.current.edit) return saved.current.ok;
       setSaveState("saving");
       try {
-        setQuote(
-          shownOf(
-            await patchJson<OfficeQuote>(
-              `/api/quotes/${quote.id}/draft`,
-              toInput(latest.current),
-            ),
+        setDraft(
+          await patchJson<OfficeQuote>(
+            `/api/quotes/${quote.id}/draft`,
+            toInput(latest.current),
           ),
         );
         setFieldErrors({});
@@ -1736,17 +1737,17 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
       <FormPage
         trail={[
           { label: "Quotes", href: linkTo({ to: "/office/quotes" }) },
-          ...homeCrumbs(loaded.client, loaded.property),
+          ...homeCrumbs(draft.client, draft.property),
           {
-            label: quoteKindName(loaded.kind),
+            label: quoteKindName(draft.kind),
             href: linkTo({
               to: "/office/quotes/$quoteId",
-              params: { quoteId: loaded.id },
+              params: { quoteId: draft.id },
             }),
           },
           { label: "Draft quote" },
         ]}
-        title={`Draft quote for ${clientName(loaded.client)}`}
+        title={`Draft quote for ${clientName(draft.client)}`}
         status={<StatusBadge tone="neutral">Not sent yet</StatusBadge>}
         actions={[
           {
@@ -1755,21 +1756,18 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
             danger: true,
             // never while it's being sent (docs/ux.md, Form page)
             isPending: isSending,
-            dialog: (state) => <DeleteDraft quote={loaded} {...state} />,
+            dialog: (state) => <DeleteDraft quote={draft} {...state} />,
           },
         ]}
         alerts={[
-          loaded.offer && {
+          draft.offer && {
             key: "sees",
-            children: stillSees(loaded.client.name),
+            children: stillSees(draft.client.name),
           },
-          loaded.changesPlan && {
+          draft.changesPlan && {
             key: "plan",
             children: (
-              <PlanChangeText
-                quote={shownOf(loaded)}
-                change={loaded.changesPlan}
-              />
+              <PlanChangeText quote={quote} change={draft.changesPlan} />
             ),
           },
         ]}
@@ -1801,17 +1799,17 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
           ),
         }}
       >
-        {loaded.asked && (
-          <FormPart title="What was asked" summary={askedSummary(loaded)}>
-            <AskedFacts quote={loaded} />
+        {draft.asked && (
+          <FormPart title="What was asked" summary={askedSummary(draft)}>
+            <AskedFacts quote={draft} />
           </FormPart>
         )}
-        {loaded.firstClean && (
+        {draft.firstClean && (
           <FormPart
             title="First clean"
-            summary={firstCleanSummary(loaded.firstClean)}
+            summary={firstCleanSummary(draft.firstClean)}
           >
-            <FirstCleanFacts firstClean={loaded.firstClean} />
+            <FirstCleanFacts firstClean={draft.firstClean} />
           </FormPart>
         )}
         {plan ? (
