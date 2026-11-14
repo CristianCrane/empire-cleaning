@@ -121,6 +121,7 @@ import { PortalQuote } from "./screens/portal/PortalQuote.tsx";
 import { PortalRequest } from "./screens/portal/PortalRequest.tsx";
 import { PortalDetails } from "./screens/portal/PortalDetails.tsx";
 import { NotFound } from "./screens/NotFound.tsx";
+import { FormPrototype } from "./screens/form.prototype.tsx";
 import { PeopleScreen, personAsked } from "./screens/PeopleScreen.tsx";
 import { PageError } from "./screens/PageError.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
@@ -858,7 +859,22 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: the Form page layout, on made-up data, signed out (#434)
+const formPrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/form",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string } => ({
+    // ?case=1 arrives as a number
+    case: search.case === undefined ? undefined : String(search.case),
+    layout: search.layout === undefined ? undefined : String(search.layout),
+  }),
+  component: FormPrototype,
+});
+
 const routeTree = rootRoute.addChildren([
+  formPrototypeRoute,
   indexRoute,
   signInRoute,
   signInLinkRoute,
