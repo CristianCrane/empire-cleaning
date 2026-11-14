@@ -56,6 +56,11 @@ export {
   type HomeTile,
 } from "./layouts/HomePage.tsx";
 export { DetailsCard, RecordPage } from "./layouts/RecordPage.tsx";
+export {
+  SettingsList,
+  SettingsPage,
+  type SettingsPart,
+} from "./layouts/SettingsPage.tsx";
 export { MenuButton, MenuItem, MenuSeparator } from "./Menu.tsx";
 export { useLanguage, useUiWords } from "./language.ts";
 export { LanguageName, LanguagePicker } from "./LanguagePicker.tsx";

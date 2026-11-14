@@ -192,6 +192,8 @@ test("Office Staff keep the Premises Types, and the Services each Add-on goes wi
   await expect(page.getByText("Prices saved as version 4")).toBeVisible();
 
   await page.reload();
+  // retired, it's folded after those offered
+  await page.getByText("Retired (1)").click();
   await expect(page.getByRole("row", { name: "Retail" })).toContainText(
     "Retired",
   );
