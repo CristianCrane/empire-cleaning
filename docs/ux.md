@@ -489,9 +489,11 @@ stays as it is (#336).
 - **Lead a to-do row with what to do** (Send a quote, Find cleaners), a
   toned `IconTile` for the kind; rows that only show things keep the name
   as the title. ("Action First To Do Rows")
-- **A row's title wraps, never cut.** A cut title hides what the row is:
-  a payment's "Price change: 1 more hour" lost its hour at phone width,
-  and Spanish runs longer. `ListItem` wraps its title, so every List does.
+- **A row's title and line wrap, never cut.** A cut title hides what the
+  row is: a payment's "Price change: 1 more hour" lost its hour at phone
+  width, and Spanish runs longer. `ListItem` wraps both, anywhere, so every
+  List does: a long email in a Settings summary row breaks rather than
+  running off a phone (#436).
   On a phone a row's badge (`end`) sits under its text rather than beside
   it, which squeezed an address to a word a line at 320px (#305).
 - **Lean rows**: the fewest columns that drive the decision (who, where,
