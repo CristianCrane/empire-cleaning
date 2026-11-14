@@ -12,8 +12,8 @@ import {
   IconTile,
   List,
   ListItem,
-  Logo,
   Notice,
+  PageFrame,
   TextField,
   buttonStyles,
 } from "@empire-cleaning/ui";
@@ -73,7 +73,7 @@ export function PeopleScreen() {
   if (sentTo) {
     const gmail = gmailSearchFor(sentTo);
     return (
-      <Page>
+      <PageFrame>
         <Card>
           <Heading level={1} size={2}>
             Check your email
@@ -102,12 +102,12 @@ export function PeopleScreen() {
             )}
           </Actions>
         </Card>
-      </Page>
+      </PageFrame>
     );
   }
 
   return (
-    <Page>
+    <PageFrame>
       <Heading level={1} size={2}>
         Who do you want to be?
       </Heading>
@@ -185,18 +185,9 @@ export function PeopleScreen() {
           </Button>
         </Form>
       </section>
-    </Page>
+    </PageFrame>
   );
 }
 
 const about = (person: DemoPerson) =>
   `${roleLabels[person.role]} · ${person.shows}`;
-
-function Page({ children }: { children: React.ReactNode }) {
-  return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-6 p-4">
-      <Logo className="mx-auto w-44" />
-      {children}
-    </main>
-  );
-}

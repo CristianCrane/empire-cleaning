@@ -49,6 +49,7 @@ export {
 } from "./layouts/PageHeader.tsx";
 export { type Alert } from "./layouts/Alerts.tsx";
 export { FormPage, FormPart } from "./layouts/FormPage.tsx";
+export { PageFrame } from "./layouts/PageFrame.tsx";
 export { DetailsCard, RecordPage } from "./layouts/RecordPage.tsx";
 export { MenuButton, MenuItem, MenuSeparator } from "./Menu.tsx";
 export { useLanguage, useUiWords } from "./language.ts";
