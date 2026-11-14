@@ -350,7 +350,7 @@ export function FoldedPrice({
 // The Suggested Price for the Quote's Service (after the one recommended for
 // a first visit, where that's offered too) and how each was worked out,
 // how a Suggested Price is worked out, from the home's or premises' hours
-export function PriceWorking({ breakdown: b }: { breakdown: PriceBreakdown }) {
+function PriceWorking({ breakdown: b }: { breakdown: PriceBreakdown }) {
   const homeHours = b.homeHours.reduce((sum, part) => sum + part.hours, 0);
   // breakdowns from before #72 have no kind: they're all homes
   const premises = b.propertyKind === "commercial";
