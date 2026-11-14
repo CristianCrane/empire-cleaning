@@ -797,8 +797,8 @@ export const proposeNextMonday = (page: Page) =>
 // once the Draft has saved all that's on screen
 export const saved = (page: Page) =>
   expect(
-    page.getByRole("status").filter({ hasText: /saved|prices/ }),
-  ).toHaveText("All changes saved");
+    page.getByRole("status").filter({ hasText: /saved|prices/i }),
+  ).toHaveText("Saved");
 
 // what the browser does when the person comes back to this tab
 export const returnToTab = (page: import("@playwright/test").Page) =>

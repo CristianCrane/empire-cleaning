@@ -68,8 +68,11 @@ test(
     await signInAsOffice(page);
     await startDraft(page);
 
-    const deep = page.getByRole("region", { name: "Deep Clean" });
-    await expect(deep).toContainText("Recommended");
+    await expect(
+      page.getByRole("region", { name: "Deep Clean" }),
+    ).toContainText("Recommended");
+    // its price set in the Service part, the price itself beside it
+    const deep = page.getByRole("group", { name: "Deep Clean" });
     await deep.getByText("Set the Deep Clean price yourself").click();
     await deep
       .getByRole("textbox", { name: "Deep Clean price before tax" })
@@ -115,12 +118,12 @@ test("prices follow the Draft as it changes, and an override waits for its reaso
   await signInAsOffice(page);
   await startDraft(page);
 
-  const standard = page.getByRole("region", { name: "Standard Clean" });
+  const standard = page.getByRole("group", { name: "Standard Clean" });
   await standard.getByText("Set the Standard Clean price yourself").click();
   await standard
     .getByRole("textbox", { name: "Standard Clean price before tax" })
     .fill("250");
-  const status = page.getByRole("status").filter({ hasText: /prices|saved/ });
+  const status = page.getByRole("status").filter({ hasText: /prices|saved/i });
   await expect(status).toHaveText(
     "Give a reason for the new price to update the prices",
   );
@@ -133,8 +136,10 @@ test("prices follow the Draft as it changes, and an override waits for its reaso
     .getByRole("textbox", { name: "Why this price" })
     .fill("Small flat");
   // $250 plus 8.875% tax, without saving by hand
-  await expect(standard).toContainText("$272.19");
-  await expect(status).toHaveText("All changes saved");
+  await expect(
+    page.getByRole("region", { name: "Standard Clean" }),
+  ).toContainText("$272.19");
+  await expect(status).toHaveText("Saved");
 });
 
 test("a Quote can't be sent without a proposed time", async ({ page }) => {
@@ -276,7 +281,7 @@ test("the Client sees only the latest Revision, from any of its emails", async (
   await expect(client.getByText(/Updated/)).toBeHidden();
 
   await page.getByRole("button", { name: "Change quote" }).click();
-  const deep = page.getByRole("region", { name: "Deep Clean" });
+  const deep = page.getByRole("group", { name: "Deep Clean" });
   await deep.getByText("Set the Deep Clean price yourself").click();
   await deep
     .getByRole("textbox", { name: "Deep Clean price before tax" })
@@ -586,6 +591,7 @@ test("Office Staff change what a Draft is for, and what was asked stays", async 
   await expect(
     page.getByRole("button", { name: "Move-in/out Clean Service" }),
   ).toBeVisible();
+  await page.getByRole("button", { name: /^What was asked/ }).click();
   await expect(
     page.getByRole("definition").filter({ hasText: /^Standard Clean$/ }),
   ).toBeVisible();
@@ -603,7 +609,7 @@ test("deleting a first Draft whose Service was asked for again since leaves the 
   // the Standard Clean is free again, and Casey asks for it
   await requestQuoteAsGuest(casey);
 
-  await page.getByRole("button", { name: "Delete the draft" }).click();
+  await page.getByRole("button", { name: "Delete draft" }).click();
   const dialog = page.getByRole("alertdialog");
   await expect(dialog).toContainText(
     `If ${casey.name} has asked for a Standard Clean again since`,

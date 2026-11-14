@@ -166,6 +166,35 @@ export function QuoteStatusBadge({ status }: { status: QuoteStatus }) {
   );
 }
 
+// a price in large type, with the tax it includes under it; a plan's
+// clean's says it's for a clean
+export function PriceHead({
+  totalCents,
+  taxCents,
+  perClean = false,
+}: {
+  totalCents: number;
+  taxCents: number;
+  perClean?: boolean;
+}) {
+  const { w, formatMoney } = useWords();
+  return (
+    <span className="flex flex-col gap-1">
+      <span className="font-display text-4xl font-bold tracking-wide">
+        {formatMoney(totalCents)}
+        {perClean && (
+          <span className="text-base font-normal text-fg-muted">
+            {w.aClean}
+          </span>
+        )}
+      </span>
+      <span className="text-sm text-fg-muted">
+        {w.includesTax(formatMoney(taxCents))}
+      </span>
+    </span>
+  );
+}
+
 // a one-off clean's price, its hours and its Deposit
 export function OptionFigures({
   option,
@@ -176,25 +205,37 @@ export function OptionFigures({
   crewSize: number;
   depositPercent: number;
 }) {
-  const { w, formatMoney } = useWords();
   return (
     <>
-      <div className="flex flex-col gap-1">
-        <p className="font-display text-4xl font-bold tracking-wide">
-          {formatMoney(option.totalCents)}
-        </p>
-        <p className="text-sm text-fg-muted">
-          {w.includesTax(formatMoney(option.taxCents))}
-        </p>
-      </div>
-      <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
-        <HoursRows option={option} crewSize={crewSize} />
-        <dt className="text-fg-muted">{w.deposit(depositPercent)}</dt>
-        <dd className="text-right tabular-nums">
-          {formatMoney(option.depositCents)}
-        </dd>
-      </dl>
+      <PriceHead totalCents={option.totalCents} taxCents={option.taxCents} />
+      <OptionRows
+        option={option}
+        crewSize={crewSize}
+        depositPercent={depositPercent}
+      />
     </>
+  );
+}
+
+// a one-off clean's hours and Deposit, under its price
+export function OptionRows({
+  option,
+  crewSize,
+  depositPercent,
+}: {
+  option: QuoteOption;
+  crewSize: number;
+  depositPercent: number;
+}) {
+  const { w, formatMoney } = useWords();
+  return (
+    <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
+      <HoursRows option={option} crewSize={crewSize} />
+      <dt className="text-fg-muted">{w.deposit(depositPercent)}</dt>
+      <dd className="text-right tabular-nums">
+        {formatMoney(option.depositCents)}
+      </dd>
+    </dl>
   );
 }
 
@@ -254,20 +295,32 @@ export function PlanFigures({
   day: PlanDayTerms;
   discountPercent: number;
 }) {
+  return (
+    <>
+      <PriceHead
+        totalCents={option.totalCents}
+        taxCents={option.taxCents}
+        perClean
+      />
+      <PlanRows option={option} day={day} discountPercent={discountPercent} />
+    </>
+  );
+}
+
+// a plan clean against the same clean as a one-off Job, and its hours,
+// under its price
+export function PlanRows({
+  option,
+  day,
+  discountPercent,
+}: {
+  option: QuoteOption;
+  day: PlanDayTerms;
+  discountPercent: number;
+}) {
   const { w, formatMoney } = useWords();
   return (
     <>
-      <span className="flex flex-col gap-1">
-        <span className="font-display text-4xl font-bold tracking-wide">
-          {formatMoney(option.totalCents)}
-          <span className="text-base font-normal text-fg-muted">
-            {w.aClean}
-          </span>
-        </span>
-        <span className="text-sm text-fg-muted">
-          {w.includesTax(formatMoney(option.taxCents))}
-        </span>
-      </span>
       <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
         <dt className="text-fg-muted">{w.asOneOff}</dt>
         <dd className="text-right tabular-nums">

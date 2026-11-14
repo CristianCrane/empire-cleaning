@@ -1259,15 +1259,11 @@ function BarAtTheFoot() {
         <div className="h-[120vh] rounded-lg bg-bg" />
         <p>The end of the page</p>
       </div>
-      <ActionFooter aria-label="Send the quote">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="font-semibold tabular-nums">
-            Deep Clean $385.00 · Standard Clean $210.00
-          </span>
-          <span role="status" className="text-sm text-fg-muted">
-            All changes saved
-          </span>
-        </div>
+      <ActionFooter
+        aria-label="Send the quote"
+        summary="Deep Clean $385.00 · Standard Clean $210.00"
+        status="Saved"
+      >
         <Button>
           Send<span className="sr-only"> to Maria Lopez</span>
         </Button>

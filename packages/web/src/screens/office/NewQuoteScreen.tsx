@@ -3,6 +3,7 @@ import { Search, UserPlus, Users } from "lucide-react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
   NotPriced,
+  formats,
   suggestedPrice,
   type ClientList,
   type ClientListItem,
@@ -10,7 +11,6 @@ import {
   type CallerQuoteEntry,
   type Condition,
   type HomeRooms,
-  type PriceBreakdown,
   type PriceList,
   type Priced,
   type QuoteAsk,
@@ -22,23 +22,23 @@ import {
 } from "@empire-cleaning/quote-request";
 import {
   Avatar,
-  Breadcrumbs,
   Button,
-  Card,
-  Heading,
+  FormPage,
+  FormPart,
   List,
   ListItem,
-  Section,
   TextField,
   useSettled,
 } from "@empire-cleaning/ui";
 import { getJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { clientName, screenWords } from "../format.ts";
-import { WorkedOutQuote } from "./WorkedOutQuote.tsx";
+import { FoldedPrice } from "./QuoteAsked.tsx";
+import { OnSite } from "./WorkedOutQuote.tsx";
 import { reportUnexpected } from "../../monitoring.ts";
 
 const { formatFloorArea } = screenWords.en;
+const { formatMoney } = formats.en;
 
 export type NewQuoteSearch = { clientId?: string };
 
@@ -67,74 +67,94 @@ export function NewQuoteScreen() {
     void navigate({ to: "/office/quotes/new", search: { clientId } });
   };
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <Breadcrumbs
-          trail={[
-            { label: "Quotes", href: linkTo({ to: "/office/quotes" }) },
-            { label: NEW_QUOTE },
-          ]}
-        />
-        <Heading level={1}>{NEW_QUOTE}</Heading>
-        <p className="text-fg-muted">
+  const page = {
+    trail: [
+      { label: "Quotes", href: linkTo({ to: "/office/quotes" }) },
+      { label: NEW_QUOTE },
+    ],
+    title: NEW_QUOTE,
+    about: {
+      label: "About this page",
+      children: (
+        <p className="text-sm text-fg-muted">
           For someone who phones. You'll go straight to the draft.
         </p>
-      </div>
+      ),
+    },
+  };
 
-      {client || isNewClient ? (
-        <QuoteRequestForm<CallerQuoteEntry>
-          // a fresh form for each Client
-          key={client?.id ?? "new"}
-          headingLevel={2}
-          asker={{ kind: "office", client: client && homesOf(client) }}
-          page={{
-            before: client && (
-              <Caller client={client} onChange={() => choose(undefined)} />
-            ),
-            contactActions: (
-              <Button
-                variant="text"
-                size="sm"
-                onPress={() => setNewClient(false)}
-              >
-                <Search aria-hidden size={16} />
-                Find a client
-              </Button>
-            ),
-            aside: (
-              <PriceSoFar
-                ask={ask}
-                client={client}
-                list={list}
-                services={services}
-              />
-            ),
-          }}
-          onAskChange={setAsk}
-          submit={(body) =>
-            postQuoteRequest<CallerQuoteEntry>(
-              "/api/quotes/caller",
-              body,
-              "same-origin",
-              "en",
-            )
-          }
-          // a caller's Quote starts as a Draft: on to writing it
-          onSubmitted={({ quoteId }) =>
-            void navigate({
-              to: "/office/quotes/$quoteId/draft",
-              params: { quoteId },
-            })
-          }
-        />
-      ) : (
+  // who's calling first: the rest waits for them
+  if (!client && !isNewClient) {
+    return (
+      <FormPage {...page}>
         <FindClient
           onChoose={(id) => choose(id)}
           onNew={() => setNewClient(true)}
         />
-      )}
-    </div>
+      </FormPage>
+    );
+  }
+
+  const price = priceSoFar(ask, client, list, services);
+  return (
+    <QuoteRequestForm<CallerQuoteEntry>
+      // a fresh form for each Client
+      key={client?.id ?? "new"}
+      headingLevel={2}
+      asker={{ kind: "office", client: client && homesOf(client) }}
+      page={{
+        contactActions: (
+          <Button variant="text" size="sm" onPress={() => setNewClient(false)}>
+            <Search aria-hidden size={16} />
+            Find a client
+          </Button>
+        ),
+        layout: ({ parts, end, isSending, submit }) => (
+          <FormPage
+            {...page}
+            aside={{
+              title: "What it comes to",
+              leads: true,
+              children: <PriceSoFar price={price} />,
+            }}
+            end={end}
+            footer={{
+              label: submit,
+              summary:
+                price &&
+                `${price.now.serviceName} ${formatMoney(price.now.totalCents)}`,
+              status: price ? undefined : PICK_FIRST,
+              children: (
+                <Button type="submit" isPending={isSending}>
+                  {submit}
+                </Button>
+              ),
+            }}
+          >
+            {client && (
+              <Caller client={client} onChange={() => choose(undefined)} />
+            )}
+            {parts}
+          </FormPage>
+        ),
+      }}
+      onAskChange={setAsk}
+      submit={(body) =>
+        postQuoteRequest<CallerQuoteEntry>(
+          "/api/quotes/caller",
+          body,
+          "same-origin",
+          "en",
+        )
+      }
+      // a caller's Quote starts as a Draft: on to writing it
+      onSubmitted={({ quoteId }) =>
+        void navigate({
+          to: "/office/quotes/$quoteId/draft",
+          params: { quoteId },
+        })
+      }
+    />
   );
 }
 
@@ -147,7 +167,7 @@ function Caller({
   onChange: () => void;
 }) {
   return (
-    <Section
+    <FormPart
       title="Who's calling"
       actions={
         <Button variant="text" size="sm" onPress={onChange}>
@@ -156,18 +176,16 @@ function Caller({
         </Button>
       }
     >
-      <Card>
-        <div className="flex items-center gap-3">
-          <Avatar src={null} />
-          <div className="flex min-w-0 flex-col">
-            <span className="font-semibold text-fg">{clientName(client)}</span>
-            <span className="text-sm [overflow-wrap:anywhere] text-fg-muted">
-              {[client.email ?? "No email", client.phone].join(" · ")}
-            </span>
-          </div>
+      <div className="flex items-center gap-3">
+        <Avatar src={null} />
+        <div className="flex min-w-0 flex-col">
+          <span className="font-semibold text-fg">{clientName(client)}</span>
+          <span className="text-sm [overflow-wrap:anywhere] text-fg-muted">
+            {[client.email ?? "No email", client.phone].join(" · ")}
+          </span>
         </div>
-      </Card>
-    </Section>
+      </div>
+    </FormPart>
   );
 }
 
@@ -248,68 +266,75 @@ const pricing = (
   };
 };
 
+// what the footer says before a Service is picked, and the aside too
+const PICK_FIRST = "Pick what they need to see what it comes to.";
+
 // What's been said so far comes to, worked out as the Draft's Suggested
-// Price will be, so it can be said on the phone (#96)
-function PriceSoFar({
-  ask,
-  client,
-  list,
-  services,
-}: {
-  ask: QuoteAsk | null;
-  client: OfficeClientView | null;
-  list: PriceList;
-  services: Service[];
-}) {
+// Price will be, so it can be said on the phone (#96); none until it can be
+const priceSoFar = (
+  ask: QuoteAsk | null,
+  client: OfficeClientView | null,
+  list: PriceList,
+  services: Service[],
+) => {
   const service = ask && services.find((s) => s.key === ask.serviceKey);
   const what = ask && pricing(ask, client);
-  let now: PriceBreakdown | null = null;
-  if (ask && service && what) {
-    try {
-      now = suggestedPrice(
-        list,
-        service,
-        what.priced,
-        what.condition,
-        list.addOns.filter((a) => ask.addOns?.includes(a.key)),
-      );
-    } catch (e) {
-      // a place the Service isn't priced for: nothing to show yet. A bug is
-      // reported on each render, which Sentry sends once (its Dedupe drops
-      // a repeat of the last error)
-      if (!(e instanceof NotPriced)) reportUnexpected(e);
-    }
+  if (!ask || !service || !what) return null;
+  try {
+    const now = suggestedPrice(
+      list,
+      service,
+      what.priced,
+      what.condition,
+      list.addOns.filter((a) => ask.addOns?.includes(a.key)),
+    );
+    return {
+      now,
+      place: what.place,
+      condition: service.conditionApplies
+        ? (what.condition ?? "moderate")
+        : null,
+      business: what.priced.kind === "commercial",
+      // the usual crew, as the Draft starts with
+      crewSize: list.defaultCrewSize,
+    };
+  } catch (e) {
+    // a place the Service isn't priced for: nothing to show yet. A bug is
+    // reported on each render, which Sentry sends once (its Dedupe drops
+    // a repeat of the last error)
+    if (!(e instanceof NotPriced)) reportUnexpected(e);
+    return null;
   }
-  const business = what?.priced.kind === "commercial";
+};
 
+// the price so far, as the Draft's are shown (#434): its total, read out as
+// it changes, and how it's worked out, folded, with how long the clean
+// takes, which a caller asks
+function PriceSoFar({ price }: { price: ReturnType<typeof priceSoFar> }) {
+  if (!price) return <p className="text-sm text-fg-muted">{PICK_FIRST}</p>;
+  const { now, place, condition, business, crewSize } = price;
   return (
-    <Section
-      title="What it comes to"
-      description={
-        business
-          ? "A first idea: a business is priced after its site visit."
-          : "The suggested price so far, which the draft starts with. You can change it there."
-      }
-    >
-      <Card>
-        <div className="flex flex-col gap-4">
-          {now && what && service ? (
-            <WorkedOutQuote
-              now={now}
-              place={what.place}
-              condition={
-                service.conditionApplies ? (what.condition ?? "moderate") : null
-              }
-              crewSize={list.defaultCrewSize}
-            />
-          ) : (
-            <p className="text-sm text-fg-muted">
-              Pick what they need to see what it comes to.
-            </p>
-          )}
-        </div>
-      </Card>
-    </Section>
+    <div className="flex flex-col gap-3">
+      <FoldedPrice
+        price={now}
+        working={now}
+        live
+        over={<span className="text-sm text-fg-muted">{now.serviceName}</span>}
+        under={
+          <span className="text-sm text-fg-muted">
+            {place}
+            {condition ? `, in ${condition} condition` : ""}
+          </span>
+        }
+      >
+        <OnSite labourHours={now.labourHours} crewSize={crewSize} />
+      </FoldedPrice>
+      {business && (
+        <p className="text-sm text-fg-muted">
+          A first idea: a business is priced after its site visit.
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -357,7 +382,7 @@ function FindClient({
   }, [q]);
 
   return (
-    <Section
+    <FormPart
       title="Who's calling"
       actions={
         <Button variant="text" size="sm" onPress={onNew}>
@@ -366,41 +391,39 @@ function FindClient({
         </Button>
       }
     >
-      <Card>
-        <TextField
-          label="Find a client"
-          type="search"
-          placeholder="Name, email, phone or address"
-          value={text}
-          onChange={setText}
-          autoFocus
-        />
-        {found && (
-          <List
-            aria-label="Clients found"
-            onAction={(id) => onChoose(String(id))}
-            renderEmptyState={() => (
-              <p className="p-4 text-center text-fg-muted">
-                No clients match “{found.q}”. Add them as a new client.
-              </p>
-            )}
-          >
-            {found.clients.map((client) => (
-              <ListItem
-                key={client.id}
-                id={client.id}
-                title={clientName(client)}
-                start={<Avatar src={client.imageUrl} />}
-                description={
-                  <span className="[overflow-wrap:anywhere]">
-                    {[client.email, client.phone].filter(Boolean).join(" · ")}
-                  </span>
-                }
-              />
-            ))}
-          </List>
-        )}
-      </Card>
-    </Section>
+      <TextField
+        label="Find a client"
+        type="search"
+        placeholder="Name, email, phone or address"
+        value={text}
+        onChange={setText}
+        autoFocus
+      />
+      {found && (
+        <List
+          aria-label="Clients found"
+          onAction={(id) => onChoose(String(id))}
+          renderEmptyState={() => (
+            <p className="p-4 text-center text-fg-muted">
+              No clients match “{found.q}”. Add them as a new client.
+            </p>
+          )}
+        >
+          {found.clients.map((client) => (
+            <ListItem
+              key={client.id}
+              id={client.id}
+              title={clientName(client)}
+              start={<Avatar src={client.imageUrl} />}
+              description={
+                <span className="[overflow-wrap:anywhere]">
+                  {[client.email, client.phone].filter(Boolean).join(" · ")}
+                </span>
+              }
+            />
+          ))}
+        </List>
+      )}
+    </FormPart>
   );
 }

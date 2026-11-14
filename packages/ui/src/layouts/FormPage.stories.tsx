@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Archive, LayoutDashboard } from "lucide-react";
-import { expect, userEvent, waitFor } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import { Button } from "../Button.tsx";
 import { Checkbox } from "../Checkbox.tsx";
 import { Form } from "../Form.tsx";
@@ -223,5 +223,81 @@ export const InAnArea: Story = {
   ),
   play: async ({ canvas }) => {
     await expect(canvas.getAllByRole("main")).toHaveLength(1);
+  },
+};
+
+// a form with a price or a Send: the price first below xl, beside the card
+// from it; the button in the page's footer, the total and the save's state
+// on its left; a part's own text Buttons on its title line
+export const PricedWithAFooter: Story = {
+  parameters: { layout: "fullscreen" },
+  globals: { viewport: { value: "phone" } },
+  args: {
+    trail: [{ label: "Quotes", href: "#" }, { label: "Draft quote" }],
+    title: "Draft quote for Grace Murphy",
+    subtitle: undefined,
+    actions: [
+      {
+        label: "Delete draft",
+        icon: Archive,
+        danger: true,
+        onAction: () => {},
+      },
+    ],
+    aside: {
+      title: "Prices",
+      leads: true,
+      children: <p className="font-display text-3xl font-bold">$568.87</p>,
+    },
+    end: <Notice tone="warning">Grace has no email yet.</Notice>,
+    footer: {
+      label: "Send the quote",
+      summary: "Deep Clean $568.87",
+      status: "Saved",
+      children: <Button>Send</Button>,
+    },
+    children: (
+      <>
+        <FormPart
+          title="Service"
+          actions={
+            <Button variant="text" size="sm">
+              Add a weekday
+            </Button>
+          }
+        >
+          <TextField label="Service" defaultValue="Deep Clean" />
+        </FormPart>
+        <FormPart title="Terms" summary="2 cleaners · 25% deposit">
+          <NumberField label="Cleaners" defaultValue={2} />
+        </FormPart>
+      </>
+    ),
+  },
+  render: (args) => (
+    <AppLayout
+      area="Office"
+      nav={[
+        { href: "#", label: "Quotes", icon: LayoutDashboard, isCurrent: true },
+      ]}
+      foot={() => null}
+    >
+      <FormPage {...args} />
+    </AppLayout>
+  ),
+  play: async ({ canvas }) => {
+    const prices = canvas.getByRole("region", { name: "Prices" });
+    const service = canvas.getByRole("region", { name: "Service" });
+    // the price comes first
+    await expect(
+      prices.compareDocumentPosition(service) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const footer = canvas.getByRole("group", { name: "Send the quote" });
+    await expect(footer).toHaveTextContent("Deep Clean $568.87");
+    await expect(within(footer).getByRole("status")).toHaveTextContent("Saved");
+    await expect(
+      canvas.getByRole("button", { name: "Add a weekday" }),
+    ).toBeVisible();
   },
 };

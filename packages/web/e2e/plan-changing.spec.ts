@@ -111,6 +111,35 @@ test(
   },
 );
 
+test("a Draft changing the plan says what it changes from the start it's given", async ({
+  page,
+}) => {
+  const { planId } = await planStarted();
+  await signedInAs(page, olive.email);
+  await page.goto(`/office/service-plans/${planId}`);
+  await page.getByRole("button", { name: "Change terms" }).click();
+  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
+  const change = page
+    .locator("p")
+    .filter({ hasText: "This changes Casey Client's" });
+  await expect(change).toContainText("from its start.");
+
+  // from Monday 2 February: the plan's Jobs that day and the 9th go
+  await startOn(
+    page,
+    page.getByRole("region", { name: "Weekday 1" }),
+    "02022026",
+    "0900AM",
+  );
+  await saved(page);
+  await expect(change).toContainText("from Mon, Feb 2, 9:00 AM.");
+  await expect(
+    page.getByText(
+      "Its booked jobs from then on are cancelled, free of charge: Mon, Feb 2, 9:00 AM; Mon, Feb 9, 9:00 AM.",
+    ),
+  ).toBeVisible();
+});
+
 test("a Draft changing the plan can take the time of a Job it replaces", async ({
   page,
 }) => {

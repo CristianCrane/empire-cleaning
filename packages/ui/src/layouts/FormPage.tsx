@@ -8,6 +8,7 @@ import {
 } from "react";
 import { FormValidationContext } from "react-aria-components";
 import { ChevronDown } from "lucide-react";
+import { ActionFooter, type Footer } from "../ActionFooter.tsx";
 import { Actions } from "../Actions.tsx";
 import type { Crumb } from "../Breadcrumbs.tsx";
 import { Card } from "../Card.tsx";
@@ -24,9 +25,12 @@ import { PageHeader, type PageActions } from "./PageHeader.tsx";
 // (`about`); then the whole form in one Card, its parts open where they're
 // what the person came for and folded to a line where they aren't
 // (FormPart), the card ending with what's said before its buttons and the
-// buttons. What the fields come to (a price, a worked example) is an aside,
-// sticky beside the card from `xl` and after it below that. Outside an area
-// it's a page of its own, the logo above (Welcome)
+// buttons; or, for a form with a price or a Send, those in the page's
+// `footer`, an ActionFooter, what's said before them after the card. What
+// the fields come to (a price, a worked example) is an aside, sticky beside
+// the card from `xl`; below that after the card, or before it when it
+// `leads` (a price the form is written to reach). Outside an area it's a
+// page of its own, the logo above (Welcome)
 export function FormPage({
   trail,
   title,
@@ -38,6 +42,7 @@ export function FormPage({
   aside,
   end,
   buttons,
+  footer,
   account,
   children,
 }: {
@@ -45,23 +50,39 @@ export function FormPage({
   title: string;
   status?: ReactNode;
   subtitle?: ReactNode;
-  // a single one, at the end of the title row (Retire)
+  // a single one, at the end of the title row (Retire, Delete draft)
   actions?: PageActions;
   // those that apply now, the rest false, null or undefined
   alerts?: (Alert | false | null | undefined)[];
   // what the page needs explained, folded under `label`
   about?: { label: string; children: ReactNode };
   // what the fields come to, beside them from xl
-  aside?: { title: string; children: ReactNode };
+  aside?: { title: string; leads?: boolean; children: ReactNode };
   // what's said before the buttons: a card's consent, a save's problem
   end?: ReactNode;
-  // the form's buttons, the main one last
-  buttons?: ReactNode;
   // outside an area: who's signed in, beside the logo
   account?: ReactNode;
   // its parts, each a FormPart, or a stepped form of its own
   children: ReactNode;
-}) {
+} & (
+  | {
+      // the form's buttons at the card's foot, the main one last
+      buttons?: ReactNode;
+      footer?: never;
+    }
+  | { buttons?: never; footer: Footer }
+)) {
+  const card = (
+    <Card>
+      <div className="flex flex-col gap-5">{children}</div>
+      {!footer && (end || buttons) && (
+        <div className="flex flex-col gap-3 border-t border-border pt-4">
+          {end}
+          {buttons && <Actions>{buttons}</Actions>}
+        </div>
+      )}
+    </Card>
+  );
   return (
     <PageFrame wide account={account}>
       <PageHeader
@@ -79,6 +100,7 @@ export function FormPage({
       )}
       <Beside
         sticky
+        leads={aside?.leads}
         side={
           aside && (
             <Section title={aside.title}>
@@ -87,16 +109,24 @@ export function FormPage({
           )
         }
       >
-        <Card>
-          <div className="flex flex-col gap-5">{children}</div>
-          {(end || buttons) && (
-            <div className="flex flex-col gap-3 border-t border-border pt-4">
-              {end}
-              {buttons && <Actions>{buttons}</Actions>}
-            </div>
-          )}
-        </Card>
+        {footer && end ? (
+          <div className="flex flex-col gap-4">
+            {card}
+            {end}
+          </div>
+        ) : (
+          card
+        )}
       </Beside>
+      {footer && (
+        <ActionFooter
+          aria-label={footer.label}
+          summary={footer.summary}
+          status={footer.status}
+        >
+          {footer.children}
+        </ActionFooter>
+      )}
     </PageFrame>
   );
 }
@@ -104,27 +134,29 @@ export function FormPage({
 const rule = "border-t border-border pt-5 first:border-t-0 first:pt-0";
 
 // One part of a Form page's card, ruled off from the one before. Open, a
-// Section: its title over its fields. Given `summary` (what's set, in a line), it's folded to that line, a tap
+// Section: its title over its fields, its text Buttons (`actions`) on the
+// title's line. Given `summary` (what's set, in a line), it's folded to that line, a tap
 // opening it in place. Folded, its fields stay in the form, hidden, so a
 // required one or the API's field error still counts, and the part opens
 // itself to show a field in it that's found wrong
-export function FormPart({
-  title,
-  summary,
-  children,
-}: {
-  title: string;
-  summary?: string;
-  children: ReactNode;
-}) {
-  if (summary === undefined)
+export function FormPart(
+  props: { title: string; children: ReactNode } & (
+    { summary: string } | { summary?: never; actions?: ReactNode }
+  ),
+) {
+  const { title, children } = props;
+  if (props.summary === undefined)
     return (
-      <Section title={title} className={`gap-4 ${rule}`}>
+      <Section
+        title={title}
+        actions={props.actions}
+        className={`gap-4 ${rule}`}
+      >
         {children}
       </Section>
     );
   return (
-    <Folded title={title} summary={summary}>
+    <Folded title={title} summary={props.summary}>
       {children}
     </Folded>
   );

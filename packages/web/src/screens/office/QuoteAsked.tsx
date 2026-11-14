@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   FilePenLine,
   CalendarDays,
@@ -27,6 +27,7 @@ import {
   RadioGroup,
   Facts,
   Fact,
+  Fold,
   type Alert,
   type DialogState,
 } from "@empire-cleaning/ui";
@@ -37,7 +38,7 @@ import { BookSiteVisit } from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
 import { addressOf, formatHours, roomsText, screenWords } from "../format.ts";
 import { homeIcon } from "../icons.ts";
-import { AskedRows } from "../QuoteParts.tsx";
+import { AskedRows, PriceHead } from "../QuoteParts.tsx";
 import { working } from "./WorkedOutQuote.tsx";
 
 const { conditionLabel, conditionText, formatFloorArea, propertySummary } =
@@ -73,6 +74,18 @@ const sourceText = ({
     .filter(Boolean)
     .join("");
 };
+
+// what was asked, in a line: "Deep Clean · Apartment · 2 bedrooms · 1
+// bathroom · moderate". A business's condition is left out until its Site
+// Visit finds one, as its facts say "Not known yet" where it's named
+export const askedSummary = ({ asked, property }: OfficeQuote) =>
+  [
+    asked?.service.name,
+    propertySummary(property),
+    property.condition && conditionText(property.condition).toLowerCase(),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
 // what the Client (or a caller) asked for, unchanged, and the home it's
 // for (WEB-8, WEB-A); none on a Quote the Office offered unprompted
@@ -283,10 +296,61 @@ export function TurnDownQuote({
   );
 }
 
+/**
+ * A price beside the form that's working it out (#434), the Draft's and New
+ * quote's: what's said over it, its total, large, what's said under it,
+ * then how it's worked out, folded: the Suggested Price's hours and money,
+ * then `children`, what that price adds (the hours on site, a plan's
+ * discount, which prices). `live` reads all but the working out as it
+ * changes, so the total is heard with what it's for
+ */
+export function FoldedPrice({
+  price,
+  working,
+  perClean,
+  live,
+  over,
+  under,
+  children,
+}: {
+  // what it comes to, which may be a price of the Office's own
+  price: { totalCents: number; taxCents: number };
+  // the Suggested Price it starts from
+  working: PriceBreakdown;
+  perClean?: boolean;
+  live?: boolean;
+  over?: ReactNode;
+  under?: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <>
+      <div
+        aria-live={live ? "polite" : undefined}
+        className="flex flex-col gap-1"
+      >
+        {over}
+        <PriceHead
+          totalCents={price.totalCents}
+          taxCents={price.taxCents}
+          perClean={perClean}
+        />
+        {under}
+      </div>
+      <Fold label="How it's worked out">
+        <div className="flex flex-col gap-3">
+          <PriceWorking breakdown={working} />
+          {children}
+        </div>
+      </Fold>
+    </>
+  );
+}
+
 // The Suggested Price for the Quote's Service (after the one recommended for
 // a first visit, where that's offered too) and how each was worked out,
 // how a Suggested Price is worked out, from the home's or premises' hours
-export function PriceWorking({ breakdown: b }: { breakdown: PriceBreakdown }) {
+function PriceWorking({ breakdown: b }: { breakdown: PriceBreakdown }) {
   const homeHours = b.homeHours.reduce((sum, part) => sum + part.hours, 0);
   // breakdowns from before #72 have no kind: they're all homes
   const premises = b.propertyKind === "commercial";

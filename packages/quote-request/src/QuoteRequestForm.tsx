@@ -39,7 +39,6 @@ import { PICK_TIMES, formats, messages } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
-  Card,
   Checkbox,
   Chip,
   ChipGroup,
@@ -47,9 +46,9 @@ import {
   ChoiceTiles,
   ChoiceTilesLoading,
   Form,
+  FormPart,
   Heading,
   Notice,
-  Section,
   NumberField,
   Radio,
   RadioGroup,
@@ -112,10 +111,20 @@ export type QuoteRequestFormProps<R = QuoteAskReceipt> = {
   // where the request goes, if not the API's own endpoint for asking
   submit?: (body: object) => Promise<SubmitResult<R>>;
   onSubmitted: (receipt: R) => void;
-  // everything on one page, for the Office on the phone (#96): who's
-  // calling first, with `contactActions` in its header; `before` above
-  // the rest, and `aside` beside it on a wide screen, or after it
-  page?: { before?: ReactNode; aside?: ReactNode; contactActions?: ReactNode };
+  // everything on one page, for the Office on the phone (#96): each step a
+  // part (FormPart), who's calling first, with `contactActions` on its
+  // title line. `layout` places them within the form: the page around
+  // the parts, what's said before its button (a refusal, a failure), and
+  // the button, which sends it
+  page?: {
+    contactActions?: ReactNode;
+    layout: (form: {
+      parts: ReactNode;
+      end: ReactNode;
+      isSending: boolean;
+      submit: string;
+    }) => ReactNode;
+  };
   // what would be asked as it's filled in, once a Service is chosen
   onAskChange?: (ask: QuoteAsk | null) => void;
   // a Service to start with, by key, chosen once the Services arrive if
@@ -928,7 +937,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
 
   if (page) {
     const contact = steps.find((s) => s.title === words.details);
-    const sections = [
+    const parts = [
       ...(contact ? [{ ...contact, actions: page.contactActions }] : []),
       ...steps
         .filter((s) => s !== contact)
@@ -942,35 +951,25 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
           void send();
         }}
       >
-        {/* in one column; `aside` beside it from xl, in view as it
-            scrolls, or after the place below that */}
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
-          {page.before}
-          {sections.map((section) => (
-            <Section
-              key={section.title}
-              title={section.title}
-              headingLevel={headingLevel}
-              actions={section.actions}
+        {page.layout({
+          parts: parts.map((part) => (
+            <FormPart
+              key={part.title}
+              title={part.title}
+              actions={part.actions}
             >
-              <Card>{section.fields}</Card>
-            </Section>
-          ))}
-          {page.aside && (
-            <div className="xl:sticky xl:top-6 xl:col-start-2 xl:row-span-6 xl:row-start-1 xl:self-start">
-              {page.aside}
-            </div>
-          )}
-          <div className="flex flex-col gap-5">
-            {refusal && <Notice>{refusal}</Notice>}
-            {failed && <Notice tone="danger">{words.failed}</Notice>}
-            <Actions>
-              <Button type="submit" isPending={isSending}>
-                {words.submit}
-              </Button>
-            </Actions>
-          </div>
-        </div>
+              {part.fields}
+            </FormPart>
+          )),
+          end: (refusal || failed) && (
+            <>
+              {refusal && <Notice>{refusal}</Notice>}
+              {failed && <Notice tone="danger">{words.failed}</Notice>}
+            </>
+          ),
+          isSending,
+          submit: words.submit,
+        })}
       </Form>
     );
   }

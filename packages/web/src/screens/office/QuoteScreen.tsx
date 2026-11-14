@@ -40,14 +40,12 @@ import type {
   OfficeQuoteOption,
   OfficeRevision,
   PlanChange,
-  PlanDayTerms,
   QuoteDraftInput,
   Recurrence,
   ServiceChoice,
   ServicePlanInput,
 } from "@empire-cleaning/models";
 import {
-  CANCELLATION_CUTOFF_HOURS,
   noEmailYet,
   notSeenYet,
   recurrenceDays,
@@ -57,9 +55,7 @@ import {
   messages,
 } from "@empire-cleaning/models";
 import {
-  ActionFooter,
   Actions,
-  Breadcrumbs,
   Button,
   ButtonLink,
   Card,
@@ -68,6 +64,8 @@ import {
   Dialog,
   DialogTrigger,
   Form,
+  FormPage,
+  FormPart,
   Heading,
   Link,
   List,
@@ -106,7 +104,9 @@ import {
   AddOnList,
   DraftChangesBadge,
   OptionFigures,
+  OptionRows,
   PlanFigures,
+  PlanRows,
   PlanSaving,
   PlanTotals,
   QuoteStatusBadge,
@@ -115,8 +115,9 @@ import {
 import { homeCrumbs } from "./trails.ts";
 import {
   AskedFacts,
+  askedSummary,
+  FoldedPrice,
   DraftQuote,
-  PriceWorking,
   seeThePremises,
   TurnDownQuote,
   turnDownLabel,
@@ -131,6 +132,7 @@ import { useStartDraft } from "./StartDraft.tsx";
 import { reportUnexpected } from "../../monitoring.ts";
 
 const {
+  cleaners,
   conditionLabel,
   planName,
   planRhythm,
@@ -489,7 +491,16 @@ const toQuote = (quote: OfficeQuote): (Alert | false | null)[] => {
 };
 
 // throws the Draft away, once Office Staff are sure: see discardDraft
-function DeleteDraft({ quote }: { quote: OfficeQuote }) {
+function DeleteDraft({
+  quote,
+  isOpen,
+  onOpenChange,
+}: {
+  quote: OfficeQuote;
+  // whether it's open, and told when it closes
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+}) {
   const navigate = useNavigate();
   const action = useLeavingAction(
     "The draft wasn't deleted. Please try again.",
@@ -513,89 +524,50 @@ function DeleteDraft({ quote }: { quote: OfficeQuote }) {
           }));
     }, "Draft deleted");
   return (
-    <DialogTrigger>
-      <Button variant="danger-text" size="sm">
-        <Trash2 aria-hidden size={16} />
-        Delete the draft
-      </Button>
-      <Dialog title="Delete the draft?" role="alertdialog">
-        {({ close }) => (
-          <>
-            <p>
-              {quote.offer
-                ? `Your changes are lost. ${quote.client.name} keeps the quote you sent.`
-                : !quote.asked
-                  ? "Nothing was asked for or sent, so the quote goes too."
-                  : `The quote goes back to asked for, so you can draft it again. If ${quote.client.name} has asked for a ${quote.asked.service.name} again since, that one carries on and this one goes.`}
-            </p>
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <Button variant="quiet" onPress={close}>
-                Keep it
-              </Button>
-              <Button
-                variant="danger"
-                isPending={action.isPending}
-                onPress={() => void remove(close)}
-              >
-                Delete the draft
-              </Button>
-            </Actions>
-          </>
-        )}
-      </Dialog>
-    </DialogTrigger>
+    <Dialog
+      title="Delete the draft?"
+      role="alertdialog"
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+    >
+      {({ close }) => (
+        <>
+          <p>
+            {quote.offer
+              ? `Your changes are lost. ${quote.client.name} keeps the quote you sent.`
+              : !quote.asked
+                ? "Nothing was asked for or sent, so the quote goes too."
+                : `The quote goes back to asked for, so you can draft it again. If ${quote.client.name} has asked for a ${quote.asked.service.name} again since, that one carries on and this one goes.`}
+          </p>
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              Keep it
+            </Button>
+            <Button
+              variant="danger"
+              isPending={action.isPending}
+              onPress={() => void remove(close)}
+            >
+              Delete the draft
+            </Button>
+          </Actions>
+        </>
+      )}
+    </Dialog>
   );
 }
 
 /**
- * Building a Revision, on a page of its own: the editor, its prices worked
- * out afresh from the Price List as it's changed, and what was asked beside
- * it. Sending it returns to the Quote. With no Draft, it's the Quote's page.
+ * Building a Revision, on a page of its own (a Form page, #434): the
+ * editor, its prices worked out afresh from the Price List as it's changed,
+ * beside it. Sending it returns to the Quote. With no Draft, it's the
+ * Quote's page.
  */
 export function QuoteDraftScreen() {
   const quote = useLoaderData({ from: "/office/quotes/$quoteId/draft" });
-  const draft = quote.draft!;
-  const kind = quoteKindName(quote.kind);
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <Breadcrumbs
-          trail={[
-            { label: "Quotes", href: linkTo({ to: "/office/quotes" }) },
-            ...homeCrumbs(quote.client, quote.property),
-            {
-              label: kind,
-              href: linkTo({
-                to: "/office/quotes/$quoteId",
-                params: { quoteId: quote.id },
-              }),
-            },
-            { label: "Draft quote" },
-          ]}
-        />
-        <div className="flex flex-wrap items-center gap-3">
-          <Heading level={1}>
-            Draft quote for {clientName(quote.client)}
-          </Heading>
-          <StatusBadge tone="neutral">Not sent yet</StatusBadge>
-          <div className="ml-auto">
-            <DeleteDraft quote={quote} />
-          </div>
-        </div>
-      </div>
-      {quote.offer && <Notice>{stillSees(quote.client.name)}</Notice>}
-      {quote.changesPlan && (
-        <Notice>
-          <PlanChangeText quote={shownOf(quote)} change={quote.changesPlan} />
-        </Notice>
-      )}
-      {quote.asked && <WhatWasAsked quote={quote} open />}
-      {quote.firstClean && <FirstCleanNote firstClean={quote.firstClean} />}
-      {/* a save gives fresh prices; the form keeps what's typed */}
-      <DraftEditor key={draft.id} quote={shownOf(quote)} />
-    </div>
-  );
+  // a save gives fresh prices; the form keeps what's typed
+  return <DraftEditor key={quote.draft!.id} loaded={quote} />;
 }
 
 type Moment = {
@@ -690,15 +662,9 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
 
 // what the Client (or a caller) asked for: open while the Quote's being
 // written from it, else folded away, the Quote saying what's offered
-function WhatWasAsked({
-  quote,
-  open = unsent(quote),
-}: {
-  quote: OfficeQuote;
-  open?: boolean;
-}) {
+function WhatWasAsked({ quote }: { quote: OfficeQuote }) {
   return (
-    <Fold label="What was asked" defaultOpen={open}>
+    <Fold label="What was asked" defaultOpen={unsent(quote)}>
       <Card>
         <AskedFacts quote={quote} />
       </Card>
@@ -850,37 +816,94 @@ function Offer({ quote, actions }: { quote: ShownQuote; actions?: ReactNode }) {
   );
 }
 
-// one part of the Revision being written, ruled off from the one before
-function DraftPart({
-  title,
-  description,
-  actions,
-  children,
+// What the Draft comes to as last saved, beside it (#434): each option's or
+// plan weekday's price, read-only, its working folded under it, then a
+// plan's week. Faded and busy while a change is saved; each price is set
+// in the part it prices
+function DraftPrices({
+  quote,
+  dayTitles,
+  stale,
 }: {
-  title: string;
-  description?: string;
-  actions?: ReactNode;
-  children?: ReactNode;
+  quote: ShownQuote;
+  // a plan's weekdays as they're on screen: "Mondays", "Weekday 2"
+  dayTitles: string[];
+  stale: boolean;
 }) {
-  const headingId = useId();
+  const { plan } = quote;
   return (
-    <section
-      aria-labelledby={headingId}
-      className="flex flex-col gap-4 border-t border-border pt-5 first:border-t-0 first:pt-0"
+    <div
+      aria-busy={stale}
+      className={`flex flex-col gap-5 [&>section+section]:border-t [&>section+section]:border-border [&>section+section]:pt-5 ${staleStyle(stale)}`}
     >
-      <header className="flex flex-wrap items-start gap-3">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <Heading level={2} size={3} id={headingId}>
-            {title}
-          </Heading>
-          {description && (
-            <p className="text-sm text-fg-muted">{description}</p>
-          )}
-        </div>
-        {actions && <div className="flex shrink-0 gap-2">{actions}</div>}
-      </header>
-      {children}
-    </section>
+      {/* as the sent Quote's Offer draws them: a plan's weekday or an option */}
+      {quote.options.map((option, i) => {
+        const day = plan?.days[i];
+        if (plan && !day) return null;
+        return (
+          <OfferPrice
+            key={option.serviceKey + String(i)}
+            title={
+              !plan
+                ? option.serviceName
+                : plan.days.length === 1
+                  ? `${option.serviceName}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`
+                  : `${dayTitles[i] ?? `Weekday ${i + 1}`}: ${option.serviceName}`
+            }
+            badge={
+              day ? (
+                <PlanSaving day={day} />
+              ) : (
+                option.recommended && (
+                  <StatusBadge tone="success">Recommended</StatusBadge>
+                )
+              )
+            }
+          >
+            <FoldedPrice
+              price={option}
+              working={option.suggested}
+              perClean={!!day}
+              under={
+                option.overrideCents !== null && <PricedFrom option={option} />
+              }
+            >
+              {day && plan ? (
+                <>
+                  <PlanRows
+                    option={option}
+                    day={day}
+                    discountPercent={plan.discountPercent}
+                  />
+                  <p className="text-sm text-fg-muted">
+                    The plan discount comes off the one-off price, whoever set
+                    it.
+                  </p>
+                </>
+              ) : (
+                <OptionRows
+                  option={option}
+                  crewSize={quote.crewSize}
+                  depositPercent={quote.depositPercent}
+                />
+              )}
+              <p className="text-sm text-fg-muted">
+                From your prices, version {quote.priceListVersion}.
+              </p>
+            </FoldedPrice>
+          </OfferPrice>
+        );
+      })}
+      {plan && (
+        <OfferPrice title={plan.days.length > 1 ? "Each week" : "Deposit"}>
+          <PlanTotals
+            plan={plan}
+            depositPercent={quote.depositPercent}
+            change={quote.changesPlan}
+          />
+        </OfferPrice>
+      )}
+    </div>
   );
 }
 
@@ -1233,7 +1256,8 @@ function RoomOnDay({
       className={`flex flex-col gap-3 ${staleStyle(stale)}`}
     >
       {problems.length === 0 ? (
-        <p className="text-sm text-fg-muted">
+        <p className="flex items-center gap-2 text-sm text-success-strong">
+          <CircleCheck aria-hidden size={16} className="shrink-0" />
           {formatDay(day)} has room for{" "}
           {options.length === 1 ? "it" : "either clean"}.
         </p>
@@ -1355,15 +1379,14 @@ function PlanTerms({
   );
 }
 
-// the Suggested Price, and the way to replace it with a price and a reason
+// the way to replace the Suggested Price with a price and a reason, in the
+// part it prices (the price and its working are beside the form)
 function OverrideFields({
-  option,
   override,
   label,
   name,
   onChange,
 }: {
-  option: OfficeQuoteOption;
   override: Override;
   // what the price is called: "Deep Clean", or a plan's "one-off"
   label: string;
@@ -1374,10 +1397,6 @@ function OverrideFields({
 }) {
   return (
     <>
-      {/* the price is in its field: only how it's worked out (WEB-B) */}
-      <Fold label="How it's worked out">
-        <PriceWorking breakdown={option.suggested} />
-      </Fold>
       <Checkbox isSelected={override.on} onChange={(on) => onChange({ on })}>
         Set the {label} price yourself
       </Checkbox>
@@ -1417,7 +1436,7 @@ type SaveState =
   | "failed";
 
 const saveStateLabel: Record<SaveState, string> = {
-  saved: "All changes saved",
+  saved: "Saved",
   changed: "Updating prices…",
   saving: "Updating prices…",
   incomplete: "Give a reason for the new price to update the prices",
@@ -1473,15 +1492,18 @@ function AreaField({
 
 /**
  * A Draft, saved and priced again by the server a moment after each change,
- * so the prices always follow what's on screen; a bar at the bottom keeps
+ * so the prices always follow what's on screen; the bar at the foot keeps
  * them in view wherever the change was made. On a Service Plan Quote, the
  * plan's Service is chosen from its price cards.
  */
-function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
+function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
   const navigate = useNavigate();
   const router = useRouter();
-  const [quote, setQuote] = useState(loaded);
-  const [fields, setFields] = useState(() => toFields(loaded));
+  // the Draft as last saved, and its revision as shown: what's said
+  // above the form (the plan it changes, from when) follows each save
+  const [draft, setDraft] = useState(loaded);
+  const quote = shownOf(draft);
+  const [fields, setFields] = useState(() => toFields(quote));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [failure, setFailure] = useState<string>();
   const [saveState, setSaveState] = useState<SaveState>("saved");
@@ -1552,12 +1574,10 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
       if (!again && edit === saved.current.edit) return saved.current.ok;
       setSaveState("saving");
       try {
-        setQuote(
-          shownOf(
-            await patchJson<OfficeQuote>(
-              `/api/quotes/${quote.id}/draft`,
-              toInput(latest.current),
-            ),
+        setDraft(
+          await patchJson<OfficeQuote>(
+            `/api/quotes/${quote.id}/draft`,
+            toInput(latest.current),
           ),
         );
         setFieldErrors({});
@@ -1635,6 +1655,58 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
     quote.serviceChoices.find(
       (s) => s.key === (plan?.serviceKey ?? fields.serviceKey),
     )?.method === "area";
+  const areaField = areaPriced && (
+    <AreaField
+      area={fields.area}
+      from={quote.areaFrom}
+      onChange={(area) => set({ area })}
+    />
+  );
+  const dayTitles = plan?.days.map(dayTitle) ?? [];
+  const extras = quote.addOnChoices
+    .filter((a) => fields.addOns.includes(a.key))
+    .map((a) => a.name);
+  const problems = [
+    failure && (
+      <Notice key="failure" tone="danger">
+        {failure}
+      </Notice>
+    ),
+    // a Quote goes by email, and is accepted signed in with it (#34)
+    !quote.client.email && (
+      <Notice key="email" tone="warning">
+        <p>
+          {noEmailYet(quote.client.name)} Add their email on{" "}
+          <Link
+            href={linkTo({
+              to: "/office/clients/$clientId",
+              params: { clientId: quote.client.id },
+            })}
+          >
+            their client page
+          </Link>
+          , then send it.
+        </p>
+      </Notice>
+    ),
+    // a Service seen first is seen before it's quoted (ADR-0018)
+    quote.needsSiteVisit && (
+      <Notice key="visit" tone="warning">
+        <p>
+          {notSeenYet(quote.property.kind)} Book one, or record what it found on{" "}
+          <Link
+            href={linkTo({
+              to: "/office/properties/$propertyId",
+              params: { propertyId: quote.property.id },
+            })}
+          >
+            the property page
+          </Link>
+          , then send it.
+        </p>
+      </Notice>
+    ),
+  ].filter(Boolean);
 
   return (
     <Form
@@ -1644,12 +1716,87 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
         void saveNow();
       }}
     >
-      {failure && <Notice tone="danger">{failure}</Notice>}
-
-      <Card>
+      <FormPage
+        trail={[
+          { label: "Quotes", href: linkTo({ to: "/office/quotes" }) },
+          ...homeCrumbs(draft.client, draft.property),
+          {
+            label: quoteKindName(draft.kind),
+            href: linkTo({
+              to: "/office/quotes/$quoteId",
+              params: { quoteId: draft.id },
+            }),
+          },
+          { label: "Draft quote" },
+        ]}
+        title={`Draft quote for ${clientName(draft.client)}`}
+        status={<StatusBadge tone="neutral">Not sent yet</StatusBadge>}
+        actions={[
+          {
+            label: "Delete draft",
+            icon: Trash2,
+            danger: true,
+            // never while it's being sent (docs/ux.md, Form page)
+            isPending: isSending,
+            dialog: (state) => <DeleteDraft quote={draft} {...state} />,
+          },
+        ]}
+        alerts={[
+          draft.offer && {
+            key: "sees",
+            children: stillSees(draft.client.name),
+          },
+          draft.changesPlan && {
+            key: "plan",
+            children: (
+              <PlanChangeText quote={quote} change={draft.changesPlan} />
+            ),
+          },
+        ]}
+        aside={{
+          title: "Prices",
+          leads: true,
+          children: (
+            <DraftPrices quote={quote} dayTitles={dayTitles} stale={stale} />
+          ),
+        }}
+        end={problems.length > 0 && problems}
+        // the prices stay in view wherever the change was made, in the
+        // app's one bar at a page's foot, clear of a phone's tab bar (#425)
+        footer={{
+          label: "Send the quote",
+          summary: priceSummary(quote),
+          status: saveStateLabel[saveState],
+          children: (
+            <Button
+              isPending={isSending}
+              isDisabled={!quote.client.email || quote.needsSiteVisit}
+              onPress={() => void onSend()}
+            >
+              {/* just Send, so a long name doesn't squeeze the prices; the
+                  heading names who it goes to, and so does this for a
+                  screen reader */}
+              Send<span className="sr-only"> to {quote.client.name}</span>
+            </Button>
+          ),
+        }}
+      >
+        {draft.asked && (
+          <FormPart title="What was asked" summary={askedSummary(draft)}>
+            <AskedFacts quote={draft} />
+          </FormPart>
+        )}
+        {draft.firstClean && (
+          <FormPart
+            title="First clean"
+            summary={firstCleanSummary(draft.firstClean)}
+          >
+            <FirstCleanFacts firstClean={draft.firstClean} />
+          </FormPart>
+        )}
         {plan ? (
           <>
-            <DraftPart
+            <FormPart
               title="Plan"
               actions={
                 <Button
@@ -1668,17 +1815,18 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
                 services={quote.serviceChoices}
                 onChange={(change) => setPlan(() => change)}
               />
-            </DraftPart>
+              {areaField}
+            </FormPart>
             {plan.days.map((day, i) => (
               <PlanDayFields
                 key={day.key}
                 index={i}
+                title={dayTitles[i]!}
                 day={day}
                 plan={plan}
                 stale={stale}
                 // as last saved, at the same place
                 option={quote.options[i]}
-                terms={quote.plan?.days[i]}
                 crew={
                   quote.options[i] && { quoteId: quote.id, weekday: i, saves }
                 }
@@ -1691,20 +1839,9 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
                 }
               />
             ))}
-            <DraftPart title={plan.days.length > 1 ? "Each week" : "Deposit"}>
-              {quote.plan && (
-                <div className={staleStyle(stale)} aria-busy={stale}>
-                  <PlanTotals
-                    plan={quote.plan}
-                    depositPercent={quote.depositPercent}
-                    change={quote.changesPlan}
-                  />
-                </div>
-              )}
-            </DraftPart>
           </>
         ) : (
-          <DraftPart title="Service and prices">
+          <FormPart title="Service">
             <Select
               label="Service"
               name="serviceKey"
@@ -1723,67 +1860,30 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
                 </SelectItem>
               ))}
             </Select>
-            {areaPriced && (
-              <AreaField
-                area={fields.area}
-                from={quote.areaFrom}
-                onChange={(area) => set({ area })}
-              />
-            )}
-            <div
-              aria-busy={stale}
-              className={`grid gap-6 lg:grid-cols-2 ${staleStyle(stale)}`}
-            >
-              {quote.options.map((option) => (
-                <OfferPrice
-                  key={option.serviceKey}
-                  title={option.serviceName}
-                  headingLevel={3}
-                  badge={
-                    option.recommended && (
-                      <StatusBadge tone="success">Recommended</StatusBadge>
-                    )
-                  }
-                >
-                  <OptionFigures
-                    option={option}
-                    crewSize={quote.crewSize}
-                    depositPercent={quote.depositPercent}
-                  />
-                  <OverrideFields
-                    option={option}
-                    override={overrideFor(option)}
-                    label={option.serviceName}
-                    name={`overrides.${option.serviceKey}`}
-                    onChange={(change) => setOverride(option, change)}
-                  />
-                </OfferPrice>
-              ))}
-            </div>
-            <p className="text-sm text-fg-muted">
-              Prices are worked out again from the current prices (version{" "}
-              {quote.priceListVersion}) and the home's details as you make
-              changes. Once it's sent, they stay as they are.
-            </p>
-          </DraftPart>
-        )}
-        {plan && areaPriced && (
-          <DraftPart title="Area">
-            <AreaField
-              area={fields.area}
-              from={quote.areaFrom}
-              onChange={(area) => set({ area })}
-            />
-          </DraftPart>
+            {areaField}
+            {quote.options.map((option) => (
+              // each option's own, so its "Why this price" is told apart
+              // from the other's
+              <div
+                key={option.serviceKey}
+                role="group"
+                aria-label={option.serviceName}
+                className="flex flex-col gap-4"
+              >
+                <OverrideFields
+                  override={overrideFor(option)}
+                  label={option.serviceName}
+                  name={`overrides.${option.serviceKey}`}
+                  onChange={(change) => setOverride(option, change)}
+                />
+              </div>
+            ))}
+          </FormPart>
         )}
 
-        <DraftPart
+        <FormPart
           title="Extras"
-          description={
-            quote.plan
-              ? "Done on every clean. Each adds its hours to the price, and the plan discount comes off it too."
-              : "Each adds its hours to the price of each service it goes with."
-          }
+          summary={extras.length > 0 ? extras.join(", ") : "None"}
         >
           <div className="flex flex-col">
             {quote.addOnChoices.map((addOn) => (
@@ -1802,11 +1902,20 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
               </Checkbox>
             ))}
           </div>
-        </DraftPart>
+        </FormPart>
 
-        <DraftPart title="Terms">
+        <FormPart
+          title="Terms"
+          summary={[
+            // each of a plan's weekdays has its own
+            !plan && cleaners(fields.crewSize),
+            `${fields.depositPercent}% deposit`,
+            `valid ${fields.validityDays} days`,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        >
           <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]">
-            {/* each of a plan's weekdays has its own */}
             {!plan && (
               <NumberField
                 label="Cleaners"
@@ -1834,14 +1943,12 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
               onChange={(validityDays) => set({ validityDays })}
             />
           </div>
-        </DraftPart>
+        </FormPart>
 
-        {/* a plan's weekdays each have their own, above */}
+        {/* a plan's weekdays each have their own, above; a time too soon
+            is the date's error when it's sent, the server's (WEB-D) */}
         {!plan && (
-          <DraftPart
-            title="Proposed time"
-            description={`New York time, more than ${CANCELLATION_CUTOFF_HOURS} hours away. If it isn't accepted first, the quote expires ${CANCELLATION_CUTOFF_HOURS} hours before it.`}
-          >
+          <FormPart title="Proposed time">
             <div className="grid gap-4 sm:grid-cols-2">
               <DatePicker
                 label="Date"
@@ -1873,72 +1980,17 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
                 stale={stale}
               />
             )}
-          </DraftPart>
+          </FormPart>
         )}
-      </Card>
-
-      {/* a Quote goes by email, and is accepted signed in with it (#34) */}
-      {!quote.client.email && (
-        <Notice tone="warning">
-          <p>
-            {noEmailYet(quote.client.name)} Add their email on{" "}
-            <Link
-              href={linkTo({
-                to: "/office/clients/$clientId",
-                params: { clientId: quote.client.id },
-              })}
-            >
-              their client page
-            </Link>
-            , then send it.
-          </p>
-        </Notice>
-      )}
-
-      {/* a Service seen first is seen before it's quoted (ADR-0018) */}
-      {quote.needsSiteVisit && (
-        <Notice tone="warning">
-          <p>
-            {notSeenYet(quote.property.kind)} Book one, or record what it found
-            on{" "}
-            <Link
-              href={linkTo({
-                to: "/office/properties/$propertyId",
-                params: { propertyId: quote.property.id },
-              })}
-            >
-              the property page
-            </Link>
-            , then send it.
-          </p>
-        </Notice>
-      )}
-
-      {/* the prices stay in view wherever the change was made, in the app's
-          one bar at a page's foot, clear of a phone's tab bar (#425) */}
-      <ActionFooter aria-label="Send the quote">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="font-semibold tabular-nums">
-            {priceSummary(quote)}
-          </span>
-          <span role="status" className="text-sm text-fg-muted">
-            {saveStateLabel[saveState]}
-          </span>
-        </div>
-        <Button
-          isPending={isSending}
-          isDisabled={!quote.client.email || quote.needsSiteVisit}
-          onPress={() => void onSend()}
-        >
-          {/* just Send, so a long name doesn't squeeze the prices; the
-              heading names who it goes to, and so does this for a screen
-              reader */}
-          Send<span className="sr-only"> to {quote.client.name}</span>
-        </Button>
-      </ActionFooter>
+      </FormPage>
     </Form>
   );
 }
+
+// a plan weekday's title, by its date as on screen: "Mondays", or
+// "Weekday 2" before it has one
+const dayTitle = (day: DayFields, index: number) =>
+  day.date ? `${weekdayName(day.date.toString())}s` : `Weekday ${index + 1}`;
 
 // A new weekday for a Service Plan Draft: like the last, on the day after
 // it if that's still within a week of the first, at the same time
@@ -1966,41 +2018,32 @@ const anotherDay = (days: DayFields[]): DayFields => {
 
 function PlanDayFields({
   index,
+  title,
   day,
   plan,
   stale,
   option,
-  terms,
   crew,
   onChange,
   onRemove,
 }: {
   index: number;
+  title: string;
   day: DayFields;
   plan: PlanFields;
   stale: boolean;
   option: OfficeQuoteOption | undefined;
   // whose crew its picker marks, once it's priced
   crew: Crew | undefined;
-  terms: PlanDayTerms | undefined;
   onChange: (change: Partial<DayFields>) => void;
   // none while it's the plan's only weekday
   onRemove: (() => void) | undefined;
 }) {
   const name = `plan.days.${index}`;
   const time = timeOfField(day.time);
-  const one = plan.days.length === 1;
-  const title = day.date
-    ? `${weekdayName(day.date.toString())}s`
-    : `Weekday ${index + 1}`;
   return (
-    <DraftPart
+    <FormPart
       title={title}
-      description={
-        one
-          ? `Its first clean, New York time. Then ${recurrenceLabel[plan.recurrence].toLowerCase()} on the same weekday. If it isn't accepted first, the quote expires ${CANCELLATION_CUTOFF_HOURS} hours before the plan's first clean.`
-          : "Its first clean, New York time. Then every week on the same weekday."
-      }
       actions={
         onRemove && (
           <Button variant="danger-text" size="sm" onPress={onRemove}>
@@ -2058,85 +2101,65 @@ function PlanDayFields({
           onChange={(crewSize) => onChange({ crewSize })}
         />
       </div>
-      {option && terms && (
-        <div aria-busy={stale} className={staleStyle(stale)}>
-          <OfferPrice
-            title={
-              one
-                ? `${option.serviceName}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`
-                : `${title}: ${option.serviceName}`
-            }
-            badge={<PlanSaving day={terms} />}
-          >
-            <PlanFigures
-              option={option}
-              day={terms}
-              discountPercent={plan.discountPercent}
-            />
-            <p className="text-sm text-fg-muted">
-              The plan discount comes off the one-off price, whoever set it.
-            </p>
-            <OverrideFields
-              option={option}
-              override={day.override}
-              label="one-off"
-              name={`${name}.override`}
-              onChange={(change) =>
-                onChange({ override: { ...day.override, ...change } })
-              }
-            />
-          </OfferPrice>
-        </div>
+      {/* its price is beside the form, with the rest */}
+      {option && (
+        <OverrideFields
+          override={day.override}
+          label="one-off"
+          name={`${name}.override`}
+          onChange={(change) =>
+            onChange({ override: { ...day.override, ...change } })
+          }
+        />
       )}
-    </DraftPart>
+    </FormPart>
   );
 }
 
-function FirstCleanNote({ firstClean }: { firstClean: FirstCleanFindings }) {
+// what the home's first clean found, in a line: "The home was heavy · 2
+// price changes"
+const firstCleanSummary = ({ condition, adjustments }: FirstCleanFindings) =>
+  [
+    `The home was ${conditionLabel[condition].toLowerCase()}`,
+    adjustments.length === 0
+      ? "no price changes"
+      : `${adjustments.length} price change${adjustments.length > 1 ? "s" : ""}`,
+  ].join(" · ");
+
+function FirstCleanFacts({ firstClean }: { firstClean: FirstCleanFindings }) {
   const { job } = firstClean;
   return (
-    <Fold
-      label={
-        <>
-          First clean: the home was{" "}
-          {conditionLabel[firstClean.condition].toLowerCase()}
-          {firstClean.adjustments.length > 0 &&
-            `, with ${firstClean.adjustments.length} price change${firstClean.adjustments.length > 1 ? "s" : ""}`}
-        </>
-      }
-    >
-      <Card>
-        <p className="text-sm text-fg-muted">
-          {job.serviceName} on {formatDateTime(job.startsAt)}, done{" "}
-          {formatDate(firstClean.completedAt)} ·{" "}
-          <Link
-            href={linkTo({
-              to: "/office/jobs/$jobId",
-              params: { jobId: job.id },
-            })}
-          >
-            See the job
-          </Link>
-        </p>
-        <p>
-          Its cleaners found the home{" "}
-          <strong>{conditionLabel[firstClean.condition].toLowerCase()}</strong>.
-        </p>
-        {firstClean.adjustments.length === 0 ? (
-          <p className="text-fg-muted">No price changes.</p>
-        ) : (
-          <List aria-label="Price changes at the first clean">
-            {firstClean.adjustments.map((a) => (
-              <ListItem
-                key={a.id}
-                id={a.id}
-                title={`${adjustmentLabel(a)}: ${formatMoney(a.totalCents)}`}
-                description={`"${a.reason}"`}
-              />
-            ))}
-          </List>
-        )}
-      </Card>
-    </Fold>
+    <>
+      <p className="text-sm text-fg-muted">
+        {job.serviceName} on {formatDateTime(job.startsAt)}, done{" "}
+        {formatDate(firstClean.completedAt)} ·{" "}
+        <Link
+          href={linkTo({
+            to: "/office/jobs/$jobId",
+            params: { jobId: job.id },
+          })}
+        >
+          See the job
+        </Link>
+      </p>
+      <p>
+        Its cleaners found the home{" "}
+        <strong>{conditionLabel[firstClean.condition].toLowerCase()}</strong>.
+      </p>
+      {firstClean.adjustments.length === 0 ? (
+        <p className="text-fg-muted">No price changes.</p>
+      ) : (
+        <List aria-label="Price changes at the first clean">
+          {firstClean.adjustments.map((a) => (
+            <ListItem
+              key={a.id}
+              id={a.id}
+              title={`${adjustmentLabel(a)}: ${formatMoney(a.totalCents)}`}
+              description={`"${a.reason}"`}
+            />
+          ))}
+        </List>
+      )}
+    </>
   );
 }
