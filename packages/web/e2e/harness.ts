@@ -510,9 +510,13 @@ export const expectNoPageAction = async (page: Page, name: string) => {
 // nightly: a screen that moves one fails these specs on its own PR. #444
 // moved Save card out of "Add a card" and only the nightly run saw it.
 
-// a Quote's form to pay its Deposit and book, and its button
-export const payAndBook = (page: Page) => {
-  const form = page.getByRole("region", { name: "Pay and book" });
+// a Quote's form to pay its Deposit and book, and its button; a plan's
+// Quote titles it for the plan
+export const payAndBook = (
+  page: Page,
+  title: "Pay and book" | "Pay and start your plan" = "Pay and book",
+) => {
+  const form = page.getByRole("region", { name: title });
   return {
     form,
     accept: form.getByRole("button", { name: /^Accept and pay \$/ }),

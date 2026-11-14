@@ -211,7 +211,10 @@ test(
     await expect(
       page.getByText(/^Please pay \$[\d.,]+ by Mon, Jan 26\.$/),
     ).toBeVisible();
-    await payThisBill(page).pay.click();
+    // the fake's form, in the part a card goes in
+    const { form, pay } = payThisBill(page);
+    await expect(form).toContainText("Test payments: no card or bank account");
+    await pay.click();
 
     await expect(page.getByText("Thank you, your bill is paid")).toBeVisible();
     await expect(badge(page, "Paid")).toBeVisible();
