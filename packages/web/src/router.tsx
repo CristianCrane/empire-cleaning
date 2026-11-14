@@ -61,6 +61,7 @@ import {
   useAppLanguage,
 } from "./language.ts";
 import { linkTo } from "./links.ts";
+import { SettingsPrototype } from "./screens/settings.prototype.tsx";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
 import { CleanerHome, yourJobsTiles } from "./screens/cleaner/CleanerHome.tsx";
 import { ConfirmEmail } from "./screens/ConfirmEmail.tsx";
@@ -870,8 +871,23 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: the Settings layout, on made-up data, signed out (#436)
+const settingsPrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/settings",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string } => ({
+    // ?case=1 arrives as a number
+    case: search.case === undefined ? undefined : String(search.case),
+    layout: search.layout === undefined ? undefined : String(search.layout),
+  }),
+  component: SettingsPrototype,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  settingsPrototypeRoute,
   signInRoute,
   signInLinkRoute,
   confirmEmailRoute,
