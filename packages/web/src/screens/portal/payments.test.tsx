@@ -56,7 +56,7 @@ describe("what a Client owes now", () => {
   test("nothing, with the card they pay with", () => {
     expect(moneyNow(data())).toEqual({
       owed: null,
-      paying: "Paying with Visa ending 4242",
+      paying: "Visa ending 4242",
       clearing: [],
     });
   });
@@ -79,6 +79,8 @@ describe("what a Client owes now", () => {
 
     expect(owed).toMatchObject({
       text: "We couldn't take payment for your Oct 20 clean",
+      // so their Home leads with what's next, not this
+      asks: false,
       action: {
         label: "See the clean",
         href: { to: "/portal/jobs/$jobId", params: { jobId: "job" } },
@@ -88,6 +90,7 @@ describe("what a Client owes now", () => {
 
   test("a Bill due on its page: pay it there", () => {
     const { owed } = moneyNow(data({ bills: [bill()] }));
+    expect(owed?.asks).toBe(true);
 
     expect(owed).toMatchObject({
       cents: 125350,

@@ -15,6 +15,7 @@ import {
   test,
   addCleaner,
   listRows,
+  openTile,
 } from "./harness.ts";
 
 // the API's fake clock is at 4am on Monday 5 January 2026 in New York. The
@@ -206,9 +207,9 @@ test("an Unassigned Job within 48 hours needs attention", async ({ page }) => {
   });
   await signInAsOffice(page);
 
-  const item = page
-    .getByRole("grid", { name: "Needs attention" })
-    .getByRole("row", { name: /Client/ });
+  const item = (await openTile(page, "Jobs")).getByRole("row", {
+    name: /Client/,
+  });
   await expect(item).toContainText("Find cleaners");
   await expect(item).toContainText("Tue, Jan 6, 9:00 AM");
   await item.click();
@@ -236,7 +237,10 @@ test(
     // only what's theirs: today's, large; the offered Job is under Offers
     const next = page.getByRole("region", { name: "Next up" });
     await expect(next).toContainText("3:00 PM");
-    await expect(page.getByRole("grid", { name: "Coming up" })).toHaveCount(0);
+    // nothing else coming up for them
+    await expect(
+      page.getByRole("button", { name: /^Coming up/ }),
+    ).toBeDisabled();
 
     await page
       .getByRole("link", { name: /^Offers/ })
@@ -263,8 +267,8 @@ test(
       page.getByRole("region", { name: "Offered to you" }),
     ).toHaveCount(0);
     await page.getByRole("link", { name: "Your jobs" }).first().click();
-    await expect(page.getByRole("grid", { name: "Coming up" })).toContainText(
-      "Thu, Jan 8, 9:00 AM",
+    await expect(await openTile(page, "Coming up")).toContainText(
+      "Thu 9:00 AM",
     );
   },
 );
@@ -390,7 +394,7 @@ test("the Job screens pass automated accessibility checks", async ({
   const asCory = await (await browser.newContext()).newPage();
   await signInAsCleaner(asCory, cory.email);
   await expect(
-    asCory.getByRole("heading", { name: "Your jobs" }),
+    asCory.getByRole("heading", { level: 1, name: "Hi, Cory" }),
   ).toBeVisible();
   await expectAccessible(asCory);
   await asCory.goto(`/cleaner/jobs/${job.id}`);

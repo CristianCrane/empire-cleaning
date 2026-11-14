@@ -12,6 +12,7 @@ import {
   saved,
   startOn,
   linkIn,
+  openTile,
 } from "./harness.ts";
 
 const olive = {
@@ -98,8 +99,9 @@ test(
     await firstCleanDone(page);
     // the dashboard nudges: Casey wanted regular visits
     await page.goto("/office");
-    await page
-      .getByRole("grid", { name: "Needs attention" })
+    await (
+      await openTile(page, "Quotes")
+    )
       .getByRole("row")
       .filter({ hasText: "Quote a cleaning plan" })
       .click();

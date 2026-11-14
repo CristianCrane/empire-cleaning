@@ -3,7 +3,8 @@ import { atTime } from "@empire-cleaning/models";
 import { validate } from "../../middleware/validation.ts";
 import { authorize } from "../auth/authorize.ts";
 import { roomOn, startsWithoutCrew } from "./rules.ts";
-import { roomFor, scheduleFor } from "./schedule.ts";
+import { clock } from "../../services/clock/index.ts";
+import { roomFor, scheduleFor, scheduleOn } from "./schedule.ts";
 import {
   capacitySchema,
   rangeSchema,
@@ -18,6 +19,12 @@ router.use(authorize("office_staff"));
 router.get("/", validate({ query: rangeSchema }), async (req, res) => {
   const { from, to } = req.query;
   res.json(await scheduleFor(from, to));
+});
+
+// GET /api/schedule/today: the day it is now in New York, by the server's
+// clock (Today's On today tile)
+router.get("/today", async (_req, res) => {
+  res.json(await scheduleOn(clock.now()));
 });
 
 // GET /api/schedule/capacity?date=2026-11-03&time=09:00&labourHours=4.5&crewSize=2

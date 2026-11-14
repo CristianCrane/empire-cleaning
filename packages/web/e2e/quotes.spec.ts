@@ -17,6 +17,7 @@ import {
   linkIn,
   pageAction,
   expectNoPageAction,
+  openTile,
 } from "./harness.ts";
 
 const olive = {
@@ -390,17 +391,16 @@ test("a Quote about to Expire needs attention", async ({ page }) => {
   await proposeNextMonday(page);
   await send(page);
   await page.goto("/office");
-  await expect(
-    page.getByRole("grid", { name: "Needs attention" }),
-  ).not.toContainText(casey.name);
+  // nothing for Quotes needs the Office yet
+  await expect(page.getByRole("button", { name: /^Quotes/ })).toBeDisabled();
 
   // a day before it Expires, 24 hours before the proposed time
   await setClock("2026-01-10T14:00:00Z");
   await page.reload();
 
-  const item = page
-    .getByRole("grid", { name: "Needs attention" })
-    .getByRole("row", { name: new RegExp(casey.name) });
+  const item = (await openTile(page, "Quotes")).getByRole("row", {
+    name: new RegExp(casey.name),
+  });
   await expect(item).toContainText("Follow up before it expires");
   await expect(item).toContainText("expires Sun, Jan 11, 9:00 AM");
   await item.click();

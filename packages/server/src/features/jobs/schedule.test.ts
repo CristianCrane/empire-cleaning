@@ -105,6 +105,21 @@ describe("the Schedule", () => {
     });
   });
 
+  test("gives today, by the server's clock in New York", async () => {
+    const office = await signInAsOffice();
+    const today = await bookedJob({
+      startsAt: "2026-01-05T14:00:00Z", // 9am on the clock's Monday
+      labourHours: 2,
+    });
+    await bookedJob({ startsAt: "2026-01-06T14:00:00Z", labourHours: 2 });
+
+    const day = (await office.get("/api/schedule/today").expect(200))
+      .body as ScheduleDay;
+
+    expect(day.date).toBe("2026-01-05");
+    expect(day.jobs.map((j) => j.id)).toEqual([today.id]);
+  });
+
   test("puts a Job on its day in New York, not in UTC", async () => {
     const office = await signInAsOffice();
     // 9pm on the 6th in New York is 2am on the 7th in UTC

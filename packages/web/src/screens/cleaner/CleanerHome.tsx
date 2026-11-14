@@ -1,19 +1,30 @@
-import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import { CalendarDays, Navigation, Phone } from "lucide-react";
+import {
+  useLoaderData,
+  useNavigate,
+  useRouteContext,
+  useSearch,
+} from "@tanstack/react-router";
+import {
+  CalendarDays,
+  CircleCheck,
+  Inbox,
+  Navigation,
+  Phone,
+} from "lucide-react";
 import type { CleanerJob, CleanerSiteVisit } from "@empire-cleaning/models";
 import { catalog, HOUR_MS } from "@empire-cleaning/models";
 import {
+  AnswerCard,
   Button,
+  ButtonLink,
   buttonStyles,
-  Card,
   DateTile,
-  EmptyState,
-  Heading,
-  List,
-  ListItem,
-  Section,
+  HomePage,
+  IconTile,
   StatusBadge,
+  type ListRow,
 } from "@empire-cleaning/ui";
+import { linkTo } from "../../links.ts";
 import {
   addressOf,
   clientName,
@@ -28,8 +39,10 @@ import { type Said, useSaid, useShared } from "../words.ts";
 const words = catalog({
   en: {
     nothingYet: "Nothing booked for you yet",
-    nothingYetText:
-      "Jobs you're on show here, the next one first. Jobs you can take are under Offers.",
+    byKind: "Your jobs, by kind",
+    seeOffers: (n: number) => (n === 1 ? "See 1 offer" : `See ${n} offers`),
+    nextAt: (when: string) => `Next ${when}`,
+    waiting: (n: number) => (n === 0 ? "None right now" : "Waiting on you"),
     comingUp: "Coming up",
     doneToday: "Done today",
     now: "Now",
@@ -40,8 +53,11 @@ const words = catalog({
   },
   es: {
     nothingYet: "Todavía no tienes nada reservado",
-    nothingYetText:
-      "Aquí aparecen tus trabajos, el próximo primero. Los que puedes tomar están en Ofertas.",
+    byKind: "Tus trabajos, por tipo",
+    seeOffers: (n: number) => (n === 1 ? "Ver 1 oferta" : `Ver ${n} ofertas`),
+    nextAt: (when: string) => `Próximo: ${when}`,
+    waiting: (n: number) =>
+      n === 0 ? "Ninguna por ahora" : "Esperan tu respuesta",
     comingUp: "Próximos",
     doneToday: "Terminados hoy",
     now: "Ahora",
@@ -99,12 +115,19 @@ const whenOf = (t: Said, item: Item) =>
     ? `${t.today}, ${t.formatTime(item.startsAt)}`
     : t.formatDateTime(item.startsAt);
 
-// The Cleaner area's first screen, only what's theirs (UX pass, #96): the
-// next Job large, its time first, with Directions and the way in right
-// there; then the rest coming up, and what they've done today. Jobs
-// offered or open to them are under Offers.
+// Your jobs' tiles that open in place, as its URL names them
+export const yourJobsTiles = ["coming", "done"] as const;
+
+// The Cleaner area's first screen, a Home (docs/ux.md, Screen types), only
+// what's theirs (UX pass, #96): the next Job large, its time first, with
+// Directions and the way in right there; then tiles for the rest coming
+// up, what they've done today, and Offers, the Jobs offered or open to them
 export function CleanerHome() {
-  const { today, upcoming, siteVisits } = useLoaderData({ from: "/cleaner/" });
+  const { today, upcoming, siteVisits, offers } = useLoaderData({
+    from: "/cleaner/",
+  });
+  const { account } = useRouteContext({ from: "/cleaner" });
+  const { open } = useSearch({ from: "/cleaner/" });
   const navigate = useNavigate();
   const t = useSaid(words);
   const { w } = t;
@@ -143,31 +166,62 @@ export function CleanerHome() {
     (i) => !(i.kind === "job" && i.job.outcome),
   );
 
+  const offersHref = linkTo({ to: "/cleaner/offers" });
+
   return (
-    <div className="flex flex-col gap-6">
-      <Heading level={1} inBar>
-        {t.c.yourJobs}
-      </Heading>
-      {next ? (
-        <NextUp item={next} openJob={openJob} />
-      ) : (
-        <EmptyState
-          icon={CalendarDays}
-          title={w.nothingYet}
-          description={w.nothingYetText}
-        />
-      )}
-      {rest.length > 0 && (
-        <Section title={w.comingUp}>
-          <Rows label={w.comingUp} items={rest} openJob={openJob} />
-        </Section>
-      )}
-      {done.length > 0 && (
-        <Section title={w.doneToday}>
-          <Rows label={w.doneToday} items={done} openJob={openJob} />
-        </Section>
-      )}
-    </div>
+    <HomePage
+      greet={account.name}
+      answer={
+        next ? (
+          <NextUp item={next} openJob={openJob} />
+        ) : (
+          <AnswerCard
+            tile={<IconTile icon={CircleCheck} tone="success" size="lg" />}
+            headline={w.nothingYet}
+            actions={
+              offers > 0 && (
+                <ButtonLink href={offersHref}>{w.seeOffers(offers)}</ButtonLink>
+              )
+            }
+          />
+        )
+      }
+      tilesLabel={w.byKind}
+      tiles={[
+        {
+          id: "coming",
+          icon: CalendarDays,
+          label: w.comingUp,
+          count: rest.length,
+          hint: rest[0] && w.nextAt(whenOf(t, rest[0])),
+          rows: rest.map((item) => rowOf(t, item, openJob)),
+        },
+        {
+          id: "done",
+          icon: CircleCheck,
+          label: w.doneToday,
+          count: done.length,
+          rows: done.map((item) => rowOf(t, item, openJob)),
+        },
+        {
+          id: "offers",
+          icon: Inbox,
+          label: t.c.offers,
+          hint: `${offers} · ${w.waiting(offers)}`,
+          href: offersHref,
+        },
+      ]}
+      open={open}
+      onOpen={(id) =>
+        void navigate({
+          to: "/cleaner",
+          search: {
+            open: yourJobsTiles.find((tile) => tile === id),
+          },
+          replace: true,
+        })
+      }
+    />
   );
 }
 
@@ -189,111 +243,82 @@ function NextUp({
   const { w } = t;
 
   return (
-    <Section title={job?.started ? w.now : t.c.nextUp}>
-      <Card>
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
-          <DateTile date={item.startsAt} />
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <p className="text-3xl font-semibold text-fg tabular-nums">
-              {t.formatTime(item.startsAt)}
-            </p>
-            <p className="text-sm text-fg-muted">
-              {item.today ? t.today : t.formatDay(dayOfInstant(item.startsAt))},{" "}
-              {job
-                ? untilAbout(t, job.startsAt, job.hoursOnSite)
-                : untilAbout(t, visit!.startsAt, visit!.minutes / 60)}
-            </p>
-            <p className="mt-2 text-lg font-semibold text-fg [overflow-wrap:anywhere]">
-              {address}
-            </p>
-            <p className="text-fg-muted">
-              {job
-                ? [
-                    job.serviceName,
-                    t.c.hoursOnSite(formatHours(job.hoursOnSite)),
-                    ...(others > 1 ? [w.crewOf(others)] : []),
-                  ].join(" · ")
-                : `${w.siteVisitFor(clientName(visit!.client))} · ${w.toSeeIt(formatMinutes(visit!.minutes))}`}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2 sm:flex-col sm:items-stretch">
+    <AnswerCard
+      tile={<DateTile date={item.startsAt} />}
+      label={job?.started ? w.now : t.c.nextUp}
+      headline={
+        <span className="tabular-nums">{t.formatTime(item.startsAt)}</span>
+      }
+      lines={[
+        `${item.today ? t.today : t.formatDay(dayOfInstant(item.startsAt))}, ${
+          job
+            ? untilAbout(t, job.startsAt, job.hoursOnSite)
+            : untilAbout(t, visit!.startsAt, visit!.minutes / 60)
+        }`,
+        address,
+        job
+          ? [
+              job.serviceName,
+              t.c.hoursOnSite(formatHours(job.hoursOnSite)),
+              ...(others > 1 ? [w.crewOf(others)] : []),
+            ].join(" · ")
+          : `${w.siteVisitFor(clientName(visit!.client))} · ${w.toSeeIt(formatMinutes(visit!.minutes))}`,
+      ]}
+      actions={
+        <>
+          <a
+            className={buttonStyles({ variant: "secondary" })}
+            href={directionsTo(address)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Navigation aria-hidden size={18} />
+            {t.c.directions}
+          </a>
+          {job ? (
+            <Button onPress={() => openJob(job.id)}>{t.c.openJob}</Button>
+          ) : (
             <a
-              className={buttonStyles({ variant: "secondary" })}
-              href={directionsTo(address)}
-              target="_blank"
-              rel="noreferrer"
+              className={buttonStyles({ variant: "primary" })}
+              href={`tel:${visit!.client.phone}`}
             >
-              <Navigation aria-hidden size={18} />
-              {t.c.directions}
+              <Phone aria-hidden size={18} />
+              {w.call(clientName(visit!.client))}
             </a>
-            {job ? (
-              <Button onPress={() => openJob(job.id)}>{t.c.openJob}</Button>
-            ) : (
-              <a
-                className={buttonStyles({ variant: "primary" })}
-                href={`tel:${visit!.client.phone}`}
-              >
-                <Phone aria-hidden size={18} />
-                {w.call(clientName(visit!.client))}
-              </a>
-            )}
-          </div>
-        </div>
-      </Card>
-    </Section>
+          )}
+        </>
+      }
+    />
   );
 }
 
-// a row each, its day and time first; a Site Visit has no page of its own
-function Rows({
-  label,
-  items,
-  openJob,
-}: {
-  label: string;
-  items: Item[];
-  openJob: (id: string) => void;
-}) {
-  const t = useSaid(words);
-  const jobs = new Set(
-    items.flatMap((i) => (i.kind === "job" ? [i.job.id] : [])),
-  );
-  return (
-    <List
-      aria-label={label}
-      onAction={(id) => {
-        if (jobs.has(String(id))) openJob(String(id));
-      }}
-    >
-      {items.map((item) =>
-        item.kind === "job" ? (
-          <ListItem
-            key={item.job.id}
-            id={item.job.id}
-            start={<DateTile date={item.startsAt} size="sm" />}
-            title={whenOf(t, item)}
-            description={`${addressOf(item.job.property)} · ${item.job.serviceName}, ${formatHours(item.job.hoursOnSite)}`}
-            end={
-              item.job.outcome ? <CleanerJobBadge job={item.job} /> : undefined
-            }
-          />
-        ) : (
-          <ListItem
-            key={item.visit.id}
-            id={item.visit.id}
-            start={<DateTile date={item.startsAt} size="sm" />}
-            title={whenOf(t, item)}
-            description={[
-              addressOf(item.visit.property),
-              `${clientName(item.visit.client)}, ${item.visit.client.phone}`,
-              item.visit.property.accessInstructions,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-            end={<StatusBadge tone="info">{t.siteVisit}</StatusBadge>}
-          />
-        ),
-      )}
-    </List>
-  );
-}
+// a row each (DatedItem), its day and time first, then where; a Site Visit
+// has no page of its own
+const rowOf = (t: Said, item: Item, openJob: (id: string) => void): ListRow =>
+  item.kind === "job"
+    ? {
+        id: item.job.id,
+        at: item.startsAt,
+        title: addressOf(item.job.property),
+        description: `${item.job.serviceName}, ${formatHours(item.job.hoursOnSite)}`,
+        badges: [
+          item.job.outcome && <CleanerJobBadge key="outcome" job={item.job} />,
+        ],
+        onOpen: () => openJob(item.job.id),
+      }
+    : {
+        id: item.visit.id,
+        at: item.startsAt,
+        title: addressOf(item.visit.property),
+        description: [
+          `${clientName(item.visit.client)}, ${item.visit.client.phone}`,
+          item.visit.property.accessInstructions,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        badges: [
+          <StatusBadge key="visit" tone="info">
+            {t.siteVisit}
+          </StatusBadge>,
+        ],
+      };

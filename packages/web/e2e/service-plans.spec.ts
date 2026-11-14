@@ -11,6 +11,7 @@ import {
   signedInAs,
   test,
   linkIn,
+  openTile,
 } from "./harness.ts";
 
 const olive = {
@@ -148,8 +149,9 @@ test("the Office records a plan's acceptance, then books a visit its day had no 
   ).toBeVisible();
 
   await page.goto("/office");
-  await page
-    .getByRole("grid", { name: "Needs attention" })
+  await (
+    await openTile(page, "Jobs")
+  )
     .getByRole("row")
     .filter({ hasText: "Cleaning plan visit on Mon, Feb 2" })
     .click();

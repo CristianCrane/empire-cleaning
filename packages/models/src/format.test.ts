@@ -1,5 +1,11 @@
 import { describe, expect, test } from "vitest";
-import { formats, oneStop, stopAfter, theTimeEs } from "./format.ts";
+import {
+  firstNameOf,
+  formats,
+  oneStop,
+  stopAfter,
+  theTimeEs,
+} from "./format.ts";
 
 const { en, es } = formats;
 // 9:00am in New York on Monday, January 12, 2026
@@ -92,4 +98,10 @@ test("theTimeEs says one o'clock with la, the rest with las", () => {
   expect(theTimeEs("1:30 p.m.")).toBe("la 1:30 p.m.");
   expect(theTimeEs("9:00 a.m.")).toBe("las 9:00 a.m.");
   expect(theTimeEs("11:00 a.m.")).toBe("las 11:00 a.m.");
+});
+
+test("a person's first name is what's before the first space", () => {
+  expect(firstNameOf("Casey Client")).toBe("Casey");
+  expect(firstNameOf("Jen")).toBe("Jen");
+  expect(firstNameOf("María José Pérez")).toBe("María");
 });

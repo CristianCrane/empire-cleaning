@@ -121,8 +121,8 @@ const data = (over: Partial<HomeData> = {}): HomeData => ({
 });
 
 const next = (over: Partial<HomeData> = {}) => whatsNext(data(over), "en", NOW);
-const shortcutLabels = (over: Partial<HomeData> = {}) =>
-  next(over).shortcuts.map((s) => s.label);
+const tileLabels = (over: Partial<HomeData> = {}) =>
+  next(over).tiles.map((s) => s.label);
 
 describe("Home's hero, with nothing booked", () => {
   test("welcomes a Client who's asked for nothing yet", () => {
@@ -131,11 +131,11 @@ describe("Home's hero, with nothing booked", () => {
       headline: "Let's get you a quote",
       action: { label: "Request a quote" },
     });
-    expect(shortcutLabels()).toEqual(["Your details", "Call us"]);
+    expect(tileLabels()).toEqual(["Your details", "Call us"]);
   });
 
   test("says a Quote asked for is being prepared", () => {
-    const { hero, shortcuts } = next({ quotes: [quote()] });
+    const { hero, tiles } = next({ quotes: [quote()] });
     expect(hero).toMatchObject({
       label: "Your quote",
       headline: "We're working on it",
@@ -145,7 +145,7 @@ describe("Home's hero, with nothing booked", () => {
       ],
       action: { label: "See what you asked for" },
     });
-    expect(shortcuts[0]).toMatchObject({
+    expect(tiles[0]).toMatchObject({
       label: "How we get in",
       hint: "Key under the mat",
     });
@@ -161,7 +161,7 @@ describe("Home's hero, with nothing booked", () => {
   });
 
   test("leads with a Quote that's ready", () => {
-    const { hero, notices } = next({ quotes: [sentQuote] });
+    const { hero, tiles } = next({ quotes: [sentQuote] });
     expect(hero).toMatchObject({
       label: "Your quote is ready",
       headline: "Deep Clean $391.04",
@@ -171,7 +171,12 @@ describe("Home's hero, with nothing booked", () => {
       ],
       action: { label: "See your quote" },
     });
-    expect(notices).toEqual([]);
+    // the hero's, so not a tile too
+    expect(tiles.map((s) => s.label)).toEqual([
+      "How we get in",
+      "Your details",
+      "Call us",
+    ]);
   });
 
   test("names the Service a one-off Quote leads with", () => {
@@ -212,7 +217,7 @@ describe("Home's hero, with nothing booked", () => {
       lines: ["Your last clean was Tue, Oct 20."],
       action: { label: "Request a quote" },
     });
-    expect(shortcutLabels({ pastJobs: [pastJob()] })).toEqual([
+    expect(tileLabels({ pastJobs: [pastJob()] })).toEqual([
       "Past cleans",
       "Your details",
       "Call us",
@@ -249,30 +254,45 @@ describe("Home's hero, with nothing booked", () => {
     });
   });
 
-  test("says a Service Plan is paused until it's paid", () => {
+  test("leads with what's owed when a Service Plan is paused for it", () => {
     const paused = next({
       plans: [plan({ status: "on_hold", nextStartsAt: null })],
-      pastJobs: [pastJob({ unpaid: "declined" })],
+      pastJobs: [pastJob({ unpaid: "declined", owedCents: 18450 })],
     });
     expect(paused.hero).toMatchObject({
-      label: "Your cleaning plan is paused",
-      tone: "warning",
-      headline: "Update your card to carry on",
+      label: "To pay",
+      tone: "danger",
+      headline: "$184.50",
+      lines: [
+        expect.stringContaining("Oct 20"),
+        "Once it's paid, your plan carries on from its next date.",
+      ],
       action: { label: "Update your card" },
     });
-    // said once, in the hero
-    expect(paused.notices).toEqual([]);
-    expect(paused.shortcuts.map((s) => s.label)).toEqual([
-      "Update your card",
+    // the card's Button, so not a tile too
+    expect(paused.tiles.map((s) => s.label)).toEqual([
       "Past cleans",
       "Call us",
     ]);
   });
+
+  test("says a Service Plan is paused on a payment the service is trying again", () => {
+    expect(
+      next({
+        plans: [plan({ status: "on_hold", nextStartsAt: null })],
+        pastJobs: [pastJob({ unpaid: "waiting", owedCents: 18450 })],
+      }).hero,
+    ).toMatchObject({
+      label: "Your cleaning plan is paused",
+      headline: "A payment is due",
+      action: { label: "See your plan" },
+    });
+  });
 });
 
 describe("Home's hero, with something booked", () => {
-  test("leads with the next clean, its plan, and what comes after", () => {
-    const { hero, after, shortcuts } = next({
+  test("leads with the next clean and its plan", () => {
+    const { hero, tiles } = next({
       plans: [plan()],
       jobs: [
         job({ servicePlanId: "plan" }),
@@ -291,8 +311,7 @@ describe("Home's hero, with something booked", () => {
       ],
       action: { label: "See the clean" },
     });
-    expect(after).toBe("After that: Standard Clean, Tue, Nov 17, 9:00 AM");
-    expect(shortcuts.map((s) => [s.label, s.hint])).toEqual([
+    expect(tiles.map((s) => [s.label, s.hint])).toEqual([
       ["Move or skip", "Your Tue, Nov 3 clean"],
       ["How we get in", "Key under the mat"],
       ["Your card", "Visa ending 4242"],
@@ -301,9 +320,9 @@ describe("Home's hero, with something booked", () => {
   });
 
   test("calls a home's first one-off clean its first", () => {
-    const { hero, shortcuts } = next({ jobs: [job()] });
+    const { hero, tiles } = next({ jobs: [job()] });
     expect(hero.label).toBe("Your first clean");
-    expect(shortcuts[0]!.label).toBe("Move or cancel");
+    expect(tiles[0]!.label).toBe("Move or cancel");
   });
 
   test("leads with a Site Visit when it's sooner", () => {
@@ -314,11 +333,11 @@ describe("Home's hero, with something booked", () => {
   });
 
   test("says a clean is today, without offering to move it", () => {
-    const { hero, shortcuts } = next({
+    const { hero, tiles } = next({
       jobs: [job({ startsAt: "2026-11-01T19:00:00.000Z" })],
     });
     expect(hero).toMatchObject({ label: "Today", headline: "2:00 PM" });
-    expect(shortcuts.map((s) => s.label)).toEqual([
+    expect(tiles.map((s) => s.label)).toEqual([
       "Call us",
       "How we get in",
       "Your card",
@@ -326,80 +345,94 @@ describe("Home's hero, with something booked", () => {
   });
 
   test("tells a Client a move they asked for is waiting on us", () => {
-    const { news, shortcuts } = next({
+    const { news, tiles } = next({
       jobs: [job({ movingTo: "2026-11-04T19:00:00.000Z" })],
     });
     expect(news).toEqual([
       "You asked to move your Tue, Nov 3 clean to Wed, Nov 4, 2:00 PM. We'll confirm, usually within a working day.",
     ]);
-    expect(shortcuts[0]).toMatchObject({
+    expect(tiles[0]).toMatchObject({
       label: "Your move request",
       hint: "To Wed, Nov 4, 2:00 PM",
     });
   });
 });
 
-describe("Home's Notices: what's waiting on the Client", () => {
+describe("Home's tiles: what's waiting on the Client comes first", () => {
   test("a Quote ready while something's booked", () => {
-    expect(next({ jobs: [job()], quotes: [sentQuote] }).notices).toEqual([
-      expect.objectContaining({
-        text: "Your quote is ready: Deep Clean $391.04.",
-        action: "See your quote",
-      }),
+    const { tiles } = next({ jobs: [job()], quotes: [sentQuote] });
+    expect(tiles[0]).toMatchObject({
+      label: "See your quote",
+      hint: "Deep Clean $391.04",
+    });
+    // never cut: a shortcut gives way, four in all
+    expect(tiles.map((s) => s.label)).toEqual([
+      "See your quote",
+      "Move or cancel",
+      "How we get in",
+      "Your card",
     ]);
   });
 
   test("a price change to agree to", () => {
     expect(
       next({ jobs: [job()], pastJobs: [pastJob({ awaitingAnswer: 1 })] })
-        .notices,
-    ).toEqual([
-      expect.objectContaining({
-        text: "Your Tue, Oct 20 clean needs your OK on a price change.",
-        action: "Review it",
-      }),
-    ]);
+        .tiles[0],
+    ).toMatchObject({
+      label: "Review a price change",
+      hint: "Your Tue, Oct 20 clean",
+    });
   });
+});
 
-  test("an Unpaid clean pausing a plan is one Notice", () => {
-    const { notices, hero, shortcuts } = next({
+describe("Home's card: what's owed first, when it asks anything of them", () => {
+  test("an Unpaid clean pausing a plan, while a clean is booked", () => {
+    const { hero, tiles } = next({
       plans: [plan({ status: "on_hold" })],
       jobs: [job({ servicePlanId: "plan" })],
-      pastJobs: [pastJob({ unpaid: "declined" })],
+      pastJobs: [pastJob({ unpaid: "declined", owedCents: 18450 })],
     });
-    expect(notices).toEqual([
-      expect.objectContaining({
-        text: "We couldn't take payment for your Tue, Oct 20 clean. Cleans already booked still go ahead, but we won't book any more.",
-        action: "Update your card",
-      }),
-    ]);
-    expect(hero.label).toBe("Your next clean");
-    expect(shortcuts[2]).toMatchObject({ label: "Update your card" });
+    expect(hero).toMatchObject({
+      label: "To pay",
+      lines: [
+        expect.stringContaining("Oct 20"),
+        "Cleans already booked still go ahead, but we won't book any more.",
+      ],
+      action: { label: "Update your card" },
+    });
+    expect(tiles.map((s) => s.label)).not.toContain("Your card");
   });
 
   test("a clean waiting on the payment service asks nothing of them", () => {
-    const { notices, shortcuts } = next({
-      pastJobs: [pastJob({ unpaid: "waiting" })],
+    const { hero, tiles } = next({
+      jobs: [job()],
+      pastJobs: [pastJob({ unpaid: "waiting", owedCents: 18450 })],
     });
-    expect(notices).toEqual([]);
-    expect(shortcuts.map((s) => s.label)).not.toContain("Update your card");
+    expect(hero.label).toBe("Your next clean");
+    expect(tiles.find((s) => s.label === "Your card")).toMatchObject({
+      hint: "Visa ending 4242",
+    });
   });
 
   test("a Bill due on its page, or Unpaid", () => {
-    expect(next({ jobs: [job()], bills: [bill()] }).notices).toEqual([
-      expect.objectContaining({
-        text: "Bill EC-000041, $214.50, is due by Sat, Nov 14.",
-        action: "Pay the bill",
-      }),
-    ]);
+    expect(next({ jobs: [job()], bills: [bill()] }).hero).toMatchObject({
+      label: "To pay",
+      headline: "$214.50",
+      lines: ["Bill EC-000041 is due by Nov 14"],
+      action: { label: "Pay bill EC-000041" },
+    });
     expect(
       next({
         bills: [bill({ unpaid: { since: "", kind: "declined", why: null } })],
-      }).notices[0],
-    ).toMatchObject({ action: "See the bill" });
+      }).hero,
+    ).toMatchObject({
+      tone: "danger",
+      action: { label: "Pay bill EC-000041" },
+    });
     // charged automatically: nothing to do
-    expect(next({ bills: [bill({ payment: "automatic" })] }).notices).toEqual(
-      [],
-    );
+    expect(
+      next({ jobs: [job()], bills: [bill({ payment: "automatic" })] }).hero
+        .label,
+    ).toBe("Your first clean");
   });
 });

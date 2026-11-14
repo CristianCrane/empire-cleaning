@@ -1,13 +1,22 @@
-import { useEffect, useState } from "react";
-import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
+import { useEffect } from "react";
+import {
+  useLoaderData,
+  useNavigate,
+  useRouteContext,
+  useRouter,
+  useSearch,
+} from "@tanstack/react-router";
 import type {
   NeedsAttentionItem,
   NeedsAttentionKind,
+  ScheduleDay,
 } from "@empire-cleaning/models";
 import { MINUTE_MS, formats } from "@empire-cleaning/models";
 import {
   CalendarClock,
+  CalendarDays,
   CalendarX,
+  CircleCheck,
   CircleDollarSign,
   CirclePause,
   ClipboardList,
@@ -18,16 +27,17 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
+  AnswerCard,
   Button,
-  CountTile,
-  CountTiles,
-  Heading,
+  HomePage,
   IconTile,
-  List,
-  ListItem,
-  Section,
+  Link,
+  type HomeTile,
+  type ListRow,
   type StatusTone,
 } from "@empire-cleaning/ui";
+import { linkTo } from "../../links.ts";
+import { CrewBadge } from "../JobBadges.tsx";
 import { JobIcon, QuoteIcon } from "../icons.ts";
 import { billWeek } from "../BillParts.tsx";
 import { addressOf, clientName } from "../format.ts";
@@ -41,10 +51,25 @@ const { formatDate, formatDateTime, formatDay, formatMoney, formatList } =
 // Coming back to the tab asks at once (main.tsx)
 const REFRESH_MS = MINUTE_MS;
 
-// the Office's first screen: what's waiting on them, counted by kind (Jobs,
-// Quotes, Money) above the list. The day's Jobs are on the Schedule
+// Today's tiles that open in place, as its URL names them
+export const todayTiles = ["today", "jobs", "quotes", "money"] as const;
+type Tile = (typeof todayTiles)[number];
+
+export type TodayData = {
+  needsAttention: NeedsAttentionItem[];
+  // the Schedule's day, today by the server's clock
+  today: ScheduleDay;
+};
+
+// the Office's first screen, a Home (docs/ux.md, Screen types): what needs
+// them first, in its card, the server's first to-do (it puts them in the
+// order to deal with them); then the day's Jobs, and every to-do by kind,
+// Jobs, Quotes and Money, in tiles
 export function Dashboard() {
-  const needsAttention = useLoaderData({ from: "/office/" });
+  const { needsAttention, today } = useLoaderData({ from: "/office/" });
+  const { account } = useRouteContext({ from: "/office" });
+  const { open } = useSearch({ from: "/office/" });
+  const navigate = useNavigate();
   const router = useRouter();
   useEffect(() => {
     const timer = setInterval(() => {
@@ -53,13 +78,112 @@ export function Dashboard() {
     return () => clearInterval(timer);
   }, [router]);
 
+  const rowFor = useRowFor();
+  // the tiles count every to-do, the card's too, so each kind's number is
+  // all of it
+  const first = needsAttention[0];
+  const card = first && rowFor(first);
+  const hints = hintsFor(needsAttention);
+  const kind = (tile: Tile) =>
+    needsAttention.filter((item) => tileOf[item.kind] === tile).map(rowFor);
+  const unassigned = today.jobs.filter(
+    (job) => job.assignment === "unassigned",
+  ).length;
+
+  const tiles: HomeTile[] = [
+    {
+      id: "today",
+      icon: CalendarDays,
+      label: "On today",
+      count: today.jobs.length,
+      hint: unassigned > 0 ? `${unassigned} need cleaners` : undefined,
+      rows: today.jobs.map((job): ListRow => ({
+        id: job.id,
+        at: job.startsAt,
+        title: clientName(job.client),
+        description: [
+          job.serviceName,
+          addressOf(job.property),
+          formatList(job.crew.map((c) => c.name)),
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        status: {
+          badge: <CrewBadge assignment={job.assignment} />,
+          plain: job.assignment === "assigned",
+        },
+        onOpen: () =>
+          navigate({ to: "/office/jobs/$jobId", params: { jobId: job.id } }),
+      })),
+      more: (
+        <Link
+          className="self-start"
+          href={linkTo({
+            to: "/office/schedule",
+            search: { from: today.date, to: today.date },
+          })}
+        >
+          Open the Schedule
+        </Link>
+      ),
+    },
+    ...kinds.map(({ id, label, icon }) => {
+      const rows = kind(id);
+      return {
+        id,
+        icon,
+        label,
+        count: rows.length,
+        hint: hints[id] || undefined,
+        rows: rows.map((row): ListRow => ({
+          id: row.key,
+          title: row.action,
+          // the Client too, as a row's name, so each to-do is told apart
+          textValue: `${row.action} ${row.client}`,
+          description: (
+            <>
+              <span className="font-semibold text-fg">{row.client}</span>
+              {" · "}
+              {row.description}
+            </>
+          ),
+          start: <IconTile icon={row.icon} tone={row.tone} />,
+          onOpen: row.open,
+        })),
+      };
+    }),
+  ];
+
   return (
-    <div className="flex flex-col gap-8">
-      <Heading level={1} inBar>
-        Today
-      </Heading>
-      <NeedsAttention items={needsAttention} />
-    </div>
+    <HomePage
+      greet={account.name}
+      answer={
+        card ? (
+          <AnswerCard
+            tile={<IconTile icon={card.icon} tone={card.tone} size="lg" />}
+            label="First up"
+            headline={card.client}
+            lines={[card.description]}
+            actions={<Button onPress={card.open}>{card.action}</Button>}
+          />
+        ) : (
+          <AnswerCard
+            tile={<IconTile icon={CircleCheck} tone="success" size="lg" />}
+            headline="Nothing needs you"
+          />
+        )
+      }
+      tilesLabel="Needs you, by kind"
+      tiles={tiles}
+      open={open}
+      onOpen={(id) =>
+        void navigate({
+          to: "/office",
+          search: { open: (id as Tile | null) ?? undefined },
+          replace: true,
+        })
+      }
+    />
   );
 }
 
@@ -75,10 +199,10 @@ type Row = {
   open: () => void;
 };
 
-// the tiles over the list: which part of the work each kind of item is
-// in, so a long list reads as a few numbers first
-type Tile = "jobs" | "quotes" | "money";
-const tileOf: Record<NeedsAttentionKind, Tile> = {
+// which tile each kind of to-do is under, so a long list reads as a few
+// numbers first
+type Kind = Exclude<Tile, "today">;
+const tileOf: Record<NeedsAttentionKind, Kind> = {
   job_unassigned: "jobs",
   reschedule_requested: "jobs",
   adjustments_reported: "jobs",
@@ -95,7 +219,7 @@ const tileOf: Record<NeedsAttentionKind, Tile> = {
 // what the tiles say beside their counts: how many need cleaners, how many
 // Quotes are newly asked for, and what's owed (a plan On Hold owes for Jobs
 // and Bills already counted)
-const hintsFor = (items: NeedsAttentionItem[]): Record<Tile, string> => {
+const hintsFor = (items: NeedsAttentionItem[]): Record<Kind, string> => {
   const count = (kind: NeedsAttentionKind) =>
     items.filter((item) => item.kind === kind).length;
   const owedCents = items.reduce(
@@ -117,23 +241,15 @@ const hintsFor = (items: NeedsAttentionItem[]): Record<Tile, string> => {
   };
 };
 
-const tiles: { id: Tile; label: string; icon: LucideIcon }[] = [
+const kinds: { id: Kind; label: string; icon: LucideIcon }[] = [
   { id: "jobs", label: "Jobs", icon: JobIcon },
   { id: "quotes", label: "Quotes", icon: QuoteIcon },
   { id: "money", label: "Money", icon: CircleDollarSign },
 ];
 
-function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
+// how a to-do reads, as its row and as Today's card
+function useRowFor() {
   const navigate = useNavigate();
-  const [picked, setPicked] = useState<Tile | null>(null);
-  const countOf = (tile: Tile) =>
-    items.filter((item) => tileOf[item.kind] === tile).length;
-  // a kind cleared while picked (the list refreshes) shows everything again
-  const only = picked && countOf(picked) > 0 ? picked : null;
-  const shown = only
-    ? items.filter((item) => tileOf[item.kind] === only)
-    : items;
-  const hints = hintsFor(items);
 
   // how each kind of item reads, and where it opens; tickets adding a kind
   // add its case here
@@ -325,61 +441,5 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
     }
   };
 
-  return (
-    <Section
-      title="Needs attention"
-      description={only && `Only ${tiles.find((t) => t.id === only)!.label}`}
-      actions={
-        only && (
-          <Button variant="text" size="sm" onPress={() => setPicked(null)}>
-            Show all {items.length}
-          </Button>
-        )
-      }
-    >
-      <CountTiles
-        label="Needs attention by kind"
-        selected={only}
-        onSelect={(tile) => setPicked(tile as Tile | null)}
-      >
-        {tiles.map((tile) => (
-          <CountTile
-            key={tile.id}
-            id={tile.id}
-            icon={tile.icon}
-            label={tile.label}
-            count={countOf(tile.id)}
-            hint={hints[tile.id] || undefined}
-          />
-        ))}
-      </CountTiles>
-      <List
-        aria-label="Needs attention"
-        renderEmptyState={() => (
-          <p className="p-6 text-center text-fg-muted">
-            Nothing needs you right now. When a client asks for a quote or a new
-            time, or a job needs a cleaner, it shows up here.
-          </p>
-        )}
-      >
-        {shown.map(rowFor).map((row) => (
-          <ListItem
-            key={row.key}
-            id={row.key}
-            textValue={`${row.action} ${row.client}`}
-            title={row.action}
-            description={
-              <>
-                <span className="font-semibold text-fg">{row.client}</span>
-                {" · "}
-                {row.description}
-              </>
-            }
-            start={<IconTile icon={row.icon} tone={row.tone} />}
-            onAction={row.open}
-          />
-        ))}
-      </List>
-    </Section>
-  );
+  return rowFor;
 }

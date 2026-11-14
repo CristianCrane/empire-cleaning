@@ -10,6 +10,8 @@ import {
   signUp,
   signedInAs,
   test,
+  openTile,
+  listRows,
 } from "./harness.ts";
 
 // The real card form: Stripe's Payment Element (src/screens/portal/
@@ -123,9 +125,8 @@ test("accepting a Quote with a card takes the Deposit and saves the card", async
     client.getByText(/^Your Visa ending 4242 is saved/),
   ).toBeVisible();
   await client.goto("/portal/payments");
-  await expect(
-    client.getByRole("grid", { name: "Latest payments" }),
-  ).toContainText("Deposit");
+  await openTile(client, "All payments");
+  await expect(listRows(client, "All payments")).toContainText([/Deposit/]);
 });
 
 test("a card whose bank asks for 3D Secure is booked once it's approved", async ({

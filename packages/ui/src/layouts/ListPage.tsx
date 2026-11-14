@@ -41,6 +41,10 @@ export type ListRow = {
   id: string;
   at?: string;
   title: string;
+  // what it's called, said and typed to find it, when its title alone
+  // isn't enough to tell it from the rest (a to-do's action and its Client);
+  // the title by default, a dated row's day before it
+  textValue?: string;
   description?: ReactNode;
   // what leads an undated row, e.g. an Avatar
   start?: ReactNode;
@@ -336,6 +340,7 @@ export const listRowItem = (r: ListRow, searching = false) =>
       key={r.id}
       id={r.id}
       title={r.title}
+      textValue={r.textValue}
       description={r.description}
       start={r.start}
       end={badgesOf(r, searching)}

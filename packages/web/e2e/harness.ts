@@ -531,6 +531,14 @@ export const listRows = (page: Page, title: string) =>
     .getByRole("row")
     .filter({ hasNot: page.getByRole("columnheader") });
 
+// a Home's tile that opens in place (HomePage), opened: pressed, unless
+// it's open already. Its rows, a grid named as the tile
+export const openTile = async (page: Page, label: string) => {
+  const tile = page.getByRole("button", { name: new RegExp(`^${label}\\b`) });
+  if ((await tile.getAttribute("aria-pressed")) !== "true") await tile.click();
+  return page.getByRole("grid", { name: label, exact: true });
+};
+
 // searches a List: in the Tabs' line from md, behind its icon on a phone
 export const searchList = async (page: Page, label: string, text: string) => {
   const box = page.getByRole("searchbox", { name: label });

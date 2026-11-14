@@ -11,6 +11,7 @@ import {
   startedServicePlan,
   test,
   pageAction,
+  openTile,
 } from "./harness.ts";
 
 // Casey's First Clean is done at 11am on Monday 12 January 2026, New York
@@ -148,8 +149,7 @@ test(
     await expect(page.getByText("Job cancelled")).toBeVisible();
 
     await page.goto("/office");
-    const held = page
-      .getByRole("grid", { name: "Needs attention" })
+    const held = (await openTile(page, "Money"))
       .getByRole("row")
       .filter({ hasText: "Collect what's owed to resume the plan" });
     await expect(held).toContainText("Cleaning plan paused: $50.46 unpaid");

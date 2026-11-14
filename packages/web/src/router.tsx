@@ -62,14 +62,24 @@ import {
 } from "./language.ts";
 import { linkTo } from "./links.ts";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
-import { CleanerHome } from "./screens/cleaner/CleanerHome.tsx";
+import { CleanerHome, yourJobsTiles } from "./screens/cleaner/CleanerHome.tsx";
 import { ConfirmEmail } from "./screens/ConfirmEmail.tsx";
 import { SignInLink, type SignInLinkSearch } from "./screens/SignInLink.tsx";
-import { CleanerOffers, offerTabs } from "./screens/cleaner/CleanerOffers.tsx";
+import {
+  CleanerOffers,
+  offersCount,
+  offersOf,
+  offerTabs,
+} from "./screens/cleaner/CleanerOffers.tsx";
 import { CleanerJobScreen } from "./screens/cleaner/CleanerJobScreen.tsx";
 import { CleanerNeededScreen } from "./screens/cleaner/CleanerNeededScreen.tsx";
 import { BillScreen } from "./screens/office/BillScreen.tsx";
-import { Dashboard } from "./screens/office/Dashboard.tsx";
+import {
+  Dashboard,
+  todayTiles,
+  type TodayData,
+} from "./screens/office/Dashboard.tsx";
+import { homeUrl } from "./screens/home-search.ts";
 import { JobScreen } from "./screens/office/JobScreen.tsx";
 import { PriceListScreen } from "./screens/office/PriceListScreen.tsx";
 import {
@@ -114,7 +124,7 @@ import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
 import { PortalProperty } from "./screens/portal/PortalProperty.tsx";
 import {
   PortalPayments,
-  type PaymentsSearch,
+  paymentsTiles,
 } from "./screens/portal/PortalPayments.tsx";
 import { PortalPlan } from "./screens/portal/PortalPlan.tsx";
 import { PortalQuote } from "./screens/portal/PortalQuote.tsx";
@@ -358,7 +368,14 @@ const portalRoute = areaRoute("portal");
 const officeHomeRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/",
-  loader: () => getJson<NeedsAttentionItem[]>("/api/dashboard/needs-attention"),
+  validateSearch: homeUrl(todayTiles),
+  loader: async (): Promise<TodayData> => {
+    const [needsAttention, today] = await Promise.all([
+      getJson<NeedsAttentionItem[]>("/api/dashboard/needs-attention"),
+      getJson<ScheduleDay>("/api/schedule/today"),
+    ]);
+    return { needsAttention, today };
+  },
   component: Dashboard,
 });
 
@@ -637,12 +654,14 @@ const officeJobRoute = createRoute({
 const cleanerHomeRoute = createRoute({
   getParentRoute: () => cleanerRoute,
   path: "/",
+  validateSearch: homeUrl(yourJobsTiles),
   loader: async () => {
-    const [jobs, siteVisits] = await Promise.all([
+    const [jobs, siteVisits, open] = await Promise.all([
       getJson<CleanerJobs>("/api/assignments/mine"),
       getJson<CleanerSiteVisits>("/api/site-visits/visiting"),
+      getJson<CleanerNeeded[]>("/api/assignments/open"),
     ]);
-    return { ...jobs, siteVisits };
+    return { ...jobs, siteVisits, offers: offersCount(jobs, open) };
   },
   component: CleanerHome,
 });
@@ -653,16 +672,11 @@ const cleanerOffersRoute = createRoute({
   path: "/offers",
   validateSearch: listUrl(offerTabs),
   loader: async () => {
-    const [{ today, upcoming }, open] = await Promise.all([
+    const [mine, open] = await Promise.all([
       getJson<CleanerJobs>("/api/assignments/mine"),
       getJson<CleanerNeeded[]>("/api/assignments/open"),
     ]);
-    return {
-      offered: [...today, ...upcoming].filter(
-        (job) => job.assignment.status === "offered" && !job.outcome,
-      ),
-      open,
-    };
+    return offersOf(mine, open);
   },
   component: CleanerOffers,
 });
@@ -777,9 +791,7 @@ const portalJobRoute = createRoute({
 const portalPaymentsRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/payments",
-  validateSearch: (search: Record<string, unknown>): PaymentsSearch => ({
-    all: search.all === true || search.all === "true" ? true : undefined,
-  }),
+  validateSearch: homeUrl(paymentsTiles),
   loader: async () => {
     const [pastJobs, bills, paymentMethod, history] = await Promise.all([
       getJson<ClientPastJob[]>("/api/jobs/mine/past"),

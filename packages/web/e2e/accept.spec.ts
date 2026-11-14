@@ -10,6 +10,7 @@ import {
   quoteSent,
   linkIn,
   requestQuoteAsGuest,
+  openTile,
 } from "./harness.ts";
 
 const olive = {
@@ -265,7 +266,7 @@ test("a Quote whose day has filled up can't be paid for, and the Office is asked
   ).toBeVisible();
 
   await page.goto("/office");
-  const needs = page.getByRole("grid", { name: "Needs attention" });
+  const needs = await openTile(page, "Quotes");
   await expect(needs).toContainText("Pick another time for the quote");
   await needs.getByText(casey.name).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);

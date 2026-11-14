@@ -15,6 +15,9 @@ export type CardProps = {
   // card is about), so it's a region and what's titled inside it keeps the
   // outline
   hiddenTitle?: string;
+  // names it by a heading of its own inside it, given that heading's id
+  // (a Home's answer card, by its label)
+  labelledBy?: string;
 };
 
 export function Card({
@@ -25,12 +28,15 @@ export function Card({
   children,
   className,
   hiddenTitle,
+  labelledBy,
 }: CardProps) {
   const headingId = useId();
 
   return (
     <section
-      aria-labelledby={title || hiddenTitle ? headingId : undefined}
+      aria-labelledby={
+        labelledBy ?? (title || hiddenTitle ? headingId : undefined)
+      }
       className={twMerge(
         "flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 text-fg shadow-raised sm:p-5 print:break-inside-avoid print:shadow-none",
         className,
