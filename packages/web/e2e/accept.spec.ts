@@ -9,6 +9,7 @@ import {
   test,
   quoteSent,
   linkIn,
+  requestQuoteAsGuest,
 } from "./harness.ts";
 
 const olive = {
@@ -174,6 +175,30 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
   ).toBeVisible();
   await expect(waiting).toBeHidden();
 });
+
+test(
+  "a Client's card page folds how the card is used, and keeps what saving it agrees to in view",
+  { tag: "@desktop" },
+  async ({ page }) => {
+    await requestQuoteAsGuest(casey);
+    await signedInAs(page, casey.email);
+    await page.goto("/portal/payment-method");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Your card",
+    );
+
+    const howUsed = page.getByText("How your card is used");
+    const about = page.getByText("We take a deposit from this card");
+    await expect(about).toBeHidden();
+    await howUsed.click();
+    await expect(about).toBeVisible();
+    await howUsed.click();
+    await expect(about).toBeHidden();
+    await expect(
+      page.getByText("By saving your card, you agree that Empire Cleaning"),
+    ).toBeVisible();
+  },
+);
 
 test("Office Staff record acceptance of the offer while drafting a new Revision, which discards the Draft", async ({
   page,
