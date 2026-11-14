@@ -1,11 +1,10 @@
-import { catalog, type Language } from "@empire-cleaning/models";
+import { catalog, type Language, firstNameOf } from "@empire-cleaning/models";
 import {
   button,
   greeting,
   paragraph,
   type Email,
 } from "../../services/email/blocks.ts";
-import { firstNameOf } from "../../services/email/format.ts";
 
 // in the invitee's Preferred Language, which the Office sets as it invites
 // them; tú in Spanish, a draft the owner checks (#206)

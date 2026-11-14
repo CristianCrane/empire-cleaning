@@ -4,6 +4,7 @@ import {
   type Card,
   type Language,
   messages,
+  firstNameOf,
 } from "@empire-cleaning/models";
 import {
   button,
@@ -11,7 +12,6 @@ import {
   paragraph,
   type Email,
 } from "../../services/email/blocks.ts";
-import { firstNameOf } from "../../services/email/format.ts";
 
 const words = catalog({
   en: {

@@ -6,6 +6,7 @@ import {
   formats,
   messages,
   oneStop,
+  firstNameOf,
 } from "@empire-cleaning/models";
 import {
   cleanButton,
@@ -16,7 +17,6 @@ import {
   type Clean,
   type Email,
 } from "../../services/email/blocks.ts";
-import { firstNameOf } from "../../services/email/format.ts";
 import type { Settled } from "../completion/balance.ts";
 import { getInWords } from "../jobs/emails.ts";
 import { cardOf } from "../payments/emails.ts";

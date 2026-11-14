@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLoaderData, useSearch } from "@tanstack/react-router";
 import { MailCheck } from "lucide-react";
+import { firstNameOf } from "@empire-cleaning/models";
 import type { AccountRole, DemoPerson } from "@empire-cleaning/models";
 import {
   Actions,
@@ -25,7 +26,7 @@ const roleLabels: Record<AccountRole, string> = {
   client: "Client",
 };
 
-const firstName = (person: DemoPerson) => person.name.split(" ")[0]!;
+const firstName = (person: DemoPerson) => firstNameOf(person.name);
 
 // the person a link asks for by first name (?as=helen)
 export const personAsked = (people: DemoPerson[], as: string | undefined) =>

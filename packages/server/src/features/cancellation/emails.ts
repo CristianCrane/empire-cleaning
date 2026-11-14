@@ -7,7 +7,6 @@ import {
   type Clean,
   type Email,
 } from "../../services/email/blocks.ts";
-import { firstNameOf } from "../../services/email/format.ts";
 import { crewWords, jobsButton } from "../assignments/emails.ts";
 import type { Settled } from "../completion/balance.ts";
 import { bookAnother } from "../quotes/emails.ts";
@@ -18,6 +17,7 @@ import {
   type Language,
   formats,
   messages,
+  firstNameOf,
 } from "@empire-cleaning/models";
 import { cardOf } from "../payments/emails.ts";
 import { unpaidKind, whyNotPaid } from "../payments/unpaid.ts";

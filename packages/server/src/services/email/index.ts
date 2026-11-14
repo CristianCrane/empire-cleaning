@@ -101,4 +101,3 @@ export const setEmailSender = (next: EmailSender) => {
 };
 
 export * from "./blocks.ts";
-export * from "./format.ts";

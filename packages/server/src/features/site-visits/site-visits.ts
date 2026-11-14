@@ -13,6 +13,7 @@ import {
   NO_CREW,
   startOfDay,
   formats,
+  firstNameOf,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import {
@@ -22,7 +23,7 @@ import {
   RequestBodyError,
 } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
-import { email, firstNameOf, notify } from "../../services/email/index.ts";
+import { email, notify } from "../../services/email/index.ts";
 import type { Email } from "../../services/email/blocks.ts";
 import {
   siteVisitBookedEmail,
