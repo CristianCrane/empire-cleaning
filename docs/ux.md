@@ -540,7 +540,7 @@ stays as it is (#336).
    three such drops: the portal Clean's free-until, then the guard its
    return left out, and Change terms' pending state in a menu; #434's found
    two more when New quote's price lost WorkedOutQuote: its time on site,
-   then the Service and home its total was read out with.
+   then the Service and place its total was read out with.
 5. **Record it**: a row in the decisions log below; a new rule above (a
    type's own under its entry in Screen types), and a
    pattern in Storybook, if it carries over to other screens; and in
