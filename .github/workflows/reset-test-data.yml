@@ -4,7 +4,9 @@ name: Reset test data
 # site's data with the dev seed (packages/server/tests/seed.ts). Accounts and
 # the Price List stay, so whoever has signed up stays signed up. It tries the
 # reset on a copy of the test database first, so a seed that would fail
-# leaves the test site as it was (#238).
+# leaves the test site as it was (#238). The test site's server runs on
+# meanwhile, and its scheduler waits for the seed (holdSeeding in
+# packages/server/src/features/site/site.ts).
 on:
   workflow_dispatch:
 

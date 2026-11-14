@@ -8,6 +8,7 @@ import {
 import { sendDueReminders } from "#features/jobs";
 import { settleOpenPayments } from "#features/payments";
 import { generateServicePlanJobs } from "#features/service-plans";
+import { unlessSeeding } from "#features/site";
 import { monitoring } from "#services/monitoring";
 
 export type ScheduledJob = { name: string; run: () => Promise<unknown> };
@@ -35,9 +36,14 @@ const scheduledJobs: ScheduledJob[] = [
 
 // runs every job at once; one failing doesn't stop the others. The heartbeat
 // checks in only when all of them succeeded, so a failing job is noticed like
-// a stopped timer (ADR-0007), and the error says which
+// a stopped timer (ADR-0007), and the error says which. While the seed
+// rewrites the database it runs none, as the seed lays out its own days
+// (features/site), and still checks in: nothing failed
 export const tick = async (jobs: ScheduledJob[] = scheduledJobs) => {
-  const results = await Promise.allSettled(jobs.map((job) => job.run()));
+  let results: PromiseSettledResult<unknown>[] = [];
+  await unlessSeeding(async () => {
+    results = await Promise.allSettled(jobs.map((job) => job.run()));
+  });
   let allSucceeded = true;
   results.forEach((result, i) => {
     if (result.status === "rejected") {
