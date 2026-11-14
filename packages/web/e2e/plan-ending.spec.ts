@@ -12,6 +12,7 @@ import {
   test,
   pageAction,
   openTile,
+  saveACard,
 } from "./harness.ts";
 
 // Casey's First Clean is done at 11am on Monday 12 January 2026, New York
@@ -124,7 +125,7 @@ test("a Client's plan is On Hold while a fee is Unpaid, and back on once they pa
     .filter({ hasText: "Payment needed" })
     .getByRole("link", { name: "Update your card" })
     .click();
-  await page.getByRole("button", { name: "Save card" }).click();
+  await saveACard(page).save.click();
   await expect(page.getByText("Card saved")).toBeVisible();
 
   await page.goto(`/portal/plans/${planId}`);

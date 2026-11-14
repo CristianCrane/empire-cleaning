@@ -16,6 +16,7 @@ import {
   expectNoPageAction,
   openTile,
   listRows,
+  payThisBill,
 } from "./harness.ts";
 
 // Weekly Bills for commercial Clients (ADR-0016), in the Office and the
@@ -211,16 +212,17 @@ test(
     await expect(
       page.getByText(/^Please pay \$[\d.,]+ by Mon, Jan 26\.$/),
     ).toBeVisible();
-    await page.getByRole("button", { name: /^Pay \$/ }).click();
+    // the fake's form, in the part a card goes in
+    const { form, pay } = payThisBill(page);
+    await expect(form).toContainText("Test payments: no card or bank account");
+    await pay.click();
 
     await expect(page.getByText("Thank you, your bill is paid")).toBeVisible();
     await expect(badge(page, "Paid")).toBeVisible();
     await expect(
       page.getByRole("region", { name: "Bill details" }),
     ).toContainText("Paid on this page");
-    await expect(
-      page.getByRole("region", { name: "Pay this bill" }),
-    ).toBeHidden();
+    await expect(payThisBill(page).form).toBeHidden();
 
     // their Payments show it paid, and owe nothing
     await page.getByRole("link", { name: "Payments" }).first().click();
@@ -239,13 +241,11 @@ test("a Bill paid from a bank account is processing until it clears", async ({
   await payBillsBy("bank");
   await signedInAs(page, casey.email);
   await page.goto(`/portal/bills/${billId}`);
-  await page.getByRole("button", { name: /^Pay \$/ }).click();
+  await payThisBill(page).pay.click();
 
   await expect(page.getByText("Your bank payment is on its way")).toBeVisible();
   await expect(badge(page, "Clearing")).toBeVisible();
-  await expect(
-    page.getByRole("region", { name: "Pay this bill" }),
-  ).toBeHidden();
+  await expect(payThisBill(page).form).toBeHidden();
 });
 
 test("only the Client can open their Bill", async ({ page }) => {
@@ -311,7 +311,7 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   await expect(
     client.getByText(/^We couldn't take \$[\d.,]+ for this bill/),
   ).toBeVisible();
-  await client.getByRole("button", { name: /^Pay \$/ }).click();
+  await payThisBill(client).pay.click();
   await expect(badge(client, "Paid")).toBeVisible();
 
   await client.goto(`/portal/plans/${planId}`);
@@ -348,9 +348,7 @@ test(
     for (const nav of await page.getByRole("navigation").all()) {
       await expect(nav).toBeHidden();
     }
-    await expect(
-      page.getByRole("region", { name: "Pay this bill" }),
-    ).toBeHidden();
+    await expect(payThisBill(page).form).toBeHidden();
     await expect(page.getByRole("button", { name: "Print" })).toBeHidden();
   },
 );

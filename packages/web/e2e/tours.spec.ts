@@ -22,6 +22,7 @@ import {
   signedInAs,
   test,
   openTile,
+  payAndBook,
 } from "./harness.ts";
 
 const olive = { email: "olive@example.com", name: "Olive Owner" };
@@ -122,10 +123,7 @@ eachTheme(() => {
     await page.getByRole("link", { name: "See your quote" }).click();
     await walkTour(page, clientTours.en, "portal-quote", { escape: true });
 
-    await page
-      .getByRole("region", { name: "Pay and book" })
-      .getByRole("button", { name: /^Accept and pay \$/ })
-      .click();
+    await payAndBook(page).accept.click();
     await expect(page.getByText(/^You're booked: a /)).toBeVisible();
 
     // Home, once booked

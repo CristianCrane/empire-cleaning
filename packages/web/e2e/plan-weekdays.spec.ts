@@ -12,6 +12,7 @@ import {
   saved,
   startOn,
   linkIn,
+  payAndBook,
 } from "./harness.ts";
 
 const olive = {
@@ -127,13 +128,10 @@ test(
     await noViolations(client);
 
     // and accepts it whole, with nothing to choose
-    const accept = client.getByRole("region", {
-      name: "Pay and start your plan",
-    });
-    await expect(accept.getByRole("radio")).toHaveCount(0);
-    await accept
-      .getByRole("button", { name: `Accept and pay ${deposit}` })
-      .click();
+    const { form, accept } = payAndBook(client, "Pay and start your plan");
+    await expect(form.getByRole("radio")).toHaveCount(0);
+    await expect(accept).toHaveAccessibleName(`Accept and pay ${deposit}`);
+    await accept.click();
     await expect(
       client.getByText("Your cleaning plan has started"),
     ).toHaveCount(2);

@@ -13,6 +13,7 @@ import {
   startOn,
   linkIn,
   openTile,
+  payAndBook,
 } from "./harness.ts";
 
 const olive = {
@@ -195,7 +196,7 @@ test(
       client.getByRole("region", { name: "Quote details" }),
     ).toContainText("From Mon, Jan 19, 9:00 AM");
     await expect(
-      client.getByRole("region", { name: "Pay and start your plan" }),
+      payAndBook(client, "Pay and start your plan").form,
     ).toBeVisible();
     await expect(
       client.getByRole("button", { name: "Decline this quote" }),
