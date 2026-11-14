@@ -57,7 +57,15 @@ import { areaLabels, type AreaId } from "../session.ts";
 import { navFor } from "./AreaLayout.tsx";
 import { PrototypeSwitcher } from "./PrototypeSwitcher.tsx";
 
-const { formatDateTime, formatMoney, formatMonth } = formats.en;
+const { formatDateTime, formatMoney, formatMonth, formatTime, dateTile } =
+  formats.en;
+
+// a dated row's title starts with its time and weekday: the DateTile beside
+// it already says the day of the month
+const timeOf = (at: string) => `${dateTile(at).weekday} ${formatTime(at)}`;
+
+// which a dated row leads with after its time
+type Lead = "who" | "where";
 
 // ---- the shape of a List, as every layout reads it ----
 
@@ -80,6 +88,9 @@ type Item = {
   badge?: Badge;
   // the words a search looks through
   words: string;
+  // a dated row's title and line, led by who it's for or where it is
+  who?: [string, string];
+  where?: [string, string];
 };
 
 type Col = { id: string; label: string; from?: "md" | "lg" };
@@ -279,6 +290,11 @@ const jobItems: Item[] = (() => {
       at,
       title: formatDateTime(at),
       line: `${client.name} · ${client.street}`,
+      who: [`${timeOf(at)} · ${client.name}`, `${client.street} · ${service}`],
+      where: [
+        `${timeOf(at)} · ${client.street}`,
+        `${client.name} · ${service}`,
+      ],
       cells: {
         when: formatDateTime(at),
         client: client.name,
@@ -445,12 +461,17 @@ const cleanItems: Item[] = (
   ] as const
 ).map(([days, tab, badge], i) => {
   const at = day(days, 14);
+  const home = i % 2 ? "19 Bergen St, Apt 2" : "482 Halsey St";
+  const service = i % 2 ? "Deep clean" : "Standard clean";
   return {
     id: `clean-${i}`,
     tab,
     at,
     title: formatDateTime(at),
-    line: "482 Halsey St · Standard clean",
+    line: `${home} · ${service}`,
+    // a Client's own: who is them, so what it is leads instead
+    who: [`${timeOf(at)} · ${service}`, home] as [string, string],
+    where: [`${timeOf(at)} · ${home}`, service] as [string, string],
     cells: {},
     badge: badge as Badge | undefined,
     status: badge as Badge | undefined,
@@ -633,8 +654,138 @@ const cleansCase: ListCase = {
   empty: { icon: BrushCleaning, title: "No cleans yet" },
 };
 
+const offerItems: Item[] = (
+  [
+    [
+      1,
+      13,
+      "offered",
+      "Maria L.",
+      "Park Slope",
+      "11215",
+      "Deep clean",
+      "4 hrs",
+      true,
+    ],
+    [
+      3,
+      14,
+      "offered",
+      "James O.",
+      "Fort Greene",
+      "11205",
+      "Standard clean",
+      "2.5 hrs",
+      false,
+    ],
+    [
+      0,
+      18,
+      "open",
+      "Aisha C.",
+      "Clinton Hill",
+      "11238",
+      "Standard clean",
+      "3 hrs",
+      false,
+    ],
+    [
+      2,
+      13,
+      "open",
+      "Daniel M.",
+      "Boerum Hill",
+      "11217",
+      "Move-out clean",
+      "5 hrs",
+      false,
+    ],
+    [
+      4,
+      15,
+      "open",
+      "Priya P.",
+      "Prospect Heights",
+      "11238",
+      "Deep clean",
+      "3.5 hrs",
+      false,
+    ],
+    [
+      5,
+      14,
+      "open",
+      "Tom R.",
+      "Cobble Hill",
+      "11201",
+      "Standard clean",
+      "2 hrs",
+      false,
+    ],
+    [
+      6,
+      17,
+      "open",
+      "Grace K.",
+      "Bed-Stuy",
+      "11216",
+      "Deep clean",
+      "4 hrs",
+      false,
+    ],
+  ] as const
+).map(([days, hour, tab, who, hood, zip, service, hours, soon], i) => {
+  const at = day(days, hour);
+  const badge: Badge | undefined = soon
+    ? { tone: "warning", label: "Answer by today" }
+    : undefined;
+  return {
+    id: `offer-${i}`,
+    tab,
+    at,
+    title: formatDateTime(at),
+    line: `${zip} · ${service}, ${hours}`,
+    who: [`${timeOf(at)} · ${who}`, `${hood} · ${service}, ${hours}`],
+    where: [`${timeOf(at)} · ${hood}, ${zip}`, `${service}, ${hours}`],
+    cells: {},
+    badge,
+    status: badge,
+    words: "",
+  };
+});
+
 const offersCase: ListCase = {
   key: "6",
+  name: "Cleaner Offers, both kinds",
+  area: "cleaner",
+  navLabel: "Offers",
+  title: "Offers",
+  kind: "dated",
+  noun: "offers",
+  tabs: [
+    {
+      id: "offered",
+      label: "Offered to you",
+      icon: Send,
+      none: "Nothing offered to you.",
+    },
+    {
+      id: "open",
+      label: "Open to you",
+      icon: Inbox,
+      none: "Nothing open to you.",
+    },
+  ],
+  columns: [],
+  items: offerItems,
+  empty: {
+    icon: Inbox,
+    title: "Nothing open to you right now",
+  },
+};
+
+const noOffersCase: ListCase = {
+  key: "7",
   name: "Cleaner Offers, empty",
   area: "cleaner",
   navLabel: "Offers",
@@ -652,7 +803,7 @@ const offersCase: ListCase = {
 
 const noMatchCase: ListCase = {
   ...clientsCase,
-  key: "7",
+  key: "8",
   name: "Office Clients, a search that matches nothing",
   query: "Pemberton",
 };
@@ -664,43 +815,59 @@ const cases = [
   servicesCase,
   cleansCase,
   offersCase,
+  noOffersCase,
   noMatchCase,
 ];
 
 // ---- the layouts ----
 
 const layouts = [
-  { key: "A", name: "Every tool in view" },
-  { key: "B", name: "The list leads, tools behind a tap" },
-  { key: "C", name: "Tabs lead, a Table on desktop, rows on a phone" },
+  { key: "C1", name: "Picked: a dated row leads with when and who" },
+  { key: "C2", name: "Picked: a dated row leads with when and where" },
+  { key: "A", name: "Every tool in view (not picked)" },
+  { key: "B", name: "The list leads, tools behind a tap (not picked)" },
 ] as const;
 
 type LayoutKey = (typeof layouts)[number]["key"];
 
-const notes: Record<LayoutKey, { idea: string; shows: string; hides: string }> =
-  {
-    A: {
-      idea: "The rules as they stand, one layout. Title (in the phone's bar), New … at the end. An Office work list: a search box, Tabs with counts, All last, then a Table. A Client's or Cleaner's list: Tabs, then Lists by month. A short list: a Table alone.",
-      shows:
-        "The search, every Tab and its count, 50 rows. On a phone the Table keeps its name and Status columns; who and where stack under the name.",
-      hides:
-        '50 more behind Show more ("Showing 50 of 312"). Retired Services behind Show 2. With nothing at all: one card with its action, no search or Tabs. No match: a line in the Table and Clear search.',
-    },
-    B: {
-      idea: "Every List is rows, never a Table, the same at every width. Anything dated is by month with a date tile, the Office's Jobs too. A row is badged only when it isn't plain (Needs cleaners, not Staffed).",
-      shows:
-        "The default view's rows, with nothing above them but a view button (Upcoming 312 ▾), the search icon and New ….",
-      hides:
-        "The search behind its icon (it looks through every view). Other views (Past, Cancelled, All) in the view menu. A Table's extra columns (email, phone, total): on the detail page. Retired, folded at the foot. No match: a card with Clear search.",
-    },
-    C: {
-      idea: "Tabs are the one way a list splits, Services' Retired too, with no All: a search looks through every Tab, and the Tabs give way to its results. An Office list is a Table from md, the same rows as a List on a phone; a dated one is banded by month in both.",
-      shows:
-        "One line of Tabs with counts and, on a desktop, the search at its end; 50 rows.",
-      hides:
-        'On a phone, the search behind its icon in the header. Show more ("262 left"). Nothing at all with nothing to add (Offers): one quiet line, no card.',
-    },
-  };
+const notes: Record<
+  LayoutKey | "C",
+  { idea: string; shows: string; hides: string }
+> = {
+  A: {
+    idea: "The rules as they stand, one layout. Title (in the phone's bar), New … at the end. An Office work list: a search box, Tabs with counts, All last, then a Table. A Client's or Cleaner's list: Tabs, then Lists by month. A short list: a Table alone.",
+    shows:
+      "The search, every Tab and its count, 50 rows. On a phone the Table keeps its name and Status columns; who and where stack under the name.",
+    hides:
+      '50 more behind Show more ("Showing 50 of 312"). Retired Services behind Show 2. With nothing at all: one card with its action, no search or Tabs. No match: a line in the Table and Clear search.',
+  },
+  B: {
+    idea: "Every List is rows, never a Table, the same at every width. Anything dated is by month with a date tile, the Office's Jobs too. A row is badged only when it isn't plain (Needs cleaners, not Staffed).",
+    shows:
+      "The default view's rows, with nothing above them but a view button (Upcoming 312 ▾), the search icon and New ….",
+    hides:
+      "The search behind its icon (it looks through every view). Other views (Past, Cancelled, All) in the view menu. A Table's extra columns (email, phone, total): on the detail page. Retired, folded at the foot. No match: a card with Clear search.",
+  },
+  C1: {
+    idea: "C as picked, with B's badges. A dated row (Jobs, Cleans, Offers) leads with its time and who it's for: \"Sun 8:00 AM · Chloe Nguyen\", where and what on the line under it. A Client's own Cleans lead with what it is; a Cleaner's Offers with the Client. On a desktop, Jobs' Client column comes before Home.",
+    shows:
+      "One line of Tabs with counts (Offered to you · Open to you for a Cleaner) and, on a desktop, the search at its end; 50 rows. A row is badged only when it isn't the usual (Needs cleaners, not Staffed), the Table's Status column too.",
+    hides:
+      'On a phone, the search behind its icon. Show more ("262 left"). While searching, every row\'s status shows, since the rows span Tabs.',
+  },
+  C2: {
+    idea: "The same as C1, but a dated row leads with its time and where: \"Sun 8:00 AM · 132 Lafayette Ave\", who and what under it. A Cleaner's Offers lead with the neighbourhood and postcode. On a desktop, Jobs' Home column comes before Client.",
+    shows: "As C1.",
+    hides: "As C1.",
+  },
+  C: {
+    idea: "Tabs are the one way a list splits, Services' Retired too, with no All: a search looks through every Tab, and the Tabs give way to its results. An Office list is a Table from md, the same rows as a List on a phone; a dated one is banded by month in both.",
+    shows:
+      "One line of Tabs with counts and, on a desktop, the search at its end; 50 rows.",
+    hides:
+      'On a phone, the search behind its icon in the header. Show more ("262 left"). Nothing at all with nothing to add (Offers): one quiet line, no card.',
+  },
+};
 
 export function ListPrototype() {
   const search = useSearch({ strict: false }) as {
@@ -709,7 +876,7 @@ export function ListPrototype() {
   };
   const navigate = useNavigate();
   const layout: LayoutKey =
-    layouts.find((l) => l.key === search.layout)?.key ?? "A";
+    layouts.find((l) => l.key === search.layout)?.key ?? "C1";
   const c = cases.find((x) => x.key === search.case) ?? jobsCase;
   const go = (change: { case?: string; layout?: string }) =>
     void navigate({
@@ -732,7 +899,8 @@ export function ListPrototype() {
       <LayoutNote key={layout} layout={layout} />
       {layout === "A" && <LayoutA key={c.key} c={c} />}
       {layout === "B" && <LayoutB key={c.key} c={c} />}
-      {layout === "C" && <LayoutC key={c.key} c={c} />}
+      {layout === "C1" && <LayoutC key={c.key} c={c} lead="who" />}
+      {layout === "C2" && <LayoutC key={c.key} c={c} lead="where" />}
       <PrototypeSwitcher
         variants={layouts.map((l) => ({ key: l.key, name: l.name }))}
         current={layout}
@@ -864,15 +1032,25 @@ function RowsTable({
   stacked,
   bands,
   empty,
+  columns,
+  badge,
 }: {
   c: ListCase;
   items: Item[];
   stacked?: boolean;
+  // in another order than the case's
+  columns?: Col[];
+  // the Status column shows this badge, not the cell as given
+  badge?: "status" | "badge";
   // dated: a month's band before its rows
   bands?: boolean;
   empty: ReactNode;
 }) {
-  const cols = c.columns;
+  const cols = columns ?? c.columns;
+  const statusOf = (item: Item) => {
+    const b = badge && item[badge];
+    return b ? <StatusBadge tone={b.tone}>{b.label}</StatusBadge> : null;
+  };
   const row = (item: Item) => (
     <Row key={item.id} id={item.id} className="cursor-pointer">
       {cols.map((col, i) => (
@@ -886,6 +1064,8 @@ function RowsTable({
                 </span>
               )}
             </span>
+          ) : badge && col.id === "status" ? (
+            statusOf(item)
           ) : (
             item.cells[col.id]
           )}
@@ -936,19 +1116,22 @@ function Rows({
   c,
   items,
   badge,
+  lead,
 }: {
   c: ListCase;
   items: Item[];
   badge: "status" | "badge";
+  lead?: Lead;
 }) {
   const item = (i: Item) => {
     const b = i[badge];
+    const [title, line] = (lead && i[lead]) || [i.title, i.line];
     return (
       <ListItem
         key={i.id}
         id={i.id}
-        title={i.title}
-        description={i.line}
+        title={title}
+        description={line}
         start={i.at ? <DateTile date={i.at} size="sm" /> : undefined}
         end={b ? <StatusBadge tone={b.tone}>{b.label}</StatusBadge> : undefined}
       />
@@ -1259,8 +1442,16 @@ function LayoutB({ c }: { c: ListCase }) {
 
 // ---- C: Tabs lead, a Table on a desktop, rows on a phone ----
 
-function LayoutC({ c }: { c: ListCase }) {
+function LayoutC({ c, lead }: { c: ListCase; lead: Lead }) {
   const s = useList(c);
+  // where leads: Home before Client
+  const swap = { home: "client", client: "home" } as Record<string, string>;
+  const columns =
+    lead === "where" && c.columns.some((col) => col.id === "home")
+      ? c.columns.map((col) =>
+          swap[col.id] ? c.columns.find((x) => x.id === swap[col.id])! : col,
+        )
+      : c.columns;
   const [phoneSearch, setPhoneSearch] = useState(!!c.query);
 
   const searchIcon = c.kind === "work" && (
@@ -1293,6 +1484,8 @@ function LayoutC({ c }: { c: ListCase }) {
     );
 
   const tabs = c.tabs ?? [];
+  // in a Tab, only what isn't usual is badged; across Tabs, every status
+  const badge = s.needle ? "status" : "badge";
   const body = (items: Item[], none: ReactNode) => {
     const page = items.slice(0, s.shown);
     const left = items.length - page.length;
@@ -1303,14 +1496,25 @@ function LayoutC({ c }: { c: ListCase }) {
         {office ? (
           <>
             <div className="hidden md:block">
-              <RowsTable c={c} items={page} bands={dated} empty={none} />
+              <RowsTable
+                c={c}
+                items={page}
+                bands={dated}
+                empty={none}
+                columns={columns}
+                badge={badge}
+              />
             </div>
             <div className="md:hidden">
-              {page.length ? <Rows c={c} items={page} badge="status" /> : none}
+              {page.length ? (
+                <Rows c={c} items={page} badge={badge} lead={lead} />
+              ) : (
+                none
+              )}
             </div>
           </>
         ) : page.length ? (
-          <Rows c={c} items={page} badge="badge" />
+          <Rows c={c} items={page} badge={badge} lead={lead} />
         ) : (
           none
         )}
