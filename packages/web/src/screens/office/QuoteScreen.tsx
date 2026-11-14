@@ -108,7 +108,6 @@ import {
   PlanFigures,
   PlanRows,
   PlanSaving,
-  PriceHead,
   PlanTotals,
   QuoteStatusBadge,
   planDayTitle,
@@ -117,8 +116,8 @@ import { homeCrumbs } from "./trails.ts";
 import {
   AskedFacts,
   askedSummary,
+  FoldedPrice,
   DraftQuote,
-  PriceWorking,
   seeThePremises,
   TurnDownQuote,
   turnDownLabel,
@@ -832,94 +831,77 @@ function DraftPrices({
   stale: boolean;
 }) {
   const { plan } = quote;
-  const fromPrices = (
-    <p className="text-sm text-fg-muted">
-      From your prices, version {quote.priceListVersion}.
-    </p>
-  );
   return (
     <div
       aria-busy={stale}
       className={`flex flex-col gap-5 [&>section+section]:border-t [&>section+section]:border-border [&>section+section]:pt-5 ${staleStyle(stale)}`}
     >
-      {plan ? (
-        <>
-          {quote.options.map((option, i) => {
-            const day = plan.days[i];
-            if (!day) return null;
-            return (
-              <OfferPrice
-                key={option.serviceKey + String(i)}
-                title={
-                  plan.days.length === 1
-                    ? `${option.serviceName}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`
-                    : `${dayTitles[i] ?? `Weekday ${i + 1}`}: ${option.serviceName}`
-                }
-                badge={<PlanSaving day={day} />}
-              >
-                <PriceHead
-                  totalCents={option.totalCents}
-                  taxCents={option.taxCents}
-                  perClean
-                />
-                {option.overrideCents !== null && (
-                  <PricedFrom option={option} />
-                )}
-                <Fold label="How it's worked out">
-                  <div className="flex flex-col gap-3">
-                    <PriceWorking breakdown={option.suggested} />
-                    <PlanRows
-                      option={option}
-                      day={day}
-                      discountPercent={plan.discountPercent}
-                    />
-                    <p className="text-sm text-fg-muted">
-                      The plan discount comes off the one-off price, whoever set
-                      it.
-                    </p>
-                    {fromPrices}
-                  </div>
-                </Fold>
-              </OfferPrice>
-            );
-          })}
-          <OfferPrice title={plan.days.length > 1 ? "Each week" : "Deposit"}>
-            <PlanTotals
-              plan={plan}
-              depositPercent={quote.depositPercent}
-              change={quote.changesPlan}
-            />
-          </OfferPrice>
-        </>
-      ) : (
-        quote.options.map((option) => (
+      {/* as the sent Quote's Offer draws them: a plan's weekday or an option */}
+      {quote.options.map((option, i) => {
+        const day = plan?.days[i];
+        if (plan && !day) return null;
+        return (
           <OfferPrice
-            key={option.serviceKey}
-            title={option.serviceName}
+            key={option.serviceKey + String(i)}
+            title={
+              !plan
+                ? option.serviceName
+                : plan.days.length === 1
+                  ? `${option.serviceName}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`
+                  : `${dayTitles[i] ?? `Weekday ${i + 1}`}: ${option.serviceName}`
+            }
             badge={
-              option.recommended && (
-                <StatusBadge tone="success">Recommended</StatusBadge>
+              day ? (
+                <PlanSaving day={day} />
+              ) : (
+                option.recommended && (
+                  <StatusBadge tone="success">Recommended</StatusBadge>
+                )
               )
             }
           >
-            <PriceHead
-              totalCents={option.totalCents}
-              taxCents={option.taxCents}
-            />
-            {option.overrideCents !== null && <PricedFrom option={option} />}
-            <Fold label="How it's worked out">
-              <div className="flex flex-col gap-3">
-                <PriceWorking breakdown={option.suggested} />
+            <FoldedPrice
+              price={option}
+              working={option.suggested}
+              perClean={!!day}
+              under={
+                option.overrideCents !== null && <PricedFrom option={option} />
+              }
+            >
+              {day && plan ? (
+                <>
+                  <PlanRows
+                    option={option}
+                    day={day}
+                    discountPercent={plan.discountPercent}
+                  />
+                  <p className="text-sm text-fg-muted">
+                    The plan discount comes off the one-off price, whoever set
+                    it.
+                  </p>
+                </>
+              ) : (
                 <OptionRows
                   option={option}
                   crewSize={quote.crewSize}
                   depositPercent={quote.depositPercent}
                 />
-                {fromPrices}
-              </div>
-            </Fold>
+              )}
+              <p className="text-sm text-fg-muted">
+                From your prices, version {quote.priceListVersion}.
+              </p>
+            </FoldedPrice>
           </OfferPrice>
-        ))
+        );
+      })}
+      {plan && (
+        <OfferPrice title={plan.days.length > 1 ? "Each week" : "Deposit"}>
+          <PlanTotals
+            plan={plan}
+            depositPercent={quote.depositPercent}
+            change={quote.changesPlan}
+          />
+        </OfferPrice>
       )}
     </div>
   );

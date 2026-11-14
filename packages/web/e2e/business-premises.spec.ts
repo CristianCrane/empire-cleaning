@@ -231,8 +231,10 @@ test("Office Staff quote a business caller from New quote", async ({
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Draft quote for Phoner & Co (Pat Phoner)",
   );
-  // what was asked, in its line
+  // what was asked, in its line: no condition until a Site Visit finds one
   await expect(
     page.getByRole("button", { name: /^What was asked/ }),
-  ).toContainText("Retail · floor area not known yet");
+  ).toHaveText(
+    /^What was asked\s*Commercial cleaning · Retail · floor area not known yet$/,
+  );
 });

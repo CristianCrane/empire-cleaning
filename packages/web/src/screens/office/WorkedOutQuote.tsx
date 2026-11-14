@@ -9,7 +9,7 @@ const { cleaners } = screenWords.en;
 const { formatMoney } = formats.en;
 
 // About 1 h 38 min, shared by the Crew
-const onSite = (labourHours: number, crew: number) =>
+export const onSite = (labourHours: number, crew: number) =>
   formatMinutes(Math.round((labourHours / crew) * 60));
 
 // a working-out's lines, as a Quote's override and this both say them
@@ -29,7 +29,7 @@ export const working = {
 // A Suggested Price read as a Quote: its total, what it's for and how long
 // it takes on site, then each line of how it's worked out. With `was`, the
 // value another working-out came to stands struck through beside each line
-// that differs. Shown on a Service's page and on New Quote. (UX pass, #96)
+// that differs. Shown on a Service's page, as its example. (UX pass, #96)
 export function WorkedOutQuote({
   now,
   was,

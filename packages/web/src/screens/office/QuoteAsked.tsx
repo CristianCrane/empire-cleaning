@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   FilePenLine,
   CalendarDays,
@@ -27,6 +27,7 @@ import {
   RadioGroup,
   Facts,
   Fact,
+  Fold,
   type Alert,
   type DialogState,
 } from "@empire-cleaning/ui";
@@ -37,7 +38,7 @@ import { BookSiteVisit } from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
 import { addressOf, formatHours, roomsText, screenWords } from "../format.ts";
 import { homeIcon } from "../icons.ts";
-import { AskedRows } from "../QuoteParts.tsx";
+import { AskedRows, PriceHead } from "../QuoteParts.tsx";
 import { working } from "./WorkedOutQuote.tsx";
 
 const { conditionLabel, conditionText, formatFloorArea, propertySummary } =
@@ -74,19 +75,20 @@ const sourceText = ({
     .join("");
 };
 
-// what the Client (or a caller) asked for, unchanged, and the home it's
-// for (WEB-8, WEB-A); none on a Quote the Office offered unprompted
 // what was asked, in a line: "Deep Clean · Apartment · 2 bedrooms · 1
-// bathroom · moderate"
+// bathroom · moderate". A business's condition is left out until its Site
+// Visit finds one, as its facts say "Not known yet" where it's named
 export const askedSummary = ({ asked, property }: OfficeQuote) =>
   [
     asked?.service.name,
     propertySummary(property),
-    conditionText(property.condition).toLowerCase(),
+    property.condition && conditionText(property.condition).toLowerCase(),
   ]
     .filter(Boolean)
     .join(" · ");
 
+// what the Client (or a caller) asked for, unchanged, and the home it's
+// for (WEB-8, WEB-A); none on a Quote the Office offered unprompted
 export function AskedFacts({ quote }: { quote: OfficeQuote }) {
   const { asked, property } = quote;
   if (!asked) return null;
@@ -291,6 +293,50 @@ export function TurnDownQuote({
         </>
       )}
     </Dialog>
+  );
+}
+
+/**
+ * A price beside the form that's working it out (#434), the Draft's and New
+ * quote's: its total, large, what's said under it, then how it's worked
+ * out, folded: the Suggested Price's hours and money, then `children`,
+ * what that price adds (the hours on site, a plan's discount, which
+ * prices). `live` reads the total out as it changes
+ */
+export function FoldedPrice({
+  price,
+  working,
+  perClean,
+  live,
+  under,
+  children,
+}: {
+  // what it comes to, which may be a price of the Office's own
+  price: { totalCents: number; taxCents: number };
+  // the Suggested Price it starts from
+  working: PriceBreakdown;
+  perClean?: boolean;
+  live?: boolean;
+  under?: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <>
+      <div aria-live={live ? "polite" : undefined}>
+        <PriceHead
+          totalCents={price.totalCents}
+          taxCents={price.taxCents}
+          perClean={perClean}
+        />
+      </div>
+      {under}
+      <Fold label="How it's worked out">
+        <div className="flex flex-col gap-3">
+          <PriceWorking breakdown={working} />
+          {children}
+        </div>
+      </Fold>
+    </>
   );
 }
 

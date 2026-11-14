@@ -23,7 +23,6 @@ import {
 import {
   Avatar,
   Button,
-  Fold,
   FormPage,
   FormPart,
   List,
@@ -34,11 +33,11 @@ import {
 import { getJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { clientName, screenWords } from "../format.ts";
-import { PriceHead } from "../QuoteParts.tsx";
-import { PriceWorking } from "./QuoteAsked.tsx";
+import { FoldedPrice } from "./QuoteAsked.tsx";
+import { onSite } from "./WorkedOutQuote.tsx";
 import { reportUnexpected } from "../../monitoring.ts";
 
-const { formatFloorArea } = screenWords.en;
+const { cleaners, formatFloorArea } = screenWords.en;
 const { formatMoney } = formats.en;
 
 export type NewQuoteSearch = { clientId?: string };
@@ -296,6 +295,8 @@ const priceSoFar = (
         ? (what.condition ?? "moderate")
         : null,
       business: what.priced.kind === "commercial",
+      // the usual crew, as the Draft starts with
+      crewSize: list.defaultCrewSize,
     };
   } catch (e) {
     // a place the Service isn't priced for: nothing to show yet. A bug is
@@ -306,24 +307,34 @@ const priceSoFar = (
   }
 };
 
-// the price so far, as the Draft's are shown: its total, read out as it
-// changes, and how it's worked out, folded (#434)
+// the price so far, as the Draft's are shown (#434): its total, read out as
+// it changes, and how it's worked out, folded, with how long the clean
+// takes, which a caller asks
 function PriceSoFar({ price }: { price: ReturnType<typeof priceSoFar> }) {
   if (!price) return <p className="text-sm text-fg-muted">{PICK_FIRST}</p>;
-  const { now, place, condition, business } = price;
+  const { now, place, condition, business, crewSize } = price;
   return (
     <div className="flex flex-col gap-3">
-      <div aria-live="polite" className="flex flex-col gap-1">
-        <span className="text-sm text-fg-muted">{now.serviceName}</span>
-        <PriceHead totalCents={now.totalCents} taxCents={now.taxCents} />
-        <span className="text-sm text-fg-muted">
-          {place}
-          {condition ? `, in ${condition} condition` : ""}
-        </span>
-      </div>
-      <Fold label="How it's worked out">
-        <PriceWorking breakdown={now} />
-      </Fold>
+      <span className="text-sm text-fg-muted">{now.serviceName}</span>
+      <FoldedPrice
+        price={now}
+        working={now}
+        live
+        under={
+          <span className="text-sm text-fg-muted">
+            {place}
+            {condition ? `, in ${condition} condition` : ""}
+          </span>
+        }
+      >
+        {/* none yet, e.g. a business with no floor area given */}
+        {now.labourHours > 0 && (
+          <p className="text-sm text-fg-muted">
+            About {onSite(now.labourHours, crewSize)} on site for{" "}
+            {cleaners(crewSize)}.
+          </p>
+        )}
+      </FoldedPrice>
       {business && (
         <p className="text-sm text-fg-muted">
           A first idea: a business is priced after its site visit.
