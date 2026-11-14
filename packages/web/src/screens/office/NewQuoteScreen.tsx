@@ -375,8 +375,7 @@ function FindClient({
           onChange={setText}
           autoFocus
         />
-        {/* gone at once when the box is emptied */}
-        {found && text.trim() && (
+        {found && (
           <List
             aria-label="Clients found"
             onAction={(id) => onChoose(String(id))}
