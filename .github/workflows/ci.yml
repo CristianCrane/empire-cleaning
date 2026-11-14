@@ -1,8 +1,15 @@
 name: CI
 
+# A pull request into any branch, so one stacked on another PR's branch is
+# checked like any other (#446). Not on `edited`, which a base change fires
+# (as GitHub does to a stacked PR once its base merges), but so does a title
+# or body edit, and Actions can't tell them apart before the jobs: such a run
+# would cancel the one still going (below), and its skipped jobs would pass
+# as All checks, as a skipped job counts as passing even when required. A
+# retargeted PR keeps the checks on its head commit, which main reads; its
+# next push runs CI against the new base.
 on:
   pull_request:
-    branches: [main]
   push:
     branches: [main]
 

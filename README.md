@@ -43,7 +43,7 @@ pnpm run db:down
 
 # CI
 
-Every pull request to `main`, and every push to `main`, runs `.github/workflows/ci.yml`. Each part is its own check, and they run in parallel; the slower suites are split across several jobs (shards, each counted in its matrix). A final check, All checks, passes only when every other one did, and it's the one `main` requires. A newer push to the same pull request cancels the run still going. To run the same locally (with `pnpm db:up` for the Postgres the tests use):
+Every pull request, into `main` or stacked on another's branch, and every push to `main`, runs `.github/workflows/ci.yml`. When a stacked PR's base merges and GitHub moves it onto `main`, that runs nothing: it keeps its checks, and its next push runs them against `main` (`ci.yml` says why). Each part is its own check, and they run in parallel; the slower suites are split across several jobs (shards, each counted in its matrix). A final check, All checks, passes only when every other one did, and it's the one `main` requires. A newer push to the same pull request cancels the run still going. To run the same locally (with `pnpm db:up` for the Postgres the tests use):
 
 | Check                | Locally                                                                                                               |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------- |
