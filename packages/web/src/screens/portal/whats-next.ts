@@ -3,7 +3,7 @@ import {
   CalendarCheck,
   CalendarClock,
   CalendarDays,
-  CreditCard,
+  ClipboardCheck,
   Hourglass,
   KeyRound,
   MapPin,
@@ -13,7 +13,6 @@ import {
   Repeat,
   Sparkles,
   UserRound,
-  type LucideIcon,
 } from "lucide-react";
 import {
   business,
@@ -29,8 +28,8 @@ import {
   oneStop,
   type Language,
 } from "@empire-cleaning/models";
-import type { StatusTone } from "@empire-cleaning/ui";
-import { linkTo, type AppHref } from "../../links.ts";
+import type { HomeTile } from "@empire-cleaning/ui";
+import { linkTo } from "../../links.ts";
 import { QuoteIcon } from "../icons.ts";
 import {
   addressOf,
@@ -39,24 +38,20 @@ import {
   formatMinutes,
 } from "../format.ts";
 import { saidWith } from "../words.ts";
+import type { Hero } from "./HeroCard.tsx";
+import { moneyNow, owedAnswer, yourCardTile } from "./payments.ts";
 
 // Home's words, in the Client's language (ADR-0025)
 const words = catalog({
   en: {
-    needsOk: (day: string, n: number) =>
-      `Your ${day} clean needs your OK on ${n === 1 ? "a price change" : `${n} price changes`}.`,
-    reviewIt: "Review it",
-    quoteReady: (headline: string) => `Your quote is ready: ${headline}.`,
+    reviewPrices: (n: number) =>
+      n === 1 ? "Review a price change" : `Review ${n} price changes`,
+    // a waiting tile's hint, when there are several
+    andMore: (first: string, more: number) => `${first} · ${more} more`,
+    seeQuotes: (n: number) => `See your ${n} quotes`,
     quoteReadyLabel: "Your quote is ready",
-    billNotPaid: (bill: string, amount: string) => `${bill}, ${amount}.`,
-    seeBill: "See the bill",
-    billDue: (n: string, amount: string, day: string) =>
-      `Bill ${n}, ${amount}, is due by ${day}.`,
-    payBill: "Pay the bill",
     askedToMove: (day: string, to: string) =>
       `You asked to move your ${day} clean to ${to}. We'll confirm, usually within a working day.`,
-    afterThat: (what: string, when: string) => `After that: ${what}, ${when}`,
-    yourSiteVisit: "your site visit",
     firstClean: "Your first clean",
     nextClean: "Your next clean",
     serviceAt: (service: string, address: string) => `${service} at ${address}`,
@@ -69,7 +64,6 @@ const words = catalog({
     visitFree: (phone: string) =>
       `Free: we look before we quote. To change the time, call ${phone}.`,
     planPaused: "Your cleaning plan is paused",
-    updateToCarryOn: "Update your card to carry on",
     paymentDue: "A payment is due",
     notThroughYet: "A payment on it hasn't gone through yet.",
     carriesOn: "Once it's paid, your plan carries on from its next date.",
@@ -103,28 +97,21 @@ const words = catalog({
     pastCleans: "Past cleans",
     receipts: "And their receipts",
     nameEmailPhone: "Name, email, phone",
-    lastDidntGo: "The last payment didn't go through",
-    noneSaved: "None saved yet",
     moveRequest: "Your move request",
     to: (when: string) => `To ${when}`,
   },
   es: {
-    needsOk: (day: string, n: number) =>
-      `Su limpieza del ${day} necesita su aprobación de ${n === 1 ? "un cambio de precio" : `${n} cambios de precio`}.`,
-    reviewIt: "Revisar",
-    quoteReady: (headline: string) => `Su cotización está lista: ${headline}.`,
+    reviewPrices: (n: number) =>
+      n === 1
+        ? "Revisar un cambio de precio"
+        : `Revisar ${n} cambios de precio`,
+    andMore: (first: string, more: number) => `${first} · ${more} más`,
+    seeQuotes: (n: number) => `Ver sus ${n} cotizaciones`,
     quoteReadyLabel: "Su cotización está lista",
-    billNotPaid: (bill: string, amount: string) => `${bill}, ${amount}.`,
-    seeBill: "Ver la factura",
-    billDue: (n: string, amount: string, day: string) =>
-      `La factura ${n}, de ${amount}, vence el ${day}.`,
-    payBill: "Pagar la factura",
     askedToMove: (day: string, to: string) =>
       oneStop(
         `Pidió reprogramar su limpieza del ${day} para el ${to}. Se la confirmaremos, normalmente en un día hábil.`,
       ),
-    afterThat: (what: string, when: string) => `Después: ${what}, ${when}`,
-    yourSiteVisit: "su visita previa",
     firstClean: "Su primera limpieza",
     nextClean: "Su próxima limpieza",
     serviceAt: (service: string, address: string) => `${service} en ${address}`,
@@ -137,7 +124,6 @@ const words = catalog({
     visitFree: (phone: string) =>
       `Gratis: vemos el lugar antes de cotizar. Para cambiar la hora, llame al ${phone}.`,
     planPaused: "Su plan de limpieza está en pausa",
-    updateToCarryOn: "Actualice su tarjeta para continuar",
     paymentDue: "Hay un pago pendiente",
     notThroughYet: "Un pago del plan aún no ha pasado.",
     carriesOn: "Cuando esté pagado, su plan continúa desde su próxima fecha.",
@@ -171,8 +157,6 @@ const words = catalog({
     pastCleans: "Limpiezas pasadas",
     receipts: "Y sus recibos",
     nameEmailPhone: "Nombre, correo, teléfono",
-    lastDidntGo: "El último pago no pasó",
-    noneSaved: "Ninguna guardada todavía",
     moveRequest: "Su solicitud para reprogramar",
     to: (when: string) => `Para el ${when}`,
   },
@@ -180,11 +164,11 @@ const words = catalog({
 
 type Said = ReturnType<typeof saidWith<(typeof words)["en"]>>;
 
-// The Client's Home answers one question: what's next. Its hero is the
-// soonest thing booked, or, with nothing booked, where they stand with us;
-// what's waiting on them is a warning Notice above it, and what they're
-// waiting on us for an info one. Shortcuts under it are what they can do
-// from there. (UX pass, #96)
+// The Client's Home answers one question: what's next (UX pass, #96;
+// the Home layout, #435). Its hero is what's owed when that asks anything
+// of them, else the soonest thing booked, or, with nothing booked, where
+// they stand with us. What they're waiting on us for is news under it;
+// what's waiting on them, and what they can do from there, tiles.
 
 export type HomeData = {
   client: ClientView;
@@ -197,38 +181,14 @@ export type HomeData = {
   paymentMethod: PaymentMethodView | null;
 };
 
-type HomeLink = AppHref | `tel:${string}`;
-
-export type Hero = {
-  label: string;
-  icon: LucideIcon;
-  tone: StatusTone;
-  // when it is, for its calendar tile; none with nothing booked
-  startsAt?: string;
-  // the answer, large
-  headline: string;
-  lines: string[];
-  action?: { label: string; href: HomeLink };
-};
-
-// something waiting on the Client, with the one thing to do about it
-type HomeNotice = { text: string; action: string; href: HomeLink };
-
-type Shortcut = {
-  icon: LucideIcon;
-  label: string;
-  hint: string;
-  href: HomeLink;
-};
-
 export type WhatsNext = {
-  notices: HomeNotice[];
   // what they're waiting on us for
   news: string[];
+  // what's owed first, when it asks anything of them; else what's next
   hero: Hero;
-  // the thing booked after the hero's, which leads on to all their cleans
-  after: string | null;
-  shortcuts: Shortcut[];
+  // what's waiting on them, a tile a kind, never cut; then what they can
+  // do from there, as many as fit four in all
+  tiles: HomeTile[];
 };
 
 // the Client's ways to a Quote: asking for one, and seeing one
@@ -245,10 +205,11 @@ const seeQuote = (t: Said, quoteId: string) => ({
   label: t.p.seeYourQuote,
   href: quoteLink(quoteId),
 });
-const billLink = (billId: string) =>
-  linkTo({ to: "/portal/bills/$billId", params: { billId } });
-const cardLink = linkTo({ to: "/portal/payment-method" });
 const detailsLink = linkTo({ to: "/portal/details" });
+const pastCleansLink = linkTo({
+  to: "/portal/cleans",
+  search: { tab: "past" },
+});
 
 const open = (q: QuoteSummary) =>
   q.status === "requested" || q.status === "draft";
@@ -264,7 +225,7 @@ export function whatsNext(
   now = new Date(),
 ): WhatsNext {
   const t = saidWith(lang, words);
-  const { w, dayOf, formatDateTime, formatDay, formatMoney } = t;
+  const { w, dayOf, formatDateTime } = t;
   const booked: Booked[] = [
     ...data.jobs.map((job) => ({
       kind: "job" as const,
@@ -277,69 +238,48 @@ export function whatsNext(
       visit,
     })),
   ].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-  const [next, then] = booked;
+  const [next] = booked;
 
-  // a clean they can put right with a card; one waiting on the payment
-  // service we try again ourselves
-  const unpaidJob = data.pastJobs.find(
-    (j) => j.unpaid && j.unpaid !== "waiting",
-  );
+  const money = moneyNow(data, lang);
   const paused = data.plans.find((p) => p.status === "on_hold");
   const sent = data.quotes.filter((q) => q.status === "sent");
   // a Sent Quote leads only when nothing is booked
   const leadingQuote = next || paused ? undefined : sent[0];
 
-  const notices: HomeNotice[] = [];
-  // a plan paused with nothing booked says so in the hero instead
-  if (unpaidJob && (next || !paused)) {
-    notices.push({
-      text:
-        `${t.cleanNotPaid(dayOf(unpaidJob.startsAt))}.` +
-        (paused ? ` ${t.BOOKED_GO_AHEAD}` : ""),
-      action: t.UPDATE_CARD,
-      href: cardLink,
-    });
-  }
-  for (const job of data.pastJobs.filter((j) => j.awaitingAnswer > 0)) {
-    notices.push({
-      text: w.needsOk(dayOf(job.startsAt), job.awaitingAnswer),
-      action: w.reviewIt,
-      href: jobLink(job.id),
-    });
-  }
-  for (const quote of sent.filter((q) => q !== leadingQuote)) {
-    notices.push({
-      text: w.quoteReady(t.quoteHeadline(quote)),
-      action: seeQuote(t, quote.id).label,
-      href: seeQuote(t, quote.id).href,
-    });
-  }
-  for (const bill of data.bills) {
-    if (bill.unpaid) {
-      notices.push({
-        text: w.billNotPaid(
-          t.billNotPaid(bill.number),
-          formatMoney(bill.totalCents),
-        ),
-        action: w.seeBill,
-        href: billLink(bill.id),
-      });
-    } else if (
-      bill.status === "due" &&
-      bill.payment === "on_page" &&
-      bill.totalCents > 0
-    ) {
-      notices.push({
-        text: w.billDue(
-          bill.number,
-          formatMoney(bill.totalCents),
-          formatDay(bill.dueOn),
-        ),
-        action: w.payBill,
-        href: billLink(bill.id),
-      });
-    }
-  }
+  // what's waiting on them besides the card: a tile a kind, so never more
+  // than two and the shortcuts keep two places. One leads to it; several
+  // to where they all are: a home's page lists its quotes (Your details its
+  // homes), Cleans' Past tab the cleans with prices to review
+  const quotes = sent.filter((q) => q !== leadingQuote);
+  const reviews = data.pastJobs.filter((j) => j.awaitingAnswer > 0);
+  const hintFor = (first: string, all: unknown[]) =>
+    all.length > 1 ? w.andMore(first, all.length - 1) : first;
+  const waiting: HomeTile[] = [
+    ...quotes.slice(0, 1).map((quote) => ({
+      id: "quote",
+      icon: QuoteIcon,
+      label: quotes.length > 1 ? w.seeQuotes(quotes.length) : t.p.seeYourQuote,
+      hint: hintFor(t.quoteHeadline(quote), quotes),
+      href:
+        quotes.length === 1
+          ? quoteLink(quote.id)
+          : quotes.every((q) => q.property.id === quote.property.id)
+            ? linkTo({
+                to: "/portal/properties/$propertyId",
+                params: { propertyId: quote.property.id },
+              })
+            : detailsLink,
+    })),
+    ...reviews.slice(0, 1).map((job) => ({
+      id: "review",
+      icon: ClipboardCheck,
+      label: w.reviewPrices(
+        reviews.reduce((sum, j) => sum + j.awaitingAnswer, 0),
+      ),
+      hint: hintFor(t.p.yourClean(dayOf(job.startsAt)), reviews),
+      href: reviews.length === 1 ? jobLink(job.id) : pastCleansLink,
+    })),
+  ];
 
   const news = data.jobs.flatMap((job) =>
     job.movingTo
@@ -347,28 +287,38 @@ export function whatsNext(
       : [],
   );
 
-  const hero = heroOf(data, t, { next, paused, unpaidJob, leadingQuote, now });
-
-  const after =
-    next && then
-      ? then.kind === "job"
-        ? w.afterThat(then.job.serviceName, formatDateTime(then.startsAt))
-        : w.afterThat(w.yourSiteVisit, formatDateTime(then.startsAt))
-      : null;
+  // money first: what's owed, when it asks anything of them, is the card,
+  // a paused plan's line under it
+  const hero: Hero = money.owed?.asks
+    ? {
+        ...owedAnswer(money.owed, lang),
+        lines: [
+          money.owed.text,
+          // booked cleans go ahead; none is booked till it is paid
+          ...(paused ? [next ? t.BOOKED_GO_AHEAD : w.carriesOn] : []),
+        ],
+      }
+    : heroOf(data, t, { next, paused, leadingQuote, now });
+  const shortcuts = shortcutsOf(data, t, {
+    next,
+    paused,
+    now,
+    card: yourCardTile(money, lang),
+    // Your card, unless it's the card's own Button (Update your card)
+  }).filter(
+    (s) => !(s.id === "card" && "href" in s && s.href === hero.action?.href),
+  );
 
   return {
-    notices,
     news,
     hero,
-    after,
-    shortcuts: shortcutsOf(data, t, { next, paused, unpaidJob, now }),
+    tiles: [...waiting, ...shortcuts.slice(0, Math.max(0, 4 - waiting.length))],
   };
 }
 
 type Context = {
   next: Booked | undefined;
   paused: ServicePlanSummary | undefined;
-  unpaidJob: ClientPastJob | undefined;
   leadingQuote?: QuoteSummary;
   now: Date;
 };
@@ -377,7 +327,7 @@ const isToday = (iso: string, now: Date) =>
   dayOfInstant(iso) === dayOfInstant(now.toISOString());
 
 function heroOf(data: HomeData, t: Said, ctx: Context): Hero {
-  const { next, paused, unpaidJob, leadingQuote, now } = ctx;
+  const { next, paused, leadingQuote, now } = ctx;
   const { w, dayOf, formatDateTime } = t;
 
   if (next?.kind === "job") {
@@ -425,21 +375,16 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Hero {
     };
   }
 
+  // paused on a payment that asks nothing of them yet (one that does is
+  // the owed card)
   if (paused) {
     return {
       label: w.planPaused,
       icon: PauseCircle,
       tone: "warning",
-      headline: unpaidJob ? w.updateToCarryOn : w.paymentDue,
-      lines: [
-        unpaidJob
-          ? `${t.cleanNotPaid(dayOf(unpaidJob.startsAt))}.`
-          : w.notThroughYet,
-        w.carriesOn,
-      ],
-      action: unpaidJob
-        ? { label: t.UPDATE_CARD, href: cardLink }
-        : { label: t.p.seeYourPlan, href: planLink(paused.id) },
+      headline: w.paymentDue,
+      lines: [w.notThroughYet, w.carriesOn],
+      action: { label: t.p.seeYourPlan, href: planLink(paused.id) },
     };
   }
 
@@ -570,40 +515,34 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Hero {
 const planLink = (planId: string) =>
   linkTo({ to: "/portal/plans/$planId", params: { planId } });
 
-function shortcutsOf(data: HomeData, t: Said, ctx: Context): Shortcut[] {
-  const { next, paused, unpaidJob, now } = ctx;
+function shortcutsOf(
+  data: HomeData,
+  t: Said,
+  ctx: Context & { card: HomeTile },
+): HomeTile[] {
+  const { next, paused, now, card } = ctx;
   const { w, p, dayOf, formatDateTime } = t;
-  const callUs: Shortcut = {
+  const callUs: HomeTile = {
     icon: Phone,
+    id: "call",
     label: w.callUs,
     hint: business.phone.display,
-    href: business.phone.href,
+    externalHref: business.phone.href,
   };
-  const pastCleans: Shortcut = {
+  const pastCleans: HomeTile = {
     icon: Receipt,
+    id: "past",
     label: w.pastCleans,
     hint: w.receipts,
-    href: linkTo({ to: "/portal/cleans", search: { tab: "past" } }),
+    href: pastCleansLink,
   };
-  const details: Shortcut = {
+  const details: HomeTile = {
     icon: UserRound,
+    id: "details",
     label: p.yourDetails,
     hint: w.nameEmailPhone,
     href: detailsLink,
   };
-  const card: Shortcut = unpaidJob
-    ? {
-        icon: CreditCard,
-        label: t.UPDATE_CARD,
-        hint: w.lastDidntGo,
-        href: cardLink,
-      }
-    : {
-        icon: CreditCard,
-        label: p.yourCard,
-        hint: data.paymentMethod?.label ?? w.noneSaved,
-        href: cardLink,
-      };
   // the home the next thing is at, else their only one
   const homeId =
     next?.kind === "job"
@@ -614,10 +553,11 @@ function shortcutsOf(data: HomeData, t: Said, ctx: Context): Shortcut[] {
           ? data.client.properties[0]!.id
           : undefined;
   const home = data.client.properties.find((p) => p.id === homeId);
-  const getIn: Shortcut[] = home
+  const getIn: HomeTile[] = home
     ? [
         {
           icon: KeyRound,
+          id: "getIn",
           label: t.howWeGetIn,
           hint: home.accessInstructions || t.notAdded,
           href: linkTo({
@@ -631,15 +571,17 @@ function shortcutsOf(data: HomeData, t: Said, ctx: Context): Shortcut[] {
   if (next?.kind === "job") {
     const { job } = next;
     if (isToday(job.startsAt, now)) return [callUs, ...getIn, card];
-    const move: Shortcut = job.movingTo
+    const move: HomeTile = job.movingTo
       ? {
           icon: CalendarClock,
+          id: "move",
           label: w.moveRequest,
           hint: w.to(formatDateTime(job.movingTo)),
           href: jobLink(job.id),
         }
       : {
           icon: CalendarClock,
+          id: "move",
           label: job.servicePlanId ? p.moveOrSkip : p.moveOrCancel,
           hint: p.yourClean(dayOf(job.startsAt)),
           href: jobLink(job.id),

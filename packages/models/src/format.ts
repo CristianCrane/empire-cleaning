@@ -127,6 +127,9 @@ export const formats: Catalog<Formats> = {
   es: formatsIn("es"),
 };
 
+// a person's first name, as a greeting says it ("Hi, Casey")
+export const firstNameOf = (name: string) => name.split(" ")[0]!;
+
 // a Spanish time with its article, as a sentence says it after "a" or
 // "hasta": "la 1:00 p.m.", "las 9:00 a.m."
 export const theTimeEs = (time: string) =>

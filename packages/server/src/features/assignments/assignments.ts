@@ -10,12 +10,13 @@ import {
   isOnCrew,
   type OfficeJob,
   startOfDay,
+  firstNameOf,
 } from "@empire-cleaning/models";
 import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
-import { email, firstNameOf, notify } from "../../services/email/index.ts";
+import { email, notify } from "../../services/email/index.ts";
 import {
   cancellationOf,
   cancelTermsOf,

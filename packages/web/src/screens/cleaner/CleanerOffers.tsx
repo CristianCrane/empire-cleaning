@@ -1,4 +1,8 @@
-import { catalog } from "@empire-cleaning/models";
+import {
+  catalog,
+  type CleanerJobs,
+  type CleanerNeeded,
+} from "@empire-cleaning/models";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import { Inbox } from "lucide-react";
 import { ListPage, type ListRow } from "@empire-cleaning/ui";
@@ -21,6 +25,22 @@ const words = catalog({
     nothingOpen: "Ahora no hay nada disponible para ti",
   },
 });
+
+// Jobs that aren't the Cleaner's yet, from theirs and those open to them:
+// offered to them, not yet answered, or open to them
+export const offersOf = (mine: CleanerJobs, open: CleanerNeeded[]) => ({
+  offered: [...mine.today, ...mine.upcoming].filter(
+    (job) => job.assignment.status === "offered" && !job.outcome,
+  ),
+  open,
+});
+
+// how many wait on their answer, for Offers' label, its tile and Your
+// jobs' card
+export const offersCount = (mine: CleanerJobs, open: CleanerNeeded[]) => {
+  const offers = offersOf(mine, open);
+  return offers.offered.length + offers.open.length;
+};
 
 // the list's Tabs: what the Office picked them for, then what's open
 export const offerTabs = ["offered", "open"] as const;

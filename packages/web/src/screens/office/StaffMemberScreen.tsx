@@ -13,7 +13,12 @@ import type {
   StaffHolding,
   StaffRole,
 } from "@empire-cleaning/models";
-import { hasSiteVisit, weekdayOf, formats } from "@empire-cleaning/models";
+import {
+  firstNameOf,
+  hasSiteVisit,
+  weekdayOf,
+  formats,
+} from "@empire-cleaning/models";
 import {
   Actions,
   Avatar,
@@ -250,7 +255,7 @@ function WhatItFrees({
   // what does it: "Saving", "Deactivating"
   saving: string;
 }) {
-  const [firstName] = member.name.split(" ");
+  const firstName = firstNameOf(member.name);
   const [visit] = visits;
   if (visit) {
     return (
@@ -269,11 +274,7 @@ function WhatItFrees({
         }
       >
         <p>
-          {hasSiteVisit(
-            firstName!,
-            visit.where,
-            formatDateTime(visit.startsAt),
-          )}
+          {hasSiteVisit(firstName, visit.where, formatDateTime(visit.startsAt))}
         </p>
       </Notice>
     );

@@ -1,4 +1,4 @@
-import { catalog, type Language } from "@empire-cleaning/models";
+import { catalog, type Language, firstNameOf } from "@empire-cleaning/models";
 import {
   button,
   cleanDetails,
@@ -7,7 +7,6 @@ import {
   type Clean,
   type Email,
 } from "../../services/email/blocks.ts";
-import { firstNameOf } from "../../services/email/format.ts";
 
 // what any email about a coming clean asks of its Client, in their
 // language

@@ -5,6 +5,7 @@ import {
   inLanguage,
   type Language,
   type Named,
+  firstNameOf,
 } from "@empire-cleaning/models";
 import {
   officeJobButton,
@@ -15,7 +16,6 @@ import {
   type Clean,
   type Email,
 } from "../../services/email/blocks.ts";
-import { firstNameOf } from "../../services/email/format.ts";
 
 // What emails to a Cleaner say, in their Preferred Language (ADR-0025),
 // tú in Spanish. `crewWords` are the words several of them share, here and

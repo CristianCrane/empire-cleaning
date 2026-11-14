@@ -8,7 +8,6 @@ import {
   type Clean,
   type Email,
 } from "../../services/email/blocks.ts";
-import { firstNameOf } from "../../services/email/format.ts";
 import {
   addDays,
   catalog,
@@ -18,6 +17,7 @@ import {
   type UnpaidKind,
   formats,
   messages,
+  firstNameOf,
 } from "@empire-cleaning/models";
 import type { Settled } from "../completion/balance.ts";
 import { changeLabel, type Changed } from "../completion/emails.ts";

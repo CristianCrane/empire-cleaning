@@ -45,6 +45,7 @@ export type ListItemProps = Omit<GridListItemProps, "children"> & {
 
 export function ListItem({
   title,
+  textValue,
   heard,
   description,
   start,
@@ -70,8 +71,8 @@ export function ListItem({
       : "max-sm:col-start-2 max-sm:row-span-2 max-sm:row-start-1";
   return (
     <GridListItem
-      textValue={title}
       {...props}
+      textValue={textValue ?? title}
       data-actionable={(opens && !props.isDisabled) || undefined}
       className={(renderProps) =>
         `${focusRing(renderProps)} flex min-h-touch items-center gap-3 border-b border-border px-4 py-3 -outline-offset-2 last:border-b-0 ${grid} ${opens ? "hover:bg-surface-sunken pressed:bg-surface-sunken" : ""}`

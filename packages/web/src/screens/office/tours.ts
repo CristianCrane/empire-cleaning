@@ -11,16 +11,10 @@ export const officeTours = {
       route: "/office/",
       steps: [
         {
-          // the Section: first in the page, before its tiles ("Needs
-          // attention by kind") and its list, also "Needs attention"
-          target: { named: "Needs attention" },
-          title: "Needs attention",
-          text: "Each row is something waiting on you. Open it to deal with it, and it leaves the list once it's done.",
-        },
-        {
-          target: { named: "Needs attention by kind" },
-          title: "Jobs, Quotes and Money",
-          text: "Press one to see only those, and again to see everything.",
+          // the tiles, there whether or not a to-do is in the card
+          target: { named: "Today at a glance" },
+          title: "Today at a glance",
+          text: "The card at the top is the first thing waiting on you. These tiles count today's jobs, then everything waiting on you, by kind: press one to see them, and again to close it.",
         },
         {
           // in the navigation: Today has no link of its own to it

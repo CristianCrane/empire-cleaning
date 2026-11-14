@@ -5,6 +5,7 @@ import {
   createStaff,
   expect,
   expectAccessible,
+  openTile,
   requestQuoteAsGuest,
   signedInAs,
   test,
@@ -34,12 +35,18 @@ test(
     });
     await signInAsOffice(page);
 
-    const needsAttention = page.getByRole("grid", { name: "Needs attention" });
-    const request = needsAttention.getByRole("row", { name: /Casey Client/ });
-    await expect(request).toContainText("41-12 Austin St, 4B, 11375");
-    await expect(request).toContainText("Send a quote");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Hi, Olive" }),
+    ).toBeVisible();
+    // the one to-do is the card's, and Quotes counts it
+    const first = page.getByRole("region", { name: "First up" });
+    await expect(first).toContainText("Casey Client");
+    await expect(first).toContainText("41-12 Austin St, 4B, 11375");
+    await expect(page.getByRole("button", { name: /^Quotes/ })).toHaveText(
+      /Quotes\s*1\s*1 asked for/,
+    );
 
-    await request.click();
+    await first.getByRole("button", { name: "Send a quote" }).click();
     await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
   },
 );
@@ -49,26 +56,24 @@ test("a Quote asked for while the Dashboard is open shows within a minute", asyn
 }) => {
   await page.clock.install();
   await signInAsOffice(page);
-  const needsAttention = page.getByRole("grid", { name: "Needs attention" });
-  const request = needsAttention.getByRole("row", { name: /Casey Client/ });
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Today" }),
-  ).toBeVisible();
+  await expect(page.getByText("Nothing needs you")).toBeVisible();
 
   await requestQuoteAsGuest({
     name: "Casey Client",
     email: "casey@example.com",
   });
   await page.clock.runFor(MINUTE_MS - 1_000);
-  await expect(request).toHaveCount(0);
+  await expect(page.getByText("Nothing needs you")).toBeVisible();
   await page.clock.runFor(1_000);
 
-  await expect(request).toContainText("Send a quote");
+  await expect(page.getByRole("region", { name: "First up" })).toContainText(
+    "Send a quote",
+  );
 });
 
 // a long list reads as a few numbers first: a tile per part of the work,
-// pressed to show only that part
-test("Office Staff see what's waiting counted by kind, and pick one to see only those", async ({
+// each opening its rows in place, and the day's Jobs beside them
+test("Office Staff see what's waiting counted by kind, and open one to see those", async ({
   page,
 }) => {
   await requestQuoteAsGuest({
@@ -79,37 +84,68 @@ test("Office Staff see what's waiting counted by kind, and pick one to see only 
   await bookJob({ startsAt: "2026-01-05T14:00:00Z", labourHours: 5 });
   await signInAsOffice(page);
 
-  const kinds = page.getByRole("radiogroup", {
-    name: "Needs attention by kind",
-  });
-  const jobs = kinds.getByRole("radio", { name: /Jobs/ });
+  const today = page.getByRole("button", { name: /^On today/ });
+  const jobs = page.getByRole("button", { name: /^Jobs/ });
+  await expect(today).toHaveText(/On today\s*1\s*1 need cleaners/);
   await expect(jobs).toHaveText(/Jobs\s*1\s*1 need cleaners/);
-  await expect(kinds.getByRole("radio", { name: /Quotes/ })).toHaveText(
+  await expect(page.getByRole("button", { name: /^Quotes/ })).toHaveText(
     /Quotes\s*1\s*1 asked for/,
   );
-  // nothing owed: nothing to pick
-  await expect(kinds.getByRole("radio", { name: /Money/ })).toBeDisabled();
+  // nothing owed: nothing to open
+  await expect(page.getByRole("button", { name: /^Money/ })).toBeDisabled();
 
-  const needsAttention = page.getByRole("grid", { name: "Needs attention" });
-  await expect(needsAttention.getByRole("row")).toHaveCount(2);
-  await jobs.click();
-  await expect(jobs).toBeChecked();
-  await expect(needsAttention.getByRole("row")).toHaveCount(1);
-  await expect(needsAttention).toContainText("Find cleaners");
+  // no rows until a tile is pressed
+  await expect(jobs).toHaveAttribute("aria-pressed", "false");
+  const jobRows = await openTile(page, "Jobs");
+  await expect(jobRows.getByRole("row")).toHaveCount(1);
+  await expect(jobRows).toContainText("Find cleaners");
+  await expect(page).toHaveURL("/office?open=jobs");
 
-  await page.getByRole("button", { name: "Show all 2" }).click();
-  await expect(jobs).not.toBeChecked();
-  await expect(needsAttention.getByRole("row")).toHaveCount(2);
+  // one open at a time: the day's Jobs, the Schedule's day under them
+  const dayRows = await openTile(page, "On today");
+  await expect(jobs).toHaveAttribute("aria-pressed", "false");
+  await expect(dayRows.getByRole("row")).toHaveCount(1);
+  await expect(dayRows).toContainText("Needs cleaners");
+  await expect(
+    page.getByRole("link", { name: "Open the Schedule" }),
+  ).toHaveAttribute("href", "/office/schedule?from=2026-01-05&to=2026-01-05");
+
+  // pressed again, closed
+  await today.click();
+  await expect(today).toHaveAttribute("aria-pressed", "false");
+  await expect(page).toHaveURL("/office");
+
+  // Back from a row comes back to its tile, open
+  await (await openTile(page, "Jobs")).getByRole("row").click();
+  await expect(page).toHaveURL(/\/office\/jobs\//);
+  await page.goBack();
+  await expect(jobs).toHaveAttribute("aria-pressed", "true");
+});
+
+test("pressing a tile keeps the page where it was", async ({ page }) => {
+  await requestQuoteAsGuest({
+    name: "Casey Client",
+    email: "casey@example.com",
+  });
+  await bookJob({ startsAt: "2026-01-05T14:00:00Z", labourHours: 5 });
+  // a short screen, so the tiles sit below the top with the page scrolled
+  await page.setViewportSize({ width: 390, height: 400 });
+  await signInAsOffice(page);
+
+  const quotes = page.getByRole("button", { name: /^Quotes/ });
+  await quotes.evaluate((tile) => tile.scrollIntoView({ block: "start" }));
+  const scrolled = await page.evaluate(() => window.scrollY);
+  expect(scrolled).toBeGreaterThan(0);
+  await quotes.click();
+  await expect(quotes).toHaveAttribute("aria-pressed", "true");
+  expect(await page.evaluate(() => window.scrollY)).toBe(scrolled);
 });
 
 test("a quiet day says so", async ({ page }) => {
   await signInAsOffice(page);
 
-  await expect(
-    page.getByText(
-      "Nothing needs you right now. When a client asks for a quote or a new time, or a job needs a cleaner, it shows up here.",
-    ),
-  ).toBeVisible();
+  await expect(page.getByText("Nothing needs you")).toBeVisible();
+  await expect(page.getByRole("button", { name: /^On today/ })).toBeDisabled();
 });
 
 test("the dashboard passes automated accessibility checks", async ({
@@ -121,9 +157,7 @@ test("the dashboard passes automated accessibility checks", async ({
   });
   await bookJob({ startsAt: "2026-01-05T14:00:00Z", labourHours: 5 });
   await signInAsOffice(page);
-  await expect(
-    page.getByRole("grid", { name: "Needs attention" }).getByRole("row"),
-  ).toHaveCount(2);
+  await expect((await openTile(page, "Jobs")).getByRole("row")).toHaveCount(1);
 
   await expectAccessible(page);
 });

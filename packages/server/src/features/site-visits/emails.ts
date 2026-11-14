@@ -3,6 +3,7 @@ import {
   formats,
   type Language,
   oneStop,
+  firstNameOf,
 } from "@empire-cleaning/models";
 import {
   button,
@@ -12,7 +13,6 @@ import {
   paragraph,
   type Email,
 } from "../../services/email/blocks.ts";
-import { firstNameOf } from "../../services/email/format.ts";
 
 // A Client is emailed when a Site Visit is booked, moved or cancelled; they
 // ask for changes by phone

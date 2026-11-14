@@ -54,6 +54,7 @@ import { useAction } from "./action.ts";
 import { useTours } from "./run-tours.ts";
 import { cleanerWords } from "./cleaner/words.ts";
 import { portalWords } from "./portal/words.ts";
+import { offersCount } from "./cleaner/CleanerOffers.tsx";
 import { said } from "./words.ts";
 
 // the account's words, at the foot of the sidebar and the ☰ menu, in every
@@ -244,12 +245,7 @@ function useOffersCount(on: boolean, pathname: string) {
       Promise.all([
         getJson<CleanerJobs>("/api/assignments/mine"),
         getJson<CleanerNeeded[]>("/api/assignments/open"),
-      ]).then(([{ today, upcoming }, open]) => {
-        const offered = [...today, ...upcoming].filter(
-          (job) => job.assignment.status === "offered" && !job.outcome,
-        );
-        return offered.length + open.length;
-      }),
+      ]).then(([mine, open]) => offersCount(mine, open)),
     { keep: true },
   );
   return value ?? 0;

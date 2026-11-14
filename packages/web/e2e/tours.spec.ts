@@ -21,6 +21,7 @@ import {
   setClock,
   signedInAs,
   test,
+  openTile,
   payAndBook,
 } from "./harness.ts";
 
@@ -153,8 +154,9 @@ eachTheme(() => {
     await walkTour(page, officeTours, "office-today", { first: true });
 
     // the Quote asked for, drafted
-    await page
-      .getByRole("grid", { name: "Needs attention" })
+    await (
+      await openTile(page, "Quotes")
+    )
       .getByRole("row", { name: /^Send a quote/ })
       .click();
     await draftTheQuote(page);

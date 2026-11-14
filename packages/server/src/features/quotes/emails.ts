@@ -13,7 +13,6 @@ import {
   type Clean,
   type Email,
 } from "../../services/email/blocks.ts";
-import { firstNameOf } from "../../services/email/format.ts";
 import {
   type PropertyKind,
   type Language,
@@ -24,6 +23,7 @@ import {
   inLanguage,
   messages,
   oneStop,
+  firstNameOf,
 } from "@empire-cleaning/models";
 import { accessButton } from "../jobs/emails.ts";
 import { cardOf } from "../payments/emails.ts";

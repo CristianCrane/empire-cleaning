@@ -11,6 +11,11 @@ import {
   linkIn,
   payAndBook,
   requestQuoteAsGuest,
+  openTile,
+  createStaff,
+  signUp,
+  completedFirstClean,
+  sentServicePlanQuote,
   saveACard,
 } from "./harness.ts";
 
@@ -71,6 +76,38 @@ test(
     await expect(page.getByText(/ accepted it$/)).toBeVisible();
     await page.goto("/office/schedule?from=2026-01-12&to=2026-01-12");
     await expect(page.getByText(casey.name)).toBeVisible();
+  },
+);
+
+test(
+  "a Client's Home leads with a Quote that's ready, and says it once",
+  { tag: "@desktop" },
+  async ({ page }) => {
+    // Casey's first clean done, and a cleaning plan offered after it
+    await createStaff(olive);
+    await signUp(olive.email);
+    const { propertyId } = await completedFirstClean(olive.email);
+    await sentServicePlanQuote({
+      officeEmail: olive.email,
+      propertyId,
+      startsAt: "2026-01-26T14:00:00Z",
+    });
+    await signedInAs(page, casey.email);
+
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Hi, Casey" }),
+    ).toBeVisible();
+    const card = page.getByRole("region", { name: "Your quote is ready" });
+    await expect(card).toContainText("Cleaning plan");
+    // the card's Button, so not a tile too
+    const tiles = page.getByRole("list", { name: "Shortcuts" });
+    await expect(tiles.getByRole("link")).toHaveCount(3);
+    await expect(
+      tiles.getByRole("link", { name: /^See your quote/ }),
+    ).toHaveCount(0);
+    await expect(
+      card.getByRole("link", { name: "See your quote" }),
+    ).toHaveAttribute("href", /^\/portal\/quotes\//);
   },
 );
 
@@ -268,7 +305,7 @@ test("a Quote whose day has filled up can't be paid for, and the Office is asked
   ).toBeVisible();
 
   await page.goto("/office");
-  const needs = page.getByRole("grid", { name: "Needs attention" });
+  const needs = await openTile(page, "Quotes");
   await expect(needs).toContainText("Pick another time for the quote");
   await needs.getByText(casey.name).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);

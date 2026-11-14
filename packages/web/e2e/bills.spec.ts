@@ -14,6 +14,8 @@ import {
   linkIn,
   pageAction,
   expectNoPageAction,
+  openTile,
+  listRows,
   payThisBill,
 } from "./harness.ts";
 
@@ -187,12 +189,11 @@ test(
     await billed({ payment: "on_page" });
     await signedInAs(page, casey.email);
 
-    // their Home says it's due
+    // their Home leads with it
+    const owed = page.getByRole("region", { name: "To pay" });
+    await expect(owed).toContainText("Bill EC-000001 is due by Jan 26");
     await expect(
-      page.getByText(/^Bill EC-000001, \$[\d.,]+, is due by Mon, Jan 26\.$/),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: "Pay the Bill" }),
+      owed.getByRole("link", { name: "Pay bill EC-000001" }),
     ).toBeVisible();
     // and so do their Payments, which lead to it
     await page.getByRole("link", { name: "Payments" }).click();
@@ -226,9 +227,10 @@ test(
     // their Payments show it paid, and owe nothing
     await page.getByRole("link", { name: "Payments" }).first().click();
     await expect(page.getByText("Nothing owed")).toBeVisible();
-    await expect(
-      page.getByRole("grid", { name: "Latest payments" }),
-    ).toContainText("Bill EC-000001");
+    await openTile(page, "All payments");
+    await expect(listRows(page, "All payments")).toContainText([
+      /Bill EC-000001/,
+    ]);
   },
 );
 
@@ -272,7 +274,7 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   const { billId, planId } = await billed({ plan: true, failing: true });
   await signedInAs(page, olive.email);
 
-  const attention = page.getByRole("grid", { name: "Needs attention" });
+  const attention = await openTile(page, "Money");
   const unpaidBill = attention
     .getByRole("row")
     .filter({ hasText: "Bill EC-000001 ·" });

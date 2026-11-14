@@ -24,6 +24,8 @@ export const uiWords = catalog({
     darkTheme: "Dark theme",
     testSite: "Test site: no real payments or cleans",
     goHome: "Go to your home page",
+    // a Home's greeting, by the person's first name
+    hi: (name: string) => `Hi, ${name}`,
     // a page's actions, in the menu at the end of its title row
     actions: "Actions",
     history: "History",
@@ -47,6 +49,7 @@ export const uiWords = catalog({
     darkTheme: "Tema oscuro",
     testSite: "Sitio de prueba: sin pagos ni limpiezas reales",
     goHome: "Ir a la página de inicio",
+    hi: (name: string) => `Hola, ${name}`,
     actions: "Acciones",
     history: "Historial",
     showMore: (n: number) => `Ver ${n} más`,

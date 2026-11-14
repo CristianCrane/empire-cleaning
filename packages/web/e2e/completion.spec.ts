@@ -15,6 +15,7 @@ import {
   addCleaner,
   linkIn,
   pageAction,
+  openTile,
   saveACard,
 } from "./harness.ts";
 
@@ -128,7 +129,7 @@ test(
     });
     await signedInAs(page, olive.email);
 
-    const attention = page.getByRole("grid", { name: "Needs attention" });
+    const attention = await openTile(page, "Jobs");
     await attention
       .getByRole("row")
       .filter({ hasText: "1 price change to review" })
@@ -186,7 +187,7 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   await failCharges(null);
 
   await signedInAs(page, olive.email);
-  const attention = page.getByRole("grid", { name: "Needs attention" });
+  const attention = await openTile(page, "Money");
   await expect(
     attention.getByRole("row").filter({ hasText: "Collect the balance" }),
   ).toBeVisible();
@@ -216,11 +217,9 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   await expect(client.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(client.getByText(/^We couldn't take payment/)).toHaveCount(0);
 
+  // nothing owed is left for the Office: Money counts none
   await page.reload();
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(
-    attention.getByRole("row").filter({ hasText: "Unpaid" }),
-  ).toBeHidden();
+  await expect(page.getByRole("button", { name: /^Money/ })).toBeDisabled();
 });
 
 test("Office Staff remove an Adjustment from its own dialog, confirming in the same dialog", async ({

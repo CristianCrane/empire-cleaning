@@ -1,150 +1,118 @@
 import { useState } from "react";
-import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
-import { CircleCheck, CreditCard, Receipt, TriangleAlert } from "lucide-react";
+import { useLoaderData, useNavigate } from "@tanstack/react-router";
+import { CircleCheck, CreditCard, Receipt } from "lucide-react";
 import { catalog, type ClientPayment } from "@empire-cleaning/models";
 import {
   Button,
-  ButtonLink,
   byMonth,
-  Card,
-  EmptyState,
   Heading,
-  IconTile,
-  Link,
+  HomePage,
   List,
   ListItem,
   Notice,
-  Section,
   StatusBadge,
   useUiWords,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
-import { moneyNow, paymentRow, signedMoney } from "./payments.ts";
+import { useHomeUrl } from "../home-search.ts";
+import { HeroCard } from "./HeroCard.tsx";
+import {
+  moneyNow,
+  owedAnswer,
+  paymentRow,
+  signedMoney,
+  yourCardTile,
+} from "./payments.ts";
 import { useSaid } from "../words.ts";
 
 // in the Client's language (ADR-0025)
 const words = catalog({
   en: {
-    toPay: "To pay",
     allPaid: "You're all paid up",
     nothingOwed: "Nothing owed",
     bankOnWay: (amount: string, bill: string) =>
       `Your bank payment of ${amount} for bill ${bill} is on its way.`,
-    history: "History",
+    yourPayments: "Your payments",
+    allPayments: "All payments",
     nothingPaid: "Nothing paid yet",
-    eachShows: "Each deposit, clean and refund shows here.",
-    latest: "Latest payments",
-    seeAll: (n: number) => `See all ${n} payments`,
-    paymentsIn: (month: string) => `Payments, ${month}`,
+    paymentsIn: (month: string) => `All payments, ${month}`,
   },
   es: {
-    toPay: "Por pagar",
     allPaid: "Está al día",
     nothingOwed: "No debe nada",
     bankOnWay: (amount: string, bill: string) =>
       `Su pago bancario de ${amount} de la factura ${bill} está en camino.`,
-    history: "Historial",
+    yourPayments: "Sus pagos",
+    allPayments: "Todos los pagos",
     nothingPaid: "Aún no hay pagos",
-    eachShows: "Cada depósito, limpieza y devolución aparece aquí.",
-    latest: "Últimos pagos",
-    seeAll: (n: number) => `Ver los ${n} pagos`,
-    paymentsIn: (month: string) => `Pagos, ${month}`,
+    paymentsIn: (month: string) => `Todos los pagos, ${month}`,
   },
 });
 
-// The Client's Payments: what they owe now, or that it's nothing, in one
-// card with its one Button; then their latest payments, one line each, and
-// all of them a tap away. Their card has a fixed way in, in the header.
-// (UX pass, #96)
+// The Client's Payments, a Home (docs/ux.md, Screen types): what they owe
+// now, or that it's nothing, in one card with its one Button; then every
+// payment behind a tile, opened in place. Their card has a fixed way in, in
+// the header, and a tile. (UX pass, #96; #435)
 
-export type PaymentsSearch = { all?: true };
+// its tiles that open in place, as its URL names them
+export const paymentsTiles = ["history"] as const;
 
-// payments shown before "See all"
-const LATEST = 5;
-// and at a time after it
+// payments shown at a time
 const PAGE = 20;
 
 export function PortalPayments() {
   const t = useSaid(words);
   const data = useLoaderData({ from: "/portal/payments" });
-  const { all } = useSearch({ from: "/portal/payments" });
-  const { owed, paying, clearing } = moneyNow(data, t.lang);
+  const home = useHomeUrl();
+  const money = moneyNow(data, t.lang);
+  const { owed, clearing } = money;
   const { history } = data;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <Heading level={1} inBar>
-          {t.p.payments}
-        </Heading>
-        <ButtonLink
-          variant="secondary"
-          href={linkTo({ to: "/portal/payment-method" })}
-        >
-          <CreditCard aria-hidden size={18} />
-          {t.p.yourCard}
-        </ButtonLink>
-      </div>
-
-      <Card>
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
-          <IconTile
-            icon={owed ? TriangleAlert : CircleCheck}
-            tone={owed ? (owed.late ? "danger" : "warning") : "success"}
-            size="lg"
-          />
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <Heading level={2} size={4} className="text-fg-muted">
-              {owed ? t.w.toPay : t.w.allPaid}
-            </Heading>
-            <p className="text-2xl font-semibold text-fg sm:text-3xl">
-              {owed ? t.formatMoney(owed.cents) : t.w.nothingOwed}
-            </p>
-            {owed && <p className="text-fg-muted">{owed.text}</p>}
-            <p className="text-fg-muted">{paying}</p>
-          </div>
-          {owed && (
-            <ButtonLink
-              className="shrink-0 self-start sm:self-center"
-              href={owed.action.href}
-            >
-              {owed.action.label}
-            </ButtonLink>
-          )}
-        </div>
-      </Card>
-
-      {clearing.map((bill) => (
+    <HomePage
+      title={t.p.payments}
+      actions={[
+        {
+          label: t.p.yourCard,
+          icon: CreditCard,
+          href: linkTo({ to: "/portal/payment-method" }),
+        },
+      ]}
+      answer={
+        <HeroCard
+          hero={
+            owed
+              ? owedAnswer(owed, t.lang)
+              : {
+                  label: t.w.allPaid,
+                  icon: CircleCheck,
+                  tone: "success",
+                  headline: t.w.nothingOwed,
+                  lines: [],
+                }
+          }
+        />
+      }
+      notices={clearing.map((bill) => (
         <Notice key={bill.id}>
           {t.w.bankOnWay(t.formatMoney(bill.totalCents), bill.number)}{" "}
           {t.BANK_CLEARING}
         </Notice>
       ))}
-
-      <Section title={t.w.history}>
-        {history.length === 0 ? (
-          <EmptyState
-            icon={Receipt}
-            title={t.w.nothingPaid}
-            description={t.w.eachShows}
-          />
-        ) : all ? (
-          <Statement history={history} />
-        ) : (
-          <div className="flex flex-col gap-3">
-            <Rows label={t.w.latest} payments={history.slice(0, LATEST)} />
-            {history.length > LATEST && (
-              <Link
-                className="self-start"
-                href={linkTo({ to: "/portal/payments", search: { all: true } })}
-              >
-                {t.w.seeAll(history.length)}
-              </Link>
-            )}
-          </div>
-        )}
-      </Section>
-    </div>
+      tilesLabel={t.w.yourPayments}
+      tiles={[
+        {
+          id: "history",
+          icon: Receipt,
+          label: t.w.allPayments,
+          count: history.length,
+          hint: history.length === 0 ? t.w.nothingPaid : undefined,
+          panel: <Statement history={history} />,
+        },
+        yourCardTile(money, t.lang),
+      ]}
+      {...home}
+    />
   );
 }
 

@@ -13,17 +13,13 @@ import {
   hasSiteVisit,
   weekdayOf,
   formats,
+  firstNameOf,
 } from "@empire-cleaning/models";
 import type { SelectedFields } from "drizzle-orm/pg-core";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
-import {
-  email,
-  firstNameOf,
-  notify,
-  type Email,
-} from "../../services/email/index.ts";
+import { email, notify, type Email } from "../../services/email/index.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import { takenOffEmail } from "../assignments/emails.ts";
 import {

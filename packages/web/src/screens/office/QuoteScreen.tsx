@@ -46,6 +46,7 @@ import type {
   ServicePlanInput,
 } from "@empire-cleaning/models";
 import {
+  firstNameOf,
   noEmailYet,
   notSeenYet,
   recurrenceDays,
@@ -283,7 +284,7 @@ const draftLink = (quote: OfficeQuote) =>
 const alertsFor = (quote: OfficeQuote): (Alert | false | null)[] => {
   const shown = shownFor(quote);
   const name = quote.client.name;
-  const [firstName] = name.split(" ");
+  const firstName = firstNameOf(name);
   const offer = quote.offer ? shownOf({ ...quote, draft: null }) : null;
   // the offer can still be accepted: by phone, the Office records it, which
   // needs a card saved, unless it only changes a plan (charging nothing)
@@ -964,7 +965,7 @@ function EmailCardLink({ quote }: { quote: OfficeQuote }) {
   const action = useAction("The link wasn't sent. Please try again.", {
     toast: true,
   });
-  const [firstName] = quote.client.name.split(" ");
+  const firstName = firstNameOf(quote.client.name);
   return (
     <Button
       variant="text"

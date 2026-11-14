@@ -6,15 +6,17 @@ import {
   catalog,
   type Language,
 } from "@empire-cleaning/models";
+import { CreditCard, TriangleAlert } from "lucide-react";
 import { linkTo, type AppHref } from "../../links.ts";
+import type { Hero } from "./HeroCard.tsx";
 import { said, saidWith } from "../words.ts";
 
 // in the Client's language (ADR-0025)
 const words = catalog({
   en: {
+    toPay: "To pay",
     billDue: (n: string, day: string) => `Bill ${n} is due by ${day}`,
     andMore: (first: string, n: number) => `${first}, and ${n} more`,
-    payingWith: (card: string) => `Paying with ${card}`,
     onPage: "You pay each bill on its page",
     noCard: "No card saved yet",
     refundOnBill: (n: string) => `Refund on bill ${n}`,
@@ -36,9 +38,9 @@ const words = catalog({
     fromYourClean: (day: string) => `From your ${day} clean`,
   },
   es: {
+    toPay: "Por pagar",
     billDue: (n: string, day: string) => `La factura ${n} vence el ${day}`,
     andMore: (first: string, n: number) => `${first}, y ${n} más`,
-    payingWith: (card: string) => `Paga con ${card}`,
     onPage: "Paga cada factura en su página",
     noCard: "Aún no hay tarjeta guardada",
     refundOnBill: (n: string) => `Devolución de la factura ${n}`,
@@ -63,7 +65,9 @@ const words = catalog({
 });
 
 // The Client's Payments page: one card saying what they owe now, or that
-// it's nothing, and every payment between us after it. (UX pass, #96)
+// it's nothing, and every payment between us behind a tile. Their Home
+// leads with the same card when it asks something of them. (UX pass, #96;
+// #435)
 
 export type PaymentsData = {
   pastJobs: ClientPastJob[];
@@ -75,6 +79,9 @@ type Owed = {
   cents: number;
   // something failed or is past its due date, not just waiting on them
   late: boolean;
+  // whether it asks anything of them: not only a clean the payment service
+  // is trying again, which we see to ourselves
+  asks: boolean;
   // why, the most pressing first
   text: string;
   action: { label: string; href: AppHref };
@@ -83,7 +90,7 @@ type Owed = {
 export type MoneyNow = {
   // null when nothing is owed
   owed: Owed | null;
-  // how they pay, as a line under it
+  // how they pay: the card on file, or why there's none (Your card's hint)
   paying: string;
   // a Bill's bank debit on its way, to say so
   clearing: BillSummary[];
@@ -106,6 +113,8 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
       .map((b) => ({
         cents: b.totalCents,
         late: true,
+        // one the payment service is trying again asks nothing yet
+        asks: b.unpaid!.kind !== "waiting",
         text: billNotPaid(b.number),
         action: { label: payBill(b.number), href: billLink(b.id) },
       })),
@@ -115,6 +124,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
       .map((j) => ({
         cents: j.owedCents,
         late: true,
+        asks: j.unpaid !== "waiting",
         text: cleanNotPaid(shortDayOf(j.startsAt)),
         // we try one waiting on the payment service again ourselves
         action:
@@ -140,6 +150,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
       .map((b) => ({
         cents: b.totalCents,
         late: false,
+        asks: true,
         text: w.billDue(b.number, formatShortDay(b.dueOn)),
         action: { label: payBill(b.number), href: billLink(b.id) },
       })),
@@ -149,6 +160,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
     ? {
         cents: owing.reduce((sum, o) => sum + o.cents, 0),
         late: owing.some((o) => o.late),
+        asks: owing.some((o) => o.asks),
         text:
           owing.length === 1
             ? first.text
@@ -160,7 +172,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
   // weekly Bills paid on their page need no card
   const onPage = data.bills[0]?.payment === "on_page";
   const paying = data.paymentMethod
-    ? w.payingWith(data.paymentMethod.label)
+    ? data.paymentMethod.label
     : onPage
       ? w.onPage
       : w.noCard;
@@ -171,6 +183,29 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
     clearing: data.bills.filter((b) => b.status === "processing"),
   };
 }
+
+// what's owed as a Home's answer (AnswerCard): Payments' card, and the
+// Client's Home's when it asks something of them
+export function owedAnswer(owed: Owed, lang: Language): Hero {
+  const t = saidWith(lang, words);
+  return {
+    label: t.w.toPay,
+    icon: TriangleAlert,
+    tone: owed.late ? ("danger" as const) : ("warning" as const),
+    headline: t.formatMoney(owed.cents),
+    lines: [owed.text],
+    action: owed.action,
+  };
+}
+
+// how they pay, as a Home's tile: the card on file, or why there's none
+export const yourCardTile = (money: MoneyNow, lang: Language) => ({
+  id: "card",
+  icon: CreditCard,
+  label: said[lang].p.yourCard,
+  hint: money.paying,
+  href: cardLink,
+});
 
 export type PaymentRow = {
   title: string;

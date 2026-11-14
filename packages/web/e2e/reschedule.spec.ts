@@ -14,6 +14,7 @@ import {
   test,
   addCleaner,
   pageAction,
+  openTile,
 } from "./harness.ts";
 
 // the API's clock is at 4am on Monday 5 January 2026 in New York. The Job
@@ -112,8 +113,9 @@ test(
     await requestReschedule(job.id, { date: "2026-01-14", time: "10:00" });
     await signedInAs(page, olive.email);
 
-    await page
-      .getByRole("grid", { name: "Needs attention" })
+    await (
+      await openTile(page, "Jobs")
+    )
       .getByRole("row", { name: /Casey Client/ })
       .click();
     await expect(

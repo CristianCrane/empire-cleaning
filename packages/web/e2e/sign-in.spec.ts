@@ -51,7 +51,9 @@ test.describe("signing up and in with an emailed link", () => {
       await signInWithLink(page, officeStaff.email);
 
       await expect(page).toHaveURL("/office");
-      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Today");
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+        "Hi, Olive",
+      );
     },
   );
 
