@@ -41,10 +41,16 @@ const scheduledJobs: ScheduledJob[] = [
 // (features/site), and still checks in: nothing failed
 export const tick = async (jobs: ScheduledJob[] = scheduledJobs) => {
   let results: PromiseSettledResult<unknown>[] = [];
-  await unlessSeeding(async () => {
-    results = await Promise.allSettled(jobs.map((job) => job.run()));
-  });
   let allSucceeded = true;
+  try {
+    await unlessSeeding(async () => {
+      results = await Promise.allSettled(jobs.map((job) => job.run()));
+    });
+  } catch (error) {
+    // the lock couldn't be asked for, so no job ran
+    allSucceeded = false;
+    monitoring.error(error, { job: "seeding lock" });
+  }
   results.forEach((result, i) => {
     if (result.status === "rejected") {
       allSucceeded = false;

@@ -38,6 +38,18 @@ describe("the scheduler's heartbeat", () => {
       },
     ]);
   });
+
+  test("doesn't check in when the seed's lock can't be asked for, which is reported", async () => {
+    const down = new Error("connection refused");
+    vi.spyOn(db.$client, "connect").mockRejectedValueOnce(down as never);
+
+    await tick([succeeds("reminders")]);
+
+    expect(testMonitoring().heartbeats).toBe(0);
+    expect(testMonitoring().errors).toEqual([
+      { error: down, context: { job: "seeding lock" } },
+    ]);
+  });
 });
 
 // the seed lays out its own days, so the scheduler keeps off the database
@@ -51,7 +63,7 @@ describe("while the seed runs", () => {
         { name: "Service Plan Jobs", run: async () => void (ran = true) },
       ]);
     } finally {
-      await letGo();
+      letGo();
     }
 
     expect(ran).toBe(false);
@@ -91,7 +103,7 @@ describe("while the seed runs", () => {
         { name: "Service Plan Jobs", run: async () => void (ran = true) },
       ]);
     } finally {
-      await letGo();
+      letGo();
     }
 
     expect(ran).toBe(false);

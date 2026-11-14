@@ -41,7 +41,9 @@ export const refuseOnProduction = async (what: string) => {
 // Quote then found its day full (run 43616542411). So the seed holds this
 // lock alone for its run, and each tick shares it, skipping its jobs while
 // the seed has it. Held for a session, not a transaction (the seed runs
-// through db), on a connection of its own, which is the one that unlocks
+// through db), on a connection of its own, which is closed to let it go: the
+// lock ends with the session, so no unlock can fail and leave it on a pooled
+// connection, where it would hold off every later seed
 const SEEDING = 4006;
 
 // for the seed: waits out a tick under way, then holds the scheduler off
@@ -49,13 +51,7 @@ const SEEDING = 4006;
 export const holdSeeding = async () => {
   const client = await db.$client.connect();
   await client.query("select pg_advisory_lock($1)", [SEEDING]);
-  return async () => {
-    try {
-      await client.query("select pg_advisory_unlock($1)", [SEEDING]);
-    } finally {
-      client.release();
-    }
-  };
+  return () => client.release(true);
 };
 
 // for the scheduler: runs `run` unless the seed holds the lock, saying
@@ -68,13 +64,9 @@ export const unlessSeeding = async (run: () => Promise<unknown>) => {
       [SEEDING],
     );
     if (!rows[0]!.free) return false;
-    try {
-      await run();
-    } finally {
-      await client.query("select pg_advisory_unlock_shared($1)", [SEEDING]);
-    }
+    await run();
     return true;
   } finally {
-    client.release();
+    client.release(true);
   }
 };
