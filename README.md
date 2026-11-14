@@ -43,7 +43,7 @@ pnpm run db:down
 
 # CI
 
-Every pull request to `main`, and every push to `main`, runs `.github/workflows/ci.yml`. Each part is its own check, and they run in parallel; the slower suites are split across several jobs (shards, each counted in its matrix). A final check, All checks, passes only when every other one did, and it's the one `main` requires. A newer push to the same pull request cancels the run still going. To run the same locally (with `pnpm db:up` for the Postgres the tests use):
+Every pull request, into `main` or stacked on another's branch, and every push to `main`, runs `.github/workflows/ci.yml`. When a stacked PR's base merges and GitHub moves it onto `main`, that runs nothing: it keeps its checks, and its next push runs them against `main` (`ci.yml` says why). Each part is its own check, and they run in parallel; the slower suites are split across several jobs (shards, each counted in its matrix). A final check, All checks, passes only when every other one did, and it's the one `main` requires. A newer push to the same pull request cancels the run still going. To run the same locally (with `pnpm db:up` for the Postgres the tests use):
 
 | Check                | Locally                                                                                                               |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------- |
@@ -73,7 +73,7 @@ Before each commit, a git hook (`.githooks/pre-commit`, which `pnpm install` tur
 
 CI starts `postgres_test` from `docker-compose.yml` and needs no secrets (email, payments and the clock are faked in tests). No package is built before another: each exports its TypeScript source (`exports` in its `package.json`), which the others' tools compile. When an end-to-end check fails, its Playwright report and the failed tests' traces are kept as an artifact on the run; open a trace with `pnpm --filter @empire-cleaning/web exec playwright show-trace <trace.zip>`.
 
-CodeQL is GitHub's default setup, not a workflow here: it scans `main` and every pull request, and its alerts are under the repo's Security tab (`gh api repos/CristianCrane/empire-cleaning/code-scanning/alerts`). A pull request's scan reports only on the lines it changes (the `pr-diff-range` extension in its SARIF), so a pull request that doesn't touch an alert's line passes with the alert still in the code. Its passing shows a fix only when the diff covers the alert's line. The alert itself closes on `main`'s next scan (#292).
+CodeQL is GitHub's default setup, not a workflow here: it scans `main` and every pull request into `main` (a stacked one from its first push after it's moved onto `main`), and its alerts are under the repo's Security tab (`gh api repos/CristianCrane/empire-cleaning/code-scanning/alerts`). A pull request's scan reports only on the lines it changes (the `pr-diff-range` extension in its SARIF), so a pull request that doesn't touch an alert's line passes with the alert still in the code. Its passing shows a fix only when the diff covers the alert's line. The alert itself closes on `main`'s next scan (#292).
 
 # Test site
 
