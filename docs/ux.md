@@ -123,9 +123,9 @@ order:
 - **Its rows**: an Office list is a `Table` from `md` (sortable where it
   helps, Quotes'), rows on a phone; a Client's or a Cleaner's is rows at
   every width. Dated rows are grouped by month at every width, each month
-  its own List or Table under its name, and lead with a small `DateTile`,
-  then the weekday and time, then what the person looking tells them apart
-  by: the Office the Client, the address and service under it; a Cleaner
+  its own List or Table under its name. As rows they lead with a small
+  `DateTile`, then the weekday and time (a Table's first column gives the
+  date and time), then what the person looking tells them apart by: the Office the Client, the address and service under it; a Cleaner
   roughly where (the postcode), the service under it; a Client the kind of
   clean, with the home only when they have more than one. A row is badged
   only when it isn't the usual case for its Tab (Needs cleaners, never
@@ -417,10 +417,11 @@ stays as it is (#336).
 - **Lean rows**: the fewest columns that drive the decision (who, where,
   status, money, age); no cell that means something different from row to
   row; no colour without a visible label.
-- **Dated things a person scans are grouped by month**, each row a
+- **Dated things a person scans are grouped by month**. As rows, each is a
   `DatedItem`: a small `DateTile`, then the weekday and time leading its
   title, the date said in words to a screen reader (the tile is only
-  seen); a row is badged only when it isn't plain.
+  seen); in a Table, the first column gives the date and time. A row is
+  badged only when it isn't plain.
 - **An empty place offers what fills it** (`EmptyState` with its action),
   never a card in a card, and never says again what its Section's
   description above it already says. ("Empty states offer the action")
