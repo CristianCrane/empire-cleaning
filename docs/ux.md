@@ -532,11 +532,15 @@ stays as it is (#336).
    in Spanish too, through `expectFitsInBoth`). Its PR shows the screen
    before and after, from `pnpm pr:shots` (`packages/web/README.md`,
    Testing). Moving a screen onto its layout drops nothing by accident:
-   before a part goes (a card, a Button, a Notice), list what it said, when
-   it said it (its guard), and what it showed while it worked (pending),
-   and give each a place in the new screen, or a reason in the log. #432's
-   review found three such drops: the portal Clean's free-until, then the
-   guard its return left out, and Change terms' pending state in a menu.
+   before a part goes (a card, a Button, a Notice, a component swapped
+   for a smaller one), list what it said, when it said it (its guard), what
+   it showed while it worked (pending), and what it read aloud as it
+   changed (its `aria-live` region, and all that's in it), and give each a
+   place in the new screen, or a reason in the log. #432's review found
+   three such drops: the portal Clean's free-until, then the guard its
+   return left out, and Change terms' pending state in a menu; #434's found
+   two more when New quote's price lost WorkedOutQuote: its time on site,
+   then the Service and home its total was read out with.
 5. **Record it**: a row in the decisions log below; a new rule above (a
    type's own under its entry in Screen types), and a
    pattern in Storybook, if it carries over to other screens; and in
