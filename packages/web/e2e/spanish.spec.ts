@@ -18,6 +18,7 @@ import {
   signUp,
   test,
   pageAction,
+  listRows,
 } from "./harness.ts";
 
 // Sign-in, the Client portal (#303) and the Cleaner area (#305) in Spanish
@@ -318,11 +319,14 @@ test("a Cleaner reading in Spanish takes an open job and marks it done, in tú",
     .getByRole("link", { name: /^Ofertas/ })
     .first()
     .click();
-  const open = page.getByRole("grid", { name: "Disponibles para ti" });
-  await expect(open.getByRole("row")).toContainText("vie, 9 de ene, 9:00 a.m.");
+  await expect(
+    page.getByRole("tab", { name: /Disponibles para ti/ }),
+  ).toHaveAttribute("aria-selected", "true");
+  const open = listRows(page, "Ofertas");
+  await expect(open).toContainText("vie 9:00 a.m.");
   // the Service by its Spanish name
-  await expect(open.getByRole("row")).toContainText("Limpieza profunda");
-  await open.getByRole("row").click();
+  await expect(open).toContainText("Limpieza profunda");
+  await open.click();
   await expect(
     page.getByRole("region", { name: "¿Puedes tomarlo?" }),
   ).toBeVisible();

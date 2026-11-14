@@ -1,7 +1,7 @@
 import { formats } from "@empire-cleaning/models";
 import { useState } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import { Archive, ArchiveRestore, Plus } from "lucide-react";
+import { Archive, ArchiveRestore, Plus, Sparkles } from "lucide-react";
 import type {
   OfferedFor,
   PriceList,
@@ -14,30 +14,25 @@ import {
   Actions,
   Breadcrumbs,
   Button,
-  ButtonLink,
   Card,
-  Cell,
   Checkbox,
-  Column,
   Form,
   Heading,
+  ListPage,
   Notice,
   NumberField,
-  Row,
   Section,
   Segment,
   SegmentedControl,
   Select,
   SelectItem,
   StatusBadge,
-  Table,
-  TableBody,
-  TableHeader,
   TextField,
 } from "@empire-cleaning/ui";
 import { postJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
+import { tabShown, useListUrl } from "../list-search.ts";
 import { ExampleQuote } from "./ExampleQuote.tsx";
 import { PRICES_CHANGE } from "./PriceListScreen.tsx";
 
@@ -54,89 +49,74 @@ const offeredForLabel: Record<OfferedFor, string> = {
   both: "Both",
 };
 
-// What Empire Cleaning sells (ADR-0018): a Table of the Services on offer,
-// the retired ones below it on request
+// the list's Tabs: what's on offer, then what was
+export const serviceTabs = ["offered", "retired"] as const;
+type ServiceTab = (typeof serviceTabs)[number];
+
+// What Empire Cleaning sells (ADR-0018, #433), a List: the Services on
+// offer, and a Tab for those retired
 export function ServicesScreen() {
   const services = useLoaderData({ from: "/office/services" });
-  const [showRetired, setShowRetired] = useState(false);
-  const active = services.filter((s) => s.active);
-  const retired = services.filter((s) => !s.active);
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Heading level={1} inBar>
-          Services
-        </Heading>
-        <ButtonLink href={linkTo({ to: "/office/services/new" })}>
-          <Plus aria-hidden size={18} />
-          New service
-        </ButtonLink>
-      </div>
-      <p className="text-fg-muted">
-        What Empire Cleaning sells, each with its own rate. {PRICES_CHANGE}
-      </p>
-      <ServicesTable label="Services" services={active} />
-      {retired.length > 0 && (
-        <Section
-          title="Retired"
-          description="Not offered any more. Quotes, plans and jobs that used one still price by it."
-          actions={
-            <Button variant="text" onPress={() => setShowRetired((v) => !v)}>
-              {showRetired ? "Hide" : `Show ${retired.length}`}
-            </Button>
-          }
-        >
-          {showRetired && (
-            <ServicesTable label="Retired services" services={retired} />
-          )}
-        </Section>
-      )}
-    </div>
-  );
-}
-
-function ServicesTable({
-  label,
-  services,
-}: {
-  label: string;
-  services: Service[];
-}) {
+  const url = useListUrl<ServiceTab>();
   const navigate = useNavigate();
+  const inTab = (tab: ServiceTab) =>
+    services.filter((s) => s.active === (tab === "offered"));
+  const tab = tabShown(serviceTabs, url.tab, (t) => inTab(t).length);
+
   return (
-    <Table
-      aria-label={label}
-      onRowAction={(key) =>
-        navigate({
-          to: "/office/services/$serviceKey",
-          params: { serviceKey: String(key) },
-        })
-      }
-    >
-      <TableHeader>
-        <Column id="name" isRowHeader>
-          Service
-        </Column>
-        <Column id="method" className="hidden sm:table-cell">
-          Priced
-        </Column>
-        <Column id="rate">Hourly rate</Column>
-      </TableHeader>
-      <TableBody items={services}>
-        {(service) => (
-          <Row id={service.key} className="cursor-pointer">
-            <Cell>{service.name}</Cell>
-            <Cell className="hidden sm:table-cell">
-              {methodLabel[service.method]}
-            </Cell>
-            <Cell className="whitespace-nowrap">
+    <ListPage
+      title="Services"
+      primary={{
+        label: "New service",
+        icon: Plus,
+        href: linkTo({ to: "/office/services/new" }),
+      }}
+      tabs={[
+        {
+          id: "offered",
+          label: "Offered",
+          count: inTab("offered").length,
+          none: "No services offered.",
+        },
+        {
+          id: "retired",
+          label: "Retired",
+          count: inTab("retired").length,
+          none: "None retired.",
+        },
+      ]}
+      tab={tab}
+      onTabChange={url.onTabChange}
+      items={inTab(tab)}
+      row={(service) => ({
+        id: service.key,
+        title: service.name,
+        description: `${methodLabel[service.method]} · ${formatMoney(service.hourlyRateCents)} an hour`,
+        onOpen: () =>
+          void navigate({
+            to: "/office/services/$serviceKey",
+            params: { serviceKey: service.key },
+          }),
+      })}
+      columns={[
+        { id: "name", label: "Service", cell: (service) => service.name },
+        {
+          id: "method",
+          label: "Priced",
+          cell: (service) => methodLabel[service.method],
+        },
+        {
+          id: "rate",
+          label: "Hourly rate",
+          cell: (service) => (
+            <span className="whitespace-nowrap">
               {formatMoney(service.hourlyRateCents)}
-            </Cell>
-          </Row>
-        )}
-      </TableBody>
-    </Table>
+            </span>
+          ),
+        },
+      ]}
+      empty={{ icon: Sparkles, title: "No services yet" }}
+    />
   );
 }
 
@@ -321,7 +301,7 @@ function ServiceForm({
         e.preventDefault();
         void save(
           toInput(draft),
-          service ? "Service saved" : `${draft.name} added`,
+          service ? `Service saved. ${PRICES_CHANGE}` : `${draft.name} added`,
         );
       }}
     >
@@ -553,7 +533,7 @@ function ServiceForm({
                   void save(
                     { ...inputOf(service), active: !service.active },
                     service.active
-                      ? `${service.name} retired`
+                      ? `${service.name} retired. Quotes, plans and jobs that used it still price by it.`
                       : `${service.name} offered again`,
                   )
                 }

@@ -8,6 +8,8 @@ import {
   test,
   expectCurrentSection,
   goTo,
+  listRows,
+  searchList,
 } from "./harness.ts";
 
 const olive = {
@@ -36,12 +38,7 @@ const openClients = async (page: Page) => {
   await expect(page).toHaveURL("/office/clients");
 };
 
-// the Table's Clients, without its header
-const rows = (page: Page) =>
-  page
-    .getByRole("grid", { name: "Clients" })
-    .getByRole("row")
-    .filter({ has: page.getByRole("rowheader") });
+const rows = (page: Page) => listRows(page, "Clients");
 
 test(
   "Office Staff find a Client by searching, and Back keeps the search",
@@ -50,18 +47,14 @@ test(
     await twoClients();
     await openClients(page);
 
-    // ready to type straight away
+    // a search looks through every Client, whatever their standing, and
+    // says each one's
     const search = page.getByRole("searchbox", { name: "Search clients" });
-    await expect(search).toBeFocused();
-
-    // a search looks through every Client, whatever their standing
-    await page.keyboard.type("austin");
+    await searchList(page, "Search clients", "austin");
     await expect(page).toHaveURL("/office/clients?q=austin");
-    await expect(page.getByRole("tab", { name: /All/ })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    await expect(page.getByText("1 found in every tab")).toBeVisible();
     await expect(rows(page)).toHaveCount(1);
+    await expect(rows(page).first()).toContainText("Quoting");
     // how to reach them, without opening them
     await expect(rows(page).first()).toContainText("casey@example.com");
 
@@ -82,7 +75,7 @@ test("a phone number is found however it's written", async ({ page }) => {
   await openClients(page);
   const search = page.getByRole("searchbox", { name: "Search clients" });
 
-  await search.fill("718555");
+  await searchList(page, "Search clients", "718555");
   await expect(rows(page)).toHaveCount(1);
   await expect(rows(page).first()).toContainText("Sam Seed");
 
@@ -91,7 +84,9 @@ test("a phone number is found however it's written", async ({ page }) => {
   await expect(rows(page).first()).toContainText("Casey Client");
 
   await search.fill("nobody");
-  await expect(page.getByText("No clients match “nobody”.")).toBeVisible();
+  await expect(page.getByText("Nothing matches “nobody”")).toBeVisible();
+  await page.getByRole("button", { name: "Clear search" }).click();
+  await expect(page.getByRole("tab", { name: /Active/ })).toBeVisible();
 
   // a link straight to a search, e.g. one typed in the address bar
   await page.goto("/office/clients?q=718555");
@@ -107,7 +102,7 @@ test(
     await openClients(page);
     const crumbs = page.getByLabel("Breadcrumbs");
 
-    await page.getByRole("tab", { name: /All/ }).click();
+    await page.getByRole("tab", { name: /Quoting/ }).click();
     await rows(page).first().click();
     await page.getByRole("row", { name: /41-12 Austin St/ }).click();
     await expect(page).toHaveURL(/\/office\/properties\//);
@@ -132,7 +127,8 @@ test("Clients are listed by standing, Active first, with how many in each", asyn
   await expect(page.getByText("No active clients.")).toBeVisible();
   await expect(tab(/Quoting/)).toContainText("1");
   await expect(tab(/Past/)).toContainText("1");
-  await expect(tab(/All/)).toContainText("2");
+  // no All: a search looks through every Tab
+  await expect(page.getByRole("tab")).toHaveCount(3);
 
   await tab(/Quoting/).click();
   await expect(page).toHaveURL("/office/clients?tab=quoting");
@@ -156,9 +152,8 @@ test("a long list shows 50 at a time, with Show more", async ({ page }) => {
   await page.getByRole("tab", { name: /Past/ }).click();
 
   await expect(rows(page)).toHaveCount(50);
-  await expect(page.getByText("Showing 50 of 53")).toBeVisible();
-  await page.getByRole("button", { name: "Show more" }).click();
+  await page.getByRole("button", { name: "Show more (3 left)" }).click();
 
   await expect(rows(page)).toHaveCount(53);
-  await expect(page.getByRole("button", { name: "Show more" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Show more/ })).toHaveCount(0);
 });

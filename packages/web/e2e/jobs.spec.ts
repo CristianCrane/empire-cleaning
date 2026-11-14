@@ -5,6 +5,8 @@ import {
   expect,
   expectCurrentSection,
   goTo,
+  listRows,
+  searchList,
   signedInAs,
   test,
 } from "./harness.ts";
@@ -15,12 +17,7 @@ const olive = {
   roles: ["office_staff" as const],
 };
 
-// the Table's Jobs, without its header
-const rows = (page: Page) =>
-  page
-    .getByRole("grid", { name: "Jobs" })
-    .getByRole("row")
-    .filter({ has: page.getByRole("rowheader") });
+const rows = (page: Page) => listRows(page, "Jobs");
 
 test(
   "Office Staff find a Job on the Jobs page, and Back keeps the Tab",
@@ -35,12 +32,17 @@ test(
     await goTo(page, "Jobs");
     await expect(page).toHaveURL("/office/jobs");
 
-    // Upcoming, soonest first
+    // Upcoming, soonest first, by month; no All Tab
     await expect(page.getByRole("tab", { name: /Upcoming/ })).toContainText(
       "2",
     );
+    await expect(page.getByRole("tab")).toHaveCount(3);
+    await expect(
+      page.getByRole("heading", { level: 2, name: "January 2026" }),
+    ).toBeVisible();
     await expect(rows(page)).toHaveCount(2);
-    await expect(rows(page).first()).toContainText("Thu, Jan 8, 9:00 AM");
+    await expect(rows(page).first()).toContainText("Jan 8");
+    await expect(rows(page).first()).toContainText("9:00 AM");
 
     await page.getByRole("tab", { name: /Past/ }).click();
     await expect(page.getByText("No jobs done yet.")).toBeVisible();
@@ -81,11 +83,14 @@ test("Office Staff search Jobs by the address", async ({ page }) => {
     .split(",")[0]!;
 
   await page.goto("/office/jobs");
-  await page.getByRole("searchbox", { name: "Search jobs" }).fill(street);
+  await searchList(page, "Search jobs", street);
+  // the Tabs step aside: a search looks through every one
+  await expect(page.getByText("1 found in every tab")).toBeVisible();
+  await expect(page.getByRole("tab")).toHaveCount(0);
   await expect(rows(page)).toHaveCount(1);
-  await expect(rows(page)).toContainText("Mon, Jan 12, 9:00 AM");
-  await expect(page.getByRole("tab", { name: /All/ })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
+  await expect(rows(page)).toContainText("Jan 12");
+
+  await page.getByRole("button", { name: "Clear search" }).click();
+  await expect(page.getByRole("tab", { name: /Upcoming/ })).toBeVisible();
+  await expect(rows(page)).toHaveCount(2);
 });

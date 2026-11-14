@@ -9,6 +9,7 @@ import {
   draftTheQuote,
   goTo,
   eachTheme,
+  listRows,
 } from "./harness.ts";
 
 const casey = { name: "Casey Client", email: "casey@example.com" };
@@ -32,9 +33,9 @@ test(
     await goTo(page, "Services");
     await expect(page).toHaveURL("/office/services");
 
-    const services = page.getByRole("grid", { name: "Services" });
-    await expect(services.getByRole("row")).toHaveCount(6);
-    await services.getByRole("row", { name: /Standard Clean/ }).click();
+    const services = listRows(page, "Services");
+    await expect(services).toHaveCount(5);
+    await services.filter({ hasText: "Standard Clean" }).click();
     await expect(
       page.getByRole("heading", { level: 1, name: "Standard Clean" }),
     ).toBeVisible();
@@ -63,7 +64,12 @@ test(
     await example.getByText("Heavy").click();
     await expect(example).toContainText("Total$571.59");
     await page.getByRole("button", { name: "Save service" }).click();
-    await expect(page.getByText("Service saved")).toBeVisible();
+    // and what a change to the prices touches, which Services once said
+    await expect(
+      page.getByText(
+        "Service saved. Changes apply to prices worked out from now on. Quotes already sent keep their prices.",
+      ),
+    ).toBeVisible();
     await expect(
       page.getByText(/^Version \d+, saved by Olive Owner/),
     ).toBeVisible();
@@ -120,22 +126,24 @@ test("Office Staff add a Service priced by area, and retire it", async ({
   ).toBeVisible();
 
   await page.getByRole("button", { name: "Retire" }).click();
-  await expect(page.getByText("Window cleaning retired")).toBeVisible();
+  await expect(
+    page.getByText(
+      "Window cleaning retired. Quotes, plans and jobs that used it still price by it.",
+    ),
+  ).toBeVisible();
   await expect(page.getByText("Retired", { exact: true })).toBeVisible();
 
   await page
     .getByLabel("Breadcrumbs")
     .getByRole("link", { name: "Services" })
     .click();
+  await expect(listRows(page, "Services")).toHaveCount(5);
   await expect(
-    page.getByRole("grid", { name: "Services" }).getByText("Window cleaning"),
+    listRows(page, "Services").filter({ hasText: "Window cleaning" }),
   ).toHaveCount(0);
-  await page.getByRole("button", { name: "Show 1" }).click();
-  await expect(
-    page
-      .getByRole("grid", { name: "Retired Services" })
-      .getByText("Window cleaning"),
-  ).toBeVisible();
+  await page.getByRole("tab", { name: /Retired/ }).click();
+  await expect(page).toHaveURL("/office/services?tab=retired");
+  await expect(listRows(page, "Services")).toHaveText([/Window cleaning/]);
 });
 
 test("Office Staff give a Service its Spanish name and description, which Spanish readers get", async ({
@@ -143,9 +151,8 @@ test("Office Staff give a Service its Spanish name and description, which Spanis
 }) => {
   await signInAsOffice(page);
   await goTo(page, "Services");
-  await page
-    .getByRole("grid", { name: "Services" })
-    .getByRole("row", { name: /Standard Clean/ })
+  await listRows(page, "Services")
+    .filter({ hasText: "Standard Clean" })
     .click();
   const nameEs = page.getByRole("textbox", {
     name: "Name in Spanish (optional)",

@@ -27,8 +27,14 @@ export const uiWords = catalog({
     // a page's actions, in the menu at the end of its title row
     actions: "Actions",
     history: "History",
-    // the alerts a Record holds back
+    // the alerts a Record holds back, all at once
     showMore: (n: number) => `Show ${n} more`,
+    // a list's next page, and how many are past it
+    showMoreLeft: (n: string) => `Show more (${n} left)`,
+    // a list's search, which looks through every Tab
+    found: (n: number) => `${n} found in every tab`,
+    noMatch: (q: string) => `Nothing matches “${q}”`,
+    clearSearch: "Clear search",
   },
   es: {
     close: "Cerrar",
@@ -44,6 +50,13 @@ export const uiWords = catalog({
     actions: "Acciones",
     history: "Historial",
     showMore: (n: number) => `Ver ${n} más`,
+    showMoreLeft: (n: string) => `Ver más (quedan ${n})`,
+    found: (n: number) =>
+      n === 1
+        ? "1 encontrado en todas las pestañas"
+        : `${n} encontrados en todas las pestañas`,
+    noMatch: (q: string) => `Nada coincide con “${q}”`,
+    clearSearch: "Borrar la búsqueda",
   },
 });
 

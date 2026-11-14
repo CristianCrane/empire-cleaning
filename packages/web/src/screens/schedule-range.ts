@@ -21,11 +21,6 @@ export const rangeShowing = (span: Span, day: string) => {
   return { from, to: addDays(from, span - 1) };
 };
 
-// wide enough for a week's columns
-export const isWide = () =>
-  typeof window === "undefined" ||
-  window.matchMedia("(min-width: 48rem)").matches;
-
 // the span the Schedule opens on: the one last chosen in this browser, or
 // three days, which read at any width. Storage can be blocked (private
 // windows), so it's only a convenience

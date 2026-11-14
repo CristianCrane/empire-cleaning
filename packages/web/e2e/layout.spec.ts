@@ -287,6 +287,7 @@ test("the Office's screens fit every width", async ({ page }) => {
     "/office/services/new",
     // Standard Clean, which every install starts with
     "/office/services/5e7a1c00-0000-4000-8000-000000000001",
+    "/office/jobs",
     `/office/jobs/${job.id}`,
   ]) {
     await expectFitsEveryWidth(page, path);
@@ -717,6 +718,7 @@ test("weekly Bills fit every width, for the Office and the Client", async ({
   await signedInAs(client, casey.email);
   for (const path of [
     "/portal",
+    "/portal/cleans",
     `/portal/bills/${billId}`,
     `/portal/plans/${planId}`,
   ]) {

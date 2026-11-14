@@ -102,15 +102,37 @@ parts"; "A record's History beside it, from xl"; "Records as stories")
 
 ### List
 
-Every one of something, to find one and open it: the title in the bar, at
-most one primary Button, for making a new one. Its layout comes with #433.
-It also keeps "Sections, not Cards, around Lists and Tables", "Dated things
-a person scans are grouped by month" and "An empty place offers what fills
-it".
+Every one of something, to find one and open it. It renders through
+`ListPage` (`packages/ui/src/layouts/ListPage.tsx`, #433), which places, in
+order:
 
-- **A growing work list is a Table**, a `Tab` per status with counts and a
-  search, both in the URL; 50 at a time with Show more once it can grow
-  without end. ("Work Lists As Tables")
+- **The page header**: the title, in a phone's top bar, no breadcrumbs, and
+  at most one primary, filled, for making a new one (New quote, Invite
+  staff).
+- **Its Tabs**, the one way it splits, each with its count, and no All
+  (Services' Retired and Staff's Deactivated are Tabs too). The Tab, the
+  search and how many are shown live in the URL, so Back keeps them; it
+  opens on the first Tab that holds anything.
+- **A search**, on an Office work list only: at the end of the Tabs' line
+  from `md`, behind an icon on a phone. It looks through every Tab: the Tabs
+  step aside for "N found in every tab", every row then says where it
+  stands, and Clear search brings them back. One that matches nothing says
+  so, with Clear search.
+- **Its rows**: an Office list is a `Table` from `md` (sortable where it
+  helps, Quotes'), rows on a phone; a Client's or a Cleaner's is rows at
+  every width. Dated rows are grouped by month at every width, each month
+  its own List or Table under its name, and lead with a small `DateTile`,
+  then the weekday and time, then what the person looking tells them apart
+  by: the Office the Client, the address and service under it; a Cleaner
+  roughly where (the postcode), the service under it; a Client the kind of
+  clean, with the home only when they have more than one. A row is badged
+  only when it isn't the usual case for its Tab (Needs cleaners, never
+  Staffed), and the Table's Status column only shows while a row has one.
+- **50 at a time**, then "Show more (N left)".
+- **With nothing in it at all**: the primary in an `EmptyState`, or with
+  nothing to add (Offers, Cleans), one quiet line.
+
+("Layout / ListPage")
 
 ### Home
 
@@ -592,3 +614,4 @@ Newest last. "Built in" is the PR (or branch) that shipped it.
 | Office > Quote draft | On a phone the Draft's bar (its prices, whether it's saved, and Send) hid behind the tab bar: a sticky bar of its own, pinned at the screen's foot under the tab bar (#425) | A: Current / B: ActionFooter / C: sticky with offset | **B, ActionFooter** | The app keeps one bar at a page's foot, which already sits above the tab bar and beside the sidebar; C would be a second copy of what it does. On a wider screen it's full width beside the sidebar, like the Cleaner's Job. The button says just Send: "Send to <Client>" with a long name squeezed the prices to a word a line. The heading still names the Client, and so does the button for screen readers. A rule above | [`prototype-quote-footer`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-quote-footer) | #425 |
 | Every screen | What kinds of screen are there, and how does every screen of a kind stay alike? (#426: each screen built its own page from the kit's parts, so the same kind came out differently, 18 reports on six screens, #424) | The map's types (`docs/screens.md`, #427), agreed by the owner with her design principles | **Seven types, each with a layout every screen of it renders through** | One place to get each kind right; a lint rule (`empire/screen-layout`) warns where a screen builds its own page, 84 warnings to start, and becomes an error once every type has its layout (ADR-0031) | none: the map | #431 |
 | Every Record | How does a Record read, when each built its own header, put its actions in four places and stacked up to seven Notices (#432, reports WEB-2 to WEB-J on #424)? | A: breadcrumbs, Actions ▾ in the title row, History beside from `xl` / B: a back link, every action in a bar at the foot, one column / C: actions as buttons under the title, alerts in one To do card, History on a tab | **A, the Actions menu in the header** | One place for what can be done to the whole record: Actions ▾ at the end of the title row, a Button when there's one, the destructive last in red; an action on one part stays on that part. Two alerts at most, the rest behind Show N more. The details card holds the time and how to reach someone as icon facts; Money holds its price changes, How it's worked out folded; History in a Card, on the right from `xl`. A drop-out is told in History, not kept as a crew row; the plan offer waits until the First Clean is paid | [`prototype-record`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-record) | #432 |
+| Every List | How does a List read, when each of the seven built its own page: the search above the Tabs with an All on three, two Sections on Offers, Retired folded on Services (#433)? | A: the rules as they stand, one layout / B: rows at every width, views in a menu, a badge only when unusual / C: Tabs the one split with no All, the search at their end, a Table from `md`; C1 and C2 lead a dated row with who or with where | **C, with B's badges and short lists, a dated row as C1 (C2 for a Cleaner)** | One line of Tabs with counts, which a search across them steps aside for; an Office list a Table from `md`, a Client's or Cleaner's rows; dated by month at every width, the weekday and time leading, then who for the Office, roughly where for a Cleaner (the postcode: no neighbourhood is kept), the kind of clean for a Client; a badge only when unusual; Show more (N left). Dropped, each with its place: the All Tab (a search looks through every Tab); the search's focus on load (a phone's keyboard would cover the list, and the Tabs lead now); "Showing N of M" (Show more says how many are left); Services' intro "What Empire Cleaning sells, each with its own rate" (the title says it) and "Changes apply to prices worked out from now on. Quotes already sent keep their prices." (the toast a save shows), Retired's "Not offered any more. Quotes, plans and jobs that used one still price by it." (the Tab, and the toast a retire shows); Offers' "The office picked you for these. Confirm, or let them go to someone else." (the Job's Offered to you part, with Confirm and Not for me), "Jobs in the next 7 days … The first to confirm gets each one." (the empty Tab's line says the 7 days, Cleaner needed says the first to confirm), its empty card's "When a job needs someone while you're free, it shows here." (one quiet line, as picked), and the Offered badge (the Tab says it); Cleans' empty cards' "Your next clean shows here once it's booked." and "Each clean shows here once it's done, with its receipt." (a line each: a Client has nothing to add), and the time in a row's line (it leads the title) | [`prototype-list`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-list) | #433 |

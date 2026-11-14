@@ -5,6 +5,7 @@ import { catalog, type ClientPayment } from "@empire-cleaning/models";
 import {
   Button,
   ButtonLink,
+  byMonth,
   Card,
   EmptyState,
   Heading,
@@ -15,9 +16,9 @@ import {
   Notice,
   Section,
   StatusBadge,
+  useUiWords,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
-import { dayOfInstant } from "../format.ts";
 import { moneyNow, paymentRow, signedMoney } from "./payments.ts";
 import { useSaid } from "../words.ts";
 
@@ -150,17 +151,13 @@ export function PortalPayments() {
 // every payment, by month, each month's total by its name
 function Statement({ history }: { history: ClientPayment[] }) {
   const t = useSaid(words);
+  const ui = useUiWords();
   const [shown, setShown] = useState(PAGE);
-  const months: { month: string; payments: ClientPayment[] }[] = [];
-  for (const p of history.slice(0, shown)) {
-    const month = t.formatMonth(dayOfInstant(p.at));
-    if (months.at(-1)?.month !== month) months.push({ month, payments: [] });
-    months.at(-1)!.payments.push(p);
-  }
+  const months = byMonth(t.lang, history.slice(0, shown), (p) => p.at);
 
   return (
     <div className="flex flex-col gap-6">
-      {months.map(({ month, payments }) => (
+      {months.map(({ month, items: payments }) => (
         <section key={month} className="flex flex-col gap-2">
           <div className="flex items-baseline justify-between gap-3 px-4">
             <Heading level={3} size={4} className="text-fg-muted">
@@ -182,7 +179,7 @@ function Statement({ history }: { history: ClientPayment[] }) {
           className="self-center"
           onPress={() => setShown(shown + PAGE)}
         >
-          {t.p.showMore}
+          {ui.showMoreLeft(t.formatNumber(history.length - shown))}
         </Button>
       )}
     </div>

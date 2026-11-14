@@ -29,6 +29,9 @@ export function List<T extends object>(props: GridListProps<T>) {
 
 export type ListItemProps = Omit<GridListItemProps, "children"> & {
   title: string;
+  // said before the title to a screen reader only: what a decorative
+  // `start` shows (a DateTile's date)
+  heard?: string;
   description?: ReactNode;
   // leading content, e.g. an Avatar
   start?: ReactNode;
@@ -42,6 +45,7 @@ export type ListItemProps = Omit<GridListItemProps, "children"> & {
 
 export function ListItem({
   title,
+  heard,
   description,
   start,
   end,
@@ -86,6 +90,7 @@ export function ListItem({
             className={`flex min-w-0 flex-1 flex-col ${stacked && start ? "max-sm:col-start-2" : ""}`}
           >
             <span className="font-semibold text-fg [overflow-wrap:anywhere]">
+              {heard && <span className="sr-only">{heard}, </span>}
               {title}
             </span>
             {description && (

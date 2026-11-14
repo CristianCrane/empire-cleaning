@@ -169,6 +169,15 @@ test(
     await expect(page.getByText("Deactivated", { exact: true })).toBeVisible();
     await expectNoPageAction(page, "Deactivate");
 
+    // and on Staff, under their own Tab
+    await goTo(page, "Staff");
+    await expect(page.getByRole("row", { name: /Cory Cleaner/ })).toHaveCount(
+      0,
+    );
+    await page.getByRole("tab", { name: /Deactivated/ }).click();
+    await expect(page).toHaveURL("/office/staff?tab=deactivated");
+    await expect(page.getByRole("row", { name: /Cory Cleaner/ })).toBeVisible();
+
     // the Cleaner area is closed to them; the portal still opens
     await corysPage.goto("/cleaner");
     await expect(corysPage).toHaveURL("/portal");
