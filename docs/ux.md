@@ -563,6 +563,10 @@ stays as it is (#336).
    return left out, and Change terms' pending state in a menu; #434's found
    two more when New quote's price lost WorkedOutQuote: its time on site,
    then the Service and place its total was read out with.
+   Where the build departs from the pick (a part it changes, a case the
+   prototype didn't draw), put each departure to the user once the plan
+   review names it, before building: #435's three waited from the plan
+   review to the PR, and held it there.
 5. **Record it**: a row in the decisions log below; a new rule above (a
    type's own under its entry in Screen types), and a
    pattern in Storybook, if it carries over to other screens; and in
