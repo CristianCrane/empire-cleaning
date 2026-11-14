@@ -264,7 +264,7 @@ Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432
 
 #### Office > Staff
 
-Keeps: a Section's List (#160). Renders through `ListPage` (#433).
+Keeps: a List, no Card (#160). Renders through `ListPage` (#433).
 
 - Header: "Staff" in the bar; Invite staff (primary, a dialog).
 - Body: Tabs Active · Deactivated (`?tab=`); a Table from md, rows on a

@@ -122,20 +122,22 @@ export function QuotesScreen() {
           badge: <QuoteStatusBadge status={quote.status} />,
           plain: true,
         },
-        badges: (
-          <>
-            {quote.siteVisit === "needed" && (
-              <StatusBadge tone="warning">Needs a site visit</StatusBadge>
-            )}
-            {quote.siteVisit === "booked" && (
-              <StatusBadge tone="info">Site visit booked</StatusBadge>
-            )}
-            {quote.drafting &&
-              (quote.status === "sent" || quote.status === "expired") && (
-                <DraftChangesBadge />
-              )}
-          </>
-        ),
+        badges: [
+          quote.siteVisit === "needed" && (
+            <StatusBadge key="needed" tone="warning">
+              Needs a site visit
+            </StatusBadge>
+          ),
+          quote.siteVisit === "booked" && (
+            <StatusBadge key="booked" tone="info">
+              Site visit booked
+            </StatusBadge>
+          ),
+          quote.drafting &&
+            (quote.status === "sent" || quote.status === "expired") && (
+              <DraftChangesBadge key="draft" />
+            ),
+        ],
         onOpen: () =>
           void navigate({
             to: "/office/quotes/$quoteId",

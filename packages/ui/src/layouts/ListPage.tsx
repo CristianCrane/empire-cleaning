@@ -1,4 +1,10 @@
-import { useEffect, useEffectEvent, useState, type ReactNode } from "react";
+import {
+  Fragment,
+  useEffect,
+  useEffectEvent,
+  useState,
+  type ReactNode,
+} from "react";
 import type { SortDescriptor } from "react-aria-components";
 import { Search, type LucideIcon } from "lucide-react";
 import { dayOf, formats, type Language } from "@empire-cleaning/models";
@@ -41,8 +47,9 @@ export type ListRow = {
   // where it stands: shown when it isn't `plain` in its Tab (Needs
   // cleaners, not Staffed), and on every row while a search spans the Tabs
   status?: { badge: ReactNode; plain: boolean };
-  // what else isn't usual about it, always shown (Needs a site visit)
-  badges?: ReactNode;
+  // what else isn't usual about it, always shown (Needs a site visit): those
+  // that apply, the rest false or undefined
+  badges?: ReactNode[];
   // what opening it does; without, it opens nothing
   onOpen?: () => void;
 };
@@ -111,8 +118,9 @@ export function ListPage<T>({
     descriptor: SortDescriptor;
     onChange: (descriptor: SortDescriptor) => void;
   };
-  // paged by the server: how many more there are, and how to show them
-  more?: { left: number; onMore: () => void };
+  // paged by the server: how to show the next page (how many are left
+  // the layout works out, from the Tab's count or the search's)
+  more?: { onMore: () => void };
   // nothing in it at all, in any Tab: what's missing ("No quotes yet")
   empty: { icon: LucideIcon; title: string };
 }) {
@@ -121,6 +129,10 @@ export function ListPage<T>({
   const [text, setText] = useSearchText(search);
   const [opened, setOpened] = useState(false);
   const searching = !!search?.query;
+  // a search looks through every Tab
+  const total = searching
+    ? search.found
+    : (tabs.find((t) => t.id === tab)?.count ?? 0);
   const nothing = !searching && tabs.every((t) => t.count === 0);
 
   // kept where it is as a search starts, so typing goes on in it
@@ -148,7 +160,7 @@ export function ListPage<T>({
       row={row}
       columns={wide ? columns : undefined}
       sort={sort}
-      more={more}
+      more={more && { left: total - items.length, onMore: more.onMore }}
       searching={searching}
       none={none}
     />
@@ -310,11 +322,14 @@ export function DatedItem({
 // its Tab (always while searching), and whatever else isn't usual
 function badgesOf(row: ListRow, searching: boolean) {
   const status = row.status && (searching || !row.status.plain);
-  if (!status && !row.badges) return undefined;
+  const others = (row.badges ?? []).filter(Boolean);
+  if (!status && others.length === 0) return undefined;
   return (
     <span className="flex flex-wrap gap-1">
       {status && row.status!.badge}
-      {row.badges}
+      {others.map((badge, i) => (
+        <Fragment key={i}>{badge}</Fragment>
+      ))}
     </span>
   );
 }

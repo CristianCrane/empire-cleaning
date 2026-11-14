@@ -111,8 +111,10 @@ order:
   staff).
 - **Its Tabs**, the one way it splits, each with its count, and no All
   (Services' Retired and Staff's Deactivated are Tabs too). The Tab, the
-  search and how many are shown live in the URL, so Back keeps them; it
-  opens on the first Tab that holds anything.
+  search and how many are shown live in the URL, so Back keeps them. It
+  opens on the first Tab that holds anything, or, where the server pages
+  it (Jobs, Clients), on its first Tab, asked for before the counts are
+  known.
 - **A search**, on an Office work list only: at the end of the Tabs' line
   from `md`, behind an icon on a phone. It looks through every Tab: the Tabs
   step aside for "N found in every tab", every row then says where it

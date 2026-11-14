@@ -8,7 +8,7 @@ import { BrushCleaning } from "lucide-react";
 import { ListPage, type ListRow } from "@empire-cleaning/ui";
 import { clientName } from "../format.ts";
 import { JobBadge } from "../JobBadges.tsx";
-import { useListUrl } from "../list-search.ts";
+import { tabShown, useListUrl } from "../list-search.ts";
 
 const { formatDateTime } = formats.en;
 
@@ -42,7 +42,7 @@ export function JobsScreen() {
   const { jobs, counts } = useLoaderData({ from: "/office/jobs" });
   const url = useListUrl<JobsTab>();
   const navigate = useNavigate();
-  const tab = url.tab ?? "upcoming";
+  const tab = tabShown(jobTabs, url.tab);
 
   const row = (job: ScheduledJob): ListRow => ({
     id: job.id,
@@ -97,10 +97,7 @@ export function JobsScreen() {
           cell: (job) => job.serviceName,
         },
       ]}
-      more={{
-        left: (url.q ? counts.all : counts[tab]) - jobs.length,
-        onMore: url.onMore,
-      }}
+      more={{ onMore: url.onMore }}
       empty={{ icon: BrushCleaning, title: "No jobs yet" }}
     />
   );

@@ -337,18 +337,23 @@ function FindClient({
     clients: ClientListItem[];
   }>();
 
-  // once typing pauses, but emptied at once
-  const settled = useSettled(text);
-  const q = text.trim() ? settled : "";
-
+  // once typing pauses; an older search's answer never lands over a newer
+  // one's
+  const q = useSettled(text);
   useEffect(() => {
     if (!q) {
       setFound(undefined);
       return;
     }
+    let stale = false;
     void getJson<ClientList>(
       `/api/clients?q=${encodeURIComponent(q)}&standing=all`,
-    ).then(({ clients }) => setFound({ q, clients }));
+    ).then(({ clients }) => {
+      if (!stale) setFound({ q, clients });
+    });
+    return () => {
+      stale = true;
+    };
   }, [q]);
 
   return (
@@ -370,7 +375,8 @@ function FindClient({
           onChange={setText}
           autoFocus
         />
-        {found && (
+        {/* gone at once when the box is emptied */}
+        {found && text.trim() && (
           <List
             aria-label="Clients found"
             onAction={(id) => onChoose(String(id))}

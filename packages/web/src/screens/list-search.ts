@@ -34,17 +34,18 @@ export const listAsk = <T extends string>(
   { q, tab, shown }: ListUrl<T>,
 ) => ({
   q,
-  tab: q ? ("all" as const) : (tab ?? tabs[0]!),
+  tab: q ? ("all" as const) : tabShown(tabs, tab),
   shown: shown ?? LIST_PAGE,
 });
 
 // the Tab shown: the one picked, else the first that holds anything (a
-// Client with only past cleans), else the first
+// Client with only past cleans), else the first. A list the server pages
+// asks for its Tab before it knows the counts, so opens on its first
 export const tabShown = <T extends string>(
   tabs: readonly T[],
   picked: T | undefined,
-  count: (tab: T) => number,
-): T => picked ?? tabs.find((t) => count(t) > 0) ?? tabs[0]!;
+  count?: (tab: T) => number,
+): T => picked ?? (count && tabs.find((t) => count(t) > 0)) ?? tabs[0]!;
 
 // the List's URL, its route's listUrl, and what its Tabs, search and Show
 // more change in it

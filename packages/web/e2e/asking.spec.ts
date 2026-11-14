@@ -508,7 +508,7 @@ eachTheme(() => {
     );
     await expectAccessible(page);
 
-    await page.goto("/office/clients?tab=all");
+    await page.goto("/office/clients?tab=quoting");
     await expect(page.getByText("Casey Client")).toBeVisible();
     await expectAccessible(page);
   });

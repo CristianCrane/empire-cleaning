@@ -8,7 +8,7 @@ import {
   type StatusTone,
 } from "@empire-cleaning/ui";
 import { clientName } from "../format.ts";
-import { useListUrl } from "../list-search.ts";
+import { tabShown, useListUrl } from "../list-search.ts";
 
 // the list's Tabs, Active first: who the Office is dealing with now
 export const clientTabs = ["active", "quoting", "past"] as const;
@@ -45,7 +45,7 @@ export function ClientsScreen() {
   const { clients, counts } = useLoaderData({ from: "/office/clients" });
   const url = useListUrl<ClientStanding>();
   const navigate = useNavigate();
-  const tab = url.tab ?? "active";
+  const tab = tabShown(clientTabs, url.tab);
 
   return (
     <ListPage
@@ -116,10 +116,7 @@ export function ClientsScreen() {
           ),
         },
       ]}
-      more={{
-        left: (url.q ? counts.all : counts[tab]) - clients.length,
-        onMore: url.onMore,
-      }}
+      more={{ onMore: url.onMore }}
       empty={{ icon: Users, title: "No clients yet" }}
     />
   );

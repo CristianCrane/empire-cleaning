@@ -62,9 +62,13 @@ const upcomingRow =
       homes > 1 && addressOf(job.property),
       t.w.about(formatHours(job.hoursOnSite)),
     ]),
-    badges: job.movingTo ? (
-      <StatusBadge tone="info">{t.w.moveAsked}</StatusBadge>
-    ) : undefined,
+    badges: [
+      job.movingTo && (
+        <StatusBadge key="move" tone="info">
+          {t.w.moveAsked}
+        </StatusBadge>
+      ),
+    ],
     onOpen: () => open(job.id),
   });
 
@@ -105,7 +109,7 @@ const pastRow =
           ? t.w.fee(t.formatMoney(job.feeCents))
           : t.w.noCharge,
     ]),
-    badges: pastBadge(t, job),
+    badges: [pastBadge(t, job)],
     onOpen: () => open(job.id),
   });
 
