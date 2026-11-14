@@ -5,12 +5,14 @@ import {
   emailsTo,
   expect,
   expectAccessible,
+  listRows,
   requestQuoteAsGuest,
   requestQuoteForPremises,
   serviceKey,
   signedInAs,
   test,
   pageAction,
+  searchList,
 } from "./harness.ts";
 
 const olive = {
@@ -24,7 +26,7 @@ const startNewQuote = async (page: Page) => {
   await createStaff(olive);
   await signedInAs(page, olive.email);
   await page.goto("/office/quotes");
-  await page.getByRole("button", { name: "New quote" }).click();
+  await page.getByRole("link", { name: "New quote" }).click();
   await expect(page).toHaveURL("/office/quotes/new");
 };
 
@@ -204,9 +206,7 @@ test(
     await signedInAs(page, olive.email);
     await page.goto("/office/quotes");
 
-    await page
-      .getByRole("grid", { name: "Open quotes" })
-      .getByRole("row")
+    await listRows(page, "Quotes")
       .filter({ hasText: "Standard Clean" })
       .click();
 
@@ -226,7 +226,7 @@ test("a Client's screen starts a New quote for them", async ({ page }) => {
   await requestQuoteAsGuest(casey);
   await createStaff(olive);
   await signedInAs(page, olive.email);
-  await page.goto("/office/clients?tab=all");
+  await page.goto("/office/clients?tab=quoting");
   await page.getByRole("row", { name: /Casey Client/ }).click();
 
   await pageAction(page, "New quote");
@@ -251,34 +251,37 @@ test(
     await signedInAs(page, olive.email);
     await page.goto("/office/quotes");
 
-    const quotes = page.getByRole("grid", { name: "Open quotes" });
-    await expect(quotes.getByRole("row")).toHaveCount(3);
+    // Requested, the first Tab with any, opens
+    const quotes = listRows(page, "Quotes");
+    await expect(quotes).toHaveCount(2);
     // what each is a Quote of
-    await expect(
-      quotes.getByRole("row", { name: /Acme Dental/ }),
-    ).toContainText("Commercial cleaning");
-    await expect(
-      quotes.getByRole("row", { name: /Casey Client/ }),
-    ).toContainText("Standard Clean");
+    await expect(quotes.filter({ hasText: "Acme Dental" })).toContainText(
+      "Commercial cleaning",
+    );
+    await expect(quotes.filter({ hasText: "Casey Client" })).toContainText(
+      "Standard Clean",
+    );
     await expect(page.getByRole("tab", { name: /Requested/ })).toContainText(
       "2",
     );
     await page.getByRole("tab", { name: /Draft/ }).click();
     await expect(page.getByText("No draft quotes.")).toBeVisible();
-    await page.getByRole("tab", { name: /All/ }).click();
 
-    await page.getByRole("searchbox", { name: "Search quotes" }).fill("acme");
-    await expect(page).toHaveURL("/office/quotes?q=acme");
-    await expect(quotes.getByRole("row")).toHaveCount(2);
+    await searchList(page, "Search quotes", "acme");
+    await expect(page).toHaveURL("/office/quotes?tab=draft&q=acme");
+    await expect(page.getByText("1 found in every tab")).toBeVisible();
+    await expect(quotes).toHaveCount(1);
     await expect(quotes).toContainText("Acme Dental");
+    // a search across the Tabs says where each stands
+    await expect(quotes).toContainText("Requested");
     await expectAccessible(page);
 
-    await quotes.getByRole("row", { name: /Acme Dental/ }).click();
+    await quotes.filter({ hasText: "Acme Dental" }).click();
     await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
     await page.goBack();
     await expect(
       page.getByRole("searchbox", { name: "Search quotes" }),
     ).toHaveValue("acme");
-    await expect(quotes.getByRole("row")).toHaveCount(2);
+    await expect(quotes).toHaveCount(1);
   },
 );

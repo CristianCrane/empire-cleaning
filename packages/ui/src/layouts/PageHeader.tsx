@@ -36,41 +36,105 @@ export type PageActions = (PageAction | false | null | undefined)[];
 
 // The page header every screen type that has one shares (docs/ux.md,
 // Screen types): the breadcrumbs from the area's nav section down to this
-// page, every step; the title and its status; a subtitle only when it says
-// what nothing else on the page does, never the title or a crumb again; and
-// the page's actions in one place at the end of the title row. Printed,
-// it's the title alone. A layout places it, never a screen (ADR-0031)
+// page, every step, or none on a nav section's own page (a List); the
+// title and its status; a subtitle only when it says what nothing else on
+// the page does, never the title or a crumb again; and the page's actions
+// in one place at the end of the title row, or a List's one primary there
+// (New …). Printed, it's the title alone. A layout places it, never a
+// screen (ADR-0031)
 export function PageHeader({
   trail,
   title,
+  inBar = false,
   status,
   subtitle,
   actions = [],
+  primary,
+  tools,
 }: {
-  // from the area's nav section to this page, which is last
-  trail: Crumb[];
+  // from the area's nav section to this page, which is last; none on the
+  // section's own page
+  trail?: Crumb[];
   title: string;
+  // a nav section's own page, which a phone's top bar already names: the
+  // title hidden there (Heading's inBar)
+  inBar?: boolean;
   // its StatusBadge, or two
   status?: ReactNode;
   subtitle?: ReactNode;
   actions?: PageActions;
+  // a List's one primary, filled: making a new one
+  primary?: PageAction;
+  // what else the layout keeps on the title row, before the actions (a
+  // phone's search icon)
+  tools?: ReactNode;
 }) {
   return (
     <header className="flex flex-col gap-4">
-      <div className="print:hidden">
-        <Breadcrumbs trail={trail} />
-      </div>
+      {trail && (
+        <div className="print:hidden">
+          <Breadcrumbs trail={trail} />
+        </div>
+      )}
       <div className="flex items-start gap-3">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <Heading level={1}>{title}</Heading>
+            <Heading level={1} inBar={inBar}>
+              {title}
+            </Heading>
             {status}
           </div>
           {subtitle && <p className="text-lg text-fg-muted">{subtitle}</p>}
         </div>
-        <HeaderActions actions={actions.filter((a) => !!a)} />
+        {tools && <div className="shrink-0 print:hidden">{tools}</div>}
+        {primary ? (
+          <div className="shrink-0 print:hidden">
+            <ActionButton action={primary} variant="primary" />
+          </div>
+        ) : (
+          <HeaderActions actions={actions.filter((a) => !!a)} />
+        )}
       </div>
     </header>
+  );
+}
+
+// One action as a Button, or a ButtonLink when it opens another page; a
+// dialog it opens is its own. A Record's one action where the menu would
+// be (WEB-9), a List's primary, and an empty List's way to fill it
+export function ActionButton({
+  action,
+  variant,
+}: {
+  action: PageAction;
+  variant: "primary" | "secondary";
+}) {
+  const [isOpen, setOpen] = useState(false);
+  const look = action.danger ? "danger-text" : variant;
+  const content = (
+    <>
+      <action.icon aria-hidden size={18} />
+      {action.label}
+    </>
+  );
+  if ("href" in action)
+    return (
+      <ButtonLink variant={look} href={action.href} className="shrink-0">
+        {content}
+      </ButtonLink>
+    );
+  return (
+    <>
+      <Button
+        variant={look}
+        className="shrink-0"
+        isPending={action.isPending}
+        onPress={() => ("dialog" in action ? setOpen(true) : action.onAction())}
+      >
+        {content}
+      </Button>
+      {"dialog" in action && action.dialog({ isOpen, onOpenChange: setOpen })}
+    </>
   );
 }
 
@@ -81,63 +145,32 @@ function HeaderActions({ actions }: { actions: PageAction[] }) {
   const words = useUiWords();
   const [open, setOpen] = useState<string | null>(null);
   if (actions.length === 0) return null;
+  if (actions.length === 1)
+    return (
+      <div className="shrink-0 print:hidden">
+        <ActionButton action={actions[0]!} variant="secondary" />
+      </div>
+    );
   const press = (action: PageAction) => () => {
     if ("dialog" in action) setOpen(action.label);
     else if ("onAction" in action) action.onAction();
   };
-  const dialogs = actions.map(
-    (action) =>
-      "dialog" in action && (
-        <Fragment key={action.label}>
-          {action.dialog({
-            isOpen: open === action.label,
-            onOpenChange: (isOpen) => setOpen(isOpen ? action.label : null),
-          })}
-        </Fragment>
-      ),
+  const plain = actions.filter((a) => !a.danger);
+  const danger = actions.filter((a) => a.danger);
+  const item = (action: PageAction) => (
+    <MenuItem
+      key={action.label}
+      icon={action.icon}
+      danger={action.danger}
+      {...("href" in action
+        ? { href: action.href }
+        : { onAction: press(action) })}
+    >
+      {action.label}
+    </MenuItem>
   );
-
-  let control: ReactNode;
-  if (actions.length === 1) {
-    const [action] = actions as [PageAction];
-    const variant = action.danger ? "danger-text" : "secondary";
-    const content = (
-      <>
-        <action.icon aria-hidden size={18} />
-        {action.label}
-      </>
-    );
-    control =
-      "href" in action ? (
-        <ButtonLink variant={variant} href={action.href} className="shrink-0">
-          {content}
-        </ButtonLink>
-      ) : (
-        <Button
-          variant={variant}
-          className="shrink-0"
-          isPending={action.isPending}
-          onPress={press(action)}
-        >
-          {content}
-        </Button>
-      );
-  } else {
-    const plain = actions.filter((a) => !a.danger);
-    const danger = actions.filter((a) => a.danger);
-    const item = (action: PageAction) => (
-      <MenuItem
-        key={action.label}
-        icon={action.icon}
-        danger={action.danger}
-        {...("href" in action
-          ? { href: action.href }
-          : { onAction: press(action) })}
-      >
-        {action.label}
-      </MenuItem>
-    );
-    control = (
+  return (
+    <div className="shrink-0 print:hidden">
       <MenuButton
         label={words.actions}
         isPending={actions.some((a) => a.isPending)}
@@ -146,12 +179,17 @@ function HeaderActions({ actions }: { actions: PageAction[] }) {
         {plain.length > 0 && danger.length > 0 && <MenuSeparator />}
         {danger.map(item)}
       </MenuButton>
-    );
-  }
-  return (
-    <div className="shrink-0 print:hidden">
-      {control}
-      {dialogs}
+      {actions.map(
+        (action) =>
+          "dialog" in action && (
+            <Fragment key={action.label}>
+              {action.dialog({
+                isOpen: open === action.label,
+                onOpenChange: (isOpen) => setOpen(isOpen ? action.label : null),
+              })}
+            </Fragment>
+          ),
+      )}
     </div>
   );
 }

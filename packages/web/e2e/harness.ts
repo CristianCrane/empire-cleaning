@@ -522,6 +522,23 @@ export const goTo = async (page: Page, name: string) => {
   if (opened) await expect(page.getByRole("dialog")).toBeHidden();
 };
 
+// A List's rows (ListPage): a Table's from md, less its header, or rows on
+// a phone; a dated List's in every month, each a grid of its own named
+// "<title>, <month>"
+export const listRows = (page: Page, title: string) =>
+  page
+    .getByRole("grid", { name: new RegExp(`^${title}(, |$)`) })
+    .getByRole("row")
+    .filter({ hasNot: page.getByRole("columnheader") });
+
+// searches a List: in the Tabs' line from md, behind its icon on a phone
+export const searchList = async (page: Page, label: string, text: string) => {
+  const box = page.getByRole("searchbox", { name: label });
+  if (page.viewportSize()!.width < 768)
+    await page.getByRole("button", { name: label }).click();
+  await box.fill(text);
+};
+
 // shows what the person can do with their Account: at the sidebar's foot
 // on a larger screen, at the ☰ menu's foot on a phone, which is opened
 // first (#305)

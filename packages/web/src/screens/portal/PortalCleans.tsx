@@ -1,31 +1,14 @@
-import { useState, type ReactNode } from "react";
-import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
-import { Receipt, Sparkles } from "lucide-react";
+import { useLoaderData, useNavigate } from "@tanstack/react-router";
+import { BrushCleaning } from "lucide-react";
 import type {
   ClientPastJob,
   ClientSiteVisit,
   ClientUpcomingJob,
 } from "@empire-cleaning/models";
 import { catalog } from "@empire-cleaning/models";
-import {
-  Button,
-  DateTile,
-  EmptyState,
-  Heading,
-  List,
-  ListItem,
-  StatusBadge,
-  Tab,
-  TabList,
-  TabPanel,
-  Tabs,
-} from "@empire-cleaning/ui";
-import {
-  addressOf,
-  formatHours,
-  formatMinutes,
-  dayOfInstant,
-} from "../format.ts";
+import { ListPage, StatusBadge, type ListRow } from "@empire-cleaning/ui";
+import { addressOf, formatHours, formatMinutes } from "../format.ts";
+import { tabShown, useListUrl } from "../list-search.ts";
 import { JobStatusBadge } from "../JobBadges.tsx";
 import { type Said, useSaid } from "../words.ts";
 
@@ -42,7 +25,6 @@ const words = catalog({
     upcoming: "Upcoming",
     past: "Past",
     noneYet: "No cleans yet",
-    eachShows: "Each clean shows here once it's done, with its receipt.",
   },
   es: {
     about: (length: string) => `cerca de ${length}`,
@@ -55,61 +37,48 @@ const words = catalog({
     upcoming: "Próximas",
     past: "Pasadas",
     noneYet: "Aún no hay limpiezas",
-    eachShows:
-      "Cada limpieza aparecerá aquí cuando esté terminada, con su recibo.",
   },
 });
 type T = Said & { w: (typeof words)["en"] };
 
-// The Client's cleans: Upcoming (with their Site Visits) and Past, each by
-// month, a date tile leading each row. Only what isn't plain gets a badge:
-// a clean booked or done needs none. (UX pass, #96)
+// The Client's cleans (#96, #433), a List: Upcoming (with their Site
+// Visits) and Past, each by month, the kind of clean leading each row
+// after its time. Only what isn't plain gets a badge: a clean booked or
+// done needs none.
 
 export const cleansTabs = ["upcoming", "past"] as const;
 type CleansTab = (typeof cleansTabs)[number];
-export type CleansSearch = { tab?: CleansTab };
 
-// past cleans shown at a time
-const PAGE = 10;
-
-// a row's worth: its date, what it is, a line under it, and where it opens
-type Row = {
-  id: string;
-  startsAt: string;
-  title: string;
-  line: string;
-  badge?: ReactNode;
-  jobId?: string;
-};
-
-// "9:00 AM · 12 Elm St · $184.50": the home only when there's more than one
+// "12 Elm St · $184.50": the home only when there's more than one
 const lineOf = (parts: (string | false)[]) => parts.filter(Boolean).join(" · ");
 
 const upcomingRow =
-  (t: T, homes: number) =>
-  (job: ClientUpcomingJob): Row => ({
+  (t: T, homes: number, open: (jobId: string) => void) =>
+  (job: ClientUpcomingJob): ListRow => ({
     id: job.id,
-    startsAt: job.startsAt,
+    at: job.startsAt,
     title: job.serviceName,
-    line: lineOf([
-      t.formatTime(job.startsAt),
+    description: lineOf([
       homes > 1 && addressOf(job.property),
       t.w.about(formatHours(job.hoursOnSite)),
     ]),
-    badge: job.movingTo ? (
-      <StatusBadge tone="info">{t.w.moveAsked}</StatusBadge>
-    ) : undefined,
-    jobId: job.id,
+    badges: [
+      job.movingTo && (
+        <StatusBadge key="move" tone="info">
+          {t.w.moveAsked}
+        </StatusBadge>
+      ),
+    ],
+    onOpen: () => open(job.id),
   });
 
 const visitRow =
   (t: T, homes: number) =>
-  (visit: ClientSiteVisit): Row => ({
+  (visit: ClientSiteVisit): ListRow => ({
     id: visit.id,
-    startsAt: visit.startsAt,
+    at: visit.startsAt,
     title: t.siteVisit,
-    line: lineOf([
-      t.formatTime(visit.startsAt),
+    description: lineOf([
       homes > 1 && addressOf(visit.property),
       t.w.visit(visit.visitorName, formatMinutes(visit.minutes)),
     ]),
@@ -127,13 +96,12 @@ const pastBadge = (t: T, job: ClientPastJob) => {
 };
 
 const pastRow =
-  (t: T, homes: number) =>
-  (job: ClientPastJob): Row => ({
+  (t: T, homes: number, open: (jobId: string) => void) =>
+  (job: ClientPastJob): ListRow => ({
     id: job.id,
-    startsAt: job.startsAt,
+    at: job.startsAt,
     title: job.serviceName,
-    line: lineOf([
-      t.formatTime(job.startsAt),
+    description: lineOf([
       homes > 1 && addressOf(job.property),
       job.status === "completed"
         ? t.formatMoney(job.totalCents)
@@ -141,128 +109,49 @@ const pastRow =
           ? t.w.fee(t.formatMoney(job.feeCents))
           : t.w.noCharge,
     ]),
-    badge: pastBadge(t, job),
-    jobId: job.id,
+    badges: [pastBadge(t, job)],
+    onOpen: () => open(job.id),
   });
-
-const byMonth = (t: T, rows: Row[]) => {
-  const months: { month: string; rows: Row[] }[] = [];
-  for (const row of rows) {
-    const month = t.formatMonth(dayOfInstant(row.startsAt));
-    if (months.at(-1)?.month !== month) months.push({ month, rows: [] });
-    months.at(-1)!.rows.push(row);
-  }
-  return months;
-};
 
 export function PortalCleans() {
   const { client, jobs, pastJobs, siteVisits } = useLoaderData({
     from: "/portal/cleans",
   });
-  const search = useSearch({ from: "/portal/cleans" });
+  const url = useListUrl<CleansTab>();
   const navigate = useNavigate();
-  const [shown, setShown] = useState(PAGE);
   const homes = client.properties.length;
   const t = useSaid(words);
   const { w } = t;
+  const open = (jobId: string) =>
+    void navigate({ to: "/portal/jobs/$jobId", params: { jobId } });
 
   const upcoming = [
-    ...jobs.map(upcomingRow(t, homes)),
+    ...jobs.map(upcomingRow(t, homes, open)),
     ...siteVisits.map(visitRow(t, homes)),
-  ].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-  const past = pastJobs.map(pastRow(t, homes));
+  ].sort((a, b) => a.at!.localeCompare(b.at!));
+  const past = pastJobs.map(pastRow(t, homes, open));
   // Upcoming, unless only Past has anything
-  const tab =
-    search.tab ??
-    (upcoming.length === 0 && past.length > 0 ? "past" : "upcoming");
-
-  const months = (rows: Row[], label: string) =>
-    byMonth(t, rows).map(({ month, rows }) => (
-      <section key={month} className="flex flex-col gap-2">
-        <Heading level={2} size={4} className="text-fg-muted">
-          {month}
-        </Heading>
-        <List aria-label={`${label}, ${month}`}>
-          {rows.map((row) => (
-            <ListItem
-              key={row.id}
-              id={row.id}
-              start={<DateTile date={row.startsAt} size="sm" />}
-              title={row.title}
-              description={row.line}
-              end={row.badge}
-              onAction={
-                row.jobId
-                  ? () =>
-                      void navigate({
-                        to: "/portal/jobs/$jobId",
-                        params: { jobId: row.jobId! },
-                      })
-                  : undefined
-              }
-            />
-          ))}
-        </List>
-      </section>
-    ));
+  const tab = tabShown(cleansTabs, url.tab, (t) =>
+    t === "upcoming" ? upcoming.length : past.length,
+  );
 
   return (
-    <div className="flex flex-col gap-6">
-      <Heading level={1} inBar>
-        {t.p.yourCleans}
-      </Heading>
-      <Tabs
-        selectedKey={tab}
-        onSelectionChange={(key) =>
-          void navigate({
-            to: "/portal/cleans",
-            search: { tab: key as CleansTab },
-            replace: true,
-          })
-        }
-      >
-        <TabList aria-label={t.p.yourCleans}>
-          <Tab id="upcoming" count={upcoming.length}>
-            {w.upcoming}
-          </Tab>
-          <Tab id="past" count={past.length}>
-            {w.past}
-          </Tab>
-        </TabList>
-        <TabPanel id="upcoming" className="flex flex-col gap-6">
-          {upcoming.length === 0 ? (
-            <EmptyState
-              icon={Sparkles}
-              title={t.p.nothingBooked}
-              description={t.p.nextShowsHere}
-            />
-          ) : (
-            months(upcoming, w.upcoming)
-          )}
-        </TabPanel>
-        <TabPanel id="past" className="flex flex-col gap-6">
-          {past.length === 0 ? (
-            <EmptyState
-              icon={Receipt}
-              title={w.noneYet}
-              description={w.eachShows}
-            />
-          ) : (
-            <>
-              {months(past.slice(0, shown), w.past)}
-              {past.length > shown && (
-                <Button
-                  variant="secondary"
-                  className="self-center"
-                  onPress={() => setShown(shown + PAGE)}
-                >
-                  {t.p.showMore}
-                </Button>
-              )}
-            </>
-          )}
-        </TabPanel>
-      </Tabs>
-    </div>
+    <ListPage<ListRow>
+      title={t.p.yourCleans}
+      tabs={[
+        {
+          id: "upcoming",
+          label: w.upcoming,
+          count: upcoming.length,
+          none: t.p.nothingBooked,
+        },
+        { id: "past", label: w.past, count: past.length, none: w.noneYet },
+      ]}
+      tab={tab}
+      onTabChange={url.onTabChange}
+      items={tab === "upcoming" ? upcoming : past}
+      row={(row) => row}
+      empty={{ icon: BrushCleaning, title: w.noneYet }}
+    />
   );
 }

@@ -65,7 +65,7 @@ import { AreaLayout } from "./screens/AreaLayout.tsx";
 import { CleanerHome } from "./screens/cleaner/CleanerHome.tsx";
 import { ConfirmEmail } from "./screens/ConfirmEmail.tsx";
 import { SignInLink, type SignInLinkSearch } from "./screens/SignInLink.tsx";
-import { CleanerOffers } from "./screens/cleaner/CleanerOffers.tsx";
+import { CleanerOffers, offerTabs } from "./screens/cleaner/CleanerOffers.tsx";
 import { CleanerJobScreen } from "./screens/cleaner/CleanerJobScreen.tsx";
 import { CleanerNeededScreen } from "./screens/cleaner/CleanerNeededScreen.tsx";
 import { BillScreen } from "./screens/office/BillScreen.tsx";
@@ -76,35 +76,21 @@ import {
   NewServiceScreen,
   ServiceScreen,
   ServicesScreen,
+  serviceTabs,
 } from "./screens/office/ServicesScreen.tsx";
 import {
   QuoteDraftScreen,
   QuoteScreen,
 } from "./screens/office/QuoteScreen.tsx";
-import {
-  QuotesScreen,
-  quoteListStatuses,
-  type QuotesSearch,
-} from "./screens/office/QuotesScreen.tsx";
+import { QuotesScreen, quoteTabs } from "./screens/office/QuotesScreen.tsx";
 import {
   NewQuoteScreen,
   type NewQuoteSearch,
 } from "./screens/office/NewQuoteScreen.tsx";
 import { ClientDetail } from "./screens/office/ClientDetail.tsx";
-import {
-  CLIENTS_PAGE,
-  clientTabs,
-  ClientsScreen,
-  type ClientsSearch,
-  tabFor,
-} from "./screens/office/ClientsScreen.tsx";
-import {
-  JOBS_PAGE,
-  jobTabs,
-  jobsTabFor,
-  JobsScreen,
-  type JobsSearch,
-} from "./screens/office/JobsScreen.tsx";
+import { clientTabs, ClientsScreen } from "./screens/office/ClientsScreen.tsx";
+import { jobTabs, JobsScreen } from "./screens/office/JobsScreen.tsx";
+import { listAsk, listUrl } from "./screens/list-search.ts";
 import {
   currentVisit,
   PropertyScreen,
@@ -113,18 +99,14 @@ import { ScheduleScreen } from "./screens/office/ScheduleScreen.tsx";
 import { ServicePlanScreen } from "./screens/office/ServicePlanScreen.tsx";
 import { SiteVisitScreen } from "./screens/office/SiteVisitScreen.tsx";
 import { StaffMemberScreen } from "./screens/office/StaffMemberScreen.tsx";
-import { StaffScreen } from "./screens/office/StaffScreen.tsx";
+import { StaffScreen, staffTabs } from "./screens/office/StaffScreen.tsx";
 import {
   isDay,
   scheduleRange,
   type ScheduleSearch,
 } from "./screens/schedule-range.ts";
 import { PortalBill } from "./screens/portal/PortalBill.tsx";
-import {
-  PortalCleans,
-  cleansTabs,
-  type CleansSearch,
-} from "./screens/portal/PortalCleans.tsx";
+import { PortalCleans, cleansTabs } from "./screens/portal/PortalCleans.tsx";
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
 import type { HomeData } from "./screens/portal/whats-next.ts";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
@@ -383,14 +365,7 @@ const officeHomeRoute = createRoute({
 const officeQuotesRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/quotes",
-  validateSearch: (search: Record<string, unknown>): QuotesSearch => ({
-    // a number-like search (a house number) comes back as a number
-    q:
-      typeof search.q === "string" || typeof search.q === "number"
-        ? String(search.q) || undefined
-        : undefined,
-    status: quoteListStatuses.find((s) => s === search.status),
-  }),
+  validateSearch: listUrl(quoteTabs),
   loader: () => getJson<QuoteSummary[]>("/api/quotes"),
   component: QuotesScreen,
 });
@@ -481,6 +456,7 @@ const officePriceListRoute = createRoute({
 const officeServicesRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/services",
+  validateSearch: listUrl(serviceTabs),
   loader: () => getJson<Service[]>("/api/services"),
   component: ServicesScreen,
 });
@@ -515,23 +491,8 @@ const officeServiceRoute = createRoute({
 const officeClientsRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/clients",
-  validateSearch: (search: Record<string, unknown>): ClientsSearch => ({
-    // a number-like search ("718555") comes back from the URL as a number
-    q:
-      typeof search.q === "string" || typeof search.q === "number"
-        ? String(search.q) || undefined
-        : undefined,
-    tab: clientTabs.find((t) => t === search.tab),
-    shown:
-      typeof search.shown === "number" && search.shown > CLIENTS_PAGE
-        ? Math.floor(search.shown)
-        : undefined,
-  }),
-  loaderDeps: ({ search }) => ({
-    q: search.q,
-    tab: tabFor(search),
-    shown: search.shown ?? CLIENTS_PAGE,
-  }),
+  validateSearch: listUrl(clientTabs),
+  loaderDeps: ({ search }) => listAsk(clientTabs, search),
   loader: ({ deps }) =>
     getJson<ClientList>(
       `/api/clients?${new URLSearchParams({
@@ -625,6 +586,7 @@ const officeSiteVisitRoute = createRoute({
 const officeStaffRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/staff",
+  validateSearch: listUrl(staffTabs),
   loader: () => getJson<StaffMember[]>("/api/staff"),
   component: StaffScreen,
 });
@@ -652,23 +614,8 @@ const officeScheduleRoute = createRoute({
 const officeJobsRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/jobs",
-  validateSearch: (search: Record<string, unknown>): JobsSearch => ({
-    // a number-like search ("41") comes back from the URL as a number
-    q:
-      typeof search.q === "string" || typeof search.q === "number"
-        ? String(search.q) || undefined
-        : undefined,
-    tab: jobTabs.find((t) => t === search.tab),
-    shown:
-      typeof search.shown === "number" && search.shown > JOBS_PAGE
-        ? Math.floor(search.shown)
-        : undefined,
-  }),
-  loaderDeps: ({ search }) => ({
-    q: search.q,
-    tab: jobsTabFor(search),
-    shown: search.shown ?? JOBS_PAGE,
-  }),
+  validateSearch: listUrl(jobTabs),
+  loaderDeps: ({ search }) => listAsk(jobTabs, search),
   loader: ({ deps }) =>
     getJson<JobList>(
       `/api/jobs?${new URLSearchParams({
@@ -704,6 +651,7 @@ const cleanerHomeRoute = createRoute({
 const cleanerOffersRoute = createRoute({
   getParentRoute: () => cleanerRoute,
   path: "/offers",
+  validateSearch: listUrl(offerTabs),
   loader: async () => {
     const [{ today, upcoming }, open] = await Promise.all([
       getJson<CleanerJobs>("/api/assignments/mine"),
@@ -803,9 +751,7 @@ const portalPlanRoute = createRoute({
 const portalCleansRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/cleans",
-  validateSearch: (search: Record<string, unknown>): CleansSearch => ({
-    tab: cleansTabs.find((t) => t === search.tab),
-  }),
+  validateSearch: listUrl(cleansTabs),
   loader: async () => {
     const [client, jobs, pastJobs, siteVisits] = await Promise.all([
       ownClient(),

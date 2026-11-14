@@ -30,6 +30,7 @@ import {
   ListItem,
   Section,
   TextField,
+  useSettled,
 } from "@empire-cleaning/ui";
 import { getJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
@@ -43,9 +44,6 @@ export type NewQuoteSearch = { clientId?: string };
 
 // the page, and the Buttons that open it
 export const NEW_QUOTE = "New quote";
-
-// how long typing pauses before the search runs
-const SEARCH_DELAY_MS = 250;
 
 /**
  * Quoting someone who phones (#34): find them among the Clients, or enter
@@ -339,21 +337,24 @@ function FindClient({
     clients: ClientListItem[];
   }>();
 
+  // once typing pauses; an older search's answer never lands over a newer
+  // one's
+  const q = useSettled(text);
   useEffect(() => {
-    const q = text.trim();
     if (!q) {
       setFound(undefined);
       return;
     }
-    const timer = setTimeout(
-      () =>
-        void getJson<ClientList>(
-          `/api/clients?q=${encodeURIComponent(q)}&standing=all`,
-        ).then(({ clients }) => setFound({ q, clients })),
-      SEARCH_DELAY_MS,
-    );
-    return () => clearTimeout(timer);
-  }, [text]);
+    let stale = false;
+    void getJson<ClientList>(
+      `/api/clients?q=${encodeURIComponent(q)}&standing=all`,
+    ).then(({ clients }) => {
+      if (!stale) setFound({ q, clients });
+    });
+    return () => {
+      stale = true;
+    };
+  }, [q]);
 
   return (
     <Section

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { formats } from "@empire-cleaning/models";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import { UserPlus } from "lucide-react";
+import { UserPlus, UsersRound } from "lucide-react";
 import type { Language, StaffMember, StaffRole } from "@empire-cleaning/models";
 import {
   Actions,
@@ -9,12 +9,9 @@ import {
   Button,
   Checkbox,
   Dialog,
-  DialogTrigger,
   Form,
-  Heading,
   LanguagePicker,
-  List,
-  ListItem,
+  ListPage,
   Notice,
   StatusBadge,
   TextField,
@@ -22,55 +19,97 @@ import {
 import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
 import { roleLabel } from "../format.ts";
+import { tabShown, useListUrl } from "../list-search.ts";
 
 const { formatList } = formats.en;
 
-// everyone on Staff, active first; open one to set their availability or
-// deactivate them
+// the list's Tabs: who's on Staff now, then who was
+export const staffTabs = ["active", "deactivated"] as const;
+type StaffTab = (typeof staffTabs)[number];
+
+// Everyone on Staff (#433), a List with a Tab for those deactivated; open
+// one to set their availability or deactivate them. Only someone who
+// hasn't signed up yet says so: Invited
 export function StaffScreen() {
   const staff = useLoaderData({ from: "/office/staff" });
+  const url = useListUrl<StaffTab>();
   const navigate = useNavigate();
+  const inTab = (tab: StaffTab) =>
+    staff.filter((member) => member.active === (tab === "active"));
+  const tab = tabShown(staffTabs, url.tab, (t) => inTab(t).length);
+  const rolesOf = (member: StaffMember) =>
+    formatList(member.roles.map((r) => roleLabel[r]));
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Heading level={1} inBar>
-          Staff
-        </Heading>
-        <DialogTrigger>
-          <Button>
-            <UserPlus aria-hidden size={18} />
-            Invite staff
-          </Button>
-          <Dialog title="Invite staff">
+    <ListPage
+      title="Staff"
+      primary={{
+        label: "Invite staff",
+        icon: UserPlus,
+        dialog: (state) => (
+          <Dialog title="Invite staff" {...state}>
             {({ close }) => <InviteForm close={close} />}
           </Dialog>
-        </DialogTrigger>
-      </div>
-      <List
-        aria-label="Staff"
-        onAction={(id) =>
-          navigate({
+        ),
+      }}
+      tabs={[
+        {
+          id: "active",
+          label: "Active",
+          count: inTab("active").length,
+          none: "No one active on Staff.",
+        },
+        {
+          id: "deactivated",
+          label: "Deactivated",
+          count: inTab("deactivated").length,
+          none: "No one deactivated.",
+        },
+      ]}
+      tab={tab}
+      onTabChange={url.onTabChange}
+      items={inTab(tab)}
+      row={(member) => ({
+        id: member.id,
+        title: member.name,
+        start: <Avatar src={member.imageUrl} />,
+        description: `${rolesOf(member)} · ${member.email}`,
+        status:
+          member.active && member.signedUp
+            ? undefined
+            : {
+                badge: <MemberStatus member={member} />,
+                plain: !member.active,
+              },
+        onOpen: () =>
+          void navigate({
             to: "/office/staff/$staffId",
-            params: { staffId: String(id) },
-          })
-        }
-      >
-        {staff.map((member) => (
-          <ListItem
-            key={member.id}
-            id={member.id}
-            title={member.name}
-            start={<Avatar src={member.imageUrl} />}
-            description={[
-              formatList(member.roles.map((r) => roleLabel[r])),
-              member.email,
-            ].join(" · ")}
-            end={<MemberStatus member={member} />}
-          />
-        ))}
-      </List>
-    </div>
+            params: { staffId: member.id },
+          }),
+      })}
+      columns={[
+        {
+          id: "name",
+          label: "Name",
+          cell: (member) => (
+            <span className="flex items-center gap-3">
+              <Avatar src={member.imageUrl} />
+              {member.name}
+            </span>
+          ),
+        },
+        { id: "roles", label: "Roles", cell: rolesOf },
+        {
+          id: "email",
+          label: "Email",
+          from: "lg",
+          cell: (member) => (
+            <span className="[overflow-wrap:anywhere]">{member.email}</span>
+          ),
+        },
+      ]}
+      empty={{ icon: UsersRound, title: "No staff yet" }}
+    />
   );
 }
 

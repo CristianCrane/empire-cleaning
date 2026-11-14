@@ -32,7 +32,6 @@ export const portalWords = catalog({
     didntWork: "That didn't work. Please try again.",
     seeYourCleaningPlan: "See your cleaning plan",
     seeTheClean: "See the clean",
-    showMore: "Show more",
     anotherTime: "Need another time?",
     // its Welcome page's heading, and its first tour's title
     cleaningPlan: "Cleaning plan",
@@ -67,7 +66,6 @@ export const portalWords = catalog({
     didntWork: "No funcionó. Vuelva a intentarlo.",
     seeYourCleaningPlan: "Ver su plan de limpieza",
     seeTheClean: "Ver la limpieza",
-    showMore: "Mostrar más",
     anotherTime: "¿Necesita otra hora?",
     cleaningPlan: "Plan de limpieza",
     bill: (n: string) => `Factura ${n}`,

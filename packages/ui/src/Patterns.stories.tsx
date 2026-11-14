@@ -47,7 +47,6 @@ import { Section } from "./Section.tsx";
 import { Segment, SegmentedControl } from "./SegmentedControl.tsx";
 import { StatusBadge, type StatusTone } from "./StatusBadge.tsx";
 import { Cell, Column, Row, Table, TableBody, TableHeader } from "./Table.tsx";
-import { Tab, TabList, TabPanel, Tabs } from "./Tabs.tsx";
 import { TextField } from "./TextField.tsx";
 import { Timeline, TimelineItem } from "./Timeline.tsx";
 import { startTour } from "./Tour.ts";
@@ -262,84 +261,6 @@ function SchedulesAreCalendars() {
   );
 }
 
-function WorkListsAreTables() {
-  const quotes = [
-    { id: "1", client: "Priya Shah", status: "Requested", waiting: "3 days" },
-    { id: "2", client: "Ortiz Dental", status: "Requested", waiting: "5 days" },
-    { id: "3", client: "Sam Ng", status: "Sent", waiting: "8 days" },
-  ];
-  return (
-    <div className="flex flex-col gap-6">
-      <Rule title="A growing work list is a Table, with status Tabs and a search">
-        <p>
-          A list the Office works through, many items in a few statuses (open
-          Quotes), is a <code>Table</code>: sortable columns, longest waiting
-          first. A <code>Tab</code> per status, each with its count, narrows it,
-          and a search box above finds a Client or address. Keep both in the
-          URL, so coming Back keeps them.
-        </p>
-        <p>
-          Keep such a list to the work in hand (closed items live on their
-          Client's pages), so it can load whole and search in the browser,
-          without pages.
-        </p>
-        <p>
-          A list that keeps growing whatever happens (Clients) opens on the Tab
-          for what's current and holds 50 at a time, with Show more; the server
-          works out the Tabs, their counts and the page. A search looks through
-          All unless a Tab is picked. On a phone, columns that only describe the
-          row fold under its first cell.
-        </p>
-      </Rule>
-      <Example verdict="Do">
-        <div className="flex flex-col gap-4">
-          <TextField
-            label="Search quotes"
-            type="search"
-            placeholder="Client, business or address"
-          />
-          <Tabs>
-            <TabList aria-label="Status">
-              <Tab id="all" count={3}>
-                All
-              </Tab>
-              <Tab id="requested" count={2}>
-                Requested
-              </Tab>
-              <Tab id="sent" count={1}>
-                Sent
-              </Tab>
-            </TabList>
-            <TabPanel id="all">
-              <Table aria-label="Open quotes">
-                <TableHeader>
-                  <Column isRowHeader>Client</Column>
-                  <Column>Status</Column>
-                  <Column>Waiting</Column>
-                </TableHeader>
-                <TableBody items={quotes}>
-                  {(q) => (
-                    <Row id={q.id}>
-                      <Cell>{q.client}</Cell>
-                      <Cell>
-                        <StatusBadge
-                          tone={q.status === "Sent" ? "info" : "warning"}
-                        >
-                          {q.status}
-                        </StatusBadge>
-                      </Cell>
-                      <Cell>{q.waiting}</Cell>
-                    </Row>
-                  )}
-                </TableBody>
-              </Table>
-            </TabPanel>
-          </Tabs>
-        </div>
-      </Example>
-    </div>
-  );
-}
 function QuietForms() {
   return (
     <div className="flex flex-col gap-6">
@@ -1217,10 +1138,6 @@ export const ActionFirstToDoRows: Story = {
 
 export const SchedulesAsCalendars: Story = {
   render: () => <SchedulesAreCalendars />,
-};
-
-export const WorkListsAsTables: Story = {
-  render: () => <WorkListsAreTables />,
 };
 
 export const QuietFormsInSteps: Story = {

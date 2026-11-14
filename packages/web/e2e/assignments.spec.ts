@@ -14,6 +14,7 @@ import {
   signedInAs,
   test,
   addCleaner,
+  listRows,
 } from "./harness.ts";
 
 // the API's fake clock is at 4am on Monday 5 January 2026 in New York. The
@@ -241,9 +242,13 @@ test(
       .getByRole("link", { name: /^Offers/ })
       .first()
       .click();
-    const offered = page.getByRole("grid", { name: "Offered to you" });
-    await expect(offered).toContainText("Thu, Jan 8, 9:00 AM");
-    await offered.getByRole("row").click();
+    await expect(
+      page.getByRole("tab", { name: /Offered to you/ }),
+    ).toHaveAttribute("aria-selected", "true");
+    const offered = listRows(page, "Offers");
+    await expect(offered).toContainText("Jan 8");
+    await expect(offered).toContainText("Thu 9:00 AM");
+    await offered.click();
     await expect(page).toHaveURL(`/cleaner/jobs/${job.id}`);
     const details = page.getByRole("region", { name: "Job details" });
     await expect(details).toContainText("Ring 4B; the doorman has a key.");
@@ -419,13 +424,16 @@ test(
       .getByRole("link", { name: /^Offers/ })
       .first()
       .click();
-    const open = page.getByRole("grid", { name: "Open to you" });
-    const row = open.getByRole("row");
+    // nothing offered, so what's open to them
+    await expect(
+      page.getByRole("tab", { name: /Open to you/ }),
+    ).toHaveAttribute("aria-selected", "true");
+    const row = listRows(page, "Offers");
     await expect(row).toHaveCount(1);
-    await expect(row).toContainText("Thu, Jan 8, 9:00 AM");
-    await expect(row).toContainText(
-      "11375 · Deep Clean · 6 h on site · Just you",
-    );
+    await expect(row).toContainText("Jan 8");
+    // roughly where, then what
+    await expect(row).toContainText("Thu 9:00 AM · 11375");
+    await expect(row).toContainText("Deep Clean · 6 h on site · Just you");
 
     await row.click();
     await expect(page).toHaveURL(`/cleaner/open/${job.id}`);

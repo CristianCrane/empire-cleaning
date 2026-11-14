@@ -8,12 +8,13 @@ import {
   Dialog,
   DialogTrigger,
   Notice,
+  isWide,
 } from "@empire-cleaning/ui";
 import { getJson } from "../../api.ts";
 import { useLoaded } from "../load.ts";
 import { RangeBar, type TimePickerProps } from "../CalendarGrid.tsx";
 import { today } from "../format.ts";
-import { isWide, rangeShowing } from "../schedule-range.ts";
+import { rangeShowing } from "../schedule-range.ts";
 import { ScheduleCalendar } from "./ScheduleCalendar.tsx";
 
 const { weekdayName } = formats.en;

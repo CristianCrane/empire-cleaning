@@ -1,46 +1,24 @@
-import { useEffect, useState } from "react";
-import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
+import { useState } from "react";
+import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type { QuoteSummary } from "@empire-cleaning/models";
 import { DAY_MS, formats } from "@empire-cleaning/models";
 import { QuoteIcon } from "../icons.ts";
-import {
-  Button,
-  Cell,
-  Column,
-  Heading,
-  Row,
-  StatusBadge,
-  Tab,
-  TabList,
-  TabPanel,
-  Table,
-  TableBody,
-  TableHeader,
-  Tabs,
-  TextField,
-} from "@empire-cleaning/ui";
+import { ListPage, StatusBadge } from "@empire-cleaning/ui";
 import { DraftChangesBadge, QuoteStatusBadge } from "../QuoteParts.tsx";
 import { addressOf, clientName, quoteStatusLabel } from "../format.ts";
 import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
+import { linkTo } from "../../links.ts";
+import { tabShown, useListUrl } from "../list-search.ts";
 
 const { formatMoney } = formats.en;
 
-// the statuses the list holds, in the order a Quote moves through them
-export const quoteListStatuses = [
-  "requested",
-  "draft",
-  "sent",
-  "expired",
-] as const;
-type ListStatus = (typeof quoteListStatuses)[number];
-
-export type QuotesSearch = { q?: string; status?: ListStatus };
+// the statuses the list holds, a Tab each, in the order a Quote moves
+// through them
+export const quoteTabs = ["requested", "draft", "sent", "expired"] as const;
+type ListStatus = (typeof quoteTabs)[number];
 
 type SortColumn = "client" | "status" | "total" | "waiting";
 type Sort = { column: SortColumn; direction: "ascending" | "descending" };
-
-// how long typing pauses before the list follows it
-const SEARCH_DELAY_MS = 250;
 
 // how long since it was asked for (or offered): "today", "3 days"
 const waiting = (quote: QuoteSummary) => {
@@ -70,7 +48,7 @@ const sortKey = (quote: QuoteSummary, column: SortColumn) => {
     case "client":
       return clientName(quote.client).toLowerCase();
     case "status":
-      return quoteListStatuses.indexOf(quote.status as ListStatus);
+      return quoteTabs.indexOf(quote.status as ListStatus);
     case "total":
       return quote.headlineTotalCents ?? -1;
     case "waiting":
@@ -79,179 +57,133 @@ const sortKey = (quote: QuoteSummary, column: SortColumn) => {
   }
 };
 
-// The Office's open Quotes: Requested, Draft and Sent, and those Expired
-// lately, which may be revived. Closed ones are on their Client's and
-// Property's pages, so the list stays the size of the work in hand. A Tab
-// per status and a search by Client or address narrow it; both live in the
-// URL, so coming Back from a Quote keeps them. Sorted longest waiting first
-// until a column says otherwise. A New Quote is for someone who phones (#34).
+// The Office's open Quotes (#433), a List: a Tab per status, Requested,
+// Draft and Sent, and those Expired lately, which may be revived. Closed
+// ones are on their Client's and Property's pages, so the list stays the
+// size of the work in hand, and loads whole. A search by Client or address
+// looks through every Tab. From md it's a Table, sorted longest waiting
+// first until a column says otherwise. A New Quote is for someone who
+// phones (#34).
 export function QuotesScreen() {
   const quotes = useLoaderData({ from: "/office/quotes" });
-  const { q = "", status } = useSearch({ from: "/office/quotes" });
+  const url = useListUrl<ListStatus>();
   const navigate = useNavigate();
-  const [text, setText] = useState(q);
   const [sort, setSort] = useState<Sort>({
     column: "waiting",
     direction: "ascending",
   });
 
-  // the list follows the box once typing pauses
-  useEffect(() => {
-    const wanted = text.trim();
-    if (wanted === q) return;
-    const timer = setTimeout(
-      () =>
-        void navigate({
-          to: "/office/quotes",
-          search: (prev) => ({ ...prev, q: wanted || undefined }),
-          replace: true,
-        }),
-      SEARCH_DELAY_MS,
-    );
-    return () => clearTimeout(timer);
-  }, [text, q, navigate]);
-
-  // and the box follows the URL, e.g. the nav's Quotes link clearing it
-  useEffect(() => {
-    setText((current) => (current.trim() === q ? current : q));
-  }, [q]);
-
-  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const count = (s: ListStatus) =>
+    quotes.filter((quote) => quote.status === s).length;
+  const tab = tabShown(quoteTabs, url.tab, count);
+  const words = url.q.toLowerCase().split(/\s+/).filter(Boolean);
   const found = quotes.filter((quote) => {
     const haystack = searchable(quote);
     return words.every((word) => haystack.includes(word));
   });
-  const shown = found
-    .filter((quote) => !status || quote.status === status)
-    .sort((a, b) => {
+  const shown = (url.q ? found : quotes.filter((q) => q.status === tab)).sort(
+    (a, b) => {
       const [x, y] = [sortKey(a, sort.column), sortKey(b, sort.column)];
       const by = x < y ? -1 : x > y ? 1 : 0;
       return sort.direction === "descending" ? -by : by;
-    });
-  const count = (s?: ListStatus) =>
-    s ? found.filter((quote) => quote.status === s).length : found.length;
-
-  const table = (
-    <Table
-      aria-label="Open quotes"
-      sortDescriptor={sort}
-      onSortChange={(next) => setSort(next as Sort)}
-      onRowAction={(id) =>
-        void navigate({
-          to: "/office/quotes/$quoteId",
-          params: { quoteId: String(id) },
-        })
-      }
-    >
-      <TableHeader>
-        <Column id="client" isRowHeader allowsSorting>
-          Client
-        </Column>
-        <Column id="property">Property</Column>
-        <Column id="service">Service</Column>
-        <Column id="status" allowsSorting>
-          Status
-        </Column>
-        <Column id="total" allowsSorting>
-          Total
-        </Column>
-        <Column id="waiting" allowsSorting>
-          Waiting
-        </Column>
-      </TableHeader>
-      <TableBody
-        items={shown}
-        renderEmptyState={() => (
-          <p className="p-6 text-center text-fg-muted">
-            {q
-              ? `No open quotes match “${q}”.`
-              : status
-                ? `No ${quoteStatusLabel[status].toLowerCase()} quotes.`
-                : "No open quotes."}
-          </p>
-        )}
-      >
-        {(quote) => (
-          <Row id={quote.id} className="cursor-pointer">
-            <Cell>
-              <span className="font-semibold">{clientName(quote.client)}</span>
-            </Cell>
-            <Cell>{addressOf(quote.property)}</Cell>
-            <Cell>{serviceOf(quote)}</Cell>
-            <Cell>
-              <div className="flex flex-wrap gap-1">
-                <QuoteStatusBadge status={quote.status} />
-                {quote.siteVisit === "needed" && (
-                  <StatusBadge tone="warning">Needs a site visit</StatusBadge>
-                )}
-                {quote.siteVisit === "booked" && (
-                  <StatusBadge tone="info">Site visit booked</StatusBadge>
-                )}
-                {quote.drafting &&
-                  (quote.status === "sent" || quote.status === "expired") && (
-                    <DraftChangesBadge />
-                  )}
-              </div>
-            </Cell>
-            <Cell className="whitespace-nowrap">
-              {quote.headlineTotalCents === null
-                ? "—"
-                : formatMoney(quote.headlineTotalCents)}
-            </Cell>
-            <Cell className="whitespace-nowrap">{waiting(quote)}</Cell>
-          </Row>
-        )}
-      </TableBody>
-    </Table>
+    },
   );
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Heading level={1} inBar>
-          Quotes
-        </Heading>
-        <Button onPress={() => void navigate({ to: "/office/quotes/new" })}>
-          <QuoteIcon aria-hidden size={18} />
-          {NEW_QUOTE}
-        </Button>
-      </div>
-      <TextField
-        label="Search quotes"
-        type="search"
-        placeholder="Client, business or address"
-        value={text}
-        onChange={setText}
-      />
-      <Tabs
-        selectedKey={status ?? "all"}
-        onSelectionChange={(key) =>
+    <ListPage
+      title="Quotes"
+      primary={{
+        label: NEW_QUOTE,
+        icon: QuoteIcon,
+        href: linkTo({ to: "/office/quotes/new" }),
+      }}
+      tabs={quoteTabs.map((s) => ({
+        id: s,
+        label: quoteStatusLabel[s],
+        count: count(s),
+        none: `No ${quoteStatusLabel[s].toLowerCase()} quotes.`,
+      }))}
+      tab={tab}
+      onTabChange={url.onTabChange}
+      search={{
+        label: "Search quotes",
+        placeholder: "Client, business or address",
+        query: url.q,
+        onSearch: url.onSearch,
+        found: found.length,
+      }}
+      items={shown}
+      row={(quote) => ({
+        id: quote.id,
+        title: clientName(quote.client),
+        description: `${addressOf(quote.property)} · ${serviceOf(quote)}`,
+        // its Tab says it, but a search across them doesn't
+        status: {
+          badge: <QuoteStatusBadge status={quote.status} />,
+          plain: true,
+        },
+        badges: [
+          quote.siteVisit === "needed" && (
+            <StatusBadge key="needed" tone="warning">
+              Needs a site visit
+            </StatusBadge>
+          ),
+          quote.siteVisit === "booked" && (
+            <StatusBadge key="booked" tone="info">
+              Site visit booked
+            </StatusBadge>
+          ),
+          quote.drafting &&
+            (quote.status === "sent" || quote.status === "expired") && (
+              <DraftChangesBadge key="draft" />
+            ),
+        ],
+        onOpen: () =>
           void navigate({
-            to: "/office/quotes",
-            search: (prev) => ({
-              ...prev,
-              status: key === "all" ? undefined : (key as ListStatus),
-            }),
-            replace: true,
-          })
-        }
-      >
-        <TabList aria-label="Status">
-          <Tab id="all" count={count()}>
-            All
-          </Tab>
-          {quoteListStatuses.map((s) => (
-            <Tab key={s} id={s} count={count(s)}>
-              {quoteStatusLabel[s]}
-            </Tab>
-          ))}
-        </TabList>
-        {["all", ...quoteListStatuses].map((s) => (
-          <TabPanel key={s} id={s}>
-            {table}
-          </TabPanel>
-        ))}
-      </Tabs>
-    </div>
+            to: "/office/quotes/$quoteId",
+            params: { quoteId: quote.id },
+          }),
+      })}
+      columns={[
+        {
+          id: "client",
+          label: "Client",
+          allowsSorting: true,
+          cell: (quote) => clientName(quote.client),
+        },
+        {
+          id: "property",
+          label: "Property",
+          cell: (quote) => addressOf(quote.property),
+        },
+        { id: "service", label: "Service", from: "lg", cell: serviceOf },
+        {
+          id: "total",
+          label: "Total",
+          allowsSorting: true,
+          cell: (quote) => (
+            <span className="whitespace-nowrap">
+              {quote.headlineTotalCents === null
+                ? "—"
+                : formatMoney(quote.headlineTotalCents)}
+            </span>
+          ),
+        },
+        {
+          id: "waiting",
+          label: "Waiting",
+          from: "lg",
+          allowsSorting: true,
+          cell: (quote) => (
+            <span className="whitespace-nowrap">{waiting(quote)}</span>
+          ),
+        },
+      ]}
+      sort={{
+        descriptor: sort,
+        onChange: (next) => setSort(next as Sort),
+      }}
+      empty={{ icon: QuoteIcon, title: "No quotes yet" }}
+    />
   );
 }

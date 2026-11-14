@@ -78,7 +78,7 @@ redirect (Screen: none); Not found and Something went wrong have no path.
 | `/office/schedule`               | Office > Schedule               | booked Jobs and free Staff hours over a range of days (`?from=&to=`)                                                 | `office/ScheduleScreen.tsx`       | Calendar     |
 | `/office/jobs`                   | Office > Jobs                   | every Job (`?tab=&q=&shown=`)                                                                                        | `office/JobsScreen.tsx`           | List         |
 | `/office/jobs/$jobId`            | Office > Job                    | its crew, a move asked for, moving or cancelling it; once done, price changes and correcting it                      | `office/JobScreen.tsx`            | Record       |
-| `/office/quotes`                 | Office > Quotes                 | every Quote (`?status=&q=`)                                                                                          | `office/QuotesScreen.tsx`         | List         |
+| `/office/quotes`                 | Office > Quotes                 | every Quote (`?tab=&q=`)                                                                                             | `office/QuotesScreen.tsx`         | List         |
 | `/office/quotes/new`             | Office > New quote              | a Quote taken on the phone (`?clientId=`)                                                                            | `office/NewQuoteScreen.tsx`       | Form page    |
 | `/office/quotes/$quoteId`        | Office > Quote                  | its story, the Current quote, recording acceptance, the add-a-card email                                             | `office/QuoteScreen.tsx`          | Record       |
 | `/office/quotes/$quoteId/draft`  | Office > Draft quote            | the change being written, priced afresh, sent or deleted (redirects to the Quote with no draft)                      | `office/QuoteScreen.tsx`          | Form page    |
@@ -90,14 +90,14 @@ redirect (Screen: none); Not found and Something went wrong have no path.
 | `/office/service-plans/$planId`  | Office > Ended cleaning plan    | a plan that has Ended (redirects to the Property while it runs)                                                      | `office/ServicePlanScreen.tsx`    | Record       |
 | `/office/site-visits/$visitId`   | Office > Site visit             | moving or cancelling it, recording what it found                                                                     | `office/SiteVisitScreen.tsx`      | Record       |
 | `/office/bills/$billId`          | Office > Bill                   | voiding it while unpaid, recording a payment made another way                                                        | `office/BillScreen.tsx`           | Record       |
-| `/office/staff`                  | Office > Staff                  | everyone, and inviting someone                                                                                       | `office/StaffScreen.tsx`          | List         |
+| `/office/staff`                  | Office > Staff                  | everyone, and inviting someone (`?tab=`)                                                                             | `office/StaffScreen.tsx`          | List         |
 | `/office/staff/$staffId`         | Office > Staff member           | their usual week, days off and extra days; deactivating them                                                         | `office/StaffMemberScreen.tsx`    | Record       |
 | `/office/price-list`             | Office > Prices                 | the Price List, and the Services each extra goes with                                                                | `office/PriceListScreen.tsx`      | Settings     |
-| `/office/services`               | Office > Services               | every Service, retired ones folded                                                                                   | `office/ServicesScreen.tsx`       | List         |
+| `/office/services`               | Office > Services               | every Service, retired ones on a Tab (`?tab=`)                                                                       | `office/ServicesScreen.tsx`       | List         |
 | `/office/services/new`           | Office > Service, New service   | a new Service                                                                                                        | `office/ServicesScreen.tsx`       | Form page    |
 | `/office/services/$serviceKey`   | Office > Service, New service   | a Service's figures, with a worked example                                                                           | `office/ServicesScreen.tsx`       | Form page    |
 | `/cleaner`                       | Cleaner > Your jobs             | today and coming up                                                                                                  | `cleaner/CleanerHome.tsx`         | Home         |
-| `/cleaner/offers`                | Cleaner > Offers                | Jobs offered or open to them                                                                                         | `cleaner/CleanerOffers.tsx`       | List         |
+| `/cleaner/offers`                | Cleaner > Offers                | Jobs offered or open to them (`?tab=`)                                                                               | `cleaner/CleanerOffers.tsx`       | List         |
 | `/cleaner/jobs/$jobId`           | Cleaner > Job                   | a Job they're on, where the Offer email leads: take or drop it, complete it, record no access                        | `cleaner/CleanerJobScreen.tsx`    | Record       |
 | `/cleaner/open/$jobId`           | Cleaner > Cleaner needed        | a Job open to them, to take                                                                                          | `cleaner/CleanerNeededScreen.tsx` | Record       |
 | `/portal`                        | Client portal > Home            | what's next                                                                                                          | `portal/PortalHome.tsx`           | Home         |
@@ -134,10 +134,12 @@ chosen (ux-office-today).
 
 #### Office > Jobs
 
-Keeps: Table + Tabs (#146).
+Keeps: Table + Tabs (#146). Renders through `ListPage` (#433).
 
-- Header: "Jobs" in the bar.
-- Body: search; Tabs Upcoming · Past · Cancelled · All; Table; Show more.
+- Header: "Jobs" in the bar; on a phone, the search's icon.
+- Body: Tabs Upcoming · Past · Cancelled, the search at the end of their
+  line from md; by month: a Table from md, dated rows on a phone, a badge
+  only for Needs cleaners; Show more (N left).
 
 #### Office > Job
 
@@ -157,10 +159,13 @@ Keeps: Actions ▾ (#406). Renders through `RecordPage` (#432).
 
 #### Office > Quotes
 
-Keeps: Table + filters (#109).
+Keeps: Table + filters (#109). Renders through `ListPage` (#433).
 
-- Header: "Quotes" in the bar; New quote (primary).
-- Body: search; Tabs by status; Table.
+- Header: "Quotes" in the bar; on a phone, the search's icon; New quote
+  (primary).
+- Body: Tabs Requested · Draft · Sent · Expired, the search at the end of
+  their line from md; a sortable Table from md, rows on a phone; Show more
+  (N left).
 
 #### Office > New quote
 
@@ -198,10 +203,11 @@ the Form slice.
 
 #### Office > Clients
 
-Keeps: Table + status Tabs (#117).
+Keeps: Table + status Tabs (#117). Renders through `ListPage` (#433).
 
-- Header: "Clients" in the bar.
-- Body: search (focused on load); Tabs; Table; Show more.
+- Header: "Clients" in the bar; on a phone, the search's icon.
+- Body: Tabs Active · Quoting · Past, the search at the end of their line
+  from md; a Table from md, rows on a phone; Show more (N left).
 
 #### Office > Client
 
@@ -258,10 +264,11 @@ Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432
 
 #### Office > Staff
 
-Keeps: a Section's List (#160).
+Keeps: a List, no Card (#160). Renders through `ListPage` (#433).
 
 - Header: "Staff" in the bar; Invite staff (primary, a dialog).
-- Body: List.
+- Body: Tabs Active · Deactivated (`?tab=`); a Table from md, rows on a
+  phone, a badge only for Invited.
 
 #### Office > Staff member
 
@@ -285,10 +292,10 @@ Keeps: read, change a part in a dialog (#161).
 
 #### Office > Services
 
-Keeps: a work list.
+Keeps: a work list. Renders through `ListPage` (#433).
 
-- Header: "Services" in the bar; New service (primary); an intro paragraph.
-- Body: Table; Retired (Section, Show or Hide).
+- Header: "Services" in the bar; New service (primary).
+- Body: Tabs Offered · Retired (`?tab=`); a Table from md, rows on a phone.
 
 #### Office > Service, New service
 
@@ -311,11 +318,11 @@ Keeps: next up large, then coming up (ux-cleaner).
 
 #### Cleaner > Offers
 
-Keeps: only theirs (ux-cleaner).
+Keeps: only theirs (ux-cleaner). Renders through `ListPage` (#433).
 
 - Header: "Offers" in the bar.
-- Body: Offered to you (Section: List); Open to you (Section: List);
-  `EmptyState`.
+- Body: Tabs Offered to you · Open to you (`?tab=`); by month, dated rows
+  led by the postcode; with nothing in either, one quiet line.
 
 #### Cleaner > Job
 
@@ -349,11 +356,13 @@ Keeps: what's next, date tile, shortcut tiles (ux-portal).
 
 #### Client portal > Cleans
 
-Keeps: Tabs, by month, date tiles (ux-portal).
+Keeps: Tabs, by month, date tiles (ux-portal). Renders through `ListPage`
+(#433).
 
 - Header: "Your cleans" in the bar.
-- Body: Tabs Upcoming · Past; month headings; Lists with `DateTile`s;
-  `EmptyState`; Show more.
+- Body: Tabs Upcoming · Past; by month, dated rows led by the kind of clean
+  (the home too, for a Client with more than one); with nothing in either,
+  one quiet line; Show more (N left).
 
 #### Client portal > Payments
 
