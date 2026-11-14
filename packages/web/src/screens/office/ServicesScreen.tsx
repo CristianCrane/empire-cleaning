@@ -226,8 +226,9 @@ function ServiceForm({
     toDraft(service ? inputOf(service) : blank),
   );
   const action = useAction("The service wasn't saved. Please try again.");
-  // the header's, so why it failed is a Toast; while it runs, Save takes
-  // no press, so the two can't race to make the next version
+  // the header's, so why it failed is a Toast. While either runs, both
+  // are pending and take no press, so they can't race to make the next
+  // version
   const retire = useAction("The service wasn't saved. Please try again.", {
     toast: true,
   });
@@ -302,7 +303,7 @@ function ServiceForm({
             label: service.active ? "Retire" : "Offer again",
             icon: service.active ? Archive : ArchiveRestore,
             danger: service.active,
-            isPending: retire.isPending,
+            isPending: retire.isPending || action.isPending,
             onAction: () =>
               void retire.run(
                 () =>

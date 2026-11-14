@@ -133,13 +133,13 @@ test("Office Staff add a Service priced by area, and retire it", async ({
   ).toBeVisible();
   await expect(page.getByText("Retired", { exact: true })).toBeVisible();
 
-  // Retire's at the top, where a phone's toasts sit over the top bar and
-  // the breadcrumbs until they go, 5 s each, which a pointer left on them
-  // holds off
-  await page.mouse.move(0, page.viewportSize()!.height / 2);
-  await expect(page.getByRole("alertdialog")).toHaveCount(0, {
-    timeout: 10_000,
-  });
+  // Retire's at the top, and a phone's toasts sit over the top bar and the
+  // breadcrumbs, held there while the pointer rests on them: each let go
+  // of, as someone would, the pointer kept on them so none goes mid-press
+  const toasts = page.getByRole("region", { name: /notification/ });
+  await toasts.hover();
+  const dismiss = toasts.getByRole("button", { name: "Dismiss" });
+  while ((await dismiss.count()) > 0) await dismiss.first().click();
   await page
     .getByLabel("Breadcrumbs")
     .getByRole("link", { name: "Services" })

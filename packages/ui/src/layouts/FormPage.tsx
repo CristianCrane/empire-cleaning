@@ -104,30 +104,27 @@ export function FormPage({
 const rule = "border-t border-border pt-5 first:border-t-0 first:pt-0";
 
 // One part of a Form page's card, ruled off from the one before. Open, a
-// Section: its title over its fields, its text Buttons on the title's line.
-// Given `summary` (what's set, in a line), it's folded to that line, a tap
+// Section: its title over its fields. Given `summary` (what's set, in a line), it's folded to that line, a tap
 // opening it in place. Folded, its fields stay in the form, hidden, so a
 // required one or the API's field error still counts, and the part opens
 // itself to show a field in it that's found wrong
 export function FormPart({
   title,
   summary,
-  actions,
   children,
 }: {
   title: string;
   summary?: string;
-  actions?: ReactNode;
   children: ReactNode;
 }) {
   if (summary === undefined)
     return (
-      <Section title={title} actions={actions} className={`gap-4 ${rule}`}>
+      <Section title={title} className={`gap-4 ${rule}`}>
         {children}
       </Section>
     );
   return (
-    <Folded title={title} summary={summary} actions={actions}>
+    <Folded title={title} summary={summary}>
       {children}
     </Folded>
   );
@@ -136,12 +133,10 @@ export function FormPart({
 function Folded({
   title,
   summary,
-  actions,
   children,
 }: {
   title: string;
   summary: string;
-  actions?: ReactNode;
   children: ReactNode;
 }) {
   const bodyId = useId();
@@ -192,7 +187,6 @@ function Folded({
         hidden={!open}
         className="flex flex-col gap-4"
       >
-        {actions && <div className="-ms-3 -mt-2 flex gap-2">{actions}</div>}
         {children}
       </div>
     </section>
