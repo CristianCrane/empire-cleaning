@@ -95,7 +95,9 @@ export function ListItem({
               {title}
             </span>
             {description && (
-              <span className="text-sm text-fg-muted">{description}</span>
+              <span className="text-sm text-fg-muted [overflow-wrap:anywhere]">
+                {description}
+              </span>
             )}
           </div>
           {stacked && (

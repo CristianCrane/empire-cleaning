@@ -1,4 +1,4 @@
-import { dayOf, firstNameOf, formats } from "@empire-cleaning/models";
+import { firstNameOf, formats } from "@empire-cleaning/models";
 import { useState, type ReactNode } from "react";
 import { useLoaderData } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
@@ -27,7 +27,7 @@ import {
 } from "@empire-cleaning/ui";
 import { putJson } from "../../api.ts";
 import { useAction } from "../action.ts";
-import { formatHours, screenWords } from "../format.ts";
+import { dayOfInstant, formatHours, screenWords } from "../format.ts";
 
 const { cleaners, conditionLabel } = screenWords.en;
 
@@ -63,14 +63,14 @@ const toDraft = (list: PriceList): Draft => {
 const rate = { maximumFractionDigits: 3 } as const;
 const times = (multiplier: number) => `${multiplier}×`;
 
-// The Price List, a Settings page (docs/ux.md, Screen types, Settings):
-// each part of figures one row saying what it's set to, opening its
-// dialog; then the Extras and types of business, a row each opening its
-// own. A save is a new version. (#436)
 // what a change to the prices touches, here and on Services
 export const PRICES_CHANGE =
   "Changes apply to prices worked out from now on. Quotes already sent keep their prices.";
 
+// The Price List, a Settings page (docs/ux.md, Screen types, Settings):
+// each part of figures one row saying what it's set to, opening its
+// dialog; then the Extras and types of business, a row each opening its
+// own. A save is a new version. (#436)
 export function PriceListScreen() {
   const { list, services } = useLoaderData({ from: "/office/price-list" });
   // the starting figures can be kept as they are, as the first version
@@ -82,7 +82,7 @@ export function PriceListScreen() {
       subtitle={
         list.placeholder
           ? "Starting figures"
-          : `Version ${list.version} · saved ${formatShortDay(dayOf(new Date(list.createdAt)))} by ${firstNameOf(list.createdByName ?? "someone")}`
+          : `Version ${list.version} · saved ${formatShortDay(dayOfInstant(list.createdAt))} by ${firstNameOf(list.createdByName ?? "someone")}`
       }
       alerts={[
         list.placeholder && {
