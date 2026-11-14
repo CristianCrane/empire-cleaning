@@ -88,6 +88,23 @@ describe("what a Client owes now", () => {
     });
   });
 
+  test("a Bill the payment service is trying again asks nothing of them", () => {
+    const waiting = bill({
+      unpaid: { since: "", kind: "waiting", why: null },
+    });
+    expect(moneyNow(data({ bills: [waiting] })).owed?.asks).toBe(false);
+    expect(
+      moneyNow(
+        data({
+          bills: [
+            waiting,
+            bill({ unpaid: { since: "", kind: "declined", why: null } }),
+          ],
+        }),
+      ).owed?.asks,
+    ).toBe(true);
+  });
+
   test("a Bill due on its page: pay it there", () => {
     const { owed } = moneyNow(data({ bills: [bill()] }));
     expect(owed?.asks).toBe(true);

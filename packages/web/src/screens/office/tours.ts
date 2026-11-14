@@ -12,9 +12,9 @@ export const officeTours = {
       steps: [
         {
           // the tiles, there whether or not a to-do is in the card
-          target: { named: "Needs you, by kind" },
-          title: "What needs you",
-          text: "The card at the top is the first thing waiting on you. These tiles count everything that is, by kind: press one to see them, and again to close it.",
+          target: { named: "Today at a glance" },
+          title: "Today at a glance",
+          text: "The card at the top is the first thing waiting on you. These tiles count today's jobs, then everything waiting on you, by kind: press one to see them, and again to close it.",
         },
         {
           // in the navigation: Today has no link of its own to it

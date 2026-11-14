@@ -122,6 +122,25 @@ test("Office Staff see what's waiting counted by kind, and open one to see those
   await expect(jobs).toHaveAttribute("aria-pressed", "true");
 });
 
+test("pressing a tile keeps the page where it was", async ({ page }) => {
+  await requestQuoteAsGuest({
+    name: "Casey Client",
+    email: "casey@example.com",
+  });
+  await bookJob({ startsAt: "2026-01-05T14:00:00Z", labourHours: 5 });
+  // a short screen, so the tiles sit below the top with the page scrolled
+  await page.setViewportSize({ width: 390, height: 400 });
+  await signInAsOffice(page);
+
+  const quotes = page.getByRole("button", { name: /^Quotes/ });
+  await quotes.evaluate((tile) => tile.scrollIntoView({ block: "start" }));
+  const scrolled = await page.evaluate(() => window.scrollY);
+  expect(scrolled).toBeGreaterThan(0);
+  await quotes.click();
+  await expect(quotes).toHaveAttribute("aria-pressed", "true");
+  expect(await page.evaluate(() => window.scrollY)).toBe(scrolled);
+});
+
 test("a quiet day says so", async ({ page }) => {
   await signInAsOffice(page);
 

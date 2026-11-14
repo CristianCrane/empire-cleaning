@@ -13,7 +13,6 @@ import {
   Repeat,
   Sparkles,
   UserRound,
-  type LucideIcon,
 } from "lucide-react";
 import {
   business,
@@ -29,8 +28,8 @@ import {
   oneStop,
   type Language,
 } from "@empire-cleaning/models";
-import type { StatusTone } from "@empire-cleaning/ui";
-import { linkTo, type AppHref } from "../../links.ts";
+import type { HomeTile } from "@empire-cleaning/ui";
+import { linkTo } from "../../links.ts";
 import { QuoteIcon } from "../icons.ts";
 import {
   addressOf,
@@ -39,6 +38,7 @@ import {
   formatMinutes,
 } from "../format.ts";
 import { saidWith } from "../words.ts";
+import type { Hero } from "./HeroCard.tsx";
 import { moneyNow, owedAnswer, yourCardTile } from "./payments.ts";
 
 // Home's words, in the Client's language (ADR-0025)
@@ -46,6 +46,8 @@ const words = catalog({
   en: {
     reviewPrices: (n: number) =>
       n === 1 ? "Review a price change" : `Review ${n} price changes`,
+    // a waiting tile's hint, when it leads to the first of several
+    andMore: (first: string, more: number) => `${first} · ${more} more`,
     quoteReadyLabel: "Your quote is ready",
     askedToMove: (day: string, to: string) =>
       `You asked to move your ${day} clean to ${to}. We'll confirm, usually within a working day.`,
@@ -102,6 +104,7 @@ const words = catalog({
       n === 1
         ? "Revisar un cambio de precio"
         : `Revisar ${n} cambios de precio`,
+    andMore: (first: string, more: number) => `${first} · ${more} más`,
     quoteReadyLabel: "Su cotización está lista",
     askedToMove: (day: string, to: string) =>
       oneStop(
@@ -159,11 +162,11 @@ const words = catalog({
 
 type Said = ReturnType<typeof saidWith<(typeof words)["en"]>>;
 
-// The Client's Home answers one question: what's next. Its hero is the
-// soonest thing booked, or, with nothing booked, where they stand with us;
-// what's waiting on them is a warning Notice above it, and what they're
-// waiting on us for an info one. Shortcuts under it are what they can do
-// from there. (UX pass, #96)
+// The Client's Home answers one question: what's next (UX pass, #96;
+// the Home layout, #435). Its hero is what's owed when that asks anything
+// of them, else the soonest thing booked, or, with nothing booked, where
+// they stand with us. What they're waiting on us for is news under it;
+// what's waiting on them, and what they can do from there, tiles.
 
 export type HomeData = {
   client: ClientView;
@@ -176,38 +179,14 @@ export type HomeData = {
   paymentMethod: PaymentMethodView | null;
 };
 
-type HomeLink = AppHref | `tel:${string}`;
-
-export type Hero = {
-  label: string;
-  icon: LucideIcon;
-  tone: StatusTone;
-  // when it is, for its calendar tile; none with nothing booked
-  startsAt?: string;
-  // the answer, large
-  headline: string;
-  lines: string[];
-  action?: { label: string; href: HomeLink };
-};
-
-// a tile under the card: something waiting on them, or what they can do
-// from there, each with a hint of what's there
-type Shortcut = {
-  id: string;
-  icon: LucideIcon;
-  label: string;
-  hint: string;
-  href: HomeLink;
-};
-
 export type WhatsNext = {
   // what they're waiting on us for
   news: string[];
   // what's owed first, when it asks anything of them; else what's next
   hero: Hero;
-  // what's waiting on them, a tile each, never cut; then what they can do
-  // from there, as many as fit four in all
-  tiles: Shortcut[];
+  // what's waiting on them, a tile a kind, never cut; then what they can
+  // do from there, as many as fit four in all
+  tiles: HomeTile[];
 };
 
 // the Client's ways to a Quote: asking for one, and seeing one
@@ -261,26 +240,29 @@ export function whatsNext(
   // a Sent Quote leads only when nothing is booked
   const leadingQuote = next || paused ? undefined : sent[0];
 
-  // what's waiting on them besides the card: a tile each
-  const waiting: Shortcut[] = [
-    ...sent
-      .filter((q) => q !== leadingQuote)
-      .map((quote) => ({
-        id: `quote ${quote.id}`,
-        icon: QuoteIcon,
-        label: t.p.seeYourQuote,
-        hint: t.quoteHeadline(quote),
-        href: quoteLink(quote.id),
-      })),
-    ...data.pastJobs
-      .filter((j) => j.awaitingAnswer > 0)
-      .map((job) => ({
-        id: `review ${job.id}`,
-        icon: ClipboardCheck,
-        label: w.reviewPrices(job.awaitingAnswer),
-        hint: t.p.yourClean(dayOf(job.startsAt)),
-        href: jobLink(job.id),
-      })),
+  // what's waiting on them besides the card: a tile a kind, leading to
+  // the first, so never more than two and the shortcuts keep two places
+  const quotes = sent.filter((q) => q !== leadingQuote);
+  const reviews = data.pastJobs.filter((j) => j.awaitingAnswer > 0);
+  const hintFor = (first: string, all: unknown[]) =>
+    all.length > 1 ? w.andMore(first, all.length - 1) : first;
+  const waiting: HomeTile[] = [
+    ...quotes.slice(0, 1).map((quote) => ({
+      id: "quote",
+      icon: QuoteIcon,
+      label: t.p.seeYourQuote,
+      hint: hintFor(t.quoteHeadline(quote), quotes),
+      href: quoteLink(quote.id),
+    })),
+    ...reviews.slice(0, 1).map((job) => ({
+      id: "review",
+      icon: ClipboardCheck,
+      label: w.reviewPrices(
+        reviews.reduce((sum, j) => sum + j.awaitingAnswer, 0),
+      ),
+      hint: hintFor(t.p.yourClean(dayOf(job.startsAt)), reviews),
+      href: jobLink(job.id),
+    })),
   ];
 
   const news = data.jobs.flatMap((job) =>
@@ -307,7 +289,9 @@ export function whatsNext(
     now,
     card: yourCardTile(money, lang),
     // Your card, unless it's the card's own Button (Update your card)
-  }).filter((s) => !(s.id === "card" && s.href === hero.action?.href));
+  }).filter(
+    (s) => !(s.id === "card" && "href" in s && s.href === hero.action?.href),
+  );
 
   return {
     news,
@@ -518,25 +502,25 @@ const planLink = (planId: string) =>
 function shortcutsOf(
   data: HomeData,
   t: Said,
-  ctx: Context & { card: Shortcut },
-): Shortcut[] {
+  ctx: Context & { card: HomeTile },
+): HomeTile[] {
   const { next, paused, now, card } = ctx;
   const { w, p, dayOf, formatDateTime } = t;
-  const callUs: Shortcut = {
+  const callUs: HomeTile = {
     icon: Phone,
     id: "call",
     label: w.callUs,
     hint: business.phone.display,
-    href: business.phone.href,
+    externalHref: business.phone.href,
   };
-  const pastCleans: Shortcut = {
+  const pastCleans: HomeTile = {
     icon: Receipt,
     id: "past",
     label: w.pastCleans,
     hint: w.receipts,
     href: linkTo({ to: "/portal/cleans", search: { tab: "past" } }),
   };
-  const details: Shortcut = {
+  const details: HomeTile = {
     icon: UserRound,
     id: "details",
     label: p.yourDetails,
@@ -553,7 +537,7 @@ function shortcutsOf(
           ? data.client.properties[0]!.id
           : undefined;
   const home = data.client.properties.find((p) => p.id === homeId);
-  const getIn: Shortcut[] = home
+  const getIn: HomeTile[] = home
     ? [
         {
           icon: KeyRound,
@@ -571,7 +555,7 @@ function shortcutsOf(
   if (next?.kind === "job") {
     const { job } = next;
     if (isToday(job.startsAt, now)) return [callUs, ...getIn, card];
-    const move: Shortcut = job.movingTo
+    const move: HomeTile = job.movingTo
       ? {
           icon: CalendarClock,
           id: "move",

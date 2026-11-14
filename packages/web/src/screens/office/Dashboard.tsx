@@ -4,7 +4,6 @@ import {
   useNavigate,
   useRouteContext,
   useRouter,
-  useSearch,
 } from "@tanstack/react-router";
 import type {
   NeedsAttentionItem,
@@ -37,6 +36,7 @@ import {
   type StatusTone,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
+import { useHomeUrl } from "../home-search.ts";
 import { CrewBadge } from "../JobBadges.tsx";
 import { JobIcon, QuoteIcon } from "../icons.ts";
 import { billWeek } from "../BillParts.tsx";
@@ -68,7 +68,7 @@ export type TodayData = {
 export function Dashboard() {
   const { needsAttention, today } = useLoaderData({ from: "/office/" });
   const { account } = useRouteContext({ from: "/office" });
-  const { open } = useSearch({ from: "/office/" });
+  const home = useHomeUrl();
   const navigate = useNavigate();
   const router = useRouter();
   useEffect(() => {
@@ -173,16 +173,9 @@ export function Dashboard() {
           />
         )
       }
-      tilesLabel="Needs you, by kind"
+      tilesLabel="Today at a glance"
       tiles={tiles}
-      open={open}
-      onOpen={(id) =>
-        void navigate({
-          to: "/office",
-          search: { open: (id as Tile | null) ?? undefined },
-          replace: true,
-        })
-      }
+      {...home}
     />
   );
 }

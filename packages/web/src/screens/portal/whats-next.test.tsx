@@ -383,6 +383,27 @@ describe("Home's tiles: what's waiting on the Client comes first", () => {
       hint: "Your Tue, Oct 20 clean",
     });
   });
+
+  test("a tile a kind, however many wait: the booked shortcuts keep their places", () => {
+    const { tiles } = next({
+      jobs: [job()],
+      quotes: [
+        sentQuote,
+        { ...sentQuote, id: "quote-2" },
+        { ...sentQuote, id: "quote-3" },
+      ],
+      pastJobs: [
+        pastJob({ awaitingAnswer: 2 }),
+        pastJob({ id: "past-2", awaitingAnswer: 1 }),
+      ],
+    });
+    expect(tiles.map((s) => [s.label, s.hint])).toEqual([
+      ["See your quote", "Deep Clean $391.04 · 2 more"],
+      ["Review 3 price changes", "Your Tue, Oct 20 clean · 1 more"],
+      ["Move or cancel", expect.any(String)],
+      ["How we get in", "Key under the mat"],
+    ]);
+  });
 });
 
 describe("Home's card: what's owed first, when it asks anything of them", () => {

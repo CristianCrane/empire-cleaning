@@ -1,17 +1,10 @@
 import { useLoaderData } from "@tanstack/react-router";
 import { catalog } from "@empire-cleaning/models";
-import {
-  AnswerCard,
-  ButtonLink,
-  DateTile,
-  HomePage,
-  IconTile,
-  Notice,
-  type HomeTile,
-} from "@empire-cleaning/ui";
+import { HomePage, Notice } from "@empire-cleaning/ui";
 import { useSaid } from "../words.ts";
 import { QuoteIcon } from "../icons.ts";
-import { requestQuoteHref, whatsNext, type Hero } from "./whats-next.ts";
+import { HeroCard } from "./HeroCard.tsx";
+import { requestQuoteHref, whatsNext } from "./whats-next.ts";
 
 const words = catalog({
   en: { shortcuts: "Shortcuts" },
@@ -43,34 +36,7 @@ export function PortalHome() {
         <Notice key={text}>{text}</Notice>
       ))}
       tilesLabel={w.shortcuts}
-      tiles={tiles.map(({ href, ...tile }): HomeTile =>
-        typeof href === "string"
-          ? { ...tile, externalHref: href }
-          : { ...tile, href },
-      )}
-    />
-  );
-}
-
-function HeroCard({ hero }: { hero: Hero }) {
-  return (
-    <AnswerCard
-      tile={
-        hero.startsAt ? (
-          <DateTile date={hero.startsAt} />
-        ) : (
-          <IconTile icon={hero.icon} tone={hero.tone} size="lg" />
-        )
-      }
-      label={hero.label}
-      headline={hero.headline}
-      lines={hero.lines}
-      actions={
-        hero.action &&
-        typeof hero.action.href !== "string" && (
-          <ButtonLink href={hero.action.href}>{hero.action.label}</ButtonLink>
-        )
-      }
+      tiles={tiles}
     />
   );
 }

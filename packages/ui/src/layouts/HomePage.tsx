@@ -27,7 +27,7 @@ const wideColumns = [
 // a row of tiles: two a row on a phone, an odd one out spanning the row;
 // up to four on a wider screen, filling it, with no gap at the end. The
 // tiles are the grid's `li`s
-export const tileGrid = (count: number) =>
+const tileGrid = (count: number) =>
   `grid grid-cols-2 gap-3 ${wideColumns[Math.min(Math.max(count, 1), 4) - 1]} [&>li:last-child:nth-child(odd)]:col-span-2 sm:[&>li:last-child:nth-child(odd)]:col-span-1`;
 
 // A Home's one answer, read left to right: its tile (a DateTile for when,
@@ -129,9 +129,6 @@ export function HomePage({
   onOpen?: (id: string | null) => void;
 }) {
   const words = useUiWords();
-  const opened = tiles.find(
-    (t) => t.id === open && "count" in t && t.count > 0,
-  );
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -141,44 +138,65 @@ export function HomePage({
       />
       {answer}
       {notices}
-      <div className="flex flex-col gap-4">
-        <ul aria-label={tilesLabel} className={tileGrid(tiles.length)}>
-          {tiles.map((tile) =>
-            "count" in tile ? (
-              <li key={tile.id}>
-                <CountTile
-                  icon={tile.icon}
-                  label={tile.label}
-                  count={tile.count}
-                  hint={tile.hint}
-                  isSelected={tile === opened}
-                  onChange={(on) => onOpen?.(on ? tile.id : null)}
-                />
-              </li>
+      <HomeTiles label={tilesLabel} tiles={tiles} open={open} onOpen={onOpen} />
+    </div>
+  );
+}
+
+// A Home's tiles in a row, two a row on a phone, and under them the rows
+// of the one opened in place. One with none in it shows closed (counted
+// again while open, it may have cleared)
+export function HomeTiles({
+  label,
+  tiles,
+  open,
+  onOpen,
+}: {
+  label: string;
+  tiles: HomeTile[];
+  open?: string | null;
+  onOpen?: (id: string | null) => void;
+}) {
+  const opened = tiles.find(
+    (t) => t.id === open && "count" in t && t.count > 0,
+  );
+  return (
+    <div className="flex flex-col gap-4">
+      <ul aria-label={label} className={tileGrid(tiles.length)}>
+        {tiles.map((tile) => (
+          <li key={tile.id}>
+            {"count" in tile ? (
+              <CountTile
+                icon={tile.icon}
+                label={tile.label}
+                count={tile.count}
+                hint={tile.hint}
+                isSelected={tile === opened}
+                onChange={(on) => onOpen?.(on ? tile.id : null)}
+              />
             ) : (
               <ShortcutTile
-                key={tile.id}
                 icon={tile.icon}
                 label={tile.label}
                 hint={tile.hint ?? ""}
                 href={tile.href}
                 externalHref={tile.externalHref}
               />
-            ),
-          )}
-        </ul>
-        {opened && "count" in opened && (
-          <div className="flex flex-col gap-3">
-            {opened.rows && (
-              <List aria-label={opened.label}>
-                {opened.rows.map((row) => listRowItem(row))}
-              </List>
             )}
-            {opened.panel}
-            {opened.more}
-          </div>
-        )}
-      </div>
+          </li>
+        ))}
+      </ul>
+      {opened && "count" in opened && (
+        <div className="flex flex-col gap-3">
+          {opened.rows && (
+            <List aria-label={opened.label}>
+              {opened.rows.map((row) => listRowItem(row))}
+            </List>
+          )}
+          {opened.panel}
+          {opened.more}
+        </div>
+      )}
     </div>
   );
 }

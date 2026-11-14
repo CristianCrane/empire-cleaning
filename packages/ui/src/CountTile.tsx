@@ -3,7 +3,7 @@ import { ToggleButton } from "react-aria-components";
 import { focusRing } from "./utils.ts";
 
 // how many of one kind there are, with a hint of what's in it ($ owed, how
-// many are new): a Home's tile that opens its rows in place (HomePage).
+// many are new): a Home's tile that opens its rows in place (HomeTiles).
 // Pressing it opens them; pressing it again, closes them. A tile with none
 // is greyed out and can't be pressed
 export function CountTile({

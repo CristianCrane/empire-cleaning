@@ -5,7 +5,7 @@ import { focusRing } from "./utils.ts";
 const tile =
   "flex h-full min-h-touch flex-col items-start gap-3 rounded-lg border border-border bg-surface p-4 text-left no-underline hover:bg-surface-sunken";
 
-// one shortcut, a Home's tile that links (HomePage): what it does, and a
+// one shortcut, a Home's tile that links (HomeTiles): what it does, and a
 // hint of what's there (the card on file, a phone number, how many), so a
 // glance often answers without opening it. `href`
 // goes through the app's router; `externalHref` is for tel: and mailto:.
@@ -33,20 +33,16 @@ export function ShortcutTile({
       </span>
     </>
   );
-  return (
-    <li>
-      {externalHref ? (
-        <a href={externalHref} className={`${focusRing()} ${tile}`}>
-          {body}
-        </a>
-      ) : (
-        <AriaLink
-          href={href}
-          className={(renderProps) => `${focusRing(renderProps)} ${tile}`}
-        >
-          {body}
-        </AriaLink>
-      )}
-    </li>
+  return externalHref ? (
+    <a href={externalHref} className={`${focusRing()} ${tile}`}>
+      {body}
+    </a>
+  ) : (
+    <AriaLink
+      href={href}
+      className={(renderProps) => `${focusRing(renderProps)} ${tile}`}
+    >
+      {body}
+    </AriaLink>
   );
 }

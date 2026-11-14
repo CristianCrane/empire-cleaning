@@ -1,15 +1,12 @@
 import { useState } from "react";
-import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
+import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import { CircleCheck, CreditCard, Receipt } from "lucide-react";
 import { catalog, type ClientPayment } from "@empire-cleaning/models";
 import {
-  AnswerCard,
   Button,
-  ButtonLink,
   byMonth,
   Heading,
   HomePage,
-  IconTile,
   List,
   ListItem,
   Notice,
@@ -17,6 +14,8 @@ import {
   useUiWords,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
+import { useHomeUrl } from "../home-search.ts";
+import { HeroCard } from "./HeroCard.tsx";
 import {
   moneyNow,
   owedAnswer,
@@ -64,12 +63,10 @@ const PAGE = 20;
 export function PortalPayments() {
   const t = useSaid(words);
   const data = useLoaderData({ from: "/portal/payments" });
-  const { open } = useSearch({ from: "/portal/payments" });
-  const navigate = useNavigate();
+  const home = useHomeUrl();
   const money = moneyNow(data, t.lang);
   const { owed, clearing } = money;
   const { history } = data;
-  const answer = owed && owedAnswer(owed, t.lang);
 
   return (
     <HomePage
@@ -82,25 +79,19 @@ export function PortalPayments() {
         },
       ]}
       answer={
-        answer ? (
-          <AnswerCard
-            tile={<IconTile icon={answer.icon} tone={answer.tone} size="lg" />}
-            label={answer.label}
-            headline={answer.headline}
-            lines={answer.lines}
-            actions={
-              <ButtonLink href={answer.action.href}>
-                {answer.action.label}
-              </ButtonLink>
-            }
-          />
-        ) : (
-          <AnswerCard
-            tile={<IconTile icon={CircleCheck} tone="success" size="lg" />}
-            label={t.w.allPaid}
-            headline={t.w.nothingOwed}
-          />
-        )
+        <HeroCard
+          hero={
+            owed
+              ? owedAnswer(owed, t.lang)
+              : {
+                  label: t.w.allPaid,
+                  icon: CircleCheck,
+                  tone: "success",
+                  headline: t.w.nothingOwed,
+                  lines: [],
+                }
+          }
+        />
       }
       notices={clearing.map((bill) => (
         <Notice key={bill.id}>
@@ -120,14 +111,7 @@ export function PortalPayments() {
         },
         yourCardTile(money, t.lang),
       ]}
-      open={open}
-      onOpen={(id) =>
-        void navigate({
-          to: "/portal/payments",
-          search: { open: id === "history" ? id : undefined },
-          replace: true,
-        })
-      }
+      {...home}
     />
   );
 }

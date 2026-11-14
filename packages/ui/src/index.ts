@@ -16,7 +16,6 @@ export { EmptyState } from "./EmptyState.tsx";
 export { Checkbox } from "./Checkbox.tsx";
 export { DateTile } from "./DateTile.tsx";
 export { Chip, ChipGroup } from "./ChipGroup.tsx";
-export { CountTile } from "./CountTile.tsx";
 export { ChoiceTile, ChoiceTiles, ChoiceTilesLoading } from "./ChoiceTiles.tsx";
 export { DatePicker, TimeField } from "./DateField.tsx";
 export { Dialog, DialogTrigger } from "./Dialog.tsx";
@@ -53,7 +52,7 @@ export { PageFrame } from "./layouts/PageFrame.tsx";
 export {
   AnswerCard,
   HomePage,
-  tileGrid,
+  HomeTiles,
   type HomeTile,
 } from "./layouts/HomePage.tsx";
 export { DetailsCard, RecordPage } from "./layouts/RecordPage.tsx";
@@ -68,7 +67,6 @@ export { Radio, RadioCard, RadioGroup } from "./RadioGroup.tsx";
 export { Section } from "./Section.tsx";
 export { Segment, SegmentedControl } from "./SegmentedControl.tsx";
 export { Select, SelectItem } from "./Select.tsx";
-export { ShortcutTile } from "./ShortcutTile.tsx";
 export { StatusBadge, type StatusTone } from "./StatusBadge.tsx";
 export { readStored, store } from "./stored.ts";
 export { useSettled } from "./settled.ts";

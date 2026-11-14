@@ -2,7 +2,6 @@ import {
   useLoaderData,
   useNavigate,
   useRouteContext,
-  useSearch,
 } from "@tanstack/react-router";
 import {
   CalendarDays,
@@ -25,6 +24,7 @@ import {
   type ListRow,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
+import { useHomeUrl } from "../home-search.ts";
 import {
   addressOf,
   clientName,
@@ -42,7 +42,9 @@ const words = catalog({
     byKind: "Your jobs, by kind",
     seeOffers: (n: number) => (n === 1 ? "See 1 offer" : `See ${n} offers`),
     nextAt: (when: string) => `Next ${when}`,
-    waiting: (n: number) => (n === 0 ? "None right now" : "Waiting on you"),
+    // the Offers tile's hint: how many, as it links rather than counts
+    waiting: (n: number) =>
+      n === 0 ? "None right now" : `${n} waiting on you`,
     comingUp: "Coming up",
     doneToday: "Done today",
     now: "Now",
@@ -57,7 +59,11 @@ const words = catalog({
     seeOffers: (n: number) => (n === 1 ? "Ver 1 oferta" : `Ver ${n} ofertas`),
     nextAt: (when: string) => `Próximo: ${when}`,
     waiting: (n: number) =>
-      n === 0 ? "Ninguna por ahora" : "Esperan tu respuesta",
+      n === 0
+        ? "Ninguna por ahora"
+        : n === 1
+          ? "1 espera tu respuesta"
+          : `${n} esperan tu respuesta`,
     comingUp: "Próximos",
     doneToday: "Terminados hoy",
     now: "Ahora",
@@ -127,7 +133,7 @@ export function CleanerHome() {
     from: "/cleaner/",
   });
   const { account } = useRouteContext({ from: "/cleaner" });
-  const { open } = useSearch({ from: "/cleaner/" });
+  const home = useHomeUrl();
   const navigate = useNavigate();
   const t = useSaid(words);
   const { w } = t;
@@ -207,20 +213,11 @@ export function CleanerHome() {
           id: "offers",
           icon: Inbox,
           label: t.c.offers,
-          hint: `${offers} · ${w.waiting(offers)}`,
+          hint: w.waiting(offers),
           href: offersHref,
         },
       ]}
-      open={open}
-      onOpen={(id) =>
-        void navigate({
-          to: "/cleaner",
-          search: {
-            open: yourJobsTiles.find((tile) => tile === id),
-          },
-          replace: true,
-        })
-      }
+      {...home}
     />
   );
 }

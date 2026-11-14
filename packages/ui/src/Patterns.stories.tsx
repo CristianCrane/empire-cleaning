@@ -35,9 +35,7 @@ import { Button } from "./Button.tsx";
 import { Card } from "./Card.tsx";
 import { Checkbox } from "./Checkbox.tsx";
 import { DateTile } from "./DateTile.tsx";
-import { ShortcutTile } from "./ShortcutTile.tsx";
-import { CountTile } from "./CountTile.tsx";
-import { AnswerCard, tileGrid } from "./layouts/HomePage.tsx";
+import { AnswerCard, HomeTiles } from "./layouts/HomePage.tsx";
 import { Chip, ChipGroup } from "./ChipGroup.tsx";
 import { ChoiceTile, ChoiceTiles } from "./ChoiceTiles.tsx";
 import { EmptyState } from "./EmptyState.tsx";
@@ -916,32 +914,39 @@ function WhatsNextFirst() {
             lines={["Standard Clean at 12 Elm St"]}
             actions={<Button>See the clean</Button>}
           />
-          <ul aria-label="Shortcuts" className={tileGrid(4)}>
-            <ShortcutTile
-              icon={CalendarClock}
-              label="Move or skip"
-              hint="Your Tue, Nov 3 clean"
-              externalHref="#"
-            />
-            <ShortcutTile
-              icon={KeyRound}
-              label="How we get in"
-              hint="Key under the mat"
-              externalHref="#"
-            />
-            <ShortcutTile
-              icon={CreditCard}
-              label="Your card"
-              hint="Visa ending 4242"
-              externalHref="#"
-            />
-            <ShortcutTile
-              icon={Phone}
-              label="Call us"
-              hint="(646) 320-9076"
-              externalHref="#"
-            />
-          </ul>
+          <HomeTiles
+            label="Shortcuts"
+            tiles={[
+              {
+                id: "move",
+                icon: CalendarClock,
+                label: "Move or skip",
+                hint: "Your Tue, Nov 3 clean",
+                externalHref: "#",
+              },
+              {
+                id: "getIn",
+                icon: KeyRound,
+                label: "How we get in",
+                hint: "Key under the mat",
+                externalHref: "#",
+              },
+              {
+                id: "card",
+                icon: CreditCard,
+                label: "Your card",
+                hint: "Visa ending 4242",
+                externalHref: "#",
+              },
+              {
+                id: "call",
+                icon: Phone,
+                label: "Call us",
+                hint: "(646) 320-9076",
+                externalHref: "#",
+              },
+            ]}
+          />
         </Example>
         <Example verdict="Don't">
           {[
@@ -1006,38 +1011,42 @@ function OwedFirst() {
             label="You're all paid up"
             headline="Nothing owed"
           />
-          <ul aria-label="Your payments" className={tileGrid(2)}>
-            <li>
-              <CountTile
-                icon={Receipt}
-                label="All payments"
-                count={3}
-                isSelected
-                onChange={() => {}}
-              />
-            </li>
-            <ShortcutTile
-              icon={CreditCard}
-              label="Your card"
-              hint="Visa ending 4242"
-              externalHref="#"
-            />
-          </ul>
-          <List aria-label="All payments">
-            {payment(
-              "Oct 21",
-              "Price change on Standard Clean",
-              "$22.50",
-              "Approved after your Oct 19 clean",
-            )}
-            {payment("Oct 19", "Standard Clean", "$184.50")}
-            {payment(
-              "Sep 28",
-              "Refund on Standard Clean",
-              "−$22.50",
-              "From your Sep 21 clean",
-            )}
-          </List>
+          <HomeTiles
+            label="Your payments"
+            open="history"
+            tiles={[
+              {
+                id: "history",
+                icon: Receipt,
+                label: "All payments",
+                count: 3,
+                panel: (
+                  <List aria-label="All payments">
+                    {payment(
+                      "Oct 21",
+                      "Price change on Standard Clean",
+                      "$22.50",
+                      "Approved after your Oct 19 clean",
+                    )}
+                    {payment("Oct 19", "Standard Clean", "$184.50")}
+                    {payment(
+                      "Sep 28",
+                      "Refund on Standard Clean",
+                      "−$22.50",
+                      "From your Sep 21 clean",
+                    )}
+                  </List>
+                ),
+              },
+              {
+                id: "card",
+                icon: CreditCard,
+                label: "Your card",
+                hint: "Visa ending 4242",
+                externalHref: "#",
+              },
+            ]}
+          />
         </Example>
         <Example verdict="Don't">
           <List aria-label="Charges">

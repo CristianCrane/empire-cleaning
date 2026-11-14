@@ -8,6 +8,7 @@ import {
 } from "@empire-cleaning/models";
 import { CreditCard, TriangleAlert } from "lucide-react";
 import { linkTo, type AppHref } from "../../links.ts";
+import type { Hero } from "./HeroCard.tsx";
 import { said, saidWith } from "../words.ts";
 
 // in the Client's language (ADR-0025)
@@ -112,7 +113,8 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
       .map((b) => ({
         cents: b.totalCents,
         late: true,
-        asks: true,
+        // one the payment service is trying again asks nothing yet
+        asks: b.unpaid!.kind !== "waiting",
         text: billNotPaid(b.number),
         action: { label: payBill(b.number), href: billLink(b.id) },
       })),
@@ -184,7 +186,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
 
 // what's owed as a Home's answer (AnswerCard): Payments' card, and the
 // Client's Home's when it asks something of them
-export function owedAnswer(owed: Owed, lang: Language) {
+export function owedAnswer(owed: Owed, lang: Language): Hero {
   const t = saidWith(lang, words);
   return {
     label: t.w.toPay,
