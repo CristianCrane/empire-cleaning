@@ -128,7 +128,8 @@ const shoot = (
     status: string;
     path?: string;
   }[] = [];
-  // each test by its describes and its own title, as --grep reads it
+  // each test by its describes and its own title, as it's given (--grep's
+  // own string has the tags too: grepFor)
   const walk = (suite: Suite, describes: string[]) => {
     suite.suites?.forEach((inner) => walk(inner, [...describes, inner.title]));
     for (const { title, tests } of suite.specs ?? []) {
