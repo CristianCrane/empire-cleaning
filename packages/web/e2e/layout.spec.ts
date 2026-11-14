@@ -27,6 +27,7 @@ import {
   addCleaner,
   pageAction,
   openTheHome,
+  payAndBook,
 } from "./harness.ts";
 
 // Every screen, at the widths people actually use, from a small phone to a
@@ -435,7 +436,7 @@ test("an Accepted Quote and the Client's upcoming Jobs fit every width", async (
   await signedInAs(client, casey.email);
   const own = quote.replace("/office/quotes/", "/portal/quotes/");
   await client.goto(own);
-  await client.getByRole("button", { name: /^Accept and pay/ }).click();
+  await payAndBook(client).accept.click();
   await expect(client.getByText(/^You're booked: a Deep Clean/)).toBeVisible();
 
   await expectFitsEveryWidth(page, quote);
@@ -506,7 +507,7 @@ test("a Service Plan fits every width, for the Office and the Client", async ({
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
   await client.goto(`/portal/quotes/${quote.id}`);
-  await client.getByRole("button", { name: /^Accept and pay/ }).click();
+  await payAndBook(client, "Pay and start your plan").accept.click();
   await client.getByRole("link", { name: "See your cleaning plan" }).click();
   await expect(client).toHaveURL(/\/portal\/plans\/[0-9a-f-]{36}$/);
   const plan = new URL(client.url()).pathname;
@@ -566,7 +567,7 @@ test("a Service Plan on several weekdays fits every width, Draft, Sent and start
   await signedInAs(client, casey.email);
   await expectFitsInBoth(client, `/portal/quotes/${quote.id}`);
   await client.goto(`/portal/quotes/${quote.id}`);
-  await client.getByRole("button", { name: /^Accept and pay/ }).click();
+  await payAndBook(client, "Pay and start your plan").accept.click();
   await client.getByRole("link", { name: "See your cleaning plan" }).click();
   await expect(client).toHaveURL(/\/portal\/plans\/[0-9a-f-]{36}$/);
   const plan = new URL(client.url()).pathname;

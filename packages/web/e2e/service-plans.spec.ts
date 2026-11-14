@@ -11,6 +11,7 @@ import {
   signedInAs,
   test,
   linkIn,
+  payAndBook,
 } from "./harness.ts";
 
 const olive = {
@@ -60,16 +61,13 @@ test(
     const client = await (await browser.newContext()).newPage();
     await signedInAs(client, casey.email);
     await client.goto(await quoteLink());
-    const accept = client.getByRole("region", {
-      name: "Pay and start your plan",
-    });
-    await expect(accept).toContainText(
-      "Paying with your Test card ending 4242",
-    );
-    await expect(accept).toContainText("keep it for as long as your plan runs");
+    const { form, accept } = payAndBook(client, "Pay and start your plan");
+    await expect(form).toContainText("Paying with your Test card ending 4242");
+    await expect(form).toContainText("keep it for as long as your plan runs");
     // one Service, so nothing to choose
-    await expect(accept.getByRole("radio")).toHaveCount(0);
-    await accept.getByRole("button", { name: "Accept and pay $50.46" }).click();
+    await expect(form.getByRole("radio")).toHaveCount(0);
+    await expect(accept).toHaveAccessibleName("Accept and pay $50.46");
+    await accept.click();
     await expect(
       client.getByText("Your cleaning plan has started"),
     ).toHaveCount(2);
