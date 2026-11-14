@@ -398,11 +398,47 @@ describe("Home's tiles: what's waiting on the Client comes first", () => {
       ],
     });
     expect(tiles.map((s) => [s.label, s.hint])).toEqual([
-      ["See your quote", "Deep Clean $391.04 · 2 more"],
+      ["See your 3 quotes", "Deep Clean $391.04 · 2 more"],
       ["Review 3 price changes", "Your Tue, Oct 20 clean · 1 more"],
       ["Move or cancel", expect.any(String)],
       ["How we get in", "Key under the mat"],
     ]);
+  });
+
+  test("several of a kind lead to where they all are", () => {
+    const { tiles } = next({
+      jobs: [job()],
+      quotes: [sentQuote, { ...sentQuote, id: "quote-2" }],
+      pastJobs: [
+        pastJob({ awaitingAnswer: 1 }),
+        pastJob({ id: "past-2", awaitingAnswer: 1 }),
+      ],
+    });
+    // both Quotes for one home: its page lists them
+    expect(tiles[0]).toMatchObject({
+      href: {
+        to: "/portal/properties/$propertyId",
+        params: { propertyId: sentQuote.property.id },
+      },
+    });
+    // the cleans with prices to review: Cleans' Past tab
+    expect(tiles[1]).toMatchObject({
+      href: { to: "/portal/cleans", search: { tab: "past" } },
+    });
+    // Quotes for two homes: Your details lists both
+    expect(
+      next({
+        jobs: [job()],
+        quotes: [
+          sentQuote,
+          {
+            ...sentQuote,
+            id: "quote-2",
+            property: { ...sentQuote.property, id: "other-home" },
+          },
+        ],
+      }).tiles[0],
+    ).toMatchObject({ href: { to: "/portal/details" } });
   });
 });
 

@@ -46,8 +46,9 @@ const words = catalog({
   en: {
     reviewPrices: (n: number) =>
       n === 1 ? "Review a price change" : `Review ${n} price changes`,
-    // a waiting tile's hint, when it leads to the first of several
+    // a waiting tile's hint, when there are several
     andMore: (first: string, more: number) => `${first} · ${more} more`,
+    seeQuotes: (n: number) => `See your ${n} quotes`,
     quoteReadyLabel: "Your quote is ready",
     askedToMove: (day: string, to: string) =>
       `You asked to move your ${day} clean to ${to}. We'll confirm, usually within a working day.`,
@@ -105,6 +106,7 @@ const words = catalog({
         ? "Revisar un cambio de precio"
         : `Revisar ${n} cambios de precio`,
     andMore: (first: string, more: number) => `${first} · ${more} más`,
+    seeQuotes: (n: number) => `Ver sus ${n} cotizaciones`,
     quoteReadyLabel: "Su cotización está lista",
     askedToMove: (day: string, to: string) =>
       oneStop(
@@ -204,6 +206,10 @@ const seeQuote = (t: Said, quoteId: string) => ({
   href: quoteLink(quoteId),
 });
 const detailsLink = linkTo({ to: "/portal/details" });
+const pastCleansLink = linkTo({
+  to: "/portal/cleans",
+  search: { tab: "past" },
+});
 
 const open = (q: QuoteSummary) =>
   q.status === "requested" || q.status === "draft";
@@ -240,8 +246,10 @@ export function whatsNext(
   // a Sent Quote leads only when nothing is booked
   const leadingQuote = next || paused ? undefined : sent[0];
 
-  // what's waiting on them besides the card: a tile a kind, leading to
-  // the first, so never more than two and the shortcuts keep two places
+  // what's waiting on them besides the card: a tile a kind, so never more
+  // than two and the shortcuts keep two places. One leads to it; several
+  // to where they all are: a home's page lists its quotes (Your details its
+  // homes), Cleans' Past tab the cleans with prices to review
   const quotes = sent.filter((q) => q !== leadingQuote);
   const reviews = data.pastJobs.filter((j) => j.awaitingAnswer > 0);
   const hintFor = (first: string, all: unknown[]) =>
@@ -250,9 +258,17 @@ export function whatsNext(
     ...quotes.slice(0, 1).map((quote) => ({
       id: "quote",
       icon: QuoteIcon,
-      label: t.p.seeYourQuote,
+      label: quotes.length > 1 ? w.seeQuotes(quotes.length) : t.p.seeYourQuote,
       hint: hintFor(t.quoteHeadline(quote), quotes),
-      href: quoteLink(quote.id),
+      href:
+        quotes.length === 1
+          ? quoteLink(quote.id)
+          : quotes.every((q) => q.property.id === quote.property.id)
+            ? linkTo({
+                to: "/portal/properties/$propertyId",
+                params: { propertyId: quote.property.id },
+              })
+            : detailsLink,
     })),
     ...reviews.slice(0, 1).map((job) => ({
       id: "review",
@@ -261,7 +277,7 @@ export function whatsNext(
         reviews.reduce((sum, j) => sum + j.awaitingAnswer, 0),
       ),
       hint: hintFor(t.p.yourClean(dayOf(job.startsAt)), reviews),
-      href: jobLink(job.id),
+      href: reviews.length === 1 ? jobLink(job.id) : pastCleansLink,
     })),
   ];
 
@@ -518,7 +534,7 @@ function shortcutsOf(
     id: "past",
     label: w.pastCleans,
     hint: w.receipts,
-    href: linkTo({ to: "/portal/cleans", search: { tab: "past" } }),
+    href: pastCleansLink,
   };
   const details: HomeTile = {
     icon: UserRound,
