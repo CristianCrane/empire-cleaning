@@ -27,6 +27,7 @@ import {
   addCleaner,
   pageAction,
   openTheHome,
+  payAndBook,
 } from "./harness.ts";
 
 // Every screen, at the widths people actually use, from a small phone to a
@@ -435,7 +436,7 @@ test("an Accepted Quote and the Client's upcoming Jobs fit every width", async (
   await signedInAs(client, casey.email);
   const own = quote.replace("/office/quotes/", "/portal/quotes/");
   await client.goto(own);
-  await client.getByRole("button", { name: /^Accept and pay/ }).click();
+  await payAndBook(client).accept.click();
   await expect(client.getByText(/^You're booked: a Deep Clean/)).toBeVisible();
 
   await expectFitsEveryWidth(page, quote);

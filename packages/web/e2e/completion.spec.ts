@@ -15,6 +15,7 @@ import {
   addCleaner,
   linkIn,
   pageAction,
+  saveACard,
 } from "./harness.ts";
 
 // the API's clock is at 4am on Monday 5 January 2026 in New York. The Jobs
@@ -199,7 +200,7 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
     client.getByRole("alert").filter({ hasText: "Payment needed" }),
   ).toBeVisible();
   await client.getByRole("link", { name: "Update your card" }).click();
-  await client.getByRole("button", { name: "Save card" }).click();
+  await saveACard(client).save.click();
   await expect(client.getByText("Card saved")).toBeVisible();
 
   await client.goto(`/portal/jobs/${job.id}`);

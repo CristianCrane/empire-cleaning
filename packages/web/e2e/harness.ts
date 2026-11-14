@@ -505,6 +505,33 @@ export const expectNoPageAction = async (page: Page, name: string) => {
   await page.keyboard.press("Escape");
 };
 
+// The forms that take a payment, each found here and only here, by these
+// specs and by the real card form's (card-form.sandbox.ts), which runs only
+// nightly: a screen that moves one fails these specs on its own PR. #444
+// moved Save card out of "Add a card" and only the nightly run saw it.
+
+// a Quote's form to pay its Deposit and book, and its button
+export const payAndBook = (page: Page) => {
+  const form = page.getByRole("region", { name: "Pay and book" });
+  return {
+    form,
+    accept: form.getByRole("button", { name: /^Accept and pay \$/ }),
+  };
+};
+
+// a Bill's form to pay it on its page, and its button
+export const payThisBill = (page: Page) => {
+  const form = page.getByRole("region", { name: "Pay this bill" });
+  return { form, pay: form.getByRole("button", { name: /^Pay \$/ }) };
+};
+
+// Your card's form, with no card saved: the part a card goes in, and Save
+// card at the foot of the form's card, outside the part (FormPage)
+export const saveACard = (page: Page) => ({
+  part: page.getByRole("region", { name: "Add a card" }),
+  save: page.getByRole("button", { name: "Save card" }),
+});
+
 // a section in the navigation, wherever it shows
 const showNavLink = async (page: Page, name: string) => {
   const { item, opened } = await showInMenu(
