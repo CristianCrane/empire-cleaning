@@ -131,8 +131,9 @@ order:
   only when it isn't the usual case for its Tab (Needs cleaners, never
   Staffed), and the Table's Status column only shows while a row has one.
 - **50 at a time**, then "Show more (N left)".
-- **With nothing in it at all**: the primary in an `EmptyState`, or with
-  nothing to add (Offers, Cleans), one quiet line.
+- **With nothing in it at all**: the primary in an `EmptyState`, moved
+  there from the header so the page has one, or with nothing to add
+  (Offers, Cleans), one quiet line.
 
 ("Layout / ListPage")
 
@@ -416,8 +417,10 @@ stays as it is (#336).
 - **Lean rows**: the fewest columns that drive the decision (who, where,
   status, money, age); no cell that means something different from row to
   row; no colour without a visible label.
-- **Dated things a person scans are grouped by month**, a small `DateTile`
-  leading each row; a row is badged only when it isn't plain.
+- **Dated things a person scans are grouped by month**, each row a
+  `DatedItem`: a small `DateTile`, then the weekday and time leading its
+  title, the date said in words to a screen reader (the tile is only
+  seen); a row is badged only when it isn't plain.
 - **An empty place offers what fills it** (`EmptyState` with its action),
   never a card in a card, and never says again what its Section's
   description above it already says. ("Empty states offer the action")
