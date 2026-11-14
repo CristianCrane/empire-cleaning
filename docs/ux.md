@@ -190,6 +190,10 @@ FormPage")
 - **A form that makes a new version saves when it's pressed** (the
   Service, each save a new version); one being written saves as it
   changes (the Draft).
+- **The header's action and the form's own save never run at once**: each
+  shows pending while the other runs (a pending Button takes no press), so
+  neither sends what the other just replaced (the Service's Retire and
+  Save).
 
 ### Settings
 
