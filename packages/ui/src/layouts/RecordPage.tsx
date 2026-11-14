@@ -5,6 +5,7 @@ import { Card } from "../Card.tsx";
 import { useUiWords } from "../language.ts";
 import { Section } from "../Section.tsx";
 import { Alerts, type Alert } from "./Alerts.tsx";
+import { Beside } from "./Beside.tsx";
 import { PageHeader, type PageActions } from "./PageHeader.tsx";
 
 // The Record type's layout (docs/ux.md, Screen types, Record; #432): a page
@@ -53,17 +54,20 @@ export function RecordPage({
         actions={actions}
       />
       <Alerts alerts={alerts} />
-      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <Beside
+        side={
+          history && (
+            <Section title={words.history}>
+              <Card>{history}</Card>
+            </Section>
+          )
+        }
+      >
         <div className="flex min-w-0 flex-col gap-6">
           {details}
           {children}
         </div>
-        {history && (
-          <Section title={words.history}>
-            <Card>{history}</Card>
-          </Section>
-        )}
-      </div>
+      </Beside>
       {footer && (
         <ActionFooter aria-label={footer.label}>{footer.children}</ActionFooter>
       )}
