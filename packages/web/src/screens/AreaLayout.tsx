@@ -197,6 +197,15 @@ export function AreaLayout({ area }: { area: AreaId }) {
   const pathname = useRouterState({
     select: (s) => (s.resolvedLocation ?? s.location).pathname,
   });
+  // a press that leaves this page, its next one still loading. Not a change
+  // within the page (a search, a Tab, the Schedule's week), which leaves it
+  // usable as it reloads, nor a reload of this page after a save or on
+  // returning to the tab: those keep their path (#454)
+  const loading = useRouterState({
+    select: (s) =>
+      s.status === "pending" &&
+      s.location.pathname !== (s.resolvedLocation ?? s.location).pathname,
+  });
   const offers = useOffersCount(area === "cleaner", pathname);
   useTours(area, account);
   const lang = useLanguage();
@@ -233,6 +242,7 @@ export function AreaLayout({ area }: { area: AreaId }) {
         />
       )}
       menuBusy={footActions.switching !== undefined}
+      loading={loading}
     >
       <Outlet />
     </AppLayout>
