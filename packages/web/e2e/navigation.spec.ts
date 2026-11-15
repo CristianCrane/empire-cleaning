@@ -328,7 +328,8 @@ test("a page loaded ahead leaves the language as it is", async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("lang", "es");
   // every language the page is in from here
   await page.evaluate(() => {
-    const seen = ((window as unknown as { langs: string[] }).langs = []);
+    const seen: string[] = [];
+    (window as unknown as { langs: string[] }).langs = seen;
     new MutationObserver(() =>
       seen.push(document.documentElement.lang),
     ).observe(document.documentElement, { attributeFilter: ["lang"] });
