@@ -1,4 +1,13 @@
-import { createStaff, expect, signedInAs, test } from "./harness.ts";
+import type { Page } from "@playwright/test";
+import {
+  bookJob,
+  createStaff,
+  expect,
+  expectCurrentSection,
+  openTile,
+  signedInAs,
+  test,
+} from "./harness.ts";
 
 const olive = {
   email: "olive@example.com",
@@ -97,5 +106,43 @@ test(
     ]);
     await expect(page.getByRole("img", logo)).toBeVisible();
     await expect(page.getByRole("button", { name: "Menu" })).toBeHidden();
+  },
+);
+
+// the API's answers to requests matching `url`, held until let go: a page
+// not loaded before, whose data is on its way
+const holdApi = async (page: Page, url: RegExp) => {
+  let letGo = () => {};
+  const held = new Promise<void>((resolve) => (letGo = resolve));
+  await page.route(url, async (route) => {
+    await held;
+    await route.fallback();
+  });
+  return letGo;
+};
+
+const aJob = /\/api\/jobs\/[0-9a-f-]{36}$/;
+
+// the old page stays until the next one shows, and so does its section in
+// the navigation: never two current at once (#454)
+test(
+  "while the next page loads, the section on show stays the current one",
+  { tag: "@desktop" },
+  async ({ page }) => {
+    // the API's fake clock is on Monday 5 January 2026: a Job today
+    await bookJob({ startsAt: "2026-01-05T14:00:00Z", labourHours: 5 });
+    await createStaff(olive);
+    await signedInAs(page, olive.email);
+    await expect(page).toHaveURL("/office");
+
+    const letGo = await holdApi(page, aJob);
+    await (await openTile(page, "Jobs")).getByRole("row").click();
+    await expect(page).toHaveURL(/\/office\/jobs\//);
+    await expectCurrentSection(page, "Jobs", false);
+    await expectCurrentSection(page, "Today");
+
+    letGo();
+    await expectCurrentSection(page, "Jobs");
+    await expectCurrentSection(page, "Today", false);
   },
 );

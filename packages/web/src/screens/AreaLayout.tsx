@@ -1,10 +1,10 @@
 import {
   Outlet,
-  useLocation,
   useMatchRoute,
   useNavigate,
   useRouteContext,
   useRouter,
+  useRouterState,
 } from "@tanstack/react-router";
 import {
   ArrowRightLeft,
@@ -190,8 +190,13 @@ const navFor = (lang: Language): Record<AreaId, AreaNavItem[]> => ({
 
 export function AreaLayout({ area }: { area: AreaId }) {
   const { account } = useRouteContext({ from: areas[area].path });
+  // the page on show, where the router has drawn: while the next page
+  // loads the old one stays, so its section stays current (matchRoute
+  // reads this one too), and the next page's is current once it shows
   const matchRoute = useMatchRoute();
-  const { pathname } = useLocation();
+  const pathname = useRouterState({
+    select: (s) => (s.resolvedLocation ?? s.location).pathname,
+  });
   const offers = useOffersCount(area === "cleaner", pathname);
   useTours(area, account);
   const lang = useLanguage();
