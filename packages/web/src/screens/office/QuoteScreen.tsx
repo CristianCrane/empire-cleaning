@@ -89,6 +89,7 @@ import {
   type Alert,
   Facts,
   Fact,
+  staleFade,
 } from "@empire-cleaning/ui";
 import { ApiError, deleteJson, patchJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
@@ -835,7 +836,7 @@ function DraftPrices({
   return (
     <div
       aria-busy={stale}
-      className={`flex flex-col gap-5 [&>section+section]:border-t [&>section+section]:border-border [&>section+section]:pt-5 ${staleStyle(stale)}`}
+      className={`flex flex-col gap-5 [&>section+section]:border-t [&>section+section]:border-border [&>section+section]:pt-5 ${staleFade(stale)}`}
     >
       {/* as the sent Quote's Offer draws them: a plan's weekday or an option */}
       {quote.options.map((option, i) => {
@@ -907,10 +908,6 @@ function DraftPrices({
     </div>
   );
 }
-
-// prices being worked out again after a change fade until they're back
-const staleStyle = (stale: boolean) =>
-  `transition-opacity ${stale ? "opacity-60" : ""}`;
 
 // one Service's price (or a plan weekday's) in the Current Quote
 function OfferPrice({
@@ -1254,7 +1251,7 @@ function RoomOnDay({
   return (
     <div
       aria-busy={stale}
-      className={`flex flex-col gap-3 ${staleStyle(stale)}`}
+      className={`flex flex-col gap-3 ${staleFade(stale)}`}
     >
       {problems.length === 0 ? (
         <p className="flex items-center gap-2 text-sm text-success-strong">

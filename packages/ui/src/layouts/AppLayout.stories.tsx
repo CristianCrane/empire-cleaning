@@ -241,3 +241,30 @@ export const PhoneMenuFoot: Story = {
     ).toBeVisible();
   },
 };
+
+// the next page loading, once it has gone on a moment (200ms; a quicker
+// one shows nothing): a bar runs across the top, the page on show fades and
+// can't be pressed until the next one shows, and a screen reader hears
+// "Loading…" once. The navigation stays live, still on the page on show's
+// section (#454)
+export const Loading: Story = {
+  globals: { viewport: { value: "tablet" } },
+  args: { loading: true },
+  play: async ({ canvas, canvasElement }) => {
+    await waitFor(() =>
+      expect(canvas.getByRole("status")).toHaveTextContent("Loading…"),
+    );
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector("[data-loading-bar=loading]"),
+      ).toBeVisible(),
+    );
+    const onShow = canvasElement.querySelector("main > div");
+    await expect(onShow).toHaveAttribute("inert");
+    await expect(onShow).toHaveClass(/opacity-50/);
+    await expect(canvas.getByRole("link", { name: "Today" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  },
+};

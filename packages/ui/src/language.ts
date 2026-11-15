@@ -39,6 +39,8 @@ export const uiWords = catalog({
     clearSearch: "Clear search",
     // a Settings list's retired rows, folded
     retired: (n: number) => `Retired (${n})`,
+    // the next page, on its way (AppLayout)
+    loading: "Loading…",
   },
   es: {
     close: "Cerrar",
@@ -63,6 +65,7 @@ export const uiWords = catalog({
     noMatch: (q: string) => `Nada coincide con “${q}”`,
     clearSearch: "Borrar la búsqueda",
     retired: (n: number) => `Retirados (${n})`,
+    loading: "Cargando…",
   },
 });
 

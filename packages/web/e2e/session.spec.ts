@@ -6,6 +6,7 @@ import {
   returnToTab,
   test,
   goTo,
+  holdApi,
   openAccount,
   switchArea,
   switchItem,
@@ -49,12 +50,7 @@ test("a press before the area is ready waits, the menu with it, then the area sh
   await expect(page).toHaveURL("/office");
 
   // the portal's Home answers only when let go
-  let letGo = () => {};
-  const held = new Promise<void>((resolve) => (letGo = resolve));
-  await page.route("**/api/clients/me", async (route) => {
-    await held;
-    await route.fallback();
-  });
+  const letGo = await holdApi(page, "**/api/clients/me");
 
   // pressed by hand, not with switchArea, to look at it while it waits: at
   // the sidebar's foot on a larger screen, the ☰ menu's on a phone

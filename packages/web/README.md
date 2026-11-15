@@ -36,7 +36,7 @@ Pages more than one step from their area's navigation start with `Breadcrumbs`, 
 
 ## Links
 
-Routing is TanStack Router, and design-system links (`Link`, AppLayout's nav) navigate through it. Every route is a named constant in `src/router.tsx`: written inline inside `addChildren()`, a route loses its types and so does every link. Screens read their data with `useLoaderData` from their route's `loader`, through `getJson` in `src/api.ts`. Every link is made with `linkTo()` from `src/links.ts`, which gives it the same checking as TanStack's own links: the route must exist, and its params must be given.
+Routing is TanStack Router, and design-system links (`Link`, AppLayout's nav) navigate through it. Every route is a named constant in `src/router.tsx`: written inline inside `addChildren()`, a route loses its types and so does every link. Screens read their data with `useLoaderData` from their route's `loader`, through `getJson` in `src/api.ts`. Every internal link loads its page ahead when the pointer rests on it, it takes focus or it's pressed down (`src/preload.ts`), so a route's `beforeLoad` or `loader` with a side effect skips it when `preload` is true, or the route sets `preload: false`. Every link is made with `linkTo()` from `src/links.ts`, which gives it the same checking as TanStack's own links: the route must exist, and its params must be given.
 
 ```tsx
 <Link href={linkTo({ to: "/portal" })}>Home</Link>

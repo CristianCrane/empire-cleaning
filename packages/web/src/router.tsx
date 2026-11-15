@@ -144,8 +144,8 @@ import {
   type AreaId,
 } from "./session.ts";
 import { reportUnexpected } from "./monitoring.ts";
+import { usePreloadOnIntent } from "./preload.ts";
 
-// lets design-system links (Link, AppLayout's nav) navigate through the router
 // asked once: which site this is doesn't change while the app is open. The
 // banner is only a label, so it isn't worth holding up the page for
 const site = getJson<Site>("/api/site").catch((e: unknown) => {
@@ -167,8 +167,11 @@ function Root() {
     if (isTestSite) void getAccount().then((account) => setYou(account?.name));
   }, [isTestSite, pathname]);
   const lang = useAppLanguage();
+  usePreloadOnIntent();
   return (
     <LanguageProvider lang={lang}>
+      {/* lets design-system links (Link, AppLayout's nav) navigate through
+          the router; usePreloadOnIntent loads their pages ahead */}
       <RouterProvider
         navigate={(to, options) => router.navigate({ ...to, ...options })}
         useHref={(to) => router.buildLocation(to).href}
@@ -204,9 +207,12 @@ const rootRoute = createRootRoute({
   // the signed-out language. An area's is left as it is until its route says
   // its own: the screen on show keeps its language while the Account is
   // asked for again (returning to the tab), rather than flashing the
-  // signed-out one (#305)
-  beforeLoad: ({ location }) => {
-    if (!inArea(location.pathname)) setAppLanguage(signedOutLanguage());
+  // signed-out one (#305). A page loaded ahead of a press (preload.ts)
+  // isn't on screen yet, so it leaves the language be
+  beforeLoad: ({ location, preload }) => {
+    if (!preload && !inArea(location.pathname)) {
+      setAppLanguage(signedOutLanguage());
+    }
   },
   component: Root,
   notFoundComponent: NotFound,
@@ -297,9 +303,12 @@ const welcomeRoute = createRoute({
 export type PeopleSearch = { as?: string; next?: string };
 
 // the test site's demo people, to sign in as one (PeopleScreen). Someone the
-// link asks for who is signed in already goes straight on
+// link asks for who is signed in already goes straight on. Never loaded
+// ahead of a press (preload.ts): it asks who's signed in afresh each visit,
+// and a visit soon after takes what was loaded ahead without asking again
 const peopleRoute = createRoute({
   getParentRoute: () => rootRoute,
+  preload: false,
   path: "/people",
   validateSearch: (search: Record<string, unknown>): PeopleSearch => ({
     as: typeof search.as === "string" ? search.as : undefined,
@@ -338,7 +347,7 @@ const areaRoute = <Id extends AreaId>(id: Id) =>
     getParentRoute: () => rootRoute,
     // the area's own path as a literal type, so its child routes are typed
     path: areas[id].path as (typeof areas)[Id]["path"],
-    beforeLoad: async ({ location }) => {
+    beforeLoad: async ({ location, preload }) => {
       const account = await getAccount();
       if (!account) {
         throw redirect({ to: "/sign-in", search: { next: location.href } });
@@ -346,7 +355,8 @@ const areaRoute = <Id extends AreaId>(id: Id) =>
       if (!account.roles.includes(areas[id].role)) {
         throw redirect({ to: (await homeOf()) ?? "/sign-in" });
       }
-      setAppLanguage(areaLanguage[id](account));
+      // not for a page loaded ahead of a press (preload.ts), not on screen
+      if (!preload) setAppLanguage(areaLanguage[id](account));
       return { account };
     },
     component: () => <AreaLayout area={id} />,
@@ -442,8 +452,10 @@ const officeQuoteDraftRoute = createRoute({
   path: "/quotes/$quoteId/draft",
   // never shown from the cache: the form starts from what it's first given,
   // so a cached visit (an earlier Revision, or before its last save) would
-  // stick
+  // stick. Nor loaded ahead of a press (preload.ts), which keeps what it
+  // loaded 5 minutes whatever gcTime says
   gcTime: 0,
+  preload: false,
   loader: async ({ params }) => {
     const quote = await getJson<OfficeQuote>(`/api/quotes/${params.quoteId}`);
     if (!quote.draft) {
@@ -926,10 +938,16 @@ const routeTree = rootRoute.addChildren([
 // data after a save (router.invalidate()) jumps it back to the top. New
 // pages still open at the top, and Back returns to where you were.
 // A page that can't load shows PageError in its place, within its area.
+// While the next page loads, the one on show stays (AreaLayout's loading,
+// #454): no route has a pendingComponent, so the router never swaps one in.
+// A page loaded ahead of a press (preload.ts) is shown from what was loaded
+// and asked for again behind it, as a page visited before is: TanStack would
+// otherwise keep it 30 s without asking
 export const router = createRouter({
   routeTree,
   scrollRestoration: true,
   defaultErrorComponent: PageError,
+  defaultPreloadStaleTime: 0,
 });
 
 declare module "@tanstack/react-router" {

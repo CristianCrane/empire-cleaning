@@ -75,6 +75,7 @@ export { Select, SelectItem } from "./Select.tsx";
 export { StatusBadge, type StatusTone } from "./StatusBadge.tsx";
 export { readStored, store } from "./stored.ts";
 export { useSettled } from "./settled.ts";
+export { staleFade } from "./stale.ts";
 export { Cell, Column, Row, Table, TableBody, TableHeader } from "./Table.tsx";
 export { Tab, TabList, TabPanel, Tabs } from "./Tabs.tsx";
 export { TestSiteBanner } from "./TestSiteBanner.tsx";

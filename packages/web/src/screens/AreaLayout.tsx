@@ -1,10 +1,10 @@
 import {
   Outlet,
-  useLocation,
   useMatchRoute,
   useNavigate,
   useRouteContext,
   useRouter,
+  useRouterState,
 } from "@tanstack/react-router";
 import {
   ArrowRightLeft,
@@ -190,8 +190,22 @@ const navFor = (lang: Language): Record<AreaId, AreaNavItem[]> => ({
 
 export function AreaLayout({ area }: { area: AreaId }) {
   const { account } = useRouteContext({ from: areas[area].path });
+  // the page on show, where the router has drawn: while the next page
+  // loads the old one stays, so its section stays current (matchRoute
+  // reads this one too), and the next page's is current once it shows
   const matchRoute = useMatchRoute();
-  const { pathname } = useLocation();
+  const pathname = useRouterState({
+    select: (s) => (s.resolvedLocation ?? s.location).pathname,
+  });
+  // a press that leaves this page, its next one still loading. Not a change
+  // within the page (a search, a Tab, the Schedule's week), which leaves it
+  // usable as it reloads, nor a reload of this page after a save or on
+  // returning to the tab: those keep their path (#454)
+  const loading = useRouterState({
+    select: (s) =>
+      s.status === "pending" &&
+      s.location.pathname !== (s.resolvedLocation ?? s.location).pathname,
+  });
   const offers = useOffersCount(area === "cleaner", pathname);
   useTours(area, account);
   const lang = useLanguage();
@@ -228,6 +242,7 @@ export function AreaLayout({ area }: { area: AreaId }) {
         />
       )}
       menuBusy={footActions.switching !== undefined}
+      loading={loading}
     >
       <Outlet />
     </AppLayout>

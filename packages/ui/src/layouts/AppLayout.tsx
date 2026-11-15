@@ -5,9 +5,11 @@ import { Button } from "../Button.tsx";
 import { DialogTrigger } from "../Dialog.tsx";
 import { Drawer } from "../Drawer.tsx";
 import { Logo } from "../Logo.tsx";
+import { staleFade } from "../stale.ts";
 import { ThemeToggle } from "../theme.tsx";
 import { useUiWords } from "../language.ts";
 import { focusRing } from "../utils.ts";
+import { LoadingBar, useLoadingShown } from "./LoadingBar.tsx";
 
 // true inside AppLayout, which already gives a page its frame: a layout
 // in it (MessagePage) leaves out a frame of its own
@@ -39,6 +41,11 @@ export type AppLayoutProps = {
   foot: (opts: { close: () => void }) => ReactNode;
   // something pressed in the ☰ menu's foot is under way: it stays open
   menuBusy?: boolean;
+  // the next page is loading, after a press that leaves this one: once it
+  // has gone on a moment, a bar runs across the top and this page fades and
+  // can't be pressed until the next one shows; a screen reader hears
+  // "Loading…" once (#454)
+  loading?: boolean;
   children: ReactNode;
 };
 
@@ -57,13 +64,20 @@ export function AppLayout({
   nav,
   foot,
   menuBusy = false,
+  loading = false,
   children,
 }: AppLayoutProps) {
   const section = nav.find((item) => item.isCurrent)?.label ?? area;
   const tabs = nav.filter((item) => !item.inMenu);
   const words = useUiWords();
+  const shown = useLoadingShown(loading);
   return (
     <div className="min-h-dvh md:flex">
+      <LoadingBar shown={shown} />
+      {/* said once as a load shows, and emptied, silently, as it ends */}
+      <div role="status" className="sr-only">
+        {shown ? words.loading : ""}
+      </div>
       <a
         href="#main"
         className="sr-only z-50 rounded-md print:hidden bg-primary px-4 py-2 font-semibold text-primary-fg focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
@@ -119,7 +133,11 @@ export function AppLayout({
         tabIndex={-1}
         className="mx-auto w-full max-w-5xl min-w-0 flex-1 px-4 pt-4 pb-28 outline-none md:px-8 md:py-8 print:max-w-none print:p-0"
       >
-        <InAppLayout value>{children}</InAppLayout>
+        {/* the page on show, until the next one is ready; the navigation
+            stays live, so another section can still be pressed */}
+        <div aria-busy={shown} inert={shown} className={staleFade(shown)}>
+          <InAppLayout value>{children}</InAppLayout>
+        </div>
       </main>
 
       <nav
