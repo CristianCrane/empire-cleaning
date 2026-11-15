@@ -609,6 +609,32 @@ export const switchArea = async (page: Page, area: string) => {
   ).toBeVisible();
 };
 
+// the API's answers to requests matching `url`, held until let go: a page
+// whose data is on its way
+export const holdApi = async (page: Page, url: string | RegExp) => {
+  let letGo = () => {};
+  const held = new Promise<void>((resolve) => (letGo = resolve));
+  await page.route(url, async (route) => {
+    await held;
+    await route.fallback();
+  });
+  return letGo;
+};
+
+// every language the page says it's in from here, read with the function
+// returned: one in between, however brief, shows
+export const recordLanguages = async (page: Page) => {
+  await page.evaluate(() => {
+    const seen: string[] = [];
+    (window as unknown as { langs: string[] }).langs = seen;
+    new MutationObserver(() =>
+      seen.push(document.documentElement.lang),
+    ).observe(document.documentElement, { attributeFilter: ["lang"] });
+  });
+  return () =>
+    page.evaluate(() => (window as unknown as { langs: string[] }).langs);
+};
+
 // whether the navigation marks a section as the one you're in
 export const expectCurrentSection = async (
   page: Page,

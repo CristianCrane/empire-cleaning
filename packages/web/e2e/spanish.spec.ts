@@ -19,6 +19,7 @@ import {
   test,
   pageAction,
   listRows,
+  recordLanguages,
 } from "./harness.ts";
 
 // Sign-in, the Client portal (#303) and the Cleaner area (#305) in Spanish
@@ -268,18 +269,8 @@ test("a screen in Spanish stays in Spanish while the app asks who's signed in ag
     "Hola, Casey",
   );
 
-  // every language the page says it's in from here, and who's signed in
-  // answering slowly, so a language in between would show
-  await page.evaluate(() => {
-    const seen: string[] = [];
-    (window as unknown as { langs: string[] }).langs = seen;
-    new MutationObserver(() =>
-      seen.push(document.documentElement.lang),
-    ).observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["lang"],
-    });
-  });
+  // who's signed in answering slowly, so a language in between would show
+  const languages = await recordLanguages(page);
   const asked = page.waitForResponse("**/api/me");
   await page.route("**/api/me", async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -291,9 +282,7 @@ test("a screen in Spanish stays in Spanish while the app asks who's signed in ag
     "Hola, Casey",
   );
 
-  expect(
-    await page.evaluate(() => (window as unknown as { langs: string[] }).langs),
-  ).not.toContain("en");
+  expect(await languages()).not.toContain("en");
 });
 
 test("a Cleaner reading in Spanish takes an open job and marks it done, in tú", async ({

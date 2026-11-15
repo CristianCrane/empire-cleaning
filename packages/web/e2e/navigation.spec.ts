@@ -8,7 +8,9 @@ import {
   expectAccessible,
   expectCurrentSection,
   goTo,
+  holdApi,
   openTile,
+  recordLanguages,
   searchList,
   setLanguage,
   signedInAs,
@@ -115,45 +117,9 @@ test(
   },
 );
 
-// the API's answers to requests matching `url`, held until let go: a page
-// not loaded before, whose data is on its way
-const holdApi = async (page: Page, url: RegExp) => {
-  let letGo = () => {};
-  const held = new Promise<void>((resolve) => (letGo = resolve));
-  await page.route(url, async (route) => {
-    await held;
-    await route.fallback();
-  });
-  return letGo;
-};
-
 const casey = { name: "Casey Client", email: "casey@example.com" };
 
 const aJob = /\/api\/jobs\/[0-9a-f-]{36}$/;
-
-// the old page stays until the next one shows, and so does its section in
-// the navigation: never two current at once (#454)
-test(
-  "while the next page loads, the section on show stays the current one",
-  { tag: "@desktop" },
-  async ({ page }) => {
-    // the API's fake clock is on Monday 5 January 2026: a Job today
-    await bookJob({ startsAt: "2026-01-05T14:00:00Z", labourHours: 5 });
-    await createStaff(olive);
-    await signedInAs(page, olive.email);
-    await expect(page).toHaveURL("/office");
-
-    const letGo = await holdApi(page, aJob);
-    await (await openTile(page, "Jobs")).getByRole("row").click();
-    await expect(page).toHaveURL(/\/office\/jobs\//);
-    await expectCurrentSection(page, "Jobs", false);
-    await expectCurrentSection(page, "Today");
-
-    letGo();
-    await expectCurrentSection(page, "Jobs");
-    await expectCurrentSection(page, "Today", false);
-  },
-);
 
 // what the frame shows while the next page loads (AppLayout's `loading`):
 // the bar across the top, the page on show faded and out of reach, and
@@ -215,15 +181,18 @@ test(
     await expectNothingShown(page);
     await page.clock.runFor(1);
     await expectLoadingShown(page);
-    // the page on show stays, and so does its section
+    // the page on show stays, and so does its section in the navigation:
+    // never two current at once
     await expect(
       page.getByRole("heading", { name: "Hi, Olive" }),
     ).toBeVisible();
     await expectCurrentSection(page, "Today");
+    await expectCurrentSection(page, "Jobs", false);
 
     letGo();
     await page.clock.resume();
     await expectCurrentSection(page, "Jobs");
+    await expectCurrentSection(page, "Today", false);
     await expectNothingShown(page);
 
     // a first visit ready within 200ms
@@ -245,7 +214,7 @@ test("a search that takes a moment leaves the list as it is, still typed in", as
   page,
 }) => {
   // a list with no one in it has no search
-  await createClient({ email: "casey@example.com", name: "Casey Client" });
+  await createClient(casey);
   await page.clock.install();
   await createStaff(olive);
   await signedInAs(page, olive.email);
@@ -275,14 +244,13 @@ eachTheme(() => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await signInWithAJob(page);
 
-    const letGo = await holdApi(page, aJob);
+    // never let go: the test ends mid-load, the picture pr:shots takes
+    await holdApi(page, aJob);
     await (await openTile(page, "Jobs")).getByRole("row").click();
     await expectLoadingShown(page);
     // the app, not the page: a page's check asks for the main heading,
     // which the faded page holds back with the rest of it while it's inert
     await expectAccessible(page, "#root");
-    letGo();
-    await expectCurrentSection(page, "Jobs");
   });
 });
 
@@ -326,14 +294,7 @@ test("a page loaded ahead leaves the language as it is", async ({ page }) => {
   await setLanguage(page, "es");
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("lang", "es");
-  // every language the page is in from here
-  await page.evaluate(() => {
-    const seen: string[] = [];
-    (window as unknown as { langs: string[] }).langs = seen;
-    new MutationObserver(() =>
-      seen.push(document.documentElement.lang),
-    ).observe(document.documentElement, { attributeFilter: ["lang"] });
-  });
+  const languages = await recordLanguages(page);
 
   await page.getByRole("link", { name: /^You're / }).focus();
   // a page loaded ahead after it, so the first has gone through
@@ -344,7 +305,5 @@ test("a page loaded ahead leaves the language as it is", async ({ page }) => {
     .first()
     .focus();
   await loadedAhead;
-  expect(
-    await page.evaluate(() => (window as unknown as { langs: string[] }).langs),
-  ).toEqual([]);
+  expect(await languages()).toEqual([]);
 });
