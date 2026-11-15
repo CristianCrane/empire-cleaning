@@ -10,6 +10,7 @@ import {
   goTo,
   openTile,
   searchList,
+  setLanguage,
   signedInAs,
   test,
 } from "./harness.ts";
@@ -125,6 +126,8 @@ const holdApi = async (page: Page, url: RegExp) => {
   });
   return letGo;
 };
+
+const casey = { name: "Casey Client", email: "casey@example.com" };
 
 const aJob = /\/api\/jobs\/[0-9a-f-]{36}$/;
 
@@ -281,4 +284,66 @@ eachTheme(() => {
     letGo();
     await expectCurrentSection(page, "Jobs");
   });
+});
+
+// a link's page starts loading as the person shows they'll press it
+// (preload.ts): the pointer resting on it, focus, or pressing down (#454)
+test(
+  "a link the pointer rests on loads its page ahead, so pressing it shows the page at once",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    test.skip(isMobile, "a phone has no pointer to rest on a link");
+    await createStaff(olive);
+    await signedInAs(page, olive.email);
+    await expect(page).toHaveURL("/office");
+
+    const jobs = /\/api\/jobs\?/;
+    const loadedAhead = page.waitForResponse(jobs);
+    const link = page
+      .getByRole("navigation", { name: "Office" })
+      .getByRole("link", { name: "Jobs" });
+    await link.hover();
+    await loadedAhead;
+
+    // asked again as it opens, held: what shows is what was loaded ahead
+    const letGo = await holdApi(page, jobs);
+    await link.click();
+    await expectCurrentSection(page, "Jobs");
+    await expect(page.getByRole("heading", { name: "Jobs" })).toBeVisible();
+    letGo();
+  },
+);
+
+// a page loaded ahead isn't on screen: going there sets the language, not
+// loading it. The test site's banner links outside the portal, to its demo
+// people, whose page is in the signed-out language
+test("a page loaded ahead leaves the language as it is", async ({ page }) => {
+  await page.route("**/api/site", (route) =>
+    route.fulfill({ json: { mode: "test" } }),
+  );
+  await createClient(casey);
+  await signedInAs(page, casey.email);
+  await setLanguage(page, "es");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("lang", "es");
+  // every language the page is in from here
+  await page.evaluate(() => {
+    const seen = ((window as unknown as { langs: string[] }).langs = []);
+    new MutationObserver(() =>
+      seen.push(document.documentElement.lang),
+    ).observe(document.documentElement, { attributeFilter: ["lang"] });
+  });
+
+  await page.getByRole("link", { name: /^You're / }).focus();
+  // a page loaded ahead after it, so the first has gone through
+  const loadedAhead = page.waitForResponse(/\/api\/bills\/mine/);
+  await page
+    .getByRole("navigation")
+    .getByRole("link", { name: "Pagos" })
+    .first()
+    .focus();
+  await loadedAhead;
+  expect(
+    await page.evaluate(() => (window as unknown as { langs: string[] }).langs),
+  ).toEqual([]);
 });
