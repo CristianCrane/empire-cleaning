@@ -131,6 +131,25 @@ import { PortalQuote } from "./screens/portal/PortalQuote.tsx";
 import { PortalRequest } from "./screens/portal/PortalRequest.tsx";
 import { PortalDetails } from "./screens/portal/PortalDetails.tsx";
 import { NotFound } from "./screens/NotFound.tsx";
+import {
+  CalendarSkeleton,
+  ClientPage,
+  ClientsPage,
+  HomeSkeleton,
+  JobPage,
+  JobsPage,
+  ListSkeleton,
+  NavLoadingFrame,
+  QuotesPage,
+  RecordSkeleton,
+  SchedulePage,
+  StaffPage,
+  TodayPage,
+  fakeData,
+  fakeLoad,
+  navLoadingSearch,
+  pendingByLayout,
+} from "./screens/office/nav-loading.prototype.tsx";
 import { PeopleScreen, personAsked } from "./screens/PeopleScreen.tsx";
 import { PageError } from "./screens/PageError.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
@@ -870,7 +889,102 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: what shows while the next page loads, signed out. Real nested
+// routes whose loaders sleep for the case's time; the frame sets each
+// child's pendingMs for the layout shown (nav-loading.prototype.tsx)
+const navLoadingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/nav-loading",
+  validateSearch: navLoadingSearch,
+  component: NavLoadingFrame,
+});
+
+const navLoadingTodayRoute = createRoute({
+  getParentRoute: () => navLoadingRoute,
+  path: "/",
+  loader: fakeLoad(fakeData.today),
+  component: TodayPage,
+  pendingComponent: HomeSkeleton,
+});
+
+const navLoadingScheduleRoute = createRoute({
+  getParentRoute: () => navLoadingRoute,
+  path: "/schedule",
+  loader: fakeLoad(fakeData.schedule),
+  component: SchedulePage,
+  pendingComponent: CalendarSkeleton,
+});
+
+const navLoadingJobsRoute = createRoute({
+  getParentRoute: () => navLoadingRoute,
+  path: "/jobs",
+  loader: fakeLoad(fakeData.jobs),
+  component: JobsPage,
+  pendingComponent: () => <ListSkeleton title="Jobs" />,
+});
+
+const navLoadingJobRoute = createRoute({
+  getParentRoute: () => navLoadingRoute,
+  path: "/jobs/$jobId",
+  loader: fakeLoad(fakeData.job),
+  component: JobPage,
+  pendingComponent: RecordSkeleton,
+});
+
+const navLoadingQuotesRoute = createRoute({
+  getParentRoute: () => navLoadingRoute,
+  path: "/quotes",
+  loader: fakeLoad(fakeData.quotes),
+  component: QuotesPage,
+  pendingComponent: () => <ListSkeleton title="Quotes" />,
+});
+
+const navLoadingClientsRoute = createRoute({
+  getParentRoute: () => navLoadingRoute,
+  path: "/clients",
+  loader: fakeLoad(fakeData.clients),
+  component: ClientsPage,
+  pendingComponent: () => <ListSkeleton title="Clients" />,
+});
+
+const navLoadingClientRoute = createRoute({
+  getParentRoute: () => navLoadingRoute,
+  path: "/clients/$clientId",
+  loader: fakeLoad(fakeData.client),
+  component: ClientPage,
+  pendingComponent: RecordSkeleton,
+});
+
+const navLoadingStaffRoute = createRoute({
+  getParentRoute: () => navLoadingRoute,
+  path: "/staff",
+  loader: fakeLoad(fakeData.staff),
+  component: StaffPage,
+  pendingComponent: () => <ListSkeleton title="Staff" />,
+});
+
+pendingByLayout([
+  navLoadingTodayRoute,
+  navLoadingScheduleRoute,
+  navLoadingJobsRoute,
+  navLoadingJobRoute,
+  navLoadingQuotesRoute,
+  navLoadingClientsRoute,
+  navLoadingClientRoute,
+  navLoadingStaffRoute,
+]);
+
 const routeTree = rootRoute.addChildren([
+  navLoadingRoute.addChildren([
+    navLoadingTodayRoute,
+    navLoadingScheduleRoute,
+    navLoadingJobsRoute,
+    navLoadingJobRoute,
+    navLoadingQuotesRoute,
+    navLoadingClientsRoute,
+    navLoadingClientRoute,
+    navLoadingStaffRoute,
+  ]),
   indexRoute,
   signInRoute,
   signInLinkRoute,
@@ -930,6 +1044,9 @@ export const router = createRouter({
   routeTree,
   scrollRestoration: true,
   defaultErrorComponent: PageError,
+  // PROTOTYPE: a no-op for the kit's links (react-aria's), which the
+  // prototype preloads by hand; kept to show it's not enough
+  defaultPreload: "intent",
 });
 
 declare module "@tanstack/react-router" {
