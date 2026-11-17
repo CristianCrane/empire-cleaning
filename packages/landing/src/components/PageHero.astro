@@ -7,13 +7,16 @@ import { pathOf } from "../routes.ts";
 import { words } from "../words.ts";
 import QuoteOrCall from "./QuoteOrCall.astro";
 
-// the top of an area's or a service's page: `crumb` names it after Home
+// the top of every page but the home page: `crumb` names it after Home.
+// Request a Quote and Call follow, but for a page with no form to sell
+// from (a policy, `actions={false}`)
 interface Props {
   crumb: string;
   heading: string;
   intro: string;
+  actions?: boolean;
 }
-const { crumb, heading, intro } = Astro.props;
+const { crumb, heading, intro, actions = true } = Astro.props;
 const lang = languageOf(Astro.currentLocale);
 const t = words[lang];
 const home = pathOf({ kind: "home" }, lang);
@@ -46,6 +49,6 @@ const home = pathOf({ kind: "home" }, lang);
       {heading}
     </h1>
     <p class="max-w-2xl text-xl text-fg-muted">{intro}</p>
-    <QuoteOrCall href="#quote" />
+    {actions && <QuoteOrCall href="#quote" />}
   </div>
 </section>

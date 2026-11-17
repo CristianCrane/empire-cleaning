@@ -27,7 +27,7 @@ export { EmbeddedField } from "./EmbeddedField.tsx";
 export { Form } from "./Form.tsx";
 export { Heading } from "./Heading.tsx";
 export { IconTile } from "./IconTile.tsx";
-export { ButtonLink, Link } from "./Link.tsx";
+export { ButtonLink, Link, linkStyles } from "./Link.tsx";
 export { Logo } from "./Logo.tsx";
 export { MessagePage, SignInPage } from "./layouts/MessagePage.tsx";
 export {

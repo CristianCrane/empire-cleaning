@@ -41,6 +41,10 @@ export const payments = catalog({
     // where a card is typed, as the Client is told
     NEVER_SEE_CARD:
       "It goes straight into our payment service's secure form, so we never see your card number.",
+    // what paying with a card, or saving one, agrees to: beside every form
+    // that saves one, and quoted in the landing site's Terms of service
+    cardConsent: (paying: boolean) =>
+      `By ${paying ? "paying" : "saving your card"}, you agree that Empire Cleaning can charge this card for the balance when each clean is done, the deposit amount for a late cancellation or if we couldn't get in, and any weekly bill set to be charged to it.`,
     // a payment we couldn't take, as the Client is told: `amount` already
     // formatted, with what it's for ("$50 for this bill"); `card` null when
     // none is saved; `why` as whyNotPaid gives it
@@ -95,6 +99,8 @@ export const payments = catalog({
       `Le devolvimos ${amount} a su ${card}. ${REFUND_TAKES_DAYS_ES}`,
     NEVER_SEE_CARD:
       "Se escribe directamente en el formulario seguro de nuestro servicio de pagos, así que nunca vemos el número de su tarjeta.",
+    cardConsent: (paying: boolean) =>
+      `Al ${paying ? "pagar" : "guardar su tarjeta"}, acepta que Empire Cleaning cobre a esta tarjeta el resto cuando cada limpieza esté terminada, el monto del depósito por una cancelación tardía o si no pudimos entrar, y cualquier factura semanal que se cobre a ella.`,
     notTaken: (
       amount: string,
       card: string | null,

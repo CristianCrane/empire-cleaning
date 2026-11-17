@@ -1,7 +1,7 @@
 // Shared domain types live here; see GLOSSARY.md for the vocabulary.
 
 import { clockTime } from "./days.ts";
-import type { Language } from "./language.ts";
+import { catalog, type Language } from "./language.ts";
 
 // the roles a Staff member can hold; one person may hold both
 export type StaffRole = "cleaner" | "office_staff";
@@ -2071,10 +2071,38 @@ export const business = {
     href: "tel:+16463209076",
     e164: "+1-646-320-9076",
   },
+  email: {
+    address: "empirecleaningproservices@gmail.com",
+    href: "mailto:empirecleaningproservices@gmail.com",
+  },
   // the area served, as printed in each language (the landing site lists
   // it in full). The Spanish is a draft the owner checks (#206)
   area: { en: "Queens, NYC and Long Island", es: "Queens, NYC y Long Island" },
 } as const;
+
+// the landing site's home page in each language (ADR-0025): every other
+// page's address is under it (packages/landing/src/routes.ts)
+export const landingHome = catalog({ en: "/", es: "/es/" });
+
+// the landing site's policies (#462), by name as every link to one says
+// it, and the address it has under each language's home page. The
+// landing site's footer and the web app's sign-in page link both
+export const legalPages = catalog({
+  en: {
+    privacy: { name: "Privacy policy", slug: "privacy" },
+    terms: { name: "Terms of service", slug: "terms" },
+  },
+  es: {
+    privacy: { name: "Política de privacidad", slug: "privacidad" },
+    terms: { name: "Términos del servicio", slug: "terminos" },
+  },
+});
+export type LegalKey = keyof (typeof legalPages)["en"];
+export const LEGAL_KEYS: LegalKey[] = ["privacy", "terms"];
+
+// "/es/privacidad/"
+export const legalPathOf = (key: LegalKey, lang: Language) =>
+  `${landingHome[lang]}${legalPages[lang][key].slug}/`;
 
 // the languages people read the product in, and catalogs of words in each
 // (ADR-0025)

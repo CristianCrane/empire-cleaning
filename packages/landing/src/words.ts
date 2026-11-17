@@ -78,7 +78,10 @@ export const words = catalog({
       online: "Find us online",
       on: (network: string) => `Empire Cleaning on ${network}`,
       spanish: "Se habla español",
+      legal: "Policies",
     },
+    // under a policy's heading: `date` already formatted
+    effective: (date: string) => `In effect from ${date}`,
     // for the search data
     cleaningServices: "Cleaning services",
     houseCleaning: "House cleaning",
@@ -152,7 +155,9 @@ export const words = catalog({
       online: "Encuéntrenos en línea",
       on: (network: string) => `Empire Cleaning en ${network}`,
       spanish: "",
+      legal: "Políticas",
     },
+    effective: (date: string) => `Vigente desde el ${date}`,
     cleaningServices: "Servicios de limpieza",
     houseCleaning: "Limpieza de casas",
   },

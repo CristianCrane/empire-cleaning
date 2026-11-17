@@ -1,5 +1,5 @@
 ---
-import { languageOf } from "@empire-cleaning/models";
+import { LEGAL_KEYS, languageOf, legalPages } from "@empire-cleaning/models";
 import { Logo } from "@empire-cleaning/ui";
 import {
   siFacebook,
@@ -85,7 +85,24 @@ const t = words[lang].footer;
       </ul>
     </div>
   </div>
-  <p class="px-4 text-center text-fg-muted">
-    &copy; {new Date().getFullYear()} {business.name}
-  </p>
+  <!-- the policies (#462), then the ©, centred rows at the foot -->
+  <div class="flex flex-col items-center gap-2 px-4 text-center text-fg-muted">
+    <nav aria-label={t.legal}>
+      <ul class="flex flex-wrap justify-center gap-x-6 gap-y-2">
+        {LEGAL_KEYS.map((key) => (
+          <li>
+            <a
+              href={pathOf({ kind: "legal", legal: key }, lang)}
+              class="underline underline-offset-4 hover:text-primary"
+            >
+              {legalPages[lang][key].name}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+    <p>
+      &copy; {new Date().getFullYear()} {business.name}
+    </p>
+  </div>
 </footer>

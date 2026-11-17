@@ -6,6 +6,7 @@ import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
 import HowItWorks from "../components/HowItWorks.astro";
 import PageHero from "../components/PageHero.astro";
+import Prose from "../components/Prose.astro";
 import RequestQuote from "../components/RequestQuote.astro";
 import Reviews from "../components/Reviews.astro";
 import Section from "../components/Section.astro";
@@ -91,28 +92,22 @@ const start = page.office && {
       )}
     </Section>
     <Section id="pricing" title={page.pricing.title}>
-      <div class="mx-auto flex max-w-2xl flex-col gap-4 text-lg">
-        {page.pricing.text.map((t) => (
-          <p>{t}</p>
-        ))}
+      <Prose text={page.pricing.text}>
         {linksUnder("pricing").map(({ href, text }) => (
           <a href={href} class="font-semibold text-primary">
             {text}
           </a>
         ))}
-      </div>
+      </Prose>
     </Section>
     <Section id="when" title={page.when.title}>
-      <div class="mx-auto flex max-w-2xl flex-col gap-4 text-lg">
-        {page.when.text.map((t) => (
-          <p>{t}</p>
-        ))}
+      <Prose text={page.when.text}>
         {linksUnder("when").map(({ href, text }) => (
           <a href={href} class="font-semibold text-primary">
             {text}
           </a>
         ))}
-      </div>
+      </Prose>
     </Section>
     <Reviews />
     <Faqs faqs={page.faqs} />

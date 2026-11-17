@@ -53,7 +53,7 @@ export const cancellation = catalog({
     cancelCostForClient: ({ onPlan, late, feeCents, fee }: CancelCost) => {
       if (late && feeCents > 0) {
         return onPlan
-          ? `Skipping it less than ${CANCELLATION_CUTOFF_HOURS} hours before is a late cancellation, with a ${fee} fee, the same as your plan's deposit. Your deposit stays held.`
+          ? `Skipping it less than ${CANCELLATION_CUTOFF_HOURS} hours before is a late cancellation, with a ${fee} fee, that clean's share of your plan's deposit. Your deposit stays held.`
           : `Cancelling less than ${CANCELLATION_CUTOFF_HOURS} hours before is a late cancellation, so your ${fee} deposit is kept as the fee.`;
       }
       if (feeCents > 0) {
@@ -79,7 +79,7 @@ export const cancellation = catalog({
     // charged as a late cancellation is
     noAccessFee: ({ onPlan, fee }: Pick<CancelCost, "onPlan" | "fee">) =>
       onPlan
-        ? `As with a late cancellation, there's a ${fee} fee, the same as your plan's deposit. Your deposit stays held.`
+        ? `As with a late cancellation, there's a ${fee} fee, that clean's share of your plan's deposit. Your deposit stays held.`
         : `As with a late cancellation, your ${fee} deposit is kept as the fee.`,
   },
   es: {
@@ -87,7 +87,7 @@ export const cancellation = catalog({
     cancelCostForClient: ({ onPlan, late, feeCents, fee }: CancelCost) => {
       if (late && feeCents > 0) {
         return onPlan
-          ? `Saltarla con menos de ${CANCELLATION_CUTOFF_HOURS} horas de anticipación es una cancelación tardía, con un cargo de ${fee}, igual al depósito de su plan. Su depósito sigue retenido.`
+          ? `Saltarla con menos de ${CANCELLATION_CUTOFF_HOURS} horas de anticipación es una cancelación tardía, con un cargo de ${fee}, la parte de esta limpieza en el depósito de su plan. Su depósito sigue retenido.`
           : `Cancelar con menos de ${CANCELLATION_CUTOFF_HOURS} horas de anticipación es una cancelación tardía, así que su depósito de ${fee} se conserva como cargo.`;
       }
       if (feeCents > 0) {
@@ -107,7 +107,7 @@ export const cancellation = catalog({
       `${PLAN_CANCELLED_ES[why]}, así que esta limpieza se canceló. ${feeCents > 0 ? `El ${earlierMoveFeeEs(fee)}.` : "No tiene ningún cargo."}`,
     noAccessFee: ({ onPlan, fee }: Pick<CancelCost, "onPlan" | "fee">) =>
       onPlan
-        ? `Como en una cancelación tardía, hay un cargo de ${fee}, igual al depósito de su plan. Su depósito sigue retenido.`
+        ? `Como en una cancelación tardía, hay un cargo de ${fee}, la parte de esta limpieza en el depósito de su plan. Su depósito sigue retenido.`
         : `Como en una cancelación tardía, su depósito de ${fee} se conserva como cargo.`,
   },
 });
@@ -116,7 +116,7 @@ export const cancellation = catalog({
 const officeCost = ({ onPlan, late, feeCents, fee }: CancelCost) => {
   if (late && feeCents > 0) {
     return onPlan
-      ? `A late cancellation: a ${fee} fee, the plan's deposit amount. The plan's deposit stays held.`
+      ? `A late cancellation: a ${fee} fee, this clean's share of the plan's deposit. The plan's deposit stays held.`
       : `A late cancellation: the ${fee} deposit is kept as the fee.`;
   }
   if (feeCents > 0) {

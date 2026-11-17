@@ -7,7 +7,8 @@ import type { VariantProps } from "tailwind-variants";
 import { buttonStyles } from "./Button.tsx";
 import { focusRing, tv } from "./utils.ts";
 
-const link = tv({
+// a text link's look, for a plain <a> to somewhere outside the app too
+export const linkStyles = tv({
   extend: focusRing,
   base: "rounded-sm font-semibold text-primary underline decoration-1 underline-offset-2 hover:decoration-2",
 });
@@ -19,7 +20,7 @@ export function Link(props: LinkProps) {
     <AriaLink
       {...props}
       className={composeRenderProps(props.className, (className, renderProps) =>
-        link({ ...renderProps, className }),
+        linkStyles({ ...renderProps, className }),
       )}
     />
   );

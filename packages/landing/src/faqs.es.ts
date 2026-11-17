@@ -1,7 +1,19 @@
+import {
+  CANCELLATION_CUTOFF_HOURS as CUTOFF,
+  LATE_RESCHEDULE_HOURS as LATE,
+} from "@empire-cleaning/models";
 import type { Faq } from "./faqs.ts";
 
 // the home page's questions in Spanish (faqs.ts has the English): a draft
 // the owner checks (#206)
+
+// faqs.ts's deposit and moveOrCancel, in Spanish
+export const deposito: Faq = {
+  question: "¿Cómo funciona el depósito?",
+  answer:
+    "Para reservar, acepta su cotización en línea y paga un depósito. El resto se cobra cuando la limpieza está terminada. Un plan de limpieza tiene un solo depósito durante toda su vida, que se aplica a su última visita.",
+};
+export const reprogramarOCancelar = `Reprogramar o cancelar con ${LATE} horas o más de anticipación es gratis. Reprogramar con menos de ${LATE} horas es gratis una vez por limpieza; cancelar con menos de ${CUTOFF} horas conserva el depósito como cargo.`;
 
 // asked on the home page and every area's. The English pages ask "Do you
 // speak Spanish?"; to someone already reading Spanish, the answer is that
@@ -32,15 +44,10 @@ export const faqs: Faq[] = [
     answer:
       "Claro que sí. Díganoslo cuando pida una cotización, para que esté en el tiempo que calculamos y el equipo sepa a quién va a encontrar en la puerta.",
   },
-  {
-    question: "¿Cómo funciona el depósito?",
-    answer:
-      "Para reservar, acepta su cotización en línea y paga un depósito. El resto se cobra cuando la limpieza está terminada. Un plan de limpieza tiene un solo depósito durante toda su vida, que se aplica a su última visita.",
-  },
+  deposito,
   {
     question: "¿Puedo reprogramar o cancelar una limpieza?",
-    answer:
-      "Sí, desde su cuenta. Reprogramar o cancelar con 24 horas o más de anticipación es gratis. Reprogramar con menos de 24 horas es gratis una vez por limpieza; cancelar con menos de 24 horas conserva el depósito como cargo.",
+    answer: `Sí, desde su cuenta. ${reprogramarOCancelar}`,
   },
   {
     question: "¿Dónde limpian?",

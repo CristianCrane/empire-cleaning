@@ -1,6 +1,7 @@
 ---
 import { languageOf } from "@empire-cleaning/models";
 import PageHero from "../components/PageHero.astro";
+import Prose from "../components/Prose.astro";
 import Faqs from "../components/Faqs.astro";
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
@@ -48,11 +49,7 @@ const area = areaOf(page.area)[lang];
       )}
     </Section>
     <Section id="homes" title={area.homes.title}>
-      <div class="mx-auto flex max-w-2xl flex-col gap-4 text-lg">
-        {area.homes.text.map((t) => (
-          <p>{t}</p>
-        ))}
-      </div>
+      <Prose text={area.homes.text} />
     </Section>
     <Section id="popular" title={area.popular.title}>
       {/* the home page's service cards, two across, in the area's words */}

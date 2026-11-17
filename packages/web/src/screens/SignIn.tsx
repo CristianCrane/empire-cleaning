@@ -9,9 +9,17 @@ import {
   Notice,
   SignInPage,
   TextField,
+  linkStyles,
   showToast,
+  useLanguage,
 } from "@empire-cleaning/ui";
-import { catalog } from "@empire-cleaning/models";
+import {
+  LEGAL_KEYS,
+  catalog,
+  legalPages,
+  legalPathOf,
+} from "@empire-cleaning/models";
+import { landingUrl } from "../landing-url.ts";
 import { authClient } from "../session.ts";
 import { GoogleButton } from "./GoogleButton.tsx";
 import { useSaid } from "./words.ts";
@@ -98,14 +106,19 @@ export function SignIn() {
   };
 
   // Google first: one tap for anyone with a Google account. The emailed
-  // link under it, for everyone else (UX pass, #96)
+  // link under it, for everyone else (UX pass, #96). Under the card, a line
+  // for someone new, then the landing site's policies, which signing up
+  // agrees to (#462)
   return (
     <SignInPage
       title={sentTo ? w.checkEmail : signIn}
       after={
-        !sentTo && (
-          <p className="text-center text-sm text-fg-muted">{w.newHere}</p>
-        )
+        <>
+          {!sentTo && (
+            <p className="text-center text-sm text-fg-muted">{w.newHere}</p>
+          )}
+          <Policies />
+        </>
       }
     >
       {error && !sentTo && (
@@ -177,5 +190,26 @@ export function SignIn() {
         </>
       )}
     </SignInPage>
+  );
+}
+
+// the landing site's Privacy policy and Terms of service, in the screen's
+// language
+function Policies() {
+  const lang = useLanguage();
+  return (
+    <ul className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm">
+      {LEGAL_KEYS.map((key) => (
+        <li key={key}>
+          {/* on the landing site, outside the app's router */}
+          <a
+            className={linkStyles()}
+            href={new URL(legalPathOf(key, lang), landingUrl).href}
+          >
+            {legalPages[lang][key].name}
+          </a>
+        </li>
+      ))}
+    </ul>
   );
 }

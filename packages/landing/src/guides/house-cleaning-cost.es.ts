@@ -1,3 +1,4 @@
+import { reprogramarOCancelar } from "../faqs.es.ts";
 import type { GuideWords } from "./index.ts";
 
 // the guide in Spanish (house-cleaning-cost.ts has the English):
@@ -51,7 +52,7 @@ export const houseCleaningCost: GuideWords = {
       title: "Qué paga, y cuándo",
       text: [
         "Acepta su cotización en línea y paga un depósito para reservar. El resto se cobra cuando la limpieza está terminada, así que solo paga completo por una limpieza que ya se hizo.",
-        "Si la casa resulta necesitar más de lo que preveía la cotización, el equipo le pregunta primero, y usted aprueba cualquier cambio de precio antes de que se haga el trabajo. Reprogramar una limpieza es gratis con 24 horas o más de anticipación, y una vez con menos de 24 horas; cancelar con menos de 24 horas conserva el depósito como cargo.",
+        `Si la casa resulta necesitar más de lo que preveía la cotización, como más tiempo o un adicional hecho ese día, usted aprueba el cambio de precio en su cuenta después de la limpieza, y no se cobra nada más si no lo aprueba. ${reprogramarOCancelar}`,
       ],
     },
     {

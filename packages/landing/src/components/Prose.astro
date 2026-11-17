@@ -1,0 +1,29 @@
+---
+import { Check } from "lucide-react";
+
+// words to read, in one narrow column down the middle of a band: a
+// paragraph each, then any list, each item ticked; what's slotted in (a
+// link to a guide) follows them
+interface Props {
+  text: string[];
+  list?: string[];
+}
+const { text, list } = Astro.props;
+---
+
+<div class="mx-auto flex max-w-2xl flex-col gap-4 text-lg">
+  {text.map((t) => (
+    <p>{t}</p>
+  ))}
+  {list && (
+    <ul class="flex flex-col gap-3">
+      {list.map((item) => (
+        <li class="flex items-start gap-2">
+          <Check aria-hidden size={20} className="mt-1 shrink-0 text-primary" />
+          {item}
+        </li>
+      ))}
+    </ul>
+  )}
+  <slot />
+</div>
