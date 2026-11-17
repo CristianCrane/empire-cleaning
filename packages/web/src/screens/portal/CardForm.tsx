@@ -35,8 +35,6 @@ import { useSaid } from "../words.ts";
 // in the Client's language (ADR-0025), as Stripe's own form is
 const words = catalog({
   en: {
-    consent: (paying: boolean) =>
-      `By ${paying ? "paying" : "saving your card"}, you agree that Empire Cleaning can charge this card for the balance when each clean is done, the deposit amount for a late cancellation or if we couldn't get in, and any weekly bill set to be charged to it.`,
     // while the payment provider's part of the form isn't ready
     NOT_LOADED: "The form didn't load. Please refresh the page.",
     LOADING: "The form is still loading.",
@@ -58,8 +56,6 @@ const words = catalog({
     didntGo: "Your payment didn't go through.",
   },
   es: {
-    consent: (paying: boolean) =>
-      `Al ${paying ? "pagar" : "guardar su tarjeta"}, acepta que Empire Cleaning cobre a esta tarjeta el resto cuando cada limpieza esté terminada, el monto del depósito por una cancelación tardía o si no pudimos entrar, y cualquier factura semanal que se cobre a ella.`,
     NOT_LOADED: "No se cargó el formulario. Vuelva a cargar la página.",
     LOADING: "El formulario todavía se está cargando.",
     testPay:
@@ -117,9 +113,9 @@ const cardProblem = (error: StripeError, fallback: string) => {
 
 // what saving a card agrees to, shown beside every form that saves one
 export function ConsentNote({ action }: { action: "paying" | "saving" }) {
-  const { w } = useSaid(words);
+  const { cardConsent } = useSaid(words);
   return (
-    <p className="text-sm text-fg-muted">{w.consent(action === "paying")}</p>
+    <p className="text-sm text-fg-muted">{cardConsent(action === "paying")}</p>
   );
 }
 
