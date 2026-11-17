@@ -60,12 +60,16 @@ export const sentryReporter: Reporter = {
   },
   signal: (name, urgency, context) => {
     Sentry.captureMessage(name, {
-      level: urgency === "counted" ? "info" : "warning",
+      level: "warning",
       tags: { ...requestTags(), signal: name, urgency },
       extra: context,
       // one issue per signal, however its context varies
       fingerprint: ["signal", name],
     });
+  },
+  // a counter, never an event, so it opens no issue
+  count: (name, context) => {
+    Sentry.metrics.count(name, 1, { attributes: context });
   },
   // a gauge: Sentry keeps each window's min, max and average
   measure: (name, value, unit, context) => {
