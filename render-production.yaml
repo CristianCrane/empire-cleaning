@@ -31,6 +31,8 @@ services:
     startCommand: npm --prefix packages/server start
     healthCheckPath: /health
     autoDeployTrigger: "off"
+    # the test site's, kept so the two files match; nothing deploys by itself
+    # here, so it does nothing
     buildFilter:
       paths:
         - packages/server/**
