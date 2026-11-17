@@ -4,6 +4,7 @@ import {
   hours,
   inSpanish,
   taxPercent,
+  version,
 } from "../price-list/price-list.validation.ts";
 
 // messages are shown beside the Service's fields, so they're written for
@@ -79,3 +80,7 @@ export const serviceSchema = z
     hoursPerThousandSqFt: s.method === "area" ? s.hoursPerThousandSqFt : null,
     taxPlanPercent: s.canRecur ? s.taxPlanPercent : null,
   }));
+
+// a save of a Service already there: its figures, and the version they were
+// made from (SavedFrom)
+export const savedServiceSchema = z.object({ version }).and(serviceSchema);

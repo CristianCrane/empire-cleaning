@@ -494,19 +494,14 @@ export const setService = async (
   which: keyof typeof SEEDED,
   changes: Partial<ServiceInput>,
 ) => {
-  const {
-    key,
-    id: _id,
-    version: _version,
-    createdAt: _createdAt,
-    createdByName: _createdByName,
-    ...input
-  } = (await office.get(`/api/services/${SEEDED[which]}`).expect(200))
-    .body as Service;
+  // what it read, sent back with the changes: its version too
+  const service = (
+    await office.get(`/api/services/${SEEDED[which]}`).expect(200)
+  ).body as Service;
   return (
     await office
-      .put(`/api/services/${key}`)
-      .send({ ...input, ...changes })
+      .put(`/api/services/${service.key}`)
+      .send({ ...service, ...changes })
       .expect(200)
   ).body as Service;
 };

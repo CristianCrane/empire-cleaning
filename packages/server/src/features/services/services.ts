@@ -5,12 +5,18 @@ import type {
   PropertyKind,
   Service,
   ServiceChoice,
+  SavedFrom,
   ServiceInput,
   ServiceIcon,
   ServiceOffer,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
-import { fieldError, NotFoundError } from "../../middleware/errors.ts";
+import {
+  changedSince,
+  ConflictError,
+  fieldError,
+  NotFoundError,
+} from "../../middleware/errors.ts";
 import type { Clean } from "../../services/email/blocks.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
 import { addressOf } from "../properties/property-view.ts";
@@ -195,8 +201,8 @@ const toService = (row: ServiceRow, authorName: string | null): Service => ({
 
 // every Service's latest version, in the list's order; the author is named
 // by their Staff record, as on the Price List
-const latest = async () => {
-  const rows = await db
+const latest = async (tx: Tx | typeof db) => {
+  const rows = await tx
     .selectDistinctOn([services.key], {
       service: services,
       authorName: staff.name,
@@ -216,15 +222,21 @@ export const notAService = catalog({
   es: "Elija un servicio de la lista",
 });
 
+// taken by whatever makes a version of a Service, so one makes it at a
+// time from the latest
+const NEW_VERSION = 4005;
+
 // Every Service as it is now, active and retired. The very first read
 // creates the starting ones, so a fresh install always has them.
-export const currentServices = async (): Promise<Service[]> => {
-  const existing = await latest();
+export const currentServices = async (
+  tx: Tx | typeof db = db,
+): Promise<Service[]> => {
+  const existing = await latest(tx);
   if (existing.length > 0) return existing;
 
   // two first reads at once mustn't both create them
-  await db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(4005)`);
+  const create = async (tx: Tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${NEW_VERSION})`);
     const [already] = await tx
       .select({ id: services.id })
       .from(services)
@@ -235,8 +247,9 @@ export const currentServices = async (): Promise<Service[]> => {
       .values(
         placeholders.map((s, position) => ({ ...columnsOf(s), position })),
       );
-  });
-  return latest();
+  };
+  await (tx === db ? db.transaction(create) : create(tx as Tx));
+  return latest(tx);
 };
 
 export const findService = async (key: string): Promise<Service> => {
@@ -404,29 +417,36 @@ export const createService = async (
   return findService(key);
 };
 
-// saves a new version of a Service: changes only affect prices worked out
-// from now. Retiring is saving it inactive.
+// Saves a new version of a Service, from the one it was made from: once
+// someone has saved a newer one, it's refused, so nobody's change is lost
+// unseen (#447). Changes only affect prices worked out from now. Retiring
+// is saving it inactive.
 export const saveService = async (
   key: string,
-  input: ServiceInput,
+  { version, ...input }: SavedFrom<ServiceInput>,
   createdBy: string,
 ): Promise<Service> => {
-  const all = await currentServices();
-  const current = all.find((s) => s.key === key);
-  if (!current) throw new NotFoundError("Service not found");
-  checkName(all, key, input);
-  checkFirstVisit(all, key, input);
-  const [first] = await db
-    .select({ position: services.position })
-    .from(services)
-    .where(eq(services.key, key))
-    .orderBy(asc(services.version))
-    .limit(1);
-  await db.insert(services).values({
-    ...columnsOf(input),
-    key,
-    position: first!.position,
-    createdBy,
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${NEW_VERSION})`);
+    const all = await currentServices(tx);
+    const current = all.find((s) => s.key === key);
+    if (!current) throw new NotFoundError("Service not found");
+    if (current.version !== version) throw new ConflictError(changedSince());
+    checkName(all, key, input);
+    checkFirstVisit(all, key, input);
+    // every version keeps the first's place
+    const [first] = await tx
+      .select({ position: services.position })
+      .from(services)
+      .where(eq(services.key, key))
+      .orderBy(asc(services.version))
+      .limit(1);
+    await tx.insert(services).values({
+      ...columnsOf(input),
+      key,
+      position: first!.position,
+      createdBy,
+    });
   });
   return findService(key);
 };

@@ -10,7 +10,7 @@ import {
   saveService,
   servicesOnOffer,
 } from "./services.ts";
-import { serviceSchema } from "./services.validation.ts";
+import { savedServiceSchema, serviceSchema } from "./services.validation.ts";
 
 export const router = Router();
 
@@ -47,11 +47,12 @@ router.post(
   },
 );
 
-// every save is a new version; changes only affect prices worked out from now
+// every save is a new version, made from the latest; changes only affect
+// prices worked out from now
 router.put(
   "/:key",
   authorize("office_staff"),
-  validate({ params, body: serviceSchema }),
+  validate({ params, body: savedServiceSchema }),
   async (req, res) => {
     res.json(
       await saveService(req.params.key, req.body, signedInAccount(res).id),

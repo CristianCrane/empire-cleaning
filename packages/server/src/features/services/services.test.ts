@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 import type {
   PriceBreakdown,
@@ -9,6 +10,7 @@ import type {
 import { type Agent, api, signIn } from "../../../tests/harness.ts";
 import {
   guestAsk,
+  holding,
   setService,
   signInAsOffice,
   submit,
@@ -146,6 +148,55 @@ describe("Services", () => {
     expect((await list(office)).map((s) => s.name)[1]).toBe("Deep Clean");
   });
 
+  // two Office Staff with a Service open, or one in two tabs (#447)
+  test("refuse a save made from a version someone has since replaced, so their change stays", async () => {
+    const office = await signInAsOffice();
+    const opened = (await list(office))[1]!;
+
+    await office
+      .put(`/api/services/${opened.key}`)
+      .send({ ...opened, hourlyRateCents: 6000 })
+      .expect(200);
+    const late = await office
+      .put(`/api/services/${opened.key}`)
+      .send({ ...opened, minimumChargeCents: 12000 });
+
+    expect(late.status).toBe(409);
+    expect(late.body.message).toBe(
+      "Something changed just then. Please check it and try again.",
+    );
+    expect((await list(office))[1]).toMatchObject({
+      hourlyRateCents: 6000,
+      minimumChargeCents: opened.minimumChargeCents,
+    });
+  });
+
+  test("take one of two saves made from the same version at once", async () => {
+    const office = await signInAsOffice();
+    const opened = (await list(office))[1]!;
+
+    // both have read the Service before either can save
+    const saves = await holding(
+      (tx) => tx.execute(sql`lock table services in exclusive mode`),
+      [
+        () =>
+          office
+            .put(`/api/services/${opened.key}`)
+            .send({ ...opened, hourlyRateCents: 6000 }),
+        () =>
+          office
+            .put(`/api/services/${opened.key}`)
+            .send({ ...opened, minimumChargeCents: 12000 }),
+      ],
+    );
+
+    expect(saves.map((s) => s.status)).toEqual([200, 409]);
+    expect((await list(office))[1]).toMatchObject({
+      hourlyRateCents: 6000,
+      minimumChargeCents: opened.minimumChargeCents,
+    });
+  });
+
   test("start with their Spanish, which a new version keeps unless it changes it (ADR-0025)", async () => {
     const office = await signInAsOffice();
 
@@ -259,9 +310,12 @@ describe("Services", () => {
       firstVisitServiceKey: "00000000-0000-4000-8000-000000000000",
     });
     const deep = (await list(office))[1]!;
-    const itself = await office
-      .put(`/api/services/${deep.key}`)
-      .send({ ...windows, name: deep.name, firstVisitServiceKey: deep.key });
+    const itself = await office.put(`/api/services/${deep.key}`).send({
+      ...windows,
+      version: deep.version,
+      name: deep.name,
+      firstVisitServiceKey: deep.key,
+    });
 
     expect(issuesOf(twice.body)).toEqual({
       name: "Another service already has this name",
@@ -281,7 +335,11 @@ describe("Services", () => {
 
     expect((await office.get(`/api/services/${missing}`)).status).toBe(404);
     expect(
-      (await office.put(`/api/services/${missing}`).send(windows)).status,
+      (
+        await office
+          .put(`/api/services/${missing}`)
+          .send({ ...windows, version: 1 })
+      ).status,
     ).toBe(404);
   });
 });
