@@ -45,7 +45,7 @@ A screen renders through the layout for its type (ADR-0031, `docs/ux.md`, Screen
 
 - the kit's `Breadcrumbs`, `ActionFooter` and shared `PageHeader`, under whatever name they're imported as, or through `import * as`
 - the page's title: the kit's `Heading` at `level={1}`, `inBar` or not, or an `<h1>`
-- a facts grid: a `<dl>` with `grid` among its class names, but for two columns of amounts (`grid-cols-[1fr_auto]`), a receipt or a price's lines rather than facts. It warns in a screen's dialogs too: there's to be one facts grid, the kit's (#432)
+- a facts grid: a `<dl>` with `grid` among its class names, but for two columns of amounts (`grid-cols-[1fr_auto]`), a receipt or a price's lines rather than facts. It's flagged in a screen's dialogs too: there's to be one facts grid, the kit's (#432)
 
 The layouts that place them live in the kit, `packages/ui/src/layouts/`, where the rule doesn't run: that's its allowed set, so a new layout changes nothing here. It's on in `packages/web/src/screens`, but not in tests or stories, or on the test site's People page, which has no type. It's an error, so a new screen that builds its own page fails the Checks: it was a warning while the layout slices moved every type onto its layout (#426), and became one once the Calendar had its own (#437).
 

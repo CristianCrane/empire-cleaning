@@ -24,7 +24,7 @@ import { fields, type Fields, type Rule } from "./ast.ts";
 
 const KIT = "@empire-cleaning/ui";
 
-// the kit's components that are the page's parts, and what the warning
+// the kit's components that are the page's parts, and what the report
 // calls each
 const PARTS: Record<string, string> = {
   Breadcrumbs: "its breadcrumbs",
