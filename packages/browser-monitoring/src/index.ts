@@ -100,8 +100,8 @@ export const routerTracing = (router: unknown) =>
 // code caught and passed to `report` is kept, wherever it was thrown. One
 // passed to the browser's `reportError` (the Quote form's, the landing
 // site's) reaches Sentry as uncaught, so is judged by its own stack's frames:
-// one with none (a body that isn't JSON) is kept, as the only frame Sentry has
-// for it is one it made up from where it was reported
+// one with none in any script (a body that isn't JSON) is kept, as Sentry
+// then has nothing of its own to judge it by
 export const dropOthersUncaught = (
   event: ErrorEvent,
   { originalException }: EventHint = {},
