@@ -328,6 +328,24 @@ describe("Services", () => {
     });
   });
 
+  test("won't take two new Services with the same name at once", async () => {
+    const office = await signInAsOffice();
+
+    // both have checked the names before either can add theirs
+    const adds = await holding(
+      (tx) => tx.execute(sql`lock table services in exclusive mode`),
+      [
+        () => office.post("/api/services").send(windows),
+        () => office.post("/api/services").send(windows),
+      ],
+    );
+
+    expect(adds.map((a) => a.status)).toEqual([201, 400]);
+    expect(
+      (await list(office)).filter((s) => s.name === windows.name),
+    ).toHaveLength(1);
+  });
+
   test("aren't found when there is no such Service", async () => {
     const office = await signInAsOffice();
 

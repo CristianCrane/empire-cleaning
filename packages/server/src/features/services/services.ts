@@ -396,23 +396,27 @@ const checkName = (all: Service[], key: string | null, input: ServiceInput) => {
   }
 };
 
-// adds a Service, at the end of the list
+// adds a Service, at the end of the list; one at a time, so two at once
+// can't share a name
 export const createService = async (
   input: ServiceInput,
   createdBy: string,
 ): Promise<Service> => {
-  const all = await currentServices();
-  checkName(all, null, input);
-  checkFirstVisit(all, null, input);
   const key = crypto.randomUUID();
-  const [{ last }] = (await db
-    .select({ last: sql<number>`max(${services.position})` })
-    .from(services)) as [{ last: number | null }];
-  await db.insert(services).values({
-    ...columnsOf(input),
-    key,
-    position: (last ?? -1) + 1,
-    createdBy,
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${NEW_VERSION})`);
+    const all = await currentServices(tx);
+    checkName(all, null, input);
+    checkFirstVisit(all, null, input);
+    const [{ last }] = (await tx
+      .select({ last: sql<number>`max(${services.position})` })
+      .from(services)) as [{ last: number | null }];
+    await tx.insert(services).values({
+      ...columnsOf(input),
+      key,
+      position: (last ?? -1) + 1,
+      createdBy,
+    });
   });
   return findService(key);
 };
