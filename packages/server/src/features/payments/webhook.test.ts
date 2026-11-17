@@ -69,13 +69,10 @@ describe("what the provider tells us of Charges (ADR-0007)", () => {
   test("a refund of a payment we have no Charge for is only counted", async () => {
     await webhook({ kind: "charge_refunded", chargeId: "pi_1" }).expect(200);
 
-    expect(testMonitoring().signals).toEqual([
-      {
-        name: "refunded_at_provider",
-        urgency: "counted",
-        context: { ref: "pi_1" },
-      },
+    expect(testMonitoring().counts).toEqual([
+      { name: "refunded_at_provider", context: { ref: "pi_1" } },
     ]);
+    expect(testMonitoring().signals).toEqual([]);
   });
 });
 
@@ -96,13 +93,13 @@ describe("a refund made in the provider's dashboard", () => {
         job: expect.objectContaining({ id: job.id }),
       }),
     ]);
-    expect(testMonitoring().signals).toEqual([
+    expect(testMonitoring().counts).toEqual([
       {
         name: "refunded_at_provider",
-        urgency: "counted",
         context: { chargeId: expect.any(String), cents: 2000 },
       },
     ]);
+    expect(testMonitoring().signals).toEqual([]);
   });
 
   test("is a discount: settling the Job again charges nothing back", async () => {
@@ -156,7 +153,7 @@ describe("a refund made in the provider's dashboard", () => {
 
     const history = await historyOf(casey.email);
     expect(history.filter((p) => p.kind === "refund")).toHaveLength(1);
-    expect(testMonitoring().signalled("refunded_at_provider")).toEqual([]);
+    expect(testMonitoring().counted("refunded_at_provider")).toEqual([]);
   });
 });
 

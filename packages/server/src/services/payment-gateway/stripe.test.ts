@@ -50,9 +50,10 @@ describe("Stripe's refusals", () => {
       ok: false,
       reason: declined.decline_code,
     });
-    expect(testMonitoring().signals).toEqual([
-      expect.objectContaining({ name: "charge_declined", urgency: "counted" }),
+    expect(testMonitoring().counts).toEqual([
+      expect.objectContaining({ name: "charge_declined" }),
     ]);
+    expect(testMonitoring().signals).toEqual([]);
   });
 
   test("one of our requests is payment_gateway_error, urgent", async () => {

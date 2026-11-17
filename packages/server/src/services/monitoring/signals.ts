@@ -1,10 +1,11 @@
 import { HOUR_MS, MINUTE_MS } from "@empire-cleaning/models";
 
 // Business signals (ADR-0007): named, never free-form, each with how loudly
-// it's alerted. Sentry's alert rules (#43) route on the urgency tag:
+// it's alerted. Urgent and in_bulk ones are Sentry events, which its alert
+// rules (#43) route on the urgency tag:
 // - urgent: every one is alerted
 // - in_bulk: alerted at more than 3 in 15 minutes, as sign-in links stop
-// - counted: kept for counting, never alerted
+// - counted: a Sentry counter, never an event, so never an issue or alert
 // One that can come in a flood is told at most once in `atMostEvery` ms for
 // each context, so it can't use up the monitoring quota
 type Spec = {
@@ -37,7 +38,9 @@ const SIGNALS = {
 } as const satisfies Record<string, Spec>;
 
 export type Signal = keyof typeof SIGNALS;
-export type Urgency = Spec["urgency"];
+type Urgency = Spec["urgency"];
+// the urgencies sent as Sentry events
+export type Alerted = Exclude<Urgency, "counted">;
 
 export const urgencyOf = (signal: Signal): Urgency => SIGNALS[signal].urgency;
 
