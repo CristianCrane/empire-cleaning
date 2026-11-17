@@ -114,9 +114,15 @@ export const dropOthersUncaught = (
     ? null
     : event;
 
+// frames Sentry's filter can judge: in a file, at a line or column. Native
+// ones (`JSON.parse (<anonymous>)`, Safari's `json@[native code]`) have
+// neither, so the filter skips them and would count the error as others'
 const hasFrames = (error: unknown) =>
   error instanceof Error &&
-  Sentry.defaultStackParser(error.stack ?? "").length > 0;
+  Sentry.defaultStackParser(error.stack ?? "").some(
+    ({ filename, lineno, colno }) =>
+      filename && (lineno != null || colno != null),
+  );
 
 // what may leave of an event: the page's address and browser, the Account ID,
 // and the rest scrubbed. Its breadcrumbs were scrubbed as they were left

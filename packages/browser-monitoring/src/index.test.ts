@@ -169,6 +169,10 @@ describe("errors in code that isn't ours", () => {
   // a body that isn't JSON, made in the browser's own code
   const frameless = new SyntaxError("Unexpected token '<'");
   frameless.stack = "SyntaxError: Unexpected token '<'";
+  // the same, in the browser's own code alone
+  const native = new SyntaxError("Unexpected token '<'");
+  native.stack =
+    "SyntaxError: Unexpected token '<'\n    at JSON.parse (<anonymous>)";
 
   const error = ({
     ours,
@@ -223,6 +227,14 @@ describe("errors in code that isn't ours", () => {
     const event = error({ ours: false, caught: false });
 
     expect(dropOthersUncaught(event, { originalException: frameless })).toBe(
+      event,
+    );
+  });
+
+  test("one with only the browser's own frames is kept too", () => {
+    const event = error({ ours: false, caught: false });
+
+    expect(dropOthersUncaught(event, { originalException: native })).toBe(
       event,
     );
   });
