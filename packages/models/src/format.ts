@@ -41,6 +41,7 @@ const formatsIn = (lang: Language) => {
   const day = asWritten({ weekday: "short", month: "short", day: "numeric" });
   const shortDay = asWritten({ month: "short", day: "numeric" });
   const longDay = asWritten({ weekday: "long", month: "long", day: "numeric" });
+  const fullDay = asWritten({ month: "long", day: "numeric", year: "numeric" });
   const weekday = asWritten({ weekday: "long" });
   const month = asWritten({ month: "long", year: "numeric" });
   const clock = { hour: "numeric", minute: "2-digit" } as const;
@@ -80,6 +81,8 @@ const formatsIn = (lang: Language) => {
     formatShortDay: (d: string) => shortDay.format(noonOf(d)),
     // "2026-01-12" -> "Monday, January 12", as an email writes it
     formatLongDay: (d: string) => longDay.format(noonOf(d)),
+    // "2026-11-17" -> "November 17, 2026", as a policy dates itself
+    formatFullDay: (d: string) => fullDay.format(noonOf(d)),
     // "2026-01-05" -> "Monday"
     weekdayName: (d: string) => weekday.format(noonOf(d)),
     // the days of the week, Monday first, as Weekday counts them: "Monday",

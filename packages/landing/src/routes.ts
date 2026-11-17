@@ -2,7 +2,10 @@ import {
   catalog,
   type Language,
   LANGUAGES,
+  LEGAL_KEYS,
   landingHome as home,
+  legalPathOf,
+  type LegalKey,
 } from "@empire-cleaning/models";
 import { areaOf, areas, type AreaKey } from "./areas/index.ts";
 import { business } from "./business.ts";
@@ -19,7 +22,8 @@ export type Page =
   | { kind: "home" }
   | { kind: "area"; area: AreaKey }
   | { kind: "service"; service: ServiceKey }
-  | { kind: "guide"; guide: GuideKey };
+  | { kind: "guide"; guide: GuideKey }
+  | { kind: "legal"; legal: LegalKey };
 
 const folders = catalog({
   en: { services: "services", guides: "guides" },
@@ -37,6 +41,8 @@ export const pathOf = (page: Page, lang: Language): string => {
       return `${home[lang]}${folders[lang].services}/${pageOf(page.service)![lang].slug}/`;
     case "guide":
       return `${home[lang]}${folders[lang].guides}/${guideOf(page.guide)[lang].slug}/`;
+    case "legal":
+      return legalPathOf(page.legal, lang);
   }
 };
 
@@ -54,6 +60,7 @@ export const pages: Page[] = [
     service: p.en.card,
   })),
   ...guides.map((g) => ({ kind: "guide" as const, guide: g.en.key })),
+  ...LEGAL_KEYS.map((legal) => ({ kind: "legal" as const, legal })),
 ];
 
 // a route's pages in both languages, for its getStaticPaths: its rest

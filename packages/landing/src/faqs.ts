@@ -19,6 +19,19 @@ export const speakSpanish: Faq = {
     "Sí. Our crew speaks English and Spanish, so you can talk to us in whichever you prefer.",
 };
 
+// how the deposit works, asked on the home page and answered the same in
+// the Terms of service (src/legal/terms.ts)
+export const deposit: Faq = {
+  question: "How does the deposit work?",
+  answer:
+    "To book, you accept your quote online and pay a deposit. The rest is charged once the clean is done. A cleaning plan holds one deposit for its whole life, which goes towards its last visit.",
+};
+
+// when moving or cancelling a clean is free, as the home page's answer and
+// the Terms of service say it
+export const moveOrCancel =
+  "Moving or cancelling 24 hours or more before is free. Moving it within 24 hours is free once per clean; cancelling within 24 hours keeps the deposit as a fee.";
+
 export const faqs = catalog<Faq[]>({
   en: [
     {
@@ -40,15 +53,10 @@ export const faqs = catalog<Faq[]>({
       answer:
         "Of course. Say so when you request a quote, so it's in the time we allow and the crew knows who they'll meet at the door.",
     },
-    {
-      question: "How does the deposit work?",
-      answer:
-        "To book, you accept your quote online and pay a deposit. The rest is charged once the clean is done. A cleaning plan holds one deposit for its whole life, which goes towards its last visit.",
-    },
+    deposit,
     {
       question: "Can I move or cancel a clean?",
-      answer:
-        "Yes, from your account. Moving or cancelling 24 hours or more before is free. Moving it within 24 hours is free once per clean; cancelling within 24 hours keeps the deposit as a fee.",
+      answer: `Yes, from your account. ${moveOrCancel}`,
     },
     {
       question: "Where do you clean?",
