@@ -63,8 +63,8 @@ export const terms: LegalPage = {
       title: "Cleaning plans",
       text: [
         "Once we've cleaned for you, or visited to see the place where a service needs it, you can have a cleaning plan, with visits every week, every 2 weeks or every 4 weeks, at the discount your quote shows. Each clean is charged when it's done. To change your plan, ask us for a new quote.",
-        `Skipping a clean follows the rules for cancelling. Less than ${CUTOFF} hours before, or if we couldn't get in, there's a fee the same as your plan's deposit, and your deposit stays held.`,
-        `You can end your plan whenever you like. Its cleans ${CUTOFF} hours or more away are cancelled for free, and closer ones go ahead. Its deposit goes towards its last clean, and anything left over is refunded.`,
+        `Skipping a clean follows the rules for cancelling, but one we booked less than ${CUTOFF} hours before it is free to skip. Less than ${CUTOFF} hours before, or if we couldn't get in, there's a fee: that clean's share of your plan's deposit. Your deposit stays held.`,
+        `You can end your plan whenever you like. Its cleans ${CUTOFF} hours or more away, and any we booked less than ${CUTOFF} hours before them, are cancelled for free; the others go ahead. Its deposit goes towards its last clean, and anything left over is refunded.`,
         `If we can't take a payment for your plan, we'll ask you to ${said.UPDATE_AND_RETRY}. ${said.PLAN_PAUSED}`,
       ],
     },
@@ -77,7 +77,7 @@ export const terms: LegalPage = {
     {
       title: "Refunds",
       text: [
-        `What we owe you back, such as a deposit for a clean cancelled in time, is refunded to the card you paid with. ${said.REFUND_TAKES_DAYS}`,
+        `What we owe you back, such as a deposit for a clean cancelled in time, goes back the way you paid it: to your card, or to your bank account for a weekly bill paid from it. ${said.REFUND_TAKES_DAYS}`,
       ],
     },
     {

@@ -7,9 +7,6 @@ import type { Faq } from "./faqs.ts";
 // the home page's questions in Spanish (faqs.ts has the English): a draft
 // the owner checks (#206)
 
-// asked on the home page and every area's. The English pages ask "Do you
-// speak Spanish?"; to someone already reading Spanish, the answer is that
-// they can talk to us in it
 // faqs.ts's deposit and moveOrCancel, in Spanish
 export const deposito: Faq = {
   question: "¿Cómo funciona el depósito?",
@@ -18,6 +15,9 @@ export const deposito: Faq = {
 };
 export const reprogramarOCancelar = `Reprogramar o cancelar con ${LATE} horas o más de anticipación es gratis. Reprogramar con menos de ${LATE} horas es gratis una vez por limpieza; cancelar con menos de ${CUTOFF} horas conserva el depósito como cargo.`;
 
+// asked on the home page and every area's. The English pages ask "Do you
+// speak Spanish?"; to someone already reading Spanish, the answer is that
+// they can talk to us in it
 export const hablamosEspanol: Faq = {
   question: "¿Me pueden atender en español?",
   answer:

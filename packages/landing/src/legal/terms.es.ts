@@ -57,8 +57,8 @@ export const terms: LegalWords = {
       title: "Planes de limpieza",
       text: [
         "Cuando ya limpiamos para usted, o visitamos el lugar si el servicio lo necesita, puede tener un plan de limpieza, con visitas cada semana, cada 2 semanas o cada 4 semanas, con el descuento que aparece en su cotización. Cada limpieza se cobra cuando está terminada. Para cambiar su plan, pídanos una nueva cotización.",
-        `Saltar una limpieza sigue las reglas para cancelar. Con menos de ${CUTOFF} horas de anticipación, o si no pudimos entrar, hay un cargo igual al depósito de su plan, y su depósito sigue retenido.`,
-        `Puede terminar su plan cuando quiera. Sus limpiezas a ${CUTOFF} horas o más se cancelan gratis, y las más cercanas siguen en pie. Su depósito se aplica a su última limpieza, y se le reembolsa lo que sobre.`,
+        `Saltar una limpieza sigue las reglas para cancelar, pero una que reservamos con menos de ${CUTOFF} horas de anticipación se puede saltar gratis. Con menos de ${CUTOFF} horas de anticipación, o si no pudimos entrar, hay un cargo: la parte de esa limpieza en el depósito de su plan. Su depósito sigue retenido.`,
+        `Puede terminar su plan cuando quiera. Sus limpiezas a ${CUTOFF} horas o más, y las que reservamos con menos de ${CUTOFF} horas de anticipación, se cancelan gratis; las demás siguen en pie. Su depósito se aplica a su última limpieza, y se le reembolsa lo que sobre.`,
         `Si no podemos cobrar un pago de su plan, le pediremos que ${said.UPDATE_AND_RETRY}. ${said.PLAN_PAUSED}`,
       ],
     },
@@ -71,7 +71,7 @@ export const terms: LegalWords = {
     {
       title: "Reembolsos",
       text: [
-        `Lo que le debemos, como el depósito de una limpieza cancelada a tiempo, se reembolsa a la tarjeta con la que pagó. ${said.REFUND_TAKES_DAYS}`,
+        `Lo que le debemos, como el depósito de una limpieza cancelada a tiempo, se le devuelve por donde pagó: a su tarjeta, o a su cuenta bancaria si pagó desde ella una factura semanal. ${said.REFUND_TAKES_DAYS}`,
       ],
     },
     {
