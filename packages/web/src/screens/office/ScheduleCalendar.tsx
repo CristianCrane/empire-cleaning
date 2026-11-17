@@ -32,6 +32,7 @@ import {
 import { linkTo } from "../../links.ts";
 import {
   HOUR_PX,
+  onAxis,
   PickSlot,
   TimeGrid,
   type TimePickerProps,
@@ -81,6 +82,16 @@ const blockOf = {
   info: "border-info-strong bg-info-subtle",
   warning: "border-warning-strong bg-warning-subtle",
   neutral: "border-neutral-strong bg-neutral-subtle",
+} as const;
+
+// a dragged Job's outline where it would land: its colours, its edge dashed
+// all round so it shows over its own block and others, its fill see-through
+const outlineOf = {
+  success: "border-success-strong bg-success-subtle/60",
+  danger: "border-danger-strong bg-danger-subtle/60",
+  info: "border-info-strong bg-info-subtle/60",
+  warning: "border-warning-strong bg-warning-subtle/60",
+  neutral: "border-neutral-strong bg-neutral-subtle/60",
 } as const;
 
 const toneOf = (job: ScheduledJob) => {
@@ -188,6 +199,13 @@ export function ScheduleCalendar({
   // where it's let go; state too, so days without room for it fade
   const dragging = useRef<Dragging>(undefined);
   const [draggedJob, setDraggedJob] = useState<ScheduledJob>();
+  // where it would land if let go now, drawn there; kept as it is while the
+  // pointer stays in the same quarter hour, so only a move redraws
+  const [landing, setLanding] = useState<LocalDateTime>();
+  const landAt = (to: LocalDateTime | undefined) =>
+    setLanding((was) =>
+      was?.date === to?.date && was?.time === to?.time ? was : to,
+    );
   // how many Jobs fit side by side in a day: in the week view, as many as
   // its width can show; with fewer days, every one
   const frame = useRef<HTMLDivElement>(null);
@@ -202,19 +220,27 @@ export function ScheduleCalendar({
         )
       : Infinity;
 
-  const drop = (day: ScheduleDay, e: DragEvent<HTMLElement>) => {
-    const grabbed = dragging.current;
-    if (!onDrop || !grabbed || !hasRoomFor(day, grabbed.job)) return;
-    e.preventDefault();
+  // when a Job dragged over a day's body would start there: its top where
+  // the pointer is less how far down it was grabbed, snapped to the quarter
+  // hour and kept on the axis
+  const landingOf = (e: DragEvent<HTMLElement>, grabbed: Dragging) => {
     const top =
       e.clientY -
       e.currentTarget.getBoundingClientRect().top -
       grabbed.grabbedAtPx;
-    const at = Math.min(
-      Math.max(snap(axis.start + top / HOUR_PX), axis.start),
-      axis.end - SNAP_HOURS,
+    return timeAt(
+      Math.min(
+        Math.max(snap(axis.start + top / HOUR_PX), axis.start),
+        axis.end - SNAP_HOURS,
+      ),
     );
-    const to = { date: day.date, time: timeAt(at) };
+  };
+
+  const drop = (day: ScheduleDay, e: DragEvent<HTMLElement>) => {
+    const grabbed = dragging.current;
+    if (!onDrop || !grabbed || !hasRoomFor(day, grabbed.job)) return;
+    e.preventDefault();
+    const to = { date: day.date, time: landingOf(e, grabbed) };
     const { job } = grabbed;
     if (
       to.date !== dayOfInstant(job.startsAt) ||
@@ -244,7 +270,12 @@ export function ScheduleCalendar({
           return {
             date: day.date,
             className:
-              (draggedJob && !hasRoomFor(day, draggedJob)) || !isOpen(day.date)
+              // a day without room fades, but not under the outline, whose
+              // red says so
+              (draggedJob &&
+                !hasRoomFor(day, draggedJob) &&
+                landing?.date !== day.date) ||
+              !isOpen(day.date)
                 ? "opacity-40"
                 : "",
             header: (
@@ -273,10 +304,17 @@ export function ScheduleCalendar({
               className: day.staffHours === 0 ? "bg-surface-sunken" : "",
               onDragOver: (e) => {
                 const grabbed = dragging.current;
-                if (grabbed && hasRoomFor(day, grabbed.job)) {
+                if (!grabbed) return;
+                if (hasRoomFor(day, grabbed.job)) {
                   e.preventDefault();
                   e.dataTransfer.dropEffect = "move";
                 }
+                landAt({ date: day.date, time: landingOf(e, grabbed) });
+              },
+              // leaving the day, not just moving onto a block within it
+              onDragLeave: (e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null))
+                  landAt(undefined);
               },
               onDrop: (e) => drop(day, e),
             },
@@ -322,8 +360,17 @@ export function ScheduleCalendar({
                   onDragEnd={() => {
                     dragging.current = undefined;
                     setDraggedJob(undefined);
+                    landAt(undefined);
                   }}
                 />
+                {draggedJob && landing?.date === day.date && (
+                  <Landing
+                    job={draggedJob}
+                    time={landing.time}
+                    axis={axis}
+                    taken={hasRoomFor(day, draggedJob)}
+                  />
+                )}
               </>
             ),
           };
@@ -556,12 +603,10 @@ function DayJobs({
 }) {
   const place = (block: Block) => {
     const { lane, lanes: of } = lanes.get(block.id)!;
-    return {
-      top: (block.start - axisStart) * HOUR_PX + 1,
-      height: (block.end - block.start) * HOUR_PX - 2,
-      left: `calc(${(lane / of) * 100}% + 2px)`,
-      width: `calc(${100 / of}% - 4px)`,
-    };
+    return onAxis(block.start, block.end - block.start, axisStart, {
+      lane,
+      of,
+    });
   };
 
   return (
@@ -608,11 +653,16 @@ function DayJobs({
             onDragStart={(e) => {
               e.dataTransfer.effectAllowed = "move";
               e.dataTransfer.setData("text/plain", job.id);
-              onDragStart({
-                job,
-                grabbedAtPx:
-                  e.clientY - e.currentTarget.getBoundingClientRect().top,
-              });
+              const box = e.currentTarget.getBoundingClientRect();
+              const grabbedAtPx = e.clientY - box.top;
+              // the drag starts on the link inside, whose own picture is only
+              // its words: the pointer carries the whole block instead
+              e.dataTransfer.setDragImage(
+                e.currentTarget,
+                e.clientX - box.left,
+                grabbedAtPx,
+              );
+              onDragStart({ job, grabbedAtPx });
             }}
             onDragEnd={onDragEnd}
             className={`absolute overflow-hidden rounded-md border-s-4 shadow-sm ${tone.block} ${!interactive ? "pointer-events-none" : movable && job.movable ? "cursor-grab active:cursor-grabbing" : ""}`}
@@ -682,5 +732,34 @@ function DayJobs({
         </div>
       )}
     </>
+  );
+}
+
+// a Job being dragged, drawn faintly in its own colours the width of the day
+// where it would land if let go now, at its size on the calendar, cut off at
+// the axis's end; in red over a day that won't take it
+function Landing({
+  job,
+  time,
+  axis,
+  taken,
+}: {
+  job: ScheduledJob;
+  time: string;
+  axis: { start: number; end: number };
+  taken: boolean;
+}) {
+  const block = drawn(job.id, hoursOf(time), job.hoursOnSite);
+  return (
+    <div
+      className={`pointer-events-none absolute overflow-hidden rounded-md border-2 border-dashed px-1.5 py-1 text-xs leading-tight font-semibold ${outlineOf[taken ? toneOf(job).tone : "danger"]}`}
+      style={onAxis(
+        block.start,
+        Math.min(block.end, axis.end) - block.start,
+        axis.start,
+      )}
+    >
+      {formatClock(time)} {shortClientName(job.client)}
+    </div>
   );
 }
