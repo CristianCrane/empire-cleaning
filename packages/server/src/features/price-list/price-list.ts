@@ -10,9 +10,14 @@ import type {
   PremisesTypeChoice,
   PriceList,
   PriceListInput,
+  SavedFrom,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
-import { fieldError } from "../../middleware/errors.ts";
+import {
+  changedSince,
+  ConflictError,
+  fieldError,
+} from "../../middleware/errors.ts";
 import {
   currentServices,
   findService,
@@ -197,6 +202,10 @@ const insertVersion = async (
   }
 };
 
+// taken by whatever makes a version, so one makes it at a time from the
+// latest
+const NEW_VERSION = 4004;
+
 const withKeys = <T extends { key?: string }>(items: T[]) =>
   items.map((item) => ({ ...item, key: item.key ?? crypto.randomUUID() }));
 
@@ -210,7 +219,7 @@ export const currentPriceList = async (
 
   // two first reads at once mustn't both create version 1
   const create = async (tx: Tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(4004)`);
+    await tx.execute(sql`select pg_advisory_xact_lock(${NEW_VERSION})`);
     const [already] = await tx
       .select({ id: priceLists.id })
       .from(priceLists)
@@ -268,34 +277,37 @@ const checkServiceKeys = async (input: PriceListInput) => {
   }
 };
 
-// Saves a new version. Add-ons and Premises Types are never deleted: one left
-// out of the submission is kept, retired.
+// Saves a new version, from the one it was made from: once someone has
+// saved a newer one, it's refused, so nobody's change is lost unseen (#447).
+// Add-ons and Premises Types are never deleted: one left out of the
+// submission is kept, retired.
 export const savePriceList = async (
-  input: PriceListInput,
+  { version, ...input }: SavedFrom<PriceListInput>,
   createdBy: string,
 ): Promise<PriceList> => {
   await checkServiceKeys(input);
-  const current = await currentPriceList();
-  const addOns = keepRetired(
-    input.addOns,
-    current.addOns,
-    "addOns",
-    "That extra was taken off the prices. Reload the page",
-  );
-  const premisesTypes = keepRetired(
-    input.premisesTypes,
-    current.premisesTypes,
-    "premisesTypes",
-    "That type of business was taken off the prices. Reload the page",
-  );
-
-  await db.transaction((tx) =>
-    insertVersion(
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${NEW_VERSION})`);
+    const current = await currentPriceList(tx);
+    if (current.version !== version) throw new ConflictError(changedSince());
+    const addOns = keepRetired(
+      input.addOns,
+      current.addOns,
+      "addOns",
+      "That extra was taken off the prices. Reload the page",
+    );
+    const premisesTypes = keepRetired(
+      input.premisesTypes,
+      current.premisesTypes,
+      "premisesTypes",
+      "That type of business was taken off the prices. Reload the page",
+    );
+    await insertVersion(
       tx,
       { ...input, addOns, premisesTypes },
       { placeholder: false, createdBy },
-    ),
-  );
+    );
+  });
   return currentPriceList();
 };
 

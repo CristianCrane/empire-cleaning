@@ -27,17 +27,18 @@ import {
 } from "@empire-cleaning/ui";
 import { putJson } from "../../api.ts";
 import { useAction } from "../action.ts";
+import { useDraftOf } from "./draft.ts";
 import { dayOfInstant, formatHours, screenWords } from "../format.ts";
 
 const { cleaners, conditionLabel } = screenWords.en;
 
 const { formatShortDay } = formats.en;
 
-// what's saved: every save is the whole list, as a new version
+// what's saved: every save is the whole list, as a new version, with the
+// version it was made from
 type Draft = Omit<
   PriceList,
   | "id"
-  | "version"
   | "placeholder"
   | "createdAt"
   | "createdByName"
@@ -51,7 +52,6 @@ type Draft = Omit<
 const toDraft = (list: PriceList): Draft => {
   const {
     id: _id,
-    version: _version,
     placeholder: _placeholder,
     createdAt: _createdAt,
     createdByName: _createdByName,
@@ -115,9 +115,13 @@ export function PriceListScreen() {
   );
 }
 
-// saves the list with one part changed, closing its dialog once it's saved
+// saves the list with one part changed, closing its dialog once it's saved.
+// It reloads on failure too: a save made from a version someone has since
+// replaced is refused, and the dialog then shows theirs (useDraftOf)
 const useSave = (list: PriceList) => {
-  const action = useAction("The prices weren't saved. Please try again.");
+  const action = useAction("The prices weren't saved. Please try again.", {
+    reloadOnFailure: true,
+  });
   const save = async (change: Partial<Draft>, close?: () => void) => {
     if (
       await action.run(
@@ -192,9 +196,12 @@ const offeredAndRetired = <T extends { active: boolean }>(
   };
 };
 
+// the item a dialog is open on, by its key (the same in every version), or
+// "new"
+type Open = string | null;
+
 function AddOns({ list, services }: { list: PriceList; services: Service[] }) {
-  // the Add-on open, by its place in the list; the next place for a new one
-  const [open, setOpen] = useState<number | null>(null);
+  const [open, setOpen] = useState<Open>(null);
   const servicesBy = new Map(services.map((s) => [s.key, s.name]));
   const goesWith = (addOn: PriceListAddOn) =>
     addOn.serviceKeys.length
@@ -206,11 +213,7 @@ function AddOns({ list, services }: { list: PriceList; services: Service[] }) {
       <SettingsList
         title="Extras"
         actions={
-          <Button
-            variant="text"
-            size="sm"
-            onPress={() => setOpen(list.addOns.length)}
-          >
+          <Button variant="text" size="sm" onPress={() => setOpen("new")}>
             <Plus aria-hidden size={16} />
             Add an extra
           </Button>
@@ -226,14 +229,14 @@ function AddOns({ list, services }: { list: PriceList; services: Service[] }) {
           ]
             .filter(Boolean)
             .join(" · "),
-          onOpen: () => setOpen(i),
+          onOpen: () => setOpen(addOn.key),
         }))}
       />
       {open !== null && (
         <AddOnDialog
           list={list}
           services={services}
-          index={open}
+          open={open}
           close={() => setOpen(null)}
         />
       )}
@@ -244,16 +247,19 @@ function AddOns({ list, services }: { list: PriceList; services: Service[] }) {
 function AddOnDialog({
   list,
   services,
-  index,
+  open,
   close,
 }: {
   list: PriceList;
   services: Service[];
-  index: number;
+  open: string;
   close: () => void;
 }) {
-  const saved = list.addOns[index];
-  const [addOn, setAddOn] = useState<PriceListAddOn>(
+  const saved = list.addOns.find((a) => a.key === open);
+  // its place in what's saved, which the API's field errors name
+  const index = saved ? list.addOns.indexOf(saved) : list.addOns.length;
+  const [addOn, setAddOn] = useDraftOf<PriceListAddOn>(
+    list.version,
     () =>
       saved ?? {
         name: "",
@@ -289,7 +295,7 @@ function AddOnDialog({
           void save(
             {
               addOns: saved
-                ? list.addOns.map((a, i) => (i === index ? addOn : a))
+                ? list.addOns.map((a) => (a.key === saved.key ? addOn : a))
                 : [...list.addOns, addOn],
             },
             close,
@@ -355,18 +361,14 @@ function AddOnDialog({
 }
 
 function PremisesTypes({ list }: { list: PriceList }) {
-  const [open, setOpen] = useState<number | null>(null);
+  const [open, setOpen] = useState<Open>(null);
 
   return (
     <>
       <SettingsList
         title="Types of business"
         actions={
-          <Button
-            variant="text"
-            size="sm"
-            onPress={() => setOpen(list.premisesTypes.length)}
-          >
+          <Button variant="text" size="sm" onPress={() => setOpen("new")}>
             <Plus aria-hidden size={16} />
             Add a type of business
           </Button>
@@ -376,13 +378,13 @@ function PremisesTypes({ list }: { list: PriceList }) {
           id: String(i),
           title: premisesType.name,
           description: times(premisesType.multiplier),
-          onOpen: () => setOpen(i),
+          onOpen: () => setOpen(premisesType.key),
         }))}
       />
       {open !== null && (
         <PremisesTypeDialog
           list={list}
-          index={open}
+          open={open}
           close={() => setOpen(null)}
         />
       )}
@@ -392,15 +394,20 @@ function PremisesTypes({ list }: { list: PriceList }) {
 
 function PremisesTypeDialog({
   list,
-  index,
+  open,
   close,
 }: {
   list: PriceList;
-  index: number;
+  open: string;
   close: () => void;
 }) {
-  const saved = list.premisesTypes[index];
-  const [premisesType, setPremisesType] = useState<PriceListPremisesType>(
+  const saved = list.premisesTypes.find((t) => t.key === open);
+  // its place in what's saved, which the API's field errors name
+  const index = saved
+    ? list.premisesTypes.indexOf(saved)
+    : list.premisesTypes.length;
+  const [premisesType, setPremisesType] = useDraftOf<PriceListPremisesType>(
+    list.version,
     () => saved ?? { name: "", multiplier: 1, active: true },
   );
   const { action, save } = useSave(list);
@@ -421,8 +428,8 @@ function PremisesTypeDialog({
           void save(
             {
               premisesTypes: saved
-                ? list.premisesTypes.map((t, i) =>
-                    i === index ? premisesType : t,
+                ? list.premisesTypes.map((t) =>
+                    t.key === saved.key ? premisesType : t,
                   )
                 : [...list.premisesTypes, premisesType],
             },
@@ -516,7 +523,8 @@ function FiguresForm({
   fields: Fields;
   close: () => void;
 }) {
-  const [figures, setFigures] = useState(
+  const [figures, setFigures] = useDraftOf(
+    list.version,
     () =>
       Object.fromEntries(
         names.map((name) => [name, list[name]]),

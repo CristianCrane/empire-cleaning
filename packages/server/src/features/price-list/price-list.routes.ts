@@ -35,7 +35,8 @@ router.get("/", authorize("office_staff"), async (_req, res) => {
   res.json(await currentPriceList());
 });
 
-// every save is a new version; changes only affect prices worked out from now
+// every save is a new version, made from the latest; changes only affect
+// prices worked out from now
 router.put(
   "/",
   authorize("office_staff"),

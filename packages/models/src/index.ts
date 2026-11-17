@@ -377,6 +377,11 @@ export type PriceListInput = {
   premisesTypes: PriceListPremisesType[];
 };
 
+// a save of something kept in versions (the Price List, a Service): what's
+// saved, and the version it was made from, which the server refuses once
+// someone has saved a newer one (#447)
+export type SavedFrom<T> = T & { version: number };
+
 // a saved version of the Price List; every save is a new version
 export type PriceList = Omit<PriceListInput, "addOns" | "premisesTypes"> & {
   id: string;
