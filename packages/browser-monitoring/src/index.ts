@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/react";
-import type { Breadcrumb, Event } from "@sentry/react";
+import type { Breadcrumb, ErrorEvent, Event } from "@sentry/react";
 import { scrub, scrubText } from "@empire-cleaning/models";
+import { APPLICATION_KEY } from "./application-key.ts";
 
 // Sentry in the browser (ADR-0007): the web app and every landing page each
 // start it once, and only here is it set up. Without a DSN (dev,
@@ -45,6 +46,13 @@ export const startMonitoring = ({
     integrations: [
       tracing ?? Sentry.browserTracingIntegration(),
       ...(feedback ? [feedback] : []),
+      // tags an error with no frame from our builds (`third_party_code`),
+      // Sentry's own wrapper aside, for `dropOthersUncaught`
+      Sentry.thirdPartyErrorFilterIntegration({
+        filterKeys: [APPLICATION_KEY],
+        behaviour: "apply-tag-if-exclusively-contains-third-party-frames",
+        ignoreSentryInternalFrames: true,
+      }),
     ],
     tracesSampleRate: 0.2,
     tracePropagationTargets: apiUrl ? [apiUrl] : [/^\/api\//],
@@ -62,6 +70,7 @@ export const startMonitoring = ({
       "NetworkError when attempting to fetch resource.",
       "Load failed",
     ],
+    beforeSend: dropOthersUncaught,
     beforeSendSpan: (span) => scrub(span),
     beforeBreadcrumb: scrubBreadcrumb,
   });
@@ -85,6 +94,15 @@ export const report = (error: unknown) => {
 // after them (/portal/jobs/$jobId), for `tracing`
 export const routerTracing = (router: unknown) =>
   Sentry.tanstackRouterBrowserTracingIntegration(router);
+
+// An error nothing of ours caught, in code that isn't ours (an extension,
+// Stripe.js, Google's sign-in), is dropped: nobody here can act on it. One our
+// code caught and reported is kept, wherever it was thrown
+export const dropOthersUncaught = (event: ErrorEvent): ErrorEvent | null =>
+  event.tags?.third_party_code === true &&
+  event.exception?.values?.some(({ mechanism }) => mechanism?.handled === false)
+    ? null
+    : event;
 
 // what may leave of an event: the page's address and browser, the Account ID,
 // and the rest scrubbed. Its breadcrumbs were scrubbed as they were left

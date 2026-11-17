@@ -1,7 +1,12 @@
 import * as Sentry from "@sentry/react";
 import type { ErrorEvent, Event } from "@sentry/react";
 import { describe, expect, test } from "vitest";
-import { scrubBreadcrumb, scrubEvent, startMonitoring } from "./index.ts";
+import {
+  dropOthersUncaught,
+  scrubBreadcrumb,
+  scrubEvent,
+  startMonitoring,
+} from "./index.ts";
 
 // no Client's details reach Sentry from the browser (ADR-0007)
 describe("scrubbing", () => {
@@ -150,6 +155,52 @@ describe("scrubbing", () => {
         message: "Casey Client, 41 Austin St",
       }),
     ).toBeNull();
+  });
+});
+
+// a Sentry issue means a person must act (#458): Sentry's filter tags an
+// error with no frame from our builds, and only one nothing of ours caught
+// is dropped
+describe("errors in code that isn't ours", () => {
+  const error = ({
+    ours,
+    caught,
+  }: {
+    ours: boolean;
+    caught: boolean;
+  }): ErrorEvent => ({
+    type: undefined,
+    ...(ours ? {} : { tags: { third_party_code: true } }),
+    exception: {
+      values: [
+        {
+          type: "TypeError",
+          value: "x is undefined",
+          mechanism: {
+            type: caught ? "generic" : "auto.browser.global_handlers.onerror",
+            handled: caught,
+          },
+        },
+      ],
+    },
+  });
+
+  test("one nothing of ours caught is dropped", () => {
+    expect(dropOthersUncaught(error({ ours: false, caught: false }))).toBe(
+      null,
+    );
+  });
+
+  test("one our code caught and reported is kept", () => {
+    const event = error({ ours: false, caught: true });
+
+    expect(dropOthersUncaught(event)).toBe(event);
+  });
+
+  test("one in our code is kept, caught or not", () => {
+    const event = error({ ours: true, caught: false });
+
+    expect(dropOthersUncaught(event)).toBe(event);
   });
 });
 
