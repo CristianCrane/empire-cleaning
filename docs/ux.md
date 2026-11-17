@@ -392,6 +392,13 @@ stays as it is (#336).
 - **A field that's too long says its limit**: "Keep the reason under 500
   characters", from the server's `keepUnder`, since the number is what fixes
   it.
+- **Words that state a rule are checked against the code that applies
+  it**, never against another page's or message's wording of it: copies
+  drift from the code together. The app told a plan's Client a late fee
+  was the plan's whole deposit, and the first Terms of service copied it,
+  while `lateFeeOf` charges that clean's share (#462). Words on money,
+  fees, refunds or who sees a Client's details name, in the review's
+  prompt, the function each claim was checked against.
 - **To a Client, we're "us"**: "Please call us", not "the Office".
 - **A message the server and a screen both show is written once**, in
   `packages/models/src/messages/`, which both import: a file per subject,
