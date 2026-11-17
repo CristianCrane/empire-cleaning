@@ -1,4 +1,8 @@
-import { catalog } from "@empire-cleaning/models";
+import {
+  CANCELLATION_CUTOFF_HOURS as CUTOFF,
+  catalog,
+  LATE_RESCHEDULE_HOURS as LATE,
+} from "@empire-cleaning/models";
 import { faqs as faqsEs } from "./faqs.es.ts";
 import type { Page } from "./routes.ts";
 
@@ -29,8 +33,7 @@ export const deposit: Faq = {
 
 // when moving or cancelling a clean is free, as the home page's answer and
 // the Terms of service say it
-export const moveOrCancel =
-  "Moving or cancelling 24 hours or more before is free. Moving it within 24 hours is free once per clean; cancelling within 24 hours keeps the deposit as a fee.";
+export const moveOrCancel = `Moving or cancelling ${LATE} hours or more before is free. Moving it within ${LATE} hours is free once per clean; cancelling within ${CUTOFF} hours keeps the deposit as a fee.`;
 
 export const faqs = catalog<Faq[]>({
   en: [

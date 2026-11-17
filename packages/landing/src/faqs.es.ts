@@ -1,3 +1,7 @@
+import {
+  CANCELLATION_CUTOFF_HOURS as CUTOFF,
+  LATE_RESCHEDULE_HOURS as LATE,
+} from "@empire-cleaning/models";
 import type { Faq } from "./faqs.ts";
 
 // the home page's questions in Spanish (faqs.ts has the English): a draft
@@ -12,8 +16,7 @@ export const deposito: Faq = {
   answer:
     "Para reservar, acepta su cotización en línea y paga un depósito. El resto se cobra cuando la limpieza está terminada. Un plan de limpieza tiene un solo depósito durante toda su vida, que se aplica a su última visita.",
 };
-export const reprogramarOCancelar =
-  "Reprogramar o cancelar con 24 horas o más de anticipación es gratis. Reprogramar con menos de 24 horas es gratis una vez por limpieza; cancelar con menos de 24 horas conserva el depósito como cargo.";
+export const reprogramarOCancelar = `Reprogramar o cancelar con ${LATE} horas o más de anticipación es gratis. Reprogramar con menos de ${LATE} horas es gratis una vez por limpieza; cancelar con menos de ${CUTOFF} horas conserva el depósito como cargo.`;
 
 export const hablamosEspanol: Faq = {
   question: "¿Me pueden atender en español?",
