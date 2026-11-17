@@ -22,7 +22,7 @@ const themeBoot = createHash("sha256").update(themeBootScript).digest("base64");
 const beacon = analytics(env.PUBLIC_CF_ANALYTICS_TOKEN);
 
 // a static site (ADR-0005): every page is prerendered to HTML at build time,
-// and only interactive islands ship JavaScript
+// and carries only the few scripts the README lists (JavaScript)
 export default defineConfig({
   site: "https://www.empirecleaningandpro.com",
   output: "static",
