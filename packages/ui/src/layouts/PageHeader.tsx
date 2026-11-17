@@ -69,8 +69,21 @@ export function PageHeader({
   // phone's search icon)
   tools?: ReactNode;
 }) {
+  // a phone's bar already says the title, and it's all there is: the header
+  // is hidden there with it, so it takes no room of its own, not even the
+  // gap its layout leaves between parts (the Schedule, Offers, Your details)
+  const titleAlone =
+    inBar &&
+    !trail &&
+    !status &&
+    !subtitle &&
+    !tools &&
+    !primary &&
+    !actions.some((a) => !!a);
   return (
-    <header className="flex flex-col gap-4">
+    <header
+      className={`flex flex-col gap-4 ${titleAlone ? "max-md:sr-only" : ""}`}
+    >
       {trail && (
         <div className="print:hidden">
           <Breadcrumbs trail={trail} />
