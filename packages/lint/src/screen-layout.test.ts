@@ -65,6 +65,12 @@ new RuleTester().run("screen-layout", rule, {
       errors: ownPart,
     },
     { code: `const a = <h1>Job</h1>;`, ...tsx, errors: ownPart },
+    // the shared page header, which only a layout places
+    {
+      code: `import { PageHeader } from "@empire-cleaning/ui"; const a = <PageHeader title="Schedule" inBar />;`,
+      ...tsx,
+      errors: ownPart,
+    },
     // under another name, or through the kit's namespace
     {
       code: `import { Breadcrumbs as Crumbs } from "@empire-cleaning/ui"; const a = <Crumbs items={[]} />;`,

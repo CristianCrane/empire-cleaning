@@ -67,11 +67,11 @@
     },
     {
       // a screen renders through the layout for its type, never placing the
-      // page's parts itself (ADR-0031, packages/lint/README.md): a warning
-      // until every type has its layout (#437). The layouts live in the kit,
-      // where it doesn't run; the test site's People page has no type
+      // page's parts itself (ADR-0031, packages/lint/README.md); every type
+      // has its layout since #437. The layouts live in the kit, where it
+      // doesn't run; the test site's People page has no type
       "files": ["packages/web/src/screens/**"],
-      "rules": { "empire/screen-layout": "warn" }
+      "rules": { "empire/screen-layout": "error" }
     },
     {
       "files": ["packages/web/src/screens/PeopleScreen.tsx"],

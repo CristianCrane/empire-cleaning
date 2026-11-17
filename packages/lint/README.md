@@ -41,13 +41,13 @@ As it looks deep, it also flags a string under a branch that isn't words, such a
 
 ## `empire/screen-layout`
 
-A screen renders through the layout for its type (ADR-0031, `docs/ux.md`, Screen types), never placing the page's parts itself. It warns on each part a screen places:
+A screen renders through the layout for its type (ADR-0031, `docs/ux.md`, Screen types), never placing the page's parts itself. It's an error on each part a screen places:
 
-- the kit's `Breadcrumbs` and `ActionFooter`, under whatever name they're imported as, or through `import * as`
+- the kit's `Breadcrumbs`, `ActionFooter` and shared `PageHeader`, under whatever name they're imported as, or through `import * as`
 - the page's title: the kit's `Heading` at `level={1}`, `inBar` or not, or an `<h1>`
-- a facts grid: a `<dl>` with `grid` among its class names, but for two columns of amounts (`grid-cols-[1fr_auto]`), a receipt or a price's lines rather than facts. It warns in a screen's dialogs too: there's to be one facts grid, the kit's (#432)
+- a facts grid: a `<dl>` with `grid` among its class names, but for two columns of amounts (`grid-cols-[1fr_auto]`), a receipt or a price's lines rather than facts. It's flagged in a screen's dialogs too: there's to be one facts grid, the kit's (#432)
 
-The layouts that place them live in the kit, `packages/ui/src/layouts/`, where the rule doesn't run: that's its allowed set, so a new layout changes nothing here. It's on in `packages/web/src/screens`, but not in tests or stories, or on the test site's People page, which has no type. It's a warning, not an error, until every type has its layout: its count is how far the layout slices have to go (#426), and #437 makes it an error.
+The layouts that place them live in the kit, `packages/ui/src/layouts/`, where the rule doesn't run: that's its allowed set, so a new layout changes nothing here. It's on in `packages/web/src/screens`, but not in tests or stories, or on the test site's People page, which has no type. It's an error, so a new screen that builds its own page fails the Checks: it was a warning while the layout slices moved every type onto its layout (#426), and became one once the Calendar had its own (#437).
 
 What it can't see: a level not written as `1` (`level={level}`, a spread), class names made by a call (`cn(…)`), and a part a screen reaches through a component of the kit's that isn't a layout.
 

@@ -11,6 +11,7 @@ export { Avatar } from "./Avatar.tsx";
 export { Breadcrumbs, type Crumb } from "./Breadcrumbs.tsx";
 export { Button, buttonStyles, type ButtonProps } from "./Button.tsx";
 export { Calendar } from "./Calendar.tsx";
+export { CalendarPage } from "./layouts/CalendarPage.tsx";
 export { Card } from "./Card.tsx";
 export { EmptyState } from "./EmptyState.tsx";
 export { Checkbox } from "./Checkbox.tsx";

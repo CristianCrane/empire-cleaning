@@ -3,8 +3,9 @@
 // page from the kit's parts. It flags each of the page's parts a screen
 // places itself:
 //
-// - `Breadcrumbs` and `ActionFooter`, from the kit (@empire-cleaning/ui),
-//   under whatever name they're imported as, or through `import * as`
+// - `Breadcrumbs`, `ActionFooter` and the shared `PageHeader`, from the
+//   kit (@empire-cleaning/ui), under whatever name they're imported as, or
+//   through `import * as`
 // - the page's title: the kit's `Heading` at `level={1}`, or an `<h1>`
 // - the facts grid: a `<dl>` laid out as a grid (`grid` among its class
 //   names), but for two columns of amounts (`grid-cols-[1fr_auto]`), a
@@ -23,11 +24,12 @@ import { fields, type Fields, type Rule } from "./ast.ts";
 
 const KIT = "@empire-cleaning/ui";
 
-// the kit's components that are the page's parts, and what the warning
+// the kit's components that are the page's parts, and what the report
 // calls each
 const PARTS: Record<string, string> = {
   Breadcrumbs: "its breadcrumbs",
   ActionFooter: "its bar at the foot (ActionFooter)",
+  PageHeader: "its page header (PageHeader)",
 };
 const TITLE = "its title (an h1)";
 
