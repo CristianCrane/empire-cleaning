@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/react";
-import type { Breadcrumb, ErrorEvent, Event } from "@sentry/react";
+import type { Breadcrumb, ErrorEvent, Event, EventHint } from "@sentry/react";
 import { scrub, scrubText } from "@empire-cleaning/models";
 import { APPLICATION_KEY } from "./application-key.ts";
 
@@ -97,12 +97,26 @@ export const routerTracing = (router: unknown) =>
 
 // An error nothing of ours caught, in code that isn't ours (an extension,
 // Stripe.js, Google's sign-in), is dropped: nobody here can act on it. One our
-// code caught and reported is kept, wherever it was thrown
-export const dropOthersUncaught = (event: ErrorEvent): ErrorEvent | null =>
+// code caught and passed to `report` is kept, wherever it was thrown. One
+// passed to the browser's `reportError` (the Quote form's, the landing
+// site's) reaches Sentry as uncaught, so is judged by its own stack's frames:
+// one with none (a body that isn't JSON) is kept, as the only frame Sentry has
+// for it is one it made up from where it was reported
+export const dropOthersUncaught = (
+  event: ErrorEvent,
+  { originalException }: EventHint = {},
+): ErrorEvent | null =>
   event.tags?.third_party_code === true &&
-  event.exception?.values?.some(({ mechanism }) => mechanism?.handled === false)
+  event.exception?.values?.some(
+    ({ mechanism }) => mechanism?.handled === false,
+  ) &&
+  hasFrames(originalException)
     ? null
     : event;
+
+const hasFrames = (error: unknown) =>
+  error instanceof Error &&
+  Sentry.defaultStackParser(error.stack ?? "").length > 0;
 
 // what may leave of an event: the page's address and browser, the Account ID,
 // and the rest scrubbed. Its breadcrumbs were scrubbed as they were left

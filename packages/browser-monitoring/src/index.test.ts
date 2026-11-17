@@ -162,6 +162,14 @@ describe("scrubbing", () => {
 // error with no frame from our builds, and only one nothing of ours caught
 // is dropped
 describe("errors in code that isn't ours", () => {
+  // a TypeError thrown in a script that isn't ours
+  const thrown = new TypeError("x is undefined");
+  thrown.stack =
+    "TypeError: x is undefined\n    at e (chrome-extension://abc/content.js:1:20)";
+  // a body that isn't JSON, made in the browser's own code
+  const frameless = new SyntaxError("Unexpected token '<'");
+  frameless.stack = "SyntaxError: Unexpected token '<'";
+
   const error = ({
     ours,
     caught,
@@ -186,21 +194,37 @@ describe("errors in code that isn't ours", () => {
   });
 
   test("one nothing of ours caught is dropped", () => {
-    expect(dropOthersUncaught(error({ ours: false, caught: false }))).toBe(
-      null,
-    );
+    expect(
+      dropOthersUncaught(error({ ours: false, caught: false }), {
+        originalException: thrown,
+      }),
+    ).toBe(null);
   });
 
   test("one our code caught and reported is kept", () => {
     const event = error({ ours: false, caught: true });
 
-    expect(dropOthersUncaught(event)).toBe(event);
+    expect(dropOthersUncaught(event, { originalException: thrown })).toBe(
+      event,
+    );
   });
 
   test("one in our code is kept, caught or not", () => {
     const event = error({ ours: true, caught: false });
 
-    expect(dropOthersUncaught(event)).toBe(event);
+    expect(dropOthersUncaught(event, { originalException: thrown })).toBe(
+      event,
+    );
+  });
+
+  // `reportError` reaches Sentry as uncaught; with no frames of its own, the
+  // one frame it has is Sentry's guess, so it isn't judged by it
+  test("one with no frames of its own is kept, as reportError's can be", () => {
+    const event = error({ ours: false, caught: false });
+
+    expect(dropOthersUncaught(event, { originalException: frameless })).toBe(
+      event,
+    );
   });
 });
 
