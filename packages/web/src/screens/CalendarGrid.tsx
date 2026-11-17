@@ -21,10 +21,18 @@ const { formatClock, formatDay } = formats.en;
 export const HOUR_PX = 48;
 
 // where a block from `start` for `hours` sits on a column's body, in from
-// the hour lines either side
-export const onAxis = (start: number, hours: number, axisStart: number) => ({
+// the hour lines and the column's sides: across it all, or in one of `of`
+// lanes side by side
+export const onAxis = (
+  start: number,
+  hours: number,
+  axisStart: number,
+  { lane = 0, of = 1 } = {},
+) => ({
   top: (start - axisStart) * HOUR_PX + 1,
   height: hours * HOUR_PX - 2,
+  left: `calc(${(lane / of) * 100}% + 2px)`,
+  width: `calc(${100 / of}% - 4px)`,
 });
 
 const spanLabel: Record<Span, string> = { 1: "Day", 3: "3 days", 7: "Week" };
@@ -209,7 +217,7 @@ export function PickSlot({
       aria-label={[formatDay(at.date), formatClock(at.time), label]
         .filter(Boolean)
         .join(", ")}
-      className={`group absolute inset-x-0.5 min-h-0 items-start justify-start rounded-md px-1.5 py-0.5 text-xs font-normal ${className}`}
+      className={`group absolute min-h-0 items-start justify-start rounded-md px-1.5 py-0.5 text-xs font-normal ${className}`}
       style={onAxis(hoursOf(at.time), hours, axisStart)}
       onPress={() => onPick(at)}
     >

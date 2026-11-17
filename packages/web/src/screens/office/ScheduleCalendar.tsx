@@ -585,11 +585,10 @@ function DayJobs({
 }) {
   const place = (block: Block) => {
     const { lane, lanes: of } = lanes.get(block.id)!;
-    return {
-      ...onAxis(block.start, block.end - block.start, axisStart),
-      left: `calc(${(lane / of) * 100}% + 2px)`,
-      width: `calc(${100 / of}% - 4px)`,
-    };
+    return onAxis(block.start, block.end - block.start, axisStart, {
+      lane,
+      of,
+    });
   };
 
   return (
@@ -733,15 +732,11 @@ function Landing({
     <ProposedBlock
       time={time}
       label={shortClientName(job.client)}
-      style={{
-        ...onAxis(
-          block.start,
-          Math.min(block.end, axis.end) - block.start,
-          axis.start,
-        ),
-        left: 2,
-        width: "calc(100% - 4px)",
-      }}
+      style={onAxis(
+        block.start,
+        Math.min(block.end, axis.end) - block.start,
+        axis.start,
+      )}
     />
   );
 }

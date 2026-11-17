@@ -231,9 +231,11 @@ test(
     await holdOver(wednesday, 3.5 * HOUR_PX + 5);
     await expect(wednesday.getByText("10:30 AM Casey Client")).toBeVisible();
     await expect(outline).toHaveCount(1);
-    const [held, day, job] = await Promise.all(
-      [outline, wednesday, block].map(boxOf),
-    );
+    const [held, day, job] = await Promise.all([
+      boxOf(outline),
+      boxOf(wednesday),
+      boxOf(block),
+    ]);
     expect(held.y - day.y).toBeCloseTo(3.5 * HOUR_PX + 1, 0);
     expect(held.height).toBeCloseTo(job.height, 0);
     // never past the day's last hour
