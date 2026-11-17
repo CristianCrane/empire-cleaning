@@ -12,6 +12,9 @@ process.env.E2E_WORKERS = String(WORKERS);
 // the slot of the worker this runs in (e2e/slots.ts)
 export const { appUrl, apiUrl, controlUrl } = slot;
 
+// the landing site, as the app is built to link it and the API to allow it
+export const landingUrl = "http://localhost:4399";
+
 const slots = Array.from({ length: WORKERS }, (_, i) => slotOf(i));
 
 // end to end: a production build of the app, in a real Chromium, against the
@@ -42,7 +45,8 @@ export default defineConfig({
         ...process.env,
         TEST_DB_URL: E2E_DB_URL,
         E2E_SLOTS: JSON.stringify(slots),
-        LANDING_ORIGIN_URL: "http://localhost:4399",
+        LANDING_ORIGIN_URL: landingUrl,
+        VITE_LANDING_URL: landingUrl,
       },
     },
   ],

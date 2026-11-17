@@ -121,6 +121,10 @@ services:
       # Sentry's environment
       - key: VITE_APP_MODE
         value: test
+      # the landing site, whose policies sign-in links (#462): the same
+      # address as the server's LANDING_ORIGIN_URL
+      - key: VITE_LANDING_URL
+        value: https://test.empirecleaningandpro.com
       # the web project's Sentry DSN (#43); left empty, nothing is sent
       - key: VITE_SENTRY_DSN
         sync: false

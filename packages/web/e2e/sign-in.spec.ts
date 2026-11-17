@@ -1,5 +1,11 @@
 import type { Page } from "@playwright/test";
-import { apiUrl } from "../playwright.config.ts";
+import {
+  LANGUAGES,
+  LEGAL_KEYS,
+  legalPages,
+  legalPathOf,
+} from "@empire-cleaning/models";
+import { apiUrl, landingUrl } from "../playwright.config.ts";
 import {
   signedInAs,
   createClient,
@@ -203,6 +209,22 @@ test.describe("signing up and in with an emailed link", () => {
       page.getByRole("button", { name: "Email me a sign-in link" }),
     ).toBeVisible();
   });
+});
+
+test("sign-in links the landing site's policies, in the screen's language", async ({
+  page,
+}) => {
+  for (const lang of LANGUAGES) {
+    await page.goto(`/sign-in?lang=${lang}`);
+    for (const key of LEGAL_KEYS) {
+      await expect(
+        page.getByRole("link", { name: legalPages[lang][key].name }),
+      ).toHaveAttribute(
+        "href",
+        new URL(legalPathOf(key, lang), landingUrl).href,
+      );
+    }
+  }
 });
 
 test.describe("Google", () => {
