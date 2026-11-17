@@ -248,6 +248,39 @@ test("saving keeps your place on the page", async ({ page }) => {
   await expect(edit).toBeInViewport();
 });
 
+// two Office Staff with the prices open, or one in two tabs (#447)
+test("a save made after someone else saved the prices is refused, and the dialog shows theirs", async ({
+  page,
+}) => {
+  await signInAsOffice(page);
+  await page.goto("/office/price-list");
+  await part(page, "Condition").click();
+  const moderate = page.getByRole("textbox", { name: "Moderate (×)" });
+  await expect(moderate).toHaveValue("1");
+
+  // someone else saves them meanwhile
+  const list = await (await page.request.get("/api/price-list")).json();
+  const theirs = await page.request.put("/api/price-list", {
+    data: { ...list, conditionModerate: 1.1 },
+  });
+  expect(theirs.ok()).toBe(true);
+
+  await page.getByRole("textbox", { name: "Heavy (×)" }).fill("2");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Condition" });
+  await expect(
+    dialog.getByText(
+      "Something changed just then. Please check it and try again.",
+    ),
+  ).toBeVisible();
+  await expect(moderate).toHaveValue("1.1");
+  await expect(page.getByRole("textbox", { name: "Heavy (×)" })).toHaveValue(
+    "1.4",
+  );
+  await expect(page.getByText(/^Version \d+ · saved/)).toBeVisible();
+});
+
 test("a mistake is explained beside the field", async ({ page }) => {
   await signInAsOffice(page);
   await page.goto("/office/price-list");

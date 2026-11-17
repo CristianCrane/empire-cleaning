@@ -1,6 +1,8 @@
+import { catalog } from "@empire-cleaning/models";
 import type { ErrorRequestHandler } from "express";
 import { z, type ZodError } from "zod";
 import { monitoring } from "#services/monitoring";
+import { currentLanguage } from "#services/request";
 import env from "../env.ts";
 
 type StatusCode = 400 | 401 | 403 | 404 | 409 | 429 | 500;
@@ -108,6 +110,21 @@ export class ConflictError extends APIError {
     super(message, 409);
   }
 }
+
+// what a 409 says when what the change was made from has changed while
+// the person looked, such as the cost of cancelling: the page reloads to
+// show it. In the request's language (ADR-0025)
+const changedWords = catalog({
+  en: {
+    CHANGED_SINCE:
+      "Something changed just then. Please check it and try again.",
+  },
+  es: {
+    CHANGED_SINCE:
+      "Algo cambió en este momento. Revíselo y vuelva a intentarlo.",
+  },
+});
+export const changedSince = () => changedWords[currentLanguage()].CHANGED_SINCE;
 
 // tried too often for now (#32): says how long to wait, also in Retry-After
 export class TooManyRequestsError extends APIError {

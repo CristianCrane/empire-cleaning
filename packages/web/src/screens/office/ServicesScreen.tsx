@@ -1,5 +1,4 @@
 import { formats } from "@empire-cleaning/models";
-import { useState } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import { Archive, ArchiveRestore, Plus, Sparkles } from "lucide-react";
 import type {
@@ -30,6 +29,7 @@ import { postJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { tabShown, useListUrl } from "../list-search.ts";
+import { useDraftOf } from "./draft.ts";
 import { ExampleQuote } from "./ExampleQuote.tsx";
 import { PRICES_CHANGE } from "./PriceListScreen.tsx";
 
@@ -131,9 +131,10 @@ export function ServiceScreen() {
   });
 
   return (
-    // a new version starts the form afresh
+    // another Service starts the form afresh; a new version of this one
+    // starts its draft afresh (useDraftOf)
     <ServiceForm
-      key={service.id}
+      key={service.key}
       service={service}
       services={services}
       list={list}
@@ -222,15 +223,21 @@ function ServiceForm({
   services: Service[];
   list: PriceList;
 }) {
-  const [draft, setDraft] = useState(() =>
+  const [draft, setDraft] = useDraftOf(service?.version, () =>
     toDraft(service ? inputOf(service) : blank),
   );
-  const action = useAction("The service wasn't saved. Please try again.");
+  // Each save sends the version it was made from, and reloads on failure
+  // too: one made from a version someone has since replaced is refused,
+  // and the form then shows theirs
+  const action = useAction("The service wasn't saved. Please try again.", {
+    reloadOnFailure: true,
+  });
   // the header's, so why it failed is a Toast. While either runs, both
   // are pending and take no press, so they can't race to make the next
   // version
   const retire = useAction("The service wasn't saved. Please try again.", {
     toast: true,
+    reloadOnFailure: true,
   });
   const navigate = useNavigate();
   const set = (change: Partial<Draft>) =>
@@ -241,7 +248,10 @@ function ServiceForm({
     let saved: Service | undefined;
     const ok = await action.run(async () => {
       saved = service
-        ? await putJson<Service>(`/api/services/${service.key}`, input)
+        ? await putJson<Service>(`/api/services/${service.key}`, {
+            ...input,
+            version: service.version,
+          })
         : await postJson<Service>("/api/services", input);
     }, done);
     if (ok && !service && saved) {
@@ -309,6 +319,7 @@ function ServiceForm({
                 () =>
                   putJson<Service>(`/api/services/${service.key}`, {
                     ...inputOf(service),
+                    version: service.version,
                     active: !service.active,
                   }),
                 service.active

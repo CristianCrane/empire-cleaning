@@ -215,6 +215,41 @@ test("a mistake on a Service is explained beside the field", async ({
   );
 });
 
+// two Office Staff with a Service open, or one in two tabs (#447)
+test("a save made after someone else saved the Service is refused, and the form shows theirs", async ({
+  page,
+}) => {
+  await signInAsOffice(page);
+  await goTo(page, "Services");
+  await listRows(page, "Services")
+    .filter({ hasText: "Standard Clean" })
+    .click();
+  const rate = page.getByRole("textbox", { name: "Hourly rate" });
+  await expect(rate).toHaveValue("$55.00");
+
+  // someone else saves it meanwhile
+  const service = await (
+    await page.request.get(page.url().replace("/office/", "/api/"))
+  ).json();
+  const theirs = await page.request.put(`/api/services/${service.key}`, {
+    data: { ...service, hourlyRateCents: 6000 },
+  });
+  expect(theirs.ok()).toBe(true);
+
+  await page.getByRole("textbox", { name: "Minimum price" }).fill("$120");
+  await page.getByRole("button", { name: "Save service" }).click();
+
+  await expect(
+    page.getByText(
+      "Something changed just then. Please check it and try again.",
+    ),
+  ).toBeVisible();
+  await expect(rate).toHaveValue("$60.00");
+  await expect(
+    page.getByRole("textbox", { name: "Minimum price" }),
+  ).toHaveValue("$100.00");
+});
+
 eachTheme(() => {
   test("the Services and a Service's page have no accessibility violations", async ({
     page,

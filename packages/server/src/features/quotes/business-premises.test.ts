@@ -22,18 +22,12 @@ import { SEEDED } from "#features/services";
 // placeholder Premises Types (Office x1, so 0.5 h, and Medical x1.4, so
 // 0.7 h); moderate x1
 const setPrices = async (office: Agent) => {
-  const {
-    id: _id,
-    version: _version,
-    placeholder: _placeholder,
-    createdAt: _createdAt,
-    createdByName: _createdByName,
-    ...input
-  } = (await office.get("/api/price-list").expect(200)).body as PriceList;
+  const list = (await office.get("/api/price-list").expect(200))
+    .body as PriceList;
   await office
     .put("/api/price-list")
     .send({
-      ...input,
+      ...list,
       conditionModerate: 1,
       conditionHeavy: 1.5,
     })

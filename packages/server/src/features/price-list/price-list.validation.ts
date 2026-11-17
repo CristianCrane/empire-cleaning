@@ -31,6 +31,10 @@ export const taxPercent = z
   .max(30, "That's higher than any sales tax")
   .refine(decimals(3), "Use at most three decimal places");
 
+// the version a save was made from (SavedFrom): the screen sends the one
+// it loaded, so never a person's to fix
+export const version = z.number().int();
+
 // a name or description in Spanish, optional: blank is none, and English
 // is shown in its place (ADR-0025)
 export const inSpanish = (max: number, what: "the name" | "the description") =>
@@ -89,6 +93,7 @@ const uniqueNames =
 
 export const priceListSchema = z
   .object({
+    version,
     conditionLight: multiplier,
     conditionModerate: multiplier,
     conditionHeavy: multiplier,
