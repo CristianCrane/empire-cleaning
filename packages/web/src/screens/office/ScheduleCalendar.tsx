@@ -2,7 +2,6 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type CSSProperties,
   type DragEvent,
   type ReactNode,
   type RefObject,
@@ -83,6 +82,16 @@ const blockOf = {
   info: "border-info-strong bg-info-subtle",
   warning: "border-warning-strong bg-warning-subtle",
   neutral: "border-neutral-strong bg-neutral-subtle",
+} as const;
+
+// a dragged Job's outline where it would land: its colours, its edge dashed
+// all round so it shows over its own block and others, its fill see-through
+const outlineOf = {
+  success: "border-success-strong bg-success-subtle/60",
+  danger: "border-danger-strong bg-danger-subtle/60",
+  info: "border-info-strong bg-info-subtle/60",
+  warning: "border-warning-strong bg-warning-subtle/60",
+  neutral: "border-neutral-strong bg-neutral-subtle/60",
 } as const;
 
 const toneOf = (job: ScheduledJob) => {
@@ -261,7 +270,12 @@ export function ScheduleCalendar({
           return {
             date: day.date,
             className:
-              (draggedJob && !hasRoomFor(day, draggedJob)) || !isOpen(day.date)
+              // a day without room fades, but not under the outline, whose
+              // red says so
+              (draggedJob &&
+                !hasRoomFor(day, draggedJob) &&
+                landing?.date !== day.date) ||
+              !isOpen(day.date)
                 ? "opacity-40"
                 : "",
             header: (
@@ -290,13 +304,12 @@ export function ScheduleCalendar({
               className: day.staffHours === 0 ? "bg-surface-sunken" : "",
               onDragOver: (e) => {
                 const grabbed = dragging.current;
-                if (grabbed && hasRoomFor(day, grabbed.job)) {
+                if (!grabbed) return;
+                if (hasRoomFor(day, grabbed.job)) {
                   e.preventDefault();
                   e.dataTransfer.dropEffect = "move";
-                  landAt({ date: day.date, time: landingOf(e, grabbed) });
-                } else {
-                  landAt(undefined);
                 }
+                landAt({ date: day.date, time: landingOf(e, grabbed) });
               },
               // leaving the day, not just moving onto a block within it
               onDragLeave: (e) => {
@@ -351,7 +364,12 @@ export function ScheduleCalendar({
                   }}
                 />
                 {draggedJob && landing?.date === day.date && (
-                  <Landing job={draggedJob} time={landing.time} axis={axis} />
+                  <Landing
+                    job={draggedJob}
+                    time={landing.time}
+                    axis={axis}
+                    taken={hasRoomFor(day, draggedJob)}
+                  />
                 )}
               </>
             ),
@@ -706,57 +724,42 @@ function DayJobs({
         );
       })}
       {proposed && (
-        <ProposedBlock
-          time={proposed.time}
-          label={proposed.label}
+        <div
+          className="pointer-events-none absolute overflow-hidden rounded-md border-2 border-dashed border-primary bg-primary/15 px-1.5 py-0.5 text-xs leading-tight font-semibold"
           style={place(proposed.block)}
-        />
+        >
+          {formatClock(proposed.time)} {proposed.label}
+        </div>
       )}
     </>
   );
 }
 
-// a Job being dragged, drawn the width of the day where it would land if
-// let go now, at its size on the calendar, cut off at the axis's end
+// a Job being dragged, drawn faintly in its own colours the width of the day
+// where it would land if let go now, at its size on the calendar, cut off at
+// the axis's end; in red over a day that won't take it
 function Landing({
   job,
   time,
   axis,
+  taken,
 }: {
   job: ScheduledJob;
   time: string;
   axis: { start: number; end: number };
+  taken: boolean;
 }) {
   const block = drawn(job.id, hoursOf(time), job.hoursOnSite);
   return (
-    <ProposedBlock
-      time={time}
-      label={shortClientName(job.client)}
+    <div
+      className={`pointer-events-none absolute overflow-hidden rounded-md border-2 border-dashed px-1.5 py-1 text-xs leading-tight font-semibold ${outlineOf[taken ? toneOf(job).tone : "danger"]}`}
       style={onAxis(
         block.start,
         Math.min(block.end, axis.end) - block.start,
         axis.start,
       )}
-    />
-  );
-}
-
-// a clean drawn where it would go before it's booked there
-function ProposedBlock({
-  time,
-  label,
-  style,
-}: {
-  time: string;
-  label: string;
-  style: CSSProperties;
-}) {
-  return (
-    <div
-      className="pointer-events-none absolute overflow-hidden rounded-md border-2 border-dashed border-primary bg-primary/15 px-1.5 py-0.5 text-xs leading-tight font-semibold"
-      style={style}
     >
-      {formatClock(time)} {label}
+      {formatClock(time)} {shortClientName(job.client)}
     </div>
   );
 }

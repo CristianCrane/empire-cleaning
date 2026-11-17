@@ -216,6 +216,15 @@ test(
       .locator("div")
       .getByText(/^\d+:\d+ [AP]M Casey Client$/);
     const boxOf = async (of: typeof block) => (await of.boundingBox())!;
+    // an edge's colour and line: the outline's top, the Job's own left bar
+    const edgeOf = (of: typeof block, side: "Top" | "Left") =>
+      of.evaluate((element, side) => {
+        const style = getComputedStyle(element);
+        return [
+          style.getPropertyValue(`border-${side.toLowerCase()}-color`),
+          style.getPropertyValue(`border-${side.toLowerCase()}-style`),
+        ];
+      }, side);
     // a Job held mid-drag over a place: two moves, as the first only starts
     // the drag (Playwright's mouse.down)
     const holdOver = async (place: typeof block, y?: number) => {
@@ -224,8 +233,8 @@ test(
       await place.hover({ position });
     };
 
-    // held over a day with room, an outline the Job's size shows where it
-    // would land: 10:30am on Wednesday
+    // held over a day with room, a dashed outline the Job's size and
+    // colour shows where it would land: 10:30am on Wednesday
     await block.hover({ position: { x: 10, y: 5 } });
     await page.mouse.down();
     await holdOver(wednesday, 3.5 * HOUR_PX + 5);
@@ -238,16 +247,20 @@ test(
     ]);
     expect(held.y - day.y).toBeCloseTo(3.5 * HOUR_PX + 1, 0);
     expect(held.height).toBeCloseTo(job.height, 0);
+    const [jobColour] = await edgeOf(block.locator(".."), "Left");
+    expect(await edgeOf(outline, "Top")).toEqual([jobColour, "dashed"]);
     // never past the day's last hour
     await holdOver(wednesday, day.height - 2);
     await expect(wednesday.getByText("6:45 PM Casey Client")).toBeVisible();
     const late = await boxOf(outline);
     expect(late.y + late.height).toBeLessThanOrEqual(day.y + day.height);
-    // a full day doesn't take it, and shows none
+    // over a full day, which won't take it, the outline is red
     await holdOver(thursday, 3 * HOUR_PX + 5);
-    await expect(outline).toHaveCount(0);
+    await expect(thursday.getByText("10:00 AM Casey Client")).toBeVisible();
+    const [fullColour] = await edgeOf(outline, "Top");
+    expect(fullColour).not.toBe(jobColour);
     await holdOver(wednesday, 3.5 * HOUR_PX + 5);
-    await expect(outline).toHaveCount(1);
+    await expect(wednesday.getByText("10:30 AM Casey Client")).toBeVisible();
     // off the days, none; let go there, it stays put
     await holdOver(page.getByRole("heading", { name: "Schedule" }));
     await expect(outline).toHaveCount(0);
