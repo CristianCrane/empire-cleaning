@@ -49,7 +49,7 @@ const contentSecurityPolicy = (sentryDsn: string | undefined) => {
 // profile photos Google sign-in gives (Avatar). Anything else, such as an
 // injected script, is refused. As a <meta>, so the end-to-end tests run with
 // it too; the headers a <meta> can't carry (frame-ancestors) are set by the
-// host (render.yaml). Not in dev, where Vite's reloading runs inline scripts.
+// host (render.yaml, render-production.yaml). Not in dev, where Vite's reloading runs inline scripts.
 const contentSecurityPolicyMeta = (): Plugin => {
   let policy = "";
   return {

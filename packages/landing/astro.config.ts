@@ -30,7 +30,8 @@ export default defineConfig({
   // Sentry, and Cloudflare's analytics beacon in a build with its token
   // (src/analytics.ts). Astro writes it into each page as a <meta>, with the
   // hashes of the page's own inline scripts; the headers a <meta> can't carry
-  // (frame-ancestors) are set by the host (render.yaml)
+  // (frame-ancestors) are set by the host (render.yaml,
+  // render-production.yaml)
   security: {
     csp: {
       directives: [
