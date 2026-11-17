@@ -39,9 +39,8 @@ title row and its subtitle, where actions sit, the bar at the foot); the
 screen fills its slots and never places those parts itself, nor lays out a
 facts grid by hand, which is the kit's, one for every screen and dialog
 (#432).
-`pnpm lint` warns where a screen does (`empire/screen-layout`,
-`packages/lint`), and its count is what the layouts still to build have
-left (#426). The layouts live in `packages/ui/src/layouts/`. Which type
+`pnpm lint` fails where a screen does (`empire/screen-layout`,
+`packages/lint`), every type having its layout since #437. The layouts live in `packages/ui/src/layouts/`. Which type
 each screen is: `docs/screens.md`'s Route index. A new screen takes a type
 from here; one that fits none is a new type, settled as Changing a screen
 says before it's built.
@@ -266,8 +265,10 @@ in its frame, nav and all; anywhere else a page of its own, the logo above.
 
 ### Calendar
 
-The Schedule, one of a kind. It keeps "Schedules are calendars", and gets
-the page header every type shares with #437.
+The Schedule, one of a kind. It renders through `CalendarPage`
+(`packages/ui/src/layouts/CalendarPage.tsx`, #437): the page header every
+type shares, its title in the bar on a phone, then the calendar's parts.
+It keeps "Schedules are calendars". ("Layout / CalendarPage")
 
 ## Rules
 
@@ -725,3 +726,4 @@ Newest last. "Built in" is the PR (or branch) that shipped it.
 | Every Home | How does a Home read, when Today stacked every to-do in one list, a Client's Home put Notices above its card and Payments its latest five under it, and Your jobs listed Coming up and Done today (#435)? | A: the answer, then short lists / B: the answer, then one line that opens the rest / C: the answer, then count tiles | **C, the answer then count tiles** | In the owner's words, a home screen shows the overview of everything relevant at a glance, with a quick click for more details: the person greeted, one card with the page's one primary (green when nothing's waiting), then 2 to 4 tiles and no rows until one is pressed. Four edges agreed: a tile opens its rows in place where they have no List page and links where they do, the count in its hint; two a row on a phone, one row wider; Payments keeps its name; money owed is the card and a quote a tile. Built: Today's tiles count every to-do, the card's too, so a kind never reads 0 while its to-do is in the card; Today's On today brings back the day's Jobs; Payments' history opens in place, as it has no List | [`prototype-home`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-home) | #435 |
 | Every Settings page | How does a Settings page read, when the Price List carried a paragraph under its title and a long description on every Section (#436, WEB-K on #424)? | A: a Section per part, no descriptions / B: one line per part, its dialog holding the rest / C: every part folded, as a Form page's | **B, one line per part** | The sparest: one card of summary rows saying what each part is set to, a tap opening its dialog, then the lists of rows. Six details agreed: each part's explanation in its own dialog, no page-wide one; "Quotes already sent keep their prices" above Save in each dialog; the header's pointer to Services dropped, as the nav has it; retired rows folded under "Retired (N)"; the version one muted line; Your details' pending-email warning stays on the first view, as it waits on the Client. Built: the lists' own explanations went with B, which shows them nowhere | [`prototype-settings`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-settings) | #436 |
 | Every area > moving to another page | Moving to another page showed nothing while its data loaded: the old page sat there until the new one was ready, and the app felt hung (#454) | A: a thin progress bar across the top alone / B: a skeleton of the next page in place of the old / C: the bar, and the old page faded and out of reach | **C, the bar and the old page faded** | On A, the user: "A is a bit too subtle i think, hard to catch". After 200ms, so a quick move doesn't flash; the old page and its section stay until the next is ready, as B's skeleton swapped the section at once. Cases the prototype didn't draw: a change within a page (a search, a Tab, the Schedule's week) and a reload after a save show nothing, so a search box is never out of reach while typed in; switching area, a move to another page, fades the old area under the held ☰ menu, the bar over both (#318's row). Links load their page ahead on the pointer resting, focus or press down, as TanStack's own preload doesn't reach the kit's links. A full page load can't show the bar (nothing in the frame draws before its first load) | [`prototype-nav-loading`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-nav-loading) | #454 |
+| Office > Schedule | The Schedule placed its own title, the last screen to build its own page, so the layouts' lint rule stayed a warning (#437) | (applies the Screen types, no prototype) | **A Calendar layout, the shared page header** | `CalendarPage` places the page header every type shares, its title in the bar on a phone, then the range bar, key and days as before; nothing looks different. Every type now has its layout, so `empire/screen-layout` is an error, and flags a screen placing `PageHeader` itself too | — | #437 |

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import type { LocalDateTime, ScheduledJob } from "@empire-cleaning/models";
-import { Dialog, Heading } from "@empire-cleaning/ui";
+import { CalendarPage, Dialog } from "@empire-cleaning/ui";
 import { ConfirmMove } from "./JobMove.tsx";
 import { RangeBar } from "../CalendarGrid.tsx";
 import { ScheduleCalendar } from "./ScheduleCalendar.tsx";
@@ -35,10 +35,7 @@ export function ScheduleScreen() {
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <Heading level={1} inBar>
-        Schedule
-      </Heading>
+    <CalendarPage title="Schedule">
       <RangeBar from={from} to={to} onShow={show} />
       <div className="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
         <CrewBadge assignment="unassigned" />
@@ -65,6 +62,6 @@ export function ScheduleScreen() {
           )
         }
       </Dialog>
-    </div>
+    </CalendarPage>
   );
 }
