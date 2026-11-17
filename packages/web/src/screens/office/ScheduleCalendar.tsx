@@ -190,6 +190,13 @@ export function ScheduleCalendar({
   // where it's let go; state too, so days without room for it fade
   const dragging = useRef<Dragging>(undefined);
   const [draggedJob, setDraggedJob] = useState<ScheduledJob>();
+  // where it would land if let go now, drawn there; kept as it is while the
+  // pointer stays in the same quarter hour, so only a move redraws
+  const [landing, setLanding] = useState<LocalDateTime>();
+  const landAt = (to: LocalDateTime | undefined) =>
+    setLanding((was) =>
+      was?.date === to?.date && was?.time === to?.time ? was : to,
+    );
   // how many Jobs fit side by side in a day: in the week view, as many as
   // its width can show; with fewer days, every one
   const frame = useRef<HTMLDivElement>(null);
@@ -286,7 +293,15 @@ export function ScheduleCalendar({
                 if (grabbed && hasRoomFor(day, grabbed.job)) {
                   e.preventDefault();
                   e.dataTransfer.dropEffect = "move";
+                  landAt({ date: day.date, time: landingOf(e, grabbed) });
+                } else {
+                  landAt(undefined);
                 }
+              },
+              // leaving the day, not just moving onto a block within it
+              onDragLeave: (e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null))
+                  landAt(undefined);
               },
               onDrop: (e) => drop(day, e),
             },
@@ -332,8 +347,12 @@ export function ScheduleCalendar({
                   onDragEnd={() => {
                     dragging.current = undefined;
                     setDraggedJob(undefined);
+                    landAt(undefined);
                   }}
                 />
+                {draggedJob && landing?.date === day.date && (
+                  <Landing job={draggedJob} time={landing.time} axis={axis} />
+                )}
               </>
             ),
           };
@@ -617,11 +636,16 @@ function DayJobs({
             onDragStart={(e) => {
               e.dataTransfer.effectAllowed = "move";
               e.dataTransfer.setData("text/plain", job.id);
-              onDragStart({
-                job,
-                grabbedAtPx:
-                  e.clientY - e.currentTarget.getBoundingClientRect().top,
-              });
+              const box = e.currentTarget.getBoundingClientRect();
+              const grabbedAtPx = e.clientY - box.top;
+              // the drag starts on the link inside, whose own picture is only
+              // its words: the pointer carries the whole block instead
+              e.dataTransfer.setDragImage(
+                e.currentTarget,
+                e.clientX - box.left,
+                grabbedAtPx,
+              );
+              onDragStart({ job, grabbedAtPx });
             }}
             onDragEnd={onDragEnd}
             className={`absolute overflow-hidden rounded-md border-s-4 shadow-sm ${tone.block} ${!interactive ? "pointer-events-none" : movable && job.movable ? "cursor-grab active:cursor-grabbing" : ""}`}
@@ -690,6 +714,35 @@ function DayJobs({
         />
       )}
     </>
+  );
+}
+
+// a Job being dragged, drawn the width of the day where it would land if
+// let go now, at its size on the calendar, cut off at the axis's end
+function Landing({
+  job,
+  time,
+  axis,
+}: {
+  job: ScheduledJob;
+  time: string;
+  axis: { start: number; end: number };
+}) {
+  const block = drawn(job.id, hoursOf(time), job.hoursOnSite);
+  return (
+    <ProposedBlock
+      time={time}
+      label={shortClientName(job.client)}
+      style={{
+        ...onAxis(
+          block.start,
+          Math.min(block.end, axis.end) - block.start,
+          axis.start,
+        ),
+        left: 2,
+        width: "calc(100% - 4px)",
+      }}
+    />
   );
 }
 

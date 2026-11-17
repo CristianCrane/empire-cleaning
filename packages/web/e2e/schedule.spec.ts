@@ -208,9 +208,52 @@ test(
     await signedInAs(page, olive.email);
     await page.goto(week);
     const block = jobsOn(page, "Tue, Mar 2").getByRole("link");
+    const wednesday = jobsOn(page, "Wed, Mar 3");
+    const thursday = jobsOn(page, "Thu, Mar 4");
+    // where the Job would land, drawn while it's dragged
+    const outline = page
+      .getByRole("main")
+      .locator("div")
+      .getByText(/^\d+:\d+ [AP]M Casey Client$/);
+    const boxOf = async (of: typeof block) => (await of.boundingBox())!;
+    // a Job held mid-drag over a place: two moves, as the first only starts
+    // the drag (Playwright's mouse.down)
+    const holdOver = async (place: typeof block, y?: number) => {
+      const position = y === undefined ? undefined : { x: 10, y };
+      await place.hover({ position });
+      await place.hover({ position });
+    };
 
-    // a full day doesn't take it
-    await block.dragTo(jobsOn(page, "Thu, Mar 4"), {
+    // held over a day with room, an outline the Job's size shows where it
+    // would land: 10:30am on Wednesday
+    await block.hover({ position: { x: 10, y: 5 } });
+    await page.mouse.down();
+    await holdOver(wednesday, 3.5 * HOUR_PX + 5);
+    await expect(wednesday.getByText("10:30 AM Casey Client")).toBeVisible();
+    await expect(outline).toHaveCount(1);
+    const [held, day, job] = await Promise.all(
+      [outline, wednesday, block].map(boxOf),
+    );
+    expect(held.y - day.y).toBeCloseTo(3.5 * HOUR_PX + 1, 0);
+    expect(held.height).toBeCloseTo(job.height, 0);
+    // never past the day's last hour
+    await holdOver(wednesday, day.height - 2);
+    await expect(wednesday.getByText("6:45 PM Casey Client")).toBeVisible();
+    const late = await boxOf(outline);
+    expect(late.y + late.height).toBeLessThanOrEqual(day.y + day.height);
+    // a full day doesn't take it, and shows none
+    await holdOver(thursday, 3 * HOUR_PX + 5);
+    await expect(outline).toHaveCount(0);
+    await holdOver(wednesday, 3.5 * HOUR_PX + 5);
+    await expect(outline).toHaveCount(1);
+    // off the days, none; let go there, it stays put
+    await holdOver(page.getByRole("heading", { name: "Schedule" }));
+    await expect(outline).toHaveCount(0);
+    await page.mouse.up();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    // let go over the full day, it stays put
+    await block.dragTo(thursday, {
       sourcePosition: { x: 10, y: 5 },
       targetPosition: { x: 10, y: 3 * HOUR_PX + 5 },
     });
@@ -222,6 +265,8 @@ test(
       targetPosition: { x: 10, y: 3.5 * HOUR_PX + 5 },
     });
     const dialog = page.getByRole("dialog", { name: "Move this job?" });
+    // let go, the outline goes
+    await expect(outline).toHaveCount(0);
     await expect(dialog).toContainText("FromTue, Mar 2, 9:00 AM");
     await expect(dialog).toContainText("ToWed, Mar 3, 10:30 AM");
     await expect(dialog).toContainText("There's room on Wed, Mar 3 then.");
