@@ -7,6 +7,7 @@ import { LanguageProvider, TestSiteBanner } from "@empire-cleaning/ui";
 import { business, businessWords } from "../business.ts";
 import { urlOf, type Page } from "../routes.ts";
 import { isTestSite } from "../site-mode.ts";
+import { analytics } from "../analytics.ts";
 import { structuredData } from "../structured-data.ts";
 
 // a page other than the home page names itself first; every page says which
@@ -33,6 +34,7 @@ const urlIn = (l: typeof lang) => page && urlOf(page, l);
 const url = urlIn(lang);
 // Open Graph's way of naming a language
 const ogLocale = { en: "en_US", es: "es_US" };
+const beacon = analytics(import.meta.env.PUBLIC_CF_ANALYTICS_TOKEN);
 ---
 
 <!doctype html>
@@ -85,6 +87,16 @@ const ogLocale = { en: "en_US", es: "es_US" };
       type="application/ld+json"
       set:html={JSON.stringify(structuredData(lang, data))}
     />
+    {/* Cloudflare's analytics, with a token only (src/analytics.ts); a
+        module script waits for the page, so it holds nothing up */}
+    {beacon && (
+      <script
+        is:inline
+        type="module"
+        src={beacon.beacon}
+        data-cf-beacon={beacon.config}
+      />
+    )}
   </head>
   <body>
     {isTestSite && (

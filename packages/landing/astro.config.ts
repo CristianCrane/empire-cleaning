@@ -9,6 +9,7 @@ import {
   monitoringBuild,
   monitoringOrigins,
 } from "@empire-cleaning/browser-monitoring/vite";
+import { analytics } from "./src/analytics.ts";
 
 const env = loadEnv(
   process.env.NODE_ENV ?? "production",
@@ -18,28 +19,34 @@ const env = loadEnv(
 // where the Quote form posts (RequestQuote.astro)
 const apiUrl = env.PUBLIC_API_URL ?? "http://localhost:3000";
 const themeBoot = createHash("sha256").update(themeBootScript).digest("base64");
+const beacon = analytics(env.PUBLIC_CF_ANALYTICS_TOKEN);
 
 // a static site (ADR-0005): every page is prerendered to HTML at build time,
 // and only interactive islands ship JavaScript
 export default defineConfig({
   site: "https://www.empirecleaningandpro.com",
   output: "static",
-  // What a page may load: its own files, the API the Quote form posts to and
-  // Sentry. Astro writes it into each page as a <meta>, with the hashes of the
-  // page's own inline scripts; the headers a <meta> can't carry
+  // What a page may load: its own files, the API the Quote form posts to,
+  // Sentry, and Cloudflare's analytics beacon in a build with its token
+  // (src/analytics.ts). Astro writes it into each page as a <meta>, with the
+  // hashes of the page's own inline scripts; the headers a <meta> can't carry
   // (frame-ancestors) are set by the host (render.yaml)
   security: {
     csp: {
       directives: [
         "default-src 'self'",
         "img-src 'self' data:",
-        `connect-src 'self' ${[new URL(apiUrl).origin, ...monitoringOrigins(env.PUBLIC_SENTRY_DSN)].join(" ")}`,
+        `connect-src 'self' ${[new URL(apiUrl).origin, ...monitoringOrigins(env.PUBLIC_SENTRY_DSN), ...(beacon?.connectSrc ?? [])].join(" ")}`,
         "object-src 'none'",
         "base-uri 'self'",
         "form-action 'self'",
       ],
-      // the theme boot script is inline (is:inline), which Astro doesn't hash
-      scriptDirective: { hashes: [`sha256-${themeBoot}`] },
+      scriptDirective: {
+        // these replace Astro's own 'self', so it's named too
+        resources: ["'self'", ...(beacon?.scriptSrc ?? [])],
+        // the theme boot script is inline (is:inline), which Astro doesn't hash
+        hashes: [`sha256-${themeBoot}`],
+      },
       // a few elements are styled inline, and a style can't run code
       styleDirective: { resources: ["'self'", "'unsafe-inline'"] },
     },

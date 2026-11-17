@@ -1,4 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
+import { analytics } from "../src/analytics.ts";
 import { business, businessWords } from "../src/business.ts";
 import { pages, pathOf } from "../src/routes.ts";
 import { reviews } from "../src/reviews.ts";
@@ -654,6 +655,25 @@ test("the only JavaScript is the theme toggle, the Quote form and the reviews' b
       all.map((i) => i.getAttribute("component-export") ?? "").sort(),
     ),
   ).toEqual(["QuoteForm", "ThemeToggleIn"]);
+});
+
+// built with no PUBLIC_CF_ANALYTICS_TOKEN, as dev and the test site are: the
+// analytics a token would bring (src/analytics.ts) are neither loaded nor
+// allowed
+test("a build with no analytics token has no beacon, and its CSP allows none", async ({
+  page,
+}) => {
+  const withToken = analytics("any")!;
+  await page.goto("/");
+
+  await expect(page.locator(`script[src="${withToken.beacon}"]`)).toHaveCount(
+    0,
+  );
+  const csp = await page
+    .locator('meta[http-equiv="content-security-policy"]')
+    .getAttribute("content");
+  for (const source of [...withToken.scriptSrc, ...withToken.connectSrc])
+    expect(csp).not.toContain(source);
 });
 
 test("a chosen theme applies straight away and is remembered", async ({
