@@ -5,7 +5,8 @@ The public page for prospective Clients at empirecleaningandpro.com: a static si
 `pnpm dev` at the repo root starts it on http://localhost:4321. `pnpm --filter @empire-cleaning/landing build` writes the static site to `dist/`, ready for any static host.
 
 - **Look:** the design system's tokens and components (`@empire-cleaning/ui`). React components render to plain HTML at build time.
-- **JavaScript:** none of our own, except two interactive islands and one small script, beside Sentry's and Cloudflare's below:
+- **JavaScript:** none of our own, except two interactive islands and two small scripts, beside Sentry's and Cloudflare's below:
+  - the theme boot, inline in every page's head, so a visitor's chosen theme shows from the first paint (`@empire-cleaning/ui/theme-boot`)
   - the theme toggle, loaded once the browser is idle
   - the Guest Request a Quote form (`@empire-cleaning/quote-request`), loaded once the browser is idle, so it's ready before almost anyone scrolls or jumps down to it
   - the reviews' Previous and Next buttons and their count (plain script in `Reviews.astro`); without it every review is still there, one at a time in a strip you swipe or scroll
