@@ -1,7 +1,7 @@
 import { log } from "./log.ts";
 import { scrub } from "@empire-cleaning/models";
 import { clock } from "#services/clock";
-import { urgencyOf, windowOf, type Signal, type Urgency } from "./signals.ts";
+import { urgencyOf, windowOf, type Alerted, type Signal } from "./signals.ts";
 import { unitOf, type Measure, type Unit } from "./measures.ts";
 
 // IDs and short facts about what was happening: Client, Staff and Account IDs,
@@ -12,7 +12,10 @@ export type Context = Record<string, string | number | boolean | null>;
 // when there are keys), nowhere (dev without keys), or a fake in tests
 export interface Reporter {
   error(error: unknown, context: Context): void;
-  signal(name: Signal, urgency: Urgency, context: Context): void;
+  // a signal someone may need to act on, as an event
+  signal(name: Signal, urgency: Alerted, context: Context): void;
+  // a counted signal, only added up
+  count(name: Signal, context: Context): void;
   measure(name: Measure, value: number, unit: Unit, context: Context): void;
   heartbeat(): void;
 }
@@ -20,6 +23,7 @@ export interface Reporter {
 const consoleOnly: Reporter = {
   error: () => {},
   signal: () => {},
+  count: () => {},
   measure: () => {},
   heartbeat: () => {},
 };
@@ -57,7 +61,8 @@ const toldWithin = (name: Signal, context: Context) => {
 };
 
 // The one way the server reports (ADR-0007). Errors and signals are logged
-// and go to the Reporter; measures and heartbeats only go to it, as they come
+// and go to the Reporter, a counted signal as a count and at info, as nobody
+// need act on it; measures and heartbeats only go to it, as they come
 // every few seconds or minutes.
 export const monitoring = {
   // 5xx responses, unhandled errors, and failures caught but not expected.
@@ -74,6 +79,11 @@ export const monitoring = {
   signal: (name: Signal, context: Context = {}) => {
     if (toldWithin(name, context)) return;
     const urgency = urgencyOf(name);
+    if (urgency === "counted") {
+      log.info({ signal: name, urgency, ...context }, name);
+      current.count(name, scrub(context));
+      return;
+    }
     log.warn({ signal: name, urgency, ...context }, name);
     current.signal(name, urgency, scrub(context));
   },
@@ -111,5 +121,5 @@ export const setReporter = (next: Reporter) => {
 
 export { log } from "./log.ts";
 export { scrubText } from "@empire-cleaning/models";
-export { type Signal, type Urgency } from "./signals.ts";
+export { type Alerted, type Signal } from "./signals.ts";
 export { type Measure, type Unit } from "./measures.ts";

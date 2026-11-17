@@ -51,16 +51,23 @@ describe("scrubbing", () => {
 });
 
 describe("signals", () => {
-  test("carry their urgency", () => {
+  // a Sentry issue means a person must act (#458)
+  test("a counted one is counted, never an event", () => {
     monitoring.signal("charge_declined", { reason: "card_declined" });
 
-    expect(testMonitoring().signals).toEqual([
-      {
-        name: "charge_declined",
-        urgency: "counted",
-        context: { reason: "card_declined" },
-      },
+    expect(testMonitoring().counts).toEqual([
+      { name: "charge_declined", context: { reason: "card_declined" } },
     ]);
+    expect(testMonitoring().signals).toEqual([]);
+  });
+
+  test("an urgent one is an event, carrying its urgency", () => {
+    monitoring.signal("refund_failed", { ref: "pi_1" });
+
+    expect(testMonitoring().signals).toEqual([
+      { name: "refund_failed", urgency: "urgent", context: { ref: "pi_1" } },
+    ]);
+    expect(testMonitoring().counts).toEqual([]);
   });
 
   test("an email the service refuses is email_send_failed, alerted in bulk", async () => {

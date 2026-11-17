@@ -9,7 +9,7 @@ Errors, performance traces, uptime checks and heartbeats all go to Sentry, on it
 - **Measures** (added with #284): named numbers, sampled every 10 s and sent as Sentry Application Metrics gauges, which a Metric Monitor can alert on by their min, max or average over a window. For each database pool: connections in use, idle, requests waiting, and the longest wait for a connection since the last sample. One alert: `db.pool.waiting`'s minimum above 0 for the whole window, meaning requests have queued for a connection the whole time, before any gives up after 10 s. We chose gauges over spans (Sentry's `pg-pool.connect` span shows a traced request's wait, but only 20% are traced and spans carry no counts, so a short run dry can be missed) and over a periodic log line (Render's logs, which nothing alerts on). The volume is set by the sample rate, not traffic: ~2M a month, inside the free plan's 5 GB.
 - **Uptime**: one monitor on the API's `/health`, which runs `select 1` with a 2 s timeout and returns 503 if the database can't answer. It doesn't check Stripe or Resend: their outages are signals, not us being down.
 - **Heartbeat**: one cron monitor for the in-process scheduler as a whole, which checks in after each tick in which every due job succeeded. A stopped timer or a failing job both miss the check-in.
-- **Business signals**: named, not free-form, each urgent or not, sent as Sentry events tagged with their urgency:
+- **Business signals**: named, not free-form, each urgent or not. Those someone may need to act on are sent as Sentry events tagged with their urgency; a counted one is a Sentry counter (Application Metrics) and logged at info, never an event, so it opens no issue and no email calls it an error (#458: `refunded_at_provider` as an event opened an issue, and Sentry's summary email told the owner the server "had multiple errors"):
 
 | Signal | Means | Urgency |
 |---|---|---|
@@ -17,9 +17,9 @@ Errors, performance traces, uptime checks and heartbeats all go to Sentry, on it
 | `refund_failed` | money was taken, booking failed, and the refund didn't go through | urgent |
 | `heartbeat_missed` | a scheduled job has stopped running | urgent |
 | `email_send_failed` | the email service refused a message or was unreachable | urgent at more than 3 in 15 minutes (sign-in links stop), otherwise not |
-| `charge_declined` | a Client's card was declined | counted, never alerted |
+| `charge_declined` | a Client's card was declined | counted (a Sentry counter), never alerted |
 | `dispute_opened` | a Client disputed a Charge with their bank, which has a deadline to answer (added with #41) | urgent |
-| `refunded_at_provider` | a Charge was refunded in the payment provider's dashboard, not by us (added with #41) | counted, never alerted |
+| `refunded_at_provider` | a Charge was refunded in the payment provider's dashboard, not by us (added with #41) | counted (a Sentry counter), never alerted |
 | `rate_cap_reached` | a site-wide cap on emails to typed addresses (sign-in links, Guest Quote Requests, new-email links) was reached, so real people are being refused until the hour is up (added with #243) | urgent, at most once an hour for each cap |
 | `db_pool_exhausted` | a request gave up waiting for a database connection, as every one in its pool was in use; requests are failing (added with #284). Raised only for pg's "timeout exceeded when trying to connect": "Connection terminated due to connection timeout" is the database not answering, which the uptime monitor covers, and stays an error. Each failed request is thrown on as already signalled, so it isn't also an error | urgent, at most once a minute for each pool |
 
