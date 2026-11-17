@@ -5,7 +5,8 @@ The public page for prospective Clients at empirecleaningandpro.com: a static si
 `pnpm dev` at the repo root starts it on http://localhost:4321. `pnpm --filter @empire-cleaning/landing build` writes the static site to `dist/`, ready for any static host.
 
 - **Look:** the design system's tokens and components (`@empire-cleaning/ui`). React components render to plain HTML at build time.
-- **JavaScript:** none, except two interactive islands and one small script:
+- **JavaScript:** none of our own, except two interactive islands and two small scripts, beside Sentry's and Cloudflare's below:
+  - the theme boot, inline in every page's head, so a visitor's chosen theme shows from the first paint (`@empire-cleaning/ui/theme-boot`)
   - the theme toggle, loaded once the browser is idle
   - the Guest Request a Quote form (`@empire-cleaning/quote-request`), loaded once the browser is idle, so it's ready before almost anyone scrolls or jumps down to it
   - the reviews' Previous and Next buttons and their count (plain script in `Reviews.astro`); without it every review is still there, one at a time in a strip you swipe or scroll
@@ -15,6 +16,7 @@ The public page for prospective Clients at empirecleaningandpro.com: a static si
   The form posts to the API at `PUBLIC_API_URL` (set at build time; by default http://localhost:3000), which allows the landing site's origin (`LANDING_ORIGIN_URL` on the server).
 
 - **Errors** go to Sentry (ADR-0007, `packages/browser-monitoring`), started by every page (`src/monitoring.ts`, from `src/layouts/Page.astro`) once the browser is idle, with no form values or personal details. Only a build with `PUBLIC_SENTRY_DSN` has it, in a chunk of its own, so dev and test builds send nothing and pages carry none of it; `PUBLIC_APP_MODE` is its environment. With `SENTRY_AUTH_TOKEN` and `SENTRY_ORG`, source maps go to Sentry's `landing` project, never published. Every build marks its files as ours, token or not, a few bytes each (`monitoringBuild`, `packages/browser-monitoring`).
+- **Analytics:** Cloudflare Web Analytics counts visits, from its beacon on every page (`src/analytics.ts`, from `src/layouts/Page.astro`), a module script, so the page waits for none of it. Only a build with `PUBLIC_CF_ANALYTICS_TOKEN` loads it and lets the Content-Security-Policy allow it, so dev, the tests and the test site load and allow none. Production's token, for Cloudflare's site `www.empirecleaningandpro.com`, is `e1c9a5e3ae014527a7c226b3d9d8e606`: it goes on the production landing service when its Blueprint is written (#205). It isn't secret: every page carries it. Which pages and links bring Quote Requests is the Quote's own (`src/source.ts`).
 - **Feedback, on the test site only:** every page has Sentry's Send feedback button, bottom right (nothing else on these pages is fixed), so the owner can flag a wrong word or claim where they read it, with a screenshot on a computer. Its code and look come in only when `PUBLIC_APP_MODE` is `test` (`src/feedback.ts`); other builds carry and publish none of them.
 - **Reviews** live in `src/reviews.ts`: real Google reviews, word for word, which the owner swaps there.
 - **Business details** (name, phone, hours, languages, its pages on Facebook, Instagram, Yelp and Google) and its words (the area served, hours as printed, page title, description and heading) live in `src/business.ts`, and the Services in `src/services.ts`, shared by the page, its search data and its tests.
