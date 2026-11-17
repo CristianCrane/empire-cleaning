@@ -1,16 +1,18 @@
 import { and, eq, isNull, ne, sum } from "drizzle-orm";
 import {
   CANCELLATION_CUTOFF_HOURS,
-  catalog,
   type CancellationTerms,
   type CancelledBy,
   HOUR_MS,
   type JobCancellation,
   type JobNoAccess,
 } from "@empire-cleaning/models";
-import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
-import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
+import {
+  changedSince,
+  ConflictError,
+  NotFoundError,
+} from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
 import { email, notify } from "../../services/email/index.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
@@ -42,20 +44,6 @@ import {
   officeCancelledEmail,
   officeNoAccessEmail,
 } from "./emails.ts";
-
-// what changed while a Client looked, such as the cost of cancelling: the
-// page reloads to show it. In the request's language (ADR-0025)
-const changedWords = catalog({
-  en: {
-    CHANGED_SINCE:
-      "Something changed just then. Please check it and try again.",
-  },
-  es: {
-    CHANGED_SINCE:
-      "Algo cambió en este momento. Revíselo y vuelva a intentarlo.",
-  },
-});
-export const changedSince = () => changedWords[currentLanguage()].CHANGED_SINCE;
 
 // when a clean starting then enters the Late Cancellation window
 export const lateFrom = (startsAt: Date) =>
