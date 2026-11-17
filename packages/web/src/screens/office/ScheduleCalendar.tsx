@@ -2,6 +2,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type DragEvent,
   type ReactNode,
   type RefObject,
@@ -32,6 +33,7 @@ import {
 import { linkTo } from "../../links.ts";
 import {
   HOUR_PX,
+  onAxis,
   PickSlot,
   TimeGrid,
   type TimePickerProps,
@@ -202,19 +204,27 @@ export function ScheduleCalendar({
         )
       : Infinity;
 
-  const drop = (day: ScheduleDay, e: DragEvent<HTMLElement>) => {
-    const grabbed = dragging.current;
-    if (!onDrop || !grabbed || !hasRoomFor(day, grabbed.job)) return;
-    e.preventDefault();
+  // when a Job dragged over a day's body would start there: its top where
+  // the pointer is less how far down it was grabbed, snapped to the quarter
+  // hour and kept on the axis
+  const landingOf = (e: DragEvent<HTMLElement>, grabbed: Dragging) => {
     const top =
       e.clientY -
       e.currentTarget.getBoundingClientRect().top -
       grabbed.grabbedAtPx;
-    const at = Math.min(
-      Math.max(snap(axis.start + top / HOUR_PX), axis.start),
-      axis.end - SNAP_HOURS,
+    return timeAt(
+      Math.min(
+        Math.max(snap(axis.start + top / HOUR_PX), axis.start),
+        axis.end - SNAP_HOURS,
+      ),
     );
-    const to = { date: day.date, time: timeAt(at) };
+  };
+
+  const drop = (day: ScheduleDay, e: DragEvent<HTMLElement>) => {
+    const grabbed = dragging.current;
+    if (!onDrop || !grabbed || !hasRoomFor(day, grabbed.job)) return;
+    e.preventDefault();
+    const to = { date: day.date, time: landingOf(e, grabbed) };
     const { job } = grabbed;
     if (
       to.date !== dayOfInstant(job.startsAt) ||
@@ -557,8 +567,7 @@ function DayJobs({
   const place = (block: Block) => {
     const { lane, lanes: of } = lanes.get(block.id)!;
     return {
-      top: (block.start - axisStart) * HOUR_PX + 1,
-      height: (block.end - block.start) * HOUR_PX - 2,
+      ...onAxis(block.start, block.end - block.start, axisStart),
       left: `calc(${(lane / of) * 100}% + 2px)`,
       width: `calc(${100 / of}% - 4px)`,
     };
@@ -674,13 +683,32 @@ function DayJobs({
         );
       })}
       {proposed && (
-        <div
-          className="pointer-events-none absolute overflow-hidden rounded-md border-2 border-dashed border-primary bg-primary/15 px-1.5 py-0.5 text-xs leading-tight font-semibold"
+        <ProposedBlock
+          time={proposed.time}
+          label={proposed.label}
           style={place(proposed.block)}
-        >
-          {formatClock(proposed.time)} {proposed.label}
-        </div>
+        />
       )}
     </>
+  );
+}
+
+// a clean drawn where it would go before it's booked there
+function ProposedBlock({
+  time,
+  label,
+  style,
+}: {
+  time: string;
+  label: string;
+  style: CSSProperties;
+}) {
+  return (
+    <div
+      className="pointer-events-none absolute overflow-hidden rounded-md border-2 border-dashed border-primary bg-primary/15 px-1.5 py-0.5 text-xs leading-tight font-semibold"
+      style={style}
+    >
+      {formatClock(time)} {label}
+    </div>
   );
 }

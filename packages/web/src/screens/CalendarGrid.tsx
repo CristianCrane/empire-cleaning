@@ -20,6 +20,13 @@ const { formatClock, formatDay } = formats.en;
 // how tall an hour is on the time axis
 export const HOUR_PX = 48;
 
+// where a block from `start` for `hours` sits on a column's body, in from
+// the hour lines either side
+export const onAxis = (start: number, hours: number, axisStart: number) => ({
+  top: (start - axisStart) * HOUR_PX + 1,
+  height: hours * HOUR_PX - 2,
+});
+
 const spanLabel: Record<Span, string> = { 1: "Day", 3: "3 days", 7: "Week" };
 const stepLabel: Record<Span, string> = { 1: "day", 3: "3 days", 7: "week" };
 
@@ -203,10 +210,7 @@ export function PickSlot({
         .filter(Boolean)
         .join(", ")}
       className={`group absolute inset-x-0.5 min-h-0 items-start justify-start rounded-md px-1.5 py-0.5 text-xs font-normal ${className}`}
-      style={{
-        top: (hoursOf(at.time) - axisStart) * HOUR_PX + 1,
-        height: hours * HOUR_PX - 2,
-      }}
+      style={onAxis(hoursOf(at.time), hours, axisStart)}
       onPress={() => onPick(at)}
     >
       {children}
