@@ -1,4 +1,9 @@
-import { catalog, type Language, LANGUAGES } from "@empire-cleaning/models";
+import {
+  catalog,
+  type Language,
+  LANGUAGES,
+  landingHome as home,
+} from "@empire-cleaning/models";
 import { areaOf, areas, type AreaKey } from "./areas/index.ts";
 import { business } from "./business.ts";
 import { guideOf, guides, type GuideKey } from "./guides/index.ts";
@@ -16,7 +21,6 @@ export type Page =
   | { kind: "service"; service: ServiceKey }
   | { kind: "guide"; guide: GuideKey };
 
-const home = catalog({ en: "/", es: "/es/" });
 const folders = catalog({
   en: { services: "services", guides: "guides" },
   es: { services: "servicios", guides: "guias" },

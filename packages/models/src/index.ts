@@ -1,7 +1,7 @@
 // Shared domain types live here; see GLOSSARY.md for the vocabulary.
 
 import { clockTime } from "./days.ts";
-import type { Language } from "./language.ts";
+import { catalog, type Language } from "./language.ts";
 
 // the roles a Staff member can hold; one person may hold both
 export type StaffRole = "cleaner" | "office_staff";
@@ -2075,6 +2075,10 @@ export const business = {
   // it in full). The Spanish is a draft the owner checks (#206)
   area: { en: "Queens, NYC and Long Island", es: "Queens, NYC y Long Island" },
 } as const;
+
+// the landing site's home page in each language (ADR-0025): every other
+// page's address is under it (packages/landing/src/routes.ts)
+export const landingHome = catalog({ en: "/", es: "/es/" });
 
 // the languages people read the product in, and catalogs of words in each
 // (ADR-0025)
