@@ -12,7 +12,7 @@ import type {
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { dayOf, timeOf } from "@empire-cleaning/models";
-import { apart, db } from "#db";
+import { apart, db, type Tx } from "#db";
 import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { bills, makeDueBills, setBilling } from "#features/bills";
 import { findClientByEmail, createClient } from "#features/clients";
@@ -511,17 +511,16 @@ export const setService = async (
   ).body as Service;
 };
 
-// Holds a Property as a send, save or close of its Quotes does, on a
-// connection of its own, while each request starts in
-// turn, a moment apart so each is waiting before the next; then lets it go.
-// The requests' responses, in order.
-export const holdingProperty = async <T>(
-  propertyId: string,
+// Holds a lock (`lock`, run in a transaction) on a connection of its own,
+// while each request starts in turn, a moment apart so each is waiting
+// before the next; then lets it go. The requests' responses, in order.
+export const holding = async <T>(
+  lock: (tx: Tx) => Promise<unknown>,
   requests: (() => PromiseLike<T>)[],
 ) => {
   const started: Promise<T>[] = [];
   await apart.transaction(async (tx) => {
-    await lockProperty(tx, propertyId);
+    await lock(tx);
     for (const request of requests) {
       // a request starts once it's awaited
       started.push(Promise.resolve(request()));
@@ -530,3 +529,9 @@ export const holdingProperty = async <T>(
   });
   return Promise.all(started);
 };
+
+// holding a Property as a send, save or close of its Quotes does
+export const holdingProperty = <T>(
+  propertyId: string,
+  requests: (() => PromiseLike<T>)[],
+) => holding((tx) => lockProperty(tx, propertyId), requests);
