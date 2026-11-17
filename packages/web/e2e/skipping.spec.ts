@@ -86,13 +86,13 @@ test("a Client skipping late is charged the fee, and pays it once their card wor
   await pageAction(page, "Skip this clean");
   const dialog = page.getByRole("alertdialog", { name: "Skip this clean?" });
   await expect(dialog).toContainText(
-    "a late cancellation, with a $50.46 fee, the same as your plan's deposit",
+    "a late cancellation, with a $50.46 fee, that clean's share of your plan's deposit",
   );
   await dialog.getByRole("button", { name: "Skip this clean" }).click();
 
   await expect(page.getByText("Your clean is skipped")).toBeVisible();
   await expect(page.getByRole("region", { name: "Skipped" })).toContainText(
-    "Skipping it less than 24 hours before is a late cancellation, with a $50.46 fee, the same as your plan's deposit. Your deposit stays held.",
+    "Skipping it less than 24 hours before is a late cancellation, with a $50.46 fee, that clean's share of your plan's deposit. Your deposit stays held.",
   );
   const payment = page.getByRole("alert").filter({ hasText: "Payment needed" });
   await expect(payment).toContainText("We couldn't take $50.46");
@@ -124,7 +124,7 @@ test(
     await pageAction(page, "Cancel job");
     const dialog = page.getByRole("alertdialog", { name: "Cancel this job?" });
     await expect(dialog).toContainText(
-      "A late cancellation: a $50.46 fee, the plan's deposit amount. The plan's deposit stays held. The fee is charged.",
+      "A late cancellation: a $50.46 fee, this clean's share of the plan's deposit. The plan's deposit stays held. The fee is charged.",
     );
     await expect(dialog).toContainText("The cleaning plan carries on.");
     await expectAccessible(page);

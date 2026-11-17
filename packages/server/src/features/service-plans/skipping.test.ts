@@ -135,7 +135,7 @@ describe("skipping a plan Job", () => {
 
     expect(chargesAfterDeposit()).toEqual([]);
     expect(testEmail().lastTo("olive@example.com").text).toContain(
-      "A late cancellation: a $50.46 fee, the plan's deposit amount. The plan's deposit stays held. The fee goes on that week's bill.",
+      "A late cancellation: a $50.46 fee, this clean's share of the plan's deposit. The plan's deposit stays held. The fee goes on that week's bill.",
     );
   });
 
