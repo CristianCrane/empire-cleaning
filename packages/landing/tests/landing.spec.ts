@@ -854,9 +854,14 @@ test.describe("on a phone", () => {
     expect(await centred()).toEqual({ align: "center", numberCentred: true });
   });
 
-  test("the footer is centred", async ({ page }) => {
+  test("the footer is centred, its policies and © too", async ({ page }) => {
     await page.goto("/");
-    expect(await textAlign(page, "footer > div")).toBe("center");
+    for (const part of [
+      "footer > div:first-of-type",
+      "footer > div:last-of-type",
+    ]) {
+      expect(await textAlign(page, part)).toBe("center");
+    }
   });
 });
 
@@ -881,9 +886,9 @@ test("from a tablet, the footer has the areas left, the logo in the middle and t
   const [areas, logo, details, copyright, row] = await Promise.all([
     box(footer.getByRole("navigation", { name: "Areas we serve" })),
     box(footer.getByRole("img", { name: business.brand })),
-    box(footer.locator("> div > :last-child")),
+    box(footer.locator("> div:first-of-type > :last-child")),
     box(footer.getByText(/^©/)),
-    box(footer.locator("> div")),
+    box(footer.locator("> div:first-of-type")),
   ]);
   const middle = (b: { y: number; height: number }) => b.y + b.height / 2;
   const centre = (b: { x: number; width: number }) => b.x + b.width / 2;
