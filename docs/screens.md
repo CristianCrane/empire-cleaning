@@ -477,7 +477,9 @@ Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432
 Keeps: Google first (#168).
 
 - `SignInPage`: the logo above a narrow card holding the title, a warning
-  Notice (`?error=`), Continue with Google and the email form.
+  Notice (`?error=`), Continue with Google and the email form; under it the
+  line for someone new, then the landing site's Privacy policy and Terms of
+  service (#462).
 
 #### Message pages
 

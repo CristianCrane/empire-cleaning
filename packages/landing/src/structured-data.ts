@@ -2,6 +2,8 @@ import {
   type Catalog,
   type Language,
   LANGUAGES,
+  type LegalKey,
+  legalPages,
 } from "@empire-cleaning/models";
 import { areas, type Area } from "./areas/index.ts";
 import { business, businessWords } from "./business.ts";
@@ -138,6 +140,15 @@ export const serviceData = (page: ServicePage, lang: Language) => {
     },
   ];
 };
+
+// a policy (#462): its breadcrumbs
+export const legalData = (key: LegalKey, lang: Language) => [
+  crumbs(
+    lang,
+    legalPages[lang][key].name,
+    urlOf({ kind: "legal", legal: key }, lang),
+  ),
+];
 
 // a guide (#180): its breadcrumbs, and the article, written and published
 // by the business, in the page's language

@@ -854,9 +854,14 @@ test.describe("on a phone", () => {
     expect(await centred()).toEqual({ align: "center", numberCentred: true });
   });
 
-  test("the footer is centred", async ({ page }) => {
+  test("the footer is centred, its policies and © too", async ({ page }) => {
     await page.goto("/");
-    expect(await textAlign(page, "footer > div")).toBe("center");
+    for (const part of [
+      "footer > div:first-of-type",
+      "footer > div:last-of-type",
+    ]) {
+      expect(await textAlign(page, part)).toBe("center");
+    }
   });
 });
 
@@ -881,9 +886,9 @@ test("from a tablet, the footer has the areas left, the logo in the middle and t
   const [areas, logo, details, copyright, row] = await Promise.all([
     box(footer.getByRole("navigation", { name: "Areas we serve" })),
     box(footer.getByRole("img", { name: business.brand })),
-    box(footer.locator("> div > :last-child")),
-    box(footer.locator("> p")),
-    box(footer.locator("> div")),
+    box(footer.locator("> div:first-of-type > :last-child")),
+    box(footer.getByText(/^©/)),
+    box(footer.locator("> div:first-of-type")),
   ]);
   const middle = (b: { y: number; height: number }) => b.y + b.height / 2;
   const centre = (b: { x: number; width: number }) => b.x + b.width / 2;
@@ -933,8 +938,12 @@ for (const path of everyKindOfPage) {
   });
 }
 
-// every page imports the footer on its own, the 404 too
-for (const path of [...everyKindOfPage, "/no-such-page"]) {
+// every page imports the footer on its own, a policy and the 404 too
+for (const path of [
+  ...everyKindOfPage,
+  pathOf({ kind: "legal", legal: "privacy" }, "en"),
+  "/no-such-page",
+]) {
   test(`${path}'s foot links the business on Facebook, Instagram, Yelp and Google, each in a new tab`, async ({
     page,
   }) => {
@@ -947,6 +956,24 @@ for (const path of [...everyKindOfPage, "/no-such-page"]) {
       await expect(link).toHaveAttribute("href", href);
       await expect(link).toHaveAttribute("target", "_blank");
       await expect(link).toHaveAttribute("rel", "noopener");
+    }
+  });
+
+  test(`${path}'s foot links the Privacy policy and the Terms of service`, async ({
+    page,
+  }) => {
+    await page.goto(path);
+
+    const policies = page
+      .locator("footer")
+      .getByRole("navigation", { name: "Policies" });
+    for (const [legal, name] of [
+      ["privacy", "Privacy policy"],
+      ["terms", "Terms of service"],
+    ] as const) {
+      await expect(
+        policies.getByRole("link", { name, exact: true }),
+      ).toHaveAttribute("href", pathOf({ kind: "legal", legal }, "en"));
     }
   });
 }

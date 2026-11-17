@@ -21,6 +21,7 @@ test("English reads as it always has", () => {
   expect(en.formatDay("2026-01-05")).toBe("Mon, Jan 5");
   expect(en.formatShortDay("2026-01-05")).toBe("Jan 5");
   expect(en.formatLongDay("2026-01-12")).toBe("Monday, January 12");
+  expect(en.formatFullDay("2026-11-17")).toBe("November 17, 2026");
   expect(en.weekdayName("2026-01-05")).toBe("Monday");
   expect(en.weekdays).toEqual([
     "Monday",
@@ -64,6 +65,7 @@ test("Spanish reads as es-US writes it", () => {
   expect(es.formatMoney(39104)).toBe("$391.04");
   expect(es.formatDay("2026-01-05")).toBe("lun, 5 de ene");
   expect(es.formatLongDay("2026-01-12")).toBe("lunes, 12 de enero");
+  expect(es.formatFullDay("2026-11-17")).toBe("17 de noviembre de 2026");
   expect(es.weekdayName("2026-01-05")).toBe("lunes");
   expect(es.weekdays[6]).toBe("domingo");
   expect(es.formatMonth("2026-11-01")).toBe("noviembre de 2026");

@@ -1,0 +1,175 @@
+# Production on Render (ADR-0020): the test site's services (render.yaml)
+# with production's names, addresses and secrets. A Blueprint of its own, not
+# part of render.yaml: Render syncs a Blueprint whenever a push changes its
+# file, creating and deploying what changed, and the test site's syncs on
+# every merge. So this Blueprint's Auto Sync is No, its services never
+# auto-deploy, and each release is by hand (README.md, Production).
+#
+# Everything here is the test site's but for the differences listed in
+# packages/server/src/render-blueprints.test.ts, which fails when the two files
+# differ in anything else: change both, and render.yaml says what each setting
+# is for. Secret values (the `sync: false` ones) are entered when the
+# Blueprint is created; #205 lists where each comes from.
+
+databases:
+  - name: empire-prod-db
+    # #205 picks the plan by the backups it keeps
+    plan: basic-256mb
+    region: virginia
+    postgresMajorVersion: "16"
+    # reachable only from inside Render: no reset Action reaches production
+    ipAllowList: []
+
+services:
+  - type: web
+    name: empire-prod-server
+    runtime: node
+    plan: starter
+    region: virginia
+    buildCommand: npx --yes pnpm@11.18.0 install --frozen-lockfile
+    preDeployCommand: npm --prefix packages/server run env:check && npm --prefix packages/server run db:migrate
+    startCommand: npm --prefix packages/server start
+    healthCheckPath: /health
+    autoDeployTrigger: "off"
+    # the test site's, kept so the two files match; nothing deploys by itself
+    # here, so it does nothing
+    buildFilter:
+      paths:
+        - packages/server/**
+        - packages/models/**
+        - package.json
+        - pnpm-lock.yaml
+        - render.yaml
+    envVars:
+      - key: APP_MODE
+        value: prod
+      - key: DB_URL
+        fromDatabase:
+          name: empire-prod-db
+          property: connectionString
+      - key: CORS_ORIGIN_URL
+        value: https://app.empirecleaningandpro.com
+      - key: BETTER_AUTH_URL
+        value: https://app.empirecleaningandpro.com
+      - key: LANDING_ORIGIN_URL
+        value: https://www.empirecleaningandpro.com
+      - key: BETTER_AUTH_SECRET
+        generateValue: true
+      - key: EMAIL_FROM
+        value: Empire Cleaning <no-reply@empirecleaningandpro.com>
+      - key: OFFICE_EMAIL
+        value: empirecleaningproservices@gmail.com
+      - key: RESEND_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      # the live account's restricted key and webhook (#45)
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: GOOGLE_REVIEW_URL
+        sync: false
+      # required in prod (src/env.ts)
+      - key: SENTRY_DSN
+        sync: false
+
+  - type: web
+    name: empire-prod-web
+    runtime: static
+    buildCommand: >-
+      npx --yes pnpm@11.18.0 install --frozen-lockfile &&
+      npx --yes pnpm@11.18.0 --filter-prod "@empire-cleaning/web..." build
+    staticPublishPath: packages/web/dist
+    autoDeployTrigger: "off"
+    domains:
+      - app.empirecleaningandpro.com
+    headers:
+      - path: /*
+        name: Content-Security-Policy
+        value: frame-ancestors 'none'
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: Strict-Transport-Security
+        value: max-age=31536000; includeSubDomains
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+    envVars:
+      - key: VITE_APP_MODE
+        value: prod
+      # the landing site, whose policies sign-in links (#462): the same
+      # address as the server's LANDING_ORIGIN_URL
+      - key: VITE_LANDING_URL
+        value: https://www.empirecleaningandpro.com
+      - key: VITE_SENTRY_DSN
+        sync: false
+      - key: SENTRY_AUTH_TOKEN
+        sync: false
+      - key: SENTRY_ORG
+        sync: false
+    routes:
+      # Render names the server's address after the service: #205 checks it
+      - type: rewrite
+        source: /api/*
+        destination: https://empire-prod-server.onrender.com/api/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  - type: web
+    name: empire-prod-landing
+    runtime: static
+    buildCommand: >-
+      npx --yes pnpm@11.18.0 install --frozen-lockfile &&
+      npx --yes pnpm@11.18.0 --filter-prod "@empire-cleaning/landing..." build
+    staticPublishPath: packages/landing/dist
+    autoDeployTrigger: "off"
+    # Render adds the bare domain itself, redirecting to www., and sends
+    # http:// on to https://
+    domains:
+      - www.empirecleaningandpro.com
+    headers:
+      - path: /*
+        name: Content-Security-Policy
+        value: frame-ancestors 'none'
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: Strict-Transport-Security
+        value: max-age=31536000; includeSubDomains
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+    envVars:
+      - key: PUBLIC_APP_MODE
+        value: prod
+      - key: PUBLIC_API_URL
+        value: https://app.empirecleaningandpro.com
+      - key: PUBLIC_APP_URL
+        value: https://app.empirecleaningandpro.com
+      - key: PUBLIC_SENTRY_DSN
+        sync: false
+      - key: SENTRY_AUTH_TOKEN
+        sync: false
+      - key: SENTRY_ORG
+        sync: false
+      # Cloudflare Web Analytics' site www.empirecleaningandpro.com (#185);
+      # public, as every page carries it
+      - key: PUBLIC_CF_ANALYTICS_TOKEN
+        value: e1c9a5e3ae014527a7c226b3d9d8e606
+    # TODO(#173): the old site's URLs, each a 301 to its closest page here
+    # (`type: redirect` routes), once #205 section 3 lists them

@@ -1,6 +1,8 @@
 # The test environment on Render (ADR-0020): the server, its Postgres, and
-# the web app and landing static sites. Production will be described the same
-# way, and is only ever deployed by hand.
+# the web app and landing static sites. Production is the same services in a
+# Blueprint of its own, render-production.yaml, only ever deployed by hand. A
+# change here goes there too, unless it's one of the differences
+# packages/server/src/render-blueprints.test.ts lists, which fails otherwise.
 #
 # Secret values are entered in Render's dashboard when the Blueprint is first
 # created (the `sync: false` ones; #130 lists where each comes from).
@@ -121,6 +123,10 @@ services:
       # Sentry's environment
       - key: VITE_APP_MODE
         value: test
+      # the landing site, whose policies sign-in links (#462): the same
+      # address as the server's LANDING_ORIGIN_URL
+      - key: VITE_LANDING_URL
+        value: https://test.empirecleaningandpro.com
       # the web project's Sentry DSN (#43); left empty, nothing is sent
       - key: VITE_SENTRY_DSN
         sync: false

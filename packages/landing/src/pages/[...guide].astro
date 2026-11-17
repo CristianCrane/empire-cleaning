@@ -1,9 +1,9 @@
 ---
 import { languageOf } from "@empire-cleaning/models";
-import { Check } from "lucide-react";
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
 import PageHero from "../components/PageHero.astro";
+import Prose from "../components/Prose.astro";
 import RequestQuote from "../components/RequestQuote.astro";
 import Section from "../components/Section.astro";
 import ServiceCard from "../components/ServiceCard.astro";
@@ -38,25 +38,7 @@ const sectionId = (i: number) => `part-${i + 1}`;
     <PageHero crumb={guide.crumb} heading={guide.heading} intro={guide.intro} />
     {guide.sections.map(({ title, text, list }, i) => (
       <Section id={sectionId(i)} title={title}>
-        <div class="mx-auto flex max-w-2xl flex-col gap-4 text-lg">
-          {text.map((t) => (
-            <p>{t}</p>
-          ))}
-          {list && (
-            <ul class="flex flex-col gap-3">
-              {list.map((item) => (
-                <li class="flex items-start gap-2">
-                  <Check
-                    aria-hidden
-                    size={20}
-                    className="mt-1 shrink-0 text-primary"
-                  />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <Prose text={text} list={list} />
       </Section>
     ))}
     <RequestQuote />
