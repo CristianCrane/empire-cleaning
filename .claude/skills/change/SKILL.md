@@ -26,7 +26,7 @@ A **pattern** is any shape the change follows or adds: a helper, a table, a laye
 
 ## 1. Survey
 
-Before the first edit: the survey gate turns edits down until it exists and names a file by its path from the top of the checkout (`home/.claude/hooks/lib.mjs`, not `lib.mjs`), and its turn-down names the survey's path. (The survey lives in the git dir, one per branch, or on `main` one per change: from the commit where HEAD meets origin until the change is pushed, so push before starting the next one. A pull, merge or rebase of origin's newer work moves that commit too: move the change's files to the path the turn-down names.)
+Before the first edit: the survey gate turns edits down until it exists and names a file by its path from the top of the checkout (`home/.claude/hooks/lib.mjs`, not `lib.mjs`), and its turn-down names the survey's path. (The survey lives in the git dir, one per branch. On `main` in a checkout whose origin is on GitHub the gate turns down every edit of a file git doesn't ignore: branch first, a worktree off origin's `main`, and a PR. An ignored file there (`.claude/settings.local.json`, in every checkout, by the global git ignore home.nix sets), and `main` with no GitHub origin, keep the session's survey.)
 
 ```
 Change: <one line>
@@ -114,4 +114,4 @@ No other headings or labels (a line led by bold is a label): no summary of runs,
 
 ## 6. Lessons
 
-Once the full suite has passed, run the `lessons` skill: before the PR leaves draft (`gh pr ready`, or `gh pr create` without `--draft`), or before the push to main where there's no PR. Its lessons for the repo land as one cleanup commit, which gets its recheck. The gate holds a PR in draft until its lessons file says where every lesson went and the review is of the last commit.
+Once the full suite has passed, run the `lessons` skill: before the PR leaves draft (`gh pr ready`, or `gh pr create` without `--draft`). Its lessons for the repo land as one cleanup commit, which gets its recheck. The gate holds a PR in draft until its lessons file says where every lesson went and the review is of the last commit.

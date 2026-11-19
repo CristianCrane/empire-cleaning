@@ -2,15 +2,17 @@
 //
 // What the change hooks share: git, and the survey, plan review and review
 // files the `change` skill writes into the git dir (never committed, kept
-// per worktree): one set per branch, and on main one per change.
+// per worktree): one set per branch. On main, a checkout whose origin is
+// on GitHub takes no edits (a change reaches main by PR); one with none
+// keeps one set per session there.
 //
 // A gate that must know what a command acts on (which PR) has it named one
 // way and turns every other way down, saying how to run it: reading each
 // spelling the tool accepts (-R…, GH_REPO, flags before `pr`) kept missing
 // routes, round after round (47b0a6c, 3b948a6, then 6442db7 took this
 // shape; the cases: change-hooks.test.mjs).
-import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,6 +34,59 @@ export const git = (cwd, ...args) =>
   }).trim();
 
 export const lines = (text) => text.split("\n").filter(Boolean);
+
+// a command that may reach the network (fetch, push, gh), or whose refusal
+// the report quotes: its output, or a throw with its first error line; never
+// a prompt, and at most 30 s
+export const run = (cwd, command, ...args) => {
+  const ran = spawnSync(command, args, {
+    cwd,
+    encoding: "utf8",
+    timeout: 30_000,
+    env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GH_PROMPT_DISABLED: "1" },
+  });
+  if (ran.status === 0) return ran.stdout.trim();
+  throw new Error(lines(ran.stderr ?? "")[0] ?? ran.error?.message ?? `${command} failed`);
+};
+
+// takes the lock folder `dir` for one run of a script at a time: made
+// atomically, holding its pid; false while another run holds it. A dead
+// run's lock is taken over; one with no pid yet counts as live for a minute.
+// The caller removes it when done
+export const lock = (dir) => {
+  mkdirSync(dirname(dir), { recursive: true });
+  for (let tries = 0; tries < 2; tries++) {
+    try {
+      mkdirSync(dir);
+      writeFileSync(join(dir, "pid"), String(process.pid));
+      return true;
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+    }
+    let pid;
+    try {
+      pid = Number(readFileSync(join(dir, "pid"), "utf8"));
+    } catch {
+      if (Date.now() - statSync(dir).mtimeMs < 60_000) return false;
+    }
+    if (pid) {
+      try {
+        process.kill(pid, 0);
+        return false;
+      } catch (error) {
+        if (error.code === "EPERM") return false;
+      }
+    }
+    rmSync(dir, { recursive: true, force: true });
+  }
+  return false;
+};
+
+// the GitHub repo a remote's URL names, as { owner, name }; null off GitHub
+export const githubRepo = (url) => {
+  const [, owner, name] = url.match(/github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?\/?$/) ?? [];
+  return owner ? { owner, name } : null;
+};
 
 // the flags a script run by hand was given (node's parseArgs, strict): a
 // flag it doesn't know prints how it runs and exits 1, so a typo never runs
@@ -236,28 +291,43 @@ export const branchOf = (cwd) => git(cwd, "rev-parse", "--abbrev-ref", "HEAD");
 // on its own branch with the full flow. So it skips the survey, plan
 // review and review (workOf), and its PR is turned down (review-gate).
 // What it can't hold: a prototype merged into the default branch with no
-// PR, which in a repo whose changes go straight to main (the dotfiles) is
-// the usual route; no gate watches a merge, and the dotfiles' pre-push
-// hook checks that the commit pushed to main is ~/.dotfiles's, not what it
-// holds, so there only the rule's text holds it.
+// PR, the usual route in a repo with no GitHub origin; no gate watches a
+// merge, so there only the rule's text holds it.
 export const prototypeBranch = (branch) => /^prototype-/.test(branch);
 
+// what a default branch is called
+const DEFAULT_BRANCHES = ["main", "master"];
+
 // the branch being worked on, and the name its files go by: the branch,
-// or on main one change's: the session, and the commit where HEAD meets
-// origin (7 characters of it, a length that never grows). That commit
-// holds while the change's commits are unpushed and moves once they land,
-// so the next change's first edit needs a new survey (without it, a
-// session's later changes rode its first one's survey). It moves too when
-// HEAD takes in origin's newer work (a pull, a merge, a rebase): then move
-// the change's files to the path the turn-down names. With no origin,
-// the session alone. null on a detached HEAD (a rebase, a bisect) and on
-// a prototype branch, neither of which is gated
+// or on main the session's (main takes edits only with no GitHub origin:
+// beforeEdit). null on a detached HEAD (a rebase, a bisect) and on a
+// prototype branch, neither of which is gated
 export const workOf = (cwd, input) => {
   const branch = branchOf(cwd);
   if (branch === "HEAD" || prototypeBranch(branch)) return null;
-  if (!["main", "master"].includes(branch) || !input.session_id) return { branch, key: branch };
-  const start = originBase(cwd);
-  return { branch, key: [branch, input.session_id, start?.slice(0, 7)].filter(Boolean).join("-") };
+  if (!DEFAULT_BRANCHES.includes(branch) || !input.session_id) return { branch, key: branch };
+  return { branch, key: `${branch}-${input.session_id}` };
+};
+
+// whether git ignores `path` in `cwd`'s checkout (a path outside it, or
+// any other error, counts as not ignored)
+const ignored = (cwd, path) => {
+  try {
+    git(cwd, "check-ignore", "--quiet", "--", path);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// the GitHub repo origin's URL names, as written (before any insteadOf), as
+// { owner, name }; null with no origin, one off GitHub, or no checkout
+export const githubOrigin = (cwd) => {
+  try {
+    return githubRepo(git(cwd, "config", "--get", "remote.origin.url"));
+  } catch {
+    return null;
+  }
 };
 
 export const stateFile = (cwd, kind, key) => {
@@ -357,21 +427,24 @@ const leaves = (value, path = "", into = {}) => {
   return into;
 };
 
-// whether the user typed `quote` in this session
-const userTyped = (transcript, quote) => {
-  const wanted = flat(quote);
-  return lines(readFileSync(transcript, "utf8")).some((line) => {
+// the messages the user typed in this session, each's text with its
+// whitespace runs as one space: the transcript's `origin.kind: "human"`
+// entries, never an agent's relay, a tool result or a task notification
+// (a subagent's hook input carries the main session's transcript_path)
+export const userMessages = (transcript) =>
+  lines(readFileSync(transcript, "utf8")).flatMap((line) => {
     try {
       const entry = JSON.parse(line);
-      if (entry.type !== "user" || entry.isMeta || entry.origin?.kind !== "human") return false;
+      if (entry.type !== "user" || entry.isMeta || entry.origin?.kind !== "human") return [];
       const content = entry.message?.content;
-      const text = typeof content === "string" ? content : (content ?? []).map((part) => (part.type === "text" ? part.text : "")).join(" ");
-      return flat(text).includes(wanted);
+      return [flat(typeof content === "string" ? content : (content ?? []).map((part) => (part.type === "text" ? part.text : "")).join(" "))];
     } catch {
-      return false;
+      return [];
     }
   });
-};
+
+// whether the user typed `quote` in this session
+const userTyped = (transcript, quote) => userMessages(transcript).some((text) => text.includes(flat(quote)));
 
 // null when the survey isn't dictated; else { holds: true }, or { why }:
 // the first limit the change is past. `pending` is the edit about to be
@@ -421,8 +494,21 @@ export const dictatedHolds = (cwd, work, input, pending) => {
 };
 
 // what an edit waits for: the survey, then the plan review (unless the
-// change is dictated and holds); `missing` says the first one not done yet
+// change is dictated and holds); `missing` says the first one not done yet.
+// On main in a checkout whose origin is on GitHub no survey is enough: a
+// change there reaches main by PR (`branchFirst`), and edits made on main
+// would leave the checkout diverged from it. A file git ignores there reaches
+// no commit or PR, so its edit keeps the session's survey, or a dictated one:
+// `.claude/settings.local.json` is ignored in every checkout by the global git
+// ignore home.nix sets (`programs.git.ignores`, written to ~/.config/git/ignore)
 export const beforeEdit = (cwd, work, input = {}, pending = null) => {
+  const github = DEFAULT_BRANCHES.includes(work.branch) && !(pending && ignored(cwd, pending.path)) && githubOrigin(cwd);
+  if (github)
+    return {
+      survey: { ok: false },
+      branchFirst: true,
+      missing: `branch first: ${work.branch} takes no edits in a checkout whose origin is on GitHub (${github.owner}/${github.name}), where a change reaches ${work.branch} by PR; make a worktree off origin/${work.branch} (\`git worktree add -b <name> <path> origin/${work.branch}\`), work there, and open a PR from it, as the \`change\` skill says`,
+    };
   const found = survey(cwd, work.key);
   if (!found.ok)
     return {
@@ -571,7 +657,7 @@ export const onBranch = (cwd, sha) => {
 // where HEAD meets origin's default branch, as a full sha; null with no
 // origin
 export const originBase = (cwd) => {
-  for (const ref of ["origin/HEAD", "origin/main", "origin/master"]) {
+  for (const ref of ["origin/HEAD", ...DEFAULT_BRANCHES.map((branch) => `origin/${branch}`)]) {
     try {
       return git(cwd, "merge-base", "HEAD", ref);
     } catch {}
@@ -583,7 +669,7 @@ export const originBase = (cwd) => {
 const base = (cwd) => {
   const found = originBase(cwd);
   if (found) return found;
-  for (const ref of ["main", "master"]) {
+  for (const ref of DEFAULT_BRANCHES) {
     try {
       return git(cwd, "merge-base", "HEAD", ref);
     } catch {}

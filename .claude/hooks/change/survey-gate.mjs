@@ -4,9 +4,11 @@
 // the reviewer's read of it: the edit is turned down until the survey
 // names a path that exists and the plan review is written, or the survey
 // is a dictated one that holds with this edit made (lib's dictatedHolds).
-// Edits outside a checkout, inside the git dir (where those files live)
-// and on a detached HEAD or a prototype branch (lib's prototypeBranch) go
-// through.
+// On main in a checkout whose origin is on GitHub, every edit of a file
+// git doesn't ignore is turned down: a change there reaches main by PR, so
+// it starts on a branch (lib's beforeEdit). Edits outside a checkout, inside the git dir (where
+// those files live) and on a detached HEAD or a prototype branch (lib's
+// prototypeBranch) go through.
 import { existsSync, readFileSync } from "node:fs";
 import { beforeEdit, cwdFor, deny, hook, inGitDir, workOf } from "./lib.mjs";
 
@@ -30,6 +32,7 @@ hook((input) => {
 
   // a notebook's edit has no text to read: its path alone counts it in the change
   const pending = { path, content: input.tool_input.file_path ? after(path, input.tool_input) : undefined };
-  const { missing } = beforeEdit(cwd, work, input, pending);
+  const { missing, branchFirst } = beforeEdit(cwd, work, input, pending);
+  if (branchFirst) return deny(`This edit is turned down: ${missing}.`);
   if (missing) return deny(`Before this edit, ${missing}. The edit goes through once that's written.`);
 });
