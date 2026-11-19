@@ -19,7 +19,7 @@ The labels and what each means: `docs/agents/triage-labels.md`.
 
 ### Domain docs
 
-Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`. When an ADR retires a pattern, it names the pattern; follow the newest ADR.
+Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`. When an ADR retires a pattern, it names the pattern; follow the newest ADR, as an older one can stand partly superseded (ADR-0018 over ADR-0014's commercial rules).
 
 ## UX
 
