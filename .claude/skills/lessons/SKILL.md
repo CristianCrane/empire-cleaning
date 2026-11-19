@@ -1,69 +1,40 @@
 ---
 name: lessons
-description: Turn what finished work cost into lessons, each written where every agent that needs it will load it, pruning what it replaces. Use when work is done (the change skill's last step, before a PR leaves draft or a push to main), when the user asks for lessons or a retro, or before they clear the session.
+description: Notice what finished work cost and write each cost to the process layer's inbox as a raw signal, placing nothing. Use when work is done (the change skill's last step, before a PR leaves draft), when the user asks for lessons or a retro, or before they clear the session.
 ---
 
 <!-- The change rules: edited in github.com/CristianCrane/.dotfiles (home/.claude); repos carry copies made by hooks/sync.mjs. -->
 
 # Lessons
 
-What a session learns dies with it unless it's written where the next agent looks. Auto memory reaches only one repo: its index loads in that repo's main sessions and agents alike, and other projects never load it. So each **lesson** goes to the narrowest place that every agent needing it loads, and whatever it replaces goes.
+What a piece of work cost is lost unless someone writes it down. This skill only **notices**: each cost goes to the process layer's inbox as a raw signal, and the curator decides, in a batch with every guidance file in view, what it teaches and where it lives (the dotfiles' `docs/process.md`). So write every cost, and place none: a rule written here would skip the curator's check of its place and its repeats.
 
 ## 1. Gather the costs
 
-Walk the work: the conversation, the change skill's files beside the survey (the plan review and every round of the review), CI runs, commits that fix earlier ones. List every **cost**: the user corrected you; work was redone; a bug reached review, CI or the user; a claim was retracted; a dead end took more than a few tries.
+Walk the work: the conversation, the change skill's files beside the survey (the plan review and every round of the review), CI runs, commits that fix earlier ones. A **cost** is any of: the user corrected you; work was redone; a bug reached review, CI or the user; a claim was retracted; a dead end took more than a few tries; a gate turned you down.
 
-Done when every review finding, every red run and every correction from the user is on the list.
+Done when every review finding, every red run, every turn-down and every correction from the user is on the list.
 
-## 2. Keep the lessons
+## 2. Capture each
 
-A cost is a lesson only when all four hold:
-
-- **It recurs:** it would happen again in other work. A fact about this ticket alone is not a lesson.
-- **It's unrecorded:** search the code, its comments, the docs, git history and the existing rules first. Recorded already is not a lesson.
-- **It changes behaviour:** it reads as "when X, do Y", with why.
-- **It's foundational:** it changes how work is approached, across many changes. A small slip that cost one quick fix, a fact about one helper, or a workaround for a tool's snag isn't a lesson, even if it recurs (the snag itself goes to a fix, below). Few lessons, each one heavy: a list of minor ones is noise nobody reads.
-
-Done when each cost is a lesson in that form or ruled out with its reason.
-
-## 3. Route each lesson
-
-Sort it first:
-
-- **Mechanical** (a fixed pattern, a banned call, a file-location rule, or a snag that keeps costing: a refused command, a gate that misreads, a missing tool): a deterministic check (a lint rule, a hook, a test, a CI job), or a fix at the snag's source (the config, the hook, the package), so nobody has to remember a way around it. It's never written down as a workaround. It's a change of its own: propose it to the user, and it went to their answer (the change that built it, or the issue that holds it). A workaround line that must stay meanwhile names that issue ("until <issue>") and goes when it lands; one whose source isn't ours to fix says so. Before calling a snag in how Claude Code behaves not ours, check what hooks can see and do (code.claude.com/docs/en/hooks.md: the common input fields such as `agent_id` and `agent_type`, `updatedInput`, SubagentStart's context): a gate on them fixes it at the source.
-- **A miss the review should have caught:** a rule for the reviewer agent.
-- **A judgement call:** prose, in the narrowest place every agent that needs it loads:
-
-| The lesson holds for | It goes to |
-|---|---|
-| every project | the global CLAUDE.md (`~/.dotfiles/home/.claude/CLAUDE.md`) |
-| every project, main sessions only (how the user wants updates, turns, notes) | the main-session message (`~/.dotfiles/home/.claude/hooks/main-session.md`), which a SessionStart hook prints; agents never get it |
-| Claude Code's config or the dotfiles themselves | the dotfiles' CLAUDE.md (`~/.dotfiles/CLAUDE.md`) |
-| this repo, any agent | the repo's CLAUDE.md, or a doc it points at (a findings log, a decisions log) |
-| this repo, state no repo doc holds (current work, where local files are) | auto memory |
-
-**Global lessons** (the global CLAUDE.md, the main-session message, the dotfiles' CLAUDE.md, the change rules, the reviewer) shape every session, so the user approves them first. Then make them all as one change in the dotfiles (the change skill): a worktree off `origin/main` and a PR, which the user merges; when the work is itself a dotfiles branch, they ride its lessons commit. With no `~/.dotfiles` (a cloud session), open one issue on CristianCrane/.dotfiles, "Lessons from <repo>: <branch>", holding them: that issue is where they went.
-
-**Repo lessons** on a PR's branch go in one cleanup commit on it, "Lessons: …", which gets the change skill's recheck like any cleanup.
-
-Done when every lesson has a place it went.
-
-## 4. Prune
-
-Read each place you wrote. A line the lesson replaces, contradicts or makes stale goes in the same edit, as does a memory whose fact is now fixed or recorded elsewhere.
-
-Done when no two places hold one lesson.
-
-## 5. Write the lessons file
-
-Write it beside the review, at the review's path with `review` swapped for `lessons` (`review-fix-x.md` → `lessons-fix-x.md`); a turned-down `gh pr ready` names it too:
+One signal per cost, from the PR's checkout, with the user's words when there are some:
 
 ```
-Lessons for <branch>:
-- <when X, do Y> → <where it went: a commit, a file, an issue, a memory>
-
-Ruled out:
-- <cost>: <why it isn't a lesson>
+node ~/.claude/hooks/capture.mjs --source lessons --kind <correction|retraction|cost> <<'EOF'
+note: <the cost, and what it took>
+said: <the user's words, if any>
+proposed: <what you had done, if it matters>
+EOF
 ```
 
-The gate reads the `- ` bullets before `Ruled out:` as lessons, each needing its `→`; with no lessons, the Ruled out list alone. A PR leaves draft (`gh pr ready`, or `gh pr create` without `--draft`) once this file says where every lesson went and the review is of the last commit (after a lessons commit, its recheck). Then show the user each lesson and where it went.
+The quoted heredoc keeps the words as written: in double quotes the shell would run a backtick span and expand a `$`.
+
+Each run also adds the cost's line to the branch's lessons file (`- <cost> → inbox <id>`), the record the PR gate reads. Wide net: a small cost goes in too; the curator drops noise.
+
+With no `~/.claude/hooks/capture.mjs` (a cloud session), open one issue on CristianCrane/.dotfiles, "Signals from <repo>: <branch>", listing the costs in your own words, with no quote of the user's and no name of a client or person: the repo is public, and raw signals stay local (D13). Then write the lessons file by hand, a line per cost: `- <cost> → <the issue's URL>`.
+
+Done when every cost on the list has its line in the lessons file.
+
+## 3. Close
+
+The lessons file sits beside the review, at the review's path with `review` swapped for `lessons` (`review-fix-x.md` → `lessons-fix-x.md`); a turned-down `gh pr ready` names it. When the work cost nothing, write it by hand: `None: <why>`. A PR leaves draft (`gh pr ready`, or `gh pr create` without `--draft`) once this file says where every cost went and the review is of the last commit. Then tell the user how many signals went in.

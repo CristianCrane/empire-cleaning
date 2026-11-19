@@ -295,6 +295,13 @@ export const branchOf = (cwd) => git(cwd, "rev-parse", "--abbrev-ref", "HEAD");
 // merge, so there only the rule's text holds it.
 export const prototypeBranch = (branch) => /^prototype-/.test(branch);
 
+// A process batch (the dotfiles' docs/process.md, Landing):
+// `process-batch-<date>-<slug>` applies the changes the user said yes to
+// in the curator's list, and the agent merges its PR (review-gate's
+// mergeGate, which keys it on the user's verdicts in its log, not on this
+// name alone).
+export const processBatch = (branch) => /^process-batch-/.test(branch);
+
 // what a default branch is called
 const DEFAULT_BRANCHES = ["main", "master"];
 
@@ -641,7 +648,7 @@ export const review = (cwd, work, input = {}) => {
     };
   // the review (each replaces the last) lists every finding of the change
   const ids = [...new Set([...text.matchAll(/^(?:- )?(F\d+)\b/gm)].map((id) => id[1]))];
-  return { path, ok: true, ids };
+  return { path, ok: true, ids, open };
 };
 
 // whether `sha` names a commit the branch adds to its base
@@ -666,7 +673,7 @@ export const originBase = (cwd) => {
 };
 
 // what the branch is measured against: where it left the default branch
-const base = (cwd) => {
+export const base = (cwd) => {
   const found = originBase(cwd);
   if (found) return found;
   for (const ref of DEFAULT_BRANCHES) {

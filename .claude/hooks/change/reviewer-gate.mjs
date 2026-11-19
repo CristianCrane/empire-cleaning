@@ -1,6 +1,7 @@
 // The change rules: edited in github.com/CristianCrane/.dotfiles (home/.claude); repos carry copies made by hooks/sync.mjs.
 //
-// The change-reviewer reads, and writes its review: nothing else. In
+// The change-reviewer reads, and writes its review: nothing else (and the
+// curator, which writes only its output: HELD). In
 // empire-cleaning#374 it ran vitest in the author's checkout while the
 // author's quick tests ran there, and 36 of theirs failed; its file's "use
 // Bash for reading only" didn't hold it (CristianCrane/.dotfiles#17). Its
@@ -21,10 +22,10 @@
 // `${X::=}`) and gawk's abbreviated long options aren't read (round 3's
 // F15 lists each). Closing the first would turn down `git diff $mb`.
 import { existsSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { homedir } from "node:os";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { BOUNDARY, deny, has, HEREDOC, hook, inGitDir, masked, positional, REDIRECT, substitutions, unquote, WORD } from "./lib.mjs";
 
-const REVIEWER = "change-reviewer";
 
 // the words after a wrapper's own options, where `valued` options take the
 // next word (unless their value is attached)
@@ -289,19 +290,39 @@ const ownReview = (path) => {
   }
 };
 
+// where the curator writes its proposals and log entries (the dotfiles'
+// docs/process.md, The curator)
+const CURATOR = join(homedir(), ".claude/process/curator");
+
+// a file under the curator's folder
+const ownOutput = (path) => {
+  const from = relative(CURATOR, resolve(path));
+  return Boolean(from) && !from.startsWith("..") && !from.startsWith("/");
+};
+
+// the agent types held to reading, each with the files it may write
+// (owns) and what its turn-down says those are
+const HELD = {
+  "change-reviewer": {
+    owns: ownReview,
+    writes: "its review: the output path you were given, a plan-review or review file beside the survey in the git dir",
+  },
+  curator: { owns: ownOutput, writes: `its output: the path you were given, under ${CURATOR}` },
+};
+
 // what the turn-downs say to do instead
 const INSTEAD =
   "The author runs the tests, builds and checks beside you in this same checkout, and a second run there breaks theirs. Instead, take the author's numbers, or call the claim unshown and say in the finding how to show it.";
 
 hook((input) => {
-  if (input.agent_type !== REVIEWER) return;
+  const held = HELD[input.agent_type];
+  if (!held) return;
+  const name = `The ${input.agent_type}`;
   const { command, file_path, notebook_path } = input.tool_input ?? {};
   const path = file_path ?? notebook_path;
   if (path !== undefined) {
-    if (ownReview(path)) return;
-    return deny(
-      `The change-reviewer writes only its review: the output path you were given, a plan-review or review file beside the survey in the git dir. ${path} isn't one. Put anything else you'd note in the review itself.`,
-    );
+    if (held.owns(path)) return;
+    return deny(`${name} writes only ${held.writes}. ${path} isn't one. Put anything else you'd note in that file itself.`);
   }
   if (command === undefined) return;
   let why;
@@ -312,6 +333,6 @@ hook((input) => {
   }
   if (why)
     return deny(
-      `The change-reviewer runs only commands that read: git's reading subcommands, rg, grep, ls, cat, head, tail, wc, sed with a print-only script, awk without system() or redirects, find and fd without actions, gh's views and lists, jq, \`node --permission\`, with output to /dev/null at most. Here ${why}. ${INSTEAD}`,
+      `${name} runs only commands that read: git's reading subcommands, rg, grep, ls, cat, head, tail, wc, sed with a print-only script, awk without system() or redirects, find and fd without actions, gh's views and lists, jq, \`node --permission\`, with output to /dev/null at most. Here ${why}. ${INSTEAD}`,
     );
 });
