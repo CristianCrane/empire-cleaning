@@ -42,7 +42,7 @@ Sort it first:
 | this repo, any agent | the repo's CLAUDE.md, or a doc it points at (a findings log, a decisions log) |
 | this repo, state no repo doc holds (current work, where local files are) | auto memory |
 
-**Global lessons** (the global CLAUDE.md, the main-session message, the dotfiles' CLAUDE.md, the change rules, the reviewer) shape every session, so the user approves them first. Then make them all as one change in `~/.dotfiles` (the change skill, straight to main), when that checkout is on a clean main; when the work is itself a dotfiles branch, they ride its lessons commit. Otherwise (another branch there, uncommitted changes, or no `~/.dotfiles`, as in a cloud session) open one issue on CristianCrane/.dotfiles, "Lessons from <repo>: <branch>", holding them: that issue is where they went.
+**Global lessons** (the global CLAUDE.md, the main-session message, the dotfiles' CLAUDE.md, the change rules, the reviewer) shape every session, so the user approves them first. Then make them all as one change in the dotfiles (the change skill): a worktree off `origin/main` and a PR, which the user merges; when the work is itself a dotfiles branch, they ride its lessons commit. With no `~/.dotfiles` (a cloud session), open one issue on CristianCrane/.dotfiles, "Lessons from <repo>: <branch>", holding them: that issue is where they went.
 
 **Repo lessons** on a PR's branch go in one cleanup commit on it, "Lessons: …", which gets the change skill's recheck like any cleanup.
 
