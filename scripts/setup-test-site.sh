@@ -213,7 +213,7 @@ cd "$(git rev-parse --show-toplevel)"
 
 # on WSL without wslview, open_url opens the Windows browser through
 # PowerShell: explorer.exe, which the library above tries, opens File
-# Explorer instead (CLAUDE.md, #205)
+# Explorer instead
 POWERSHELL=/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe
 if ! command -v wslview >/dev/null 2>&1 && [[ -x $POWERSHELL ]]; then
   open_url() {
