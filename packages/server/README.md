@@ -82,6 +82,8 @@ The server refuses to start, in dev and prod alike, without `APP_MODE` (`dev`, `
 
 **Renaming a table or column:** `pnpm db:generate` asks whether each one is a rename, and drizzle-kit has no option that answers for it (its `generate` docs, 2026-11-19). With no terminal, drive the prompt through `script -qfc` with arrow-down and Enter. drizzle-kit keeps the old constraint names on a rename, so the migration adds a `RENAME CONSTRAINT` for each by hand, as `drizzle/20261106163449_cleaner_needed_tables` does (#289).
 
+A one-off Node script that imports `pg` or `#db` goes under `packages/server/` (say `packages/server/tests/x.mts`), where those imports resolve; run it with `node --env-file=.env` or `npx tsx --env-file=.env`, and delete it after.
+
 **A migration that reads rows back from their words** (stored English becoming facts, as #395's did for Bill lines, payments' items and plan cancellations) runs on the test site's real rows, which hold every wording the code has ever written, not only today's: find each with `git log -p -G'<the column or phrase>'` on the code that wrote it, and match them all. A row matching none raises (`RAISE EXCEPTION` in a `DO` block or plpgsql function) rather than falling to an `ELSE`, so the deploy stops instead of a wrong fact being stored, unless any text is a right value there (a payment item's leftover words are an extra's name); try it on sample rows of every wording in a scratch database first. Two review rounds of #395 found older wordings the parse missed.
 
 In tests, `signIn(email)` from `tests/harness.ts` signs up or in the way a person does and returns a signed-in agent; add the Staff or Client record first for it to connect to.
