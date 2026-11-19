@@ -27,6 +27,9 @@ can change, through the same loop.
   with the fewest steps for the Client (passwordless sign-in, self-serve
   choices instead of round trips to the Office), and call out any trade-off
   that adds steps.
+- **Simplest option first.** Lead with the option that asks nothing new of
+  anyone and uses what the app holds; each added step, role or signal earns
+  its place against it (#416, PR #423).
 - **Figures the owner edits are concrete.** Hours per room, not
   multipliers pointing at figures elsewhere; when figures combine, show a
   worked example beside them (the Service page's Example Quote).
