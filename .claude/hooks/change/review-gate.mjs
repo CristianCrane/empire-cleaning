@@ -9,15 +9,20 @@
 // permalinks, Change collapsed, nothing else) and answers every finding of
 // that review in its Change section. A PR leaves draft (`gh pr ready`, or `gh pr create` without
 // `--draft`) once the branch's lessons file (the `lessons` skill) says
-// where every lesson went, and the review is still of the last commit.
+// where every cost went, and the review is still of the last commit.
 // A prototype branch's PR (lib's prototypeBranch) is turned down either
 // way: it skipped the reviews because it never merges.
 //
 // Only the user merges a PR of the dotfiles (DOTFILES; their CLAUDE.md):
 // `gh pr merge` on one goes through only naming the PR by its number
 // alone, from a checkout of it, and only when a message the user typed in
-// this session asks to merge that number. Another repo's merges go
-// through. What it can't hold: a message that negates the ask ("don't
+// this session asks to merge that number. The one exception is a process
+// batch (lib's processBatch; the dotfiles' docs/process.md, Landing),
+// whose approval is the user's verdicts in its log: run bare from its own
+// checkout, it merges once its review leaves no change finding open, its
+// first commit only adds log entries, and every later commit names one of
+// them (`L<n>`) with a yes or edit verdict (batchUnapproved). Another
+// repo's merges go through. What it can't hold: a message that negates the ask ("don't
 // merge #12"), and a merge by any other route (`gh api`, the web).
 //
 // It reads Bash and Monitor commands alike (settings.json registers it on
@@ -26,9 +31,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import {
   argsOf,
+  base,
   branchOf,
   deny,
   dirOf,
+  git,
   githubOrigin,
   has,
   hook,
@@ -36,6 +43,7 @@ import {
   masked,
   onBranch,
   positional,
+  processBatch,
   prArgs,
   prototypeBranch,
   prStep,
@@ -76,12 +84,13 @@ const prototypeTurnDown = (branch, verb) =>
   );
 
 // why the branch's PR can't leave draft yet, if it can't: its lessons file
-// is missing, lists nothing, or has a lesson that doesn't say where it went.
-// The lessons are the bullets before the first line starting `Ruled out`
-// (or `None:`, its older spelling); the costs ruled out follow, in any form
+// is missing, lists nothing, or has a cost that doesn't say where it went.
+// The costs are the bullets before the first line starting `None:` (or
+// `Ruled out`, the older skill's spelling, which repos' copies write until
+// their sync); its reason follows, in any form
 const lessonsMissing = (cwd, work) => {
   const file = stateFile(cwd, "lessons", work.key);
-  const how = `run the \`lessons\` skill (the \`change\` skill's step 6) and write them to ${file}, each lesson saying where it went (\`→ <where>\`), and the costs that aren't lessons after a \`Ruled out:\` line`;
+  const how = `run the \`lessons\` skill (the \`change\` skill's step 6): its \`capture.mjs --source lessons\` writes each cost to ${file} with where it went (\`→ inbox <id>\`), or write \`None: <why>\` there when the work cost nothing`;
   if (!existsSync(file)) return `${work.branch}'s PR can't leave draft before its lessons: ${how}.`;
   const all = lines(readFileSync(file, "utf8"));
   const split = all.findIndex((line) => /^(?:ruled out|none:)/i.test(line.trim()));
@@ -89,7 +98,7 @@ const lessonsMissing = (cwd, work) => {
   const ruledOut = split >= 0 && /\w/.test(all.slice(split).join(" ").replace(/^\s*(?:ruled out|none)\W*/i, ""));
   const unsaid = items.filter((line) => !/→\s*\S/.test(line));
   if ((items.length === 0 && !ruledOut) || unsaid.length)
-    return `The lessons file for ${work.branch} (${file}) ${items.length ? `has ${unsaid.length} lesson(s) that don't say where they went` : "lists none"}: ${how}.`;
+    return `The lessons file for ${work.branch} (${file}) ${items.length ? `has ${unsaid.length} cost(s) that don't say where they went` : "lists none"}: ${how}.`;
 };
 
 // the PR body's labelled parts (the `change` skill's PR body step), in its
@@ -230,18 +239,27 @@ const createGate = (command, hidden, match, input) => {
 // gh pr ready, run bare from the PR's own checkout: its review still of the
 // last commit, and its lessons. --undo puts a PR back in draft, which waits
 // for nothing
-const readyGate = (command, hidden, match, input) => {
+// a `gh pr <step>` and where it runs: its own arguments, whether it names
+// the repo elsewhere, its checkout, and whether it's bare. A bare one acts
+// on the PR of the branch checked out where it runs, so a gate can read
+// that branch's files; a PR named any other way (a number, URL or branch;
+// -R or --repo, before `pr` or after the step; GH_REPO or GH_HOST anywhere
+// in the command: lib's prArgs) could be another branch's. Redirects are
+// no argument
+const stepOf = (command, hidden, match, input) => {
   const { args, elsewhere } = prArgs(command, hidden, match);
-  if (/(?:^|\s)--undo(?=\s|$)/.test(args)) return;
   const cwd = dirOf(command, hidden, match.index, input.cwd);
+  return { args, elsewhere, cwd, bare: !args.trim() && !elsewhere };
+};
+
+const readyGate = (command, hidden, match, input) => {
+  const { args, cwd, bare } = stepOf(command, hidden, match, input);
+  if (/(?:^|\s)--undo(?=\s|$)/.test(args)) return;
   const branch = branchOf(cwd);
 
   // The gate reads the lessons and review of the branch checked out where
-  // it runs, which is the PR a bare `gh pr ready` readies. A PR named any
-  // other way (a number, URL or branch; -R or --repo, before `pr` or after
-  // `ready`; GH_REPO or GH_HOST anywhere in the command: lib's prArgs)
-  // could be another branch's, so it's turned down. Redirects are no argument
-  if (args.trim() || elsewhere)
+  // it runs (stepOf's bare), so a PR named another way is turned down
+  if (!bare)
     return turnDown(
       `Run \`gh pr ready\` bare, as its own command, from the PR's own checkout (for ${branch}'s, in ${cwd}): the gate checks the lessons and review of the branch checked out where it runs, so it can't vouch for a PR named another way (a number, -R, --repo, GH_REPO).`,
       "ready",
@@ -250,12 +268,12 @@ const readyGate = (command, hidden, match, input) => {
   const work = workOf(cwd, input);
   if (!work) return;
 
-  // the review still holds: of the last commit, so the lessons commit got
+  // the review still holds: of the last commit, so a commit since it got
   // its recheck
   const found = review(cwd, work, input);
   if (!found.ok)
     return turnDown(
-      `The change review for ${work.branch} isn't ready (${found.reason}), with output ${found.path}: finish it as the \`change\` skill's Review step says (after a lessons commit, that's the recheck of it), then mark the PR ready.`,
+      `The change review for ${work.branch} isn't ready (${found.reason}), with output ${found.path}: finish it as the \`change\` skill's Review step says (after a commit since the review, that's its recheck), then mark the PR ready.`,
       "ready",
     );
 
@@ -271,7 +289,7 @@ const MERGE_VALUES = new Set(["-b", "--body", "-F", "--body-file", "-t", "--subj
 // way, by its number from a checkout of them, and merges only when the
 // user asked for that number in a message of their own
 const mergeGate = (command, hidden, match, input) => {
-  const cwd = dirOf(command, hidden, match.index, input.cwd);
+  const { args, elsewhere, cwd } = stepOf(command, hidden, match, input);
   const origin = githubOrigin(cwd);
   const here = origin && `${origin.owner}/${origin.name}`.toLowerCase() === DOTFILES.toLowerCase();
   if (!here && !command.toLowerCase().includes(DOTFILES.toLowerCase())) return;
@@ -279,9 +297,18 @@ const mergeGate = (command, hidden, match, input) => {
   // after `merge`, which prArgs leaves to the hook (pr-conflict hands them
   // on to its own gh), are turned down here. A value-taking flag's value
   // (MERGE_VALUES) is no PR, which lib's positional can't tell
-  const { args, elsewhere } = prArgs(command, hidden, match);
   const words = args.match(WORD) ?? [];
   const named = positional(words.filter((_, at) => !MERGE_VALUES.has(words[at - 1])));
+  // a process batch, run bare from its own checkout: its log is the
+  // approval (batchUnapproved)
+  if (here && !elsewhere && !has(words, "-R", "--repo=") && named.length === 0 && processBatch(branchOf(cwd))) {
+    const why = batchUnapproved(cwd, input);
+    if (!why) return;
+    return turnDown(
+      `A process batch merges by the agent only when the user's verdicts in its log approve every change (the dotfiles' docs/process.md, Landing), and ${branchOf(cwd)}'s can't: ${why}. Fix that, or leave the PR for the user to merge.`,
+      "merge",
+    );
+  }
   if (!here || elsewhere || has(words, "-R", "--repo=") || named.length !== 1 || !/^\d+$/.test(named[0]))
     return turnDown(
       `Run \`gh pr merge <number>\` from a checkout of ${DOTFILES}, the PR named by its number alone (no branch, URL, -R, --repo or GH_REPO): only the user merges its PRs, and the gate checks that they asked to merge that number.`,
@@ -298,6 +325,38 @@ const mergeGate = (command, hidden, match, input) => {
       `Only the user merges a ${DOTFILES} PR: no message the user typed in this session asks to merge #${number} (a relay or your own words don't count). Leave it for them to merge on GitHub, or merge it once they ask for #${number} by its number.`,
       "merge",
     );
+};
+
+// the log a process batch adds its verdicts to
+const PROCESS_LOG = "docs/process-log.md";
+
+// why a process batch's PR can't merge without the user, if it can't: its
+// review isn't clean, or its commits aren't the verdicts its log adds (the
+// first commit adds them and nothing else; every later one names one, and
+// only ones the user said yes to or edited). The log commit alone merges:
+// a repo's batch has its entries here and its changes there, and a branch
+// reads approvals only from its own first commit, so it approves nothing
+// later
+const batchUnapproved = (cwd, input) => {
+  const work = workOf(cwd, input);
+  const found = review(cwd, work, input);
+  if (!found.ok) return `its review isn't ready (${found.reason})`;
+  if (found.open !== 0) return found.open ? `its review leaves ${found.open} change finding(s) open` : "it has no review of its own";
+  const commits = lines(git(cwd, "rev-list", "--reverse", "--no-merges", `${base(cwd)}..HEAD`));
+  if (!commits.length) return "it has no commits";
+  const [first, ...changes] = commits;
+  // numstat: added, deleted, path. Only adds: an edited or removed line
+  // would rewrite a verdict the user gave
+  const logged = lines(git(cwd, "diff-tree", "--no-commit-id", "--numstat", "-r", first)).map((line) => line.split("\t"));
+  if (logged.length !== 1 || logged[0][2] !== PROCESS_LOG || logged[0][1] !== "0") return `its first commit (${first.slice(0, 7)}) must add the run's entries to ${PROCESS_LOG} and nothing else`;
+  const added = git(cwd, "show", "--format=", first, "--", PROCESS_LOG);
+  const approved = new Set([...added.matchAll(/^\+- (L\d+) (?:yes|edit)\b/gm)].map((entry) => entry[1]));
+  for (const sha of changes) {
+    const named = [...git(cwd, "log", "-1", "--format=%B", sha).matchAll(/\bL\d+\b/g)].map((id) => id[0]);
+    const wrong = named.filter((id) => !approved.has(id));
+    if (!named.length || wrong.length)
+      return `commit ${sha.slice(0, 7)} names ${named.length ? `${wrong.join(", ")}, which the log doesn't add with a yes or edit` : "no log entry (L<n>)"}`;
+  }
 };
 
 const GATES = { create: createGate, ready: readyGate, merge: mergeGate };
