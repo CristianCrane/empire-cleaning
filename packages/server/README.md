@@ -1,5 +1,7 @@
 # Express server starter
 
+Each feature keeps its `index.ts` and the `#features/<feature>` imports (`package.json`, `imports`): per-file paths such as `#features/bills/bills` only repeat the name (#112, closed unmerged).
+
 ## Testing
 
 `pnpm test` runs the suite on the **test Postgres** (`docker-compose.yml`, port 5433). Start it with `pnpm db:up`. Test files run in parallel, and each Vitest worker has a database of its own (`empire_test_r<run>_1`, `_2`, …; `tests/setup/workerDatabase.ts`). Every run claims names of its own (`claimTestDatabase` in `tests/setup/testDatabase.ts`): `<run>` is the backend pid of a connection the run holds open on the test Postgres until it ends, so two runs at once, in one checkout or in two, never touch each other's databases (#375). `tests/checkout.ts` gives each checkout a block of 200 ports for the web and landing e2e servers (`E2E_PORTS`, imported as `@empire-cleaning/server/checkout`), so their e2e suites can run at once too; if two checkouts draw the same block, the second fails to start on ports in use, and `E2E_PORT_BASE=<port>` moves it. On every run `empire_test_r<run>` (override the base with `TEST_DB_URL`) is created and migrated from `drizzle/`, and the workers' databases are copied from it (`CREATE DATABASE … TEMPLATE`), so the migrations run once. There are half as many workers as CPU cores, up to 6; `SERVER_TEST_WORKERS=2` or `--maxWorkers=2` sets it.
@@ -72,7 +74,7 @@ Create the first Office Staff member (after `pnpm db:migrate`), then sign up wit
 pnpm auth:create-owner owner@example.com "Owner Name"
 ```
 
-Or, for a dev database, seed it instead: `pnpm db:seed` makes the owner (`SEED_OWNER_EMAIL`), Cleaners, and Clients with Quotes in every state, dated around today (`tests/seed.ts`). `pnpm db:seed --reset` first deletes everything but Accounts, the Price List and the Services, so a reset keeps everyone signed up. `SEED_NOW` (an ISO instant) seeds as if it were then. The seed test (`tests/seed.test.ts`) runs it at 28 instants; `SEED_SHARD=1/2` runs every other one, as CI shares them out. Where the seed's cleans fall turns on the day and time it runs, so `tests/seed.test.ts` (`pnpm test:seed`, which the server's `pnpm test` runs after its other tests, and the quick tests leave out) runs it as if at four times on each day of a week, and the Reset test data Action tries it on a copy of the test database before the test site. The demo people the test site's people page lists (`DEMO_PEOPLE`, `#features/demo-people`) are found by name, and the seed fails if one is missing.
+Or, for a dev database, seed it instead: `pnpm db:seed` makes the owner (`SEED_OWNER_EMAIL`), Cleaners, and Clients with Quotes in every state, dated around today (`tests/seed.ts`). `pnpm db:seed --reset` first deletes everything but Accounts, the Price List and the Services, so a reset keeps everyone signed up. `SEED_NOW` (an ISO instant) seeds as if it were then. The seed test (`tests/seed.test.ts`) runs it at 28 instants; `SEED_SHARD=1/2` runs every other one, as CI shares them out. All 28 stay (the user, 2026-11-05: "Having the seed remain consistent is important"); speed comes from more jobs, not fewer instants. Where the seed's cleans fall turns on the day and time it runs, so `tests/seed.test.ts` (`pnpm test:seed`, which the server's `pnpm test` runs after its other tests, and the quick tests leave out) runs it as if at four times on each day of a week, and the Reset test data Action tries it on a copy of the test database before the test site. The demo people the test site's people page lists (`DEMO_PEOPLE`, `#features/demo-people`) are found by name, and the seed fails if one is missing.
 
 The people testing the test site are its Staff, listed in `tests/testers.ts`: a reset there adds them, and `pnpm staff:testers` (Actions → Add testers) adds any missing without one.
 
@@ -142,6 +144,8 @@ tax            = the Service's one-off rate on the price, less tax-exempt Add-on
 ```
 
 It uses whole numbers throughout (hours in 1e-4, multipliers in hundredths), so a quarter-hour boundary is never missed by floating point: 3 x 0.4 h + 0.55 h is exactly 1.75 h, though it is 1.7500000000000002 as decimals.
+
+Tax comes from our own rates, not Stripe Tax (2026-10-25): no `automatic_tax` or Tax Calculations until reporting or filing needs them.
 
 A Quote option prices only the Add-ons that go with its Service, so a first-visit recommendation may have fewer. Each Add-on on it is priced at what it adds (`addOns` on the option, kept on the row as `add_ons`): the option's price before tax, less the same option priced without it, an override scaled by the Suggested Price without it, the Plan Discount taken off both. That's nothing when the Minimum Charge applies either way. Its tax is `taxOnPart` at the option's rate, as an Adjustment's is, so a quoted Add-on not done takes off exactly what the Quote showed for it.
 

@@ -22,11 +22,9 @@
 // F15 lists each). Closing the first would turn down `git diff $mb`.
 import { existsSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
-import { BOUNDARY, deny, has, HEREDOC, hook, inGitDir, masked, REDIRECT, substitutions, unquote, WORD } from "./lib.mjs";
+import { BOUNDARY, deny, has, HEREDOC, hook, inGitDir, masked, positional, REDIRECT, substitutions, unquote, WORD } from "./lib.mjs";
 
 const REVIEWER = "change-reviewer";
-
-const positional = (words) => words.filter((word) => !word.startsWith("-"));
 
 // the words after a wrapper's own options, where `valued` options take the
 // next word (unless their value is attached)

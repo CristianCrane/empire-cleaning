@@ -14,8 +14,8 @@
 // Never runs on the production database (features/site), and a server's
 // scheduler on the same database waits for it (holdSeeding). Refuses to run
 // on a database that already has Staff. With --reset it first deletes
-// everything but Accounts and the Price List, so whoever has signed up stays
-// signed up.
+// everything but Accounts, the Price List and the Services, so whoever has
+// signed up stays signed up.
 import { asc, eq, sql } from "drizzle-orm";
 import {
   addDays,

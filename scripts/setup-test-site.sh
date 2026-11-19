@@ -211,10 +211,16 @@ TOTAL_STAGES=10
 
 cd "$(git rev-parse --show-toplevel)"
 
-# on WSL without wslview or Windows on the PATH, open_url opens the Windows
-# browser through explorer.exe (which exits 1 even when it worked)
-if ! command -v wslview >/dev/null 2>&1 && [[ -x /mnt/c/Windows/explorer.exe ]]; then
-  wslview() { /mnt/c/Windows/explorer.exe "$1" || true; }
+# on WSL without wslview, open_url opens the Windows browser through
+# PowerShell: explorer.exe, which the library above tries, opens File
+# Explorer instead
+POWERSHELL=/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe
+if ! command -v wslview >/dev/null 2>&1 && [[ -x $POWERSHELL ]]; then
+  open_url() {
+    printf '  %s↗ opening%s %s\n' "$GREEN" "$RESET" "$1"
+    (cd /mnt/c && "$POWERSHELL" -NoProfile -Command "Start-Process '$1'") >/dev/null 2>&1 ||
+      warn "couldn't open a browser, so visit it manually: $1"
+  }
 fi
 mkdir -p "$HOME/.config/empire-cleaning" && chmod 700 "$HOME/.config/empire-cleaning"
 ENV_FILE="$HOME/.config/empire-cleaning/test-site.env"

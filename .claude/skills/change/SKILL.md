@@ -54,6 +54,8 @@ Post the survey in chat, then go on, unless it has Big work to ask about.
 
 Keep the survey true: when the plan or the file count changes, update it, and when a `to show:` cause is shown, say `shown by` what. A hook compares the branch's size with `Expected files` every 25 files.
 
+When a change touches what a build ships or the order things load in: that a build leaves something out (test-only code kept out of production) is a claim too. Build it as the host does and count a marker, a string only that code holds, in both builds' output, while building: tree-shaking guessed at was wrong three times in one day. When load order changes, check the first paint too, throttled. The repo's own docs say how its host builds.
+
 ## 4. Review
 
 Once the change is committed, before opening the PR (`gh pr create` is turned down until the review is of the last commit, or of one before it with only comment lines changed since, and, before the last round, has no open change findings), run the `change-reviewer` agent: **round 1**, with the branch, the repo root, which commits are refactors (the survey's `Commits:`), the survey's and plan review's paths, and the review's path (`review-…` beside the survey).

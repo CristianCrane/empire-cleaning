@@ -7,7 +7,7 @@ description: Turn what finished work cost into lessons, each written where every
 
 # Lessons
 
-What a session learns dies with it unless it's written where the next agent looks. Auto memory reaches only main sessions in one repo: subagents and other projects never load it. So each **lesson** goes to the narrowest place that every agent needing it loads, and whatever it replaces goes.
+What a session learns dies with it unless it's written where the next agent looks. Auto memory reaches only one repo: its index loads in that repo's main sessions and agents alike, and other projects never load it. So each **lesson** goes to the narrowest place that every agent needing it loads, and whatever it replaces goes.
 
 ## 1. Gather the costs
 
@@ -37,10 +37,12 @@ Sort it first:
 | The lesson holds for | It goes to |
 |---|---|
 | every project | the global CLAUDE.md (`~/.dotfiles/home/.claude/CLAUDE.md`) |
+| every project, main sessions only (how the user wants updates, turns, notes) | the main-session message (`~/.dotfiles/home/.claude/hooks/main-session.md`), which a SessionStart hook prints; agents never get it |
+| Claude Code's config or the dotfiles themselves | the dotfiles' CLAUDE.md (`~/.dotfiles/CLAUDE.md`) |
 | this repo, any agent | the repo's CLAUDE.md, or a doc it points at (a findings log, a decisions log) |
-| this repo, its main sessions only (current work, a preference about this repo) | auto memory |
+| this repo, state no repo doc holds (current work, where local files are) | auto memory |
 
-**Global lessons** (the global CLAUDE.md, the change rules, the reviewer) load in every session, so the user approves them first. Then make them all as one change in `~/.dotfiles` (the change skill, straight to main), when that checkout is on a clean main; when the work is itself a dotfiles branch, they ride its lessons commit. Otherwise (another branch there, uncommitted changes, or no `~/.dotfiles`, as in a cloud session) open one issue on CristianCrane/.dotfiles, "Lessons from <repo>: <branch>", holding them: that issue is where they went.
+**Global lessons** (the global CLAUDE.md, the main-session message, the dotfiles' CLAUDE.md, the change rules, the reviewer) shape every session, so the user approves them first. Then make them all as one change in `~/.dotfiles` (the change skill, straight to main), when that checkout is on a clean main; when the work is itself a dotfiles branch, they ride its lessons commit. Otherwise (another branch there, uncommitted changes, or no `~/.dotfiles`, as in a cloud session) open one issue on CristianCrane/.dotfiles, "Lessons from <repo>: <branch>", holding them: that issue is where they went.
 
 **Repo lessons** on a PR's branch go in one cleanup commit on it, "Lessons: …", which gets the change skill's recheck like any cleanup.
 

@@ -103,6 +103,10 @@ export const WORD = /(?:[^\s'"]+|'[^']*'|"(?:\\.|[^"\\])*")+/g;
 export const unquote = (word) =>
   word.replace(/'([^']*)'|"((?:\\.|[^"\\])*)"/g, (_, single, double) => single ?? double.replace(/\\(.)/g, "$1"));
 
+// a command's words that aren't flags (nor flag values, which this can't
+// tell apart)
+export const positional = (words) => words.filter((word) => !word.startsWith("-"));
+
 // whether any word is one of `flags`: a long one alone or, ending in `=`,
 // with its value; a one-letter one alone, among a cluster's letters
 // (`-nri`), or with its value attached (`-o/tmp/x`)
@@ -168,6 +172,32 @@ export const argsOf = (hidden, end) => {
   return hidden.slice(end, stop < 0 ? undefined : end + stop);
 };
 
+// where a `gh … pr <verb>` command starts (not inside a message that
+// mentions it), after any VAR=value prefixes, wrappers and shell keywords,
+// with any gh flags before `pr`; group 1 is the verb. Read in the masked
+// text. (A VAR=value prefix's value may be quoted: in the masked text its
+// quotes hold blanks. A wrapper such as env, command, time or `timeout
+// <duration>` runs gh all the same, and so does a keyword: `until gh pr
+// checks …; do`, `if gh pr create …; then`, `! gh …`, `{ gh …; }`)
+export const prStep = (...verbs) =>
+  new RegExp(
+    String.raw`(?:^|${BOUNDARY})\s*(?:(?:\w+=(?:"[^"]*"|'[^']*'|[^\s"'])*|env|command|time|nohup|exec|timeout\s+\S+|if|elif|then|else|do|while|until|!|\{)\s+)*gh\s+(?:-\S+(?:\s+[^-\s]\S*)?\s+)*pr\s+(${verbs.join("|")})\b`,
+    "g",
+  );
+
+// a prStep match's own arguments, with its redirects blanked (each
+// character kept in its place, so a word found there reads its text from
+// the original at the same place), and whether the command may name the PR
+// where they can't show it: GH_REPO or GH_HOST anywhere in it, or gh flags
+// before `pr`. A hook that must know which PR stands aside, or turns the
+// command down, when `elsewhere`
+export const prArgs = (command, hidden, step) => {
+  const end = step.index + step[0].length;
+  const args = argsOf(hidden, end).replace(new RegExp(REDIRECT, "g"), (redirect) => " ".repeat(redirect.length));
+  const elsewhere = /\bGH_(?:REPO|HOST)\b/.test(command) || /gh\s+-/.test(hidden.slice(step.index, end));
+  return { end, args, elsewhere };
+};
+
 // the folder a command runs in at `at`: the last `cd` before it, if any, found in the
 // masked command with its substitutions blanked too (so a `cd` in a
 // heredoc, a quote or a substitution doesn't count) and read from the original
@@ -207,8 +237,9 @@ export const branchOf = (cwd) => git(cwd, "rev-parse", "--abbrev-ref", "HEAD");
 // review and review (workOf), and its PR is turned down (review-gate).
 // What it can't hold: a prototype merged into the default branch with no
 // PR, which in a repo whose changes go straight to main (the dotfiles) is
-// the usual route; no gate watches a merge or a push, so there only the
-// rule's text holds it.
+// the usual route; no gate watches a merge, and the dotfiles' pre-push
+// hook checks that the commit pushed to main is ~/.dotfiles's, not what it
+// holds, so there only the rule's text holds it.
 export const prototypeBranch = (branch) => /^prototype-/.test(branch);
 
 // the branch being worked on, and the name its files go by: the branch,
