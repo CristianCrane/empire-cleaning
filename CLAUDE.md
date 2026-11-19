@@ -15,7 +15,7 @@ An agent ticket that waits on one of them stays open, blocked by #205 or #206 (s
 
 ### Triage labels
 
-Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+The labels and what each means: `docs/agents/triage-labels.md`.
 
 ### Domain docs
 
