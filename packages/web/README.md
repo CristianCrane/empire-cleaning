@@ -85,7 +85,7 @@ pnpm --filter @empire-cleaning/server exec vitest run --changed main      # serv
 pnpm test                                                                  # the @smoke set and quick suites of every package
 ```
 
-Playwright's `--project` takes several values, so it goes before a spec path: `--project=phone e2e/bills.spec.ts`, never `--project phone e2e/bills.spec.ts`.
+Playwright's `--project` takes several values, so in `--project phone e2e/bills.spec.ts` the spec is read as a second project: write `--project=phone e2e/bills.spec.ts`, or the spec first.
 
 `pnpm test:change` finds the specs the branch adds or edits from git, but a change in `src/` is in no spec: name the specs for the screens you changed. A change to what a route's URL takes (a Tab, a search word, a path) reaches every spec that opens that URL, whatever screen it tests: search the specs for the old value (`rg 'tab=all' packages/web/e2e`) and name each one, as #433 retiring Clients' All Tab broke three tests in the Bills and asking specs, which no List spec covered. It doesn't use Playwright's `--only-changed`, which takes every spec importing a changed file too, so an edit to `e2e/harness.ts` would run nearly all of them.
 
