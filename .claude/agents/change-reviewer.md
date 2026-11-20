@@ -22,7 +22,7 @@ Repo rules: CLAUDE.md or AGENTS.md, and the ADRs that bear on the code touched.
 
 ## Hunt
 
-1. **Missed copies**: search the repo for every pattern the change follows, by its shape and by its values and words, as a copy can go by another name. List the copies the survey left out.
+1. **Missed copies**: search the repo for every pattern the change follows, by its shape and by its values and words, as a copy can go by another name. List the copies the survey left out. A test is a copy too (the change skill's Rules, "earns its place").
 2. **Third copy**: the diff adds a copy of a pattern that already has two.
 3. **Shotgun surgery**: one idea edited in many places.
 4. **A fighting pattern**: the diff bends a pattern with special cases, flags or branches bolted on.
