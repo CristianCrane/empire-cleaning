@@ -40,7 +40,7 @@ How each package's tests work, and how to run them, is in its README (`packages/
 
 ### Starting and stopping
 
-**A test run's databases are named for the run, never for the checkout or the machine: `claimTestDatabase` (`packages/server/tests/setup/testDatabase.ts`) is the one way a run gets them.** Named per checkout, a second run in the same checkout recreated them under the first, which failed in 48 of 51 files (#375). The claim also drops the databases of runs that have ended, so nothing else drops a dead run's; the seed test drops its own copies once it's done, as they're many and live in memory. A claim is made in Vitest's own process (a global setup), where a lost hold can end the run: in a worker, Vitest turns `process.exit` into an error and the run goes on. Ports are the exception: they stay per checkout (`E2E_PORTS`), as a held port fails at once and says so (#312).
+**A test run gets its databases from `claimTestDatabase`** (`packages/server/tests/setup/testDatabase.ts`), the one way, so they're named for the run (the `testing` skill; dropping a dead run's: `packages/server/README.md`, Testing). A claim is made in Vitest's own process (a global setup), where a lost hold can end the run: in a worker, Vitest turns `process.exit` into an error and the run goes on. Ports stay per checkout (`E2E_PORTS`, #312).
 
 ## Settling a test question
 
