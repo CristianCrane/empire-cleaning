@@ -61,6 +61,7 @@ import {
   useAppLanguage,
 } from "./language.ts";
 import { linkTo } from "./links.ts";
+import { CleanerJobPrototype } from "./screens/cleaner/cleaner-job.prototype.tsx";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
 import { CleanerHome, yourJobsTiles } from "./screens/cleaner/CleanerHome.tsx";
 import { ConfirmEmail } from "./screens/ConfirmEmail.tsx";
@@ -882,8 +883,24 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: the Cleaner's Job, on made-up data, signed out (#493)
+const cleanerJobPrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/cleaner-job",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string; lang?: string } => ({
+    // ?case=1 arrives as a number
+    case: search.case === undefined ? undefined : String(search.case),
+    layout: search.layout === undefined ? undefined : String(search.layout),
+    lang: search.lang === undefined ? undefined : String(search.lang),
+  }),
+  component: CleanerJobPrototype,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  cleanerJobPrototypeRoute,
   signInRoute,
   signInLinkRoute,
   confirmEmailRoute,
