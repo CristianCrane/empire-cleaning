@@ -13,6 +13,7 @@ import {
   PICK_MINUTES,
   PICK_TIMES,
   roomOn,
+  whyVisitCantGo,
   type DayTimes,
   type LocalDateTime,
   type ScheduleDay,
@@ -87,7 +88,7 @@ const blockOf = {
   neutral: "border-neutral-strong bg-neutral-subtle",
 } as const;
 
-// a dragged Job's outline where it would land: its colours, its edge dashed
+// a dragged block's outline where it would land: its colours, its edge dashed
 // all round so it shows over its own block and others, its fill see-through
 const outlineOf = {
   success: "border-success-strong bg-success-subtle/60",
@@ -113,10 +114,50 @@ const visitSpanOf = (visit: ScheduledSiteVisit) => {
 const NO_CREW =
   "bg-[repeating-linear-gradient(135deg,transparent_0_6px,var(--color-danger-subtle)_6px_12px)]";
 
-// whether a Job has room to move to a time on a day, by the server's own
-// rule (roomOn): the day's hours, a crew free then, and ending by midnight
-const hasRoomAt = (day: ScheduleDay, job: ScheduledJob, time: string) =>
-  roomOn(day, { ...asClean(job), startsAt: atTime(day.date, time) }).hasRoom;
+// what's dragged to a new time on the Schedule: a Job, or a Site Visit
+export type Moving =
+  | { kind: "job"; job: ScheduledJob }
+  | { kind: "visit"; visit: ScheduledSiteVisit };
+
+// what the calendar draws of what's dragged: its id, when it starts, its time
+// on site, its block's tone (a Site Visit's is neutral) and its Client
+const factsOf = (moving: Moving) =>
+  moving.kind === "job"
+    ? {
+        id: moving.job.id,
+        startsAt: moving.job.startsAt,
+        hoursOnSite: moving.job.hoursOnSite,
+        tone: toneOf(moving.job).tone,
+        client: moving.job.client,
+      }
+    : {
+        id: moving.visit.id,
+        startsAt: moving.visit.startsAt,
+        hoursOnSite: moving.visit.minutes / 60,
+        tone: "neutral" as const,
+        client: moving.visit.client,
+      };
+
+// whether what's dragged can go at a time on a day, by the server's own
+// rules: a Job's room (roomOn: the day's hours and a crew free then), a Site
+// Visit's (whyVisitCantGo: not yet passed, its visitor's hours, or Office
+// Staff, a crew free, and busy with nothing else then); both end by midnight
+const canGoAt = (day: ScheduleDay, moving: Moving, time: string) => {
+  const startsAt = atTime(day.date, time);
+  if (moving.kind === "job") {
+    return roomOn(day, { ...asClean(moving.job), startsAt }).hasRoom;
+  }
+  const { visit } = moving;
+  return (
+    visit.visitor !== null &&
+    whyVisitCantGo(
+      day,
+      { startsAt, minutes: visit.minutes, siteVisitId: visit.id },
+      visit.visitor,
+      new Date(),
+    ) === null
+  );
+};
 
 // a clean placed on the calendar before it's booked there: when it starts,
 // its time on site, what it's called, and for a Service Plan, how many
@@ -134,23 +175,23 @@ const repeatsOn = (proposed: Proposed | undefined, date: string) => {
   return (daysIn(proposed.start.date, date) - 1) % proposed.everyDays === 0;
 };
 
-type Dragging = { job: ScheduledJob; grabbedAtPx: number };
+type Dragging = { moving: Moving; grabbedAtPx: number };
 
 /**
- * The Schedule as a calendar: days as columns over a time axis, each Job a
- * block placed at its start and sized by its time on site.
+ * The Schedule as a calendar: days as columns over a time axis, each Job and
+ * Site Visit a block placed at its start and sized by its time on site.
  *
- * On the Schedule itself (onDrop), clicking a Job opens it and dragging one
- * moves it. To choose a time instead (onPick), the Jobs are only there to
- * see, and clicking a free half hour picks it, or with limits, one of the
- * start times on offer on a day that has them; a proposed clean is drawn
- * where it would go. Given the times without a crew free for the clean
- * (noCrew, from the server), they're marked: they can still be picked, for
- * a Quote the Office may add a Cleaner for, but the server refuses to book
- * there.
+ * On the Schedule itself (onDrop), clicking a Job or Site Visit opens it and
+ * dragging one moves it. To choose a time instead (onPick), the blocks are
+ * only there to see, and clicking a free half hour picks it, or with
+ * limits, one of the start times on offer on a day that has them; a
+ * proposed clean is drawn where it would go. Given the times without a
+ * crew free for the clean (noCrew, from the server), they're marked: they
+ * can still be picked, for a Quote the Office may add a Cleaner for, but
+ * the server refuses to book there.
  *
  * To only look and open (opensJobs, as on the Today screen), clicking a Job
- * opens it and nothing moves.
+ * or Site Visit opens it and nothing moves.
  */
 export function ScheduleCalendar({
   days,
@@ -162,14 +203,14 @@ export function ScheduleCalendar({
   opensJobs = false,
 }: {
   days: ScheduleDay[];
-  onDrop?: (job: ScheduledJob, to: LocalDateTime) => void;
+  onDrop?: (moving: Moving, to: LocalDateTime) => void;
   opensJobs?: boolean;
   onPick?: (at: LocalDateTime) => void;
   limits?: TimePickerProps["limits"];
   proposed?: Proposed;
   noCrew?: DayTimes[];
 }) {
-  // whether Jobs open on click, and whether they can be dragged to move
+  // whether blocks open on click, and whether they can be dragged to move
   const opens = onDrop !== undefined || opensJobs;
   const proposedStart = proposed && hoursOf(proposed.start.time);
   const axis = axisFor(
@@ -198,11 +239,10 @@ export function ScheduleCalendar({
   // whether the clean's crew would be free at a time
   const hasCrew = (day: ScheduleDay, time: string) =>
     !noCrew?.find((d) => d.date === day.date)?.times.includes(time);
-  // which Job is being dragged, and how far down it was grabbed, so it lands
-  // where it's let go; state too, so days with no room for it at any time
-  // fade
+  // what's being dragged, and how far down it was grabbed, so it lands where
+  // it's let go; state too, so days where it can go at no time fade
   const dragging = useRef<Dragging>(undefined);
-  const [draggedJob, setDraggedJob] = useState<ScheduledJob>();
+  const [dragged, setDragged] = useState<Moving>();
   // where it would land if let go now, drawn there; kept as it is while the
   // pointer stays in the same quarter hour, so only a move redraws
   const [landing, setLanding] = useState<LocalDateTime>();
@@ -224,7 +264,7 @@ export function ScheduleCalendar({
         )
       : Infinity;
 
-  // when a Job dragged over a day's body would start there: its top where
+  // when a block dragged over a day's body would start there: its top where
   // the pointer is less how far down it was grabbed, snapped to the quarter
   // hour and kept on the axis
   const landingOf = (e: DragEvent<HTMLElement>, grabbed: Dragging) => {
@@ -240,10 +280,10 @@ export function ScheduleCalendar({
     );
   };
 
-  // whether a day has room for the dragged Job at no time it can land at
-  const noRoomAllDay = (day: ScheduleDay, job: ScheduledJob) => {
+  // whether what's dragged can go at no time it can land at on a day
+  const noRoomAllDay = (day: ScheduleDay, moving: Moving) => {
     for (let at = axis.start; at <= axis.end - SNAP_HOURS; at += SNAP_HOURS) {
-      if (hasRoomAt(day, job, timeAt(at))) return false;
+      if (canGoAt(day, moving, timeAt(at))) return false;
     }
     return true;
   };
@@ -252,14 +292,11 @@ export function ScheduleCalendar({
     const grabbed = dragging.current;
     if (!onDrop || !grabbed) return;
     const to = { date: day.date, time: landingOf(e, grabbed) };
-    if (!hasRoomAt(day, grabbed.job, to.time)) return;
+    if (!canGoAt(day, grabbed.moving, to.time)) return;
     e.preventDefault();
-    const { job } = grabbed;
-    if (
-      to.date !== dayOfInstant(job.startsAt) ||
-      to.time !== timeOfDay(job.startsAt)
-    ) {
-      onDrop(job, to);
+    const { startsAt } = factsOf(grabbed.moving);
+    if (to.date !== dayOfInstant(startsAt) || to.time !== timeOfDay(startsAt)) {
+      onDrop(grabbed.moving, to);
     }
   };
 
@@ -285,9 +322,9 @@ export function ScheduleCalendar({
             className:
               // a day without room fades, but not under the outline, whose
               // red says so
-              (draggedJob &&
+              (dragged &&
                 landing?.date !== day.date &&
-                noRoomAllDay(day, draggedJob)) ||
+                noRoomAllDay(day, dragged)) ||
               !isOpen(day.date)
                 ? "opacity-40"
                 : "",
@@ -319,7 +356,7 @@ export function ScheduleCalendar({
                 const grabbed = dragging.current;
                 if (!grabbed) return;
                 const time = landingOf(e, grabbed);
-                if (hasRoomAt(day, grabbed.job, time)) {
+                if (canGoAt(day, grabbed.moving, time)) {
                   e.preventDefault();
                   e.dataTransfer.dropEffect = "move";
                 }
@@ -369,20 +406,20 @@ export function ScheduleCalendar({
                   movable={onDrop !== undefined}
                   onDragStart={(grabbed) => {
                     dragging.current = grabbed;
-                    setDraggedJob(grabbed.job);
+                    setDragged(grabbed.moving);
                   }}
                   onDragEnd={() => {
                     dragging.current = undefined;
-                    setDraggedJob(undefined);
+                    setDragged(undefined);
                     landAt(undefined);
                   }}
                 />
-                {draggedJob && landing?.date === day.date && (
+                {dragged && landing?.date === day.date && (
                   <Landing
-                    job={draggedJob}
+                    moving={dragged}
                     time={landing.time}
                     axis={axis}
-                    taken={hasRoomAt(day, draggedJob, landing.time)}
+                    taken={canGoAt(day, dragged, landing.time)}
                   />
                 )}
               </>
@@ -595,8 +632,8 @@ const layoutDay = (
   };
 };
 
-// a day's blocks, laid out. On the Schedule, a Job is a link that can be
-// dragged; otherwise only to see, letting clicks through to the time under it.
+// a day's blocks, laid out. On the Schedule, a Job or a Site Visit is a link
+// that can be dragged; otherwise only to see, letting clicks through to the time under it.
 // In the week's narrow days, a Job's time and Client each get a line
 function DayJobs({
   layout: { lanes, jobs, visits, proposed },
@@ -615,6 +652,23 @@ function DayJobs({
   onDragStart: (grabbed: Dragging) => void;
   onDragEnd: () => void;
 }) {
+  // a drag's start: the pointer carries the whole block, grabbed where it was
+  // grabbed. It starts on the link inside, whose own picture is only its words
+  const startDrag = (moving: Moving) => (e: DragEvent<HTMLDivElement>) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", factsOf(moving).id);
+    const box = e.currentTarget.getBoundingClientRect();
+    const grabbedAtPx = e.clientY - box.top;
+    e.dataTransfer.setDragImage(
+      e.currentTarget,
+      e.clientX - box.left,
+      grabbedAtPx,
+    );
+    onDragStart({ moving, grabbedAtPx });
+  };
+  const grabs = (can: boolean) =>
+    can ? "cursor-grab active:cursor-grabbing" : "";
+
   const place = (block: Block) => {
     const { lane, lanes: of } = lanes.get(block.id)!;
     return onAxis(block.start, block.end - block.start, axisStart, {
@@ -664,22 +718,9 @@ function DayJobs({
           <div
             key={job.id}
             draggable={movable && job.movable}
-            onDragStart={(e) => {
-              e.dataTransfer.effectAllowed = "move";
-              e.dataTransfer.setData("text/plain", job.id);
-              const box = e.currentTarget.getBoundingClientRect();
-              const grabbedAtPx = e.clientY - box.top;
-              // the drag starts on the link inside, whose own picture is only
-              // its words: the pointer carries the whole block instead
-              e.dataTransfer.setDragImage(
-                e.currentTarget,
-                e.clientX - box.left,
-                grabbedAtPx,
-              );
-              onDragStart({ job, grabbedAtPx });
-            }}
+            onDragStart={startDrag({ kind: "job", job })}
             onDragEnd={onDragEnd}
-            className={`absolute overflow-hidden rounded-md border-s-4 shadow-sm ${tone.block} ${!interactive ? "pointer-events-none" : movable && job.movable ? "cursor-grab active:cursor-grabbing" : ""}`}
+            className={`absolute overflow-hidden rounded-md border-s-4 shadow-sm ${tone.block} ${interactive ? grabs(movable && job.movable) : "pointer-events-none"}`}
             style={style}
           >
             {interactive ? (
@@ -718,7 +759,10 @@ function DayJobs({
         return (
           <div
             key={visit.id}
-            className={`absolute overflow-hidden rounded-md border-s-4 border-neutral-strong bg-neutral-subtle shadow-sm ${interactive ? "" : "pointer-events-none"}`}
+            draggable={movable && visit.movable}
+            onDragStart={startDrag({ kind: "visit", visit })}
+            onDragEnd={onDragEnd}
+            className={`absolute overflow-hidden rounded-md border-s-4 shadow-sm ${blockOf.neutral} ${interactive ? grabs(movable && visit.movable) : "pointer-events-none"}`}
             style={style}
           >
             {interactive ? (
@@ -749,31 +793,32 @@ function DayJobs({
   );
 }
 
-// a Job being dragged, drawn faintly in its own colours the width of the day
-// where it would land if let go now, at its size on the calendar, cut off at
-// the axis's end; in red where it has no room
+// a Job or Site Visit being dragged, drawn faintly in its own colours the
+// width of the day where it would land if let go now, at its size on the
+// calendar, cut off at the axis's end; in red where it can't go
 function Landing({
-  job,
+  moving,
   time,
   axis,
   taken,
 }: {
-  job: ScheduledJob;
+  moving: Moving;
   time: string;
   axis: { start: number; end: number };
   taken: boolean;
 }) {
-  const block = drawn(job.id, hoursOf(time), job.hoursOnSite);
+  const { id, hoursOnSite, tone, client } = factsOf(moving);
+  const block = drawn(id, hoursOf(time), hoursOnSite);
   return (
     <div
-      className={`pointer-events-none absolute overflow-hidden rounded-md border-2 border-dashed px-1.5 py-1 text-xs leading-tight font-semibold ${outlineOf[taken ? toneOf(job).tone : "danger"]}`}
+      className={`pointer-events-none absolute overflow-hidden rounded-md border-2 border-dashed px-1.5 py-1 text-xs leading-tight font-semibold ${outlineOf[taken ? tone : "danger"]}`}
       style={onAxis(
         block.start,
         Math.min(block.end, axis.end) - block.start,
         axis.start,
       )}
     >
-      {formatClock(time)} {shortClientName(job.client)}
+      {formatClock(time)} {shortClientName(client)}
     </div>
   );
 }

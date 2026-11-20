@@ -3,6 +3,7 @@ import {
   catalog,
   fromHundredths,
   hundredths,
+  messages,
   PICK_TIMES,
   type DayTimes,
   type JobStatus,
@@ -70,8 +71,6 @@ type Ended = Exclude<JobStatus, "booked">;
 type Doing = Ended | "moved" | "offered" | "confirmed";
 const words = catalog({
   en: {
-    // a time asked for that has already passed
-    PASSED: "That time has passed. Pick a later time.",
     // what happened to a Job that isn't booked any more
     ended: {
       completed: "This clean is done",
@@ -99,7 +98,6 @@ const words = catalog({
     CALL_US: "Please call us.",
   },
   es: {
-    PASSED: "Esa hora ya pasó. Elija una hora más tarde.",
     ended: {
       completed: "Esta limpieza ya terminó",
       cancelled: "Esta limpieza se canceló",
@@ -125,7 +123,9 @@ const words = catalog({
   },
 });
 
-export const passed = () => words[currentLanguage()].PASSED;
+// a time asked for that has already passed (models' words, as a screen
+// says it too)
+export const passed = () => messages[currentLanguage()].PASSED;
 
 // a Client is asked to call about a clean that has started
 export const callUs = () => words[currentLanguage()].CALL_US;

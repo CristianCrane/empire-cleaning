@@ -657,7 +657,9 @@ export type SiteVisitView = {
   startsAt: string | null;
   // how long it's booked for: 30 minutes unless set otherwise
   minutes: number;
-  visitor: { id: string; name: string } | null;
+  // who makes it, and their roles, as the Schedule's rule for it asks
+  // (whyVisitCantGo)
+  visitor: { id: string; name: string; roles: StaffRole[] } | null;
   client: ClientName;
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode" | "kind">;
   bookedAt: string;
@@ -667,10 +669,13 @@ export type SiteVisitView = {
 
 // a Site Visit on a day of the Schedule. One by a Cleaner with Available
 // Hours that day takes room like a Job with a Crew Size of one, its length
-// as its Labour Hours; one by Office Staff alone takes none.
+// as its Labour Hours; one by Office Staff alone takes none. One booked can
+// be moved (movable), even once its time has passed, unlike a Job: the
+// Office moves a missed one to a time to come.
 export type ScheduledSiteVisit = SiteVisitView & {
   startsAt: string;
   takesRoom: boolean;
+  movable: boolean;
 };
 
 // a Site Visit in full, for the Office: the Property's details, which its

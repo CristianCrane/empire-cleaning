@@ -262,6 +262,9 @@ const siteVisitsOn = async (
       takesRoom:
         hours.get(date)!.some((c) => c.id === visit.visitor?.id) &&
         !(visit.doneAt && visit.doneAt < visit.startsAt!),
+      // while booked, even once its time has passed (unlike a Job): the
+      // Office moves one that was missed to a time to come
+      movable: visit.status === "booked",
     });
   }
   return byDay;

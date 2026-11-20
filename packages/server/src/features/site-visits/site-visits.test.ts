@@ -9,7 +9,13 @@ import type {
   QuoteSummary,
   ScheduleDay,
 } from "@empire-cleaning/models";
-import { type Agent, api, signIn, testEmail } from "../../../tests/harness.ts";
+import {
+  type Agent,
+  api,
+  signIn,
+  testClock,
+  testEmail,
+} from "../../../tests/harness.ts";
 import {
   bookedJob,
   casey,
@@ -125,7 +131,12 @@ describe("booking a Site Visit", () => {
 
     const day = await scheduleDay(office);
     expect(day.siteVisits).toMatchObject([
-      { id: visit.id, takesRoom: false, visitor: { name: "Olive Owner" } },
+      {
+        id: visit.id,
+        takesRoom: false,
+        visitor: { name: "Olive Owner" },
+        movable: true,
+      },
     ]);
 
     const asCasey = await signIn(casey.email);
@@ -145,6 +156,25 @@ describe("booking a Site Visit", () => {
         visitorName: "Olive",
       },
     ]);
+
+    // missed, it still moves (unlike a Job), but only to a time to come
+    testClock().set(new Date("2026-01-06T16:00:00Z"));
+    expect((await scheduleDay(office)).siteVisits).toMatchObject([
+      { id: visit.id, movable: true },
+    ]);
+    const move = (time: string) =>
+      office.post(`/api/site-visits/${visit.id}/move`).send({
+        date: TUESDAY,
+        time,
+        staffId: olive.id,
+        minutes: 30,
+      });
+    const passed = await move("10:30");
+    expect(passed.status).toBe(409);
+    expect(passed.body.message).toBe(
+      "That time has passed. Pick a later time.",
+    );
+    await move("14:00").expect(200);
   });
 
   test("by a Cleaner takes room like a one-person Job, its length as its Labour Hours", async () => {
@@ -227,6 +257,9 @@ describe("booking a Site Visit", () => {
       .post(`/api/site-visits/${visit.id}/findings`)
       .send({ premisesType, floorArea: 3000, condition: "moderate" })
       .expect(200);
+    expect((await scheduleDay(office)).siteVisits).toMatchObject([
+      { id: visit.id, status: "done", movable: false },
+    ]);
 
     await submit(
       guestAsk({ contact: { ...casey, email: "zed@example.com" } }),
@@ -257,6 +290,38 @@ describe("booking a Site Visit", () => {
       "Cory Cleaner is on a job at 11:00 AM. Pick another time or person.",
     );
     await book(office, quote.id, cory.id, "13:00").expect(201);
+  });
+
+  test("is refused where it would end after midnight", async () => {
+    const { office, olive, quote } = await setUp();
+
+    const late = await book(office, quote.id, olive.id, "23:30", {
+      minutes: 60,
+    });
+    expect(late.status).toBe(409);
+    expect(late.body.message).toBe(
+      "This would run past midnight. Pick an earlier start time.",
+    );
+    await book(office, quote.id, olive.id, "23:00", { minutes: 60 }).expect(
+      201,
+    );
+  });
+
+  test("by a Cleaner is refused where no crew is free then, though the day has hours", async () => {
+    const { office, cory, quote } = await setUp();
+    // 9 to 11, no one on it yet: Cory, the only Cleaner, is its crew
+    await bookedJob({
+      startsAt: "2026-01-06T14:00:00Z",
+      labourHours: 2,
+      crewSize: 1,
+    });
+
+    const clash = await book(office, quote.id, cory.id, "10:00");
+    expect(clash.status).toBe(409);
+    expect(clash.body.message).toBe(
+      "Not enough cleaners are free then. Pick another time.",
+    );
+    await book(office, quote.id, cory.id, "11:00").expect(201);
   });
 
   test("allows one booked at a time per Property, in the future, for 15 minutes to 8 hours", async () => {

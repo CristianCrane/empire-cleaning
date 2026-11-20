@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
-import type { LocalDateTime, ScheduledJob } from "@empire-cleaning/models";
+import type { LocalDateTime } from "@empire-cleaning/models";
 import { CalendarPage, Dialog } from "@empire-cleaning/ui";
 import { ConfirmMove } from "./JobMove.tsx";
+import { ConfirmVisitMove } from "./SiteVisitParts.tsx";
 import { RangeBar } from "../CalendarGrid.tsx";
-import { ScheduleCalendar } from "./ScheduleCalendar.tsx";
+import { ScheduleCalendar, type Moving } from "./ScheduleCalendar.tsx";
 import {
   chooseSpan,
   rangeShowing,
@@ -17,17 +18,14 @@ import { CrewBadge, JobStatusBadge } from "../JobBadges.tsx";
  * The Schedule as a calendar: days as columns over a time axis, each Job a
  * block placed at its start and sized by its time on site. A day, three days
  * or a week at a time: the span chosen last, kept for the next visit (three
- * days at first). Clicking a Job opens it; on a desktop,
+ * days at first). Clicking a Job or Site Visit opens it; on a desktop,
  * Office Staff drag one to move it, confirming first.
  */
 export function ScheduleScreen() {
   const days = useLoaderData({ from: "/office/schedule" });
   const { from, to } = scheduleRange(useSearch({ from: "/office/schedule" }));
   const navigate = useNavigate({ from: "/office/schedule" });
-  const [moving, setMoving] = useState<{
-    job: ScheduledJob;
-    to: LocalDateTime;
-  }>();
+  const [moving, setMoving] = useState<Moving & { to: LocalDateTime }>();
 
   const show = (span: Span, day: string) => {
     chooseSpan(span);
@@ -43,23 +41,32 @@ export function ScheduleScreen() {
         <JobStatusBadge status="completed" />
         <JobStatusBadge status="no_access" />
         <span className="hidden md:inline">
-          Drag a job to move it, or open it to pick any time.
+          Drag a job or site visit to move it, or open it to pick any time.
         </span>
-        <span className="md:hidden">Open a job to move it.</span>
+        <span className="md:hidden">Open a job or site visit to move it.</span>
       </div>
       <ScheduleCalendar
         days={days}
-        onDrop={(job, to) => setMoving({ job, to })}
+        onDrop={(what, to) => setMoving({ ...what, to })}
       />
       <Dialog
-        title="Move this job?"
+        title={
+          moving?.kind === "visit" ? "Move this site visit?" : "Move this job?"
+        }
         isOpen={moving !== undefined}
         onOpenChange={(isOpen) => !isOpen && setMoving(undefined)}
       >
         {({ close }) =>
-          moving && (
+          moving &&
+          (moving.kind === "job" ? (
             <ConfirmMove job={moving.job} to={moving.to} close={close} />
-          )
+          ) : (
+            <ConfirmVisitMove
+              visit={moving.visit}
+              to={moving.to}
+              close={close}
+            />
+          ))
         }
       </Dialog>
     </CalendarPage>

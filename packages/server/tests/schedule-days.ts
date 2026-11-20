@@ -55,7 +55,7 @@ export const siteVisit = (
   status,
   startsAt: afterNine(hours).toISOString(),
   minutes: 30,
-  visitor: { id: "ana", name: "Ana Ruiz" },
+  visitor: { id: "ana", name: "Ana Ruiz", roles: ["cleaner"] },
   client: { id: "client", name: "Casey Lee", businessName: null },
   property: {
     id: "home",
@@ -68,6 +68,7 @@ export const siteVisit = (
   doneAt: null,
   cancelledAt: null,
   takesRoom: true,
+  movable: status === "booked",
 });
 
 // Thursday, with Ana and Bea available, the Job on it, and anything else
