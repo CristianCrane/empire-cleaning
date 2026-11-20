@@ -185,16 +185,16 @@ test("the Schedule opens on three days from today, then on the span last chosen"
   await expect(page).toHaveURL(/from=2027-03-03&to=2027-03-03/);
 });
 
-// where Casey's Job would land, drawn while it's dragged
-// a dragged block's outline, by its Client's name: a box of its own, not
-// the words on a block (a short Site Visit's)
+// where a dragged block would land, drawn while it's dragged, by its
+// Client's name: a box of its own, not the words on a block (a short Site
+// Visit's)
 const outlineOf = (page: Page, client = "Casey Client") =>
   page
     .getByRole("main")
     .getByText(new RegExp(`^\\d+:\\d+ [AP]M ${client}$`))
     .and(page.locator("div"));
 const boxOf = async (of: Locator) => (await of.boundingBox())!;
-// an edge's colour and line: the outline's top, the Job's own left bar
+// an edge's colour and line: the outline's top, a block's own left bar
 const edgeOf = (of: Locator, side: "Top" | "Left") =>
   of.evaluate((element, side) => {
     const style = getComputedStyle(element);
@@ -203,7 +203,7 @@ const edgeOf = (of: Locator, side: "Top" | "Left") =>
       style.getPropertyValue(`border-${side.toLowerCase()}-style`),
     ];
   }, side);
-// a Job held mid-drag over a place: two moves, as the first only starts
+// a block held mid-drag over a place: two moves, as the first only starts
 // the drag (Playwright's mouse.down)
 const holdOver = async (place: Locator, y?: number) => {
   const position = y === undefined ? undefined : { x: 10, y };

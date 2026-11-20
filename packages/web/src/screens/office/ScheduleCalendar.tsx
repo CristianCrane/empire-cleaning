@@ -177,12 +177,12 @@ const repeatsOn = (proposed: Proposed | undefined, date: string) => {
 type Dragging = { moving: Moving; grabbedAtPx: number };
 
 /**
- * The Schedule as a calendar: days as columns over a time axis, each Job a
- * block placed at its start and sized by its time on site.
+ * The Schedule as a calendar: days as columns over a time axis, each Job and
+ * Site Visit a block placed at its start and sized by its time on site.
  *
  * On the Schedule itself (onDrop), clicking a Job or Site Visit opens it and
- * dragging one moves it. To choose a time instead (onPick), the Jobs are only there to
- * see, and clicking a free half hour picks it, or with limits, one of the
+ * dragging one moves it. To choose a time instead (onPick), the blocks are
+ * only there to see, and clicking a free half hour picks it, or with limits, one of the
  * start times on offer on a day that has them; a proposed clean is drawn
  * where it would go. Given the times without a crew free for the clean
  * (noCrew, from the server), they're marked: they can still be picked, for
@@ -190,7 +190,7 @@ type Dragging = { moving: Moving; grabbedAtPx: number };
  * there.
  *
  * To only look and open (opensJobs, as on the Today screen), clicking a Job
- * opens it and nothing moves.
+ * or Site Visit opens it and nothing moves.
  */
 export function ScheduleCalendar({
   days,
