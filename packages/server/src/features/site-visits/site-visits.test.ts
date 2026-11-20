@@ -266,6 +266,23 @@ describe("booking a Site Visit", () => {
     await book(office, quote.id, cory.id, "13:00").expect(201);
   });
 
+  test("by a Cleaner is refused where no crew is free then, though the day has hours", async () => {
+    const { office, cory, quote } = await setUp();
+    // 9 to 11, no one on it yet: Cory, the only Cleaner, is its crew
+    await bookedJob({
+      startsAt: "2026-01-06T14:00:00Z",
+      labourHours: 2,
+      crewSize: 1,
+    });
+
+    const clash = await book(office, quote.id, cory.id, "10:00");
+    expect(clash.status).toBe(409);
+    expect(clash.body.message).toBe(
+      "Not enough cleaners are free then. Pick another time.",
+    );
+    await book(office, quote.id, cory.id, "11:00").expect(201);
+  });
+
   test("allows one booked at a time per Property, in the future, for 15 minutes to 8 hours", async () => {
     const { office, olive, quote } = await setUp();
     await book(office, quote.id, olive.id).expect(201);

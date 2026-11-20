@@ -10,13 +10,9 @@ import {
   addDays,
   atTime,
   dayOf,
-  NO_CREW,
-  startOfDay,
-  formats,
   firstNameOf,
-  busyWith,
-  roomOn,
-  visitHours,
+  startOfDay,
+  whyVisitCantGo,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import {
@@ -54,8 +50,6 @@ import {
 } from "./site-visits.validation.ts";
 import { toSiteVisitView } from "./views.ts";
 
-const { formatTime } = formats.en;
-
 // a Property with its Client
 const propertyOf = async (propertyId: string) => {
   const [row] = await db
@@ -78,19 +72,11 @@ const visitorOf = async (staffId: string) => {
 };
 
 /**
- * Refuses a Site Visit at a time it can't go (ADR-0015), holding its day
- * (lockDay) until the transaction ends, as booking a Job does:
- *
- * - by a Cleaner with Available Hours that day, it takes room like a Job
- *   with a Crew Size of one, its length as its Labour Hours, so the day
- *   needs those hours free and a Cleaner free then;
- * - by Office Staff, it takes none; a Cleaner who isn't Office Staff can't
- *   make one on a day they have no hours;
- * - either way, its visitor must be busy with nothing then (busyWith): no
- *   other booked Site Visit of theirs, and no booked Job they're on the crew
- *   on, Offered or Confirmed (#242). A Done Site Visit doesn't count.
- *
- * A visit being moved gives its id, so it isn't counted against itself.
+ * Refuses a Site Visit at a time it can't go (ADR-0015): one whose time has
+ * passed, or one the Schedule's rule refuses (whyVisitCantGo, in models, as
+ * the Schedule's drag asks it too), holding its day (lockDay) until the
+ * transaction ends, as booking a Job does. A visit being moved gives its id,
+ * so it isn't counted against itself.
  */
 const refuseNoRoom = async (
   tx: Tx,
@@ -109,41 +95,10 @@ const refuseNoRoom = async (
   if (startsAt <= clock.now()) {
     throw new ConflictError(passed());
   }
-  const date = dayOf(startsAt);
-  await lockDay(tx, date);
+  await lockDay(tx, dayOf(startsAt));
   const day = await scheduleOn(startsAt, tx);
-  const visit = {
-    startsAt,
-    labourHours: visitHours({ minutes }),
-    crewSize: 1,
-    siteVisitId,
-  };
-
-  if (day.available.some((c) => c.id === visitor.id)) {
-    const room = roomOn(day, visit);
-    if (!room.hasHours) {
-      throw new ConflictError(
-        `${firstNameOf(visitor.name)} doesn't have enough working hours free that day. Pick another day or person.`,
-      );
-    }
-    if (!room.hasCrew) {
-      throw new ConflictError(`${NO_CREW} Pick another time.`);
-    }
-  } else if (!visitor.roles.includes("office_staff")) {
-    throw new ConflictError(
-      `${visitor.name} isn't working that day. Pick another day or person.`,
-    );
-  }
-
-  const busy = busyWith(day, visitor.id, visit);
-  if (busy) {
-    const at = formatTime(new Date(busy.startsAt));
-    throw new ConflictError(
-      busy.what === "site_visit"
-        ? `${visitor.name} has another site visit at ${at}. Pick another time or person.`
-        : `${visitor.name} is on a job at ${at}. Pick another time or person.`,
-    );
-  }
+  const why = whyVisitCantGo(day, { startsAt, minutes, siteVisitId }, visitor);
+  if (why) throw new ConflictError(why);
 };
 
 // ---- telling the Client ----
