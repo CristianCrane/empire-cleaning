@@ -131,6 +131,11 @@ import { PortalQuote } from "./screens/portal/PortalQuote.tsx";
 import { PortalRequest } from "./screens/portal/PortalRequest.tsx";
 import { PortalDetails } from "./screens/portal/PortalDetails.tsx";
 import { NotFound } from "./screens/NotFound.tsx";
+import {
+  PortalHomesPrototype,
+  portalHomesBeforeLoad,
+  portalHomesSearch,
+} from "./screens/portal/portal-homes.prototype.tsx";
 import { PeopleScreen, personAsked } from "./screens/PeopleScreen.tsx";
 import { PageError } from "./screens/PageError.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
@@ -882,7 +887,19 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: where things live in the Client portal (#493), signed out
+const portalHomesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/portal-homes",
+  validateSearch: portalHomesSearch,
+  beforeLoad: portalHomesBeforeLoad,
+  component: function PortalHomes() {
+    return <PortalHomesPrototype search={portalHomesRoute.useSearch()} />;
+  },
+});
+
 const routeTree = rootRoute.addChildren([
+  portalHomesRoute,
   indexRoute,
   signInRoute,
   signInLinkRoute,
