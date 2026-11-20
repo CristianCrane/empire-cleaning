@@ -5,6 +5,7 @@
 // branch. How to use it, and what each side does: packages/web/README.md,
 // Testing, "Screenshots for a PR"; USAGE below.
 import { execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   copyFileSync,
   cpSync,
@@ -13,12 +14,16 @@ import {
   readFileSync,
   rmSync,
 } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
-const USAGE =
-  'Usage: pnpm pr:shots <spec> "<test title>" [--desktop] [--viewport]\n  e.g. pnpm pr:shots packages/web/e2e/bills.spec.ts "a Client pays a Bill by card"';
+const USAGE = [
+  'Usage: pnpm pr:shots <spec> "<test title>" [--desktop] [--viewport]',
+  "       pnpm pr:shots --same <spec>… [--desktop] [--viewport]",
+  '  e.g. pnpm pr:shots packages/web/e2e/bills.spec.ts "a Client pays a Bill by card"',
+  "       pnpm pr:shots --same packages/web/e2e/bills.spec.ts packages/web/e2e/jobs.spec.ts",
+].join("\n");
 
 const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, {
@@ -52,13 +57,16 @@ type Suite = {
     }[];
   }[];
 };
-type Report = { suites?: Suite[]; errors?: { message?: string }[] };
+type Report = {
+  config?: { rootDir?: string };
+  suites?: Suite[];
+  errors?: { message?: string }[];
+};
 
 class Stop extends Error {}
 
-// one test as a run's report gives it: its spec (from the package's test
-// folder), its describes and title, the project, how it ended and the shot
-// at its end
+// one test as a run's report gives it: its spec (from the repo's root), its
+// describes and title, the project, how it ended and the shot at its end
 type Ran = {
   spec: string;
   title: string;
@@ -154,7 +162,9 @@ const run = (
       }
     }
   };
-  report.suites?.forEach((file) => walk(file.title, file, []));
+  // a spec's path in the report is from the test folder, the root's here
+  const testDir = relative(checkout, report.config?.rootDir ?? folder);
+  report.suites?.forEach((file) => walk(join(testDir, file.title), file, []));
   return {
     ran,
     errors: (report.errors ?? []).map(({ message = "" }) => message),
@@ -222,16 +232,14 @@ const shoot = (
       `The test skipped on every project, after: nothing to shoot.`,
     );
   }
-  return ran.map(({ project, status, path }) => {
+  return ran.map((test) => {
+    const { project, status, path } = test;
     if (status !== "passed" || !path) {
       throw new Stop(
         `The test ${status === "passed" ? "left no screenshot" : status} on ${project}, ${side}: its output above says why. A test that stopped partway shows the wrong screen, so nothing was pushed.`,
       );
     }
-    const file = join(
-      options.dir,
-      `${slug(options.title)}-${project}${options.viewport ? "-viewport" : ""}-${side}.png`,
-    );
+    const file = shotFile(options.dir, test, options.viewport, side);
     copyFileSync(path, file);
     return { project, file };
   });
@@ -257,6 +265,20 @@ const grepFor = (title: string) =>
     String.raw`\x20`,
     String.raw`(?:\x20@\S+)*\x20`,
   );
+
+// where a test's shot is kept, and its name on pr-media: its title for a
+// reader, and a hash of its spec, title and project, as two specs can share a
+// title and two titles their first 60 letters
+const shotFile = (dir: string, test: Ran, viewport: boolean, side: Side) => {
+  const hash = createHash("sha256")
+    .update(`${test.spec}\n${test.title}\n${test.project}`)
+    .digest("hex")
+    .slice(0, 8);
+  return join(
+    dir,
+    `${slug(test.title)}-${hash}-${test.project}${viewport ? "-viewport" : ""}-${side}.png`,
+  );
+};
 
 const slug = (title: string) =>
   title
@@ -336,19 +358,239 @@ const publish = (dir: string, branch: string, files: string[]) => {
   }
 };
 
+type Context = {
+  projects: string[];
+  viewport: boolean;
+  dir: string;
+  branch: string;
+  sha: string;
+  // what the after is, for the output: HEAD's short sha, and whether the
+  // checkout has changes beside it
+  after: string;
+};
+
+const width = (project: string) => (project === "desktop" ? 450 : 300);
+
+// one test, before and after, each project's pair in a table
+const one = (spec: string, title: string, context: Context) => {
+  const { projects, viewport, dir, branch, sha } = context;
+  const options = { spec, title, projects, viewport, dir };
+  // the base's own test, else the branch's on the base; a test that fails
+  // there, or a spec that won't load, gives an after alone
+  const before = withBase(sha, (base) => {
+    const own = shoot(options, base, "before");
+    if (own) return { shots: own, borrowed: false };
+    branchTestsOn(base, spec);
+    try {
+      return { shots: shoot(options, base, "before"), borrowed: true };
+    } catch (error) {
+      if (!(error instanceof Stop)) throw error;
+      console.log(`\n› before: none, as ${error.message}`);
+      return { shots: null, borrowed: true };
+    }
+  });
+  const after = shoot(options, top, "after") ?? [];
+  const url = publish(dir, branch, [
+    ...(before.shots ?? []).map(({ file }) => file),
+    ...after.map(({ file }) => file),
+  ]);
+
+  const img = (shot: Shot) =>
+    `<img src="${url(shot.file)}" width="${width(shot.project)}">`;
+  const tests = before.borrowed ? ", with the branch's tests" : "";
+  console.log(
+    `\nBefore ${sha.slice(0, 7)} (the merge base${tests}), after ${context.after}. Copies in ${dir}. Paste under **Before / after:**\n`,
+  );
+  for (const shot of after) {
+    const old = before.shots?.find(({ project }) => project === shot.project);
+    const none = before.shots
+      ? `none: skipped on ${shot.project}`
+      : "none: a new test, which doesn't run on the base";
+    console.log(
+      `${title}, ${shot.project}${viewport ? ", the screen as the test left it" : ""}:\n\n| Before | After |\n| --- | --- |\n| ${old ? img(old) : none} | ${img(shot)} |\n`,
+    );
+  }
+};
+
+// every test of the specs, before and after, each one's end shot fresh on
+// both sides and compared byte for byte: for a change that should leave
+// every screen as it was (#439). It publishes the pairs that differ, and the
+// first identical one on each project for the PR's body
+const same = (specs: string[], context: Context) => {
+  const { projects, viewport, dir, branch, sha } = context;
+  const packages = Map.groupBy(specs, (spec) => packageOf(spec, top).pkg);
+  const key = ({ spec, title, project }: Ran) =>
+    `${spec}\n${title}\n${project}`;
+  const say = ({ spec, title, project }: Ran) =>
+    `${spec}: ${title}, ${project}`;
+  // every test the specs hold, or those --grep names, run in one checkout
+  const runAll = (
+    checkout: string,
+    side: Side,
+    out: string,
+    only?: { grep: string; packages: Set<string> },
+  ) =>
+    [...packages].flatMap(([pkg, inPkg]) => {
+      if (only && !only.packages.has(pkg)) return [];
+      console.log(
+        `\n› ${side}: ${only ? "the tests it lacks" : "every test"} in ${inPkg.join(", ")}, in ${checkout}`,
+      );
+      const { ran, errors } = run(
+        {
+          pkg,
+          files: inPkg.map((spec) => packageOf(spec, checkout).file),
+          grep: only?.grep,
+          projects,
+          viewport,
+          out: join(dir, out, pkg.replaceAll("/", "-")),
+        },
+        checkout,
+        side,
+      );
+      // a spec that won't load stops it, though the others ran
+      const failures = errors.filter((error) => !/No tests found/.test(error));
+      if (failures.length)
+        throw new Stop(`The ${side} run failed: ${failures.join("; ")}`);
+      return ran.filter(({ status }) => status !== "skipped");
+    });
+  // a test that fails stops it all, as one that stopped partway shows the
+  // wrong screen
+  const stopOnFailed = (ran: Ran[], side: Side) => {
+    const failing = ran.filter(({ status }) => status !== "passed");
+    if (failing.length) {
+      throw new Stop(
+        `${failing.length} tests failed, ${side}, so nothing was pushed: ${failing.map(say).join("; ")}`,
+      );
+    }
+  };
+
+  const after = runAll(top, "after", "after");
+  stopOnFailed(after, "after");
+  let borrowed = 0;
+  const before = withBase(sha, (base) => {
+    const own = runAll(base, "before", "before");
+    stopOnFailed(own, "before");
+    // the tests the base lacks, run there from the branch's (#402's rule)
+    const has = new Set(own.map(key));
+    const lacks = after.filter((test) => !has.has(key(test)));
+    if (!lacks.length) return own;
+    const lacking = new Set(
+      [...packages.keys()].filter((pkg) =>
+        lacks.some(({ spec }) => spec.startsWith(`${pkg}/`)),
+      ),
+    );
+    for (const pkg of lacking)
+      branchTestsOn(base, packages.get(pkg)?.[0] ?? "");
+    const titles = [...new Set(lacks.map(({ title }) => grepFor(title)))];
+    try {
+      const wanted = new Set(lacks.map(key));
+      const theirs = runAll(base, "before", "before-branch", {
+        grep: titles.join("|"),
+        packages: lacking,
+      }).filter((test) => wanted.has(key(test)) && test.status === "passed");
+      borrowed = theirs.length;
+      return [...own, ...theirs];
+    } catch (error) {
+      if (!(error instanceof Stop)) throw error;
+      console.log(
+        `\n› before: the branch's tests didn't run there, as ${error.message}`,
+      );
+      return own;
+    }
+  });
+
+  const byKey = new Map(before.map((test) => [key(test), test]));
+  const pairs = after.flatMap((test) => {
+    const old = byKey.get(key(test));
+    return old ? [{ test, old }] : [];
+  });
+  const paired = new Set(pairs.map(({ test }) => key(test)));
+  const onlyAfter = after.filter((test) => !paired.has(key(test)));
+  const onlyBefore = before.filter(
+    (test) => !after.some((other) => key(other) === key(test)),
+  );
+  const shot = pairs.filter(({ test, old }) => test.path && old.path);
+  const noShot = pairs.length - shot.length;
+  const compared = shot.map(({ test, old }) => ({
+    test,
+    old,
+    identical: readFileSync(test.path ?? "").equals(
+      readFileSync(old.path ?? ""),
+    ),
+  }));
+  const differ = compared.filter(({ identical }) => !identical);
+  const identical = compared.filter(({ identical }) => identical);
+  const shown = [
+    ...differ,
+    ...projects.flatMap((project) =>
+      identical.filter(({ test }) => test.project === project).slice(0, 1),
+    ),
+  ];
+  const files = shown.map(({ test, old }) => {
+    const pair = {
+      before: shotFile(dir, old, viewport, "before"),
+      after: shotFile(dir, test, viewport, "after"),
+    };
+    copyFileSync(old.path ?? "", pair.before);
+    copyFileSync(test.path ?? "", pair.after);
+    return pair;
+  });
+  const url = files.length
+    ? publish(
+        dir,
+        branch,
+        files.flatMap(({ before, after }) => [before, after]),
+      )
+    : () => "";
+
+  const tests = borrowed
+    ? `, with the branch's copy of the ${borrowed === 1 ? "test" : `${borrowed} tests`} it lacks`
+    : "";
+  const list = (ran: Ran[]) => ran.map((test) => `\n- ${say(test)}`).join("");
+  console.log(
+    `\nBefore ${sha.slice(0, 7)} (the merge base${tests}), after ${context.after}${viewport ? ", the screen as each test left it" : ""}. Copies in ${dir}.\n`,
+  );
+  console.log(
+    `${identical.length} of ${compared.length} identical (${projects.join(" and ")}).`,
+  );
+  if (differ.length)
+    console.log(`\nDifferent:${list(differ.map(({ test }) => test))}`);
+  if (onlyAfter.length)
+    console.log(`\nAfter alone, as the base can't run them:${list(onlyAfter)}`);
+  if (onlyBefore.length)
+    console.log(
+      `\nBefore alone, as the branch has no such test:${list(onlyBefore)}`,
+    );
+  if (noShot)
+    console.log(`\n${noShot} tests open no page, so have no shot to compare.`);
+  if (!shown.length) return;
+  console.log("\nPaste under **Before / after:**\n");
+  shown.forEach(({ test, identical: same }, n) => {
+    const img = (file: string) =>
+      `<img src="${url(file)}" width="${width(test.project)}">`;
+    console.log(
+      `${test.title}, ${test.project}, ${same ? "identical" : "different"}:\n\n| Before | After |\n| --- | --- |\n| ${img(files[n]?.before ?? "")} | ${img(files[n]?.after ?? "")} |\n`,
+    );
+  });
+};
+
 const main = () => {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
     options: {
       desktop: { type: "boolean", default: false },
       viewport: { type: "boolean", default: false },
+      same: { type: "boolean", default: false },
     },
   });
   const [spec, title] = positionals;
-  if (!spec || !title || positionals.length > 2) throw new Stop(USAGE);
-  const projects = values.desktop ? ["phone", "desktop"] : ["phone"];
+  if (
+    values.same
+      ? !positionals.length
+      : !spec || !title || positionals.length > 2
+  )
+    throw new Stop(USAGE);
 
-  const branch = git(top, "rev-parse", "--abbrev-ref", "HEAD");
   const dir = git(
     top,
     "rev-parse",
@@ -371,45 +613,16 @@ const main = () => {
   const dirty = git(top, "status", "--porcelain")
     ? " and its uncommitted changes"
     : "";
-
-  const { viewport } = values;
-  const options = { spec, title, projects, viewport, dir };
-  // the base's own test, else the branch's on the base; a test that fails
-  // there, or a spec that won't load, gives an after alone
-  const before = withBase(sha, (base) => {
-    const own = shoot(options, base, "before");
-    if (own) return { shots: own, borrowed: false };
-    branchTestsOn(base, spec);
-    try {
-      return { shots: shoot(options, base, "before"), borrowed: true };
-    } catch (error) {
-      if (!(error instanceof Stop)) throw error;
-      console.log(`\n› before: none, as ${error.message}`);
-      return { shots: null, borrowed: true };
-    }
-  });
-  const after = shoot(options, top, "after") ?? [];
-  const url = publish(dir, branch, [
-    ...(before.shots ?? []).map(({ file }) => file),
-    ...after.map(({ file }) => file),
-  ]);
-
-  const width = (project: string) => (project === "desktop" ? 450 : 300);
-  const img = (shot: Shot) =>
-    `<img src="${url(shot.file)}" width="${width(shot.project)}">`;
-  const tests = before.borrowed ? ", with the branch's tests" : "";
-  console.log(
-    `\nBefore ${sha.slice(0, 7)} (the merge base${tests}), after ${head}${dirty}. Copies in ${dir}. Paste under **Before / after:**\n`,
-  );
-  for (const shot of after) {
-    const old = before.shots?.find(({ project }) => project === shot.project);
-    const none = before.shots
-      ? `none: skipped on ${shot.project}`
-      : "none: a new test, which doesn't run on the base";
-    console.log(
-      `${title}, ${shot.project}${viewport ? ", the screen as the test left it" : ""}:\n\n| Before | After |\n| --- | --- |\n| ${old ? img(old) : none} | ${img(shot)} |\n`,
-    );
-  }
+  const context: Context = {
+    projects: values.desktop ? ["phone", "desktop"] : ["phone"],
+    viewport: values.viewport,
+    dir,
+    branch: git(top, "rev-parse", "--abbrev-ref", "HEAD"),
+    sha,
+    after: `${head}${dirty}`,
+  };
+  if (values.same) same(positionals, context);
+  else one(spec ?? "", title ?? "", context);
 };
 
 try {
