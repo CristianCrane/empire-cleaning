@@ -97,6 +97,7 @@ const run = (
     projects: string[];
     // the screen as the test left it, not the whole page
     viewport: boolean;
+    workers?: number;
     out: string;
   },
   checkout: string,
@@ -117,6 +118,7 @@ const run = (
       "--reporter=list,json",
       ...options.files,
       ...(options.grep ? ["--grep", options.grep] : []),
+      ...(options.workers ? [`--workers=${options.workers}`] : []),
       ...options.projects.flatMap((project) => ["--project", project]),
     ],
     {
@@ -414,8 +416,11 @@ const one = (spec: string, title: string, context: Context) => {
 
 // every test of the specs, before and after, each one's end shot fresh on
 // both sides and compared byte for byte: for a change that should leave
-// every screen as it was (#439). It publishes the pairs that differ, and the
-// first identical one on each project for the PR's body
+// every screen as it was (#439). The base runs twice, and a test whose two
+// shots there differ changes from run to run on one commit (its data,
+// numbered or random, or how it's drawn), so it's named and not compared. It
+// publishes the pairs that differ, and the first identical one on each
+// project for the PR's body
 const same = (specs: string[], context: Context) => {
   const { projects, viewport, dir, branch, sha } = context;
   const packages = Map.groupBy(specs, (spec) => packageOf(spec, top).pkg);
@@ -442,6 +447,10 @@ const same = (specs: string[], context: Context) => {
           grep: only?.grep,
           projects,
           viewport,
+          // one worker, so the tests run in one order on each side, and data
+          // numbered as it's made (fixtures' Client 1, 2, …) comes out the
+          // same: on two, Client 13 on one side was Client 15 on the other
+          workers: 1,
           out: join(dir, out, pkg.replaceAll("/", "-")),
         },
         checkout,
@@ -467,11 +476,14 @@ const same = (specs: string[], context: Context) => {
   const after = runAll(top, "after", "after");
   stopOnFailed(after, "after");
   let borrowed = 0;
-  const before = withBase(sha, (base) => {
-    const own = runAll(base, "before", "before");
-    stopOnFailed(own, "before");
+  const [before, again] = withBase(sha, (base) => {
+    const own = ["before", "before-again"].map((out) => {
+      const ran = runAll(base, "before", out);
+      stopOnFailed(ran, "before");
+      return ran;
+    });
     // the tests the base lacks, run there from the branch's (#402's rule)
-    const has = new Set(own.map(key));
+    const has = new Set(own[0]?.map(key));
     const lacks = after.filter((test) => !has.has(key(test)));
     if (!lacks.length) return own;
     const lacking = new Set(
@@ -484,12 +496,14 @@ const same = (specs: string[], context: Context) => {
     const titles = [...new Set(lacks.map(({ title }) => grepFor(title)))];
     try {
       const wanted = new Set(lacks.map(key));
-      const theirs = runAll(base, "before", "before-branch", {
-        grep: titles.join("|"),
-        packages: lacking,
-      }).filter((test) => wanted.has(key(test)) && test.status === "passed");
-      borrowed = theirs.length;
-      return [...own, ...theirs];
+      const theirs = ["before-branch", "before-branch-again"].map((out) =>
+        runAll(base, "before", out, {
+          grep: titles.join("|"),
+          packages: lacking,
+        }).filter((test) => wanted.has(key(test)) && test.status === "passed"),
+      );
+      borrowed = theirs[0]?.length ?? 0;
+      return own.map((ran, n) => [...ran, ...(theirs[n] ?? [])]);
     } catch (error) {
       if (!(error instanceof Stop)) throw error;
       console.log(
@@ -499,24 +513,29 @@ const same = (specs: string[], context: Context) => {
     }
   });
 
-  const byKey = new Map(before.map((test) => [key(test), test]));
+  const equal = (a?: string, b?: string) =>
+    !!a && !!b && readFileSync(a).equals(readFileSync(b));
+  const byKey = new Map((before ?? []).map((test) => [key(test), test]));
+  const againByKey = new Map((again ?? []).map((test) => [key(test), test]));
   const pairs = after.flatMap((test) => {
     const old = byKey.get(key(test));
     return old ? [{ test, old }] : [];
   });
   const paired = new Set(pairs.map(({ test }) => key(test)));
   const onlyAfter = after.filter((test) => !paired.has(key(test)));
-  const onlyBefore = before.filter(
+  const onlyBefore = (before ?? []).filter(
     (test) => !after.some((other) => key(other) === key(test)),
   );
   const shot = pairs.filter(({ test, old }) => test.path && old.path);
   const noShot = pairs.length - shot.length;
-  const compared = shot.map(({ test, old }) => ({
+  const steady = shot.filter(({ old }) =>
+    equal(old.path, againByKey.get(key(old))?.path),
+  );
+  const unsteady = shot.filter((pair) => !steady.includes(pair));
+  const compared = steady.map(({ test, old }) => ({
     test,
     old,
-    identical: readFileSync(test.path ?? "").equals(
-      readFileSync(old.path ?? ""),
-    ),
+    identical: equal(test.path, old.path),
   }));
   const differ = compared.filter(({ identical }) => !identical);
   const identical = compared.filter(({ identical }) => identical);
@@ -560,6 +579,10 @@ const same = (specs: string[], context: Context) => {
   if (onlyBefore.length)
     console.log(
       `\nBefore alone, as the branch has no such test:${list(onlyBefore)}`,
+    );
+  if (unsteady.length)
+    console.log(
+      `\nNot compared, as the base shot them differently twice running:${list(unsteady.map(({ test }) => test))}`,
     );
   if (noShot)
     console.log(`\n${noShot} tests open no page, so have no shot to compare.`);
