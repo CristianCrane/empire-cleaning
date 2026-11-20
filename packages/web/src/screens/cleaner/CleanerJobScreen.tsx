@@ -45,8 +45,7 @@ const words = catalog({
     notConfirmedYet: (names: string) => `${names} not confirmed yet`,
     allConfirmed: "Crew, all confirmed",
     client: "Client",
-    tapToCall: "Client: tap to call",
-    numberOnTheDay: "Client: their number shows on the day",
+    numberOnTheDay: (name: string) => `${name}, number shows on the day`,
     notConfirmed: "The job wasn't confirmed. Please try again.",
     canYouMakeIt: "The office offered you this job. Can you make it?",
     stillOn: "You're still on this job. Please try again.",
@@ -65,8 +64,7 @@ const words = catalog({
     notConfirmedYet: (names: string) => `${names}: aún sin confirmar`,
     allConfirmed: "Equipo, todos confirmados",
     client: "Cliente",
-    tapToCall: "Cliente: toca para llamar",
-    numberOnTheDay: "Cliente: su número aparece ese día",
+    numberOnTheDay: (name: string) => `${name}, su número aparece ese día`,
     notConfirmed: "El trabajo no se confirmó. Vuelve a intentarlo.",
     canYouMakeIt: "La oficina te ofreció este trabajo. ¿Puedes ir?",
     stillOn: "Sigues en este trabajo. Vuelve a intentarlo.",
@@ -221,10 +219,9 @@ function JobDetails({ job }: { job: CleanerJob }) {
                 {job.client.firstName}, {job.onTheDay.phone}
               </a>
             ) : (
-              job.client.firstName
+              w.numberOnTheDay(job.client.firstName)
             )
           }
-          line={job.onTheDay ? w.tapToCall : w.numberOnTheDay}
         />
       </Facts>
     </DetailsCard>
