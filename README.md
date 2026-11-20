@@ -33,7 +33,7 @@ The full suite runs on CI, not here (`docs/adr/0026-the-full-suite-runs-on-ci.md
 - the server (not the seed test), ui, models, browser-monitoring and lint rule tests, and the web app's browser tests in `src/`;
 - every end-to-end spec the branch adds or edits, the web app's and the landing site's, and the specs named on its command line (those for the screens the change touches, `packages/web/README.md`), once each (ADR-0028).
 
-Each spec runs in every project its tags name. The PR opens as a draft, and is marked ready once CI is green.
+Each spec runs in every project its tags name.
 
 5. clean up when finished:
 

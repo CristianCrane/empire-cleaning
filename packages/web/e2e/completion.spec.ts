@@ -205,7 +205,7 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   await expect(client.getByText("Card saved")).toBeVisible();
 
   await client.goto(`/portal/jobs/${job.id}`);
-  // loaded, so the alert's absence counts (docs/testing.md)
+  // loaded, so the alert's absence counts (the testing skill, "Every check can fail")
   await expect(client.getByRole("heading", { level: 1 })).toHaveText(
     "Deep Clean",
   );

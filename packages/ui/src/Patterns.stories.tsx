@@ -54,8 +54,8 @@ import { startTour } from "./Tour.ts";
 
 // how the components go together on a screen: the rules the UX pass (#96)
 // settled, each picked from a prototype, shown as examples. docs/ux.md holds
-// every rule in words and the log of decisions: the variants, why each won,
-// and the prototype-* branch that holds them
+// this product's rules in words (the ui skill, the general ones), and docs/ux-log.md the decisions: the variants, why
+// each won, and the prototype-* branch that holds them
 
 function Example({
   verdict,

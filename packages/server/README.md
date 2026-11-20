@@ -1,4 +1,4 @@
-# Express server starter
+# Server
 
 Each feature keeps its `index.ts` and the `#features/<feature>` imports (`package.json`, `imports`): per-file paths such as `#features/bills/bills` only repeat the name (#112, closed unmerged).
 
@@ -74,7 +74,7 @@ Create the first Office Staff member (after `pnpm db:migrate`), then sign up wit
 pnpm auth:create-owner owner@example.com "Owner Name"
 ```
 
-Or, for a dev database, seed it instead: `pnpm db:seed` makes the owner (`SEED_OWNER_EMAIL`), Cleaners, and Clients with Quotes in every state, dated around today (`tests/seed.ts`). `pnpm db:seed --reset` first deletes everything but Accounts, the Price List and the Services, so a reset keeps everyone signed up. `SEED_NOW` (an ISO instant) seeds as if it were then. The seed test (`tests/seed.test.ts`) runs it at 28 instants; `SEED_SHARD=1/2` runs every other one, as CI shares them out. All 28 stay (the user, 2026-11-05: "Having the seed remain consistent is important"); speed comes from more jobs, not fewer instants. Where the seed's cleans fall turns on the day and time it runs, so `tests/seed.test.ts` (`pnpm test:seed`, which the server's `pnpm test` runs after its other tests, and the quick tests leave out) runs it as if at four times on each day of a week, and the Reset test data Action tries it on a copy of the test database before the test site. The demo people the test site's people page lists (`DEMO_PEOPLE`, `#features/demo-people`) are found by name, and the seed fails if one is missing.
+Or, for a dev database, seed it instead: `pnpm db:seed` makes the owner (`SEED_OWNER_EMAIL`), Cleaners, and Clients with Quotes in every state, dated around today (`tests/seed.ts`). `pnpm db:seed --reset` first deletes everything but Accounts, the Price List and the Services, so a reset keeps everyone signed up. `SEED_NOW` (an ISO instant) seeds as if it were then. The seed test (`tests/seed.test.ts`) runs it at 28 instants; `SEED_SHARD=1/2` runs every other one, as CI shares them out. All 28 stay (the user, 2026-11-05: "Having the seed remain consistent is important"). Where the seed's cleans fall turns on the day and time it runs, so `tests/seed.test.ts` (`pnpm test:seed`, which the server's `pnpm test` runs after its other tests, and the quick tests leave out) runs it as if at four times on each day of a week, and the Reset test data Action tries it on a copy of the test database before the test site. The demo people the test site's people page lists (`DEMO_PEOPLE`, `#features/demo-people`) are found by name, and the seed fails if one is missing.
 
 The people testing the test site are its Staff, listed in `tests/testers.ts`: a reset there adds them, and `pnpm staff:testers` (Actions → Add testers) adds any missing without one.
 

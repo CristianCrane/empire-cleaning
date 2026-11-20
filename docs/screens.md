@@ -8,10 +8,9 @@ what later screens are checked against. The landing site isn't here.
   paths. The Route index says what each is for, its file and its type.
 - **The rules** each screen is meant to keep are in `docs/ux.md`, by their
   names there. Each entry says which one.
-- **Keep it true.** A new route adds its row to the Route index and its entry
-  under Each screen; a change to a screen's parts or their order changes its
-  entry (`docs/ux.md`, Changing a screen). Each fact is in one place: the
-  index holds path, file and type, the entry holds the parts.
+- **Keep it true**, as `docs/ux.md`'s Changing a screen says. Each fact is
+  in one place: the index holds path, file and type, the entry holds the
+  parts.
 - **Types**: each screen's is in the Route index, one of `docs/ux.md`'s
   Screen types, and it renders through that type's layout (ADR-0031).
   People, on the test site alone, has none.
@@ -38,7 +37,7 @@ Areas and sign-in.
 ## How to read an entry
 
 Each entry gives the `docs/ux.md` rule the screen is meant to keep (with its
-decisions-log row, where one exists), then its parts top to bottom:
+row in `docs/ux-log.md`, where one exists), then its parts top to bottom:
 
 - **Header**: breadcrumbs, the title (h1), its status badge, the subtitle
   under it, and anything else on the title's row.
