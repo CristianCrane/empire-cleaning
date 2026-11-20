@@ -31,7 +31,7 @@ const words = catalog({
     didntWork: "That didn't work. Please try again.",
     takenOff: "Taken off your list",
     needsYou:
-      "It needs a cleaner, and you're free then. The first to confirm gets it, and then sees the address, how we get in and the client.",
+      "It needs a cleaner, and you're free then. The first to confirm gets it, and then sees the address and the client. How we get in shows on the day.",
   },
   es: {
     open: "Disponible",
@@ -40,7 +40,7 @@ const words = catalog({
     didntWork: "No funcionó. Vuelve a intentarlo.",
     takenOff: "Quitado de tu lista",
     needsYou:
-      "Necesita un limpiador, y estás libre a esa hora. El primero que lo confirme se lo queda, y entonces ve la dirección, cómo entramos y el cliente.",
+      "Necesita un limpiador, y estás libre a esa hora. El primero que lo confirme se lo queda, y entonces ve la dirección y el cliente. Cómo entramos aparece ese día.",
   },
 });
 
@@ -50,8 +50,8 @@ export const crewSizeOf = (t: Said, job: Pick<CleanerNeeded, "crewSize">) =>
 
 // A Cleaner Needed as a Cleaner it's open to sees it (ADR-0019): what, when,
 // for how long and roughly where. They Confirm it, first come first served,
-// or say it's not for them. The address, Access Instructions and Client
-// come once they've taken it.
+// or say it's not for them. The address and Client come once they've taken
+// it, the Access Instructions on the Job's day (#230).
 export function CleanerNeededScreen() {
   const job = useLoaderData({ from: "/cleaner/open/$jobId" });
   const t = useSaid(words);

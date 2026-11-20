@@ -355,10 +355,15 @@ const cleanerJobs = async (
         street: property.street,
         unit: property.unit,
         postcode: property.postcode,
-        accessInstructions: property.accessInstructions,
       },
       client: { firstName: firstNameOf(client.name) },
-      onTheDay: isToday(job.startsAt) ? { phone: client.phone } : null,
+      // Offered or Confirmed, never before the day (#230)
+      onTheDay: isToday(job.startsAt)
+        ? {
+            phone: client.phone,
+            accessInstructions: property.accessInstructions,
+          }
+        : null,
       crew: crews
         .filter((c) => c.jobId === job.id)
         .map((c) => ({

@@ -22,7 +22,7 @@ _On screen_: type of business
 _Spanish_: tipo de negocio
 
 **Access Instructions**:
-How Staff get into and around a Property, such as gate codes, key location and pets; maintained by the Client and shown to Staff assigned to its Jobs.
+How Staff get into and around a Property, such as gate codes, key location and pets; maintained by the Client. A Job's crew, Offered or Confirmed, see them only on the Job's day (in New York), as with the Client's phone (#230); the Staff member a Site Visit is booked to sees them from the booking on.
 _Avoid_: Entry notes, access notes, directions
 _On screen_: how we get in
 _Spanish_: cómo entramos

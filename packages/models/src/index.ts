@@ -1480,14 +1480,14 @@ export type CleanerJob = {
   serviceName: string;
   hoursOnSite: number;
   addOns: string[];
-  property: Pick<
-    PropertyView,
-    "street" | "unit" | "postcode" | "accessInstructions"
-  >;
+  property: Pick<PropertyView, "street" | "unit" | "postcode">;
   client: { firstName: string };
   // what's held back until the Job's day (in New York, by the Clock), then
   // given here; null before it
-  onTheDay: { phone: string } | null;
+  onTheDay: {
+    phone: string;
+    accessInstructions: PropertyView["accessInstructions"];
+  } | null;
   // everyone on the crew, this Cleaner included
   crew: { name: string; status: CrewState }[];
   // this Cleaner's own Assignment

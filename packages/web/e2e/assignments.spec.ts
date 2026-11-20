@@ -255,8 +255,12 @@ test(
     await offered.click();
     await expect(page).toHaveURL(`/cleaner/jobs/${job.id}`);
     const details = page.getByRole("region", { name: "Job details" });
-    await expect(details).toContainText("Ring 4B; the doorman has a key.");
+    // how we get in and the number wait for the day
+    await expect(
+      details.getByRole("definition").filter({ hasText: /^Shows on the day$/ }),
+    ).toBeVisible();
     await expect(details).toContainText("their number shows on the day");
+    await expect(details).not.toContainText("Ring 4B");
     await expect(details).toContainText("Dee Cleaner not confirmed yet");
     // never any prices
     await expect(page.locator("main")).not.toContainText("$");
@@ -352,7 +356,7 @@ test("a Confirmed Job can't be released within 48 hours of it", async ({
   await expect(page.getByRole("button", { name: "Drop out" })).toHaveCount(0);
 });
 
-test("a Cleaner sees the Client's phone on the day of the Job", async ({
+test("a Cleaner sees the Client's phone and how we get in on the day of the Job", async ({
   page,
 }) => {
   const cory = await addCleaner("Cory Cleaner");
@@ -362,11 +366,15 @@ test("a Cleaner sees the Client's phone on the day of the Job", async ({
   await signInAsCleaner(page, cory.email);
   await page.goto(`/cleaner/jobs/${job.id}`);
 
+  const details = page.getByRole("region", { name: "Job details" });
   await expect(
-    page.getByRole("region", { name: "Job details" }).getByRole("link", {
-      name: /\(646\) 555-0100/,
-    }),
+    details.getByRole("link", { name: /\(646\) 555-0100/ }),
   ).toHaveAttribute("href", "tel:(646) 555-0100");
+  await expect(
+    details
+      .getByRole("definition")
+      .filter({ hasText: /^Ring 4B; the doorman has a key\.$/ }),
+  ).toBeVisible();
 });
 
 test("a Cleaner can't open a Job they aren't on", async ({ page }) => {
@@ -455,9 +463,12 @@ test(
     await page.getByRole("button", { name: "Confirm" }).click();
     await expect(page).toHaveURL(`/cleaner/jobs/${job.id}`);
     await expect(page.getByText("Confirmed", { exact: true })).toBeVisible();
+    // the address once theirs; how we get in on the day
+    const details = page.getByRole("region", { name: "Job details" });
+    await expect(details).toContainText("Austin St");
     await expect(
-      page.getByRole("region", { name: "Job details" }),
-    ).toContainText("Ring 4B; the doorman has a key.");
+      details.getByRole("definition").filter({ hasText: /^Shows on the day$/ }),
+    ).toBeVisible();
   },
 );
 

@@ -324,14 +324,15 @@ describe("a Cleaner's Jobs", () => {
     expect(await ids(asCory)).toEqual({ today: [thursday.id], upcoming: [] });
   });
 
-  test("show only where, what, who with and the Client's first name; the phone only on the day", async () => {
+  test("show only where, what, who with and the Client's first name; the phone and how we get in only on the day", async () => {
     const cory = await cleaner("Cory Cleaner");
     const dee = await cleaner("Dee Cleaner");
     const office = await signInAsOffice();
     const job = await thursdayJob();
     const assignmentId = await offered(office, job.id, cory.id);
-    await offered(office, job.id, dee.id);
+    const deesAssignment = await offered(office, job.id, dee.id);
     const asCory = await cory.signIn();
+    const asDee = await dee.signIn();
 
     const seen = await myJob(asCory, job.id);
 
@@ -345,9 +346,9 @@ describe("a Cleaner's Jobs", () => {
         street: expect.stringMatching(/^\d+ Austin St$/),
         unit: "4B",
         postcode: "11375",
-        accessInstructions: "Ring 4B; the doorman has a key.",
       },
       client: { firstName: "Client" },
+      // Offered, before the day: no phone and no way in
       onTheDay: null,
       crew: [
         { name: "Cory Cleaner", status: "offered" },
@@ -365,11 +366,25 @@ describe("a Cleaner's Jobs", () => {
     });
     expect(JSON.stringify(seen)).not.toMatch(/cents|price|deposit|payment/i);
 
-    // the morning of the Job, New York time
+    // Confirmed, still before the day, on its page and in their list; up to
+    // the last minute of the day before, New York time
+    await asDee
+      .post(`/api/assignments/${deesAssignment}/confirm`)
+      .send({ startsAt: THURSDAY_9AM })
+      .expect(200);
+    testClock().set(new Date("2026-01-08T04:59:00Z"));
+    expect((await myJob(asDee, job.id)).onTheDay).toBeNull();
+    expect((await myJobs(asDee)).upcoming[0]!.onTheDay).toBeNull();
+
+    // the morning of the Job, New York time, whether Offered or Confirmed
     testClock().set(new Date("2026-01-08T05:30:00Z"));
-    expect((await myJob(asCory, job.id)).onTheDay).toEqual({
+    const onTheDay = {
       phone: casey.phone,
-    });
+      accessInstructions: "Ring 4B; the doorman has a key.",
+    };
+    expect((await myJob(asCory, job.id)).onTheDay).toEqual(onTheDay);
+    expect((await myJob(asDee, job.id)).onTheDay).toEqual(onTheDay);
+    expect((await myJobs(asDee)).today[0]!.onTheDay).toEqual(onTheDay);
   });
 
   test("are hidden from Cleaners not on them", async () => {

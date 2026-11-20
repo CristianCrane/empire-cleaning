@@ -41,6 +41,7 @@ const words = catalog({
     dropOutOfJob: "Drop out of this job",
     nothingWritten:
       "Nothing's written down. Call the client when you get there.",
+    showsOnTheDay: "Shows on the day",
     notConfirmedYet: (names: string) => `${names} not confirmed yet`,
     allConfirmed: "Crew, all confirmed",
     client: "Client",
@@ -60,6 +61,7 @@ const words = catalog({
     whatToDo: "Qué hacer",
     dropOutOfJob: "Dejar este trabajo",
     nothingWritten: "No hay nada escrito. Llama al cliente cuando llegues.",
+    showsOnTheDay: "Aparece ese día",
     notConfirmedYet: (names: string) => `${names}: aún sin confirmar`,
     allConfirmed: "Equipo, todos confirmados",
     client: "Cliente",
@@ -174,7 +176,9 @@ function JobDetails({ job }: { job: CleanerJob }) {
           label={t.howWeGetIn}
           value={
             <span className="whitespace-pre-line">
-              {job.property.accessInstructions ?? w.nothingWritten}
+              {job.onTheDay
+                ? (job.onTheDay.accessInstructions ?? w.nothingWritten)
+                : w.showsOnTheDay}
             </span>
           }
           className="col-span-full"
