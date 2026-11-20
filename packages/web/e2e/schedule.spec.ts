@@ -319,6 +319,56 @@ test(
   },
 );
 
+test(
+  "a dragged Job's outline is red at a time without a crew free, and it isn't taken there",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    test.skip(isMobile, "dragging needs a mouse");
+    await caseysJob();
+    // Wednesday's two Cleaners are both on a Job from 10 to 11: the day has
+    // hours free, but no crew then
+    await addCleaner("Dee Cleaner", [0, 0, 8, 0, 0, 0, 0]);
+    await bookJob({
+      startsAt: "2027-03-03T15:00:00Z",
+      labourHours: 2,
+      crewSize: 2,
+    });
+    await signedInAs(page, olive.email);
+    await page.goto(week);
+    const block = jobsOn(page, "Tue, Mar 2").getByRole("link");
+    const wednesday = jobsOn(page, "Wed, Mar 3");
+    const outline = outlineOf(page);
+    const [jobColour] = await edgeOf(block.locator(".."), "Left");
+
+    await block.hover({ position: { x: 10, y: 5 } });
+    await page.mouse.down();
+    // at 10:30 its crew would meet theirs: red
+    await holdOver(wednesday, 3.5 * HOUR_PX + 5);
+    await expect(wednesday.getByText("10:30 AM Casey Client")).toBeVisible();
+    await expect
+      .poll(async () => (await edgeOf(outline, "Top"))[0])
+      .not.toBe(jobColour);
+    // at 11, once they're done, its own colours
+    await holdOver(wednesday, 4 * HOUR_PX + 5);
+    await expect(wednesday.getByText("11:00 AM Casey Client")).toBeVisible();
+    expect(await edgeOf(outline, "Top")).toEqual([jobColour, "dashed"]);
+    // let go at 10:30, it stays put
+    await holdOver(wednesday, 3.5 * HOUR_PX + 5);
+    await expect(wednesday.getByText("10:30 AM Casey Client")).toBeVisible();
+    await page.mouse.up();
+    await expect(outline).toHaveCount(0);
+
+    // let go at 11, the move is asked: at 11, not the 10:30 refused
+    await block.dragTo(wednesday, {
+      sourcePosition: { x: 10, y: 5 },
+      targetPosition: { x: 10, y: 4 * HOUR_PX + 5 },
+    });
+    const dialog = page.getByRole("dialog", { name: "Move this job?" });
+    await expect(dialog).toContainText("ToWed, Mar 3, 11:00 AM");
+    await expect(dialog).toContainText("There's room on Wed, Mar 3 then.");
+  },
+);
+
 test("Office Staff move a Job from the Job screen, at any width", async ({
   page,
 }) => {
