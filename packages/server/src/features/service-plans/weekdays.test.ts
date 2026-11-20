@@ -80,10 +80,13 @@ const draftPlan = async (office: Agent, propertyId: string) =>
       .expect(201)
   ).body as OfficeQuote;
 
+// a plan Draft's terms on these days; `plan` changes others, such as its
+// discount
 const body = (
   draft: OfficeQuote,
   days: PlanDayInput[],
   recurrence: "weekly" | "fortnightly" = "weekly",
+  plan: Partial<NonNullable<QuoteDraftInput["plan"]>> = {},
 ): QuoteDraftInput => ({
   addOns: [],
   depositPercent: draft.draft!.depositPercent,
@@ -94,6 +97,7 @@ const body = (
     discountPercent: draft.draft!.plan!.discountPercent,
     condition: "moderate",
     days,
+    ...plan,
   },
 });
 
@@ -102,18 +106,20 @@ const save = (
   draft: OfficeQuote,
   days: PlanDayInput[],
   recurrence?: "weekly" | "fortnightly",
+  plan?: Parameters<typeof body>[3],
 ) =>
   office
     .patch(`/api/quotes/${draft.id}/draft`)
-    .send(body(draft, days, recurrence));
+    .send(body(draft, days, recurrence, plan));
 
 const sentPlan = async (
   office: Agent,
   propertyId: string,
   days = MONDAY_AND_WEDNESDAY,
+  plan?: Parameters<typeof body>[3],
 ) => {
   const draft = await draftPlan(office, propertyId);
-  await save(office, draft, days).expect(200);
+  await save(office, draft, days, undefined, plan).expect(200);
   return (await office.post(`/api/quotes/${draft.id}/send`).expect(200))
     .body as OfficeQuote;
 };
@@ -314,20 +320,12 @@ describe("a Service Plan Quote on several weekdays", () => {
     );
     expect(sent.text).toContain(`Wednesday: $`);
   });
-});
 
-describe("a Service Plan Quote on several weekdays with no Plan Discount", () => {
-  test("emails what a week costs, and no discount", async () => {
+  test("with no Plan Discount, emails what a week costs, and no discount", async () => {
     const { office, propertyId } = await firstCleanDone();
-    const draft = await draftPlan(office, propertyId);
-    const edit = body(draft, MONDAY_AND_WEDNESDAY);
-    await office
-      .patch(`/api/quotes/${draft.id}/draft`)
-      .send({ ...edit, plan: { ...edit.plan!, discountPercent: 0 } })
-      .expect(200);
-    const quote = (
-      await office.post(`/api/quotes/${draft.id}/send`).expect(200)
-    ).body as OfficeQuote;
+    const quote = await sentPlan(office, propertyId, MONDAY_AND_WEDNESDAY, {
+      discountPercent: 0,
+    });
 
     const sent = testEmail()
       .to(casey.email)

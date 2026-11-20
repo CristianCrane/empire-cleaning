@@ -637,7 +637,7 @@ describe("a Sent Service Plan Quote", () => {
     await sentPlan(office, propertyId, { discountPercent: 0 });
 
     const sent = testEmail().lastTo(casey.email);
-    expect(sent.text).toContain("$224.28 a clean.");
+    expect(sent.text).toContain("Each clean is $224.28.");
     expect(sent.text).not.toContain("saves you");
   });
 

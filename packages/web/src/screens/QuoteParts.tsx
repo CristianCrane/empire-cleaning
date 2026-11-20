@@ -286,12 +286,11 @@ export function PlanSaving({
   discountPercent: number;
 }) {
   const { w, formatMoney } = useWords();
+  if (discountPercent <= 0) return null;
   return (
-    discountPercent > 0 && (
-      <StatusBadge tone="success">
-        {w.save(formatMoney(day.savingCents))}
-      </StatusBadge>
-    )
+    <StatusBadge tone="success">
+      {w.save(formatMoney(day.savingCents))}
+    </StatusBadge>
   );
 }
 
