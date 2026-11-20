@@ -357,6 +357,7 @@ test(
     await expect(wednesday.getByText("10:30 AM Casey Client")).toBeVisible();
     await page.mouse.up();
     await expect(outline).toHaveCount(0);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
 
     // let go at 11, the move is asked: at 11, not the 10:30 refused
     await block.dragTo(wednesday, {

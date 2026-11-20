@@ -12,9 +12,9 @@ import { currentLanguage } from "#services/request";
 
 // The Schedule's rules the server alone keeps: the starts its pickers mark,
 // a day as a plan's new terms would leave it, and what the API says of a
-// clean's time and state. The rules a screen
-// runs too (roomOn, isFree, busyWith, …) are in @empire-cleaning/models
-// (schedule-rules.ts).
+// clean's time and state. Room (roomOn), which a screen asks too, and
+// the rules sharing its spans of time (isFree, busyWith, …) are in
+// @empire-cleaning/models (schedule-rules.ts).
 
 // the starts a picker offers on a day of the Schedule
 export const startsOn = (day: ScheduleDay) =>

@@ -10,8 +10,9 @@ import { addDays, dayOf, HOUR_MS, startOfDay } from "./days.ts";
 // it: whether a clean has room (roomOn), whether a Staff member is free for
 // one (isFree), what they're busy with then (busyWith), and the spans of
 // time they're worked out in. They never query: the server's actions lock
-// and load, ask, then write, and a screen asks them of the days it has (the
-// Schedule's drag), so both run the one copy.
+// and load, ask, then write. Room is here, not on the server alone, as a
+// screen asks it too of the days it has (the Schedule's drag, roomOn), so
+// both run the one copy; the others share its spans.
 
 // Hours are added in hundredths, so sums of 7.25 and 0.1 never drift
 export const hundredths = (hours: number) => Math.round(hours * 100);
