@@ -7,6 +7,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import {
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -226,6 +227,18 @@ const shoot = (
   });
 };
 
+// the branch's tests put over the base's, for a test the base lacks: the
+// spec's whole test folder (e2e/ or tests/), so a helper a new test imports
+// comes with it. They run on the base's own app, server and Playwright
+const branchTestsOn = (base: string, spec: string) => {
+  const { pkg, file } = packageOf(spec, top);
+  const folder = join(pkg, file.split("/")[0] ?? "");
+  console.log(
+    `\n› before: the base lacks the test, so it runs the branch's ${folder}`,
+  );
+  cpSync(join(top, folder), join(base, folder), { recursive: true });
+};
+
 // Playwright's --grep reads a test's describes and title with each one's
 // tags after it ("light theme @desktop the Services and …", eachTheme's),
 // so a title given as its words alone matches with any tags between them
@@ -347,23 +360,40 @@ const main = () => {
     : "";
 
   const options = { spec, title, projects, dir };
-  const before = withBase(sha, (base) => shoot(options, base, "before"));
+  // the base's own test, else the branch's on the base; a test that fails
+  // there, or a spec that won't load, gives an after alone
+  const before = withBase(sha, (base) => {
+    const own = shoot(options, base, "before");
+    if (own) return { shots: own, borrowed: false };
+    branchTestsOn(base, spec);
+    try {
+      return { shots: shoot(options, base, "before"), borrowed: true };
+    } catch (error) {
+      if (!(error instanceof Stop)) throw error;
+      console.log(`\n› before: none, as ${error.message}`);
+      return { shots: null, borrowed: true };
+    }
+  });
   const after = shoot(options, top, "after") ?? [];
   const url = publish(dir, branch, [
-    ...(before ?? []).map(({ file }) => file),
+    ...(before.shots ?? []).map(({ file }) => file),
     ...after.map(({ file }) => file),
   ]);
 
   const width = (project: string) => (project === "desktop" ? 450 : 300);
   const img = (shot: Shot) =>
     `<img src="${url(shot.file)}" width="${width(shot.project)}">`;
+  const tests = before.borrowed ? ", with the branch's tests" : "";
   console.log(
-    `\nBefore ${sha.slice(0, 7)} (the merge base), after ${head}${dirty}. Copies in ${dir}. Paste under **Before / after:**\n`,
+    `\nBefore ${sha.slice(0, 7)} (the merge base${tests}), after ${head}${dirty}. Copies in ${dir}. Paste under **Before / after:**\n`,
   );
   for (const shot of after) {
-    const old = before?.find(({ project }) => project === shot.project);
+    const old = before.shots?.find(({ project }) => project === shot.project);
+    const none = before.shots
+      ? `none: skipped on ${shot.project}`
+      : "none: a new test, which doesn't run on the base";
     console.log(
-      `${title}, ${shot.project}:\n\n| Before | After |\n| --- | --- |\n| ${old ? img(old) : before ? `none: skipped on ${shot.project}` : "none: a new test"} | ${img(shot)} |\n`,
+      `${title}, ${shot.project}:\n\n| Before | After |\n| --- | --- |\n| ${old ? img(old) : none} | ${img(shot)} |\n`,
     );
   }
 };
