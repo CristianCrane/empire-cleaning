@@ -3,7 +3,7 @@
 How Empire Cleaning's tests are meant to be written, how a question about them gets settled, and what each round of work on them found. Read this before writing a test, changing how tests start, stop or wait, or chasing one that fails or runs slow.
 
 - **The rules** are what every test, and every change to how they run, keeps, each with the bug that taught it.
-- **Settling a test question** says how a cause gets shown and how to time things on this machine.
+- **Settling a test question** gives this repo's specifics for showing a cause and timing a run.
 - **The findings log** at the foot gives each finding's date, one line, and where its evidence lives. Check it before chasing a failure: the same one has turned up twice already.
 
 How each package's tests work, and how to run them, is in its README (`packages/server`, `packages/web`, `packages/landing`, `packages/ui`). What runs before a PR is in the root `README.md` and ADR-0026.
@@ -44,7 +44,7 @@ How each package's tests work, and how to run them, is in its README (`packages/
 
 How a cause is shown and a run is timed: the `testing` skill. Here:
 
-- **What a build leaves out, here** (the rule: `.claude/skills/change/SKILL.md`, Build): Render builds each site as `render.yaml` and `render-production.yaml` say, `pnpm --filter-prod "@empire-cleaning/<web|landing>..." build` with its mode set (`VITE_APP_MODE` or `PUBLIC_APP_MODE`: `test` or `prod`), into `packages/<web|landing>/dist`. Build it that way in each mode and count the marker, a string only the left-out code holds, with `rg -c '<marker>' packages/<site>/dist`.
+- **What a build leaves out, here** (the rule: the `change` skill's Build): Render builds each site as `render.yaml` and `render-production.yaml` say, `pnpm --filter-prod "@empire-cleaning/<web|landing>..." build` with its mode set (`VITE_APP_MODE` or `PUBLIC_APP_MODE`: `test` or `prod`), into `packages/<web|landing>/dist`. Build it that way in each mode and count the marker, a string only the left-out code holds, with `rg -c '<marker>' packages/<site>/dist`.
 - **The shared test Postgres** has its own signs of strain: `packages/server/README.md`, Testing.
 
 Record what you find in the log below.
