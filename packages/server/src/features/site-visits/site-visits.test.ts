@@ -157,11 +157,24 @@ describe("booking a Site Visit", () => {
       },
     ]);
 
-    // once it starts, it's moved from its page, not dragged (as a Job)
-    testClock().set(new Date("2026-01-06T15:00:00Z"));
+    // missed, it still moves (unlike a Job), but only to a time to come
+    testClock().set(new Date("2026-01-06T16:00:00Z"));
     expect((await scheduleDay(office)).siteVisits).toMatchObject([
-      { id: visit.id, movable: false },
+      { id: visit.id, movable: true },
     ]);
+    const move = (time: string) =>
+      office.post(`/api/site-visits/${visit.id}/move`).send({
+        date: TUESDAY,
+        time,
+        staffId: olive.id,
+        minutes: 30,
+      });
+    const passed = await move("10:30");
+    expect(passed.status).toBe(409);
+    expect(passed.body.message).toBe(
+      "That time has passed. Pick a later time.",
+    );
+    await move("14:00").expect(200);
   });
 
   test("by a Cleaner takes room like a one-person Job, its length as its Labour Hours", async () => {

@@ -222,14 +222,16 @@ export const isFree = (day: ScheduleDay, staffId: string, clean: Clean) =>
  *   other booked Site Visit of theirs, and no booked Job they're on the crew
  *   on, Offered or Confirmed (#242). A Done Site Visit doesn't count.
  *
- * Like every clean, it ends by midnight (endsByMidnight). Whether its time
- * has passed is the server's, which keeps the clock.
+ * It starts after `now` (the server's clock, or the screen's), and like
+ * every clean, it ends by midnight (endsByMidnight).
  */
 export const whyVisitCantGo = (
   day: ScheduleDay,
   visit: { startsAt: Date; minutes: number; siteVisitId?: string },
   visitor: { id: string; name: string; roles: StaffRole[] },
+  now: Date,
 ) => {
+  if (visit.startsAt <= now) return jobs.en.PASSED;
   const clean = {
     startsAt: visit.startsAt,
     labourHours: visitHours(visit),

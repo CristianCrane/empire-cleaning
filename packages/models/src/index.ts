@@ -669,8 +669,9 @@ export type SiteVisitView = {
 
 // a Site Visit on a day of the Schedule. One by a Cleaner with Available
 // Hours that day takes room like a Job with a Crew Size of one, its length
-// as its Labour Hours; one by Office Staff alone takes none. One booked and
-// not yet started can be moved (movable), as a Job can.
+// as its Labour Hours; one by Office Staff alone takes none. One booked can
+// be moved (movable), even once its time has passed, unlike a Job: the
+// Office moves a missed one to a time to come.
 export type ScheduledSiteVisit = SiteVisitView & {
   startsAt: string;
   takesRoom: boolean;

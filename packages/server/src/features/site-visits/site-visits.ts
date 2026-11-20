@@ -32,7 +32,6 @@ import {
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
 import { scheduleOn } from "../jobs/schedule.ts";
-import { passed } from "../jobs/rules.ts";
 import {
   currentPriceList,
   notAPremisesType,
@@ -72,10 +71,10 @@ const visitorOf = async (staffId: string) => {
 };
 
 /**
- * Refuses a Site Visit at a time it can't go (ADR-0015): one whose time has
- * passed, or one the Schedule's rule refuses (whyVisitCantGo, in models, as
- * the Schedule's drag asks it too), holding its day (lockDay) until the
- * transaction ends, as booking a Job does. A visit being moved gives its id,
+ * Refuses a Site Visit at a time it can't go (ADR-0015), by the Schedule's
+ * rule (whyVisitCantGo, in models, as the Schedule's drag asks it too) at
+ * the server's clock, holding its day (lockDay) until the transaction ends,
+ * as booking a Job does. A visit being moved gives its id,
  * so it isn't counted against itself.
  */
 const refuseNoRoom = async (
@@ -92,12 +91,14 @@ const refuseNoRoom = async (
     siteVisitId?: string;
   },
 ) => {
-  if (startsAt <= clock.now()) {
-    throw new ConflictError(passed());
-  }
   await lockDay(tx, dayOf(startsAt));
   const day = await scheduleOn(startsAt, tx);
-  const why = whyVisitCantGo(day, { startsAt, minutes, siteVisitId }, visitor);
+  const why = whyVisitCantGo(
+    day,
+    { startsAt, minutes, siteVisitId },
+    visitor,
+    clock.now(),
+  );
   if (why) throw new ConflictError(why);
 };
 

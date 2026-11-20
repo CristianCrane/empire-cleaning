@@ -254,7 +254,6 @@ const siteVisitsOn = async (
     ),
     tx,
   );
-  const now = clock.now();
   for (const visit of visits) {
     const date = dayOf(new Date(visit.startsAt!));
     byDay.get(date)?.push({
@@ -263,8 +262,9 @@ const siteVisitsOn = async (
       takesRoom:
         hours.get(date)!.some((c) => c.id === visit.visitor?.id) &&
         !(visit.doneAt && visit.doneAt < visit.startsAt!),
-      // as a Job: booked and not yet started
-      movable: visit.status === "booked" && new Date(visit.startsAt!) > now,
+      // while booked, even once its time has passed (unlike a Job): the
+      // Office moves one that was missed to a time to come
+      movable: visit.status === "booked",
     });
   }
   return byDay;

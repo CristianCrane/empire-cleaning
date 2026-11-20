@@ -538,10 +538,12 @@ stays as it is (#336).
   its size shows where it would land, snapped as the drop is: its own
   colours, a see-through fill inside a dashed edge, red where it can't go
   (the server's rules: for a Job, hours and a crew free; for a Site Visit,
-  its visitor's hours or Office Staff, a crew free, and busy with nothing
-  else; both end by midnight); a day where it can go at no time fades. Either can be dragged
-  while booked and not yet started, and its move is confirmed first.
-  ("Schedules As Calendars")
+  a time not yet passed, its visitor's hours or Office Staff, a crew free,
+  and busy with nothing else; both end by midnight); a day where it can go
+  at no time fades. A Job drags while booked and not yet started; a Site
+  Visit while booked, even once its time has passed, so a missed one moves
+  to a time to come. Either move is confirmed first. ("Schedules As
+  Calendars")
 - **Every place a time is chosen uses the calendar picker**, with the day
   and time fields kept as the keyboard path. The Office picks on the
   Schedule (`office/SchedulePicker.tsx`, inline in a wide dialog); a Client

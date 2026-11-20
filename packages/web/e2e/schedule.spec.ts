@@ -520,26 +520,71 @@ test(
   },
 );
 
-test("a Site Visit that has started can't be dragged", async ({ page }) => {
-  await requestQuoteForPremises(casey, "Acme Dental");
-  await createStaff(olive);
-  await bookSiteVisit({
-    street: "200 Park Ave S",
-    staffEmail: olive.email,
-    date: "2026-01-06",
-    time: "11:00",
-  });
-  await signedInAs(page, olive.email);
-  await page.goto("/office/schedule?from=2026-01-05&to=2026-01-11");
-  const block = page
-    .getByRole("group", { name: "Jobs on Tue, Jan 6" })
-    .locator("[draggable]");
-  await expect(block).toHaveAttribute("draggable", "true");
+test(
+  "a missed Site Visit drags to a time to come, not to a time passed; a Done one doesn't drag",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    test.skip(isMobile, "dragging needs a mouse");
+    await requestQuoteForPremises(casey, "Acme Dental");
+    await createStaff(olive);
+    const visit = await bookSiteVisit({
+      street: "200 Park Ave S",
+      staffEmail: olive.email,
+      date: "2027-03-02",
+      time: "09:00",
+    });
+    // noon on Wednesday: Tuesday's visit was missed, for the server and the
+    // browser alike
+    const NOON = "2027-03-03T17:00:00Z";
+    await setClock(NOON);
+    await page.clock.setFixedTime(NOON);
+    await signedInAs(page, olive.email);
+    await page.goto(week);
+    const block = jobsOn(page, "Tue, Mar 2").getByRole("link", {
+      name: /Acme Dental/,
+    });
+    const wednesday = jobsOn(page, "Wed, Mar 3");
+    const outline = outlineOf(page, "Acme Dental");
+    const [visitColour] = await edgeOf(block.locator(".."), "Left");
+    await expect(block.locator("..")).toHaveAttribute("draggable", "true");
 
-  await setClock("2026-01-06T16:30:00Z");
-  await page.reload();
-  await expect(block).toHaveAttribute("draggable", "false");
-});
+    // 10:30 on Wednesday has passed: red, and not taken there
+    await block.hover({ position: { x: 10, y: 5 } });
+    await page.mouse.down();
+    await holdOver(wednesday, 3.5 * HOUR_PX + 5);
+    await expect(wednesday.getByText("10:30 AM Acme Dental")).toBeVisible();
+    await expect
+      .poll(async () => (await edgeOf(outline, "Top"))[0])
+      .not.toBe(visitColour);
+    await page.mouse.up();
+    await expect(outline).toHaveCount(0);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    // 1pm is to come: it moves there
+    await block.dragTo(wednesday, {
+      sourcePosition: { x: 10, y: 5 },
+      targetPosition: { x: 10, y: 6 * HOUR_PX + 5 },
+    });
+    const dialog = page.getByRole("dialog", { name: "Move this site visit?" });
+    await expect(dialog).toContainText("ToWed, Mar 3, 1:00 PM");
+    await dialog.getByRole("button", { name: "Move site visit" }).click();
+    await expect(page.getByText("Site visit moved")).toBeVisible();
+    const moved = wednesday.getByRole("link", { name: /1:00 PM Acme Dental/ });
+    await expect(moved).toBeVisible();
+
+    // once its findings are recorded, it's Done and doesn't drag
+    await page.goto(`/office/site-visits/${visit.id}`);
+    await page.getByRole("button", { name: "Record findings" }).click();
+    const findings = page.getByRole("dialog", {
+      name: "What the site visit found",
+    });
+    await findings.getByText("Moderate", { exact: true }).click();
+    await findings.getByRole("button", { name: "Save findings" }).click();
+    await expect(page.getByText("Findings recorded").first()).toBeVisible();
+    await page.goto(week);
+    await expect(moved.locator("..")).toHaveAttribute("draggable", "false");
+  },
+);
 
 test("the Schedule passes automated accessibility checks", async ({ page }) => {
   await addCleaner("Cory Cleaner");

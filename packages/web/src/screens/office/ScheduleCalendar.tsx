@@ -140,8 +140,8 @@ const factsOf = (moving: Moving) =>
 
 // whether what's dragged can go at a time on a day, by the server's own
 // rules: a Job's room (roomOn: the day's hours and a crew free then), a Site
-// Visit's (whyVisitCantGo: its visitor's hours, or Office Staff, a crew free,
-// and busy with nothing else then); both end by midnight
+// Visit's (whyVisitCantGo: not yet passed, its visitor's hours, or Office
+// Staff, a crew free, and busy with nothing else then); both end by midnight
 const canGoAt = (day: ScheduleDay, moving: Moving, time: string) => {
   const startsAt = atTime(day.date, time);
   if (moving.kind === "job") {
@@ -154,6 +154,7 @@ const canGoAt = (day: ScheduleDay, moving: Moving, time: string) => {
       day,
       { startsAt, minutes: visit.minutes, siteVisitId: visit.id },
       visit.visitor,
+      new Date(),
     ) === null
   );
 };
