@@ -40,7 +40,7 @@ The public page for prospective Clients at empirecleaningandpro.com: a static si
 - the policies: their parts, date and words read from where the rules live (`tests/legal.spec.ts`)
 - every page's Spanish twin: its language, `hreflang` links both ways, the switch between them, both in the sitemap, and that it fits the screen (`tests/spanish.spec.ts`)
 
-**Tests run in parallel against the one API and database, and nothing resets them.** A test that sends the Quote form asks with `newEmail()` from `tests/harness.ts`, as a Client of its own, so it sees only its own Quotes and emails (`emailsTo`), however many times it runs. There are 2 workers (why: ADR-0026); `--workers` sets it.
+**Tests run in parallel against the one API and database, and nothing resets them.** A test that sends the Quote form asks with `newEmail()` from `tests/harness.ts`, as a Client of its own, so it sees only its own Quotes and emails (`emailsTo`), however many times it runs. There are 2 workers (why: ADR-0032); `--workers` sets it.
 
 Check accessibility with `expectAccessible(page)` from `tests/harness.ts`: `docs/testing.md` has the rule and the bug behind it.
 
