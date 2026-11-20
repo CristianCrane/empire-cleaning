@@ -194,7 +194,7 @@ test(
     await expect(plan).toContainText("Save $40.83 a clean");
     await expect(
       client.getByRole("region", { name: "Quote details" }),
-    ).toContainText("From Mon, Jan 19, 9:00 AM");
+    ).toContainText(", from Mon, Jan 19, 9:00 AM");
     await expect(
       payAndBook(client, "Pay and start your plan").form,
     ).toBeVisible();

@@ -296,12 +296,8 @@ function AdjustmentDialog({
             <Fact
               icon={Banknote}
               label="Price"
-              value={`${signed(a.totalCents)} with tax`}
-              line={
-                a.status !== "reported" && a.priceCents !== a.workedOutCents
-                  ? `Worked out at ${formatMoney(Math.abs(a.workedOutCents))} before tax`
-                  : undefined
-              }
+              value={`${signed(a.totalCents)}${a.status !== "reported" && a.priceCents !== a.workedOutCents ? `, worked out at ${formatMoney(Math.abs(a.workedOutCents))} before tax` : ""}`}
+              line="Price, tax included"
             />
             {a.lapsesAt && (
               <Fact
@@ -576,12 +572,7 @@ export function JobMoney({ job }: { job: OfficeJob }) {
           <Fact
             icon={CreditCard}
             label="Paid"
-            value={formatMoney(payment.paidCents)}
-            line={
-              payment.paymentMethod
-                ? `Paid by ${payment.paymentMethod}`
-                : undefined
-            }
+            value={`${formatMoney(payment.paidCents)}${payment.paymentMethod ? ` by ${payment.paymentMethod}` : ""}`}
           />
           {owed !== 0 && (
             <Fact

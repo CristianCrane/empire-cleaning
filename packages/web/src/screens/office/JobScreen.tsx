@@ -282,17 +282,15 @@ function JobDetails({ job }: { job: OfficeJob }) {
         {job.rescheduleTerms && (
           <Fact
             icon={CalendarSync}
-            label="Moving"
-            value={formatDateTime(job.rescheduleTerms.freeUntil)}
-            line="Free to move until then"
+            label="Free to move"
+            value={`Until ${formatDateTime(job.rescheduleTerms.freeUntil)}`}
           />
         )}
         {job.cancelTerms && (
           <Fact
             icon={CalendarX}
-            label="Cancelling"
-            value={formatDateTime(job.cancelTerms.client.freeUntil)}
-            line="Free for the client to cancel until then"
+            label="Free for the client to cancel"
+            value={`Until ${formatDateTime(job.cancelTerms.client.freeUntil)}`}
           />
         )}
       </Facts>
@@ -316,12 +314,7 @@ function HowItWent({
           <Fact
             icon={CircleCheck}
             label="Done"
-            value={formatDateTime(completion.completedAt)}
-            line={
-              completion.completedBy
-                ? `Done, by ${completion.completedBy.name}`
-                : "Done"
-            }
+            value={`${formatDateTime(completion.completedAt)}${completion.completedBy ? `, by ${completion.completedBy.name}` : ""}`}
           />
         </Facts>
         <ConditionField job={job} completion={completion} />

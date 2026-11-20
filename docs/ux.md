@@ -71,7 +71,13 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   (a `DateTile` for when, an `IconTile` for what, an `Avatar` for who),
   a muted line above and below; then its facts (`Facts`, each an icon, a
   value and a muted line), with the time, the address and how to reach
-  someone among them, not in a part of their own.
+  someone among them, not in a part of their own. **A fact's line names
+  the field; its value says what's known**, on every card and in every
+  dialog. The line is the label, or a fuller name for it ("Price, tax
+  included", "On site, each day"); what's known of this one, and what's
+  still to come and when, follows the value after a comma: "Robin, number
+  shows on the day" over "Client", never "Robin" over "Client: their
+  number shows on the day" (#485). ("A fact's line names the field")
 - **Its parts**, each a Section. An action on one part stays on that part's
   title line (End plan, red, on the plan; Billing's Edit), and so do both
   answers to an offer (Accept and Decline, Confirm and Not for me). A part

@@ -81,10 +81,10 @@ test(
     await expect(details).toContainText("Every week");
     await expect(details).toContainText("Mondays at 9:00 AM");
     await expect(details).toContainText(
-      "$201.85Each clean, tax included, 10% off",
+      "$201.85, 10% offEach clean, tax included",
     );
     await expect(details).toContainText(
-      "$50.46Deposit, comes off your last clean",
+      "$50.46, comes off your last cleanDeposit",
     );
     await expect(
       client.getByText(/^Each clean is charged to your card when it's done\./),

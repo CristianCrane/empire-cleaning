@@ -42,8 +42,11 @@ const words = catalog({
     nothingWritten:
       "Nothing's written down. Call the client when you get there.",
     showsOnTheDay: "Shows on the day",
-    notConfirmedYet: (names: string) => `${names} not confirmed yet`,
-    allConfirmed: "Crew, all confirmed",
+    // a crew of two or more, and who of it hasn't confirmed
+    notConfirmedYet: (crew: string, names: string) =>
+      `${crew}, ${names} not confirmed yet`,
+    allConfirmed: (crew: string) => `${crew}, all confirmed`,
+    noneConfirmed: (crew: string) => `${crew}, none confirmed yet`,
     client: "Client",
     numberOnTheDay: (name: string) => `${name}, number shows on the day`,
     notConfirmed: "The job wasn't confirmed. Please try again.",
@@ -61,8 +64,10 @@ const words = catalog({
     dropOutOfJob: "Dejar este trabajo",
     nothingWritten: "No hay nada escrito. Llama al cliente cuando llegues.",
     showsOnTheDay: "Aparece ese día",
-    notConfirmedYet: (names: string) => `${names}: aún sin confirmar`,
-    allConfirmed: "Equipo, todos confirmados",
+    notConfirmedYet: (crew: string, names: string) =>
+      `${crew}, ${names} aún sin confirmar`,
+    allConfirmed: (crew: string) => `${crew}, todos confirmados`,
+    noneConfirmed: (crew: string) => `${crew}, ninguno confirmado aún`,
     client: "Cliente",
     numberOnTheDay: (name: string) => `${name}, su número aparece ese día`,
     notConfirmed: "El trabajo no se confirmó. Vuelve a intentarlo.",
@@ -148,6 +153,7 @@ function JobDetails({ job }: { job: CleanerJob }) {
   const address = addressOf(job.property);
   const t = useSaid(words);
   const { c, w } = t;
+  const crew = t.formatList(job.crew.map((m) => m.name));
   return (
     <DetailsCard
       label={c.jobDetails}
@@ -195,16 +201,17 @@ function JobDetails({ job }: { job: CleanerJob }) {
           icon={Users}
           label={c.crew}
           value={
+            // a crew of one is the reader, whose Confirm says the rest
             job.crew.length === 1
               ? c.justYou
-              : t.formatList(job.crew.map((m) => m.name))
-          }
-          line={
-            unconfirmed.length > 0
-              ? w.notConfirmedYet(t.formatList(unconfirmed.map((m) => m.name)))
-              : job.crew.length > 1
-                ? w.allConfirmed
-                : undefined
+              : unconfirmed.length === job.crew.length
+                ? w.noneConfirmed(crew)
+                : unconfirmed.length > 0
+                  ? w.notConfirmedYet(
+                      crew,
+                      t.formatList(unconfirmed.map((m) => m.name)),
+                    )
+                  : w.allConfirmed(crew)
           }
         />
         <Fact

@@ -746,8 +746,7 @@ function Offer({ quote, actions }: { quote: ShownQuote; actions?: ReactNode }) {
             <Fact
               icon={Repeat}
               label="Then"
-              value={planRhythm(plan)}
-              line={`Then, priced for ${conditionLabel[plan.condition].toLowerCase()} condition`}
+              value={`${planRhythm(plan)}, priced for ${conditionLabel[plan.condition].toLowerCase()} condition`}
             />
           )}
           <Fact

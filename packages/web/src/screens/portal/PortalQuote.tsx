@@ -5,7 +5,6 @@ import {
   CreditCard,
   FileText,
   MapPin,
-  Users,
   CalendarDays,
   Sparkles,
 } from "lucide-react";
@@ -41,6 +40,7 @@ import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { addressOf, formatHours, formatMinutes } from "../format.ts";
+import { OnSiteFact } from "../Fact.tsx";
 import { type Said, useSaid } from "../words.ts";
 import {
   AskedRows,
@@ -72,11 +72,10 @@ const words = catalog({
     aWeekTax: "A week, with a clean on each day, tax included",
     aCleanTax: (service: string) => `${service}, a clean, tax included`,
     when: "When",
-    from: (when: string) => `From ${when}`,
+    // a plan's rhythm, then when it starts
+    rhythmFrom: (rhythm: string, when: string) => `${rhythm}, from ${when}`,
     yourClean: "Your clean",
     where: "Where",
-    crewAbout: (cleaners: string, hours: string) =>
-      `${cleaners}, about ${hours}`,
     recommend: (recommended: string, own: string) =>
       `We recommend a ${recommended} for a first visit: it brings your home up to standard. A ${own} costs less.`,
     recommended: "Recommended",
@@ -167,11 +166,9 @@ const words = catalog({
     aCleanTax: (service: string) =>
       `${service}, por limpieza, impuestos incluidos`,
     when: "Cuándo",
-    from: (when: string) => `Desde el ${when}`,
+    rhythmFrom: (rhythm: string, when: string) => `${rhythm}, desde el ${when}`,
     yourClean: "Su limpieza",
     where: "Dónde",
-    crewAbout: (cleaners: string, hours: string) =>
-      `${cleaners}, cerca de ${hours}`,
     recommend: (recommended: string, own: string) =>
       `Le recomendamos una ${recommended} para la primera visita: deja su casa en buen estado. Una ${own} cuesta menos.`,
     recommended: "Recomendada",
@@ -475,12 +472,12 @@ function QuoteDetails({
           icon={CalendarClock}
           label={t.w.when}
           value={
-            plan ? t.planRhythm(plan) : t.formatDateTime(quote.proposedStartsAt)
-          }
-          line={
             plan
-              ? t.w.from(t.formatDateTime(quote.proposedStartsAt))
-              : t.w.yourClean
+              ? t.w.rhythmFrom(
+                  t.planRhythm(plan),
+                  t.formatDateTime(quote.proposedStartsAt),
+                )
+              : t.formatDateTime(quote.proposedStartsAt)
           }
         />
         <Fact
@@ -489,14 +486,9 @@ function QuoteDetails({
           value={addressOf(quote.property)}
           line={t.p.yourHome}
         />
-        <Fact
-          icon={Users}
-          label={t.onSite}
-          value={t.w.crewAbout(
-            t.cleaners(quote.crewSize),
-            formatHours(chosen.hoursOnSite),
-          )}
-          line={t.onSite}
+        <OnSiteFact
+          crewSize={quote.crewSize}
+          hoursOnSite={chosen.hoursOnSite}
         />
       </Facts>
 

@@ -27,7 +27,9 @@ const words = catalog({
   en: {
     open: "Open",
     area: "Area",
-    areaLine: "Area: the address shows once it's yours",
+    // the postcode, until the address shows
+    areaUntil: (postcode: string) =>
+      `${postcode}, address shows once it's yours`,
     didntWork: "That didn't work. Please try again.",
     takenOff: "Taken off your list",
     needsYou:
@@ -36,7 +38,8 @@ const words = catalog({
   es: {
     open: "Disponible",
     area: "Zona",
-    areaLine: "Zona: la dirección aparece cuando sea tuyo",
+    areaUntil: (postcode: string) =>
+      `${postcode}, la dirección aparece cuando sea tuyo`,
     didntWork: "No funcionó. Vuelve a intentarlo.",
     takenOff: "Quitado de tu lista",
     needsYou:
@@ -84,8 +87,7 @@ export function CleanerNeededScreen() {
             <Fact
               icon={MapPin}
               label={w.area}
-              value={job.postcode}
-              line={w.areaLine}
+              value={w.areaUntil(job.postcode)}
             />
           </Facts>
         </DetailsCard>

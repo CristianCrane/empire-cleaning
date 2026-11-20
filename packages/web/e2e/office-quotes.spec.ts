@@ -211,11 +211,14 @@ test(
       .click();
 
     await expect(
-      page.getByText("Condition: the client said moderate"),
+      page.getByText("Not known yet, the client said moderate", {
+        exact: true,
+      }),
     ).toBeVisible();
     await expect(
       page.getByText(
-        "Rooms: the client said 2 bedrooms, 1.5 bathrooms, 1 storey, no pets",
+        "Not recorded yet, the client said 2 bedrooms, 1.5 bathrooms, 1 storey, no pets",
+        { exact: true },
       ),
     ).toBeVisible();
     await expectAccessible(page);

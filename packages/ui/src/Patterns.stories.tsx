@@ -7,8 +7,10 @@ import {
   CalendarClock,
   CreditCard,
   KeyRound,
+  MapPin,
   Phone,
   CalendarX,
+  Clock,
   CircleAlert,
   CircleCheck,
   CircleDollarSign,
@@ -23,6 +25,7 @@ import {
   Send,
   Store,
   UserX,
+  Users,
   X,
 } from "lucide-react";
 import { Avatar } from "./Avatar.tsx";
@@ -475,6 +478,74 @@ function NoticesHoldOneAction() {
               <Button variant="danger-text">Delete the draft</Button>
             </div>
           </Notice>
+        </Example>
+      </div>
+    </div>
+  );
+}
+
+// a fact's line names the field; what's known follows the value (#485, and
+// every fact after it)
+function FactLinesNameTheField() {
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="A fact's line names the field; its value says what's known">
+        <p>
+          Every fact on a details card or in a dialog reads the same way: its
+          value, then a muted line naming what it is, the label or a fuller name
+          for it ("Price, tax included"). What's known of this one, and what's
+          still to come and when, follows the value after a comma, so the line
+          under every fact says one kind of thing.
+        </p>
+      </Rule>
+      <div className="flex flex-col gap-4 md:flex-row">
+        <Example verdict="Do">
+          <Facts>
+            <Fact icon={Clock} label="On site" value="2 cleaners, about 3 h" />
+            <Fact
+              icon={Users}
+              label="Crew"
+              value="Ana and Dee, Dee not confirmed yet"
+            />
+            <Fact
+              icon={Phone}
+              label="Client"
+              value="Robin, number shows on the day"
+            />
+            <Fact
+              icon={MapPin}
+              label="Area"
+              value="11375, address shows once it's yours"
+            />
+          </Facts>
+        </Example>
+        <Example verdict="Don't">
+          <Facts>
+            <Fact
+              icon={Clock}
+              label="On site"
+              value="About 3 h"
+              line="On site, with 2 cleaners"
+            />
+            <Fact
+              icon={Users}
+              label="Crew"
+              value="Ana and Dee"
+              line="Dee not confirmed yet"
+            />
+            <Fact
+              icon={Phone}
+              label="Client"
+              value="Robin"
+              line="Client: their number shows on the day"
+            />
+            <Fact
+              icon={MapPin}
+              label="Area"
+              value="11375"
+              line="Area: the address shows once it's yours"
+            />
+          </Facts>
         </Example>
       </div>
     </div>
@@ -1146,6 +1217,11 @@ function DetailsPage() {
 export const DetailsPageStory: Story = {
   name: "A Record: its header, two alerts, its details, its parts",
   render: () => <DetailsPage />,
+};
+
+export const FactLinesNameTheFieldStory: Story = {
+  name: "A fact's line names the field",
+  render: () => <FactLinesNameTheField />,
 };
 
 export const SectionsNotCardsAroundLists: Story = {

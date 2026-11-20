@@ -17,9 +17,10 @@ export function Facts({ children }: { children: ReactNode }) {
   );
 }
 
-// One fact: an icon, its value, and under it a muted line saying what it
-// is, the label unless `line` says more. className places it, e.g.
-// col-span-full for a long value such as notes
+// One fact: an icon, its value, and under it a muted line naming the
+// field, the label unless `line` names it more fully; what's known goes in
+// the value (docs/ux.md, Record). className places it, e.g. col-span-full
+// for a long value such as notes
 export function Fact({
   icon: Icon,
   label,
@@ -30,7 +31,7 @@ export function Fact({
   icon: LucideIcon;
   label: string;
   value: ReactNode;
-  // what the value is, when there's more to say than the label
+  // the field's fuller name ("Price, tax included"), never a story
   line?: ReactNode;
   className?: string;
 }) {

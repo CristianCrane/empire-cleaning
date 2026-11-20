@@ -70,7 +70,7 @@ test(
     await client.goto(`/portal/quotes/${quote.id}`);
     await expect(
       client.getByRole("region", { name: "Quote details" }),
-    ).toContainText("From Wed, Jan 28, 9:00 AM");
+    ).toContainText(", from Wed, Jan 28, 9:00 AM");
     const change = client.getByText("This changes your cleaning plan");
     await expect(change).toBeVisible();
     await expect(

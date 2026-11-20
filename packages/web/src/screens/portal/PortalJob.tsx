@@ -5,7 +5,6 @@ import {
   CalendarClock,
   CalendarSync,
   CirclePlus,
-  Clock,
   PiggyBank,
   Receipt as ReceiptIcon,
   CalendarX,
@@ -42,10 +41,11 @@ import { linkTo } from "../../links.ts";
 import { requestQuoteHref } from "./whats-next.ts";
 import { PickAvailableTime } from "../AvailabilityPicker.tsx";
 import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
-import { addressOf, formatHours, wasSkipped } from "../format.ts";
+import { addressOf, wasSkipped } from "../format.ts";
 import { type Said, useSaid } from "../words.ts";
 import { catalog, oneStop, stopAfter } from "@empire-cleaning/models";
 import { JobStatusBadge } from "../JobBadges.tsx";
+import { OnSiteFact } from "../Fact.tsx";
 
 // in the Client's language (ADR-0025)
 const words = catalog({
@@ -54,11 +54,8 @@ const words = catalog({
     partOfPlan: "Part of your cleaning plan",
     oneOff: "One-off clean",
     price: "Price",
-    withDiscount: (percent: number) =>
-      `Price with your ${percent}% plan discount, tax included`,
-    taxIncluded: "Price, tax included",
     heldThere: "Its deposit is held there",
-    offPrice: "Deposit, comes off the price",
+    offPrice: (deposit: string) => `${deposit}, comes off the price`,
     reminder: "We'll email a reminder the day before.",
     // until when moving it, and cancelling or skipping it, costs nothing
     freeToMoveOr: (skip: boolean) =>
@@ -133,11 +130,8 @@ const words = catalog({
     partOfPlan: "Parte de su plan de limpieza",
     oneOff: "Una sola limpieza",
     price: "Precio",
-    withDiscount: (percent: number) =>
-      `Precio con su ${percent}% de descuento del plan, impuestos incluidos`,
-    taxIncluded: "Precio, impuestos incluidos",
     heldThere: "Su depósito está retenido allí",
-    offPrice: "Depósito, se descuenta del precio",
+    offPrice: (deposit: string) => `${deposit}, se descuenta del precio`,
     reminder: "Le enviaremos un recordatorio por correo el día antes.",
     freeToMoveOr: (skip: boolean) =>
       skip
@@ -388,19 +382,13 @@ function JobDetails({ job }: { job: ClientJobDetail }) {
         <Fact
           icon={ReceiptIcon}
           label={t.w.price}
-          value={t.formatMoney(payment.totalCents)}
-          line={
-            job.planDiscountPercent
-              ? t.w.withDiscount(job.planDiscountPercent)
-              : t.w.taxIncluded
-          }
+          value={t.discounted(
+            t.formatMoney(payment.totalCents),
+            job.planDiscountPercent ?? 0,
+          )}
+          line={t.taxIncludedOf(t.w.price)}
         />
-        <Fact
-          icon={Clock}
-          label={t.onSite}
-          value={t.about(formatHours(job.hoursOnSite))}
-          line={t.onSiteWith(t.cleaners(job.crewSize))}
-        />
+        <OnSiteFact crewSize={job.crewSize} hoursOnSite={job.hoursOnSite} />
         <Fact
           icon={CirclePlus}
           label={t.extras}
@@ -426,8 +414,11 @@ function JobDetails({ job }: { job: ClientJobDetail }) {
           <Fact
             icon={PiggyBank}
             label={t.deposit}
-            value={deposit ? t.formatMoney(deposit.amountCents) : t.none}
-            line={deposit ? t.w.offPrice : t.deposit}
+            value={
+              deposit
+                ? t.w.offPrice(t.formatMoney(deposit.amountCents))
+                : t.none
+            }
           />
         )}
         {booked && <FreeUntil job={job} />}

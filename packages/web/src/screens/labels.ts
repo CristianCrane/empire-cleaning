@@ -21,12 +21,14 @@ export const labels = catalog({
     notAdded: "Not added yet",
     onSite: "On site",
     about: (hours: string) => `About ${hours}`,
-    onSiteWith: (cleaners: string) => `On site, ${cleaners}`,
     extras: "Extras",
     none: "None",
     deposit: "Deposit",
     total: "Total",
     taxIncludedOf: (what: string) => `${what}, tax included`,
+    // a price with a plan's discount taken off, said only when there is one
+    discounted: (price: string, percent: number) =>
+      percent > 0 ? `${price}, ${percent}% off` : price,
     payBill: (n: string) => `Pay bill ${n}`,
     // a bank payment, or a Bill paid by one, on its way
     clearing: "Clearing",
@@ -56,12 +58,13 @@ export const labels = catalog({
     onSite: "En el lugar",
     // "cerca de", not "unas", which would say "unas 1 h"
     about: (hours: string) => `Cerca de ${hours}`,
-    onSiteWith: (cleaners: string) => `En el lugar, ${cleaners}`,
     extras: "Adicionales",
     none: "Ninguno",
     deposit: "Depósito",
     total: "Total",
     taxIncludedOf: (what: string) => `${what}, impuestos incluidos`,
+    discounted: (price: string, percent: number) =>
+      percent > 0 ? `${price}, ${percent}% de descuento` : price,
     payBill: (n: string) => `Pagar la factura ${n}`,
     clearing: "En proceso",
     howWeGetIn: "Cómo entramos",

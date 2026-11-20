@@ -1,6 +1,7 @@
-import { KeyRound, Ruler, Sparkles } from "lucide-react";
+import { Clock, KeyRound, Ruler, Sparkles } from "lucide-react";
 import { Fact } from "@empire-cleaning/ui";
 import { catalog, type PropertyView } from "@empire-cleaning/models";
+import { formatHours } from "./format.ts";
 import { useSaid } from "./words.ts";
 
 // in the screen's language: the Office's English, the portal's its
@@ -8,14 +9,18 @@ import { useSaid } from "./words.ts";
 const words = catalog({
   en: {
     floorArea: "Floor area",
+    crewAbout: (cleaners: string, hours: string) =>
+      `${cleaners}, about ${hours}`,
   },
   es: {
     floorArea: "Superficie",
+    crewAbout: (cleaners: string, hours: string) =>
+      `${cleaners}, cerca de ${hours}`,
   },
 });
 
 // a Property's facts, as each of its details cards shows them (the kit's
-// Fact, in its words); `line` says what it is for that reader
+// Fact, in its words); `line` names it for that reader
 
 export function FloorAreaFact({
   property,
@@ -75,6 +80,25 @@ export function AccessFact({
       }
       line={line}
       className={className}
+    />
+  );
+}
+
+// how long a clean is on site, and with how many: "2 cleaners, about 3
+// h", on a Client's clean, plan and quote
+export function OnSiteFact({
+  crewSize,
+  hoursOnSite,
+}: {
+  crewSize: number;
+  hoursOnSite: number;
+}) {
+  const t = useSaid(words);
+  return (
+    <Fact
+      icon={Clock}
+      label={t.onSite}
+      value={t.w.crewAbout(t.cleaners(crewSize), formatHours(hoursOnSite))}
     />
   );
 }

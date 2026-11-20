@@ -124,12 +124,7 @@ export function AskedFacts({ quote }: { quote: OfficeQuote }) {
       <Fact
         icon={Sparkles}
         label="Condition"
-        value={conditionText(property.condition)}
-        line={
-          corrected
-            ? `Condition: the client said ${conditionLabel[stated].toLowerCase()}`
-            : undefined
-        }
+        value={`${conditionText(property.condition)}${corrected ? `, the client said ${conditionLabel[stated].toLowerCase()}` : ""}`}
       />
       {/* a Guest's ask gives a home without them none (#243): the Office
           records them */}
@@ -139,8 +134,7 @@ export function AskedFacts({ quote }: { quote: OfficeQuote }) {
           <Fact
             icon={BedDouble}
             label="Rooms"
-            value="Not recorded yet"
-            line={`Rooms: the client said ${roomsText(asked.rooms)}`}
+            value={`Not recorded yet, the client said ${roomsText(asked.rooms)}`}
           />
         )}
       <AskedRows asked={asked} premises={premises} />

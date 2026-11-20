@@ -50,8 +50,6 @@ const words = catalog({
     paidOn: (day: string) => `Paid ${day}`,
     cancelledOn: (day: string) => `Cancelled ${day}`,
     notPaid: "Not paid",
-    paymentDidnt: (because: string) =>
-      `The payment didn't go through${because}.`,
     dueByLabel: "Due by",
     details: "Bill details",
     week: "Week",
@@ -59,9 +57,8 @@ const words = catalog({
     covers: "The week it covers",
     made: "Made",
     howPaid: "How it's paid",
-    automatically: "Charged automatically",
-    onItsPage: "On its page",
-    cardOrBank: "Paid by card or bank",
+    automatically: "Charged automatically to your card",
+    onItsPage: "On its page, by card or bank",
     whatFor: "What it's for",
     pricesTax: "· prices include tax",
     taxIncluded: "Tax included",
@@ -91,7 +88,6 @@ const words = catalog({
     paidOn: (day: string) => `Pagada el ${day}`,
     cancelledOn: (day: string) => `Cancelada el ${day}`,
     notPaid: "Sin pagar",
-    paymentDidnt: (because: string) => `El pago no pasó${because}.`,
     dueByLabel: "Vence el",
     details: "Detalles de la factura",
     week: "Semana",
@@ -99,9 +95,8 @@ const words = catalog({
     covers: "La semana que cubre",
     made: "Emitida",
     howPaid: "Cómo se paga",
-    automatically: "Se cobra automáticamente",
-    onItsPage: "En su página",
-    cardOrBank: "Se paga con tarjeta o banco",
+    automatically: "Se cobra automáticamente a su tarjeta",
+    onItsPage: "En su página, con tarjeta o banco",
     whatFor: "Por qué es",
     pricesTax: "· los precios incluyen impuestos",
     taxIncluded: "Impuestos incluidos",
@@ -212,8 +207,10 @@ const standingFact = (t: T, bill: BillView, forClient: boolean) => {
     return {
       icon: CreditCard,
       label: w.notPaid,
-      value: t.formatDate(bill.unpaid.since),
-      line: w.paymentDidnt(bill.unpaid.why ? ` (${bill.unpaid.why})` : ""),
+      // when, and why when it's known: "Nov 3, the card has expired"
+      value: [t.formatDate(bill.unpaid.since), bill.unpaid.why]
+        .filter(Boolean)
+        .join(", "),
     };
   if (bill.status === "due" || bill.status === "processing")
     return bill.payment === "on_page" && bill.totalCents > 0
@@ -281,13 +278,12 @@ export function BillDetail({
         <Fact
           icon={CreditCard}
           label={w.howPaid}
-          value={bill.payment === "automatic" ? w.automatically : w.onItsPage}
-          line={
+          value={
             bill.payment === "automatic"
               ? forClient
-                ? w.chargedToYour
-                : "Charged to their card"
-              : w.cardOrBank
+                ? w.automatically
+                : "Charged automatically to their card"
+              : w.onItsPage
           }
         />
         {standing && (

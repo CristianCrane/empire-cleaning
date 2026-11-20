@@ -3,7 +3,6 @@ import {
   CalendarClock,
   CircleStop,
   CirclePlus,
-  Clock,
   PiggyBank,
   Receipt,
   Users,
@@ -34,6 +33,7 @@ import {
 import { postJson } from "../api.ts";
 import type { AppHref } from "../links.ts";
 import { useAction } from "./action.ts";
+import { OnSiteFact } from "./Fact.tsx";
 import { formatHours } from "./format.ts";
 import { type Said, useSaid } from "./words.ts";
 
@@ -66,11 +66,9 @@ const words = catalog({
     keep: "Keep my plan",
     eachWeek: "Each week",
     eachClean: "Each clean",
-    taxOff: (each: string, percent: number) =>
-      `${each}, tax included, ${percent}% off`,
     onSiteEachDay: "On site, each day",
-    towardsLast: "Deposit, put towards the last clean",
-    offLast: "Deposit, comes off your last clean",
+    towardsLast: (deposit: string) => `${deposit}, put towards the last clean`,
+    offLast: (deposit: string) => `${deposit}, comes off your last clean`,
     started: (day: string) => `Started ${day}`,
     endedAt: (day: string) => ` · Ended ${day}`,
   },
@@ -104,11 +102,11 @@ const words = catalog({
     keep: "Mantener mi plan",
     eachWeek: "Cada semana",
     eachClean: "Cada limpieza",
-    taxOff: (each: string, percent: number) =>
-      `${each}, impuestos incluidos, ${percent}% de descuento`,
     onSiteEachDay: "En el lugar, cada día",
-    towardsLast: "Depósito, aplicado a la última limpieza",
-    offLast: "Depósito, se descuenta de su última limpieza",
+    towardsLast: (deposit: string) =>
+      `${deposit}, aplicado a la última limpieza`,
+    offLast: (deposit: string) =>
+      `${deposit}, se descuenta de su última limpieza`,
     started: (day: string) => `Empezó el ${day}`,
     endedAt: (day: string) => ` · Finalizó el ${day}`,
   },
@@ -355,6 +353,7 @@ export function PlanCard({
   const [one] = plan.days;
   const several = plan.days.length > 1;
   const ended = plan.status === "ended";
+  const deposit = t.formatMoney(plan.depositCents);
   return (
     <DetailsCard
       label={label}
@@ -382,13 +381,11 @@ export function PlanCard({
         <Fact
           icon={Receipt}
           label={several ? t.w.eachWeek : t.w.eachClean}
-          value={t.formatMoney(
-            several ? plan.roundTotalCents : one!.totalCents,
-          )}
-          line={t.w.taxOff(
-            several ? t.w.eachWeek : t.w.eachClean,
+          value={t.discounted(
+            t.formatMoney(several ? plan.roundTotalCents : one!.totalCents),
             plan.discountPercent,
           )}
+          line={t.taxIncludedOf(several ? t.w.eachWeek : t.w.eachClean)}
         />
         {several ? (
           <Fact
@@ -398,12 +395,7 @@ export function PlanCard({
             line={t.w.onSiteEachDay}
           />
         ) : (
-          <Fact
-            icon={Clock}
-            label={t.onSite}
-            value={t.about(formatHours(one!.hoursOnSite))}
-            line={t.onSiteWith(t.cleaners(one!.crewSize))}
-          />
+          <OnSiteFact crewSize={one!.crewSize} hoursOnSite={one!.hoursOnSite} />
         )}
         <Fact
           icon={CirclePlus}
@@ -414,16 +406,13 @@ export function PlanCard({
           icon={PiggyBank}
           label={t.deposit}
           value={
-            plan.depositCents === 0 ? t.none : t.formatMoney(plan.depositCents)
-          }
-          line={
             plan.depositCents === 0
-              ? t.deposit
+              ? t.none
               : ended
-                ? t.w.towardsLast
+                ? t.w.towardsLast(deposit)
                 : forClient
-                  ? t.w.offLast
-                  : "Deposit, comes off the last clean"
+                  ? t.w.offLast(deposit)
+                  : `${deposit}, comes off the last clean`
           }
         />
       </Facts>

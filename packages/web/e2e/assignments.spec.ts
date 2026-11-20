@@ -265,7 +265,11 @@ test(
         .filter({ hasText: /^Robin, number shows on the day$/ }),
     ).toBeVisible();
     await expect(details).not.toContainText("Ring 4B");
-    await expect(details).toContainText("Dee Cleaner not confirmed yet");
+    await expect(
+      details.getByRole("definition").filter({
+        hasText: /^Cory Cleaner and Dee Cleaner, none confirmed yet$/,
+      }),
+    ).toBeVisible();
     // never any prices
     await expect(page.locator("main")).not.toContainText("$");
 
