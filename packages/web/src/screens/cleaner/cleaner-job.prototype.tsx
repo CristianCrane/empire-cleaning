@@ -1277,14 +1277,17 @@ function LayoutC({ c, j }: { c: JobCase; j: J }) {
 
 // ---- Layout D: the picks from A, B and C ----
 // One header card: the date tile, the time range large (B's), the address;
-// one rule; then the details, one icon each: how long, the crew, the
-// Client, getting in, extras. What this reader can't use yet isn't drawn
-// at all: an offer has no Directions, door or Client; before the day the
-// Client is a name; on the day the door and the number come. Every action
-// is one split button at the end of the title row (full width on a
-// phone): the main one pressed straight away, the rest behind its arrow.
-// On site, Mark done is the page's one primary, in a foot bar lined up
-// with the content column, and the header's split button is outlined.
+// one rule; then the details, one icon each: how long, the Client,
+// getting in, extras; then the crew, its own section below the card. What
+// this reader can't use yet isn't drawn at all: an offer has no
+// Directions, door or Client; before the day the Client is a name; on the
+// day the door and the number come. Every action is one split button, the
+// page's primary: the main one pressed straight away, the rest behind its
+// arrow; at the end of the title row from md, and on a phone in a foot bar,
+// after the details (read, then decide). On site, Mark done is the page's
+// one primary, in the foot bar at every width, lined up with the content
+// column; the rest are a quiet menu beside it. Position, colour, size and
+// weight agree on rank: nothing outlined sits where the primary goes.
 // The crew: one look for every face, a tick for confirmed and nothing for
 // not yet, and an open place drawn as an empty seat.
 
@@ -1327,57 +1330,9 @@ type DAction = {
   external?: boolean;
 } & ({ href: string } | { onPress: () => void });
 
-// A split button: the main action pressed straight away, and an arrow
-// opening the rest (the ui kit's MenuButton, its "More actions" said to a
-// screen reader and drawn as the arrow alone). Outlined when the page's
-// primary is elsewhere (on site, Mark done)
-function SplitButton({
-  main,
-  more,
-  outlined,
-  moreLabel,
-}: {
-  main: DAction;
-  more: DAction[];
-  outlined: boolean;
-  moreLabel: string;
-}) {
-  const variant = outlined ? "secondary" : "primary";
-  const joined = more.length > 0 ? "rounded-r-none" : "";
-  const content = (
-    <>
-      <main.icon aria-hidden size={18} />
-      {main.label}
-    </>
-  );
-  const first =
-    "href" in main ? (
-      <ButtonLink
-        variant={variant}
-        href={main.href as unknown as AppHref}
-        target={main.external ? "_blank" : undefined}
-        rel={main.external ? "noreferrer" : undefined}
-        className={`flex-1 ${joined}`}
-      >
-        {content}
-      </ButtonLink>
-    ) : (
-      <Button
-        variant={variant}
-        onPress={main.onPress}
-        className={`flex-1 ${joined}`}
-      >
-        {content}
-      </Button>
-    );
-  // the arrow: MenuButton's Button, joined to the main one, its words
-  // hidden by size so they stay its name
-  const arrow = outlined
-    ? "[&_button]:rounded-l-none [&_button]:border-l-0 [&_button]:px-3"
-    : "[&_button]:rounded-l-none [&_button]:border-0! [&_button]:border-l! [&_button]:border-primary-fg/40! [&_button]:bg-primary! [&_button]:text-primary-fg! [&_button:hover]:bg-primary-hover! [&_button]:px-3";
-  const plain = more.filter((a) => !a.danger);
-  const danger = more.filter((a) => a.danger);
-  const item = (a: DAction) => (
+// a DAction as an item of a MenuButton's menu
+function menuItem(a: DAction) {
+  return (
     <MenuItem
       key={a.label}
       icon={a.icon}
@@ -1392,26 +1347,86 @@ function SplitButton({
       {a.label}
     </MenuItem>
   );
+}
+
+// a menu's items, those that undo something last, after a rule
+function menuItems(actions: DAction[]) {
+  const plain = actions.filter((a) => !a.danger);
+  const danger = actions.filter((a) => a.danger);
+  return (
+    <>
+      {plain.map(menuItem)}
+      {plain.length > 0 && danger.length > 0 && <MenuSeparator />}
+      {danger.map(menuItem)}
+    </>
+  );
+}
+
+// A split button, the page's primary: the main action pressed straight
+// away, and an arrow opening the rest (the ui kit's MenuButton, its "More
+// actions" said to a screen reader and drawn as the arrow alone)
+function SplitButton({
+  main,
+  more,
+  moreLabel,
+}: {
+  main: DAction;
+  more: DAction[];
+  moreLabel: string;
+}) {
+  const joined = more.length > 0 ? "rounded-r-none" : "";
+  const content = (
+    <>
+      <main.icon aria-hidden size={18} />
+      {main.label}
+    </>
+  );
+  const first =
+    "href" in main ? (
+      <ButtonLink
+        href={main.href as unknown as AppHref}
+        target={main.external ? "_blank" : undefined}
+        rel={main.external ? "noreferrer" : undefined}
+        className={`flex-1 ${joined}`}
+      >
+        {content}
+      </ButtonLink>
+    ) : (
+      <Button onPress={main.onPress} className={`flex-1 ${joined}`}>
+        {content}
+      </Button>
+    );
   return (
     <div className="flex w-full md:w-auto">
       {first}
       {more.length > 0 && (
-        <span
-          className={`flex [&_button]:text-[0px] [&_button_span]:gap-0 ${arrow}`}
-        >
-          <MenuButton label={moreLabel}>
-            {plain.map(item)}
-            {plain.length > 0 && danger.length > 0 && <MenuSeparator />}
-            {danger.map(item)}
-          </MenuButton>
+        // the arrow: MenuButton's Button, joined to the main one and drawn
+        // as it is, its words hidden by size so they stay its name
+        <span className="flex [&_button]:rounded-l-none [&_button]:border-0! [&_button]:border-l! [&_button]:border-primary-fg/40! [&_button]:bg-primary! [&_button]:px-3 [&_button]:text-[0px] [&_button]:text-primary-fg! [&_button:hover]:bg-primary-hover! [&_button_span]:gap-0">
+          <MenuButton label={moreLabel}>{menuItems(more)}</MenuButton>
         </span>
       )}
     </div>
   );
 }
 
-// the page's actions, for this stage: the main one, then the rest
-function actionsD(c: JobCase, j: J): { main: DAction; more: DAction[] } | null {
+// The ui kit's MenuButton drawn quiet (no outline, the text colour): the
+// actions that aren't the page's primary, beside it and below it in rank
+function QuietMenu({ label, actions }: { label: string; actions: DAction[] }) {
+  return (
+    <span className="flex max-md:flex-none! [&_button]:border-0! [&_button]:bg-transparent! [&_button]:text-fg! [&_button:hover]:bg-surface-sunken! [&_button[data-pressed]]:bg-surface-sunken!">
+      <MenuButton label={label}>{menuItems(actions)}</MenuButton>
+    </span>
+  );
+}
+
+// the page's actions, for this stage: the main one, then the rest. On
+// site there's no main one here: Mark done is the page's primary, and these
+// are only the rest
+function actionsD(
+  c: JobCase,
+  j: J,
+): { main: DAction | null; more: DAction[] } | null {
   const { w } = j;
   const callOffice: DAction = {
     label: w.callOffice,
@@ -1464,8 +1479,9 @@ function actionsD(c: JobCase, j: J): { main: DAction; more: DAction[] } | null {
     case "started":
     case "startedWaiting":
       return {
-        main: callClient,
+        main: null,
         more: [
+          callClient,
           {
             label: w.couldntGetIn,
             icon: DoorClosed,
@@ -1543,17 +1559,6 @@ function JobCardD({ c, j }: { c: JobCase; j: J }) {
       <div className="border-t border-border pt-4">
         <Facts>
           <Fact icon={Clock} label={w.howLong} value={j.howLong} />
-          <Fact
-            icon={Users}
-            label={w.crew}
-            value={
-              <span className="flex flex-wrap gap-x-5 gap-y-3 py-0.5">
-                {c.crew.map((m, i) => (
-                  <CrewFace key={i} m={m} w={w} />
-                ))}
-              </span>
-            }
-          />
           {known && (
             <Fact
               icon={UserRound}
@@ -1589,6 +1594,20 @@ function JobCardD({ c, j }: { c: JobCase; j: J }) {
   );
 }
 
+// the crew, its own section below the card: on the page, not boxed, a
+// step down from the details
+function CrewD({ c, w }: { c: JobCase; w: Words }) {
+  return (
+    <Section title={w.crew}>
+      <div className="flex flex-wrap gap-x-6 gap-y-3">
+        {c.crew.map((m, i) => (
+          <CrewFace key={i} m={m} w={w} />
+        ))}
+      </div>
+    </Section>
+  );
+}
+
 // the main column and the right one a Record keeps from xl (its History),
 // as RecordPage's Beside lays them out
 const columns =
@@ -1596,11 +1615,23 @@ const columns =
 
 // the bar at the foot, its box lined up with the main column (today's
 // ActionFooter spans the whole width beside the sidebar)
-function FootBarD({ label, children }: { label: string; children: ReactNode }) {
+function FootBarD({
+  label,
+  phoneOnly = false,
+  children,
+}: {
+  label: string;
+  // below md only: from md the page's primary is at the title row's end
+  phoneOnly?: boolean;
+  children: ReactNode;
+}) {
+  const hide = phoneOnly ? "md:hidden" : "";
   return (
     <>
-      <div aria-hidden className="h-20 print:hidden" />
-      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] z-30 md:bottom-0 md:left-64 print:hidden">
+      <div aria-hidden className={`h-20 print:hidden ${hide}`} />
+      <div
+        className={`pointer-events-none fixed inset-x-0 bottom-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] z-30 md:bottom-0 md:left-64 print:hidden ${hide}`}
+      >
         <div className="mx-auto w-full max-w-5xl md:px-8">
           <div className={columns}>
             <div
@@ -1622,12 +1653,25 @@ function LayoutD({ c, j }: { c: JobCase; j: J }) {
   const s = statusD(c, w);
   const actions = actionsD(c, j);
   const onSite = started(c.kind);
+  const split = actions?.main && (
+    <SplitButton
+      main={actions.main}
+      more={actions.more}
+      moreLabel={w.moreActions}
+    />
+  );
+  const job = (
+    <>
+      <JobCardD c={c} j={j} />
+      <CrewD c={c} w={w} />
+    </>
+  );
   // the whole page in the main column, the header's actions too, so they
   // end where the card and the foot bar do. RecordPage places the header and
-  // the alerts (the split button rides its status slot, pushed to the end of
-  // the title row, its own line on a phone); the card follows it here, in
-  // the main column, as RecordPage has no slot for a header that narrow.
-  // Its empty Beside is hidden, so it leaves no gap
+  // the alerts (from md the split button rides its status slot, pushed to
+  // the end of the title row); the card and the crew follow it here, in the
+  // main column, as RecordPage has no slot for a header that narrow. Its
+  // empty Beside is hidden, so it leaves no gap
   return (
     <div className={columns}>
       <div className="flex min-w-0 flex-col gap-6 [&_.grid:has(>div:empty)]:hidden">
@@ -1637,15 +1681,8 @@ function LayoutD({ c, j }: { c: JobCase; j: J }) {
           status={
             <>
               {s && <StatusBadge tone={s.tone}>{s.text}</StatusBadge>}
-              {actions && (
-                <span className="flex max-md:w-full md:ml-auto">
-                  <SplitButton
-                    main={actions.main}
-                    more={actions.more}
-                    outlined={onSite}
-                    moreLabel={w.moreActions}
-                  />
-                </span>
+              {split && (
+                <span className="ml-auto flex max-md:hidden">{split}</span>
               )}
             </>
           }
@@ -1657,15 +1694,27 @@ function LayoutD({ c, j }: { c: JobCase; j: J }) {
             <>
               <Outcome c={c} j={j} />
               <Fold label={w.theJob}>
-                <JobCardD c={c} j={j} />
+                <div className="flex flex-col gap-6">{job}</div>
               </Fold>
             </>
           ) : (
-            <JobCardD c={c} j={j} />
+            job
           )}
         </div>
+        {/* on a phone, the page's primary after the details: read, then
+            decide */}
+        {split && (
+          <FootBarD label={w.whatToDo} phoneOnly>
+            {split}
+          </FootBarD>
+        )}
+        {/* on site, Mark done is the one primary, at every width; the rest
+            are a quiet menu beside it */}
         {onSite && (
           <FootBarD label={w.whatToDo}>
+            {actions && (
+              <QuietMenu label={w.moreActions} actions={actions.more} />
+            )}
             <Button
               isDisabled={c.kind === "startedWaiting"}
               onPress={say(w.toast(w.markDone))}
