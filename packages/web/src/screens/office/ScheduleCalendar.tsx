@@ -139,9 +139,9 @@ const factsOf = (moving: Moving) =>
       };
 
 // whether what's dragged can go at a time on a day, by the server's own
-// rules: a Job's room (roomOn: the day's hours, a crew free then, and ending
-// by midnight), a Site Visit's (whyVisitCantGo: its visitor's hours, or
-// Office Staff, a crew free, and busy with nothing else then)
+// rules: a Job's room (roomOn: the day's hours and a crew free then), a Site
+// Visit's (whyVisitCantGo: its visitor's hours, or Office Staff, a crew free,
+// and busy with nothing else then); both end by midnight
 const canGoAt = (day: ScheduleDay, moving: Moving, time: string) => {
   const startsAt = atTime(day.date, time);
   if (moving.kind === "job") {
@@ -184,10 +184,10 @@ type Dragging = { moving: Moving; grabbedAtPx: number };
  * dragging one moves it. To choose a time instead (onPick), the blocks are
  * only there to see, and clicking a free half hour picks it, or with
  * limits, one of the start times on offer on a day that has them; a
- * proposed clean is drawn where it would go. Given the times without a crew free for the clean
- * (noCrew, from the server), they're marked: they can still be picked, for
- * a Quote the Office may add a Cleaner for, but the server refuses to book
- * there.
+ * proposed clean is drawn where it would go. Given the times without a
+ * crew free for the clean (noCrew, from the server), they're marked: they
+ * can still be picked, for a Quote the Office may add a Cleaner for, but
+ * the server refuses to book there.
  *
  * To only look and open (opensJobs, as on the Today screen), clicking a Job
  * or Site Visit opens it and nothing moves.
