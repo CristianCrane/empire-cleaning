@@ -347,7 +347,8 @@ describe("a Cleaner's Jobs", () => {
         postcode: "11375",
         accessInstructions: "Ring 4B; the doorman has a key.",
       },
-      client: { firstName: "Client", phone: null },
+      client: { firstName: "Client" },
+      onTheDay: null,
       crew: [
         { name: "Cory Cleaner", status: "offered" },
         { name: "Dee Cleaner", status: "offered" },
@@ -366,7 +367,9 @@ describe("a Cleaner's Jobs", () => {
 
     // the morning of the Job, New York time
     testClock().set(new Date("2026-01-08T05:30:00Z"));
-    expect((await myJob(asCory, job.id)).client.phone).toBe(casey.phone);
+    expect((await myJob(asCory, job.id)).onTheDay).toEqual({
+      phone: casey.phone,
+    });
   });
 
   test("are hidden from Cleaners not on them", async () => {

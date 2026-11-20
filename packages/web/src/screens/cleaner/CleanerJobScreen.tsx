@@ -209,18 +209,18 @@ function JobDetails({ job }: { job: CleanerJob }) {
           icon={Phone}
           label={w.client}
           value={
-            job.client.phone ? (
+            job.onTheDay ? (
               <a
                 className="font-semibold text-primary"
-                href={`tel:${job.client.phone}`}
+                href={`tel:${job.onTheDay.phone}`}
               >
-                {job.client.firstName}, {job.client.phone}
+                {job.client.firstName}, {job.onTheDay.phone}
               </a>
             ) : (
               job.client.firstName
             )
           }
-          line={job.client.phone ? w.tapToCall : w.numberOnTheDay}
+          line={job.onTheDay ? w.tapToCall : w.numberOnTheDay}
         />
       </Facts>
     </DetailsCard>

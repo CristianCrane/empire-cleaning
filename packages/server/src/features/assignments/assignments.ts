@@ -15,7 +15,7 @@ import {
 import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
-import { clock } from "../../services/clock/index.ts";
+import { clock, isToday } from "../../services/clock/index.ts";
 import { email, notify } from "../../services/email/index.ts";
 import {
   cancellationOf,
@@ -337,7 +337,6 @@ const cleanerJobs = async (
   const versions = await serviceVersions(mine.map((m) => m.job.serviceId));
   const now = clock.now();
   const clientOf = new Map(owners.map((o) => [o.propertyId, o.client]));
-  const today = dayOf(clock.now());
 
   return mine.map(({ assignment, job, property }) => {
     const client = clientOf.get(property.id)!;
@@ -358,10 +357,8 @@ const cleanerJobs = async (
         postcode: property.postcode,
         accessInstructions: property.accessInstructions,
       },
-      client: {
-        firstName: firstNameOf(client.name),
-        phone: dayOf(job.startsAt) === today ? client.phone : null,
-      },
+      client: { firstName: firstNameOf(client.name) },
+      onTheDay: isToday(job.startsAt) ? { phone: client.phone } : null,
       crew: crews
         .filter((c) => c.jobId === job.id)
         .map((c) => ({
@@ -393,10 +390,9 @@ const cleanerJobs = async (
 // a Cleaner's Jobs today and to come
 export const jobsAssignedTo = async (staffId: string): Promise<CleanerJobs> => {
   const mine = await cleanerJobs(staffId);
-  const today = dayOf(clock.now());
   return {
-    today: mine.filter((job) => dayOf(new Date(job.startsAt)) === today),
-    upcoming: mine.filter((job) => dayOf(new Date(job.startsAt)) !== today),
+    today: mine.filter((job) => isToday(new Date(job.startsAt))),
+    upcoming: mine.filter((job) => !isToday(new Date(job.startsAt))),
   };
 };
 
