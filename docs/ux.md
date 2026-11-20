@@ -64,7 +64,7 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
 - **The page header** (the rule under Page structure).
 - **At most two alerts**, the most pressing first (danger, warning, info,
   success), the rest behind "Show N more". Each is one Notice with at most
-  one action; never a Notice inside a Notice. What an action's failure
+  one action (no alert in an alert: the `ui` skill). What an action's failure
   says is a Toast, not a Notice on the page (a retried charge, a plan
   offered).
 - **The details card** (`DetailsCard`): what it is, large, behind its tile
@@ -284,8 +284,8 @@ The `ui` skill's rules hold here too; these are this product's.
   blank tiles at their size first (`ChoiceTilesLoading`). ("ChoiceTiles /
   Loading")
 - **Sections, not Cards, around Lists and Tables.** A title sits on the
-  page, above an untitled Card or a List; never a Card titled inside, never
-  a box in a box. ("Sections Not Cards Around Lists")
+  page, above an untitled Card or a List; never a Card titled inside (no box
+  in a box: the `ui` skill). ("Sections Not Cards Around Lists")
 - **The landing site's bands alternate**, plain then raised, by their place
   on the page, not by which section they are (`band.ts`), so reordering
   sections never puts two alike together. A card takes the other colour
@@ -516,7 +516,7 @@ stays as it is (#336).
   seen); in a Table, the first column gives the date and time. A row is
   badged only when it isn't plain.
 - **An empty place offers what fills it** (`EmptyState` with its action),
-  never a card in a card, and never says again what its Section's
+  never says again what its Section's
   description above it already says. ("Empty states offer the action")
 
 ### Forms
