@@ -61,6 +61,7 @@ import {
   useAppLanguage,
 } from "./language.ts";
 import { linkTo } from "./links.ts";
+import { ClientQuotePrototype } from "./screens/portal/client-quote.prototype.tsx";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
 import { CleanerHome, yourJobsTiles } from "./screens/cleaner/CleanerHome.tsx";
 import { ConfirmEmail } from "./screens/ConfirmEmail.tsx";
@@ -882,7 +883,27 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: the Client's Quote, on made-up data, signed out (#493)
+const clientQuotePrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/client-quote",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string; lang?: string } => ({
+    // ?case=1 arrives as a number
+    case: search.case === undefined ? undefined : String(search.case),
+    layout: search.layout === undefined ? undefined : String(search.layout),
+    lang: search.lang === undefined ? undefined : String(search.lang),
+  }),
+  // after the root's signed-out language: ?lang=es shows it in Spanish
+  beforeLoad: ({ search, preload }) => {
+    if (!preload) setAppLanguage(search.lang === "es" ? "es" : "en");
+  },
+  component: ClientQuotePrototype,
+});
+
 const routeTree = rootRoute.addChildren([
+  clientQuotePrototypeRoute,
   indexRoute,
   signInRoute,
   signInLinkRoute,

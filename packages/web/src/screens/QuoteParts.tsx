@@ -393,3 +393,6 @@ export function AddOnList({ addOns }: { addOns: QuoteAddOn[] }) {
     </dl>
   );
 }
+
+// PROTOTYPE: read by portal/client-quote.prototype.tsx
+export { words as quotePartsWords };

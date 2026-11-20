@@ -940,3 +940,6 @@ function Decline({ quote }: { quote: QuoteView }) {
     </DialogTrigger>
   );
 }
+
+// PROTOTYPE: read by portal/client-quote.prototype.tsx
+export { words as portalQuoteWords };
