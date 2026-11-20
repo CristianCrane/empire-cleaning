@@ -415,8 +415,8 @@ const one = (spec: string, title: string, context: Context) => {
 // every test of the specs, before and after, each one's end shot fresh on
 // both sides and compared byte for byte: for a change that should leave
 // every screen as it was (#439). The base runs twice, and a test whose two
-// shots there differ changes from run to run on one commit (a random email,
-// a few pixels drawn differently), so it's named and not compared. It
+// shots there differ changes from run to run on one commit (a random email
+// on the landing site), so it's named and not compared. It
 // publishes the pairs that differ, and the first identical one on each
 // project for the PR's body
 const same = (specs: string[], context: Context) => {

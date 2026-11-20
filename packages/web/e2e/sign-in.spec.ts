@@ -137,7 +137,6 @@ test.describe("signing up and in with an emailed link", () => {
     await expect(
       elsewhere.getByRole("button", { name: "Email me a sign-in link" }),
     ).toBeVisible();
-    await elsewhere.close();
   });
 
   // mail scanners open links before the person does (#243): some only fetch

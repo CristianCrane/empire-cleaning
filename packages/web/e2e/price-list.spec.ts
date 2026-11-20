@@ -338,7 +338,6 @@ test("the request form offers the Add-ons by name, and the choice reaches the Of
   await goTo(office, "Quotes");
   await office.getByText("Nina New").click();
   await expect(office.getByText("Inside the oven").first()).toBeVisible();
-  await office.close();
 });
 
 eachTheme(() => {
