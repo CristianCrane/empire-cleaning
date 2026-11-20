@@ -24,7 +24,6 @@ can change, through the same loop.
   with the fewest steps for the Client (passwordless sign-in, self-serve
   choices instead of round trips to the Office), and call out any trade-off
   that adds steps.
-
 - **Figures the owner edits are concrete.** Hours per room, not
   multipliers pointing at figures elsewhere; when figures combine, show a
   worked example beside them (the Service page's Example Quote).
@@ -284,7 +283,6 @@ The `ui` skill's rules hold here too; these are this product's.
 - **What loads holds its room** (the `ui` skill): choices from the API draw
   blank tiles at their size first (`ChoiceTilesLoading`). ("ChoiceTiles /
   Loading")
-
 - **Sections, not Cards, around Lists and Tables.** A title sits on the
   page, above an untitled Card or a List; never a Card titled inside, never
   a box in a box. ("Sections Not Cards Around Lists")
@@ -332,7 +330,6 @@ The `ui` skill's rules hold here too; these are this product's.
 
 - **One primary Button per page** (the `ui` skill); everything else is
   secondary, text or quiet.
-
 - **A bar at the foot of a page is an `ActionFooter`**, which the page's
   layout places, never a sticky bar of the page's own, which pins under the phone's tab bar (#425). It holds
   what must stay in reach while a long page scrolls (a Cleaner's Job on
@@ -349,7 +346,6 @@ The `ui` skill's rules hold here too; these are this product's.
   than it; on a phone they wrap under the title.
 - **Destructive actions are red** (the `ui` skill): End plan, Cancel bill,
   Deactivate, Decline.
-
 - **Continue with Google is Google's own button** (the `ui` skill: a
   third-party sign-in keeps its owner's look): their colours in light and
   dark, their logo, Roboto. Only the 44px touch height is ours.
@@ -391,16 +387,13 @@ stays as it is (#336).
   enough cleaners are free then. Pick another time, or add working hours for
   a cleaner that day." No counting unless the number helps. When nothing can
   be done: "This clean was cancelled."
-
 - **A field that's too long says its limit**: "Keep the reason under 500
   characters", from the server's `keepUnder`.
-
 - **Words that state a rule are checked against the code** (the `ui` skill):
   `lateFeeOf` charges a clean's share, not the plan's whole deposit, which
   the app and the first Terms of service once said (#462). Words on money,
   fees, refunds or who sees a Client's details name, in the review's prompt,
   the function each claim was checked against.
-
 - **To a Client, we're "us"**: "Please call us", not "the Office".
 - **A message the server and a screen both show is written once**, in
   `packages/models/src/messages/`, which both import: a file per subject,
@@ -515,7 +508,6 @@ stays as it is (#336).
   email in a Settings summary row breaks rather than running off a phone
   (#436). On a phone a row's badge (`end`) sits under its text rather than
   beside it (#305).
-
 - **Lean rows**: the fewest columns that drive the decision (who, where,
   status, money, age); no cell that means something different from row to
   row (and colour: the `ui` skill).
