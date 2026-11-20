@@ -3,11 +3,11 @@ import { resolve } from "node:path";
 // The config `pnpm pr:shots` (shots.ts) runs one checkout's end-to-end tests
 // with: the package's own playwright.config.ts (PR_SHOTS_PACKAGE names the
 // package's folder in that checkout, packages/web or packages/landing), with a
-// full-page screenshot at the end of each test. That checkout's slots,
-// databases and ports stay its own, and so does its Playwright: run it with
-// the package's own runner, as a spec loads its own checkout's
-// @playwright/test, so this file imports none. It works on any commit's
-// checkout, whose config needs nothing for it.
+// screenshot at the end of each test, the whole page or (PR_SHOTS_VIEWPORT,
+// --viewport) the screen. That checkout's slots, databases and ports stay its
+// own, and so does its Playwright: run it with the package's own runner, as a
+// spec loads its own checkout's @playwright/test, so this file imports none.
+// It works on any commit's checkout, whose config needs nothing for it.
 const folder = process.env.PR_SHOTS_PACKAGE;
 if (!folder) {
   throw new Error(
@@ -35,7 +35,11 @@ export default {
     .map((server) => ({ ...server, cwd: folder })),
   outputDir: process.env.PR_SHOTS_OUT,
   retries: 0,
-  use: { ...base.use, screenshot: { mode: "on", fullPage: true } },
+  // the whole page, or with --viewport the screen as the test left it
+  use: {
+    ...base.use,
+    screenshot: { mode: "on", fullPage: !process.env.PR_SHOTS_VIEWPORT },
+  },
   // desktop's size for any test, not only those tagged @desktop
   projects: base.projects?.map(({ grep: _, ...project }) => project),
 };

@@ -38,6 +38,7 @@ import {
   billedWeek,
   bookedJob,
   completedFirstClean,
+  freshHomes,
   sentServicePlanQuote,
   staffMember,
   startedServicePlan,
@@ -82,6 +83,7 @@ control.get("/health", (_req, res) => {
 // a clean slate before each test
 control.post("/reset", async (_req, res) => {
   freshFakes();
+  freshHomes();
   await resetDatabase();
   res.json({ status: "ok" });
 });

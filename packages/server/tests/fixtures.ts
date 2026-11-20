@@ -125,8 +125,14 @@ export const confirmOffer = async (asCleaner: Agent, jobId: string) => {
 };
 
 // a booked Job at a home of its own, put on the Schedule directly, for tests
-// about the Schedule rather than about accepting a Quote
+// about the Schedule rather than about accepting a Quote. Homes count from 1
+// again in each end-to-end test (the e2e server's /reset calls freshHomes),
+// so a test's Client 1 is Client 1 whatever ran before it in that server:
+// pr:shots --same compares one test's screens across two runs (#439)
 let homes = 0;
+export const freshHomes = () => {
+  homes = 0;
+};
 export const bookedJob = async ({
   startsAt,
   labourHours,
