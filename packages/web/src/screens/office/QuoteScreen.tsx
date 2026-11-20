@@ -774,7 +774,10 @@ function Offer({ quote, actions }: { quote: ShownQuote; actions?: ReactNode }) {
                 title={day ? planDayTitle("en", day) : option.serviceName}
                 badge={
                   day ? (
-                    <PlanSaving day={day} />
+                    <PlanSaving
+                      day={day}
+                      discountPercent={plan!.discountPercent}
+                    />
                   ) : (
                     option.recommended && (
                       <StatusBadge tone="success">Recommended</StatusBadge>
@@ -854,7 +857,7 @@ function DraftPrices({
             }
             badge={
               day ? (
-                <PlanSaving day={day} />
+                <PlanSaving day={day} discountPercent={plan!.discountPercent} />
               ) : (
                 option.recommended && (
                   <StatusBadge tone="success">Recommended</StatusBadge>
@@ -877,10 +880,12 @@ function DraftPrices({
                     day={day}
                     discountPercent={plan.discountPercent}
                   />
-                  <p className="text-sm text-fg-muted">
-                    The plan discount comes off the one-off price, whoever set
-                    it.
-                  </p>
+                  {plan.discountPercent > 0 && (
+                    <p className="text-sm text-fg-muted">
+                      The plan discount comes off the one-off price, whoever set
+                      it.
+                    </p>
+                  )}
                 </>
               ) : (
                 <OptionRows

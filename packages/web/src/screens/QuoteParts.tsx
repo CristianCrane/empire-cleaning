@@ -257,7 +257,7 @@ export function PlanDayCard({
     <Card
       title={planDayTitle(useLanguage(), day)}
       headingLevel={3}
-      actions={<PlanSaving day={day} />}
+      actions={<PlanSaving day={day} discountPercent={discountPercent} />}
     >
       <PlanFigures
         option={option}
@@ -276,12 +276,22 @@ export const planDayTitle = (lang: Language, day: PlanDayTerms) =>
     ? `${messages[lang].planDayWhen(day.startsAt)}: ${day.serviceName}`
     : day.serviceName;
 
-export function PlanSaving({ day }: { day: PlanDayTerms }) {
+// what a plan clean saves, said only when the plan has a discount: a plan
+// can be quoted at none
+export function PlanSaving({
+  day,
+  discountPercent,
+}: {
+  day: PlanDayTerms;
+  discountPercent: number;
+}) {
   const { w, formatMoney } = useWords();
   return (
-    <StatusBadge tone="success">
-      {w.save(formatMoney(day.savingCents))}
-    </StatusBadge>
+    discountPercent > 0 && (
+      <StatusBadge tone="success">
+        {w.save(formatMoney(day.savingCents))}
+      </StatusBadge>
+    )
   );
 }
 
@@ -326,10 +336,14 @@ export function PlanRows({
         <dd className="text-right tabular-nums">
           {formatMoney(day.oneOffTotalCents)}
         </dd>
-        <dt className="text-fg-muted">{w.planDiscount(discountPercent)}</dt>
-        <dd className="text-right tabular-nums">
-          −{formatMoney(day.savingCents)}
-        </dd>
+        {discountPercent > 0 && (
+          <>
+            <dt className="text-fg-muted">{w.planDiscount(discountPercent)}</dt>
+            <dd className="text-right tabular-nums">
+              −{formatMoney(day.savingCents)}
+            </dd>
+          </>
+        )}
         <dt className="font-semibold">{w.onThePlan}</dt>
         <dd className="text-right font-semibold tabular-nums">
           {formatMoney(option.totalCents)}
