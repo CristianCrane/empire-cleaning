@@ -35,6 +35,7 @@ import {
   home,
   signInAsOffice,
   submit,
+  staffMember,
 } from "../../../tests/fixtures.ts";
 import { SEEDED } from "#features/services";
 
@@ -1442,12 +1443,9 @@ describe("when a Quote's day fills up before it's accepted", () => {
   test("the Office is emailed when a Cleaner's usual week, or their leaving, crowds out a Quote (#242)", async () => {
     // room on Monday for one Deep Clean, with both Cleaners' hours
     await cleaners(1, 4);
-    const cory = await createStaff({
-      name: "Cory Cleaner",
-      email: "cory@example.com",
-      roles: ["cleaner"],
+    const cory = await staffMember("Cory Cleaner", {
+      usualWeek: [4, 4, 4, 4, 4, 0, 0],
     });
-    await setUsualWeek(cory.id, [4, 4, 4, 4, 4, 0, 0]);
     const office = await signInAsOffice();
     await sentQuote(office);
     const toldOffice = () =>
