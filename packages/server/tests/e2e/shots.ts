@@ -69,28 +69,46 @@ type Report = { suites?: Suite[]; errors?: { message?: string }[] };
 
 class Stop extends Error {}
 
-// the test's end on each project it ran in, in one checkout; null when the
-// base has no such test (a new one). A project
-// it skips is left out, and said; anything else that isn't a passed test with
-// its screenshot, on either side, stops the run
-const shoot = (
-  options: { spec: string; title: string; projects: string[]; dir: string },
-  checkout: string,
-  side: Side,
-): Shot[] | null => {
-  const [, pkg = "", spec = ""] =
-    /^(packages\/[^/]+)\/(.+)$/.exec(options.spec) ?? [];
-  const folder = join(checkout, pkg);
-  if (!existsSync(join(folder, "playwright.config.ts"))) {
+// one test as a run's report gives it: its spec (from the package's test
+// folder), its describes and title, the project, how it ended and the shot
+// at its end
+type Ran = {
+  spec: string;
+  title: string;
+  project: string;
+  status: string;
+  path?: string;
+};
+
+// the package a spec is in, in a checkout, and the spec's path from it
+const packageOf = (spec: string, checkout: string) => {
+  const [, pkg = "", file = ""] = /^(packages\/[^/]+)\/(.+)$/.exec(spec) ?? [];
+  if (!existsSync(join(checkout, pkg, "playwright.config.ts"))) {
     throw new Stop(
-      `${options.spec} is in no package with end-to-end tests: give its path from the repo root, such as packages/web/e2e/bills.spec.ts or packages/landing/tests/landing.spec.ts.`,
+      `${spec} is in no package with end-to-end tests: give its path from the repo root, such as packages/web/e2e/bills.spec.ts or packages/landing/tests/landing.spec.ts.`,
     );
   }
-  const out = join(options.dir, side);
-  rmSync(out, { recursive: true, force: true });
-  mkdirSync(out, { recursive: true });
-  const reportFile = join(out, "report.json");
-  console.log(`\n› ${side}: "${options.title}", in ${checkout}`);
+  return { pkg, file };
+};
+
+// one checkout's run of some specs of one package, each test on each
+// project, through shots.config.ts: every test it ran, and the run's own
+// errors (a spec that didn't load, or no test found)
+const run = (
+  options: {
+    pkg: string;
+    files: string[];
+    grep?: string;
+    projects: string[];
+    out: string;
+  },
+  checkout: string,
+  side: Side,
+): { ran: Ran[]; errors: string[] } => {
+  const folder = join(checkout, options.pkg);
+  rmSync(options.out, { recursive: true, force: true });
+  mkdirSync(options.out, { recursive: true });
+  const reportFile = join(options.out, "report.json");
   spawnSync(
     "pnpm",
     [
@@ -100,9 +118,8 @@ const shoot = (
       "-c",
       CONFIG,
       "--reporter=list,json",
-      spec,
-      "--grep",
-      grepFor(options.title),
+      ...options.files,
+      ...(options.grep ? ["--grep", options.grep] : []),
       ...options.projects.flatMap((project) => ["--project", project]),
     ],
     {
@@ -111,7 +128,7 @@ const shoot = (
       env: {
         ...process.env,
         PR_SHOTS_PACKAGE: folder,
-        PR_SHOTS_OUT: join(out, "results"),
+        PR_SHOTS_OUT: join(options.out, "results"),
         PLAYWRIGHT_JSON_OUTPUT_NAME: reportFile,
       },
     },
@@ -122,20 +139,18 @@ const shoot = (
     );
   }
   const report = JSON.parse(readFileSync(reportFile, "utf8")) as Report;
-  const found: {
-    title: string;
-    project: string;
-    status: string;
-    path?: string;
-  }[] = [];
+  const ran: Ran[] = [];
   // each test by its describes and its own title, as it's given (--grep's
   // own string has the tags too: grepFor)
-  const walk = (suite: Suite, describes: string[]) => {
-    suite.suites?.forEach((inner) => walk(inner, [...describes, inner.title]));
+  const walk = (spec: string, suite: Suite, describes: string[]) => {
+    suite.suites?.forEach((inner) =>
+      walk(spec, inner, [...describes, inner.title]),
+    );
     for (const { title, tests } of suite.specs ?? []) {
       for (const test of tests) {
         const result = test.results.at(-1);
-        found.push({
+        ran.push({
+          spec,
           title: [...describes, title].join(" "),
           project: test.projectName,
           status: result?.status ?? "not run",
@@ -149,8 +164,35 @@ const shoot = (
       }
     }
   };
-  report.suites?.forEach((file) => walk(file, []));
-  const errors = (report.errors ?? []).map(({ message = "" }) => message);
+  report.suites?.forEach((file) => walk(file.title, file, []));
+  return {
+    ran,
+    errors: (report.errors ?? []).map(({ message = "" }) => message),
+  };
+};
+
+// the test's end on each project it ran in, in one checkout; null when the
+// base has no such test (a new one). A project
+// it skips is left out, and said; anything else that isn't a passed test with
+// its screenshot, on either side, stops the run
+const shoot = (
+  options: { spec: string; title: string; projects: string[]; dir: string },
+  checkout: string,
+  side: Side,
+): Shot[] | null => {
+  const { pkg, file } = packageOf(options.spec, checkout);
+  console.log(`\n› ${side}: "${options.title}", in ${checkout}`);
+  const { ran: found, errors } = run(
+    {
+      pkg,
+      files: [file],
+      grep: grepFor(options.title),
+      projects: options.projects,
+      out: join(options.dir, side),
+    },
+    checkout,
+    side,
+  );
   if (found.length === 0) {
     const none = errors.every((error) => /No tests found/.test(error));
     if (none && side === "before") return null;
