@@ -181,7 +181,6 @@ test(
     // the Cleaner area is closed to them; the portal still opens
     await corysPage.goto("/cleaner");
     await expect(corysPage).toHaveURL("/portal");
-    await corysBrowser.close();
   },
 );
 
@@ -417,7 +416,6 @@ test("Office Staff invite a Cleaner in Spanish, whose area and invitation are in
 
   await corysPage.reload();
   await expect(corysPage.locator("html")).toHaveAttribute("lang", "en");
-  await corysBrowser.close();
 });
 
 test("Office Staff who don't clean have no availability to set", async ({
