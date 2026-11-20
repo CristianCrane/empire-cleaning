@@ -405,8 +405,24 @@ export const test = base.extend<{
         ))
           toasts.style.visibility = "hidden";
       });
+      // the whole page, with what's pinned to the screen where a person sees
+      // it: the top bar at the page's top, the tab bar at its foot. Chromium's
+      // full-page shot draws them where the screen sat as the test ended,
+      // mid-page (#414), so the screen is made as tall as the page instead.
+      // What's sized by the screen's height grows with it (the desktop
+      // sidebar), and may make the page taller, so it's measured again
+      // (every project here sets a screen size, so there's always a width)
+      const width = page.viewportSize()?.width;
+      for (let tries = 0; width && tries < 3; tries++) {
+        const [height, screen] = await page.evaluate(() => [
+          document.documentElement.scrollHeight,
+          window.innerHeight,
+        ]);
+        if (height === screen) break;
+        await page.setViewportSize({ width, height });
+      }
       const path = testInfo.outputPath("pr-shot.png");
-      await page.screenshot({ path, fullPage: true });
+      await page.screenshot({ path });
       await testInfo.attach("pr-shot", { path, contentType: "image/png" });
     },
     { auto: true },
