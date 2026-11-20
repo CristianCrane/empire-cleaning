@@ -11,9 +11,11 @@ import {
   formats,
   messages,
   oneStop,
+  asClean,
+  isFree,
 } from "@empire-cleaning/models";
 import { currentLanguage } from "#services/request";
-import { asClean, isFree, whyStarted } from "../jobs/rules.ts";
+import { whyStarted } from "../jobs/rules.ts";
 
 // The rules for a Job's crew (ADR-0019), over what the actions load: the
 // Job's day of the Schedule, and its Assignments. Each says why something is

@@ -536,9 +536,9 @@ stays as it is (#336).
   duration), ready for a Google Calendar sync. A Job dragged on the
   Schedule carries a picture of its block, and an outline its size shows
   where it would land, snapped as the drop is: its own colours, a
-  see-through fill inside a dashed edge, red over a day that won't take
-  it. ("Schedules As
-  Calendars")
+  see-through fill inside a dashed edge, red where it has no room (the
+  server's rule, hours and a crew free); a day with no room at any time
+  fades. ("Schedules As Calendars")
 - **Every place a time is chosen uses the calendar picker**, with the day
   and time fields kept as the keyboard path. The Office picks on the
   Schedule (`office/SchedulePicker.tsx`, inline in a wide dialog); a Client

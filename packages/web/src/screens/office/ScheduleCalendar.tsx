@@ -8,8 +8,11 @@ import {
 } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
+  asClean,
+  atTime,
   PICK_MINUTES,
   PICK_TIMES,
+  roomOn,
   type DayTimes,
   type LocalDateTime,
   type ScheduleDay,
@@ -110,10 +113,10 @@ const visitSpanOf = (visit: ScheduledSiteVisit) => {
 const NO_CREW =
   "bg-[repeating-linear-gradient(135deg,transparent_0_6px,var(--color-danger-subtle)_6px_12px)]";
 
-// whether a Job can move onto a day: its own day always has room for it
-const hasRoomFor = (day: ScheduleDay, job: ScheduledJob) =>
-  day.date === dayOfInstant(job.startsAt) ||
-  Math.round(day.freeHours * 100) >= Math.round(job.labourHours * 100);
+// whether a Job has room to move to a time on a day, by the server's own
+// rule (roomOn): the day's hours, a crew free then, and ending by midnight
+const hasRoomAt = (day: ScheduleDay, job: ScheduledJob, time: string) =>
+  roomOn(day, { ...asClean(job), startsAt: atTime(day.date, time) }).hasRoom;
 
 // a clean placed on the calendar before it's booked there: when it starts,
 // its time on site, what it's called, and for a Service Plan, how many
@@ -196,7 +199,8 @@ export function ScheduleCalendar({
   const hasCrew = (day: ScheduleDay, time: string) =>
     !noCrew?.find((d) => d.date === day.date)?.times.includes(time);
   // which Job is being dragged, and how far down it was grabbed, so it lands
-  // where it's let go; state too, so days without room for it fade
+  // where it's let go; state too, so days with no room for it at any time
+  // fade
   const dragging = useRef<Dragging>(undefined);
   const [draggedJob, setDraggedJob] = useState<ScheduledJob>();
   // where it would land if let go now, drawn there; kept as it is while the
@@ -236,11 +240,20 @@ export function ScheduleCalendar({
     );
   };
 
+  // whether a day has room for the dragged Job at no time it can land at
+  const noRoomAllDay = (day: ScheduleDay, job: ScheduledJob) => {
+    for (let at = axis.start; at <= axis.end - SNAP_HOURS; at += SNAP_HOURS) {
+      if (hasRoomAt(day, job, timeAt(at))) return false;
+    }
+    return true;
+  };
+
   const drop = (day: ScheduleDay, e: DragEvent<HTMLElement>) => {
     const grabbed = dragging.current;
-    if (!onDrop || !grabbed || !hasRoomFor(day, grabbed.job)) return;
-    e.preventDefault();
+    if (!onDrop || !grabbed) return;
     const to = { date: day.date, time: landingOf(e, grabbed) };
+    if (!hasRoomAt(day, grabbed.job, to.time)) return;
+    e.preventDefault();
     const { job } = grabbed;
     if (
       to.date !== dayOfInstant(job.startsAt) ||
@@ -273,8 +286,8 @@ export function ScheduleCalendar({
               // a day without room fades, but not under the outline, whose
               // red says so
               (draggedJob &&
-                !hasRoomFor(day, draggedJob) &&
-                landing?.date !== day.date) ||
+                landing?.date !== day.date &&
+                noRoomAllDay(day, draggedJob)) ||
               !isOpen(day.date)
                 ? "opacity-40"
                 : "",
@@ -305,11 +318,12 @@ export function ScheduleCalendar({
               onDragOver: (e) => {
                 const grabbed = dragging.current;
                 if (!grabbed) return;
-                if (hasRoomFor(day, grabbed.job)) {
+                const time = landingOf(e, grabbed);
+                if (hasRoomAt(day, grabbed.job, time)) {
                   e.preventDefault();
                   e.dataTransfer.dropEffect = "move";
                 }
-                landAt({ date: day.date, time: landingOf(e, grabbed) });
+                landAt({ date: day.date, time });
               },
               // leaving the day, not just moving onto a block within it
               onDragLeave: (e) => {
@@ -368,7 +382,7 @@ export function ScheduleCalendar({
                     job={draggedJob}
                     time={landing.time}
                     axis={axis}
-                    taken={hasRoomFor(day, draggedJob)}
+                    taken={hasRoomAt(day, draggedJob, landing.time)}
                   />
                 )}
               </>
@@ -737,7 +751,7 @@ function DayJobs({
 
 // a Job being dragged, drawn faintly in its own colours the width of the day
 // where it would land if let go now, at its size on the calendar, cut off at
-// the axis's end; in red over a day that won't take it
+// the axis's end; in red where it has no room
 function Landing({
   job,
   time,

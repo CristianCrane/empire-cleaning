@@ -1,6 +1,6 @@
+import { type Clean } from "@empire-cleaning/models";
 import { describe, expect, test } from "vitest";
 import { afterNine, thursday } from "../../../tests/schedule-days.ts";
-import type { Clean } from "../jobs/rules.ts";
 import { cleanRooms, whyUnbookable, type Held } from "./rules.ts";
 
 // Accepting a Quote over plain data (tests/schedule-days.ts): Thursday has

@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { weekdayOf } from "@empire-cleaning/models";
 import {
   acceptedJob,
@@ -183,6 +183,30 @@ test("the Schedule opens on three days from today, then on the span last chosen"
   await expect(page).toHaveURL(/from=2027-03-03&to=2027-03-03/);
 });
 
+// where Casey's Job would land, drawn while it's dragged
+const outlineOf = (page: Page) =>
+  page
+    .getByRole("main")
+    .locator("div")
+    .getByText(/^\d+:\d+ [AP]M Casey Client$/);
+const boxOf = async (of: Locator) => (await of.boundingBox())!;
+// an edge's colour and line: the outline's top, the Job's own left bar
+const edgeOf = (of: Locator, side: "Top" | "Left") =>
+  of.evaluate((element, side) => {
+    const style = getComputedStyle(element);
+    return [
+      style.getPropertyValue(`border-${side.toLowerCase()}-color`),
+      style.getPropertyValue(`border-${side.toLowerCase()}-style`),
+    ];
+  }, side);
+// a Job held mid-drag over a place: two moves, as the first only starts
+// the drag (Playwright's mouse.down)
+const holdOver = async (place: Locator, y?: number) => {
+  const position = y === undefined ? undefined : { x: 10, y };
+  await place.hover({ position });
+  await place.hover({ position });
+};
+
 // Casey's Deep Clean at 9am on Tuesday 2 March 2027, accepted with a Deposit,
 // with Cory Confirmed on it
 const caseysJob = async () => {
@@ -210,28 +234,7 @@ test(
     const block = jobsOn(page, "Tue, Mar 2").getByRole("link");
     const wednesday = jobsOn(page, "Wed, Mar 3");
     const thursday = jobsOn(page, "Thu, Mar 4");
-    // where the Job would land, drawn while it's dragged
-    const outline = page
-      .getByRole("main")
-      .locator("div")
-      .getByText(/^\d+:\d+ [AP]M Casey Client$/);
-    const boxOf = async (of: typeof block) => (await of.boundingBox())!;
-    // an edge's colour and line: the outline's top, the Job's own left bar
-    const edgeOf = (of: typeof block, side: "Top" | "Left") =>
-      of.evaluate((element, side) => {
-        const style = getComputedStyle(element);
-        return [
-          style.getPropertyValue(`border-${side.toLowerCase()}-color`),
-          style.getPropertyValue(`border-${side.toLowerCase()}-style`),
-        ];
-      }, side);
-    // a Job held mid-drag over a place: two moves, as the first only starts
-    // the drag (Playwright's mouse.down)
-    const holdOver = async (place: typeof block, y?: number) => {
-      const position = y === undefined ? undefined : { x: 10, y };
-      await place.hover({ position });
-      await place.hover({ position });
-    };
+    const outline = outlineOf(page);
 
     // held over a day with room, a dashed outline the Job's size and
     // colour shows where it would land: 10:30am on Wednesday
@@ -313,6 +316,57 @@ test(
     expect((await emailsTo("cory@example.com")).at(-1)!.subject).toBe(
       "A job you're on has moved",
     );
+  },
+);
+
+test(
+  "a dragged Job's outline is red at a time without a crew free, and it isn't taken there",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    test.skip(isMobile, "dragging needs a mouse");
+    await caseysJob();
+    // Wednesday's two Cleaners are both on a Job from 10 to 11: the day has
+    // hours free, but no crew then
+    await addCleaner("Dee Cleaner", [0, 0, 8, 0, 0, 0, 0]);
+    await bookJob({
+      startsAt: "2027-03-03T15:00:00Z",
+      labourHours: 2,
+      crewSize: 2,
+    });
+    await signedInAs(page, olive.email);
+    await page.goto(week);
+    const block = jobsOn(page, "Tue, Mar 2").getByRole("link");
+    const wednesday = jobsOn(page, "Wed, Mar 3");
+    const outline = outlineOf(page);
+    const [jobColour] = await edgeOf(block.locator(".."), "Left");
+
+    await block.hover({ position: { x: 10, y: 5 } });
+    await page.mouse.down();
+    // at 10:30 its crew would meet theirs: red
+    await holdOver(wednesday, 3.5 * HOUR_PX + 5);
+    await expect(wednesday.getByText("10:30 AM Casey Client")).toBeVisible();
+    await expect
+      .poll(async () => (await edgeOf(outline, "Top"))[0])
+      .not.toBe(jobColour);
+    // at 11, once they're done, its own colours
+    await holdOver(wednesday, 4 * HOUR_PX + 5);
+    await expect(wednesday.getByText("11:00 AM Casey Client")).toBeVisible();
+    expect(await edgeOf(outline, "Top")).toEqual([jobColour, "dashed"]);
+    // let go at 10:30, it stays put
+    await holdOver(wednesday, 3.5 * HOUR_PX + 5);
+    await expect(wednesday.getByText("10:30 AM Casey Client")).toBeVisible();
+    await page.mouse.up();
+    await expect(outline).toHaveCount(0);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    // let go at 11, the move is asked: at 11, not the 10:30 refused
+    await block.dragTo(wednesday, {
+      sourcePosition: { x: 10, y: 5 },
+      targetPosition: { x: 10, y: 4 * HOUR_PX + 5 },
+    });
+    const dialog = page.getByRole("dialog", { name: "Move this job?" });
+    await expect(dialog).toContainText("ToWed, Mar 3, 11:00 AM");
+    await expect(dialog).toContainText("There's room on Wed, Mar 3 then.");
   },
 );
 
