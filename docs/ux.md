@@ -604,10 +604,6 @@ stays as it is (#336).
    Testing). Moving a screen onto its layout drops nothing by accident
    (the `ui` skill, "Reworking a screen"): #432's review found three
    such drops, and #434's two more.
-   Where the build departs from the pick (a part it changes, a case the
-   prototype didn't draw), put each departure to the user once the plan
-   review names it, before building: #435's three waited from the plan
-   review to the PR, and held it there.
 5. **Record it**: a row in `docs/ux-log.md`; a new rule above (a
    type's own under its entry in Screen types), and a
    pattern in Storybook, if it carries over to other screens; and in
