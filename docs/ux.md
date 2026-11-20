@@ -599,9 +599,7 @@ stays as it is (#336).
    with its tests (e2e on phone and
    desktop, axe in light and dark through the harness's `expectAccessible`,
    the layout test at every width, a Guest's, Client's or Cleaner's screen
-   in Spanish too, through `expectFitsInBoth`). Its PR shows the screen
-   before and after, from `pnpm pr:shots` (`packages/web/README.md`,
-   Testing). Moving a screen onto its layout drops nothing by accident
+   in Spanish too, through `expectFitsInBoth`). Moving a screen onto its layout drops nothing by accident
    (the `ui` skill, "Reworking a screen"): #432's review found three
    such drops, and #434's two more.
 5. **Record it**: a row in `docs/ux-log.md`; a new rule above (a
