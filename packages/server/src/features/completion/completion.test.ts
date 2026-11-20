@@ -22,7 +22,7 @@ import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { chaseProposedAdjustments, completeJob } from "#features/completion";
 import { settleOpenPayments } from "#features/payments";
 import { properties } from "#features/properties";
-import { createStaff, setUsualWeek } from "#features/staff";
+import { createStaff } from "#features/staff";
 import {
   type Agent,
   api,
@@ -39,6 +39,7 @@ import {
   guestAsk,
   setService,
   signInAsOffice,
+  staffMember,
   submit,
 } from "../../../tests/fixtures.ts";
 import { SEEDED } from "#features/services";
@@ -58,20 +59,13 @@ const EXTRA_HOUR = 5988;
 // an hour more takes the price to the whole dollar $28 higher
 const QUOTED_OVEN = 2800 + 249;
 
-const cleaner = async (name: string) => {
-  const email = `${name.split(" ")[0]!.toLowerCase()}@example.com`;
-  const member = await createStaff({ name, email, roles: ["cleaner"] });
-  await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
-  return { ...member, email, signIn: () => signIn(email) };
-};
-
 const keyOf = (list: PriceList, name: string) =>
   list.addOns.find((a) => a.name === name)!.key;
 
 type Booked = {
   office: Agent;
   client: Agent;
-  cory: Awaited<ReturnType<typeof cleaner>> & { agent: Agent };
+  cory: Awaited<ReturnType<typeof staffMember>> & { agent: Agent };
   jobId: string;
   quote: OfficeQuote;
   list: PriceList;
@@ -88,8 +82,8 @@ const bookedJob = async ({
 } = {}): Promise<Booked> => {
   const office = await signInAsOffice();
   await beforeQuote(office);
-  const cory = await cleaner("Cory Cleaner");
-  await cleaner("Dee Cleaner");
+  const cory = await staffMember("Cory Cleaner");
+  await staffMember("Dee Cleaner");
   const list = (await office.get("/api/price-list").expect(200))
     .body as PriceList;
 
@@ -198,23 +192,18 @@ describe("completing a Job", () => {
       ).canComplete,
     ).toBe(false);
 
-    // Dee is Offered it, before the Job, but hasn't Confirmed
+    // Eve is Offered it, before the Job, but hasn't Confirmed
     testClock().set(new Date("2026-01-12T13:00:00Z"));
-    const dee = await createStaff({
-      name: "Dee Two",
-      email: "dee2@example.com",
-      roles: ["cleaner"],
-    });
-    await setUsualWeek(dee.id, [8, 8, 8, 8, 8, 0, 0]);
+    const eve = await staffMember("Eve Cleaner");
     await office
       .post(`/api/jobs/${jobId}/assignments`)
-      .send({ staffId: dee.id })
+      .send({ staffId: eve.id })
       .expect(201);
-    const asDee = await signIn("dee2@example.com");
-    expect((await complete(asDee, jobId).expect(409)).body.message).toMatch(
+    const asEve = await eve.signIn();
+    expect((await complete(asEve, jobId).expect(409)).body.message).toMatch(
       /Confirm this job first./,
     );
-    await confirmOffer(asDee, jobId);
+    await confirmOffer(asEve, jobId);
 
     // not before it starts
     testClock().set(new Date("2026-01-12T13:59:00Z"));
@@ -1047,7 +1036,7 @@ describe("a Property's Condition", () => {
     const office = await signInAsOffice();
     const me = (await office.get("/api/me").expect(200))
       .body as SignedInAccount;
-    const cory = await cleaner("Cory Cleaner");
+    const cory = await staffMember("Cory Cleaner");
     const earlier = await acceptedJob({
       startsAt: "2026-01-12T14:00:00Z",
       byAccountId: me.id,

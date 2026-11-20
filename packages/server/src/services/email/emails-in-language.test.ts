@@ -63,13 +63,13 @@ import { staffInviteEmail } from "../../features/staff/emails.ts";
 import type { Clean, Email } from "./blocks.ts";
 import { renderEmail } from "./render.tsx";
 import { createClient } from "#features/clients";
-import { createStaff, setUsualWeek } from "#features/staff";
 import { emailedLinkFor, signIn, testEmail } from "../../../tests/harness.ts";
 import {
   bookedJob,
   casey,
   completedFirstClean,
   signInAsOffice,
+  staffMember,
 } from "../../../tests/fixtures.ts";
 
 // Every email to a Client (#304) or a Cleaner (#305), each way it can
@@ -651,12 +651,7 @@ describe("a Client's emails as they're sent", () => {
 describe("a Cleaner's emails as they're sent", () => {
   test("go in the language they chose, their links opening in it (#305)", async () => {
     const office = await signInAsOffice();
-    const cory = await createStaff({
-      name: "Cory Cleaner",
-      email: "cory@example.com",
-      roles: ["cleaner"],
-    });
-    await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+    const cory = await staffMember("Cory Cleaner");
     await (
       await signIn(cory.email)
     )

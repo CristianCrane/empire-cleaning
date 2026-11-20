@@ -15,7 +15,7 @@ import { db } from "#db";
 import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { recordNoAccess } from "#features/cancellation";
 import { bookJob } from "#features/jobs";
-import { createStaff, setUsualWeek, staff } from "#features/staff";
+import { staff } from "#features/staff";
 import {
   type Agent,
   api,
@@ -29,6 +29,7 @@ import {
   completedFirstClean,
   signInAsOffice,
   submit,
+  staffMember,
 } from "../../../tests/fixtures.ts";
 import { generateServicePlanJobs } from "./service-plans.ts";
 import { findService, SEEDED } from "#features/services";
@@ -540,12 +541,7 @@ describe("changing a plan's terms", () => {
 describe("a commercial Service Plan", () => {
   const premises = async () => {
     const office = await signInAsOffice();
-    const cory = await createStaff({
-      name: "Cory Cleaner",
-      email: "cory@example.com",
-      roles: ["cleaner"],
-    });
-    await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 8, 0]);
+    await staffMember("Cory Cleaner", { usualWeek: [8, 8, 8, 8, 8, 8, 0] });
     const types = (
       await api().get("/api/price-list/premises-types").expect(200)
     ).body as { key: string; name: string }[];
