@@ -276,8 +276,11 @@ export const planDayTitle = (lang: Language, day: PlanDayTerms) =>
     ? `${messages[lang].planDayWhen(day.startsAt)}: ${day.serviceName}`
     : day.serviceName;
 
+// what a plan clean saves, said only when it saves something: a plan can
+// be quoted at no discount
 export function PlanSaving({ day }: { day: PlanDayTerms }) {
   const { w, formatMoney } = useWords();
+  if (day.savingCents === 0) return null;
   return (
     <StatusBadge tone="success">
       {w.save(formatMoney(day.savingCents))}
@@ -326,10 +329,14 @@ export function PlanRows({
         <dd className="text-right tabular-nums">
           {formatMoney(day.oneOffTotalCents)}
         </dd>
-        <dt className="text-fg-muted">{w.planDiscount(discountPercent)}</dt>
-        <dd className="text-right tabular-nums">
-          −{formatMoney(day.savingCents)}
-        </dd>
+        {discountPercent > 0 && (
+          <>
+            <dt className="text-fg-muted">{w.planDiscount(discountPercent)}</dt>
+            <dd className="text-right tabular-nums">
+              −{formatMoney(day.savingCents)}
+            </dd>
+          </>
+        )}
         <dt className="font-semibold">{w.onThePlan}</dt>
         <dd className="text-right font-semibold tabular-nums">
           {formatMoney(option.totalCents)}

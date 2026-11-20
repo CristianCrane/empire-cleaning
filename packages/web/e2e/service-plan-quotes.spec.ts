@@ -359,6 +359,35 @@ test("the Client reads a plan quote's facts: how often from when, and who's on s
   ).toBeVisible();
 });
 
+test("a plan quoted at no discount shows the Client no saving", async ({
+  page,
+}) => {
+  await startPlan(page);
+  const discount = page
+    .getByRole("region", { name: "Plan" })
+    .getByRole("textbox", { name: "Plan discount (%)" });
+  await discount.fill("0");
+  await discount.blur();
+  // the one-off price, $224.28 with tax, is the plan's
+  await expect(
+    page.getByText(/^Standard Clean, every 2 weeks: \$224\.28 a clean$/),
+  ).toBeVisible();
+  await saved(page);
+  await startOn19th(page);
+  await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
+  await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
+
+  await signedInAs(page, casey.email);
+  await page.goto(await quoteLink());
+  const plan = page.getByRole("region", {
+    name: "Mondays at 9:00 AM: Standard Clean",
+  });
+  await expect(plan).toContainText("$224.28");
+  await expect(plan).not.toContainText("Save");
+  await expect(plan).not.toContainText("Plan discount");
+  await expect(page.locator("main")).not.toContainText("% off");
+});
+
 test("the Client and Property screens pass an accessibility check", async ({
   page,
 }) => {
