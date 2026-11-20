@@ -350,7 +350,6 @@ The `ui` skill's rules hold here too; these are this product's.
   third-party sign-in keeps its owner's look): their colours in light and
   dark, their logo, Roboto. Only the 44px touch height is ours.
 
-
 ### Notices
 
 - **A Notice holds at most one action**, a text Button (or `ButtonLink`) on
@@ -591,7 +590,8 @@ stays as it is (#336).
    the layout test at every width, a Guest's, Client's or Cleaner's screen
    in Spanish too, through `expectFitsInBoth`). Moving a screen onto its
    layout drops nothing by accident (the `ui` skill, "Reworking a
-   screen"): #432's review found three such drops, and #434's two more.
+   screen"): #432's review found three such drops, and #434's two more. A
+   part dropped on purpose gives its reason in its `docs/ux-log.md` row.
 5. **Record it**: a row in `docs/ux-log.md`; a new rule above (a
    type's own under its entry in Screen types), and a
    pattern in Storybook, if it carries over to other screens; and in

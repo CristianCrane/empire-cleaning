@@ -1,6 +1,6 @@
 # UX decisions log
 
-What each screen was, the options tried, which won and why, from the UX pass (#96) on; the rules they settled are in `docs/ux.md`. Newest last. "Built in" is the PR (or branch) that shipped it.
+What each screen was, the options tried, which won and why, from the UX pass (#96) on; the rules they settled are in `docs/ux.md`, which a row's "above" means. Newest last. "Built in" is the PR (or branch) that shipped it.
 
 | Screen | Question | Variants | Picked | Why | Prototype | Built in |
 |---|---|---|---|---|---|---|
