@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { formats } from "@empire-cleaning/models";
 import type {
   AcceptOutcome,
   ClientJobDetail,
@@ -79,10 +80,13 @@ const draftPlan = async (office: Agent, propertyId: string) =>
       .expect(201)
   ).body as OfficeQuote;
 
+// a plan Draft's terms on these days; `plan` changes others, such as its
+// discount
 const body = (
   draft: OfficeQuote,
   days: PlanDayInput[],
   recurrence: "weekly" | "fortnightly" = "weekly",
+  plan: Partial<NonNullable<QuoteDraftInput["plan"]>> = {},
 ): QuoteDraftInput => ({
   addOns: [],
   depositPercent: draft.draft!.depositPercent,
@@ -93,6 +97,7 @@ const body = (
     discountPercent: draft.draft!.plan!.discountPercent,
     condition: "moderate",
     days,
+    ...plan,
   },
 });
 
@@ -101,18 +106,20 @@ const save = (
   draft: OfficeQuote,
   days: PlanDayInput[],
   recurrence?: "weekly" | "fortnightly",
+  plan?: Parameters<typeof body>[3],
 ) =>
   office
     .patch(`/api/quotes/${draft.id}/draft`)
-    .send(body(draft, days, recurrence));
+    .send(body(draft, days, recurrence, plan));
 
 const sentPlan = async (
   office: Agent,
   propertyId: string,
   days = MONDAY_AND_WEDNESDAY,
+  plan?: Parameters<typeof body>[3],
 ) => {
   const draft = await draftPlan(office, propertyId);
-  await save(office, draft, days).expect(200);
+  await save(office, draft, days, undefined, plan).expect(200);
   return (await office.post(`/api/quotes/${draft.id}/send`).expect(200))
     .body as OfficeQuote;
 };
@@ -312,6 +319,21 @@ describe("a Service Plan Quote on several weekdays", () => {
       "a Standard Clean every week, on Mondays at 9:00 AM and Wednesdays at 1:00 PM",
     );
     expect(sent.text).toContain(`Wednesday: $`);
+  });
+
+  test("with no Plan Discount, emails what a week costs, and no discount", async () => {
+    const { office, propertyId } = await firstCleanDone();
+    const quote = await sentPlan(office, propertyId, MONDAY_AND_WEDNESDAY, {
+      discountPercent: 0,
+    });
+
+    const sent = testEmail()
+      .to(casey.email)
+      .find((m) => /cleaning plan quote/.test(m.subject))!;
+    expect(sent.text).toContain(
+      `${formats.en.formatMoney(quote.offer!.plan!.roundTotalCents)} a week.`,
+    );
+    expect(sent.text).not.toContain("% off");
   });
 });
 

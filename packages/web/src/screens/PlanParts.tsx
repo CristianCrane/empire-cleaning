@@ -355,6 +355,7 @@ export function PlanCard({
   const [one] = plan.days;
   const several = plan.days.length > 1;
   const ended = plan.status === "ended";
+  const each = several ? t.w.eachWeek : t.w.eachClean;
   return (
     <DetailsCard
       label={label}
@@ -381,14 +382,15 @@ export function PlanCard({
       <Facts>
         <Fact
           icon={Receipt}
-          label={several ? t.w.eachWeek : t.w.eachClean}
+          label={each}
           value={t.formatMoney(
             several ? plan.roundTotalCents : one!.totalCents,
           )}
-          line={t.w.taxOff(
-            several ? t.w.eachWeek : t.w.eachClean,
-            plan.discountPercent,
-          )}
+          line={
+            plan.discountPercent > 0
+              ? t.w.taxOff(each, plan.discountPercent)
+              : t.taxIncludedOf(each)
+          }
         />
         {several ? (
           <Fact
