@@ -81,6 +81,9 @@ const words = catalog({
         `${each} a clean, which saves you ${saving} on the one-off price of ${oneOff}.`,
       weekly: (week: string, percent: number) =>
         `${week} a week, ${percent}% off the one-off prices.`,
+      // the same, on a plan with no Plan Discount
+      aClean: (each: string) => `${each} a clean.`,
+      aWeek: (week: string) => `${week} a week.`,
       openUntil: (until: string, email: string) =>
         `It's open until ${until}. To see all of it, sign in with this email address (${email}):`,
     },
@@ -173,6 +176,8 @@ const words = catalog({
         `${each} por limpieza, que le ahorra ${saving} sobre el precio de una sola limpieza, ${oneOff}.`,
       weekly: (week: string, percent: number) =>
         `${week} por semana, un ${percent}% menos que los precios de una sola limpieza.`,
+      aClean: (each: string) => `${each} por limpieza.`,
+      aWeek: (week: string) => `${week} por semana.`,
       openUntil: (until: string, email: string) =>
         oneStop(
           `Está abierta hasta el ${until}. Para verla completa, inicie sesión con este correo (${email}):`,
@@ -485,11 +490,13 @@ const planOffer = (
         ),
       ),
       paragraph(
-        w.saves(
-          formatMoney(offer.options[0]!.totalCents),
-          formatMoney(day!.savingCents),
-          formatMoney(day!.oneOffTotalCents),
-        ),
+        plan.discountPercent > 0
+          ? w.saves(
+              formatMoney(offer.options[0]!.totalCents),
+              formatMoney(day!.savingCents),
+              formatMoney(day!.oneOffTotalCents),
+            )
+          : w.aClean(formatMoney(offer.options[0]!.totalCents)),
       ),
     ];
   }
@@ -513,7 +520,9 @@ const planOffer = (
       })),
     ),
     paragraph(
-      w.weekly(formatMoney(plan.roundTotalCents), plan.discountPercent),
+      plan.discountPercent > 0
+        ? w.weekly(formatMoney(plan.roundTotalCents), plan.discountPercent)
+        : w.aWeek(formatMoney(plan.roundTotalCents)),
     ),
   ];
 };
