@@ -1,8 +1,11 @@
 import { describe, expect, test } from "vitest";
 import type { CleanerJob } from "@empire-cleaning/models";
-import { createStaff, setUsualWeek } from "#features/staff";
 import { type Agent, signIn, testClock } from "../../../tests/harness.ts";
-import { bookedJob, signInAsOffice } from "../../../tests/fixtures.ts";
+import {
+  bookedJob,
+  signInAsOffice,
+  staffMember,
+} from "../../../tests/fixtures.ts";
 
 // A Cleaner whose screen is in Spanish (ADR-0025, #305): the API's messages
 // to them come in it, tú, and in English to a request that names no
@@ -21,12 +24,7 @@ const issues = (body: { details: { path: string; issue: string }[] }) =>
 
 const coryOnAJob = async () => {
   const office = await signInAsOffice();
-  const cory = await createStaff({
-    name: "Cory Cleaner",
-    email: "cory@example.com",
-    roles: ["cleaner"],
-  });
-  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+  const cory = await staffMember("Cory Cleaner");
   const job = (await bookedJob({
     startsAt: MONDAY_9AM,
     labourHours: 3,

@@ -9,7 +9,6 @@ import type {
   ScheduleDay,
   SignedInAccount,
 } from "@empire-cleaning/models";
-import { createStaff, setUsualWeek } from "#features/staff";
 import {
   type Agent,
   api,
@@ -26,6 +25,7 @@ import {
   confirmOffer,
   guestAsk,
   signInAsOffice,
+  staffMember,
   submit,
 } from "../../../tests/fixtures.ts";
 
@@ -44,13 +44,6 @@ const WEDNESDAY_10AM = "2026-01-14T15:00:00.000Z";
 const THURSDAY = { date: "2026-01-15", time: "10:00" };
 const THURSDAY_10AM = "2026-01-15T15:00:00.000Z";
 
-const cleaner = async (name: string) => {
-  const email = `${name.split(" ")[0]!.toLowerCase()}@example.com`;
-  const member = await createStaff({ name, email, roles: ["cleaner"] });
-  await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
-  return { ...member, email };
-};
-
 /**
  * Casey's Deep Clean at 9am on Monday the 12th, accepted with a 25% Deposit,
  * with Cory Offered it and Confirmed on it.
@@ -58,8 +51,8 @@ const cleaner = async (name: string) => {
 const bookedJob = async () => {
   const office = await signInAsOffice();
   const me = (await office.get("/api/me").expect(200)).body as SignedInAccount;
-  const cory = await cleaner("Cory Cleaner");
-  await cleaner("Dee Cleaner");
+  const cory = await staffMember("Cory Cleaner");
+  await staffMember("Dee Cleaner");
 
   const job = await acceptedJob({ startsAt: STARTS_AT, byAccountId: me.id });
   await office
@@ -267,8 +260,8 @@ describe("asking to move a Job", () => {
 
   test("offers only times that end by midnight (#242)", async () => {
     const office = await signInAsOffice();
-    await cleaner("Cory Cleaner");
-    await cleaner("Dee Cleaner");
+    await staffMember("Cory Cleaner");
+    await staffMember("Dee Cleaner");
     // 9 hours on site
     const job = await otherJob({
       startsAt: "2026-01-12T14:00:00Z",

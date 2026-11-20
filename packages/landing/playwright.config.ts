@@ -23,7 +23,7 @@ export const appUrl = "https://app.example.test";
 // database, and run at once all the same: nothing resets them, and a test
 // that sends the form asks as a Client of its own, by its email (newEmail in
 // tests/harness.ts), so it sees only its own Quotes and emails. 2 workers
-// (why: ADR-0026); --workers sets it
+// (why: ADR-0032); --workers sets it
 export default defineConfig({
   testDir: "./tests",
   workers: 2,

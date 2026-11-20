@@ -5,7 +5,6 @@ import { eq } from "drizzle-orm";
 import { db } from "#db";
 import { paymentOf, settleJob } from "#features/completion";
 import { jobs } from "#features/jobs";
-import { createStaff, setUsualWeek } from "#features/staff";
 import { FAKE_SIGNATURE } from "../../../tests/fakes/payment-gateway.ts";
 import {
   api,
@@ -18,6 +17,7 @@ import {
   casey,
   completedFirstClean,
   signInAsOffice,
+  staffMember,
 } from "../../../tests/fixtures.ts";
 
 const webhook = (event: unknown) =>
@@ -41,12 +41,7 @@ const historyOf = async (address: string) => {
 // Casey's Deep Clean at 9am on Monday 12 January, with its Deposit taken,
 // and a Cleaner free that day
 const bookedJob = async (byAccountId: string) => {
-  const cory = await createStaff({
-    name: "Cory Cleaner",
-    email: "cory@example.com",
-    roles: ["cleaner"],
-  });
-  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+  await staffMember("Cory Cleaner");
   return acceptedJob({ startsAt: "2026-01-12T14:00:00Z", byAccountId });
 };
 

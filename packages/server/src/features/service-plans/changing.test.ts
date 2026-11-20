@@ -118,11 +118,6 @@ const totalsOf = async (jobIds: string[]) =>
   new Map((await jobQuotes(jobIds)).map((r) => [r.jobId, r.option.totalCents]));
 
 describe("accepting a Service Plan Quote for a home with a plan", () => {
-  // the slowest server test, ~3.6 s in a full run where the median takes
-  // 0.3 s, so with two checkouts' runs at once it passed Vitest's 5 s. Its own
-  // 10 s: it crews a plan, sends and accepts a change to it, which cancels
-  // Jobs and emails each person, and books the plan on. #316 brought it down
-  // only 0.2 s
   test("changes the plan from the Quote's time: its Jobs from then on are cancelled free, and it carries on on the new terms", async () => {
     const { office, client, planId, cleanerId } = await crewedServicePlan();
     const me = (await office.get("/api/me").expect(200))
@@ -195,7 +190,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
       "2026-02-11T14:00:00.000Z",
       "2026-02-25T14:00:00.000Z",
     ]);
-  }, 10_000);
+  });
 
   test("tells a Client billed weekly that each week's cleans go on one Bill (#244 #5)", async () => {
     const { office, client, planId } = await crewedServicePlan();

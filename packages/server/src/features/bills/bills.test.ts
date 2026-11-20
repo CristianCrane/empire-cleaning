@@ -32,7 +32,6 @@ import { jobs } from "#features/jobs";
 import { currentPriceList } from "#features/price-list";
 import { servicePlans } from "#features/service-plans";
 import { settleOpenPayments } from "#features/payments";
-import { createStaff, setUsualWeek } from "#features/staff";
 import {
   type Agent,
   api,
@@ -49,6 +48,7 @@ import {
   casey,
   signInAsOffice,
   startedServicePlan,
+  staffMember,
 } from "../../../tests/fixtures.ts";
 
 const { formatMoney } = formats.en;
@@ -60,17 +60,6 @@ const WEDNESDAY_9AM = "2026-01-07T14:00:00Z";
 const WEDNESDAY_NOON = new Date("2026-01-07T17:00:00Z");
 const NEXT_MONDAY = new Date("2026-01-12T15:00:00Z");
 const BILLING_EMAIL = "accounts@acme.example.com";
-
-// Cory, who works weekdays, so the Schedule has room
-const cory = async () => {
-  const member = await createStaff({
-    name: "Cory Cleaner",
-    email: "cory@example.com",
-    roles: ["cleaner"],
-  });
-  await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
-  return member;
-};
 
 const setBilling = (
   office: Agent,
@@ -103,7 +92,7 @@ const billedJob = async (
 ) => {
   const office = await signInAsOffice();
   const me = (await office.get("/api/me").expect(200)).body as SignedInAccount;
-  const cleaner = await cory();
+  const cleaner = await staffMember("Cory Cleaner");
   const job = await acceptedJob({
     startsAt: WEDNESDAY_9AM,
     byAccountId: me.id,
@@ -150,7 +139,7 @@ describe("weekly billing settings", () => {
     const office = await signInAsOffice();
     const me = (await office.get("/api/me").expect(200))
       .body as SignedInAccount;
-    await cory();
+    await staffMember("Cory Cleaner");
     await acceptedJob({ startsAt: WEDNESDAY_9AM, byAccountId: me.id });
     const client = (await findClientByEmail(casey.email))!;
 
@@ -263,7 +252,7 @@ describe("making Bills", () => {
     const office = await signInAsOffice();
     const me = (await office.get("/api/me").expect(200))
       .body as SignedInAccount;
-    await cory();
+    await staffMember("Cory Cleaner");
     const job = await acceptedJob({
       startsAt: WEDNESDAY_9AM,
       byAccountId: me.id,
@@ -539,7 +528,7 @@ describe("a Bill that can't be charged for want of the database", () => {
     const office = await signInAsOffice();
     const me = (await office.get("/api/me").expect(200))
       .body as SignedInAccount;
-    const { id: coryId } = await cory();
+    const { id: coryId } = await staffMember("Cory Cleaner");
     const dana = {
       name: "Dana Client",
       email: "dana@example.com",
@@ -607,7 +596,7 @@ describe("Unpaid Bills", () => {
     const office = await signInAsOffice();
     const me = (await office.get("/api/me").expect(200))
       .body as SignedInAccount;
-    const { id: coryId } = await cory();
+    const { id: coryId } = await staffMember("Cory Cleaner");
     const first = await acceptedJob({
       startsAt: WEDNESDAY_9AM,
       byAccountId: me.id,
@@ -1002,7 +991,7 @@ describe("reminders and late Bills", () => {
     const office = await signInAsOffice();
     const me = (await office.get("/api/me").expect(200))
       .body as SignedInAccount;
-    const { id: coryId } = await cory();
+    const { id: coryId } = await staffMember("Cory Cleaner");
     const first = await acceptedJob({
       startsAt: WEDNESDAY_9AM,
       byAccountId: me.id,
@@ -1482,7 +1471,7 @@ describe("switching weekly billing off", () => {
     const office = await signInAsOffice();
     const me = (await office.get("/api/me").expect(200))
       .body as SignedInAccount;
-    const { id: coryId } = await cory();
+    const { id: coryId } = await staffMember("Cory Cleaner");
     const first = await acceptedJob({
       startsAt: WEDNESDAY_9AM,
       byAccountId: me.id,

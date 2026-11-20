@@ -35,26 +35,17 @@ export const createClient = (client: {
   phone?: string;
 }) => control("/clients", { method: "POST", body: JSON.stringify(client) });
 
-// the hours a Staff member is usually available, Monday first
-const setUsualWeek = (staffId: string, usualWeek: number[]) =>
-  control(`/staff/${staffId}/usual-week`, {
-    method: "PUT",
-    body: JSON.stringify({ usualWeek }),
-  });
-
 // a Cleaner on Staff, their email their first name at example.com, usually
 // free these hours each day, Monday first: 8 each weekday unless said
-export const addCleaner = async (
+// (staffMember in packages/server/tests/fixtures.ts)
+export const addCleaner = (
   name: string,
-  usualWeek = [8, 8, 8, 8, 8, 0, 0],
-) => {
-  const email = `${name.split(" ")[0]!.toLowerCase()}@example.com`;
-  const member = (await createStaff({ name, email, roles: ["cleaner"] })) as {
-    id: string;
-  };
-  await setUsualWeek(member.id, usualWeek);
-  return { id: member.id, email };
-};
+  usualWeek?: number[],
+): Promise<{ id: string; email: string }> =>
+  control("/cleaners", {
+    method: "POST",
+    body: JSON.stringify({ name, usualWeek }),
+  });
 
 // every Charge is declined with this reason from now on; null to stop
 export const failCharges = (reason: string | null = "card_declined") =>

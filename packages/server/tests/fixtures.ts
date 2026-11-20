@@ -10,8 +10,9 @@ import type {
   Service,
   ServiceInput,
   SignedInAccount,
+  StaffRole,
 } from "@empire-cleaning/models";
-import { dayOf, timeOf } from "@empire-cleaning/models";
+import { dayOf, firstNameOf, timeOf } from "@empire-cleaning/models";
 import { apart, db, type Tx } from "#db";
 import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { bills, makeDueBills, setBilling } from "#features/bills";
@@ -95,6 +96,22 @@ export const signInAsOffice = async () => {
     roles: ["office_staff"],
   });
   return signIn("olive@example.com");
+};
+
+// a Staff member from their name, their email their first name at
+// example.com: a Cleaner free 8 hours each weekday unless said (the hours
+// Monday first)
+export const staffMember = async (
+  name: string,
+  {
+    roles = ["cleaner"],
+    usualWeek = [8, 8, 8, 8, 8, 0, 0],
+  }: { roles?: StaffRole[]; usualWeek?: number[] } = {},
+) => {
+  const email = `${firstNameOf(name).toLowerCase()}@example.com`;
+  const member = await createStaff({ name, email, roles });
+  await setUsualWeek(member.id, usualWeek);
+  return { ...member, signIn: () => signIn(email) };
 };
 
 // a Cleaner Confirming the Job they were Offered, at the time it shows them
@@ -239,19 +256,9 @@ export const completedFirstClean = async ({
   serviceKey?: string;
   declined?: boolean;
 }) => {
-  const cory = await createStaff({
-    name: "Cory Cleaner",
-    email: "cory@example.com",
-    roles: ["cleaner"],
-  });
-  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+  const cory = await staffMember("Cory Cleaner");
   // a second Cleaner, so a crew of 2 has room
-  const bea = await createStaff({
-    name: "Bea Cleaner",
-    email: "bea@example.com",
-    roles: ["cleaner"],
-  });
-  await setUsualWeek(bea.id, [8, 8, 8, 8, 8, 0, 0]);
+  await staffMember("Bea Cleaner");
   const job = await acceptedJob({
     startsAt: "2026-01-12T14:00:00Z",
     byAccountId,
@@ -444,12 +451,7 @@ export const billedWeek = async ({
   failing?: boolean;
   unbilled?: boolean;
 }) => {
-  const cory = await createStaff({
-    name: "Cory Cleaner",
-    email: "cory@example.com",
-    roles: ["cleaner"],
-  });
-  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+  const cory = await staffMember("Cory Cleaner");
   const crewed = async (jobId: string) => {
     const offered = await offerAssignment(jobId, cory.id, byAccountId);
     await confirmAssignment(cory.id, offered.assignments[0]!.id);

@@ -18,11 +18,7 @@ import { SEEDED } from "../../src/features/services/seeded.ts";
 
 import { app, listen } from "../../src/server.ts";
 import env from "../../src/env.ts";
-import {
-  createStaff,
-  setUsualWeek,
-  staff,
-} from "../../src/features/staff/index.ts";
+import { createStaff, staff } from "../../src/features/staff/index.ts";
 import { createClient } from "../../src/features/clients/index.ts";
 import { sendDueReminders } from "../../src/features/jobs/index.ts";
 import {
@@ -44,6 +40,7 @@ import {
   completedFirstClean,
   freshHomes,
   sentServicePlanQuote,
+  staffMember,
   startedServicePlan,
 } from "../fixtures.ts";
 import {
@@ -100,10 +97,15 @@ control.post("/staff", async (req, res) => {
   res.json(await createStaff({ email, name, roles }));
 });
 
-// the hours a Staff member is usually available, Monday first
-control.put("/staff/:id/usual-week", async (req, res) => {
-  const { usualWeek } = req.body as { usualWeek: number[] };
-  res.json(await setUsualWeek(req.params.id, usualWeek));
+// a Cleaner on Staff from their name (staffMember in tests/fixtures.ts),
+// usually free these hours each day, Monday first, when said
+control.post("/cleaners", async (req, res) => {
+  const { name, usualWeek } = req.body as {
+    name: string;
+    usualWeek?: number[];
+  };
+  const { id, email } = await staffMember(name, { usualWeek });
+  res.json({ id, email });
 });
 
 // a booked Job at a home of its own, straight onto the Schedule

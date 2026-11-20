@@ -7,27 +7,24 @@ import type {
 import { db } from "#db";
 import { emailCleanersNeeded } from "#features/assignments";
 import { siteVisits } from "#features/site-visits";
-import { createStaff, deactivateStaff, setUsualWeek } from "#features/staff";
+import { deactivateStaff } from "#features/staff";
 import {
   type Agent,
   signIn,
   testClock,
   testEmail,
 } from "../../../tests/harness.ts";
-import { bookedJob, signInAsOffice } from "../../../tests/fixtures.ts";
+import {
+  bookedJob,
+  signInAsOffice,
+  staffMember,
+} from "../../../tests/fixtures.ts";
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York (09:00
 // UTC). The Job here is at 9am New York on Thursday the 8th, three days
 // away: its Cleaners Needed are open at once. With 6 Labour Hours and a crew of two,
 // it's 9am to noon on site.
 const THURSDAY_9AM = "2026-01-08T14:00:00Z";
-
-const cleaner = async (name: string, week = [8, 8, 8, 8, 8, 0, 0]) => {
-  const email = `${name.split(" ")[0]!.toLowerCase()}@example.com`;
-  const member = await createStaff({ name, email, roles: ["cleaner"] });
-  await setUsualWeek(member.id, week);
-  return { ...member, email, signIn: () => signIn(email) };
-};
 
 const thursdayJob = (crewSize = 2) =>
   bookedJob({ startsAt: THURSDAY_9AM, labourHours: 6, crewSize });
@@ -76,17 +73,16 @@ const siteVisit = async (
 describe("Cleaners Needed", () => {
   test("are open to every free active Cleaner, Office Staff who clean included", async () => {
     const job = await thursdayJob();
-    const cory = await cleaner("Cory Cleaner");
+    const cory = await staffMember("Cory Cleaner");
     // no hours on Thursdays
-    const fay = await cleaner("Fay Cleaner", [8, 8, 8, 0, 8, 0, 0]);
-    const eve = await cleaner("Eve Cleaner");
+    const fay = await staffMember("Fay Cleaner", {
+      usualWeek: [8, 8, 8, 0, 8, 0, 0],
+    });
+    const eve = await staffMember("Eve Cleaner");
     await deactivateStaff(eve.id);
-    const ana = await createStaff({
-      name: "Ana Both",
-      email: "ana@example.com",
+    await staffMember("Ana Both", {
       roles: ["cleaner", "office_staff"],
     });
-    await setUsualWeek(ana.id, [8, 8, 8, 8, 8, 0, 0]);
     const office = await signInAsOffice();
 
     // what a Cleaner sees before Confirming: no address, Client or prices
@@ -123,7 +119,7 @@ describe("Cleaners Needed", () => {
       labourHours: 3,
       crewSize: 1,
     });
-    const cory = await cleaner("Cory Cleaner");
+    const cory = await staffMember("Cory Cleaner");
     const asCory = await cory.signIn();
     const office = await signInAsOffice();
 
@@ -157,8 +153,8 @@ describe("Cleaners Needed", () => {
       labourHours: 2,
       crewSize: 1,
     });
-    const cory = await cleaner("Cory Cleaner");
-    const dee = await cleaner("Dee Cleaner");
+    const cory = await staffMember("Cory Cleaner");
+    const dee = await staffMember("Dee Cleaner");
     const office = await signInAsOffice();
 
     // a named Offer puts them on the crew, as a Confirmation does
@@ -173,8 +169,8 @@ describe("Cleaners Needed", () => {
 
   test("leave everyone's list once the crew is whole", async () => {
     const job = await thursdayJob(1);
-    const cory = await cleaner("Cory Cleaner");
-    const dee = await cleaner("Dee Cleaner");
+    const cory = await staffMember("Cory Cleaner");
+    const dee = await staffMember("Dee Cleaner");
     const office = await signInAsOffice();
 
     await offer(office, job.id, cory.id);
@@ -186,8 +182,8 @@ describe("Cleaners Needed", () => {
 describe("Confirming a Cleaner Needed", () => {
   test("takes it, Confirmed at once, and shows the whole Job", async () => {
     const job = await thursdayJob();
-    const cory = await cleaner("Cory Cleaner");
-    await cleaner("Dee Cleaner");
+    const cory = await staffMember("Cory Cleaner");
+    await staffMember("Dee Cleaner");
     const asCory = await cory.signIn();
     const office = await signInAsOffice();
 
@@ -213,8 +209,8 @@ describe("Confirming a Cleaner Needed", () => {
 
   test("is refused once someone else took it", async () => {
     const job = await thursdayJob(1);
-    const asCory = await (await cleaner("Cory Cleaner")).signIn();
-    const asDee = await (await cleaner("Dee Cleaner")).signIn();
+    const asCory = await (await staffMember("Cory Cleaner")).signIn();
+    const asDee = await (await staffMember("Dee Cleaner")).signIn();
 
     await confirm(asDee, job).expect(200);
     const refused = await confirm(asCory, job).expect(409);
@@ -223,8 +219,8 @@ describe("Confirming a Cleaner Needed", () => {
 
   test("lets only the first of two at once take the last one", async () => {
     const job = await thursdayJob(1);
-    const asCory = await (await cleaner("Cory Cleaner")).signIn();
-    const asDee = await (await cleaner("Dee Cleaner")).signIn();
+    const asCory = await (await staffMember("Cory Cleaner")).signIn();
+    const asDee = await (await staffMember("Dee Cleaner")).signIn();
 
     const answers = await Promise.all([
       confirm(asCory, job),
@@ -243,7 +239,7 @@ describe("Confirming a Cleaner Needed", () => {
     const job = await thursdayJob(1);
     const agents = [];
     for (const name of "Ada Bo Cy Di Ed Flo Gus Hal Ivy Jo Kit Lu".split(" ")) {
-      agents.push(await (await cleaner(`${name} Cleaner`)).signIn());
+      agents.push(await (await staffMember(`${name} Cleaner`)).signIn());
     }
 
     const answers = await Promise.all(
@@ -260,7 +256,7 @@ describe("Confirming a Cleaner Needed", () => {
       labourHours: 2,
       crewSize: 1,
     });
-    const asCory = await (await cleaner("Cory Cleaner")).signIn();
+    const asCory = await (await staffMember("Cory Cleaner")).signIn();
 
     await confirm(asCory, overlapping).expect(200);
     const refused = await confirm(asCory, job).expect(409);
@@ -271,8 +267,8 @@ describe("Confirming a Cleaner Needed", () => {
 describe("Saying a Cleaner Needed is not for me", () => {
   test("takes it off their list, shows the Office, and stops emails about it", async () => {
     const job = await thursdayJob();
-    const cory = await cleaner("Cory Cleaner");
-    const dee = await cleaner("Dee Cleaner");
+    const cory = await staffMember("Cory Cleaner");
+    const dee = await staffMember("Dee Cleaner");
     const asDee = await dee.signIn();
     const office = await signInAsOffice();
 
@@ -296,8 +292,8 @@ describe("Saying a Cleaner Needed is not for me", () => {
 describe("Releasing a Confirmed Assignment", () => {
   test("opens it to every free Cleaner but the one who Released it", async () => {
     const job = await thursdayJob(1);
-    const cory = await cleaner("Cory Cleaner");
-    const dee = await cleaner("Dee Cleaner");
+    const cory = await staffMember("Cory Cleaner");
+    const dee = await staffMember("Dee Cleaner");
     const asCory = await cory.signIn();
     const office = await signInAsOffice();
     const taken = (await confirm(asCory, job).expect(200)).body as CleanerJob;
@@ -322,8 +318,8 @@ describe("Releasing a Confirmed Assignment", () => {
       labourHours: 3,
       crewSize: 1,
     });
-    const cory = await cleaner("Cory Cleaner");
-    const dee = await cleaner("Dee Cleaner");
+    const cory = await staffMember("Cory Cleaner");
+    const dee = await staffMember("Dee Cleaner");
     const office = await signInAsOffice();
     await offer(office, job.id, cory.id);
     const asCory = await cory.signIn();
@@ -351,7 +347,7 @@ describe("Releasing a Confirmed Assignment", () => {
 describe("The morning email of Cleaners Needed", () => {
   test("goes at 7am New York only when something is newly open, new ones first", async () => {
     const thursday = await thursdayJob();
-    const cory = await cleaner("Cory Cleaner");
+    const cory = await staffMember("Cory Cleaner");
 
     // 4am: not yet, and Thursday's more than 48 hours away
     expect(await emailCleanersNeeded()).toBe(0);
@@ -401,7 +397,7 @@ describe("The morning email of Cleaners Needed", () => {
 
   test("tries again on the next run if the email fails", async () => {
     await thursdayJob();
-    const cory = await cleaner("Cory Cleaner");
+    const cory = await staffMember("Cory Cleaner");
     testClock().set(new Date("2026-01-05T12:00:00Z"));
     testEmail().failSending();
     expect(await emailCleanersNeeded()).toBe(0);
@@ -423,9 +419,9 @@ describe("Moving a Job", () => {
       labourHours: 6,
       crewSize: 2,
     });
-    const cory = await cleaner("Cory Cleaner");
-    const dee = await cleaner("Dee Cleaner");
-    const eve = await cleaner("Eve Cleaner");
+    const cory = await staffMember("Cory Cleaner");
+    const dee = await staffMember("Dee Cleaner");
+    const eve = await staffMember("Eve Cleaner");
     const office = await signInAsOffice();
     await offer(office, job.id, cory.id);
     await offer(office, job.id, dee.id);
