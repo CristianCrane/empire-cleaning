@@ -1,5 +1,5 @@
 ---
-status: accepted, partly superseded by ADR-0028 (edited end-to-end specs run once before a PR)
+status: accepted, partly superseded by ADR-0028 (edited end-to-end specs run once before a PR) and ADR-0032 (local end-to-end runs keep 2 workers, as 6 is no faster; the slowest server test keeps 5 s)
 ---
 
 # The full suite runs on CI, not locally
