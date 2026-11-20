@@ -22,6 +22,13 @@ import {
   daysFrom,
   startOfDay,
   weekdayOf,
+  asClean,
+  fromHundredths,
+  hundredths,
+  isFree,
+  roomOn,
+  visitHours,
+  type Clean,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { NotFoundError } from "../../middleware/errors.ts";
@@ -38,15 +45,6 @@ import {
   staffUsualHours,
 } from "../staff/staff.schema.ts";
 import { hoursOnSiteOf, onSchedule } from "./jobs.ts";
-import {
-  asClean,
-  fromHundredths,
-  hundredths,
-  isFree,
-  roomOn,
-  visitHours,
-  type Clean,
-} from "./rules.ts";
 import { jobs } from "./jobs.schema.ts";
 import { serviceVersions } from "../services/services.ts";
 

@@ -14,6 +14,9 @@ import {
   startOfDay,
   formats,
   firstNameOf,
+  busyWith,
+  roomOn,
+  visitHours,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import {
@@ -33,7 +36,7 @@ import {
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
 import { scheduleOn } from "../jobs/schedule.ts";
-import { busyWith, passed, roomOn, visitHours } from "../jobs/rules.ts";
+import { passed } from "../jobs/rules.ts";
 import {
   currentPriceList,
   notAPremisesType,

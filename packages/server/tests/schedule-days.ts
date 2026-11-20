@@ -3,8 +3,7 @@ import type {
   ScheduledJob,
   ScheduledSiteVisit,
 } from "@empire-cleaning/models";
-import { HOUR_MS } from "@empire-cleaning/models";
-import { asClean } from "../src/features/jobs/rules.ts";
+import { HOUR_MS, asClean } from "@empire-cleaning/models";
 
 // Days of the Schedule as plain data, for testing the rules over them with
 // nothing saved. Monday 5 January 2026, 4am New York; the Job is on Thursday
