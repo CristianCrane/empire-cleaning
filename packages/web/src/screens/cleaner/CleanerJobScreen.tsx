@@ -204,7 +204,7 @@ function JobDetails({ job }: { job: CleanerJob }) {
               ? w.notConfirmedYet(t.formatList(unconfirmed.map((m) => m.name)))
               : job.crew.length > 1
                 ? w.allConfirmed
-                : c.crew
+                : undefined
           }
         />
         <Fact

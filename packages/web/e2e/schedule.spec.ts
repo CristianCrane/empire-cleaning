@@ -81,7 +81,7 @@ test(
     await expect(day(page, "Sat, Mar 6")).toContainText("Nobody working");
 
     const block = jobsOn(page, "Tue, Mar 2").getByRole("link");
-    await expect(block).toContainText(/9:00 AM Client \d+/);
+    await expect(block).toContainText(/9:00 AM Robin \d+/);
     await expect(block).toContainText("Needs cleaners");
     await expect(block).toContainText("Cory Cleaner");
     // placed at 9am, two hours down the axis, and 2.5 hours on site tall
@@ -505,7 +505,7 @@ test(
       .getByRole("link")
       .filter({ hasText: "9:30 AM" });
     await expect(short).toHaveAccessibleName(
-      /9:30 AM Client \d+ ?, Needs cleaners, No cleaners yet/,
+      /9:30 AM Robin \d+ ?, Needs cleaners, No cleaners yet/,
     );
   },
 );

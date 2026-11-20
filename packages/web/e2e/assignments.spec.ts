@@ -262,7 +262,7 @@ test(
     await expect(
       details
         .getByRole("definition")
-        .filter({ hasText: /^Client, number shows on the day$/ }),
+        .filter({ hasText: /^Robin, number shows on the day$/ }),
     ).toBeVisible();
     await expect(details).not.toContainText("Ring 4B");
     await expect(details).toContainText("Dee Cleaner not confirmed yet");
@@ -372,7 +372,7 @@ test("a Cleaner sees the Client's phone and how we get in on the day of the Job"
 
   const details = page.getByRole("region", { name: "Job details" });
   await expect(
-    details.getByRole("link", { name: "Client, (646) 555-0100", exact: true }),
+    details.getByRole("link", { name: "Robin, (646) 555-0100", exact: true }),
   ).toHaveAttribute("href", "tel:(646) 555-0100");
   // the grey line names the field, as every row's does
   await expect(

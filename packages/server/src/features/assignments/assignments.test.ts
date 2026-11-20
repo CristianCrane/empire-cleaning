@@ -338,7 +338,7 @@ describe("a Cleaner's Jobs", () => {
         unit: "4B",
         postcode: "11375",
       },
-      client: { firstName: "Client" },
+      client: { firstName: "Robin" },
       // Offered, before the day: no phone and no way in
       onTheDay: null,
       crew: [
