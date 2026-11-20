@@ -27,7 +27,7 @@ Before changing any screen, or writing words a person reads (a server message, a
 
 A PR that changes a screen shows it before and after: `pnpm pr:shots <spec> "<test title>"` makes the screenshots and prints the table for the PR body (`packages/web/README.md`, Testing).
 
-A screen never writes its own copy of a rule the server keeps (room, which Jobs a plan change replaces), not even as a hint: it shows the server's answer. A rule both run from `@empire-cleaning/models`, as the Suggested Price is, is the one copy, not a second. Two browser copies of room drifted from the server one after the other (#356, #365); the one left is the Schedule's drag (`hasRoomFor`, `packages/server/README.md`, Room).
+A rule both the server and a screen run lives in `@empire-cleaning/models`, as the Suggested Price does: the one copy, not a second (the rule: the `ui` skill, "Rules the server keeps"). The one browser copy left is the Schedule's drag, `hasRoomFor` in `packages/web/src/screens/office/ScheduleCalendar.tsx` (`packages/server/README.md`, Room), until #476.
 
 ## Tests
 
