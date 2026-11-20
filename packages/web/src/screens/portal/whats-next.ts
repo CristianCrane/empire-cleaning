@@ -26,17 +26,13 @@ import {
   type ServicePlanSummary,
   catalog,
   oneStop,
+  sameDay,
   type Language,
 } from "@empire-cleaning/models";
 import type { HomeTile } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
 import { QuoteIcon } from "../icons.ts";
-import {
-  addressOf,
-  dayOfInstant,
-  formatHours,
-  formatMinutes,
-} from "../format.ts";
+import { addressOf, formatHours, formatMinutes } from "../format.ts";
 import { saidWith } from "../words.ts";
 import type { Hero } from "./HeroCard.tsx";
 import { moneyNow, owedAnswer, yourCardTile } from "./payments.ts";
@@ -323,9 +319,6 @@ type Context = {
   now: Date;
 };
 
-const isToday = (iso: string, now: Date) =>
-  dayOfInstant(iso) === dayOfInstant(now.toISOString());
-
 function heroOf(data: HomeData, t: Said, ctx: Context): Hero {
   const { next, paused, leadingQuote, now } = ctx;
   const { w, dayOf, formatDateTime } = t;
@@ -338,7 +331,7 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Hero {
       !data.pastJobs.some(
         (p) => p.status === "completed" && p.property.id === job.property.id,
       );
-    const today = isToday(job.startsAt, now);
+    const today = sameDay(new Date(job.startsAt), now);
     return {
       label: today ? t.today : first ? w.firstClean : w.nextClean,
       icon: CalendarCheck,
@@ -570,7 +563,7 @@ function shortcutsOf(
 
   if (next?.kind === "job") {
     const { job } = next;
-    if (isToday(job.startsAt, now)) return [callUs, ...getIn, card];
+    if (sameDay(new Date(job.startsAt), now)) return [callUs, ...getIn, card];
     const move: HomeTile = job.movingTo
       ? {
           icon: CalendarClock,

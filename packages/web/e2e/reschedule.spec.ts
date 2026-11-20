@@ -231,7 +231,7 @@ test(
     await expect(
       wednesday.getByRole("button", { name: "Wed, Jan 14, 10:00 AM" }),
     ).toHaveCount(0);
-    await expect(dialog).not.toContainText(/Client \d/);
+    await expect(dialog).not.toContainText(/Robin \d/);
     await wednesday
       .getByRole("button", { name: "Wed, Jan 14, 11:00 AM" })
       .click();

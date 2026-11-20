@@ -7,7 +7,6 @@ import type {
   SiteVisitBooking,
 } from "@empire-cleaning/models";
 import {
-  addDays,
   atTime,
   dayOf,
   firstNameOf,
@@ -21,7 +20,7 @@ import {
   NotFoundError,
   RequestBodyError,
 } from "../../middleware/errors.ts";
-import { clock } from "../../services/clock/index.ts";
+import { clock, isToday } from "../../services/clock/index.ts";
 import { email, notify } from "../../services/email/index.ts";
 import type { Email } from "../../services/email/blocks.ts";
 import {
@@ -515,7 +514,6 @@ export const clientSiteVisits = async (
 export const visitsFor = async (
   staffId: string,
 ): Promise<CleanerSiteVisits> => {
-  const today = dayOf(clock.now());
   const rows = await db
     .select({ visit: siteVisits, property: properties, client: clients })
     .from(siteVisits)
@@ -525,7 +523,7 @@ export const visitsFor = async (
       and(
         eq(siteVisits.staffId, staffId),
         eq(siteVisits.status, "booked"),
-        gte(siteVisits.startsAt, startOfDay(today)),
+        gte(siteVisits.startsAt, startOfDay(dayOf(clock.now()))),
       ),
     )
     .orderBy(asc(siteVisits.startsAt));
@@ -547,9 +545,8 @@ export const visitsFor = async (
       accessInstructions: property.accessInstructions,
     },
   }));
-  const tomorrow = startOfDay(addDays(today, 1)).toISOString();
   return {
-    today: views.filter((v) => v.startsAt < tomorrow),
-    upcoming: views.filter((v) => v.startsAt >= tomorrow),
+    today: views.filter((v) => isToday(new Date(v.startsAt))),
+    upcoming: views.filter((v) => !isToday(new Date(v.startsAt))),
   };
 };

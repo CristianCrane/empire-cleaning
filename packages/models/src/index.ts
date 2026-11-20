@@ -1478,19 +1478,21 @@ export type JobList = {
 export type AssignmentOffer = { staffId: string };
 
 // A Job as a Cleaner assigned to it sees it: where, what, who with, and the
-// Client's first name, never any prices or payment details. The Client's
-// phone only on the Job's day.
+// Client's first name, never any prices or payment details.
 export type CleanerJob = {
   id: string;
   startsAt: string;
   serviceName: string;
   hoursOnSite: number;
   addOns: string[];
-  property: Pick<
-    PropertyView,
-    "street" | "unit" | "postcode" | "accessInstructions"
-  >;
-  client: { firstName: string; phone: string | null };
+  property: Pick<PropertyView, "street" | "unit" | "postcode">;
+  client: { firstName: string };
+  // what's held back until the Job's day (in New York, by the Clock), then
+  // given here; null before it
+  onTheDay: {
+    phone: string;
+    accessInstructions: PropertyView["accessInstructions"];
+  } | null;
   // everyone on the crew, this Cleaner included
   crew: { name: string; status: CrewState }[];
   // this Cleaner's own Assignment

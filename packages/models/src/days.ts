@@ -36,6 +36,10 @@ const wallClock = (instant: Date) => {
 // the day an instant falls on, in New York
 export const dayOf = (instant: Date) => wallClock(instant).day;
 
+// whether two instants fall on one day, in New York (with now: whether it's
+// today)
+export const sameDay = (a: Date, b: Date) => dayOf(a) === dayOf(b);
+
 // the instant a New York wall-clock time happens on a day: atTime("2026-11-03",
 // "09:00"). A time skipped when the clocks go forward (2:30am) comes out an
 // hour later.
