@@ -23,7 +23,7 @@ Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agen
 
 ## UX
 
-Before changing any screen, or writing words a person reads (a server message, an email), read `docs/ux.md`: the UX rules every screen keeps, and how a new UX question is settled (prototype, pick, build, record). Before reworking a screen, read `docs/ux-log.md`, the decisions so far, so a choice isn't undone by accident. Record a new decision as `docs/ux.md`'s Changing a screen says.
+Before changing any screen, or writing words a person reads (a server message, an email), load the `ui` skill, then read `docs/ux.md`: this product's UX rules, and how a new UX question is settled (prototype, pick, build, record). Before reworking a screen, read `docs/ux-log.md`, the decisions so far, so a choice isn't undone by accident. Record a new decision as `docs/ux.md`'s Changing a screen says.
 
 A PR that changes a screen shows it before and after: `pnpm pr:shots <spec> "<test title>"` makes the screenshots and prints the table for the PR body (`packages/web/README.md`, Testing).
 

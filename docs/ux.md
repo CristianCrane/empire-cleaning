@@ -8,9 +8,11 @@ words a person reads: a server message or an email too (Words).
 - **Screen types** says what kinds of screen there are, the design
   principles every one keeps, and each type's rules. Every screen renders
   through the layout for its type (ADR-0031).
-- **The rules** below are what every screen keeps. Most have a live example
-  in Storybook under **Patterns** (`packages/ui/src/Patterns.stories.tsx`),
-  named in brackets.
+- **The rules** below are this product's; the `ui` skill's hold here too.
+  Most have a live example in Storybook under **Patterns**
+  (`packages/ui/src/Patterns.stories.tsx`), named in brackets.
+
+
 
 - **Changing a screen** says how a new UX question is settled.
 - **`docs/screens.md`** lists every screen: its route, its type, the rule
@@ -25,9 +27,7 @@ can change, through the same loop.
   with the fewest steps for the Client (passwordless sign-in, self-serve
   choices instead of round trips to the Office), and call out any trade-off
   that adds steps.
-- **Simplest option first.** Lead with the option that asks nothing new of
-  anyone and uses what the app holds; each added step, role or signal earns
-  its place against it (#416, PR #423).
+
 - **Figures the owner edits are concrete.** Hours per room, not
   multipliers pointing at figures elsewhere; when figures combine, show a
   worked example beside them (the Service page's Example Quote).
@@ -49,23 +49,15 @@ says before it's built.
 ### What every type keeps
 
 The owner's design principles (2026-11-13): **clear, focused, simple,
-peaceful**. No screen overloads anyone with clutter and detail.
+peaceful**. No screen overloads anyone with clutter and detail; the `ui`
+skill's "What a screen shows" says how, and here:
 
-- **Lead with what the person came for** (information hierarchy). Each
-  screen starts from what this person came to see or do, and shows it
-  first and largest: a home screen, what's next; a money page, whether
-  anything is owed; a Cleaner's list, where they're working. Everything
-  else ranks below it, and what doesn't earn a place on the first view
-  moves out of it.
-- **The first view stays focused** (progressive disclosure). Explanations,
-  how a figure is worked out, history and rare actions wait behind a tap (a
-  "How it's worked out" link, a folded section, the Actions menu) until
-  they matter. No step is shown before it applies; a blocked step's
-  unblocking action sits in the Notice that explains it.
-- **Few words.** Rows and pages carry only what drives the decision;
-  details belong on the detail page. No subtitle that repeats the title or
-  the breadcrumbs, no help text that says what the screen already shows,
-  and no paragraph where a label will do. Offer to cut rather than add.
+- **What each screen leads with:** a home screen, what's next; a money page,
+  whether anything is owed; a Cleaner's list, where they're working.
+- **What waits behind a tap:** a "How it's worked out" link, a folded
+  section, the Actions menu. A blocked step's unblocking action sits in the
+  Notice that explains it.
+- **Details belong on the detail page**, not its row.
 
 ### Record
 
@@ -280,6 +272,8 @@ It keeps "Schedules are calendars". ("Layout / CalendarPage")
 
 ## Rules
 
+The `ui` skill's rules hold here too; these are this product's.
+
 ### Page structure
 
 - **The page header is the layout's** (`PageHeader`, `packages/ui/src/layouts/PageHeader.tsx`):
@@ -290,9 +284,10 @@ It keeps "Schedules are calendars". ("Layout / CalendarPage")
   one Actions ▾ menu, or a Button in its place when there's one, the
   destructive last in red after a rule. Printed, it's the title alone.
   ("Layout / RecordPage / Actions In The Header", "One Action")
-- **What loads holds its room.** A part that arrives after the page, like
-  choices from the API, is drawn at its size first (blank tiles,
-  `ChoiceTilesLoading`), so nothing jumps when it comes. ("ChoiceTiles / Loading")
+- **What loads holds its room** (the `ui` skill): choices from the API draw
+  blank tiles at their size first (`ChoiceTilesLoading`). ("ChoiceTiles /
+  Loading")
+
 - **Sections, not Cards, around Lists and Tables.** A title sits on the
   page, above an untitled Card or a List; never a Card titled inside, never
   a box in a box. ("Sections Not Cards Around Lists")
@@ -338,8 +333,9 @@ It keeps "Schedules are calendars". ("Layout / CalendarPage")
 
 ### Buttons and actions
 
-- **At most one primary Button per page.** Two primaries means neither is.
-  Everything else is secondary, text or quiet.
+- **One primary Button per page** (the `ui` skill); everything else is
+  secondary, text or quiet.
+
 - **A bar at the foot of a page is an `ActionFooter`**, which the page's
   layout places, never a sticky bar of the page's own, which pins under the phone's tab bar (#425). It holds
   what must stay in reach while a long page scrolls (a Cleaner's Job on
@@ -354,10 +350,13 @@ It keeps "Schedules are calendars". ("Layout / CalendarPage")
   ("Clickable catches the eye")
 - **A Section's actions are text Buttons** on the title's line, no taller
   than it; on a phone they wrap under the title.
-- **Destructive actions are red** (End plan, Cancel bill, Deactivate, Decline).
-- **A third-party sign-in button keeps its owner's branding**: Continue with
-  Google is Google's own button (their colours in light and dark, their
-  logo, Roboto), not ours. Only the 44px touch height is ours.
+- **Destructive actions are red** (the `ui` skill): End plan, Cancel bill,
+  Deactivate, Decline.
+
+- **Continue with Google is Google's own button** (the `ui` skill: a
+  third-party sign-in keeps its owner's look): their colours in light and
+  dark, their logo, Roboto. Only the 44px touch height is ours.
+
 
 ### Notices
 
@@ -391,21 +390,20 @@ stays as it is (#336).
   to the Office a job isn't always a clean (painting is a job too). Don't
   fold it, or copy it for another term. "Us" to a Client is how we speak (below),
   not a second name for the Office.
-- **A problem says what's wrong, then how to fix it**, in two short
-  sentences at most: "Not enough cleaners are free then. Pick another time,
-  or add working hours for a cleaner that day." Never how the system
-  works, no counting unless the number helps, no codes. When nothing can
-  be done, it says what happened: "This clean was cancelled."
+- **A problem says what's wrong, then how to fix it** (the `ui` skill): "Not
+  enough cleaners are free then. Pick another time, or add working hours for
+  a cleaner that day." No counting unless the number helps. When nothing can
+  be done: "This clean was cancelled."
+
 - **A field that's too long says its limit**: "Keep the reason under 500
-  characters", from the server's `keepUnder`, since the number is what fixes
-  it.
-- **Words that state a rule are checked against the code that applies
-  it**, never against another page's or message's wording of it: copies
-  drift from the code together. The app told a plan's Client a late fee
-  was the plan's whole deposit, and the first Terms of service copied it,
-  while `lateFeeOf` charges that clean's share (#462). Words on money,
-  fees, refunds or who sees a Client's details name, in the review's
-  prompt, the function each claim was checked against.
+  characters", from the server's `keepUnder`.
+
+- **Words that state a rule are checked against the code** (the `ui` skill):
+  `lateFeeOf` charges a clean's share, not the plan's whole deposit, which
+  the app and the first Terms of service once said (#462). Words on money,
+  fees, refunds or who sees a Client's details name, in the review's prompt,
+  the function each claim was checked against.
+
 - **To a Client, we're "us"**: "Please call us", not "the Office".
 - **A message the server and a screen both show is written once**, in
   `packages/models/src/messages/`, which both import: a file per subject,
@@ -515,16 +513,15 @@ stays as it is (#336).
 - **Lead a to-do row with what to do** (Send a quote, Find cleaners), a
   toned `IconTile` for the kind; rows that only show things keep the name
   as the title. ("Action First To Do Rows")
-- **A row's title and line wrap, never cut.** A cut title hides what the
-  row is: a payment's "Price change: 1 more hour" lost its hour at phone
-  width, and Spanish runs longer. `ListItem` wraps both, anywhere, so every
-  List does: a long email in a Settings summary row breaks rather than
-  running off a phone (#436).
-  On a phone a row's badge (`end`) sits under its text rather than beside
-  it, which squeezed an address to a word a line at 320px (#305).
+- **A row's title and line wrap, never cut** (the `ui` skill), and Spanish
+  runs longer. `ListItem` wraps both, anywhere, so every List does: a long
+  email in a Settings summary row breaks rather than running off a phone
+  (#436). On a phone a row's badge (`end`) sits under its text rather than
+  beside it (#305).
+
 - **Lean rows**: the fewest columns that drive the decision (who, where,
   status, money, age); no cell that means something different from row to
-  row; no colour without a visible label.
+  row (and colour: the `ui` skill).
 - **Dated things a person scans are grouped by month**. As rows, each is a
   `DatedItem`: a small `DateTile`, then the weekday and time leading its
   title, the date said in words to a screen reader (the tile is only
@@ -563,10 +560,10 @@ stays as it is (#336).
 
 ### Status and colour
 
-- **A status is the same colour everywhere**: info just so, success done
+- **A status is the same colour everywhere** (the `ui` skill): info just so, success done
   or running as it should, warning needs someone, danger went wrong,
   neutral not going ahead. ("Status colours")
-- **One icon per concept, app-wide** (`screens/icons.ts`): a Quote is
+- **One icon per concept** (the `ui` skill), in `screens/icons.ts`: a Quote is
   `ClipboardPenLine`.
 
 ### The logo
@@ -604,16 +601,9 @@ stays as it is (#336).
    the layout test at every width, a Guest's, Client's or Cleaner's screen
    in Spanish too, through `expectFitsInBoth`). Its PR shows the screen
    before and after, from `pnpm pr:shots` (`packages/web/README.md`,
-   Testing). Moving a screen onto its layout drops nothing by accident:
-   before a part goes (a card, a Button, a Notice, a component swapped
-   for a smaller one), list what it said, when it said it (its guard), what
-   it showed while it worked (pending), and what it read aloud as it
-   changed (its `aria-live` region, and all that's in it), and give each a
-   place in the new screen, or a reason in `docs/ux-log.md`. #432's review found
-   three such drops: the portal Clean's free-until, then the guard its
-   return left out, and Change terms' pending state in a menu; #434's found
-   two more when New quote's price lost WorkedOutQuote: its time on site,
-   then the Service and place its total was read out with.
+   Testing). Moving a screen onto its layout drops nothing by accident
+   (the `ui` skill, "Reworking a screen"): #432's review found three
+   such drops, and #434's two more.
    Where the build departs from the pick (a part it changes, a case the
    prototype didn't draw), put each departure to the user once the plan
    review names it, before building: #435's three waited from the plan
