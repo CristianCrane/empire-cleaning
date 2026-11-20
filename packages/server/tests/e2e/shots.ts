@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
 const USAGE =
-  'Usage: pnpm pr:shots <spec> "<test title>" [--desktop]\n  e.g. pnpm pr:shots packages/web/e2e/bills.spec.ts "a Client pays a Bill by card"';
+  'Usage: pnpm pr:shots <spec> "<test title>" [--desktop] [--viewport]\n  e.g. pnpm pr:shots packages/web/e2e/bills.spec.ts "a Client pays a Bill by card"';
 
 const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, {
@@ -87,6 +87,8 @@ const run = (
     files: string[];
     grep?: string;
     projects: string[];
+    // the screen as the test left it, not the whole page
+    viewport: boolean;
     out: string;
   },
   checkout: string,
@@ -116,6 +118,7 @@ const run = (
         ...process.env,
         PR_SHOTS_PACKAGE: folder,
         PR_SHOTS_OUT: join(options.out, "results"),
+        ...(options.viewport && { PR_SHOTS_VIEWPORT: "1" }),
         PLAYWRIGHT_JSON_OUTPUT_NAME: reportFile,
       },
     },
@@ -163,7 +166,13 @@ const run = (
 // it skips is left out, and said; anything else that isn't a passed test with
 // its screenshot, on either side, stops the run
 const shoot = (
-  options: { spec: string; title: string; projects: string[]; dir: string },
+  options: {
+    spec: string;
+    title: string;
+    projects: string[];
+    viewport: boolean;
+    dir: string;
+  },
   checkout: string,
   side: Side,
 ): Shot[] | null => {
@@ -175,6 +184,7 @@ const shoot = (
       files: [file],
       grep: grepFor(options.title),
       projects: options.projects,
+      viewport: options.viewport,
       out: join(options.dir, side),
     },
     checkout,
@@ -220,7 +230,7 @@ const shoot = (
     }
     const file = join(
       options.dir,
-      `${slug(options.title)}-${project}-${side}.png`,
+      `${slug(options.title)}-${project}${options.viewport ? "-viewport" : ""}-${side}.png`,
     );
     copyFileSync(path, file);
     return { project, file };
@@ -329,7 +339,10 @@ const publish = (dir: string, branch: string, files: string[]) => {
 const main = () => {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
-    options: { desktop: { type: "boolean", default: false } },
+    options: {
+      desktop: { type: "boolean", default: false },
+      viewport: { type: "boolean", default: false },
+    },
   });
   const [spec, title] = positionals;
   if (!spec || !title || positionals.length > 2) throw new Stop(USAGE);
@@ -359,7 +372,8 @@ const main = () => {
     ? " and its uncommitted changes"
     : "";
 
-  const options = { spec, title, projects, dir };
+  const { viewport } = values;
+  const options = { spec, title, projects, viewport, dir };
   // the base's own test, else the branch's on the base; a test that fails
   // there, or a spec that won't load, gives an after alone
   const before = withBase(sha, (base) => {
@@ -393,7 +407,7 @@ const main = () => {
       ? `none: skipped on ${shot.project}`
       : "none: a new test, which doesn't run on the base";
     console.log(
-      `${title}, ${shot.project}:\n\n| Before | After |\n| --- | --- |\n| ${old ? img(old) : none} | ${img(shot)} |\n`,
+      `${title}, ${shot.project}${viewport ? ", the screen as the test left it" : ""}:\n\n| Before | After |\n| --- | --- |\n| ${old ? img(old) : none} | ${img(shot)} |\n`,
     );
   }
 };

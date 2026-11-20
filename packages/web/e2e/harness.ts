@@ -411,8 +411,11 @@ export const test = base.extend<{
       // mid-page (#414), so the screen is made as tall as the page instead.
       // What's sized by the screen's height grows with it (the desktop
       // sidebar), and may make the page taller, so it's measured again
-      // (every project here sets a screen size, so there's always a width)
-      const width = page.viewportSize()?.width;
+      // (every project here sets a screen size, so there's always a width).
+      // With --viewport, the screen as the test left it, and what a bar
+      // pinned to it covers there (#430)
+      const width =
+        !process.env.PR_SHOTS_VIEWPORT && page.viewportSize()?.width;
       for (let tries = 0; width && tries < 3; tries++) {
         const [height, screen] = await page.evaluate(() => [
           document.documentElement.scrollHeight,
