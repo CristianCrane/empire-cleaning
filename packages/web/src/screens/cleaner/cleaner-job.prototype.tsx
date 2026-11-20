@@ -1,6 +1,6 @@
 // PROTOTYPE: throwaway. The Cleaner's Job (and Cleaner needed, and an
 // offered Job, which share its parts) for #493, on made-up data, at
-// /prototype/cleaner-job?layout=A..C&case=1..8&lang=en|es (no sign-in),
+// /prototype/cleaner-job?layout=A..D&case=1..8&lang=en|es (no sign-in),
 // inside the real AppLayout and the Cleaner area's nav. ↑/↓ switch layouts,
 // ←/→ switch cases. Lives only on prototype-cleaner-job.
 import { useEffect, type ReactNode } from "react";
@@ -15,6 +15,7 @@ import {
   KeyRound,
   Lock,
   MapPin,
+  Navigation,
   Phone,
   PhoneCall,
   Plus,
@@ -22,11 +23,13 @@ import {
   UserMinus,
   UserRound,
   Users,
+  X,
 } from "lucide-react";
 import { formats, oneStop, type Language } from "@empire-cleaning/models";
 import {
   ActionRow,
   AppLayout,
+  Avatar,
   Button,
   ButtonLink,
   Card,
@@ -36,6 +39,9 @@ import {
   Facts,
   Fold,
   LanguageProvider,
+  MenuButton,
+  MenuItem,
+  MenuSeparator,
   type NavItem,
   RecordPage,
   Section,
@@ -127,6 +133,11 @@ const W = {
     door4b: "Ring 4B; the doorman has a key.",
     seatsOf: (filled: number, of: number) => `${filled} of ${of}`,
     toast: (what: string) => `Prototype: "${what}" does nothing here`,
+    available: "Available",
+    onSite: "On site",
+    moreActions: "More actions",
+    zip: (z: string) => `Zip code ${z}`,
+    callClient: (n: string) => `Call ${n}`,
   },
   es: {
     offers: "Ofertas",
@@ -199,6 +210,11 @@ const W = {
     door4b: "Toca el 4B; el portero tiene una llave.",
     seatsOf: (filled: number, of: number) => `${filled} de ${of}`,
     toast: (what: string) => `Prototipo: "${what}" no hace nada aquí`,
+    available: "Disponible",
+    onSite: "En el lugar",
+    moreActions: "Más acciones",
+    zip: (z: string) => `Código postal ${z}`,
+    callClient: (n: string) => `Llamar a ${n}`,
   },
 };
 type Words = (typeof W)["en"];
@@ -348,6 +364,7 @@ const layouts = [
   { key: "A", name: "the details card, its values drawn" },
   { key: "B", name: "big answers to how long, where, who" },
   { key: "C", name: "a strip of locks that open" },
+  { key: "D", name: "the picks: one header, one split button" },
 ] as const;
 type LayoutKey = (typeof layouts)[number]["key"];
 
@@ -1258,6 +1275,410 @@ function LayoutC({ c, j }: { c: JobCase; j: J }) {
   );
 }
 
+// ---- Layout D: the picks from A, B and C ----
+// One header card: the date tile, the time range large (B's), the address;
+// one rule; then the details, one icon each: how long, the crew, the
+// Client, getting in, extras. What this reader can't use yet isn't drawn
+// at all: an offer has no Directions, door or Client; before the day the
+// Client is a name; on the day the door and the number come. Every action
+// is one split button at the end of the title row (full width on a
+// phone): the main one pressed straight away, the rest behind its arrow.
+// On site, Mark done is the page's one primary, in a foot bar lined up
+// with the content column, and the header's split button is outlined.
+// The crew: one look for every face, a tick for confirmed and nothing for
+// not yet, and an open place drawn as an empty seat.
+
+// what each stage shows (a Cleaner's side of the Job's lifecycle)
+const dStage = (k: Kind) =>
+  isOffer(k)
+    ? "offer"
+    : k === "confirmed"
+      ? "before"
+      : finished(k)
+        ? "after"
+        : "day";
+
+function statusD(
+  c: JobCase,
+  w: Words,
+): { tone: StatusTone; text: string } | null {
+  switch (c.kind) {
+    case "offered":
+    case "open":
+      return { tone: "info", text: w.available };
+    case "confirmed":
+      return null; // the usual case on Your jobs
+    case "today":
+      return { tone: "info", text: w.today };
+    case "started":
+    case "startedWaiting":
+      return { tone: "success", text: w.onSite };
+    case "done":
+      return { tone: "success", text: w.done };
+    case "noAccess":
+      return { tone: "danger", text: w.couldntGetIn };
+  }
+}
+
+type DAction = {
+  label: string;
+  icon: typeof Lock;
+  danger?: boolean;
+  external?: boolean;
+} & ({ href: string } | { onPress: () => void });
+
+// A split button: the main action pressed straight away, and an arrow
+// opening the rest (the ui kit's MenuButton, its "More actions" said to a
+// screen reader and drawn as the arrow alone). Outlined when the page's
+// primary is elsewhere (on site, Mark done)
+function SplitButton({
+  main,
+  more,
+  outlined,
+  moreLabel,
+}: {
+  main: DAction;
+  more: DAction[];
+  outlined: boolean;
+  moreLabel: string;
+}) {
+  const variant = outlined ? "secondary" : "primary";
+  const joined = more.length > 0 ? "rounded-r-none" : "";
+  const content = (
+    <>
+      <main.icon aria-hidden size={18} />
+      {main.label}
+    </>
+  );
+  const first =
+    "href" in main ? (
+      <ButtonLink
+        variant={variant}
+        href={main.href as unknown as AppHref}
+        target={main.external ? "_blank" : undefined}
+        rel={main.external ? "noreferrer" : undefined}
+        className={`flex-1 ${joined}`}
+      >
+        {content}
+      </ButtonLink>
+    ) : (
+      <Button
+        variant={variant}
+        onPress={main.onPress}
+        className={`flex-1 ${joined}`}
+      >
+        {content}
+      </Button>
+    );
+  // the arrow: MenuButton's Button, joined to the main one, its words
+  // hidden by size so they stay its name
+  const arrow = outlined
+    ? "[&_button]:rounded-l-none [&_button]:border-l-0 [&_button]:px-3"
+    : "[&_button]:rounded-l-none [&_button]:border-0! [&_button]:border-l! [&_button]:border-primary-fg/40! [&_button]:bg-primary! [&_button]:text-primary-fg! [&_button:hover]:bg-primary-hover! [&_button]:px-3";
+  const plain = more.filter((a) => !a.danger);
+  const danger = more.filter((a) => a.danger);
+  const item = (a: DAction) => (
+    <MenuItem
+      key={a.label}
+      icon={a.icon}
+      danger={a.danger}
+      {...("href" in a
+        ? {
+            href: a.href as unknown as AppHref,
+            target: a.external ? "_blank" : undefined,
+          }
+        : { onAction: a.onPress })}
+    >
+      {a.label}
+    </MenuItem>
+  );
+  return (
+    <div className="flex w-full md:w-auto">
+      {first}
+      {more.length > 0 && (
+        <span
+          className={`flex [&_button]:text-[0px] [&_button_span]:gap-0 ${arrow}`}
+        >
+          <MenuButton label={moreLabel}>
+            {plain.map(item)}
+            {plain.length > 0 && danger.length > 0 && <MenuSeparator />}
+            {danger.map(item)}
+          </MenuButton>
+        </span>
+      )}
+    </div>
+  );
+}
+
+// the page's actions, for this stage: the main one, then the rest
+function actionsD(c: JobCase, j: J): { main: DAction; more: DAction[] } | null {
+  const { w } = j;
+  const callOffice: DAction = {
+    label: w.callOffice,
+    icon: Phone,
+    href: `tel:${OFFICE}`,
+  };
+  const callClient: DAction = {
+    label: w.callClient(j.clientName),
+    icon: PhoneCall,
+    href: `tel:${j.phone}`,
+  };
+  const directions: DAction = {
+    label: w.directions,
+    icon: Navigation,
+    href: directionsTo(j.address),
+    external: true,
+  };
+  switch (c.kind) {
+    case "offered":
+    case "open":
+      return {
+        main: {
+          label: w.confirm,
+          icon: Check,
+          onPress: say(w.toast(w.confirm)),
+        },
+        more: [
+          { label: w.notForMe, icon: X, onPress: say(w.toast(w.notForMe)) },
+        ],
+      };
+    case "confirmed":
+      return {
+        main: directions,
+        more: [
+          callOffice,
+          ...(c.canDropOut
+            ? [
+                {
+                  label: w.dropOut,
+                  icon: UserMinus,
+                  danger: true,
+                  onPress: say(w.toast(w.dropOut)),
+                },
+              ]
+            : []),
+        ],
+      };
+    case "today":
+      return { main: directions, more: [callClient, callOffice] };
+    case "started":
+    case "startedWaiting":
+      return {
+        main: callClient,
+        more: [
+          {
+            label: w.couldntGetIn,
+            icon: DoorClosed,
+            onPress: say(w.toast(w.couldntGetIn)),
+          },
+          // waiting on Dee, the office is in the notice that says so
+          ...(c.kind === "started" ? [callOffice] : []),
+        ],
+      };
+    case "done":
+    case "noAccess":
+      return null; // nothing left to do
+  }
+}
+
+// a face: every one the same, a tick when they've confirmed, nothing yet
+function CrewFace({ m, w }: { m: Member; w: Words }) {
+  if (!m)
+    return (
+      <span className="inline-flex items-center gap-2">
+        {/* an empty seat: the face's shape, hollow, waiting for someone */}
+        <span
+          aria-hidden
+          className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-sunken text-border-strong ring-1 ring-border ring-inset"
+        >
+          <UserRound size={22} />
+        </span>
+        <span className="text-fg-muted">
+          {w.open}
+          <span className="sr-only">, {w.seatOpen}</span>
+        </span>
+      </span>
+    );
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className="relative">
+        <Avatar />
+        {m.confirmed && (
+          <span
+            aria-hidden
+            className="absolute -right-1 -bottom-1 flex size-5 items-center justify-center rounded-full bg-success-strong text-surface ring-2 ring-surface"
+          >
+            <Check size={13} strokeWidth={3} />
+          </span>
+        )}
+      </span>
+      <span className="font-semibold text-fg">
+        {m.you ? w.you : m.name}
+        <span className="sr-only">
+          , {m.confirmed ? w.confirmed : w.notYet}
+        </span>
+      </span>
+    </span>
+  );
+}
+
+function JobCardD({ c, j }: { c: JobCase; j: J }) {
+  const { w } = j;
+  const stage = dStage(c.kind);
+  const known = stage !== "offer"; // the Client, once it's theirs
+  const onTheDayNow = stage === "day";
+  return (
+    <Card hiddenTitle={w.jobDetails}>
+      <div className="flex items-center gap-4">
+        <DateTile date={c.startsAt} />
+        <div className="flex min-w-0 flex-col gap-1">
+          <p className="text-2xl font-semibold text-fg tabular-nums">
+            {j.range}
+          </p>
+          <p className="text-fg [overflow-wrap:anywhere]">
+            {addressShown(c.kind) ? j.address : w.zip(c.postcode)}
+          </p>
+        </div>
+      </div>
+      <div className="border-t border-border pt-4">
+        <Facts>
+          <Fact icon={Clock} label={w.howLong} value={j.howLong} />
+          <Fact
+            icon={Users}
+            label={w.crew}
+            value={
+              <span className="flex flex-wrap gap-x-5 gap-y-3 py-0.5">
+                {c.crew.map((m, i) => (
+                  <CrewFace key={i} m={m} w={w} />
+                ))}
+              </span>
+            }
+          />
+          {known && (
+            <Fact
+              icon={UserRound}
+              label={w.client}
+              value={
+                <span className="flex flex-col">
+                  <span>{j.clientName}</span>
+                  {onTheDayNow && (
+                    <span className="tabular-nums">{j.phone}</span>
+                  )}
+                </span>
+              }
+            />
+          )}
+          {onTheDayNow && (
+            <Fact
+              icon={KeyRound}
+              label={w.gettingIn}
+              className="col-span-full"
+              value={<span className="text-lg font-semibold">{w.door4b}</span>}
+            />
+          )}
+          {c.extras.length > 0 && (
+            <Fact
+              icon={CirclePlus}
+              label={w.extras}
+              value={j.f.formatList(j.extras)}
+            />
+          )}
+        </Facts>
+      </div>
+    </Card>
+  );
+}
+
+// the main column and the right one a Record keeps from xl (its History),
+// as RecordPage's Beside lays them out
+const columns =
+  "grid grid-cols-[minmax(0,1fr)] items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]";
+
+// the bar at the foot, its box lined up with the main column (today's
+// ActionFooter spans the whole width beside the sidebar)
+function FootBarD({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <>
+      <div aria-hidden className="h-20 print:hidden" />
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] z-30 md:bottom-0 md:left-64 print:hidden">
+        <div className="mx-auto w-full max-w-5xl md:px-8">
+          <div className={columns}>
+            <div
+              role="group"
+              aria-label={label}
+              className="pointer-events-auto flex flex-wrap items-center justify-end gap-2 border-t border-border bg-surface px-4 py-3 shadow-raised max-md:[&>*]:flex-1 md:rounded-t-lg md:border-x"
+            >
+              {children}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function LayoutD({ c, j }: { c: JobCase; j: J }) {
+  const { w } = j;
+  const s = statusD(c, w);
+  const actions = actionsD(c, j);
+  const onSite = started(c.kind);
+  // the whole page in the main column, the header's actions too, so they
+  // end where the card and the foot bar do. RecordPage places the header and
+  // the alerts (the split button rides its status slot, pushed to the end of
+  // the title row, its own line on a phone); the card follows it here, in
+  // the main column, as RecordPage has no slot for a header that narrow.
+  // Its empty Beside is hidden, so it leaves no gap
+  return (
+    <div className={columns}>
+      <div className="flex min-w-0 flex-col gap-6 [&_.grid:has(>div:empty)]:hidden">
+        <RecordPage
+          trail={trailFor(c, j)}
+          title={j.service}
+          status={
+            <>
+              {s && <StatusBadge tone={s.tone}>{s.text}</StatusBadge>}
+              {actions && (
+                <span className="flex max-md:w-full md:ml-auto">
+                  <SplitButton
+                    main={actions.main}
+                    more={actions.more}
+                    outlined={onSite}
+                    moreLabel={w.moreActions}
+                  />
+                </span>
+              )}
+            </>
+          }
+          subtitle={c.kind === "open" ? w.firstToConfirm : undefined}
+          alerts={alertsFor(c, j)}
+        />
+        <div className="flex min-w-0 flex-col gap-6">
+          {finished(c.kind) ? (
+            <>
+              <Outcome c={c} j={j} />
+              <Fold label={w.theJob}>
+                <JobCardD c={c} j={j} />
+              </Fold>
+            </>
+          ) : (
+            <JobCardD c={c} j={j} />
+          )}
+        </div>
+        {onSite && (
+          <FootBarD label={w.whatToDo}>
+            <Button
+              isDisabled={c.kind === "startedWaiting"}
+              onPress={say(w.toast(w.markDone))}
+            >
+              {w.markDone}
+            </Button>
+          </FootBarD>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ---- the page ----
 
 function Layout({
@@ -1272,6 +1693,7 @@ function Layout({
   const j = useJob(c, lang);
   if (layout === "B") return <LayoutB c={c} j={j} />;
   if (layout === "C") return <LayoutC c={c} j={j} />;
+  if (layout === "D") return <LayoutD c={c} j={j} />;
   return <LayoutA c={c} j={j} />;
 }
 
