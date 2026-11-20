@@ -7,7 +7,7 @@ import type {
 } from "./index.ts";
 import { addDays, dayOf, HOUR_MS, startOfDay } from "./days.ts";
 import { firstNameOf, formats } from "./format.ts";
-import { NO_CREW } from "./messages/jobs.ts";
+import { jobs, NO_CREW } from "./messages/jobs.ts";
 
 // The Schedule's rules, over a day of it as the server's scheduleFor loads
 // it: whether a clean has room (roomOn), whether a Site Visit can go at a
@@ -215,14 +215,15 @@ export const isFree = (day: ScheduleDay, staffId: string, clean: Clean) =>
  * - by a Cleaner with Available Hours that day, it takes room like a Job
  *   with a Crew Size of one, its length as its Labour Hours, so the day
  *   needs those hours free and a Cleaner free then (roomOn's hours and
- *   crew; Site Visits aren't held to midnight, #484);
+ *   crew);
  * - by Office Staff, it takes none; a Cleaner who isn't Office Staff can't
  *   make one on a day they have no hours;
  * - either way, its visitor must be busy with nothing then (busyWith): no
  *   other booked Site Visit of theirs, and no booked Job they're on the crew
  *   on, Offered or Confirmed (#242). A Done Site Visit doesn't count.
  *
- * Whether its time has passed is the server's, which keeps the clock.
+ * Like every clean, it ends by midnight (endsByMidnight). Whether its time
+ * has passed is the server's, which keeps the clock.
  */
 export const whyVisitCantGo = (
   day: ScheduleDay,
@@ -235,6 +236,9 @@ export const whyVisitCantGo = (
     crewSize: 1,
     siteVisitId: visit.siteVisitId,
   };
+  if (!endsByMidnight(visit.startsAt, clean.labourHours)) {
+    return jobs.en.ENDS_BY_MIDNIGHT;
+  }
   if (day.available.some((c) => c.id === visitor.id)) {
     const room = roomOn(day, clean);
     if (!room.hasHours) {

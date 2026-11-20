@@ -286,6 +286,21 @@ describe("booking a Site Visit", () => {
     await book(office, quote.id, cory.id, "13:00").expect(201);
   });
 
+  test("is refused where it would end after midnight", async () => {
+    const { office, olive, quote } = await setUp();
+
+    const late = await book(office, quote.id, olive.id, "23:30", {
+      minutes: 60,
+    });
+    expect(late.status).toBe(409);
+    expect(late.body.message).toBe(
+      "This would run past midnight. Pick an earlier start time.",
+    );
+    await book(office, quote.id, olive.id, "23:00", { minutes: 60 }).expect(
+      201,
+    );
+  });
+
   test("by a Cleaner is refused where no crew is free then, though the day has hours", async () => {
     const { office, cory, quote } = await setUp();
     // 9 to 11, no one on it yet: Cory, the only Cleaner, is its crew

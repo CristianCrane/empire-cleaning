@@ -539,7 +539,7 @@ stays as it is (#336).
   colours, a see-through fill inside a dashed edge, red where it can't go
   (the server's rules: for a Job, hours and a crew free; for a Site Visit,
   its visitor's hours or Office Staff, a crew free, and busy with nothing
-  else); a day where it can go at no time fades. Either can be dragged
+  else; both end by midnight); a day where it can go at no time fades. Either can be dragged
   while booked and not yet started, and its move is confirmed first.
   ("Schedules As Calendars")
 - **Every place a time is chosen uses the calendar picker**, with the day
