@@ -589,7 +589,8 @@ stays as it is (#336).
    now?
 2. **Prototype it** on a `prototype-<screen>` branch: a signed-out route
    (`/prototype/<screen>?case=&layout=`) with made-up data for every state,
-   ↑/↓ to switch layouts and ←/→ to switch cases (`PrototypeSwitcher`).
+   ↑/↓ to switch layouts and ←/→ to switch cases (`PrototypeSwitcher`, copied from the
+   latest `prototype-*` branch, as it isn't on main).
    Usually three layouts. Push the branch; it's kept as the record. It never
    becomes a PR, so it skips the change review (the `change` skill's
    Prototype rule).
