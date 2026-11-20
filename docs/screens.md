@@ -38,7 +38,7 @@ Areas and sign-in.
 ## How to read an entry
 
 Each entry gives the `docs/ux.md` rule the screen is meant to keep (with its
-decisions-log row, where one exists), then its parts top to bottom:
+row in `docs/ux-log.md`, where one exists), then its parts top to bottom:
 
 - **Header**: breadcrumbs, the title (h1), its status badge, the subtitle
   under it, and anything else on the title's row.
