@@ -46,7 +46,6 @@ How each package's tests work, and how to run them, is in its README (`packages/
 
 **Show the cause before fixing it,** with the evidence the `change` skill names (`.claude/skills/change/SKILL.md`, Survey). For tests, that comes down to:
 
-- **Time on a quiet machine, and give the load beside the timing.** Check for another checkout's run (`ps -eo pid,args | grep -E "[p]laywright|[v]itest"`; `pgrep -af "playwright|vitest"` matches the shell running it, so it always finds one).
 - **Reproduce a failure as the tool runs it**: with its `PATH` (pnpm puts `node_modules/.bin` on it, and Playwright's webServer passes it on), its working directory and its shell. Run by hand without them, a missing `vite` read as `wait -n` failing (#312, comment).
 - **What a build leaves out, here** (the rule: `.claude/skills/change/SKILL.md`, Build): Render builds each site as `render.yaml` and `render-production.yaml` say, `pnpm --filter-prod "@empire-cleaning/<web|landing>..." build` with its mode set (`VITE_APP_MODE` or `PUBLIC_APP_MODE`: `test` or `prod`), into `packages/<web|landing>/dist`. Build it that way in each mode and count the marker, a string only the left-out code holds, with `rg -c '<marker>' packages/<site>/dist`.
 - **The shared test Postgres** has its own signs of strain: `packages/server/README.md`, Testing.
