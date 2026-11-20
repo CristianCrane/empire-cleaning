@@ -175,8 +175,8 @@ test(
       "Extras",
       "Cleaning hours",
       "Cleaners",
-      "Moving",
-      "Cancelling",
+      "Free to move",
+      "Free for the client to cancel",
     ]);
 
     const crew = page.getByRole("grid", { name: "Crew" });
@@ -464,9 +464,6 @@ test(
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       "Deep Clean",
     );
-    await expect(
-      page.getByRole("region", { name: "Job details" }),
-    ).toContainText("11375");
     // no address, Access Instructions, Client or prices before Confirming
     await expect(page.locator("main")).not.toContainText("Austin St");
     await expect(page.locator("main")).not.toContainText("Ring 4B");
@@ -483,6 +480,44 @@ test(
     ).toBeVisible();
   },
 );
+
+test("a Cleaner Needed says roughly where, and when the address shows", async ({
+  page,
+}) => {
+  const cory = await addCleaner("Cory Cleaner");
+  const job = await thursdayJob(1);
+  await signInAsCleaner(page, cory.email);
+
+  await page.goto(`/cleaner/open/${job.id}`);
+  await expect(
+    page
+      .getByRole("region", { name: "Job details" })
+      .getByRole("definition")
+      .filter({ hasText: /^11375, address shows once it's yours$/ }),
+  ).toBeVisible();
+});
+
+test("a Cleaner sees who on the crew hasn't confirmed yet", async ({
+  page,
+}) => {
+  const cory = await addCleaner("Cory Cleaner");
+  const dee = await addCleaner("Dee Cleaner");
+  const job = await thursdayJob();
+  await offerJob(job.id, cory.id, { confirmed: true });
+  await offerJob(job.id, dee.id);
+  await signInAsCleaner(page, cory.email);
+
+  await page.goto(`/cleaner/jobs/${job.id}`);
+  await expect(
+    page
+      .getByRole("region", { name: "Job details" })
+      .getByRole("definition")
+      .filter({
+        hasText:
+          /^Cory Cleaner and Dee Cleaner, Dee Cleaner not confirmed yet$/,
+      }),
+  ).toBeVisible();
+});
 
 test("a Cleaner is told when someone else took the Cleaner Needed first", async ({
   page,

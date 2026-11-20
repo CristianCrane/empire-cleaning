@@ -193,9 +193,6 @@ test(
     await expect(plan).toContainText("Plan discount (15%)−$40.83");
     await expect(plan).toContainText("Save $40.83 a clean");
     await expect(
-      client.getByRole("region", { name: "Quote details" }),
-    ).toContainText(", from Mon, Jan 19, 9:00 AM");
-    await expect(
       payAndBook(client, "Pay and start your plan").form,
     ).toBeVisible();
     await expect(
@@ -336,6 +333,30 @@ test("a Service Plan Quote and the Client's view of it pass an accessibility che
     "Your cleaning plan quote",
   );
   await expectAccessible(client);
+});
+
+test("the Client reads a plan quote's facts: how often from when, and who's on site", async ({
+  page,
+}) => {
+  await startPlan(page);
+  await startOn19th(page);
+  await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
+  await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
+
+  await signedInAs(page, casey.email);
+  await page.goto(await quoteLink());
+  const facts = page
+    .getByRole("region", { name: "Quote details" })
+    .getByRole("definition");
+  await expect(
+    facts.filter({
+      hasText:
+        /^Every 2 weeks, on Mondays at 9:00 AM, from Mon, Jan 19, 9:00 AM$/,
+    }),
+  ).toBeVisible();
+  await expect(
+    facts.filter({ hasText: /^2 cleaners, about 1\.88 h$/ }),
+  ).toBeVisible();
 });
 
 test("the Client and Property screens pass an accessibility check", async ({

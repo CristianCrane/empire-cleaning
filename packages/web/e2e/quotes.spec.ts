@@ -108,7 +108,7 @@ test(
     await expect(offer).toContainText("Recommended");
     // $250 plus 8.875% tax
     await expect(offer).toContainText("$272.19");
-    await expect(offer).toContainText("Mon, Jan 12, 9:00 AMYour clean");
+    await expect(offer).toContainText("Mon, Jan 12, 9:00 AMWhen");
   },
 );
 
