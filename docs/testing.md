@@ -24,8 +24,6 @@ How each package's tests work, and how to run them, is in its README (`packages/
 
 **A spec no PR runs finds each form it acts in through a harness helper the PR's specs use, and those specs check the form holds what it relies on.** The real card form (`*.sandbox.ts`) runs only nightly, so its own copy of a locator breaks unseen: #444 moved Save card out of "Add a card", and only the next night's run went red (the log, 2026-11-14). It finds each form it types a card into through `payAndBook`, `payThisBill` and `saveACard` in `packages/web/e2e/harness.ts`, and a quick spec checks the fake's form sits in each part where the sandbox types its card. A screen change that moves one of those fails the PR's own specs; what only the sandbox shows (Stripe's own frames, the Spanish form, the empty Payments it waits on after a declined card) is its alone. To see the sandbox itself on a branch, dispatch it there: `gh workflow run stripe-sandbox.yml --ref <branch>`.
 
-**Before pushing a change that removes text a person sees, grep `packages/web/e2e` for it.** Only the specs thought to touch a screen run locally, so a spec elsewhere that asserts the removed text fails on CI alone: on PR #109 a list row's trimmed text failed `business-premises.spec`, hidden for a while behind cancelled runs.
-
 ### Payments
 
 **Payments must keep working (#331): a change that touches paying names what proves paying still works, and a gap gets a test**, rather than a note of the risk. In the browser that's what the sandbox run covers (`packages/web/README.md`, "What the fake covers, and what the sandbox run does"); on the server, the Payment Gateway.
