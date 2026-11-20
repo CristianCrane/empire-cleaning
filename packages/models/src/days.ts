@@ -36,8 +36,8 @@ const wallClock = (instant: Date) => {
 // the day an instant falls on, in New York
 export const dayOf = (instant: Date) => wallClock(instant).day;
 
-// whether two instants fall on one day, in New York: a time and now, for
-// whether it's today
+// whether two instants fall on one day, in New York (with now: whether it's
+// today)
 export const sameDay = (a: Date, b: Date) => dayOf(a) === dayOf(b);
 
 // the instant a New York wall-clock time happens on a day: atTime("2026-11-03",

@@ -20,6 +20,7 @@ import {
   addDays,
   dayOf,
   daysFrom,
+  sameDay,
   startOfDay,
   weekdayOf,
 } from "@empire-cleaning/models";
@@ -231,7 +232,7 @@ const heldTimes = async (days: string[], tx: Tx | typeof db) => {
       labourHours,
       crewSize,
     });
-    if (dayOf(startsAt) !== dayOf(request.jobStartsAt)) {
+    if (!sameDay(startsAt, request.jobStartsAt)) {
       day.units += hundredths(labourHours);
     }
   }
