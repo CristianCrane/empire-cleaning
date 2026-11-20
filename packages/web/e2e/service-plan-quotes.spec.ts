@@ -372,6 +372,8 @@ test("a plan quoted at no discount shows the Client no saving", async ({
   await expect(
     page.getByText(/^Standard Clean, every 2 weeks: \$224\.28 a clean$/),
   ).toBeVisible();
+  // nor does the Office's note on where the plan discount comes from
+  await expect(page.getByText(/plan discount comes off/)).toHaveCount(0);
   await saved(page);
   await startOn19th(page);
   await page.getByRole("button", { name: `Send to ${casey.name}` }).click();

@@ -876,10 +876,12 @@ function DraftPrices({
                     day={day}
                     discountPercent={plan.discountPercent}
                   />
-                  <p className="text-sm text-fg-muted">
-                    The plan discount comes off the one-off price, whoever set
-                    it.
-                  </p>
+                  {plan.discountPercent > 0 && (
+                    <p className="text-sm text-fg-muted">
+                      The plan discount comes off the one-off price, whoever set
+                      it.
+                    </p>
+                  )}
                 </>
               ) : (
                 <OptionRows
