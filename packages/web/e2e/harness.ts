@@ -1,3 +1,4 @@
+import { writeFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import {
   test as base,
@@ -424,8 +425,19 @@ export const test = base.extend<{
         if (height === screen) break;
         await page.setViewportSize({ width, height });
       }
+      // a still frame, so one commit shoots one test the same each run
+      // (pr:shots --same compares them byte for byte, #439): transitions run
+      // to their end, as the hover the mouse just left fades out, and the shot
+      // is taken again until two in a row match, as an image or font settles
+      const still = () => page.screenshot({ animations: "disabled" });
+      let shot = await still();
+      for (let tries = 0; tries < 5; tries++) {
+        const again = await still();
+        if (again.equals(shot)) break;
+        shot = again;
+      }
       const path = testInfo.outputPath("pr-shot.png");
-      await page.screenshot({ path });
+      writeFileSync(path, shot);
       await testInfo.attach("pr-shot", { path, contentType: "image/png" });
     },
     { auto: true },
