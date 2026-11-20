@@ -33,7 +33,7 @@ How each package's tests work, and how to run them, is in its README (`packages/
 
 ### Time budgets
 
-**This repo's time budgets** (the rule, and how close a test runs to its budget: the `testing` skill). The server tests keep Vitest's 5 s (the plan-change test in `service-plans/changing.test.ts`, "changes the plan from the Quote's time", has its own 10 s, as it does a plan change's whole work), the seed test 120 s and the design system's story tests 30 s (each in its `vitest.config.ts`). The end-to-end tests keep Playwright's 30 s, and `test.slow()` triples it for one test (`layout.spec.ts`, each with its reason).
+**This repo's time budgets** (the rule, and how close a test runs to its budget: the `testing` skill). The server tests keep Vitest's 5 s, the seed test 120 s and the design system's story tests 30 s (each in its `vitest.config.ts`). The end-to-end tests keep Playwright's 30 s, and `test.slow()` triples it for one test (`layout.spec.ts`, each with its reason).
 
 ### Starting and stopping
 

@@ -9,7 +9,7 @@ import { db } from "#db";
 import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { createClient } from "#features/clients";
 import { siteVisits } from "#features/site-visits";
-import { createStaff, setUsualWeek } from "#features/staff";
+import { createStaff } from "#features/staff";
 import {
   type Agent,
   api,
@@ -17,7 +17,11 @@ import {
   testClock,
   testEmail,
 } from "../../../tests/harness.ts";
-import { bookedJob, signInAsOffice } from "../../../tests/fixtures.ts";
+import {
+  bookedJob,
+  signInAsOffice,
+  staffMember,
+} from "../../../tests/fixtures.ts";
 import { signInWithGoogle } from "../../../tests/google.ts";
 
 const cory = {
@@ -43,14 +47,8 @@ const staffNamed = async (office: Agent, name: string) =>
 const corysThursday = async () => {
   const office = await signInAsOffice();
   const { id: officeId } = await me(office);
-  const member = await createStaff({ ...cory, roles: ["cleaner"] });
-  await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
-  const dee = await createStaff({
-    name: "Dee Cleaner",
-    email: "dee@example.com",
-    roles: ["cleaner"],
-  });
-  await setUsualWeek(dee.id, [8, 8, 8, 8, 8, 0, 0]);
+  const member = await staffMember(cory.name);
+  await staffMember("Dee Cleaner");
   const job = await bookedJob({
     startsAt: "2026-01-08T14:00:00Z",
     labourHours: 3,
@@ -318,8 +316,7 @@ describe("editing Staff", () => {
 
   test("won't take the Cleaner role from someone on the crew of a Job to come", async () => {
     const office = await signInAsOffice();
-    const member = await createStaff({ ...cory, roles: ["cleaner"] });
-    await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
+    const member = await staffMember(cory.name);
     const job = await bookedJob({
       startsAt: "2026-01-08T14:00:00Z",
       labourHours: 4,

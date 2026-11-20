@@ -13,7 +13,7 @@ import { apart } from "#db";
 import { assignments } from "#features/assignments";
 import { jobs } from "#features/jobs";
 import { siteVisits } from "#features/site-visits";
-import { createStaff, setUsualWeek } from "#features/staff";
+import { createStaff } from "#features/staff";
 import {
   type Agent,
   api,
@@ -26,6 +26,7 @@ import {
   casey,
   guestAsk,
   signInAsOffice,
+  staffMember,
   submit,
 } from "../../../tests/fixtures.ts";
 import { SEEDED } from "#features/services";
@@ -34,13 +35,6 @@ import { SEEDED } from "#features/services";
 // UTC). Jobs here are at 9am New York on Thursday the 8th unless a test says
 // otherwise: more than 48 hours away.
 const THURSDAY_9AM = "2026-01-08T14:00:00Z";
-
-const cleaner = async (name: string) => {
-  const email = `${name.split(" ")[0]!.toLowerCase()}@example.com`;
-  const member = await createStaff({ name, email, roles: ["cleaner"] });
-  await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
-  return { ...member, email, signIn: () => signIn(email) };
-};
 
 const thursdayJob = (crewSize = 2) =>
   bookedJob({ startsAt: THURSDAY_9AM, labourHours: 6, crewSize });
@@ -77,7 +71,7 @@ const needsAttention = async (office: Agent) =>
 describe("Offering Assignments", () => {
   test("is only for Office Staff", async () => {
     const job = await thursdayJob();
-    const cory = await cleaner("Cory Cleaner");
+    const cory = await staffMember("Cory Cleaner");
     await api().get(`/api/jobs/${job.id}`).expect(401);
     const asCory = await cory.signIn();
     await asCory.get(`/api/jobs/${job.id}`).expect(403);
@@ -86,8 +80,8 @@ describe("Offering Assignments", () => {
 
   test("starts each Assignment Offered and emails the Cleaner", async () => {
     const job = await thursdayJob();
-    const cory = await cleaner("Cory Cleaner");
-    const dee = await cleaner("Dee Cleaner");
+    const cory = await staffMember("Cory Cleaner");
+    const dee = await staffMember("Dee Cleaner");
     const office = await signInAsOffice();
 
     const before = await jobFor(office, job.id);
@@ -132,12 +126,9 @@ describe("Offering Assignments", () => {
 
   test("lets Office Staff who clean put themselves on the crew, Confirmed at once", async () => {
     const job = await thursdayJob();
-    const ana = await createStaff({
-      name: "Ana Both",
-      email: "ana@example.com",
+    const ana = await staffMember("Ana Both", {
       roles: ["cleaner", "office_staff"],
     });
-    await setUsualWeek(ana.id, [8, 8, 8, 8, 8, 0, 0]);
     const asAna = await signIn("ana@example.com");
     const sent = testEmail().sent.length;
 
@@ -153,8 +144,8 @@ describe("Offering Assignments", () => {
 
   test("is refused when the crew is whole", async () => {
     const job = await thursdayJob(1);
-    const cory = await cleaner("Cory Cleaner");
-    const dee = await cleaner("Dee Cleaner");
+    const cory = await staffMember("Cory Cleaner");
+    const dee = await staffMember("Dee Cleaner");
     const office = await signInAsOffice();
     await offered(office, job.id, cory.id);
 
@@ -170,8 +161,8 @@ describe("Offering Assignments", () => {
 
   test("is refused for someone already on the Job, or who can't take jobs. Pick an active cleaner.", async () => {
     const job = await thursdayJob(3);
-    const cory = await cleaner("Cory Cleaner");
-    const gone = await cleaner("Gil Gone");
+    const cory = await staffMember("Cory Cleaner");
+    const gone = await staffMember("Gil Gone");
     const office = await signInAsOffice();
     const otto = await createStaff({
       name: "Otto Office",
@@ -197,7 +188,7 @@ describe("Offering Assignments", () => {
 
   test("is refused once the Job has started", async () => {
     const job = await thursdayJob();
-    const cory = await cleaner("Cory Cleaner");
+    const cory = await staffMember("Cory Cleaner");
     const office = await signInAsOffice();
     testClock().set(new Date(THURSDAY_9AM));
 
@@ -207,7 +198,7 @@ describe("Offering Assignments", () => {
   });
 
   test("shows the Add-ons on the Quote the Client accepted", async () => {
-    await cleaner("Cory Cleaner");
+    await staffMember("Cory Cleaner");
     const office = await signInAsOffice();
     const { body: request } = await submit(guestAsk()).expect(201);
     const draft = (
@@ -257,7 +248,7 @@ describe("Offering Assignments", () => {
 describe("removing an Assignment", () => {
   test("leaves a Cleaner Needed and tells the Cleaner", async () => {
     const job = await thursdayJob();
-    const cory = await cleaner("Cory Cleaner");
+    const cory = await staffMember("Cory Cleaner");
     const office = await signInAsOffice();
     const assignmentId = await offered(office, job.id, cory.id);
     const asCory = await cory.signIn();
@@ -289,8 +280,8 @@ describe("removing an Assignment", () => {
 
 describe("a Cleaner's Jobs", () => {
   test("are those they're on the crew of, today and to come, soonest first", async () => {
-    const cory = await cleaner("Cory Cleaner");
-    const dee = await cleaner("Dee Cleaner");
+    const cory = await staffMember("Cory Cleaner");
+    const dee = await staffMember("Dee Cleaner");
     const office = await signInAsOffice();
     const thursday = await thursdayJob();
     const today = await bookedJob({
@@ -325,8 +316,8 @@ describe("a Cleaner's Jobs", () => {
   });
 
   test("show only where, what, who with and the Client's first name; the phone only on the day", async () => {
-    const cory = await cleaner("Cory Cleaner");
-    const dee = await cleaner("Dee Cleaner");
+    const cory = await staffMember("Cory Cleaner");
+    const dee = await staffMember("Dee Cleaner");
     const office = await signInAsOffice();
     const job = await thursdayJob();
     const assignmentId = await offered(office, job.id, cory.id);
@@ -370,8 +361,8 @@ describe("a Cleaner's Jobs", () => {
   });
 
   test("are hidden from Cleaners not on them", async () => {
-    const cory = await cleaner("Cory Cleaner");
-    const dee = await cleaner("Dee Cleaner");
+    const cory = await staffMember("Cory Cleaner");
+    const dee = await staffMember("Dee Cleaner");
     const office = await signInAsOffice();
     const job = await thursdayJob();
     const assignmentId = await offered(office, job.id, cory.id);
@@ -392,8 +383,8 @@ describe("a Cleaner's Jobs", () => {
 
 describe("Confirming", () => {
   test("puts them on the crew, and a Job is assigned once its whole crew is Confirmed", async () => {
-    const cory = await cleaner("Cory Cleaner");
-    const dee = await cleaner("Dee Cleaner");
+    const cory = await staffMember("Cory Cleaner");
+    const dee = await staffMember("Dee Cleaner");
     const office = await signInAsOffice();
     const job = await thursdayJob();
     const coryAssignment = await offered(office, job.id, cory.id);
@@ -438,7 +429,7 @@ describe("Confirming", () => {
 
 describe("Releasing", () => {
   test("leaves a Cleaner Needed and emails the Office", async () => {
-    const cory = await cleaner("Cory Cleaner");
+    const cory = await staffMember("Cory Cleaner");
     const office = await signInAsOffice();
     const job = await thursdayJob();
     const assignmentId = await offered(office, job.id, cory.id);
@@ -465,7 +456,7 @@ describe("Releasing", () => {
   });
 
   test("of an Offered Assignment is allowed right up to the Job", async () => {
-    const cory = await cleaner("Cory Cleaner");
+    const cory = await staffMember("Cory Cleaner");
     const office = await signInAsOffice();
     const job = await thursdayJob();
     const assignmentId = await offered(office, job.id, cory.id);
@@ -477,7 +468,7 @@ describe("Releasing", () => {
   });
 
   test("of a Confirmed Assignment is refused within 48 hours of the Job", async () => {
-    const cory = await cleaner("Cory Cleaner");
+    const cory = await staffMember("Cory Cleaner");
     const office = await signInAsOffice();
     const job = await thursdayJob();
     const assignmentId = await offered(office, job.id, cory.id);
@@ -505,7 +496,7 @@ describe("Releasing", () => {
 
 describe("Unassigned Jobs in Needs attention", () => {
   test("are those within 48 hours whose crew isn't all Confirmed, soonest first", async () => {
-    const cory = await cleaner("Cory Cleaner");
+    const cory = await staffMember("Cory Cleaner");
     const office = await signInAsOffice();
     // booked at the clock's start, 4am Monday
     const wednesday = await bookedJob({
@@ -568,7 +559,7 @@ describe("Offering a Job to a Cleaner who isn't free (#242)", () => {
   test("is refused, as they could never Confirm it", async () => {
     const job = await thursdayJob(1);
     const other = await thursdayJob(1);
-    const cory = await cleaner("Cory Cleaner");
+    const cory = await staffMember("Cory Cleaner");
     // no hours on Thursdays
     const fay = await createStaff({
       name: "Fay Cleaner",
@@ -592,7 +583,7 @@ describe('Saying "Not for me" (#242)', () => {
   test("is only for a Cleaner the Job is open to", async () => {
     // one Cleaner still needed, open to anyone free but those on it
     const job = await thursdayJob(2);
-    const cory = await cleaner("Cory Cleaner");
+    const cory = await staffMember("Cory Cleaner");
     // no hours that day
     await createStaff({
       name: "Fay Cleaner",
@@ -619,7 +610,7 @@ describe('Saying "Not for me" (#242)', () => {
 describe("Confirming an Offered Job (#242)", () => {
   test("is refused once the Cleaner is no longer free for it", async () => {
     const job = await thursdayJob(1);
-    const cora = await cleaner("Cora Cleaner");
+    const cora = await staffMember("Cora Cleaner");
     const office = await signInAsOffice();
     const assignmentId = await offered(office, job.id, cora.id);
     const asCora = await cora.signIn();
@@ -644,7 +635,7 @@ describe("Confirming an Offered Job (#242)", () => {
 
   test("is refused once the Job has started", async () => {
     const job = await thursdayJob(1);
-    const cora = await cleaner("Cora Cleaner");
+    const cora = await staffMember("Cora Cleaner");
     const office = await signInAsOffice();
     const assignmentId = await offered(office, job.id, cora.id);
     testClock().set(new Date(THURSDAY_9AM));
@@ -662,7 +653,7 @@ describe("Confirming an Offered Job (#242)", () => {
 
   test("at a time the Job has moved from asks the Cleaner to look again", async () => {
     const job = await thursdayJob(1);
-    const dee = await cleaner("Dee Cleaner");
+    const dee = await staffMember("Dee Cleaner");
     const office = await signInAsOffice();
     const assignmentId = await offered(office, job.id, dee.id);
     const asDee = await dee.signIn();
@@ -688,7 +679,7 @@ describe("Confirming an Offered Job (#242)", () => {
 describe("an Assignment to a Cancelled Job (#242)", () => {
   test("can't be Confirmed or Released from an old link", async () => {
     const job = await thursdayJob(1);
-    const cory = await cleaner("Cory Cleaner");
+    const cory = await staffMember("Cory Cleaner");
     const office = await signInAsOffice();
     const assignmentId = await offered(office, job.id, cory.id);
     const asCory = await cory.signIn();
@@ -719,8 +710,8 @@ describe("taking a Cleaner off a Job (#242)", () => {
       labourHours: 3,
       crewSize: 1,
     });
-    const cory = await cleaner("Cory Cleaner");
-    const dee = await cleaner("Dee Cleaner");
+    const cory = await staffMember("Cory Cleaner");
+    const dee = await staffMember("Dee Cleaner");
     const office = await signInAsOffice();
     const assignmentId = await offered(office, job.id, cory.id);
     const asCory = await cory.signIn();
@@ -746,7 +737,7 @@ describe("taking a Cleaner off a Job (#242)", () => {
 describe("Releasing an Assignment while its Job is being moved (#242)", () => {
   test("waits for the move, so the Job it gave up isn't Offered back", async () => {
     const job = await thursdayJob(1);
-    const cory = await cleaner("Cory Cleaner");
+    const cory = await staffMember("Cory Cleaner");
     const office = await signInAsOffice();
     const assignmentId = await offered(office, job.id, cory.id);
     const asCory = await cory.signIn();

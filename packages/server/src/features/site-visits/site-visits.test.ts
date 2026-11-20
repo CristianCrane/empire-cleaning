@@ -9,7 +9,6 @@ import type {
   QuoteSummary,
   ScheduleDay,
 } from "@empire-cleaning/models";
-import { createStaff, setUsualWeek } from "#features/staff";
 import {
   type Agent,
   api,
@@ -22,6 +21,7 @@ import {
   casey,
   guestAsk,
   signInAsOffice,
+  staffMember,
   submit,
 } from "../../../tests/fixtures.ts";
 import { SEEDED } from "#features/services";
@@ -64,13 +64,6 @@ const businessAsk = async () => {
   return Office!;
 };
 
-const cleaner = async (name: string, week = [8, 8, 8, 8, 8, 0, 0]) => {
-  const email = `${name.split(" ")[0]!.toLowerCase()}@example.com`;
-  const member = await createStaff({ name, email, roles: ["cleaner"] });
-  await setUsualWeek(member.id, week);
-  return { ...member, email };
-};
-
 // the Office, Olive (Office Staff only), Cory (a Cleaner), and Acme's Quote
 const setUp = async () => {
   const office = await signInAsOffice();
@@ -78,7 +71,7 @@ const setUp = async () => {
     id: string;
   }[];
   const olive = me[0]!;
-  const cory = await cleaner("Cory Cleaner");
+  const cory = await staffMember("Cory Cleaner");
   const premisesType = await businessAsk();
   const [quote] = (await office.get("/api/quotes").expect(200))
     .body as QuoteSummary[];
@@ -267,7 +260,7 @@ describe("booking a Site Visit", () => {
   test("by a Cleaner is refused while they're on a Job then", async () => {
     const { office, cory, quote } = await setUp();
     // a second Cleaner, so the day has a crew free for the visit
-    await cleaner("Dana Cleaner");
+    await staffMember("Dana Cleaner");
     const job = await bookedJob({
       startsAt: "2026-01-06T16:00:00Z",
       labourHours: 2,

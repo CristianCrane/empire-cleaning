@@ -14,7 +14,6 @@ import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { clients } from "#features/clients";
 import { completeJob } from "#features/completion";
 import { currentPriceList } from "#features/price-list";
-import { createStaff, setUsualWeek } from "#features/staff";
 import {
   signIn,
   testClock,
@@ -26,6 +25,7 @@ import {
   addPremises,
   casey,
   signInAsOffice,
+  staffMember,
 } from "../../../tests/fixtures.ts";
 
 // What the Office names in both languages, a Service and its extras, and a
@@ -41,12 +41,7 @@ const inSpanish = (agent: Agent, path: string) =>
 const booked = async () => {
   const office = await signInAsOffice();
   const me = (await office.get("/api/me").expect(200)).body as { id: string };
-  const cory = await createStaff({
-    name: "Cory Cleaner",
-    email: "cory@example.com",
-    roles: ["cleaner"],
-  });
-  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+  const cory = await staffMember("Cory Cleaner");
   const job = await acceptedJob({
     startsAt: "2026-01-12T14:00:00Z",
     byAccountId: me.id,

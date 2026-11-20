@@ -3,13 +3,17 @@ import { eq } from "drizzle-orm";
 import type { SignedInAccount } from "@empire-cleaning/models";
 import { db } from "#db";
 import { findClientByEmail } from "#features/clients";
-import { createStaff, setUsualWeek } from "#features/staff";
 import {
   testClock,
   testMonitoring,
   testPayments,
 } from "../../../tests/harness.ts";
-import { acceptedJob, casey, signInAsOffice } from "../../../tests/fixtures.ts";
+import {
+  acceptedJob,
+  casey,
+  signInAsOffice,
+  staffMember,
+} from "../../../tests/fixtures.ts";
 import { chargeSaved, refundFrom } from "./money.ts";
 import { paymentMethodOf } from "./payments.ts";
 import { charges, payers, refunds } from "./payments.schema.ts";
@@ -19,12 +23,7 @@ import { charges, payers, refunds } from "./payments.schema.ts";
 const booked = async () => {
   const office = await signInAsOffice();
   const me = (await office.get("/api/me").expect(200)).body as SignedInAccount;
-  const cory = await createStaff({
-    name: "Cory Cleaner",
-    email: "cory@example.com",
-    roles: ["cleaner"],
-  });
-  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+  await staffMember("Cory Cleaner");
   const job = await acceptedJob({
     startsAt: "2026-01-07T14:00:00Z",
     byAccountId: me.id,
