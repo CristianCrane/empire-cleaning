@@ -208,7 +208,7 @@ test("an Unassigned Job within 48 hours needs attention", async ({ page }) => {
   await signInAsOffice(page);
 
   const item = (await openTile(page, "Jobs")).getByRole("row", {
-    name: /Client/,
+    name: /Robin/,
   });
   await expect(item).toContainText("Find cleaners");
   await expect(item).toContainText("Tue, Jan 6, 9:00 AM");
