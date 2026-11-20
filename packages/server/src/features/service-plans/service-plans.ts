@@ -32,6 +32,7 @@ import {
   timeOf,
   weekdayOf,
   messages,
+  endsByMidnight,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
@@ -51,7 +52,7 @@ import {
 } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { freeFor, jobViews, roomFor } from "../jobs/schedule.ts";
-import { endsByMidnight, passed } from "../jobs/rules.ts";
+import { passed } from "../jobs/rules.ts";
 import { charges } from "../payments/payments.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";

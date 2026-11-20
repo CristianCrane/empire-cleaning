@@ -33,6 +33,7 @@ import {
   timeOf,
   weekdayOf,
   messages,
+  endsByMidnight,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import {
@@ -44,7 +45,6 @@ import { clock } from "../../services/clock/index.ts";
 import { email } from "../../services/email/index.ts";
 import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
-import { endsByMidnight } from "../jobs/rules.ts";
 import { officeCompletionOf } from "../completion/completion.ts";
 import { paymentMethodOf, toPaymentMethodView } from "../payments/payments.ts";
 import {

@@ -6,7 +6,7 @@ import type {
   QuoteSummary,
   ScheduleDay,
 } from "@empire-cleaning/models";
-import { dayOf } from "@empire-cleaning/models";
+import { dayOf, type Clean } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import { onSchedule } from "../jobs/jobs.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
@@ -20,7 +20,7 @@ import { quotesWithoutRoomEmail } from "./emails.ts";
 import { openQuotes } from "./quote-state.ts";
 import { quotes, revisionOptions } from "./quotes.schema.ts";
 import { cleanRooms, cleansFit } from "./rules.ts";
-import { startsOn, startsWithoutCrew, type Clean } from "../jobs/rules.ts";
+import { startsOn, startsWithoutCrew } from "../jobs/rules.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 
 // A Sent Quote doesn't hold its time: a booking for another Client, or fewer

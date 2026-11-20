@@ -2122,6 +2122,10 @@ export * from "./format.ts";
 // the Suggested Price, worked out the same on the server and on screen
 export * from "./suggested-price.ts";
 
+// the Schedule's room, asked the same on the server and on screen (the
+// Schedule's drag), and who's free, worked out over the same spans of time
+export * from "./schedule-rules.ts";
+
 // New York's days and times, and how long a minute, hour and day are
 export * from "./days.ts";
 

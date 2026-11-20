@@ -1,6 +1,14 @@
 import { describe, expect, test } from "vitest";
 import type { ScheduledSiteVisit } from "@empire-cleaning/models";
-import { whyNoRoom, messages } from "@empire-cleaning/models";
+import {
+  whyNoRoom,
+  messages,
+  busyWith,
+  endsByMidnight,
+  isFree,
+  roomOn,
+} from "@empire-cleaning/models";
+import { withoutReplaced } from "./rules.ts";
 import {
   afterNine,
   clean,
@@ -10,13 +18,6 @@ import {
   siteVisit,
   thursday,
 } from "../../../tests/schedule-days.ts";
-import {
-  busyWith,
-  endsByMidnight,
-  isFree,
-  roomOn,
-  withoutReplaced,
-} from "./rules.ts";
 
 const { ENDS_BY_MIDNIGHT } = messages.en;
 

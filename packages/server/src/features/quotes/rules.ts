@@ -3,8 +3,8 @@ import type {
   QuoteStatus,
   ScheduleDay,
 } from "@empire-cleaning/models";
-import { dayOf } from "@empire-cleaning/models";
-import { roomOn, withoutReplaced, type Clean } from "../jobs/rules.ts";
+import { dayOf, roomOn, type Clean } from "@empire-cleaning/models";
+import { withoutReplaced } from "../jobs/rules.ts";
 
 // The rules for accepting a Quote, over what acceptance loads: the Quote as
 // it is now, its home's plan, and the days of the cleans it books. Whether
