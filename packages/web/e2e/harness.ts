@@ -343,13 +343,14 @@ export const setLanguage = async (page: Page, language: "en" | "es") => {
 // Content-Security-Policy (vite.config.ts) blocked anything a page loads.
 // First-time help's tours dim the page and take every press, so a test meets
 // none, as if each had been seen, unless it asks to in its own page
-// (showTours, tours.spec.ts). Under `pnpm pr:shots`, each test ends on a
+// (showTours, tours.spec.ts); a browser it opens beside its own closes as it
+// ends (browsers). Under `pnpm pr:shots`, each test ends on a
 // picture of its screen at rest (prShot)
 export const test = base.extend<{
   cleanSlate: void;
   allowedByCsp: void;
   showTours: boolean;
-  toursSeen: void;
+  browsers: void;
   prShot: void;
 }>({
   cleanSlate: [
@@ -434,7 +435,12 @@ export const test = base.extend<{
     { auto: true },
   ],
   showTours: [false, { option: true }],
-  toursSeen: [
+  // every browser a test uses: tours seen in each, and those it opened
+  // beside its own closed as it ends. Left open, Playwright's end-of-test
+  // screenshot shoots their pages in every later test of the worker, and a
+  // test with no page of its own got one of those as its pr:shots picture
+  // (#488)
+  browsers: [
     async ({ browser, context, showTours }, use) => {
       const routed: BrowserContext[] = [];
       const allSeen = (on: BrowserContext) => {
@@ -452,11 +458,14 @@ export const test = base.extend<{
       if (!showTours) await allSeen(context);
       // and in every browser a test opens beside its own, e.g. the Client's
       // while the Office's is open, tours shown in its own or not
+      // (browser.newPage opens one through this too)
+      const opened: BrowserContext[] = [];
       const newContext = browser.newContext.bind(browser);
       browser.newContext = async (...options) => {
-        const opened = await newContext(...options);
-        await allSeen(opened);
-        return opened;
+        const beside = await newContext(...options);
+        opened.push(beside);
+        await allSeen(beside);
+        return beside;
       };
       await use();
       browser.newContext = newContext;
@@ -464,6 +473,9 @@ export const test = base.extend<{
       for (const on of routed) {
         await on.unrouteAll({ behavior: "ignoreErrors" }).catch(() => {});
       }
+      // the test's own Playwright closes, after prShot has shot it; closing
+      // one the test closed already does nothing
+      for (const beside of opened) await beside.close();
     },
     { auto: true },
   ],
