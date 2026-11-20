@@ -13,7 +13,7 @@ export const toSiteVisitView = (
     "id" | "street" | "unit" | "postcode" | "kind"
   >,
   client: Pick<typeof clients.$inferSelect, "id" | "name" | "businessName">,
-  visitor: { id: string; name: string } | null,
+  visitor: SiteVisitView["visitor"],
 ): SiteVisitView => ({
   id: visit.id,
   quoteId: visit.quoteId,
@@ -49,7 +49,7 @@ export const siteVisitViews = async (
       visit: siteVisits,
       property: properties,
       client: clients,
-      visitor: { id: staff.id, name: staff.name },
+      visitor: { id: staff.id, name: staff.name, roles: staff.roles },
     })
     .from(siteVisits)
     .innerJoin(properties, eq(properties.id, siteVisits.propertyId))

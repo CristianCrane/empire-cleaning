@@ -14,8 +14,10 @@ import {
   signUp,
   test,
   addCleaner,
+  bookSiteVisit,
   expectNoPageAction,
   pageAction,
+  requestQuoteForPremises,
 } from "./harness.ts";
 
 const olive = {
@@ -184,11 +186,13 @@ test("the Schedule opens on three days from today, then on the span last chosen"
 });
 
 // where Casey's Job would land, drawn while it's dragged
-const outlineOf = (page: Page) =>
+// a dragged block's outline, by its Client's name: a box of its own, not
+// the words on a block (a short Site Visit's)
+const outlineOf = (page: Page, client = "Casey Client") =>
   page
     .getByRole("main")
-    .locator("div")
-    .getByText(/^\d+:\d+ [AP]M Casey Client$/);
+    .getByText(new RegExp(`^\\d+:\\d+ [AP]M ${client}$`))
+    .and(page.locator("div"));
 const boxOf = async (of: Locator) => (await of.boundingBox())!;
 // an edge's colour and line: the outline's top, the Job's own left bar
 const edgeOf = (of: Locator, side: "Top" | "Left") =>
@@ -440,6 +444,101 @@ test("a Job that has started, or isn't booked, can't be moved", async ({
   await expect(block).toHaveAttribute("draggable", "false");
   await page.goto(`/office/jobs/${job.id}`);
   await expectNoPageAction(page, "Move job");
+});
+
+test(
+  "Office Staff drag a Site Visit to a new time, its outline red where its visitor is busy",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    test.skip(isMobile, "dragging needs a mouse");
+    await requestQuoteForPremises(casey, "Acme Dental");
+    const cory = await addCleaner("Cory Cleaner");
+    // a second Cleaner, so a crew is free while Cory is on a Job
+    await addCleaner("Dee Cleaner");
+    await bookSiteVisit({
+      street: "200 Park Ave S",
+      staffEmail: cory.email,
+      date: "2027-03-02",
+      time: "09:00",
+    });
+    // Cory is on a Job from 10 to 12 on Wednesday
+    const job = (await bookJob({
+      startsAt: "2027-03-03T15:00:00Z",
+      labourHours: 2,
+      crewSize: 1,
+    })) as { id: string };
+    await offerJob(job.id, cory.id, { confirmed: true });
+    await signInAsOffice(page);
+    await page.goto(week);
+    const block = jobsOn(page, "Tue, Mar 2").getByRole("link", {
+      name: /Acme Dental/,
+    });
+    const wednesday = jobsOn(page, "Wed, Mar 3");
+    const outline = outlineOf(page, "Acme Dental");
+    const [visitColour] = await edgeOf(block.locator(".."), "Left");
+
+    await block.hover({ position: { x: 10, y: 5 } });
+    await page.mouse.down();
+    // at 10:30 Cory is on the Job: red
+    await holdOver(wednesday, 3.5 * HOUR_PX + 5);
+    await expect(wednesday.getByText("10:30 AM Acme Dental")).toBeVisible();
+    await expect
+      .poll(async () => (await edgeOf(outline, "Top"))[0])
+      .not.toBe(visitColour);
+    // at 1pm, free again: its own colours
+    await holdOver(wednesday, 6 * HOUR_PX + 5);
+    await expect(wednesday.getByText("1:00 PM Acme Dental")).toBeVisible();
+    expect(await edgeOf(outline, "Top")).toEqual([visitColour, "dashed"]);
+    // let go at 10:30, it stays put
+    await holdOver(wednesday, 3.5 * HOUR_PX + 5);
+    await expect(wednesday.getByText("10:30 AM Acme Dental")).toBeVisible();
+    await page.mouse.up();
+    await expect(outline).toHaveCount(0);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    // let go at 1pm, the move is asked first
+    await block.dragTo(wednesday, {
+      sourcePosition: { x: 10, y: 5 },
+      targetPosition: { x: 10, y: 6 * HOUR_PX + 5 },
+    });
+    const dialog = page.getByRole("dialog", { name: "Move this site visit?" });
+    await expect(dialog).toContainText("FromTue, Mar 2, 9:00 AM");
+    await expect(dialog).toContainText("ToWed, Mar 3, 1:00 PM");
+    await expect(dialog).toContainText("Cory Cleaner still makes it");
+    await dialog.getByRole("button", { name: "Move site visit" }).click();
+
+    await expect(page.getByText("Site visit moved")).toBeVisible();
+    await expect(
+      wednesday.getByRole("link", { name: /1:00 PM Acme Dental/ }),
+    ).toBeVisible();
+    await expect(
+      jobsOn(page, "Tue, Mar 2").getByRole("link", { name: /Acme Dental/ }),
+    ).toHaveCount(0);
+    expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
+      "Your site visit has moved",
+    );
+  },
+);
+
+test("a Site Visit that has started can't be dragged", async ({ page }) => {
+  await requestQuoteForPremises(casey, "Acme Dental");
+  await createStaff(olive);
+  await bookSiteVisit({
+    street: "200 Park Ave S",
+    staffEmail: olive.email,
+    date: "2026-01-06",
+    time: "11:00",
+  });
+  await signedInAs(page, olive.email);
+  await page.goto("/office/schedule?from=2026-01-05&to=2026-01-11");
+  const block = page
+    .getByRole("group", { name: "Jobs on Tue, Jan 6" })
+    .locator("[draggable]");
+  await expect(block).toHaveAttribute("draggable", "true");
+
+  await setClock("2026-01-06T16:30:00Z");
+  await page.reload();
+  await expect(block).toHaveAttribute("draggable", "false");
 });
 
 test("the Schedule passes automated accessibility checks", async ({ page }) => {

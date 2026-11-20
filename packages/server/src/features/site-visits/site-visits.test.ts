@@ -10,7 +10,13 @@ import type {
   ScheduleDay,
 } from "@empire-cleaning/models";
 import { createStaff, setUsualWeek } from "#features/staff";
-import { type Agent, api, signIn, testEmail } from "../../../tests/harness.ts";
+import {
+  type Agent,
+  api,
+  signIn,
+  testClock,
+  testEmail,
+} from "../../../tests/harness.ts";
 import {
   bookedJob,
   casey,
@@ -132,7 +138,12 @@ describe("booking a Site Visit", () => {
 
     const day = await scheduleDay(office);
     expect(day.siteVisits).toMatchObject([
-      { id: visit.id, takesRoom: false, visitor: { name: "Olive Owner" } },
+      {
+        id: visit.id,
+        takesRoom: false,
+        visitor: { name: "Olive Owner" },
+        movable: true,
+      },
     ]);
 
     const asCasey = await signIn(casey.email);
@@ -151,6 +162,12 @@ describe("booking a Site Visit", () => {
         },
         visitorName: "Olive",
       },
+    ]);
+
+    // once it starts, it's moved from its page, not dragged (as a Job)
+    testClock().set(new Date("2026-01-06T15:00:00Z"));
+    expect((await scheduleDay(office)).siteVisits).toMatchObject([
+      { id: visit.id, movable: false },
     ]);
   });
 
@@ -234,6 +251,9 @@ describe("booking a Site Visit", () => {
       .post(`/api/site-visits/${visit.id}/findings`)
       .send({ premisesType, floorArea: 3000, condition: "moderate" })
       .expect(200);
+    expect((await scheduleDay(office)).siteVisits).toMatchObject([
+      { id: visit.id, status: "done", movable: false },
+    ]);
 
     await submit(
       guestAsk({ contact: { ...casey, email: "zed@example.com" } }),

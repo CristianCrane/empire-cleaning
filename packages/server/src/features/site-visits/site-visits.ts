@@ -458,7 +458,7 @@ export const officeSiteVisit = async (id: string): Promise<OfficeSiteVisit> => {
       visit: siteVisits,
       property: properties,
       client: clients,
-      visitor: { id: staff.id, name: staff.name },
+      visitor: { id: staff.id, name: staff.name, roles: staff.roles },
     })
     .from(siteVisits)
     .innerJoin(properties, eq(properties.id, siteVisits.propertyId))

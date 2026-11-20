@@ -533,12 +533,15 @@ stays as it is (#336).
 - **Schedules are calendars**: a day, three days or a week on the Schedule
   (three at first, then the span last chosen in that browser), a month on a
   Cleaner's availability. Jobs are timed events (start and
-  duration), ready for a Google Calendar sync. A Job dragged on the
-  Schedule carries a picture of its block, and an outline its size shows
-  where it would land, snapped as the drop is: its own colours, a
-  see-through fill inside a dashed edge, red where it has no room (the
-  server's rule, hours and a crew free); a day with no room at any time
-  fades. ("Schedules As Calendars")
+  duration), ready for a Google Calendar sync. A Job or a Site Visit
+  dragged on the Schedule carries a picture of its block, and an outline
+  its size shows where it would land, snapped as the drop is: its own
+  colours, a see-through fill inside a dashed edge, red where it can't go
+  (the server's rules: for a Job, hours and a crew free; for a Site Visit,
+  its visitor's hours or Office Staff, a crew free, and busy with nothing
+  else); a day where it can go at no time fades. Either can be dragged
+  while booked and not yet started, and its move is confirmed first.
+  ("Schedules As Calendars")
 - **Every place a time is chosen uses the calendar picker**, with the day
   and time fields kept as the keyboard path. The Office picks on the
   Schedule (`office/SchedulePicker.tsx`, inline in a wide dialog); a Client
