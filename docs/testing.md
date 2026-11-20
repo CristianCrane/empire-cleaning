@@ -47,8 +47,6 @@ How a cause is shown and a run is timed: the `testing` skill. Here:
 - **What a build leaves out, here** (the rule: the `change` skill's Build): Render builds each site as `render.yaml` and `render-production.yaml` say, `pnpm --filter-prod "@empire-cleaning/<web|landing>..." build` with its mode set (`VITE_APP_MODE` or `PUBLIC_APP_MODE`: `test` or `prod`), into `packages/<web|landing>/dist`. Build it that way in each mode and count the marker, a string only the left-out code holds, with `rg -c '<marker>' packages/<site>/dist`.
 - **The shared test Postgres** has its own signs of strain: `packages/server/README.md`, Testing.
 
-Record what you find in the log below.
-
 ## Findings log
 
 Newest first. The evidence lives where the link points; the row only says what was found.
