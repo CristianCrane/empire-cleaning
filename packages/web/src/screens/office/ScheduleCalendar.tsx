@@ -182,9 +182,9 @@ type Dragging = { moving: Moving; grabbedAtPx: number };
  *
  * On the Schedule itself (onDrop), clicking a Job or Site Visit opens it and
  * dragging one moves it. To choose a time instead (onPick), the blocks are
- * only there to see, and clicking a free half hour picks it, or with limits, one of the
- * start times on offer on a day that has them; a proposed clean is drawn
- * where it would go. Given the times without a crew free for the clean
+ * only there to see, and clicking a free half hour picks it, or with
+ * limits, one of the start times on offer on a day that has them; a
+ * proposed clean is drawn where it would go. Given the times without a crew free for the clean
  * (noCrew, from the server), they're marked: they can still be picked, for
  * a Quote the Office may add a Cleaner for, but the server refuses to book
  * there.
