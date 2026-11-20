@@ -76,7 +76,7 @@ export const officeTours = {
           // the first day shown
           target: { named: "Jobs on" },
           title: "Your schedule",
-          text: "Every clean and site visit, day by day. Open a job to see it or move it. On a computer, drag it to a new time.",
+          text: "Every clean and site visit, day by day. Open a job or site visit to see it or move it. On a computer, drag it to a new time.",
         },
       ],
     },

@@ -6,11 +6,14 @@ import { catalog } from "../language.ts";
 
 export const jobs = catalog({
   en: {
+    // a time asked for that has already passed
+    PASSED: "That time has passed. Pick a later time.",
     ENDS_BY_MIDNIGHT:
       "This would run past midnight. Pick an earlier start time.",
     SAME_TIME: "That's when it's booked now. Pick a different time.",
   },
   es: {
+    PASSED: "Esa hora ya pasó. Elija una hora más tarde.",
     ENDS_BY_MIDNIGHT:
       "Terminaría después de la medianoche. Elija una hora de inicio más temprana.",
     SAME_TIME: "Ya está reservada a esa hora. Elija otra hora.",

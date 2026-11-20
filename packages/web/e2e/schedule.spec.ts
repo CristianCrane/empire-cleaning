@@ -14,8 +14,10 @@ import {
   signUp,
   test,
   addCleaner,
+  bookSiteVisit,
   expectNoPageAction,
   pageAction,
+  requestQuoteForPremises,
 } from "./harness.ts";
 
 const olive = {
@@ -31,9 +33,10 @@ const signInAsOffice = async (page: Page) => {
   await expect(page).toHaveURL("/office");
 };
 
-// a week far from today, so the tests don't depend on the date they run:
-// Monday 1 March 2027 to Sunday 7 March. The API's clock is in January 2026,
-// so every Job in it is still to come.
+// a week far from today: Monday 1 March 2027 to Sunday 7 March. The API's
+// clock is in January 2026, so every Job in it is still to come. A test
+// whose screen judges a time passed (a Site Visit's drag) sets the
+// browser's clock too, so it doesn't depend on the date it runs.
 const week = "/office/schedule?from=2027-03-01&to=2027-03-07";
 const TUESDAY_9AM = "2027-03-02T14:00:00Z";
 
@@ -183,14 +186,16 @@ test("the Schedule opens on three days from today, then on the span last chosen"
   await expect(page).toHaveURL(/from=2027-03-03&to=2027-03-03/);
 });
 
-// where Casey's Job would land, drawn while it's dragged
-const outlineOf = (page: Page) =>
+// where a dragged block would land, drawn while it's dragged, by its
+// Client's name: a box of its own, not the words on a block (a short Site
+// Visit's)
+const outlineOf = (page: Page, client = "Casey Client") =>
   page
     .getByRole("main")
-    .locator("div")
-    .getByText(/^\d+:\d+ [AP]M Casey Client$/);
+    .getByText(new RegExp(`^\\d+:\\d+ [AP]M ${client}$`))
+    .and(page.locator("div"));
 const boxOf = async (of: Locator) => (await of.boundingBox())!;
-// an edge's colour and line: the outline's top, the Job's own left bar
+// an edge's colour and line: the outline's top, a block's own left bar
 const edgeOf = (of: Locator, side: "Top" | "Left") =>
   of.evaluate((element, side) => {
     const style = getComputedStyle(element);
@@ -199,7 +204,7 @@ const edgeOf = (of: Locator, side: "Top" | "Left") =>
       style.getPropertyValue(`border-${side.toLowerCase()}-style`),
     ];
   }, side);
-// a Job held mid-drag over a place: two moves, as the first only starts
+// a block held mid-drag over a place: two moves, as the first only starts
 // the drag (Playwright's mouse.down)
 const holdOver = async (place: Locator, y?: number) => {
   const position = y === undefined ? undefined : { x: 10, y };
@@ -441,6 +446,148 @@ test("a Job that has started, or isn't booked, can't be moved", async ({
   await page.goto(`/office/jobs/${job.id}`);
   await expectNoPageAction(page, "Move job");
 });
+
+test(
+  "Office Staff drag a Site Visit to a new time, its outline red where its visitor is busy",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    test.skip(isMobile, "dragging needs a mouse");
+    await requestQuoteForPremises(casey, "Acme Dental");
+    const cory = await addCleaner("Cory Cleaner");
+    // a second Cleaner, so a crew is free while Cory is on a Job
+    await addCleaner("Dee Cleaner");
+    await bookSiteVisit({
+      street: "200 Park Ave S",
+      staffEmail: cory.email,
+      date: "2027-03-02",
+      time: "09:00",
+    });
+    // Cory is on a Job from 10 to 12 on Wednesday
+    const job = (await bookJob({
+      startsAt: "2027-03-03T15:00:00Z",
+      labourHours: 2,
+      crewSize: 1,
+    })) as { id: string };
+    await offerJob(job.id, cory.id, { confirmed: true });
+    // the API's clock, for the browser too: these times are still to come
+    await page.clock.setFixedTime("2026-01-05T09:00:00Z");
+    await signInAsOffice(page);
+    await page.goto(week);
+    const block = jobsOn(page, "Tue, Mar 2").getByRole("link", {
+      name: /Acme Dental/,
+    });
+    const wednesday = jobsOn(page, "Wed, Mar 3");
+    const outline = outlineOf(page, "Acme Dental");
+    const [visitColour] = await edgeOf(block.locator(".."), "Left");
+
+    await block.hover({ position: { x: 10, y: 5 } });
+    await page.mouse.down();
+    // at 10:30 Cory is on the Job: red
+    await holdOver(wednesday, 3.5 * HOUR_PX + 5);
+    await expect(wednesday.getByText("10:30 AM Acme Dental")).toBeVisible();
+    await expect
+      .poll(async () => (await edgeOf(outline, "Top"))[0])
+      .not.toBe(visitColour);
+    // at 1pm, free again: its own colours
+    await holdOver(wednesday, 6 * HOUR_PX + 5);
+    await expect(wednesday.getByText("1:00 PM Acme Dental")).toBeVisible();
+    expect(await edgeOf(outline, "Top")).toEqual([visitColour, "dashed"]);
+    // let go at 10:30, it stays put
+    await holdOver(wednesday, 3.5 * HOUR_PX + 5);
+    await expect(wednesday.getByText("10:30 AM Acme Dental")).toBeVisible();
+    await page.mouse.up();
+    await expect(outline).toHaveCount(0);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    // let go at 1pm, the move is asked first
+    await block.dragTo(wednesday, {
+      sourcePosition: { x: 10, y: 5 },
+      targetPosition: { x: 10, y: 6 * HOUR_PX + 5 },
+    });
+    const dialog = page.getByRole("dialog", { name: "Move this site visit?" });
+    await expect(dialog).toContainText("FromTue, Mar 2, 9:00 AM");
+    await expect(dialog).toContainText("ToWed, Mar 3, 1:00 PM");
+    await expect(dialog).toContainText("Cory Cleaner still makes it");
+    await dialog.getByRole("button", { name: "Move site visit" }).click();
+
+    await expect(page.getByText("Site visit moved")).toBeVisible();
+    await expect(
+      wednesday.getByRole("link", { name: /1:00 PM Acme Dental/ }),
+    ).toBeVisible();
+    await expect(
+      jobsOn(page, "Tue, Mar 2").getByRole("link", { name: /Acme Dental/ }),
+    ).toHaveCount(0);
+    expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
+      "Your site visit has moved",
+    );
+  },
+);
+
+test(
+  "a missed Site Visit drags to a time to come, not to a time passed; a Done one doesn't drag",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    test.skip(isMobile, "dragging needs a mouse");
+    await requestQuoteForPremises(casey, "Acme Dental");
+    await createStaff(olive);
+    const visit = await bookSiteVisit({
+      street: "200 Park Ave S",
+      staffEmail: olive.email,
+      date: "2027-03-02",
+      time: "09:00",
+    });
+    // noon on Wednesday: Tuesday's visit was missed, for the server and the
+    // browser alike
+    const NOON = "2027-03-03T17:00:00Z";
+    await setClock(NOON);
+    await page.clock.setFixedTime(NOON);
+    await signedInAs(page, olive.email);
+    await page.goto(week);
+    const block = jobsOn(page, "Tue, Mar 2").getByRole("link", {
+      name: /Acme Dental/,
+    });
+    const wednesday = jobsOn(page, "Wed, Mar 3");
+    const outline = outlineOf(page, "Acme Dental");
+    const [visitColour] = await edgeOf(block.locator(".."), "Left");
+    await expect(block.locator("..")).toHaveAttribute("draggable", "true");
+
+    // 10:30 on Wednesday has passed: red, and not taken there
+    await block.hover({ position: { x: 10, y: 5 } });
+    await page.mouse.down();
+    await holdOver(wednesday, 3.5 * HOUR_PX + 5);
+    await expect(wednesday.getByText("10:30 AM Acme Dental")).toBeVisible();
+    await expect
+      .poll(async () => (await edgeOf(outline, "Top"))[0])
+      .not.toBe(visitColour);
+    await page.mouse.up();
+    await expect(outline).toHaveCount(0);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    // 1pm is to come: it moves there
+    await block.dragTo(wednesday, {
+      sourcePosition: { x: 10, y: 5 },
+      targetPosition: { x: 10, y: 6 * HOUR_PX + 5 },
+    });
+    const dialog = page.getByRole("dialog", { name: "Move this site visit?" });
+    await expect(dialog).toContainText("ToWed, Mar 3, 1:00 PM");
+    await dialog.getByRole("button", { name: "Move site visit" }).click();
+    await expect(page.getByText("Site visit moved")).toBeVisible();
+    const moved = wednesday.getByRole("link", { name: /1:00 PM Acme Dental/ });
+    await expect(moved).toBeVisible();
+
+    // once its findings are recorded, it's Done and doesn't drag
+    await page.goto(`/office/site-visits/${visit.id}`);
+    await page.getByRole("button", { name: "Record findings" }).click();
+    const findings = page.getByRole("dialog", {
+      name: "What the site visit found",
+    });
+    await findings.getByText("Moderate", { exact: true }).click();
+    await findings.getByRole("button", { name: "Save findings" }).click();
+    await expect(page.getByText("Findings recorded").first()).toBeVisible();
+    await page.goto(week);
+    await expect(moved.locator("..")).toHaveAttribute("draggable", "false");
+  },
+);
 
 test("the Schedule passes automated accessibility checks", async ({ page }) => {
   await addCleaner("Cory Cleaner");

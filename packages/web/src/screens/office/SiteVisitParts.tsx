@@ -1,6 +1,12 @@
 import { formats } from "@empire-cleaning/models";
 import { useState } from "react";
-import { CalendarPlus, ClipboardCheck } from "lucide-react";
+import {
+  CalendarCheck,
+  CalendarClock,
+  CalendarPlus,
+  ClipboardCheck,
+  ContactRound,
+} from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   parseDate,
@@ -10,9 +16,11 @@ import {
 } from "@internationalized/date";
 import type {
   Condition,
+  LocalDateTime,
   OfficeSiteVisit,
   PremisesTypeChoice,
   PropertyView,
+  ScheduledSiteVisit,
   SiteVisitBooking,
   SiteVisitStatus,
   SiteVisitView,
@@ -24,6 +32,8 @@ import {
   DatePicker,
   Dialog,
   DialogTrigger,
+  Fact,
+  Facts,
   Form,
   Notice,
   NumberField,
@@ -38,6 +48,7 @@ import {
 import { getJson, postJson } from "../../api.ts";
 import { useLoaded } from "../load.ts";
 import {
+  clientName,
   dayOfInstant,
   formatMinutes,
   siteVisitStatusLabel,
@@ -56,7 +67,7 @@ import {
 } from "./PropertyFields.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 
-const { formatDateTime } = formats.en;
+const { formatClock, formatDateTime, formatDay } = formats.en;
 
 // Site Visits (#73, ADR-0015): free visits by one Staff member to see a
 // Property before it's quoted. Office Staff book, move and cancel them, and
@@ -317,6 +328,73 @@ export function MoveSiteVisit({
         />
       )}
     </Dialog>
+  );
+}
+
+/**
+ * The confirm step before a Site Visit dragged on the Schedule moves, so the
+ * Client's email never goes out by accident: the new time, with the same
+ * visitor and length, and what moving does. The server says why, if it
+ * can't go there.
+ */
+export function ConfirmVisitMove({
+  visit,
+  to,
+  close,
+}: {
+  visit: ScheduledSiteVisit;
+  to: LocalDateTime;
+  close: () => void;
+}) {
+  const action = useAction("The site visit wasn't moved. Please try again.");
+  const move = async () => {
+    const booking: SiteVisitBooking = {
+      ...to,
+      staffId: visit.visitor!.id,
+      minutes: visit.minutes,
+    };
+    if (
+      await action.run(
+        () => postJson(`/api/site-visits/${visit.id}/move`, booking),
+        "Site visit moved",
+      )
+    )
+      close();
+  };
+
+  return (
+    <>
+      <Facts>
+        <Fact
+          icon={ContactRound}
+          label="Site visit"
+          value={clientName(visit.client)}
+        />
+        <Fact
+          icon={CalendarClock}
+          label="From"
+          value={formatDateTime(visit.startsAt)}
+        />
+        <Fact
+          icon={CalendarCheck}
+          label="To"
+          value={`${formatDay(to.date)}, ${formatClock(to.time)}`}
+        />
+      </Facts>
+      <p className="text-sm text-fg-muted">
+        {visit.visitor?.name} still makes it, for {formatMinutes(visit.minutes)}
+        . We'll email the client the new time.
+      </p>
+      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+      <Actions>
+        <Button variant="quiet" onPress={close}>
+          Keep it
+        </Button>
+        <Button isPending={action.isPending} onPress={() => void move()}>
+          Move site visit
+        </Button>
+      </Actions>
+    </>
   );
 }
 

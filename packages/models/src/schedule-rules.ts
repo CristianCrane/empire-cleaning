@@ -3,16 +3,21 @@ import type {
   HeldTime,
   ScheduleDay,
   ScheduledSiteVisit,
+  StaffRole,
 } from "./index.ts";
 import { addDays, dayOf, HOUR_MS, startOfDay } from "./days.ts";
+import { firstNameOf, formats } from "./format.ts";
+import { jobs, NO_CREW } from "./messages/jobs.ts";
 
 // The Schedule's rules, over a day of it as the server's scheduleFor loads
-// it: whether a clean has room (roomOn), whether a Staff member is free for
-// one (isFree), what they're busy with then (busyWith), and the spans of
-// time they're worked out in. They never query: the server's actions lock
-// and load, ask, then write. Room is here, not on the server alone, as a
-// screen asks it too of the days it has (the Schedule's drag, roomOn), so
-// both run the one copy; the others share its spans.
+// it: whether a clean has room (roomOn), whether a Site Visit can go at a
+// time (whyVisitCantGo), whether a Staff member is free for one (isFree),
+// what they're busy with then (busyWith), and the spans of time they're
+// worked out in. They never query: the server's actions lock and load, ask,
+// then write. Room is here, not on the server alone, as a screen asks it
+// too of the days it has (the Schedule's drag: roomOn for a Job,
+// whyVisitCantGo for a Site Visit), so both run the one copy; the others
+// share its spans.
 
 // Hours are added in hundredths, so sums of 7.25 and 0.1 never drift
 export const hundredths = (hours: number) => Math.round(hours * 100);
@@ -202,3 +207,53 @@ export const busyWith = (
  */
 export const isFree = (day: ScheduleDay, staffId: string, clean: Clean) =>
   day.available.some((c) => c.id === staffId) && !busyWith(day, staffId, clean);
+
+/**
+ * Why a Site Visit can't go at its time with this visitor (ADR-0015), in the
+ * words the Office is shown, or null where it can:
+ *
+ * - by a Cleaner with Available Hours that day, it takes room like a Job
+ *   with a Crew Size of one, its length as its Labour Hours, so the day
+ *   needs those hours free and a Cleaner free then (roomOn's hours and
+ *   crew);
+ * - by Office Staff, it takes none; a Cleaner who isn't Office Staff can't
+ *   make one on a day they have no hours;
+ * - either way, its visitor must be busy with nothing then (busyWith): no
+ *   other booked Site Visit of theirs, and no booked Job they're on the crew
+ *   on, Offered or Confirmed (#242). A Done Site Visit doesn't count.
+ *
+ * It starts after `now` (the server's clock, or the screen's), and like
+ * every clean, it ends by midnight (endsByMidnight).
+ */
+export const whyVisitCantGo = (
+  day: ScheduleDay,
+  visit: { startsAt: Date; minutes: number; siteVisitId?: string },
+  visitor: { id: string; name: string; roles: StaffRole[] },
+  now: Date,
+) => {
+  if (visit.startsAt <= now) return jobs.en.PASSED;
+  const clean = {
+    startsAt: visit.startsAt,
+    labourHours: visitHours(visit),
+    crewSize: 1,
+    siteVisitId: visit.siteVisitId,
+  };
+  if (!endsByMidnight(visit.startsAt, clean.labourHours)) {
+    return jobs.en.ENDS_BY_MIDNIGHT;
+  }
+  if (day.available.some((c) => c.id === visitor.id)) {
+    const room = roomOn(day, clean);
+    if (!room.hasHours) {
+      return `${firstNameOf(visitor.name)} doesn't have enough working hours free that day. Pick another day or person.`;
+    }
+    if (!room.hasCrew) return `${NO_CREW} Pick another time.`;
+  } else if (!visitor.roles.includes("office_staff")) {
+    return `${visitor.name} isn't working that day. Pick another day or person.`;
+  }
+  const busy = busyWith(day, visitor.id, clean);
+  if (!busy) return null;
+  const at = formats.en.formatTime(busy.startsAt);
+  return busy.what === "site_visit"
+    ? `${visitor.name} has another site visit at ${at}. Pick another time or person.`
+    : `${visitor.name} is on a job at ${at}. Pick another time or person.`;
+};
