@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { weekdayOf } from "@empire-cleaning/models";
 import {
   acceptedJob,
@@ -183,6 +183,30 @@ test("the Schedule opens on three days from today, then on the span last chosen"
   await expect(page).toHaveURL(/from=2027-03-03&to=2027-03-03/);
 });
 
+// where Casey's Job would land, drawn while it's dragged
+const outlineOf = (page: Page) =>
+  page
+    .getByRole("main")
+    .locator("div")
+    .getByText(/^\d+:\d+ [AP]M Casey Client$/);
+const boxOf = async (of: Locator) => (await of.boundingBox())!;
+// an edge's colour and line: the outline's top, the Job's own left bar
+const edgeOf = (of: Locator, side: "Top" | "Left") =>
+  of.evaluate((element, side) => {
+    const style = getComputedStyle(element);
+    return [
+      style.getPropertyValue(`border-${side.toLowerCase()}-color`),
+      style.getPropertyValue(`border-${side.toLowerCase()}-style`),
+    ];
+  }, side);
+// a Job held mid-drag over a place: two moves, as the first only starts
+// the drag (Playwright's mouse.down)
+const holdOver = async (place: Locator, y?: number) => {
+  const position = y === undefined ? undefined : { x: 10, y };
+  await place.hover({ position });
+  await place.hover({ position });
+};
+
 // Casey's Deep Clean at 9am on Tuesday 2 March 2027, accepted with a Deposit,
 // with Cory Confirmed on it
 const caseysJob = async () => {
@@ -210,28 +234,7 @@ test(
     const block = jobsOn(page, "Tue, Mar 2").getByRole("link");
     const wednesday = jobsOn(page, "Wed, Mar 3");
     const thursday = jobsOn(page, "Thu, Mar 4");
-    // where the Job would land, drawn while it's dragged
-    const outline = page
-      .getByRole("main")
-      .locator("div")
-      .getByText(/^\d+:\d+ [AP]M Casey Client$/);
-    const boxOf = async (of: typeof block) => (await of.boundingBox())!;
-    // an edge's colour and line: the outline's top, the Job's own left bar
-    const edgeOf = (of: typeof block, side: "Top" | "Left") =>
-      of.evaluate((element, side) => {
-        const style = getComputedStyle(element);
-        return [
-          style.getPropertyValue(`border-${side.toLowerCase()}-color`),
-          style.getPropertyValue(`border-${side.toLowerCase()}-style`),
-        ];
-      }, side);
-    // a Job held mid-drag over a place: two moves, as the first only starts
-    // the drag (Playwright's mouse.down)
-    const holdOver = async (place: typeof block, y?: number) => {
-      const position = y === undefined ? undefined : { x: 10, y };
-      await place.hover({ position });
-      await place.hover({ position });
-    };
+    const outline = outlineOf(page);
 
     // held over a day with room, a dashed outline the Job's size and
     // colour shows where it would land: 10:30am on Wednesday
