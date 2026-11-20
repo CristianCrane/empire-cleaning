@@ -1,23 +1,9 @@
-// Before/after screenshots of a screen, for a PR's body (CLAUDE.md, UX):
-//
-//   pnpm pr:shots <spec> "<test title>" [--desktop]
-//   e.g. pnpm pr:shots packages/web/e2e/bills.spec.ts "a Client pays a Bill by card"
-//
-// runs one end-to-end test, the web app's or the landing site's (the spec's
-// path from the repo root), twice, with a full-page screenshot at its end
-// (the web app's at rest: no focus, hover or toast, e2e/harness.ts's prShot):
-// before, on the branch's merge base with origin/main, in a worktree beside
-// this checkout; and after, in this checkout. Phone size, and desktop's too
-// with --desktop, for a screen whose larger layout differs. Each side runs with
-// its own checkout's Playwright, slots, databases and ports, through
-// shots.config.ts. A test the base doesn't have gives an after alone, and a
-// project the test skips (`test.skip(isMobile, …)`) gives no shot there.
-//
-// The PNGs go to the orphan `pr-media` branch, in a folder named after this
-// branch, so a public PR's body can show them inline; it prints the table to
-// paste under the body's **Before / after:**. A copy of each stays in this
-// checkout's git dir, under pr-shots/. A run that fails on either side pushes
-// nothing, and says which side failed.
+// Before/after screenshots of a screen, for a PR's body (CLAUDE.md, UX): one
+// end-to-end test, the web app's or the landing site's, run on the branch's
+// merge base and on this checkout, each through its own checkout's
+// shots.config.ts and harness, its screenshots pushed to the orphan pr-media
+// branch. How to use it, and what each side does: packages/web/README.md,
+// Testing, "Screenshots for a PR"; USAGE below.
 import { execFileSync, spawnSync } from "node:child_process";
 import {
   copyFileSync,
