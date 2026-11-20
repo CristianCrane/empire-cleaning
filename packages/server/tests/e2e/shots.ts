@@ -575,14 +575,21 @@ const same = (specs: string[], context: Context) => {
 };
 
 const main = () => {
-  const { values, positionals } = parseArgs({
-    allowPositionals: true,
-    options: {
-      desktop: { type: "boolean", default: false },
-      viewport: { type: "boolean", default: false },
-      same: { type: "boolean", default: false },
-    },
-  });
+  // an option it doesn't know gets the usage, not a stack
+  const { values, positionals } = (() => {
+    try {
+      return parseArgs({
+        allowPositionals: true,
+        options: {
+          desktop: { type: "boolean", default: false },
+          viewport: { type: "boolean", default: false },
+          same: { type: "boolean", default: false },
+        },
+      });
+    } catch (error) {
+      throw new Stop(`${(error as Error).message}\n${USAGE}`);
+    }
+  })();
   const [spec, title] = positionals;
   if (
     values.same
