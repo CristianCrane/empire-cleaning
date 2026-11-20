@@ -57,7 +57,6 @@ How each package's tests work, and how to run them, is in its README (`packages/
 - **Reproduce a failure as the tool runs it**: with its `PATH` (pnpm puts `node_modules/.bin` on it, and Playwright's webServer passes it on), its working directory and its shell. Run by hand without them, a missing `vite` read as `wait -n` failing (#312, comment).
 - **What a build leaves out, here** (the rule: `.claude/skills/change/SKILL.md`, Build): Render builds each site as `render.yaml` and `render-production.yaml` say, `pnpm --filter-prod "@empire-cleaning/<web|landing>..." build` with its mode set (`VITE_APP_MODE` or `PUBLIC_APP_MODE`: `test` or `prod`), into `packages/<web|landing>/dist`. Build it that way in each mode and count the marker, a string only the left-out code holds, with `rg -c '<marker>' packages/<site>/dist`.
 - **The shared test Postgres** has its own signs of strain: `packages/server/README.md`, Testing.
-- **The machine's own faults** (WSL, NixOS, the shell): CristianCrane/.dotfiles#5, and the spinning `wsl.exe` threads' fix, CristianCrane/.dotfiles#8 (the log, 2026-11-07).
 
 Record what you find in the log below.
 
