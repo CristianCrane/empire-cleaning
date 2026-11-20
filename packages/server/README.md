@@ -1,4 +1,4 @@
-# Express server starter
+# Server
 
 Each feature keeps its `index.ts` and the `#features/<feature>` imports (`package.json`, `imports`): per-file paths such as `#features/bills/bills` only repeat the name (#112, closed unmerged).
 
