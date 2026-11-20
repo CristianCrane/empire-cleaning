@@ -6,7 +6,7 @@ Issues live in GitHub Issues (`gh` CLI). See `docs/agents/issue-tracker.md`.
 
 ### Human tasks go on two lists
 
-Don't open an issue for work only a person can do. Add it to one of two standing issues instead, as a checklist item that links the issue it unblocks:
+Don't open an issue for work only a person can do. Add it to one of two standing issues instead, as a checklist item that links the issue it unblocks: eleven human-task issues (#43 to #196) were folded into these two on 2026-11-02 (d152bee3), so a person's work is in two places, not scattered.
 
 - **#206 "Jen's to-do list"**: anything Jennifer, the owner, must check, answer or do: drafted copy, claims about how the business works, business questions, facts and photos, the Google Business Profile. Write it short and plain, with no glossary terms.
 - **#205 "Manual setup"**: every other human task: accounts, secrets, DNS, dashboards, the domain switch, go-live steps. Every service account is made under the business Gmail, empirecleaningproservices@gmail.com, so there's one inbox to keep (2026-11-17).
