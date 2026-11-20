@@ -7,7 +7,6 @@ import type {
 } from "@empire-cleaning/models";
 import { db } from "#db";
 import { jobs } from "#features/jobs";
-import { createStaff, setUsualWeek } from "#features/staff";
 import {
   type Agent,
   api,
@@ -21,6 +20,7 @@ import {
   casey,
   confirmOffer,
   signInAsOffice,
+  staffMember,
 } from "../../../tests/fixtures.ts";
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York. The Job
@@ -30,19 +30,12 @@ const STARTS_AT = "2026-01-12T14:00:00Z";
 const WEDNESDAY = { date: "2026-01-14", time: "10:30" };
 const WEDNESDAY_10_30AM = "2026-01-14T15:30:00.000Z";
 
-const cleaner = async (name: string) => {
-  const email = `${name.split(" ")[0]!.toLowerCase()}@example.com`;
-  const member = await createStaff({ name, email, roles: ["cleaner"] });
-  await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
-  return { ...member, email };
-};
-
 // Casey's Deep Clean at 9am on Monday the 12th, with Cory Confirmed on it
 const bookedJob = async () => {
   const office = await signInAsOffice();
   const me = (await office.get("/api/me").expect(200)).body as SignedInAccount;
-  const cory = await cleaner("Cory Cleaner");
-  await cleaner("Dee Cleaner");
+  const cory = await staffMember("Cory Cleaner");
+  await staffMember("Dee Cleaner");
   const job = await acceptedJob({ startsAt: STARTS_AT, byAccountId: me.id });
   await office
     .post(`/api/jobs/${job.id}/assignments`)
@@ -209,8 +202,8 @@ describe("Office Staff moving a Job", () => {
 
   test("can't make it end after midnight (#242)", async () => {
     const office = await signInAsOffice();
-    await cleaner("Cory Cleaner");
-    await cleaner("Dee Cleaner");
+    await staffMember("Cory Cleaner");
+    await staffMember("Dee Cleaner");
     // 3 hours on site
     const job = await otherJob({
       startsAt: "2026-01-12T14:00:00Z",

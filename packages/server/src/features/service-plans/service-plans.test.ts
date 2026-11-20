@@ -20,7 +20,6 @@ import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { completeJob } from "#features/completion";
 import { bookJob } from "#features/jobs";
 import { charges } from "#features/payments";
-import { createStaff, setUsualWeek } from "#features/staff";
 import {
   type Agent,
   signIn,
@@ -35,6 +34,7 @@ import {
   crewedServicePlan,
   setService,
   signInAsOffice,
+  staffMember,
 } from "../../../tests/fixtures.ts";
 import { servicePlans } from "./service-plans.schema.ts";
 import { generateServicePlanJobs } from "./service-plans.ts";
@@ -372,12 +372,7 @@ describe("a Service Plan's Jobs", () => {
   test("are Offered to the crew of the plan's previous Job", async () => {
     const { office, me, planId } = await startedPlan();
     const cory = (await officePlan(office, planId)).jobs;
-    const dee = await createStaff({
-      name: "Dee Cleaner",
-      email: "dee@example.com",
-      roles: ["cleaner"],
-    });
-    await setUsualWeek(dee.id, [8, 8, 8, 8, 8, 0, 0]);
+    const dee = await staffMember("Dee Cleaner");
     const latest = cory.at(-1)!;
     const { id: coryId } = (
       (await office.get("/api/staff").expect(200)).body as {
