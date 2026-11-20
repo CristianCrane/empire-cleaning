@@ -97,7 +97,6 @@ const run = (
     projects: string[];
     // the screen as the test left it, not the whole page
     viewport: boolean;
-    workers?: number;
     out: string;
   },
   checkout: string,
@@ -118,7 +117,6 @@ const run = (
       "--reporter=list,json",
       ...options.files,
       ...(options.grep ? ["--grep", options.grep] : []),
-      ...(options.workers ? [`--workers=${options.workers}`] : []),
       ...options.projects.flatMap((project) => ["--project", project]),
     ],
     {
@@ -417,8 +415,8 @@ const one = (spec: string, title: string, context: Context) => {
 // every test of the specs, before and after, each one's end shot fresh on
 // both sides and compared byte for byte: for a change that should leave
 // every screen as it was (#439). The base runs twice, and a test whose two
-// shots there differ changes from run to run on one commit (its data,
-// numbered or random, or how it's drawn), so it's named and not compared. It
+// shots there differ changes from run to run on one commit (a random email,
+// a few pixels drawn differently), so it's named and not compared. It
 // publishes the pairs that differ, and the first identical one on each
 // project for the PR's body
 const same = (specs: string[], context: Context) => {
@@ -447,10 +445,6 @@ const same = (specs: string[], context: Context) => {
           grep: only?.grep,
           projects,
           viewport,
-          // one worker, so the tests run in one order on each side, and data
-          // numbered as it's made (fixtures' Client 1, 2, …) comes out the
-          // same: on two, Client 13 on one side was Client 15 on the other
-          workers: 1,
           out: join(dir, out, pkg.replaceAll("/", "-")),
         },
         checkout,
