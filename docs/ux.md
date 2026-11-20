@@ -11,9 +11,6 @@ words a person reads: a server message or an email too (Words).
 - **The rules** below are this product's; the `ui` skill's hold here too.
   Most have a live example in Storybook under **Patterns**
   (`packages/ui/src/Patterns.stories.tsx`), named in brackets.
-
-
-
 - **Changing a screen** says how a new UX question is settled.
 - **`docs/screens.md`** lists every screen: its route, its type, the rule
   it keeps and its parts in order.
@@ -589,8 +586,8 @@ stays as it is (#336).
    now?
 2. **Prototype it** on a `prototype-<screen>` branch: a signed-out route
    (`/prototype/<screen>?case=&layout=`) with made-up data for every state,
-   ↑/↓ to switch layouts and ←/→ to switch cases (`PrototypeSwitcher`, copied from the
-   latest `prototype-*` branch, as it isn't on main).
+   ↑/↓ to switch layouts and ←/→ to switch cases (`PrototypeSwitcher`,
+   copied from the latest `prototype-*` branch, as it isn't on main).
    Usually three layouts. Push the branch; it's kept as the record. It never
    becomes a PR, so it skips the change review (the `change` skill's
    Prototype rule).
@@ -600,9 +597,9 @@ stays as it is (#336).
    with its tests (e2e on phone and
    desktop, axe in light and dark through the harness's `expectAccessible`,
    the layout test at every width, a Guest's, Client's or Cleaner's screen
-   in Spanish too, through `expectFitsInBoth`). Moving a screen onto its layout drops nothing by accident
-   (the `ui` skill, "Reworking a screen"): #432's review found three
-   such drops, and #434's two more.
+   in Spanish too, through `expectFitsInBoth`). Moving a screen onto its
+   layout drops nothing by accident (the `ui` skill, "Reworking a
+   screen"): #432's review found three such drops, and #434's two more.
 5. **Record it**: a row in `docs/ux-log.md`; a new rule above (a
    type's own under its entry in Screen types), and a
    pattern in Storybook, if it carries over to other screens; and in
