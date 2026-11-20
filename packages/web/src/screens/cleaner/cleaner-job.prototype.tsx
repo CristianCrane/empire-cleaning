@@ -1,12 +1,27 @@
 // PROTOTYPE: throwaway. The Cleaner's Job (and Cleaner needed, and an
 // offered Job, which share its parts) for #493, on made-up data, at
-// /prototype/cleaner-job?layout=A..D&case=1..8&lang=en|es (no sign-in),
+// /prototype/cleaner-job?layout=A..D&case=1..9&lang=en|es (no sign-in),
 // inside the real AppLayout and the Cleaner area's nav. ↑/↓ switch layouts,
 // ←/→ switch cases. Lives only on prototype-cleaner-job.
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
+// D's split button's menu and sheet, placed as the ui kit's MenuButton and
+// Dialog can't be told to (web lists react-aria-components on this branch
+// only, for them)
+import {
+  Dialog as AriaDialog,
+  DialogTrigger,
+  Menu as AriaMenu,
+  MenuTrigger,
+  Modal,
+  ModalOverlay,
+  Popover as AriaPopover,
+} from "react-aria-components";
 import {
   Check,
+  ChevronDown,
+  ChevronUp,
+  CircleCheck,
   CirclePlus,
   ClipboardList,
   Clock,
@@ -39,13 +54,13 @@ import {
   Facts,
   Fold,
   LanguageProvider,
-  MenuButton,
   MenuItem,
   MenuSeparator,
   type NavItem,
   RecordPage,
   Section,
   StatusBadge,
+  linkStyles,
   type StatusTone,
   showToast,
 } from "@empire-cleaning/ui";
@@ -138,6 +153,9 @@ const W = {
     moreActions: "More actions",
     zip: (z: string) => `Zip code ${z}`,
     callClient: (n: string) => `Call ${n}`,
+    clientsNumber: "Client's number",
+    crewConfirmed: (n: number, of: number) => `${n} of ${of} confirmed`,
+    cancel: "Cancel",
   },
   es: {
     offers: "Ofertas",
@@ -215,6 +233,10 @@ const W = {
     moreActions: "Más acciones",
     zip: (z: string) => `Código postal ${z}`,
     callClient: (n: string) => `Llamar a ${n}`,
+    clientsNumber: "Teléfono del cliente",
+    crewConfirmed: (n: number, of: number) =>
+      `${n} de ${of} ${of === 1 ? "confirmado" : "confirmados"}`,
+    cancel: "Cancelar",
   },
 };
 type Words = (typeof W)["en"];
@@ -247,6 +269,9 @@ type JobCase = {
   // more than 48 hours to go: they can still drop out themselves
   canDropOut: boolean;
   outcomeAt?: string;
+  // how to get in, when the Client wrote more than the usual line (D's
+  // case 9, long enough that the page scrolls)
+  door?: Record<Language, string>;
 };
 
 // Thu, Jan 8, 2026, 9:00 AM in New York
@@ -357,6 +382,24 @@ const cases: JobCase[] = [
     extras: [],
     crew: [{ name: "Cory", you: true, confirmed: true }],
     outcomeAt: "2026-01-08T14:20:00Z",
+  },
+  {
+    ...base,
+    key: "9",
+    name: "on the day, long notes (D: a page that scrolls)",
+    kind: "today",
+    hours: 5.5,
+    service: "deep",
+    extras: ["oven", "fridge"],
+    crew: [
+      { name: "Cory", you: true, confirmed: true },
+      { name: "Dee", confirmed: true },
+      { name: "Ana", confirmed: false },
+    ],
+    door: {
+      en: "Ring 4B. If nobody answers, the doorman has a key: tell him you're with Empire. Leave your shoes on the mat inside. The cat stays in the bedroom, so keep that door shut. Fresh towels and the vacuum are in the hall closet; please don't move the plants on the windowsill. The alarm code is 4417, then OFF. Lock both locks when you leave and give the key back to the doorman.",
+      es: "Toca el 4B. Si nadie contesta, el portero tiene una llave: dile que vienes de Empire. Deja los zapatos en el tapete, adentro. El gato se queda en el cuarto, así que mantén esa puerta cerrada. Las toallas limpias y la aspiradora están en el clóset del pasillo; por favor no muevas las plantas de la ventana. El código de la alarma es 4417, luego OFF. Cierra las dos cerraduras al salir y devuélvele la llave al portero.",
+    },
   },
 ];
 
@@ -1277,17 +1320,18 @@ function LayoutC({ c, j }: { c: JobCase; j: J }) {
 
 // ---- Layout D: the picks from A, B and C ----
 // One header card: the date tile, the time range large (B's), the address;
-// one rule; then the details, one icon each: how long, the Client,
-// getting in, extras; then the crew, its own section below the card. What
-// this reader can't use yet isn't drawn at all: an offer has no
-// Directions, door or Client; before the day the Client is a name; on the
-// day the door and the number come. Every action is one split button, the
-// page's primary: the main one pressed straight away, the rest behind its
-// arrow; at the end of the title row from md, and on a phone in a foot bar,
-// after the details (read, then decide). On site, Mark done is the page's
-// one primary, in the foot bar at every width, lined up with the content
-// column; the rest are a quiet menu beside it. Position, colour, size and
-// weight agree on rank: nothing outlined sits where the primary goes.
+// one rule; then the details, one icon each: how long, the Client (their
+// name in every case), their number once the Job is theirs (a link that
+// dials it), getting in on the day, extras; then the crew, a card of its
+// own below, saying in a line how many have confirmed. What this reader
+// can't use yet isn't drawn at all: an offer has no Directions, door or
+// number. Every action is one split button, the same at every stage: the
+// main one pressed straight away, the rest behind its arrow (on site, Mark
+// done is the main one). From md it ends the title row, and a slim header
+// holding the title and the same button slides in at the top once that row
+// scrolls away; there's no foot bar from md. On a phone it's in a foot bar,
+// after the details (read, then decide), and its arrow opens a sheet from
+// the bottom (&sheet=0: a menu opening upward, to compare).
 // The crew: one look for every face, a tick for confirmed and nothing for
 // not yet, and an open place drawn as an empty seat.
 
@@ -1328,9 +1372,10 @@ type DAction = {
   icon: typeof Lock;
   danger?: boolean;
   external?: boolean;
+  isDisabled?: boolean;
 } & ({ href: string } | { onPress: () => void });
 
-// a DAction as an item of a MenuButton's menu
+// a DAction as an item of the arrow's menu
 function menuItem(a: DAction) {
   return (
     <MenuItem
@@ -1349,10 +1394,14 @@ function menuItem(a: DAction) {
   );
 }
 
-// a menu's items, those that undo something last, after a rule
+// those that undo something last, after a rule
+const inOrder = (actions: DAction[]) => ({
+  plain: actions.filter((a) => !a.danger),
+  danger: actions.filter((a) => a.danger),
+});
+
 function menuItems(actions: DAction[]) {
-  const plain = actions.filter((a) => !a.danger);
-  const danger = actions.filter((a) => a.danger);
+  const { plain, danger } = inOrder(actions);
   return (
     <>
       {plain.map(menuItem)}
@@ -1362,17 +1411,104 @@ function menuItems(actions: DAction[]) {
   );
 }
 
-// A split button, the page's primary: the main action pressed straight
-// away, and an arrow opening the rest (the ui kit's MenuButton, its "More
-// actions" said to a screen reader and drawn as the arrow alone)
+// A phone's action sheet: rising from the bottom edge, the screen's width,
+// a large row for each action, and Cancel last, apart (the ui kit's Dialog
+// is a sheet on a phone too, but titled, with a ✕: this is just the choices)
+function ActionSheet({
+  label,
+  cancel,
+  actions,
+}: {
+  label: string;
+  cancel: string;
+  actions: DAction[];
+}) {
+  const { plain, danger } = inOrder(actions);
+  const row =
+    "flex min-h-14 w-full items-center gap-4 px-5 text-left text-lg font-semibold outline-none focus-visible:bg-surface-sunken active:bg-surface-sunken";
+  const item = (close: () => void) => (a: DAction) => {
+    const look = `${row} ${a.danger ? "text-danger" : "text-fg"}`;
+    const body = (
+      <>
+        <a.icon aria-hidden size={22} className="shrink-0" />
+        {a.label}
+      </>
+    );
+    return "href" in a ? (
+      <a
+        key={a.label}
+        href={a.href}
+        target={a.external ? "_blank" : undefined}
+        rel={a.external ? "noreferrer" : undefined}
+        className={look}
+        onClick={close}
+      >
+        {body}
+      </a>
+    ) : (
+      <button
+        key={a.label}
+        type="button"
+        className={look}
+        onClick={() => {
+          close();
+          a.onPress();
+        }}
+      >
+        {body}
+      </button>
+    );
+  };
+  return (
+    <ModalOverlay
+      isDismissable
+      className="fixed inset-0 z-50 flex items-end bg-backdrop entering:animate-in entering:fade-in exiting:animate-out exiting:fade-out"
+    >
+      <Modal className="w-full rounded-t-xl bg-overlay text-fg shadow-overlay entering:animate-in entering:slide-in-from-bottom exiting:animate-out exiting:slide-out-to-bottom">
+        <AriaDialog
+          aria-label={label}
+          className="flex flex-col pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] outline-none"
+        >
+          {({ close }) => (
+            <>
+              {plain.map(item(close))}
+              {plain.length > 0 && danger.length > 0 && (
+                <hr className="my-1 border-border" />
+              )}
+              {danger.map(item(close))}
+              <div className="mt-2 border-t border-border px-4 pt-3">
+                <Button
+                  variant="secondary"
+                  onPress={close}
+                  className="min-h-14 w-full text-lg"
+                >
+                  {cancel}
+                </Button>
+              </div>
+            </>
+          )}
+        </AriaDialog>
+      </Modal>
+    </ModalOverlay>
+  );
+}
+
+// how the arrow opens the rest: a menu below it (from md, at the top of the
+// page), above it (a phone's foot bar, to compare), or a sheet (a phone)
+type Opens = "down" | "up" | "sheet";
+
+// A split button, the page's one action control: the main action pressed
+// straight away, and an arrow, named for what it holds, opening the rest
 function SplitButton({
   main,
   more,
-  moreLabel,
+  w,
+  opens,
 }: {
   main: DAction;
   more: DAction[];
-  moreLabel: string;
+  w: Words;
+  opens: Opens;
 }) {
   const joined = more.length > 0 ? "rounded-r-none" : "";
   const content = (
@@ -1392,51 +1528,60 @@ function SplitButton({
         {content}
       </ButtonLink>
     ) : (
-      <Button onPress={main.onPress} className={`flex-1 ${joined}`}>
+      <Button
+        onPress={main.onPress}
+        isDisabled={main.isDisabled}
+        className={`flex-1 ${joined}`}
+      >
         {content}
       </Button>
     );
+  const Chevron = opens === "down" ? ChevronDown : ChevronUp;
+  const arrow = (
+    <Button
+      aria-label={w.moreActions}
+      className="shrink-0 rounded-l-none border-l border-primary-fg/40 px-3"
+    >
+      <Chevron aria-hidden size={20} />
+    </Button>
+  );
   return (
     <div className="flex w-full md:w-auto">
       {first}
-      {more.length > 0 && (
-        // the arrow: MenuButton's Button, joined to the main one and drawn
-        // as it is, its words hidden by size so they stay its name
-        <span className="flex [&_button]:rounded-l-none [&_button]:border-0! [&_button]:border-l! [&_button]:border-primary-fg/40! [&_button]:bg-primary! [&_button]:px-3 [&_button]:text-[0px] [&_button]:text-primary-fg! [&_button:hover]:bg-primary-hover! [&_button_span]:gap-0">
-          <MenuButton label={moreLabel}>{menuItems(more)}</MenuButton>
-        </span>
-      )}
+      {more.length > 0 &&
+        (opens === "sheet" ? (
+          <DialogTrigger>
+            {arrow}
+            <ActionSheet
+              label={w.moreActions}
+              cancel={w.cancel}
+              actions={more}
+            />
+          </DialogTrigger>
+        ) : (
+          <MenuTrigger>
+            {arrow}
+            <AriaPopover
+              placement={opens === "down" ? "bottom end" : "top end"}
+              offset={4}
+              className="min-w-56 overflow-auto rounded-lg border border-border bg-overlay p-1 text-fg shadow-overlay outline-none entering:animate-in entering:fade-in entering:zoom-in-95 exiting:animate-out exiting:fade-out exiting:zoom-out-95"
+            >
+              <AriaMenu className="outline-none">{menuItems(more)}</AriaMenu>
+            </AriaPopover>
+          </MenuTrigger>
+        ))}
     </div>
   );
 }
 
-// The ui kit's MenuButton drawn quiet (no outline, the text colour): the
-// actions that aren't the page's primary, beside it and below it in rank
-function QuietMenu({ label, actions }: { label: string; actions: DAction[] }) {
-  return (
-    <span className="flex max-md:flex-none! [&_button]:border-0! [&_button]:bg-transparent! [&_button]:text-fg! [&_button:hover]:bg-surface-sunken! [&_button[data-pressed]]:bg-surface-sunken!">
-      <MenuButton label={label}>{menuItems(actions)}</MenuButton>
-    </span>
-  );
-}
-
-// the page's actions, for this stage: the main one, then the rest. On
-// site there's no main one here: Mark done is the page's primary, and these
-// are only the rest
-function actionsD(
-  c: JobCase,
-  j: J,
-): { main: DAction | null; more: DAction[] } | null {
+// the page's actions, for this stage: the main one, then the rest. Calling
+// the Client isn't here: their number is a link on the card
+function actionsD(c: JobCase, j: J): { main: DAction; more: DAction[] } | null {
   const { w } = j;
   const callOffice: DAction = {
     label: w.callOffice,
     icon: Phone,
     href: `tel:${OFFICE}`,
-  };
-  const callClient: DAction = {
-    label: w.callClient(j.clientName),
-    icon: PhoneCall,
-    href: `tel:${j.phone}`,
   };
   const directions: DAction = {
     label: w.directions,
@@ -1475,13 +1620,18 @@ function actionsD(
         ],
       };
     case "today":
-      return { main: directions, more: [callClient, callOffice] };
+      return { main: directions, more: [callOffice] };
     case "started":
     case "startedWaiting":
       return {
-        main: null,
+        // waiting on Dee, it waits too: the notice says to call the office
+        main: {
+          label: w.markDone,
+          icon: CircleCheck,
+          isDisabled: c.kind === "startedWaiting",
+          onPress: say(w.toast(w.markDone)),
+        },
         more: [
-          callClient,
           {
             label: w.couldntGetIn,
             icon: DoorClosed,
@@ -1541,8 +1691,7 @@ function CrewFace({ m, w }: { m: Member; w: Words }) {
 function JobCardD({ c, j }: { c: JobCase; j: J }) {
   const { w } = j;
   const stage = dStage(c.kind);
-  const known = stage !== "offer"; // the Client, once it's theirs
-  const onTheDayNow = stage === "day";
+  const theirs = stage !== "offer"; // the number, once the Job is theirs
   return (
     <Card hiddenTitle={w.jobDetails}>
       <div className="flex items-center gap-4">
@@ -1559,26 +1708,32 @@ function JobCardD({ c, j }: { c: JobCase; j: J }) {
       <div className="border-t border-border pt-4">
         <Facts>
           <Fact icon={Clock} label={w.howLong} value={j.howLong} />
-          {known && (
+          <Fact icon={UserRound} label={w.client} value={j.clientName} />
+          {theirs && (
             <Fact
-              icon={UserRound}
-              label={w.client}
+              icon={Phone}
+              label={w.clientsNumber}
               value={
-                <span className="flex flex-col">
-                  <span>{j.clientName}</span>
-                  {onTheDayNow && (
-                    <span className="tabular-nums">{j.phone}</span>
-                  )}
-                </span>
+                <a
+                  href={`tel:+1${j.phone.replace(/\D/g, "")}`}
+                  className={`${linkStyles()} tabular-nums`}
+                >
+                  {j.phone}
+                </a>
               }
             />
           )}
-          {onTheDayNow && (
+          {stage === "day" && (
             <Fact
               icon={KeyRound}
               label={w.gettingIn}
-              className="col-span-full"
-              value={<span className="text-lg font-semibold">{w.door4b}</span>}
+              // a long note takes the card's width
+              className={c.door ? "col-span-full" : undefined}
+              value={
+                <span className="text-lg font-semibold">
+                  {c.door?.[j.lang] ?? w.door4b}
+                </span>
+              }
             />
           )}
           {c.extras.length > 0 && (
@@ -1594,17 +1749,21 @@ function JobCardD({ c, j }: { c: JobCase; j: J }) {
   );
 }
 
-// the crew, its own section below the card: on the page, not boxed, a
-// step down from the details
+// the crew, a card of its own below the details, one line saying where it
+// stands
 function CrewD({ c, w }: { c: JobCase; w: Words }) {
+  const confirmed = c.crew.filter((m) => m?.confirmed).length;
   return (
-    <Section title={w.crew}>
+    <Card
+      title={w.crew}
+      description={w.crewConfirmed(confirmed, c.crew.length)}
+    >
       <div className="flex flex-wrap gap-x-6 gap-y-3">
         {c.crew.map((m, i) => (
           <CrewFace key={i} m={m} w={w} />
         ))}
       </div>
-    </Section>
+    </Card>
   );
 }
 
@@ -1613,53 +1772,91 @@ function CrewD({ c, w }: { c: JobCase; w: Words }) {
 const columns =
   "grid grid-cols-[minmax(0,1fr)] items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]";
 
-// the bar at the foot, its box lined up with the main column (today's
-// ActionFooter spans the whole width beside the sidebar)
-function FootBarD({
-  label,
-  phoneOnly = false,
-  children,
-}: {
-  label: string;
-  // below md only: from md the page's primary is at the title row's end
-  phoneOnly?: boolean;
-  children: ReactNode;
-}) {
-  const hide = phoneOnly ? "md:hidden" : "";
+// a phone's bar at the foot, above the tab bar; none from md
+function FootBarD({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
-      <div aria-hidden className={`h-20 print:hidden ${hide}`} />
+      <div aria-hidden className="h-20 md:hidden print:hidden" />
       <div
-        className={`pointer-events-none fixed inset-x-0 bottom-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] z-30 md:bottom-0 md:left-64 print:hidden ${hide}`}
+        role="group"
+        aria-label={label}
+        className="fixed inset-x-0 bottom-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] z-30 flex border-t border-border bg-surface px-4 py-3 shadow-raised md:hidden print:hidden"
       >
-        <div className="mx-auto w-full max-w-5xl md:px-8">
-          <div className={columns}>
-            <div
-              role="group"
-              aria-label={label}
-              className="pointer-events-auto flex flex-wrap items-center justify-end gap-2 border-t border-border bg-surface px-4 py-3 shadow-raised max-md:[&>*]:flex-1 md:rounded-t-lg md:border-x"
-            >
-              {children}
-            </div>
-          </div>
-        </div>
+        {children}
       </div>
     </>
   );
 }
 
-function LayoutD({ c, j }: { c: JobCase; j: J }) {
+// From md, the slim header that slides in at the top once the title row's
+// button has scrolled away: the title and the same split button, its box
+// lined up with the main column as the card is
+function StickyHeadD({
+  shown,
+  title,
+  status,
+  children,
+}: {
+  shown: boolean;
+  title: string;
+  status: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      inert={!shown}
+      aria-hidden={!shown}
+      className={`pointer-events-none fixed inset-x-0 top-0 z-30 hidden transition duration-200 md:left-64 md:block print:hidden ${
+        shown ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
+      }`}
+    >
+      <div className="mx-auto w-full max-w-5xl px-8">
+        <div className={columns}>
+          <div className="pointer-events-auto flex items-center gap-3 rounded-b-lg border-x border-b border-border bg-surface px-4 py-2 shadow-raised">
+            <p className="truncate font-display text-xl font-bold tracking-wide uppercase">
+              {title}
+            </p>
+            {status}
+            <span className="ml-auto flex">{children}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// whether the element has scrolled up out of view (and not merely hidden,
+// as the title row's button is on a phone)
+function useScrolledAway() {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [away, setAway] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const watch = new IntersectionObserver(([e]) =>
+      setAway(!!e && !e.isIntersecting && e.boundingClientRect.bottom < 1),
+    );
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, []);
+  return [ref, away] as const;
+}
+
+function LayoutD({ c, j, sheet }: { c: JobCase; j: J; sheet: boolean }) {
   const { w } = j;
   const s = statusD(c, w);
   const actions = actionsD(c, j);
-  const onSite = started(c.kind);
-  const split = actions?.main && (
-    <SplitButton
-      main={actions.main}
-      more={actions.more}
-      moreLabel={w.moreActions}
-    />
-  );
+  const [headRef, away] = useScrolledAway();
+  const split = (opens: Opens) =>
+    actions && (
+      <SplitButton
+        main={actions.main}
+        more={actions.more}
+        w={w}
+        opens={opens}
+      />
+    );
+  const badge = s && <StatusBadge tone={s.tone}>{s.text}</StatusBadge>;
   const job = (
     <>
       <JobCardD c={c} j={j} />
@@ -1667,11 +1864,11 @@ function LayoutD({ c, j }: { c: JobCase; j: J }) {
     </>
   );
   // the whole page in the main column, the header's actions too, so they
-  // end where the card and the foot bar do. RecordPage places the header and
-  // the alerts (from md the split button rides its status slot, pushed to
-  // the end of the title row); the card and the crew follow it here, in the
-  // main column, as RecordPage has no slot for a header that narrow. Its
-  // empty Beside is hidden, so it leaves no gap
+  // end where the card does. RecordPage places the header and the alerts
+  // (from md the split button rides its status slot, pushed to the end of
+  // the title row); the card and the crew follow it here, in the main
+  // column, as RecordPage has no slot for a header that narrow. Its empty
+  // Beside is hidden, so it leaves no gap
   return (
     <div className={columns}>
       <div className="flex min-w-0 flex-col gap-6 [&_.grid:has(>div:empty)]:hidden">
@@ -1680,9 +1877,11 @@ function LayoutD({ c, j }: { c: JobCase; j: J }) {
           title={j.service}
           status={
             <>
-              {s && <StatusBadge tone={s.tone}>{s.text}</StatusBadge>}
-              {split && (
-                <span className="ml-auto flex max-md:hidden">{split}</span>
+              {badge}
+              {actions && (
+                <span ref={headRef} className="ml-auto flex max-md:hidden">
+                  {split("down")}
+                </span>
               )}
             </>
           }
@@ -1701,27 +1900,17 @@ function LayoutD({ c, j }: { c: JobCase; j: J }) {
             job
           )}
         </div>
-        {/* on a phone, the page's primary after the details: read, then
-            decide */}
-        {split && (
-          <FootBarD label={w.whatToDo} phoneOnly>
-            {split}
-          </FootBarD>
-        )}
-        {/* on site, Mark done is the one primary, at every width; the rest
-            are a quiet menu beside it */}
-        {onSite && (
-          <FootBarD label={w.whatToDo}>
-            {actions && (
-              <QuietMenu label={w.moreActions} actions={actions.more} />
-            )}
-            <Button
-              isDisabled={c.kind === "startedWaiting"}
-              onPress={say(w.toast(w.markDone))}
-            >
-              {w.markDone}
-            </Button>
-          </FootBarD>
+        {actions && (
+          <>
+            <StickyHeadD shown={away} title={j.service} status={badge}>
+              {split("down")}
+            </StickyHeadD>
+            {/* on a phone, the page's primary after the details: read,
+                then decide */}
+            <FootBarD label={w.whatToDo}>
+              {split(sheet ? "sheet" : "up")}
+            </FootBarD>
+          </>
         )}
       </div>
     </div>
@@ -1734,15 +1923,17 @@ function Layout({
   c,
   layout,
   lang,
+  sheet,
 }: {
   c: JobCase;
   layout: LayoutKey;
   lang: Language;
+  sheet: boolean;
 }) {
   const j = useJob(c, lang);
   if (layout === "B") return <LayoutB c={c} j={j} />;
   if (layout === "C") return <LayoutC c={c} j={j} />;
-  if (layout === "D") return <LayoutD c={c} j={j} />;
+  if (layout === "D") return <LayoutD c={c} j={j} sheet={sheet} />;
   return <LayoutA c={c} j={j} />;
 }
 
@@ -1751,21 +1942,33 @@ export function CleanerJobPrototype() {
     case?: string;
     layout?: string;
     lang?: string;
+    sheet?: string | number;
   };
   const navigate = useNavigate();
   const layout: LayoutKey =
     layouts.find((l) => l.key === search.layout)?.key ?? "A";
   const c = cases.find((x) => x.key === search.case) ?? cases[0]!;
   const lang: Language = search.lang === "es" ? "es" : "en";
+  // D on a phone: its arrow opens a sheet; &sheet=0, a menu upward
+  const sheet = String(search.sheet) !== "0";
   // the root sets the signed-out language on every navigation: say ours again
   useEffect(() => setAppLanguage(lang));
   const go = (change: { case?: string; layout?: string }) =>
     void navigate({
       to: "/prototype/cleaner-job",
-      search: { case: c.key, layout, lang, ...change },
+      search: {
+        case: c.key,
+        layout,
+        lang,
+        ...(sheet ? {} : { sheet: "0" }),
+        ...change,
+      },
       replace: true,
     });
 
+  // D's sticky header takes the top from md, and it has no foot bar there:
+  // the switchers go to the foot
+  const atFoot = layout === "D";
   const navLabel = isOffer(c.kind) ? W[lang].offers : W[lang].yourJobs;
   const nav: NavItem[] = navFor(lang).cleaner.map(
     ({ alsoCurrentFor: _, ...item }) => ({
@@ -1777,7 +1980,7 @@ export function CleanerJobPrototype() {
     <LanguageProvider lang={lang}>
       <AppLayout area={areaLabels[lang].cleaner} nav={nav} foot={() => null}>
         {/* room for the switchers, so they cover nothing of the page at rest */}
-        <div aria-hidden className="h-24" />
+        <div aria-hidden className={`h-24 ${atFoot ? "md:h-0" : ""}`} />
         <p className="mb-4 text-sm text-fg-muted">
           {layout}: {layouts.find((l) => l.key === layout)!.name}
         </p>
@@ -1786,19 +1989,21 @@ export function CleanerJobPrototype() {
           c={c}
           layout={layout}
           lang={lang}
+          sheet={sheet}
         />
+        {atFoot && <div aria-hidden className="hidden h-28 md:block" />}
         <PrototypeSwitcher
           variants={layouts.map((l) => ({ key: l.key, name: l.name }))}
           current={layout}
           onChange={(k) => go({ layout: k })}
           keys={["ArrowUp", "ArrowDown"]}
-          className="top-16 md:top-3"
+          className={`top-16 ${atFoot ? "md:top-auto md:bottom-16" : "md:top-3"}`}
         />
         <PrototypeSwitcher
           variants={cases.map((x) => ({ key: x.key, name: x.name }))}
           current={c.key}
           onChange={(k) => go({ case: k })}
-          className="top-28 md:top-15"
+          className={`top-28 ${atFoot ? "md:top-auto md:bottom-4" : "md:top-15"}`}
         />
       </AppLayout>
     </LanguageProvider>
