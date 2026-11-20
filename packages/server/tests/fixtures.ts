@@ -127,7 +127,7 @@ export const confirmOffer = async (asCleaner: Agent, jobId: string) => {
 // a booked Job at a home of its own, put on the Schedule directly, for tests
 // about the Schedule rather than about accepting a Quote. Homes count from 1
 // again in each end-to-end test (the e2e server's /reset calls freshHomes),
-// so a test's Client 1 is Client 1 whatever ran before it in that server:
+// so a test's Robin 1 is Robin 1 whatever ran before it in that server:
 // pr:shots --same compares one test's screens across two runs (#439)
 let homes = 0;
 export const freshHomes = () => {
@@ -147,7 +147,7 @@ export const bookedJob = async ({
   homes += 1;
   const client = await createClient({
     email: `client${homes}@example.com`,
-    name: `Client ${homes}`,
+    name: `Robin ${homes}`,
     phone: casey.phone,
   });
   const [property] = await db

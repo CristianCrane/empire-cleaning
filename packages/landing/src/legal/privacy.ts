@@ -38,9 +38,11 @@ export const privacy: LegalPage = {
       title: "Who sees it",
       text: [
         "We never sell your details. Our office sees them, to look after your cleans.",
-        // what a Cleaner sees today (assignments.ts); when they see how we get
-        // in waits on the owner (#230): change this line, and its twin, with it
-        "The cleaners we offer a clean to see your first name, its address, how we get in and what's to be done. They see your phone number on the day of the clean.",
+        // what a Cleaner sees (cleanerJobs in assignments.ts, #230) and who
+        // makes a Site Visit (visitsFor in site-visits.ts): change these
+        // lines, and their twins, with them
+        "The cleaners we offer a clean to see your first name, its address and what's to be done. They see how we get in and your phone number on the day of the clean.",
+        "Whoever we send to see your place before a quote sees your name, phone number, address and how we get in once the visit is booked.",
         "These companies run parts of our website and app for us, and each gets only what its part needs:",
       ],
       list: [

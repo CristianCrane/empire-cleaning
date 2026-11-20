@@ -344,8 +344,9 @@ Keeps: the Record, Complete in a bar at the foot (ux-cleaner). Renders through `
   in red, before it starts); a Footer (Complete).
 - Alerts: not everyone has confirmed (warning); too late to drop out.
 - Body: Job details (`DetailsCard`: the time large, the address and
-  directions, how we get in and the rest as icon facts); while offered, Take
-  (Confirm, and Not for me beside it); Completed or No access.
+  directions, how we get in and the rest as icon facts; how we get in and
+  the client's number on the Job's day, "Shows on the day" before); while
+  offered, Take (Confirm, and Not for me beside it); Completed or No access.
 
 #### Cleaner > Cleaner needed
 

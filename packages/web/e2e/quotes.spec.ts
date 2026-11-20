@@ -526,7 +526,7 @@ test(
     // another crew's Job at the proposed time: the new clean sits beside it
     const ninesJob = (await schedule
       .getByRole("group", { name: "Jobs on Mon, Jan 12" })
-      .getByText(/^9:00 AM Client/)
+      .getByText(/^9:00 AM Robin/)
       .boundingBox())!;
     const thisClean = (await monday
       .getByText("9:00 AM This clean")

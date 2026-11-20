@@ -41,11 +41,11 @@ const words = catalog({
     dropOutOfJob: "Drop out of this job",
     nothingWritten:
       "Nothing's written down. Call the client when you get there.",
+    showsOnTheDay: "Shows on the day",
     notConfirmedYet: (names: string) => `${names} not confirmed yet`,
     allConfirmed: "Crew, all confirmed",
     client: "Client",
-    tapToCall: "Client: tap to call",
-    numberOnTheDay: "Client: their number shows on the day",
+    numberOnTheDay: (name: string) => `${name}, number shows on the day`,
     notConfirmed: "The job wasn't confirmed. Please try again.",
     canYouMakeIt: "The office offered you this job. Can you make it?",
     stillOn: "You're still on this job. Please try again.",
@@ -60,11 +60,11 @@ const words = catalog({
     whatToDo: "Qué hacer",
     dropOutOfJob: "Dejar este trabajo",
     nothingWritten: "No hay nada escrito. Llama al cliente cuando llegues.",
+    showsOnTheDay: "Aparece ese día",
     notConfirmedYet: (names: string) => `${names}: aún sin confirmar`,
     allConfirmed: "Equipo, todos confirmados",
     client: "Cliente",
-    tapToCall: "Cliente: toca para llamar",
-    numberOnTheDay: "Cliente: su número aparece ese día",
+    numberOnTheDay: (name: string) => `${name}, su número aparece ese día`,
     notConfirmed: "El trabajo no se confirmó. Vuelve a intentarlo.",
     canYouMakeIt: "La oficina te ofreció este trabajo. ¿Puedes ir?",
     stillOn: "Sigues en este trabajo. Vuelve a intentarlo.",
@@ -174,7 +174,9 @@ function JobDetails({ job }: { job: CleanerJob }) {
           label={t.howWeGetIn}
           value={
             <span className="whitespace-pre-line">
-              {job.property.accessInstructions ?? w.nothingWritten}
+              {job.onTheDay
+                ? (job.onTheDay.accessInstructions ?? w.nothingWritten)
+                : w.showsOnTheDay}
             </span>
           }
           className="col-span-full"
@@ -202,25 +204,24 @@ function JobDetails({ job }: { job: CleanerJob }) {
               ? w.notConfirmedYet(t.formatList(unconfirmed.map((m) => m.name)))
               : job.crew.length > 1
                 ? w.allConfirmed
-                : c.crew
+                : undefined
           }
         />
         <Fact
           icon={Phone}
           label={w.client}
           value={
-            job.client.phone ? (
+            job.onTheDay ? (
               <a
                 className="font-semibold text-primary"
-                href={`tel:${job.client.phone}`}
+                href={`tel:${job.onTheDay.phone}`}
               >
-                {job.client.firstName}, {job.client.phone}
+                {job.client.firstName}, {job.onTheDay.phone}
               </a>
             ) : (
-              job.client.firstName
+              w.numberOnTheDay(job.client.firstName)
             )
           }
-          line={job.client.phone ? w.tapToCall : w.numberOnTheDay}
         />
       </Facts>
     </DetailsCard>

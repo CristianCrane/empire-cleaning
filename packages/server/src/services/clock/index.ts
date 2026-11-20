@@ -1,3 +1,5 @@
+import { sameDay } from "@empire-cleaning/models";
+
 export interface Clock {
   now(): Date;
 }
@@ -12,6 +14,10 @@ let current: Clock = systemClock;
 export const clock: Clock = {
   now: () => current.now(),
 };
+
+// whether an instant falls on today, in New York, by the Clock: the day a
+// Cleaner sees a Job's held-back details, and their today list
+export const isToday = (instant: Date) => sameDay(instant, clock.now());
 
 export const setClock = (next: Clock) => {
   current = next;
