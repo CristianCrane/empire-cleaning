@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { formats } from "@empire-cleaning/models";
 import type {
   AcceptOutcome,
   ClientJobDetail,
@@ -312,6 +313,29 @@ describe("a Service Plan Quote on several weekdays", () => {
       "a Standard Clean every week, on Mondays at 9:00 AM and Wednesdays at 1:00 PM",
     );
     expect(sent.text).toContain(`Wednesday: $`);
+  });
+});
+
+describe("a Service Plan Quote on several weekdays with no Plan Discount", () => {
+  test("emails what a week costs, and no discount", async () => {
+    const { office, propertyId } = await firstCleanDone();
+    const draft = await draftPlan(office, propertyId);
+    const edit = body(draft, MONDAY_AND_WEDNESDAY);
+    await office
+      .patch(`/api/quotes/${draft.id}/draft`)
+      .send({ ...edit, plan: { ...edit.plan!, discountPercent: 0 } })
+      .expect(200);
+    const quote = (
+      await office.post(`/api/quotes/${draft.id}/send`).expect(200)
+    ).body as OfficeQuote;
+
+    const sent = testEmail()
+      .to(casey.email)
+      .find((m) => /cleaning plan quote/.test(m.subject))!;
+    expect(sent.text).toContain(
+      `${formats.en.formatMoney(quote.offer!.plan!.roundTotalCents)} a week.`,
+    );
+    expect(sent.text).not.toContain("% off");
   });
 });
 
