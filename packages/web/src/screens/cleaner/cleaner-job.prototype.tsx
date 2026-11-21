@@ -1,6 +1,7 @@
 // PROTOTYPE: throwaway. The Cleaner's Job (and Cleaner needed, and an
 // offered Job, which share its parts) for #493, on made-up data, at
-// /prototype/cleaner-job?layout=A..D&case=1..9&lang=en|es (no sign-in),
+// /prototype/cleaner-job?layout=A..D&case=1..10&lang=en|es (no sign-in;
+// D also takes &open=1..3, how an open place in the crew is drawn),
 // inside the real AppLayout and the Cleaner area's nav. ↑/↓ switch layouts,
 // ←/→ switch cases. Lives only on prototype-cleaner-job.
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -18,6 +19,7 @@ import {
   Popover as AriaPopover,
 } from "react-aria-components";
 import {
+  Armchair,
   Check,
   ChevronDown,
   ChevronUp,
@@ -37,6 +39,7 @@ import {
   Sparkles,
   UserMinus,
   UserRound,
+  UserRoundSearch,
   Users,
   X,
 } from "lucide-react";
@@ -142,7 +145,17 @@ const W = {
     theJob: "The job",
     whatToDo: "What to do",
     service: { standard: "Standard Clean", deep: "Deep Clean" },
-    extraNames: { oven: "Inside the oven", fridge: "Inside the fridge" },
+    extraNames: {
+      oven: "Inside the oven",
+      fridge: "Inside the fridge",
+      fridgeShelves: "Inside the fridge, shelves and drawers",
+      curtains: "Wash and hang the curtains",
+      cabinets: "Inside the kitchen cabinets",
+      windows: "Inside the windows and their tracks",
+      laundry: "One load of laundry, washed and folded",
+      baseboards: "Baseboards",
+      walls: "Wipe down the walls",
+    },
     didMore: (what: string) => `Also did: ${what}`,
     reason: "Nobody answered, and the key wasn't where the instructions say.",
     door4b: "Ring 4B; the doorman has a key.",
@@ -228,7 +241,17 @@ const W = {
     theJob: "El trabajo",
     whatToDo: "Qué hacer",
     service: { standard: "Limpieza estándar", deep: "Limpieza profunda" },
-    extraNames: { oven: "Dentro del horno", fridge: "Dentro del refrigerador" },
+    extraNames: {
+      oven: "Dentro del horno",
+      fridge: "Dentro del refrigerador",
+      fridgeShelves: "Dentro del refrigerador, repisas y cajones",
+      curtains: "Lavar y colgar las cortinas",
+      cabinets: "Dentro de los gabinetes de la cocina",
+      windows: "Las ventanas por dentro y sus rieles",
+      laundry: "Una carga de ropa, lavada y doblada",
+      baseboards: "Zócalos",
+      walls: "Limpiar las paredes",
+    },
     didMore: (what: string) => `También hice: ${what}`,
     reason:
       "Nadie contestó, y la llave no estaba donde dicen las instrucciones.",
@@ -278,7 +301,7 @@ type JobCase = {
   service: "standard" | "deep";
   street: string;
   postcode: string;
-  extras: ("oven" | "fridge")[];
+  extras: (keyof Words["extraNames"])[];
   crew: Member[];
   // more than 48 hours to go: they can still drop out themselves
   canDropOut: boolean;
@@ -414,6 +437,29 @@ const cases: JobCase[] = [
       en: "Ring 4B. If nobody answers, the doorman has a key: tell him you're with Empire. Leave your shoes on the mat inside. The cat stays in the bedroom, so keep that door shut. Fresh towels and the vacuum are in the hall closet; please don't move the plants on the windowsill. The alarm code is 4417, then OFF. Lock both locks when you leave and give the key back to the doorman.",
       es: "Toca el 4B. Si nadie contesta, el portero tiene una llave: dile que vienes de Empire. Deja los zapatos en el tapete, adentro. El gato se queda en el cuarto, así que mantén esa puerta cerrada. Las toallas limpias y la aspiradora están en el clóset del pasillo; por favor no muevas las plantas de la ventana. El código de la alarma es 4417, luego OFF. Cierra las dos cerraduras al salir y devuélvele la llave al portero.",
     },
+  },
+  {
+    ...base,
+    key: "10",
+    name: "confirmed, many extras (D: how extras scale)",
+    kind: "confirmed",
+    hours: 6.5,
+    service: "deep",
+    extras: [
+      "oven",
+      "fridgeShelves",
+      "curtains",
+      "cabinets",
+      "windows",
+      "laundry",
+      "baseboards",
+      "walls",
+    ],
+    crew: [
+      { name: "Cory", you: true, confirmed: true },
+      { name: "Dee", confirmed: false },
+    ],
+    canDropOut: true,
   },
 ];
 
@@ -1348,8 +1394,8 @@ function LayoutC({ c, j }: { c: JobCase; j: J }) {
 // the bottom (&sheet=0: a menu opening upward, to compare).
 // The crew: a Section, its title and line on the page above an untitled
 // card, as every part's title sits. One look for every face, a tick for
-// confirmed and nothing for not yet; an open place is a gap, a dashed ring
-// with nothing in it. "You" only once the reader has confirmed: on an offer
+// confirmed and nothing for not yet; an open place is no face, drawn three
+// ways to compare (&open=1..3, OpenMark). "You" only once the reader has confirmed: on an offer
 // the place they'd take is open, like any other.
 
 // what each stage shows (a Cleaner's side of the Job's lifecycle)
@@ -1664,17 +1710,44 @@ function actionsD(c: JobCase, j: J): { main: DAction; more: DAction[] } | null {
   }
 }
 
+// How an open place is drawn, to compare (&open=1..3): 1, a ghost of a
+// face, the faces' own person drawn faint and thin in a dashed ring, no
+// fill (dashing the person too broke its head into crumbs at this size); 2, lucide's someone-being-looked-for (UserRoundSearch) in a thin
+// plain ring; 3, an empty chair (Armchair) in the dashed ring: a place to
+// fill, with no person at all. Each is unfilled where a face is a filled
+// disc, its line thin, its word quiet where a name is bold
+type OpenLook = "1" | "2" | "3";
+
+function OpenMark({ look }: { look: OpenLook }) {
+  const ring =
+    "flex size-10 shrink-0 items-center justify-center rounded-full text-fg-muted";
+  if (look === "2")
+    return (
+      <span aria-hidden className={`${ring} border border-border-strong`}>
+        <UserRoundSearch size={20} strokeWidth={1.75} />
+      </span>
+    );
+  return (
+    <span
+      aria-hidden
+      className={`${ring} border-2 border-dashed border-border-strong`}
+    >
+      {look === "3" ? (
+        <Armchair size={20} strokeWidth={1.75} />
+      ) : (
+        <UserRound size={22} strokeWidth={1.5} className="opacity-60" />
+      )}
+    </span>
+  );
+}
+
 // a face: every one the same, a tick when they've confirmed, nothing yet.
-// An open place isn't a face: a gap the face's size, its edge dashed and
-// nothing inside, its word quiet beside it
-function CrewFace({ m, w }: { m: Member; w: Words }) {
+// An open place isn't a face: its mark the face's size, its word quiet
+function CrewFace({ m, w, look }: { m: Member; w: Words; look: OpenLook }) {
   if (!m)
     return (
       <span className="inline-flex items-center gap-2">
-        <span
-          aria-hidden
-          className="size-10 shrink-0 rounded-full border-2 border-dashed border-border-strong"
-        />
+        <OpenMark look={look} />
         <span className="text-fg-muted">
           {w.open}
           <span className="sr-only">, {w.seatOpen}</span>
@@ -1769,7 +1842,7 @@ function JobCardD({ c, j }: { c: JobCase; j: J }) {
 // saying where it stands on the page, the faces in a card under them. The
 // reader is "You" once they've confirmed; till then (an offer) the place
 // they'd take is open
-function CrewD({ c, w }: { c: JobCase; w: Words }) {
+function CrewD({ c, w, look }: { c: JobCase; w: Words; look: OpenLook }) {
   const places = c.crew.map((m) => (m?.you && !m.confirmed ? null : m));
   const confirmed = places.filter((m) => m?.confirmed).length;
   const open = places.filter((m) => !m).length;
@@ -1781,7 +1854,7 @@ function CrewD({ c, w }: { c: JobCase; w: Words }) {
       <Card>
         <div className="flex flex-wrap gap-x-6 gap-y-3">
           {places.map((m, i) => (
-            <CrewFace key={i} m={m} w={w} />
+            <CrewFace key={i} m={m} w={w} look={look} />
           ))}
         </div>
       </Card>
@@ -1864,7 +1937,17 @@ function useScrolledAway() {
   return [ref, away] as const;
 }
 
-function LayoutD({ c, j, sheet }: { c: JobCase; j: J; sheet: boolean }) {
+function LayoutD({
+  c,
+  j,
+  sheet,
+  look,
+}: {
+  c: JobCase;
+  j: J;
+  sheet: boolean;
+  look: OpenLook;
+}) {
   const { w } = j;
   const s = statusD(c, w);
   const actions = actionsD(c, j);
@@ -1882,7 +1965,7 @@ function LayoutD({ c, j, sheet }: { c: JobCase; j: J; sheet: boolean }) {
   const job = (
     <>
       <JobCardD c={c} j={j} />
-      <CrewD c={c} w={w} />
+      <CrewD c={c} w={w} look={look} />
     </>
   );
   // the whole page in the main column, the header's actions too, so they
@@ -1946,16 +2029,18 @@ function Layout({
   layout,
   lang,
   sheet,
+  look,
 }: {
   c: JobCase;
   layout: LayoutKey;
   lang: Language;
   sheet: boolean;
+  look: OpenLook;
 }) {
   const j = useJob(c, lang);
   if (layout === "B") return <LayoutB c={c} j={j} />;
   if (layout === "C") return <LayoutC c={c} j={j} />;
-  if (layout === "D") return <LayoutD c={c} j={j} sheet={sheet} />;
+  if (layout === "D") return <LayoutD c={c} j={j} sheet={sheet} look={look} />;
   return <LayoutA c={c} j={j} />;
 }
 
@@ -1965,6 +2050,7 @@ export function CleanerJobPrototype() {
     layout?: string;
     lang?: string;
     sheet?: string | number;
+    open?: string | number;
   };
   const navigate = useNavigate();
   const layout: LayoutKey =
@@ -1973,6 +2059,9 @@ export function CleanerJobPrototype() {
   const lang: Language = search.lang === "es" ? "es" : "en";
   // D on a phone: its arrow opens a sheet; &sheet=0, a menu upward
   const sheet = String(search.sheet) !== "0";
+  // D's open place in the crew: three ways to draw it, 1 by default
+  const look: OpenLook =
+    (["2", "3"] as const).find((k) => k === String(search.open)) ?? "1";
   // the root sets the signed-out language on every navigation: say ours again
   useEffect(() => setAppLanguage(lang));
   const go = (change: { case?: string; layout?: string }) =>
@@ -1983,6 +2072,7 @@ export function CleanerJobPrototype() {
         layout,
         lang,
         ...(sheet ? {} : { sheet: "0" }),
+        ...(look === "1" ? {} : { open: look }),
         ...change,
       },
       replace: true,
@@ -2012,6 +2102,7 @@ export function CleanerJobPrototype() {
           layout={layout}
           lang={lang}
           sheet={sheet}
+          look={look}
         />
         {atFoot && <div aria-hidden className="hidden h-28 md:block" />}
         <PrototypeSwitcher
