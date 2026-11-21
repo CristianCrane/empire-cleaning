@@ -180,15 +180,21 @@ export function CleanerHome() {
       answer={
         next ? (
           <NextUp item={next} openJob={openJob} />
+        ) : offers > 0 ? (
+          // offers wait, so it's no all-clear: the offers are what's next,
+          // behind Offers' own icon (the `ui` skill, a screen says only
+          // what's true)
+          <AnswerCard
+            tile={<IconTile icon={Inbox} size="lg" />}
+            headline={w.nothingYet}
+            actions={
+              <ButtonLink href={offersHref}>{w.seeOffers(offers)}</ButtonLink>
+            }
+          />
         ) : (
           <AnswerCard
             tile={<IconTile icon={CircleCheck} tone="success" size="lg" />}
             headline={w.nothingYet}
-            actions={
-              offers > 0 && (
-                <ButtonLink href={offersHref}>{w.seeOffers(offers)}</ButtonLink>
-              )
-            }
           />
         )
       }

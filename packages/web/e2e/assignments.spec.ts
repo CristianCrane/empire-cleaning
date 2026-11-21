@@ -345,6 +345,25 @@ test("a Cleaner releases a Job they can't make", async ({ page }) => {
   );
 });
 
+test("a Cleaner with nothing booked but an offer waiting is sent to it, with no all-clear", async ({
+  page,
+}) => {
+  const cory = await addCleaner("Cory Cleaner");
+  const job = await thursdayJob();
+  await offerJob(job.id, cory.id);
+  await signInAsCleaner(page, cory.email);
+
+  const card = page
+    .locator("section")
+    .filter({ hasText: "Nothing booked for you yet" });
+  await expect(
+    card.getByRole("link", { name: "See 1 offer", exact: true }),
+  ).toBeVisible();
+  // Offers' own icon leads it, not the green tick that says all's clear
+  await expect(card.locator("svg.lucide-inbox")).toHaveCount(1);
+  await expect(card.locator("svg.lucide-circle-check")).toHaveCount(0);
+});
+
 test("a Confirmed Job can't be released within 48 hours of it", async ({
   page,
 }) => {
