@@ -272,10 +272,20 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   const [newHome, setNewHome] = useState(() => blankHome(usual));
   const [rooms, setRooms] = useState(() => blankRooms(usual));
   const [newPremises, setNewPremises] = useState<NewPremises>(blankPremises);
-  // a place on file's own, as recorded
-  const [condition, setCondition] = useState<Condition | null>(
-    firstFree("residential")?.condition ?? (usual ? "moderate" : null),
+  // how much cleaning a place needs, where it starts: a place on file's
+  // as recorded, else unsaid for a stranger and the Office's usual for the
+  // Office, never another place's
+  const conditionAt = (p: PropertyView | undefined) =>
+    (p?.kind === "residential" ? p.condition : null) ??
+    (usual ? "moderate" : null);
+  const [condition, setCondition] = useState<Condition | null>(() =>
+    conditionAt(firstFree("residential")),
   );
+  // a place chosen, and the Condition it starts at
+  const goTo = (p: PropertyView | undefined) => {
+    setPlace(p?.id ?? NEW_PLACE);
+    setCondition(conditionAt(p));
+  };
   // the Add-ons loaded, with the Service they're for; asked for again after
   // a send refused some (addOnsAsked)
   const [loadedAddOns, setLoadedAddOns] = useState<{
@@ -288,8 +298,9 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   const [area, setArea] = useState<number | null>(null);
   const [wantsRegularService, setWantsRegularService] = useState(false);
   const [businessName, setBusinessName] = useState("");
-  // business premises: regular cleaning on some weekdays, or a one-off
-  const [regular, setRegular] = useState(true);
+  // business premises: regular cleaning on some weekdays, or a one-off;
+  // unsaid for a stranger, the Office's usual for the Office
+  const [regular, setRegular] = useState<boolean | null>(usual ? true : null);
   const [days, setDays] = useState<string[]>([]);
   const [preferredTime, setPreferredTime] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
@@ -361,8 +372,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         p.kind === next &&
         !(services && key && isHeld(services, open, p.id, key)),
     );
-    setPlace(free?.id ?? NEW_PLACE);
-    if (free?.condition) setCondition(free.condition);
+    goTo(free);
   };
 
   const chooseKind = (next: PropertyKind) => {
@@ -447,7 +457,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     ...(premises
       ? {
           businessName: knownBusinessName ?? (businessName || null),
-          wantsRegularService: canRecur && regular,
+          wantsRegularService: canRecur && regular === true,
           weekdays:
             canRecur && regular
               ? weekdays
@@ -616,11 +626,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         <RadioGroup
           label={premises ? t.whichBusiness : t.whichHome}
           value={place}
-          onChange={(id) => {
-            setPlace(id);
-            const chosen = places.find((p) => p.id === id);
-            if (chosen?.condition) setCondition(chosen.condition);
-          }}
+          onChange={(id) => goTo(places.find((p) => p.id === id))}
         >
           {places.map((p) => (
             <Radio
@@ -797,7 +803,8 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
       </Heading>
       <SegmentedControl
         label={t.howOften}
-        value={regular ? "regular" : "one_off"}
+        isRequired
+        value={regular === null ? null : regular ? "regular" : "one_off"}
         onChange={(value) => setRegular(value === "regular")}
         description={regular ? t.regularNote : undefined}
       >

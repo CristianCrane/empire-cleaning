@@ -220,6 +220,12 @@ test("a Client asks about a second home", async ({ page }) => {
   await page.getByText("A different home", { exact: true }).click();
   await describeNewHome(page);
   await nextStep(page);
+  // a new home's Condition is unsaid, not the home on file's
+  for (const condition of ["Light", "Moderate", "Heavy"]) {
+    await expect(
+      page.getByRole("radio", { name: condition }),
+    ).not.toBeChecked();
+  }
   await describeTheHome(page);
   await page.getByRole("button", { name: "Request a quote" }).click();
 
@@ -281,10 +287,10 @@ test("a Client who first asked in Spanish asks again in Spanish, the API's messa
   await page.getByRole("textbox", { name: "Código postal" }).fill("1137");
   await page.getByRole("button", { name: "Siguiente", exact: true }).click();
   await expect(page.getByText("Paso 3 de 3")).toBeVisible();
-  await page.getByText("Intensa", { exact: true }).click();
-  for (const name of ["Dormitorios", "Baños", "Pisos"]) {
-    await page.getByRole("textbox", { name }).fill("1");
-  }
+  await describeTheHome(page, {
+    condition: "Intensa",
+    names: ["Dormitorios", "Baños", "Pisos"],
+  });
   await page.getByRole("button", { name: "Pedir una cotización" }).click();
 
   const zip = page.getByRole("textbox", { name: "Código postal" });

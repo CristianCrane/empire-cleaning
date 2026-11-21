@@ -778,21 +778,23 @@ export const chooseService = async (page: Page, name = "Standard Clean") => {
 };
 
 // the quote form's questions about a home, which start blank for anyone
-// but the Office: how much cleaning it needs, where that's asked, and its
-// rooms
+// but the Office: how much cleaning it needs (null where the Service doesn't
+// ask), then its rooms, by the fields' names in the page's language
 export const describeTheHome = async (
   page: Page,
-  { condition = "Moderate", bedrooms = 2, bathrooms = 1, floors = 1 } = {},
+  {
+    condition = "Moderate" as string | null,
+    bedrooms = 2,
+    bathrooms = 1,
+    floors = 1,
+    names = ["Bedrooms", "Bathrooms", "Floors"],
+  } = {},
 ) => {
   const form = page.locator("form");
-  if (await form.getByRole("radio", { name: condition }).count()) {
-    await form.getByText(condition, { exact: true }).click();
+  if (condition) await form.getByText(condition, { exact: true }).click();
+  for (const [i, n] of [bedrooms, bathrooms, floors].entries()) {
+    await form.getByRole("textbox", { name: names[i] }).fill(String(n));
   }
-  await form.getByRole("textbox", { name: "Bedrooms" }).fill(String(bedrooms));
-  await form
-    .getByRole("textbox", { name: "Bathrooms" })
-    .fill(String(bathrooms));
-  await form.getByRole("textbox", { name: "Floors" }).fill(String(floors));
 };
 
 export { expect };
