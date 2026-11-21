@@ -338,8 +338,9 @@ The `ui` skill's rules hold here too; these are this product's.
   layout places, never a sticky bar of the page's own, which pins under the phone's tab bar (#425). It holds,
   above the tab bar, a Record's actions on a phone (a Cleaner's Job on
   site), which a wider screen keeps in the header instead (the `ui` skill;
-  #493 builds it), and a Quote Draft's Send, full width beside the sidebar
-  on a wider screen until #493 settles it with a prototype. What it sums up
+  #493 builds it), and a form's price and Send (the Quote Draft's, New
+  quote's), full width beside the sidebar on a wider screen until #493
+  settles it with a prototype. What it sums up
   (prices, whether it's saved) on its left, the main action last, on the right. The layout
   test fails a button or link under a fixed bar. ("A bar at the foot is an
   ActionFooter")
