@@ -200,11 +200,13 @@ export function AreaLayout({ area }: { area: AreaId }) {
   // a press that leaves this page, its next one still loading. Not a change
   // within the page (a search, a Tab, the Schedule's week), which leaves it
   // usable as it reloads, nor a reload of this page after a save or on
-  // returning to the tab: those keep their path (#454)
+  // returning to the tab: those keep their path (#454). Over once the next
+  // page is drawn, in the render that draws it, so what it focuses as it
+  // mounts isn't inside the old page's out-of-reach frame
   const loading = useRouterState({
     select: (s) =>
       s.status === "pending" &&
-      s.location.pathname !== (s.resolvedLocation ?? s.location).pathname,
+      s.location.pathname !== s.matches.at(-1)?.pathname,
   });
   const offers = useOffersCount(area === "cleaner", pathname);
   useTours(area, account);
