@@ -73,8 +73,7 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   value and a muted line), with the time, the address and how to reach
   someone among them, not in a part of their own.
 - **Its parts**, each a Section. An action on one part stays on that part's
-  title line (End plan, red, on the plan; Billing's Edit), and so do both
-  answers to an offer (Accept and Decline, Confirm and Not for me). A part
+  title line (End plan, red, on the plan; Billing's Edit). A part
   with nothing in it yet offers its action (`ActionRow`). Money is one
   part: its facts, the price changes in it, "How it's worked out" folded
   (`Fold`).
@@ -82,8 +81,8 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   `xl`, at the foot below that. What happened (a drop-out, a Cleaner taken
   off) is told there, not kept as a row elsewhere. A Quote's story is its
   body, **Now** on top holding it as it stands; its Draft is a Form page.
-- **A bar at the foot** only for what must stay in reach on site: the
-  Cleaner's Complete.
+- **On a phone, the page's actions pinned at the foot**, above the tab
+  bar, after the facts (#493 builds it).
 
 ("Layout / RecordPage"; "A Record: its header, two alerts, its details, its
 parts"; "A record's History beside it, from xl"; "Records as stories")
@@ -276,9 +275,11 @@ The `ui` skill's rules hold here too; these are this product's.
   the breadcrumbs from the area's nav section down to this page, every
   step; the title and its status badge; a subtitle only when it says what
   nothing else on the page does (a Bill's week), never the title, a crumb
-  or the Client again; and the page's actions at the end of the title row,
-  one Actions ▾ menu, or a Button in its place when there's one, the
-  destructive last in red after a rule. Printed, it's the title alone.
+  or the Client again; and, on a wider screen, the page's actions at the
+  end of the title row: one split button, the page's next step its primary
+  and the rest behind its arrow, or a ⋯ menu when nothing is next, sticking
+  in a header once scrolled past (#493 builds it); the destructive last in
+  red after a rule. Printed, it's the title alone.
   ("Layout / RecordPage / Actions In The Header", "One Action")
 - **What loads holds its room** (the `ui` skill): choices from the API draw
   blank tiles at their size first (`ChoiceTilesLoading`). ("ChoiceTiles /
@@ -332,9 +333,9 @@ The `ui` skill's rules hold here too; these are this product's.
   secondary, text or quiet.
 - **A bar at the foot of a page is an `ActionFooter`**, which the page's
   layout places, never a sticky bar of the page's own, which pins under the phone's tab bar (#425). It holds
-  what must stay in reach while a long page scrolls (a Cleaner's Job on
-  site, a Quote Draft's Send): above the tab bar on a phone, full width
-  beside the sidebar on a wider screen. What it sums up (prices, whether
+  the page's actions (a Cleaner's Job on site, a Quote Draft's Send) above
+  the tab bar, on a phone only; a wider screen has none (the `ui` skill;
+  #493 builds it). What it sums up (prices, whether
   it's saved) on its left, the main action last, on the right. The layout
   test fails a button or link under a fixed bar. ("A bar at the foot is an
   ActionFooter")
