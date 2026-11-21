@@ -60,6 +60,7 @@ import { formats, type Language } from "@empire-cleaning/models";
 import {
   AppLayout,
   Avatar,
+  Breadcrumbs,
   Button,
   ButtonLink,
   Card,
@@ -67,11 +68,12 @@ import {
   Fact,
   Facts,
   Fold,
+  Heading,
   LanguageProvider,
   MenuItem,
   MenuSeparator,
   type NavItem,
-  RecordPage,
+  Notice,
   Section,
   StatusBadge,
   type StatusTone,
@@ -320,8 +322,9 @@ function OpenMark() {
 
 // the main column and the right one a Record keeps from xl (its History),
 // as RecordPage's Beside lays them out
-const columns =
-  "grid grid-cols-[minmax(0,1fr)] items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]";
+// one column: a Record page here keeps no History beside it (the user's
+// review of 903a201c)
+const columns = "grid grid-cols-[minmax(0,1fr)] items-start gap-6";
 
 // a phone's bar at the foot, above the tab bar; none from md
 function FootBarD({ label, children }: { label: string; children: ReactNode }) {
@@ -1369,8 +1372,14 @@ function History({ c }: { c: OfficeCase }) {
               key={`${s.title}-${s.when}`}
               icon={s.icon}
               title={s.title}
-              when={s.when}
-              description={s.description}
+              // the time on its own line under the action, every entry
+              // alike (the kit's `when` sits beside the title when it fits)
+              description={
+                <>
+                  <p>{s.when}</p>
+                  {s.description && <p>{s.description}</p>}
+                </>
+              }
             />
           ))}
         </Timeline>
@@ -1419,29 +1428,51 @@ function Page({ c }: { c: OfficeCase }) {
       <Crew c={c} />
     </>
   );
+  const alerts = alertsFor(c, j).filter((a) => !!a);
   return (
     <div className={columns}>
       <div className="flex min-w-0 flex-col gap-6">
-        <RecordPage
-          trail={[{ label: "Jobs", href: linkTo({ to: "/office/jobs" }) }]}
-          title={c.service}
-          status={
-            <>
+        {/* the header: the crumb, then one row: the title with its badge on
+            the left, the split button on the right, on the title's line.
+            The button never wraps; short of room, the badge drops under the
+            title first. Drawn here, as RecordPage's header has no place for
+            a split button yet: the build gives PageHeader one */}
+        <header className="flex flex-col gap-4">
+          {/* oxlint-disable-next-line empire/screen-layout -- prototype */}
+          <Breadcrumbs
+            trail={[{ label: "Jobs", href: linkTo({ to: "/office/jobs" }) }]}
+          />
+          <div className="flex items-start gap-4">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
+              <span className="flex min-h-11 items-center">
+                {/* oxlint-disable-next-line empire/screen-layout -- prototype */}
+                <Heading level={1}>{c.service}</Heading>
+              </span>
               {badge}
-              {main && (
-                <span ref={headRef} className="ml-auto flex max-md:hidden">
-                  {split("down")}
-                </span>
-              )}
-              {!main && actions && (
-                <span className="ml-auto flex">
-                  <RareActions actions={actions.more} />
-                </span>
-              )}
-            </>
-          }
-          alerts={alertsFor(c, j)}
-        />
+            </div>
+            {/* the title's line and the button's box both the button's height
+                (a touch target's), so the button is centred on the line and
+                the gap under the row is the sections' gap */}
+            {main && (
+              <span
+                ref={headRef}
+                className="flex h-11 shrink-0 items-center max-md:hidden"
+              >
+                {split("down")}
+              </span>
+            )}
+            {!main && actions && (
+              <span className="flex h-11 shrink-0 items-center">
+                <RareActions actions={actions.more} />
+              </span>
+            )}
+          </div>
+        </header>
+        {alerts.map((a) => (
+          <Notice key={a.key} tone={a.tone}>
+            {a.children}
+          </Notice>
+        ))}
         {/* the header card on top in every case: it's how Jen knows the
             Job. Over, what History doesn't say leads, and only the details
             fold */}
@@ -1470,13 +1501,14 @@ function Page({ c }: { c: OfficeCase }) {
             <StickyHeadD shown={away} title={c.service} status={badge}>
               {split("down")}
             </StickyHeadD>
-            {/* on a phone, the next step after the details: read, then
-                decide */}
-            <FootBarD label="What to do">{split("sheet")}</FootBarD>
           </>
         )}
+        {/* the story, last */}
+        <History c={c} />
+        {main && actions && (
+          <FootBarD label="What to do">{split("sheet")}</FootBarD>
+        )}
       </div>
-      <History c={c} />
     </div>
   );
 }
