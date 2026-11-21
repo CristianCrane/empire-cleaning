@@ -84,6 +84,7 @@ export function Dashboard() {
   const first = needsAttention[0];
   const card = first && rowFor(first);
   const hints = hintsFor(needsAttention);
+  const owedCents = owedOf(needsAttention);
   const kind = (tile: Tile) =>
     needsAttention.filter((item) => tileOf[item.kind] === tile).map(rowFor);
   const unassigned = today.jobs.filter(
@@ -129,12 +130,20 @@ export function Dashboard() {
     },
     ...kinds.map(({ id, label, icon }) => {
       const rows = kind(id);
+      // Money's number is what's owed, its to-dos the hint; with nothing
+      // owed (plans On Hold alone) it counts them, as the others do (#507)
+      const money = id === "money" && owedCents > 0;
       return {
         id,
         icon,
         label,
         count: rows.length,
-        hint: hints[id] || undefined,
+        ...(money
+          ? {
+              value: formatMoney(owedCents),
+              hint: `${rows.length} to do`,
+            }
+          : { hint: (id !== "money" && hints[id]) || undefined }),
         rows: rows.map((row): ListRow => ({
           id: row.key,
           title: row.action,
@@ -209,13 +218,10 @@ const tileOf: Record<NeedsAttentionKind, Kind> = {
   plan_on_hold: "money",
 };
 
-// what the tiles say beside their counts: how many need cleaners, how many
-// Quotes are newly asked for, and what's owed (a plan On Hold owes for Jobs
+// what's owed, as the Money tile's number (a plan On Hold owes for Jobs
 // and Bills already counted)
-const hintsFor = (items: NeedsAttentionItem[]): Record<Kind, string> => {
-  const count = (kind: NeedsAttentionKind) =>
-    items.filter((item) => item.kind === kind).length;
-  const owedCents = items.reduce(
+const owedOf = (items: NeedsAttentionItem[]) =>
+  items.reduce(
     (sum, item) =>
       sum +
       (item.kind === "job_unpaid"
@@ -225,12 +231,19 @@ const hintsFor = (items: NeedsAttentionItem[]): Record<Kind, string> => {
           : 0),
     0,
   );
+
+// what the tiles say beside their counts: how many need cleaners, how many
+// Quotes are newly asked for
+const hintsFor = (
+  items: NeedsAttentionItem[],
+): Record<Exclude<Kind, "money">, string> => {
+  const count = (kind: NeedsAttentionKind) =>
+    items.filter((item) => item.kind === kind).length;
   const unassigned = count("job_unassigned");
   const asked = count("quote_requested");
   return {
     jobs: unassigned > 0 ? `${unassigned} need cleaners` : "",
     quotes: asked > 0 ? `${asked} asked for` : "",
-    money: owedCents > 0 ? `${formatMoney(owedCents)} owed` : "",
   };
 };
 
