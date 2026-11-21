@@ -15,7 +15,6 @@ import {
   ListItem,
   Notice,
   Section,
-  StatusBadge,
   TextField,
   RecordPage,
   type DialogState,
@@ -25,6 +24,7 @@ import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { formatHours } from "../format.ts";
 import { useSaid } from "../words.ts";
+import { cleanBadge } from "./clean-badge.tsx";
 import {
   PlanCard,
   PlanStatusBadge,
@@ -141,9 +141,15 @@ export function PortalPlan() {
               id={job.id}
               title={t.formatDateTime(job.startsAt)}
               description={t.w.aboutOnSite(formatHours(job.hoursOnSite))}
-              end={
-                <StatusBadge tone="info">{t.jobStatusLabel.booked}</StatusBadge>
-              }
+              // as the Cleans list badges it: nothing while it's simply
+              // booked, Move asked while a move waits (#507)
+              end={cleanBadge(t, {
+                status: "booked",
+                unpaid: false,
+                priceChange: false,
+                skipped: false,
+                moveAsked: job.movingTo !== null,
+              })}
             />
           ))}
         </List>

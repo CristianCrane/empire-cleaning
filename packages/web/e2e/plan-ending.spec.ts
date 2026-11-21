@@ -13,6 +13,7 @@ import {
   pageAction,
   openTile,
   saveACard,
+  requestReschedule,
 } from "./harness.ts";
 
 // Casey's First Clean is done at 11am on Monday 12 January 2026, New York
@@ -92,6 +93,24 @@ test(
     await expect(cancelled).not.toContainText("carries on");
   },
 );
+
+test("a plan's clean with a move asked is badged so, as the Cleans list badges it", async ({
+  page,
+}) => {
+  const { planId, firstJob } = await planStarted();
+  await requestReschedule(firstJob.id, { date: "2026-01-21", time: "10:00" });
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/plans/${planId}`);
+
+  const cleans = page.getByRole("grid", { name: "Your upcoming cleans" });
+  await expect(
+    cleans.getByRole("row").filter({ hasText: "Mon, Jan 19" }),
+  ).toContainText("Move asked");
+  // one simply booked says nothing more
+  await expect(cleans.getByRole("row").nth(1)).not.toContainText(
+    /Booked|Move asked/,
+  );
+});
 
 test("a Client's plan is On Hold while a fee is Unpaid, and back on once they pay it", async ({
   page,

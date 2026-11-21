@@ -1927,7 +1927,7 @@ export type ServicePlanView = Omit<ServicePlanSummary, "days"> & {
   // what Ending it would do now; null once it has Ended
   endTerms: EndPlanTerms | null;
   endedAt: string | null;
-  upcoming: ClientJob[];
+  upcoming: ClientUpcomingJob[];
 };
 
 // What Ending a Service Plan does, by the Clock: its booked Jobs more than
