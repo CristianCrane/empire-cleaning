@@ -219,10 +219,13 @@ test("Office Staff quote a business caller from New quote", async ({
   await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
   await choose(page, /Type of business/, "Retail");
   await page.getByText("One-off", { exact: true }).click();
-  // a first idea only: the floor area isn't known
-  await expect(
-    page.getByRole("region", { name: "What it comes to" }),
-  ).toContainText("priced after its site visit");
+  // no price until the floor area is known: the minimum charge, read out,
+  // would be a price for a business of no size
+  const comesTo = page.getByRole("region", { name: "What it comes to" });
+  await expect(comesTo).toContainText(
+    "No price until the floor area is known.",
+  );
+  await expect(comesTo).not.toContainText("$");
   await page
     .getByRole("textbox", { name: "Business name" })
     .fill("Phoner & Co");

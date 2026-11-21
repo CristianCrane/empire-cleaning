@@ -4,6 +4,7 @@ import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
   NotPriced,
   formats,
+  missingFor,
   suggestedPrice,
   type ClientList,
   type ClientListItem,
@@ -121,9 +122,9 @@ export function NewQuoteScreen() {
             footer={{
               label: submit,
               summary:
-                price &&
+                price?.now &&
                 `${price.now.serviceName} ${formatMoney(price.now.totalCents)}`,
-              status: price ? undefined : PICK_FIRST,
+              status: price ? price.missing : PICK_FIRST,
               children: (
                 <Button type="submit" isPending={isSending}>
                   {submit}
@@ -269,8 +270,17 @@ const pricing = (
 // what the footer says before a Service is picked, and the aside too
 const PICK_FIRST = "Pick what they need to see what it comes to.";
 
+// what it says in the price's place while what sets it isn't known: a
+// price then would be the minimum charge for a place of no size, read out
+// as if it were the price (#507)
+const MISSING = {
+  area: "No price until the floor area is known.",
+  rooms: "No price until the rooms are known.",
+} as const;
+
 // What's been said so far comes to, worked out as the Draft's Suggested
-// Price will be, so it can be said on the phone (#96); none until it can be
+// Price will be, so it can be said on the phone (#96); none until it can
+// be, and what's missing while the place's size isn't known
 const priceSoFar = (
   ask: QuoteAsk | null,
   client: OfficeClientView | null,
@@ -280,6 +290,8 @@ const priceSoFar = (
   const service = ask && services.find((s) => s.key === ask.serviceKey);
   const what = ask && pricing(ask, client);
   if (!ask || !service || !what) return null;
+  const missing = missingFor(service, what.priced);
+  if (missing) return { missing: MISSING[missing] };
   try {
     const now = suggestedPrice(
       list,
@@ -311,7 +323,11 @@ const priceSoFar = (
 // it changes, and how it's worked out, folded, with how long the clean
 // takes, which a caller asks
 function PriceSoFar({ price }: { price: ReturnType<typeof priceSoFar> }) {
-  if (!price) return <p className="text-sm text-fg-muted">{PICK_FIRST}</p>;
+  if (!price?.now) {
+    return (
+      <p className="text-sm text-fg-muted">{price?.missing ?? PICK_FIRST}</p>
+    );
+  }
   const { now, place, condition, business, crewSize } = price;
   return (
     <div className="flex flex-col gap-3">

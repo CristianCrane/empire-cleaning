@@ -51,8 +51,24 @@ export type Priced = (
 // the Suggested Price's working is the Office's, in English
 const { formatNumber } = formats.en;
 
-const homeParts = (hours: RoomHours, home: HomeRooms | null) => {
-  if (home === null) return [{ label: "Rooms not recorded yet", units: 0 }];
+// what a Service can't be priced without, still unknown: a home's rooms
+// for one priced from them, the area for one priced by area. Until it's
+// known the Suggested Price has no hours for it, only the minimum charge,
+// so a screen asking ahead says what's missing rather than a price (the
+// `ui` skill, a screen says only what's true)
+export const missingFor = (
+  service: Pick<Service, "method">,
+  property: Priced,
+): "rooms" | "area" | null =>
+  service.method === "area"
+    ? property.area === null
+      ? "area"
+      : null
+    : property.kind === "residential" && property.rooms === null
+      ? "rooms"
+      : null;
+
+const homeParts = (hours: RoomHours, home: HomeRooms) => {
   const extraStoreys = Math.max(0, home.storeys - 1);
   return [
     {
@@ -93,7 +109,7 @@ const areaParts = (list: PriceList, service: Service, property: Priced) => {
     ? list.premisesTypes.find((t) => t.key === typeKey)
     : null;
   if (type === undefined) throw new Error(`no Premises Type ${typeKey}`);
-  if (property.area === null) {
+  if (missingFor(service, property)) {
     return [
       {
         label: `Area not recorded yet${type ? ` (${type.name})` : ""}`,
@@ -101,7 +117,9 @@ const areaParts = (list: PriceList, service: Service, property: Priced) => {
       },
     ];
   }
-  const area = `${formatNumber(property.area)} sq ft ÷ 1,000 × ${perThousand} h`;
+  // known, as missingFor says
+  const known = property.area!;
+  const area = `${formatNumber(known)} sq ft ÷ 1,000 × ${perThousand} h`;
   return [
     {
       // an office is the measure, so its multiplier of 1 goes unsaid
@@ -110,7 +128,7 @@ const areaParts = (list: PriceList, service: Service, property: Priced) => {
         : area,
       // the area is whole sq ft; to the nearest unit (1e-4 h)
       units: Math.round(
-        (property.area *
+        (known *
           hoursUnits(perThousand) *
           (type ? multiplierUnits(type.multiplier) : MULTIPLIER)) /
           (1000 * MULTIPLIER),
@@ -178,10 +196,13 @@ export const suggestedPrice = (
   const parts =
     service.method === "area"
       ? areaParts(list, service, property)
-      : homeParts(
-          service.roomHours!,
-          (property as Extract<Priced, { kind: "residential" }>).rooms,
-        );
+      : missingFor(service, property)
+        ? [{ label: "Rooms not recorded yet", units: 0 }]
+        : homeParts(
+            service.roomHours!,
+            // known, as missingFor says
+            (property as Extract<Priced, { kind: "residential" }>).rooms!,
+          );
   const { hourlyRateCents, minimumChargeCents } = service;
   const taxPercent = service.taxOneOffPercent;
   const homeUnits = parts.reduce((sum, part) => sum + part.units, 0);
