@@ -8,6 +8,7 @@ import {
   emailsTo,
   expect,
   expectAccessible,
+  fillRooms,
   newEmail,
   test,
 } from "./harness.ts";
@@ -97,6 +98,7 @@ for (const theme of ["light", "dark"] as const) {
         await expectAccessible(page);
         await chooseService(page);
         await expectAccessible(page);
+        await page.getByText("Apartment", { exact: true }).click();
         await page
           .getByRole("textbox", { name: "Street address" })
           .fill("41-12 Austin St");
@@ -107,6 +109,8 @@ for (const theme of ["light", "dark"] as const) {
           page.getByRole("group", { name: "Any extras?" }),
         ).toBeVisible();
         await expectAccessible(page);
+        await page.getByText("Moderate", { exact: true }).click();
+        await fillRooms(page);
         await next(page);
         await expect(
           page.getByRole("textbox", { name: "Full name" }),
@@ -168,10 +172,12 @@ test.describe("requesting a Quote", () => {
     await page.getByRole("textbox", { name: "Phone" }).fill("(646) 555-0100");
   };
 
-  // every step, taking the home as it comes
+  // every step, a home in moderate condition
   const fillIn = async (page: Page, email: string, zip = "11375") => {
     await fillWhere(page, zip);
     await next(page);
+    await page.getByText("Moderate", { exact: true }).click();
+    await fillRooms(page);
     await next(page);
     await fillDetails(page, email);
   };
@@ -185,6 +191,7 @@ test.describe("requesting a Quote", () => {
       await fillWhere(page);
       await next(page);
       await page.getByText("Heavy", { exact: true }).click();
+      await fillRooms(page);
       await page
         .getByText("After my first clean, I'd like regular visits", {
           exact: false,
@@ -443,6 +450,8 @@ test.describe("requesting a Quote", () => {
       .getByRole("group", { name: "Any extras?" })
       .getByText("Inside the fridge")
       .click();
+    await page.getByText("Moderate", { exact: true }).click();
+    await fillRooms(page);
     await next(page);
     await fillDetails(page, email);
     await page.getByRole("button", { name: "Request a quote" }).click();
@@ -488,6 +497,8 @@ test.describe("requesting a Quote", () => {
     await expect(
       extras.getByRole("checkbox", { name: "Inside the fridge" }),
     ).toBeChecked();
+    await page.getByText("Moderate", { exact: true }).click();
+    await fillRooms(page);
     await next(page);
     await fillDetails(page, email);
     await page.getByRole("button", { name: "Request a quote" }).click();
@@ -591,6 +602,19 @@ test.describe("requesting a Quote", () => {
     await page.getByRole("button", { name: "Back" }).click();
     await fillWhere(page);
     await next(page);
+    // nothing said for them about the home: each answer's asked for
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+    await expect(page.getByText("Step 3 of 4")).toBeVisible();
+    for (const condition of ["Light", "Moderate", "Heavy"]) {
+      await expect(
+        page.getByRole("radio", { name: condition }),
+      ).not.toBeChecked();
+    }
+    await expect(
+      page.getByRole("textbox", { name: "Bedrooms" }),
+    ).toHaveAttribute("aria-invalid", "true");
+    await page.getByText("Moderate", { exact: true }).click();
+    await fillRooms(page);
     await next(page);
     await page.getByRole("button", { name: "Request a quote" }).click();
     await expect(

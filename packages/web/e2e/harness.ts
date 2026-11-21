@@ -777,6 +777,24 @@ export const chooseService = async (page: Page, name = "Standard Clean") => {
   await nextStep(page);
 };
 
+// the quote form's questions about a home, which start blank for anyone
+// but the Office: how much cleaning it needs, where that's asked, and its
+// rooms
+export const describeTheHome = async (
+  page: Page,
+  { condition = "Moderate", bedrooms = 2, bathrooms = 1, floors = 1 } = {},
+) => {
+  const form = page.locator("form");
+  if (await form.getByRole("radio", { name: condition }).count()) {
+    await form.getByText(condition, { exact: true }).click();
+  }
+  await form.getByRole("textbox", { name: "Bedrooms" }).fill(String(bedrooms));
+  await form
+    .getByRole("textbox", { name: "Bathrooms" })
+    .fill(String(bathrooms));
+  await form.getByRole("textbox", { name: "Floors" }).fill(String(floors));
+};
+
 export { expect };
 
 // a Service on offer, by its name, as the form offers them

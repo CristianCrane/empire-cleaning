@@ -6,6 +6,7 @@ import {
   expectAccessible,
   nextStep,
   chooseService,
+  describeTheHome,
   requestQuoteAsGuest,
   test,
   expectCurrentSection,
@@ -48,6 +49,7 @@ test(
     await chooseService(page);
     await describeNewHome(page);
     await nextStep(page);
+    await describeTheHome(page);
     await nextStep(page);
     await page.getByRole("textbox", { name: "Full name" }).fill("Nina New");
     await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0111");
@@ -64,6 +66,45 @@ test(
     ).toBeVisible();
   },
 );
+
+test("the form starts blank for someone new, and asks each answer before going on", async ({
+  page,
+}) => {
+  await signInAs(page, "new@example.com");
+  await chooseService(page);
+  const step = page.getByText(/^Step \d of \d$/);
+  const next = page.getByRole("button", { name: "Next", exact: true });
+
+  // no kind of home said for them
+  for (const kind of ["House", "Apartment", "Townhouse"]) {
+    await expect(
+      page.getByRole("radio", { name: kind, exact: true }),
+    ).not.toBeChecked();
+  }
+  await page
+    .getByRole("textbox", { name: "Street address" })
+    .fill("35-06 Ditmars Blvd");
+  await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
+  await next.click();
+  await expect(step).toHaveText("Step 2 of 4");
+  await page.getByText("Apartment", { exact: true }).click();
+  await nextStep(page);
+
+  // nor how much cleaning it needs, nor its rooms
+  for (const condition of ["Light", "Moderate", "Heavy"]) {
+    await expect(
+      page.getByRole("radio", { name: condition }),
+    ).not.toBeChecked();
+  }
+  for (const room of ["Bedrooms", "Bathrooms", "Floors"]) {
+    await expect(page.getByRole("textbox", { name: room })).toHaveValue("");
+  }
+  await next.click();
+  await expect(step).toHaveText("Step 3 of 4");
+  await describeTheHome(page);
+  await nextStep(page);
+  await expect(step).toHaveText("Step 4 of 4");
+});
 
 test("a home with a Quote open can't be asked about again, and points to it", async ({
   page,
@@ -101,6 +142,7 @@ test("a home with a Quote open can't be asked about again, and points to it", as
     unit: "apt 4b",
   });
   await nextStep(page);
+  await describeTheHome(page);
   await page.getByRole("button", { name: "Request a quote" }).click();
 
   await expect(
@@ -160,7 +202,7 @@ test("a home asked about only for Painting gives its rooms when it's asked about
     page.getByRole("radio", { name: /35-06 Ditmars Blvd/ }),
   ).toBeChecked();
   await nextStep(page);
-  await page.getByRole("textbox", { name: "Bedrooms" }).fill("3");
+  await describeTheHome(page, { bedrooms: 3 });
   await page.getByRole("button", { name: "Request a quote" }).click();
 
   await expect(page).toHaveURL("/portal");
@@ -177,6 +219,7 @@ test("a Client asks about a second home", async ({ page }) => {
   await page.getByText("A different home", { exact: true }).click();
   await describeNewHome(page);
   await nextStep(page);
+  await describeTheHome(page);
   await page.getByRole("button", { name: "Request a quote" }).click();
 
   await expect(page).toHaveURL("/portal");
@@ -237,6 +280,10 @@ test("a Client who first asked in Spanish asks again in Spanish, the API's messa
   await page.getByRole("textbox", { name: "Código postal" }).fill("1137");
   await page.getByRole("button", { name: "Siguiente", exact: true }).click();
   await expect(page.getByText("Paso 3 de 3")).toBeVisible();
+  await page.getByText("Intensa", { exact: true }).click();
+  for (const name of ["Dormitorios", "Baños", "Pisos"]) {
+    await page.getByRole("textbox", { name }).fill("1");
+  }
   await page.getByRole("button", { name: "Pedir una cotización" }).click();
 
   const zip = page.getByRole("textbox", { name: "Código postal" });
@@ -255,6 +302,7 @@ test("the API's explanation shows beside the field", async ({ page }) => {
   await page.getByText("A different home", { exact: true }).click();
   await describeNewHome(page, { zip: "1137" });
   await nextStep(page);
+  await describeTheHome(page);
   await page.getByRole("button", { name: "Request a quote" }).click();
 
   // back on the step with the field
@@ -535,6 +583,7 @@ eachTheme(() => {
       page.getByRole("group", { name: "Any extras?" }),
     ).toBeVisible();
     await expectAccessible(page);
+    await describeTheHome(page);
     await nextStep(page);
     await expectAccessible(page);
   });

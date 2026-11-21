@@ -18,6 +18,18 @@ export const emailsTo = (address: string): Promise<Email[]> =>
 // the tests run in parallel against one database that nothing resets
 export const newEmail = () => `casey-${crypto.randomUUID()}@example.com`;
 
+// a home's rooms on the quote form, which start blank for a Guest: two
+// bedrooms, a bathroom and a floor, by the fields' names in the page's
+// language
+export const fillRooms = async (
+  page: Page,
+  names = ["Bedrooms", "Bathrooms", "Floors"],
+) => {
+  for (const [i, name] of names.entries()) {
+    await page.getByRole("textbox", { name }).fill(String([2, 1, 1][i]));
+  }
+};
+
 // every test fails if the Content-Security-Policy (astro.config.ts) blocked
 // anything a page loads
 export const test = base.extend<{ allowedByCsp: void }>({

@@ -153,23 +153,31 @@ const serviceIcons: Record<ServiceIcon, LucideIcon> = {
   custom: SlidersHorizontal,
 };
 
-const blankHome: NewHome = {
+// a new home as it's filled in, and its rooms: each answer unknown (null)
+// until it's given
+type HomeDraft = Omit<NewHome, "type"> & { type: PropertyType | null };
+type RoomsDraft = {
+  [K in keyof HomeRooms]: K extends "pets" ? boolean : number | null;
+};
+
+// what a new home starts as: nothing said for a stranger, whose answers
+// aren't known, so none is made up for them (#493 G2.3); the Office's
+// usual answers for the Office, who fills it in call after call, so New
+// quote prices from the start
+const blankHome = (usual: boolean): HomeDraft => ({
   kind: "residential",
-  type: "house",
+  type: usual ? "house" : null,
   street: "",
   unit: "",
   postcode: "",
   floorArea: null,
   accessInstructions: "",
-};
+});
 
-// a home's rooms, as asked before anything is changed
-const blankRooms: HomeRooms = {
-  bedrooms: 2,
-  bathrooms: 1,
-  storeys: 1,
-  pets: false,
-};
+const blankRooms = (usual: boolean): RoomsDraft =>
+  usual
+    ? { bedrooms: 2, bathrooms: 1, storeys: 1, pets: false }
+    : { bedrooms: null, bathrooms: null, storeys: null, pets: false };
 
 const blankPremises: NewPremises = {
   kind: "commercial",
@@ -180,6 +188,12 @@ const blankPremises: NewPremises = {
   floorArea: null,
   accessInstructions: "",
 };
+
+// a draft's answers as the API takes them. Each required one is given by
+// the time it's sent, as the browser checks each step's; one still blank
+// goes as null all the same, which the API refuses beside its field
+const given = <T,>(draft: Draft<T>) => draft as T;
+type Draft<T> = T extends object ? { [K in keyof T]: T[K] | null } : T | null;
 
 // a preferred start, from the times a picker offers, 5am to 11pm
 const startTimes = PICK_TIMES.filter((t) => t >= "05:00" && t <= "23:00");
@@ -253,11 +267,14 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   const [callerLanguage, setCallerLanguage] = useState<Language>("en");
   const [kind, setKind] = useState<PropertyKind>("residential");
   const [place, setPlace] = useState<string>(NEW_PLACE);
-  const [newHome, setNewHome] = useState<NewHome>(blankHome);
-  const [rooms, setRooms] = useState<HomeRooms>(blankRooms);
+  // the Office's usual answers for the Office, none for anyone else
+  const usual = asker.kind === "office";
+  const [newHome, setNewHome] = useState(() => blankHome(usual));
+  const [rooms, setRooms] = useState(() => blankRooms(usual));
   const [newPremises, setNewPremises] = useState<NewPremises>(blankPremises);
-  const [condition, setCondition] = useState<Condition>(
-    firstFree("residential")?.condition ?? "moderate",
+  // a place on file's own, as recorded
+  const [condition, setCondition] = useState<Condition | null>(
+    firstFree("residential")?.condition ?? (usual ? "moderate" : null),
   );
   // the Add-ons loaded, with the Service they're for; asked for again after
   // a send refused some (addOnsAsked)
@@ -384,7 +401,10 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   const newPlace = () => {
     const fresh = premises
       ? newPremises
-      : { ...newHome, ...(asksRooms && rooms) };
+      : {
+          ...given<NewHome>(newHome),
+          ...(asksRooms && given<HomeRooms>(rooms)),
+        };
     return {
       ...fresh,
       unit: fresh.unit || null,
@@ -417,7 +437,10 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     property:
       place === NEW_PLACE
         ? { new: newPlace() }
-        : { existing: place, ...(givesRooms && { rooms }) },
+        : {
+            existing: place,
+            ...(givesRooms && { rooms: given<HomeRooms>(rooms) }),
+          },
     serviceKey: serviceKey!,
     notes: notes || null,
     ...(asksArea && { area }),
@@ -434,7 +457,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
           preferredTime: canRecur && regular ? preferredTime : null,
         }
       : {
-          ...(asksCondition && { condition }),
+          ...(asksCondition && { condition: given<Condition>(condition) }),
           wantsRegularService: canRecur && wantsRegularService,
           // in the order offered, only those still offered
           addOns: offered
@@ -488,6 +511,8 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     <ChoiceTiles
       label={words.what}
       name="property.new.type"
+      // a new home's type, which one on file has already
+      isRequired={place === NEW_PLACE}
       value={premises ? "commercial" : newHome.type}
       onChange={(value) => {
         if (value === "commercial") return chooseKind("commercial");
@@ -679,7 +704,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
       : givesRooms
         ? "property.rooms"
         : null;
-  const updateRooms = (change: Partial<HomeRooms>) =>
+  const updateRooms = (change: Partial<RoomsDraft>) =>
     setRooms((current) => ({ ...current, ...change }));
 
   // how much cleaning it needs first, then the home's rooms and the extras,
@@ -1184,9 +1209,9 @@ function RoomsFields({
   t,
 }: {
   t: FormWords;
-  rooms: HomeRooms;
+  rooms: RoomsDraft;
   at: string;
-  update: (change: Partial<HomeRooms>) => void;
+  update: (change: Partial<RoomsDraft>) => void;
   error: (path: string) => string | undefined;
 }) {
   const field = (name: keyof HomeRooms) => `${at}.${name}`;
@@ -1199,8 +1224,11 @@ function RoomsFields({
         description={t.studio}
         minValue={0}
         maxValue={20}
-        value={rooms.bedrooms}
-        onChange={(bedrooms) => update({ bedrooms })}
+        isRequired
+        value={rooms.bedrooms ?? Number.NaN}
+        onChange={(bedrooms) =>
+          update({ bedrooms: Number.isNaN(bedrooms) ? null : bedrooms })
+        }
         errorMessage={error(field("bedrooms"))}
       />
       <NumberField
@@ -1210,8 +1238,11 @@ function RoomsFields({
         minValue={0.5}
         maxValue={20}
         step={0.5}
-        value={rooms.bathrooms}
-        onChange={(bathrooms) => update({ bathrooms })}
+        isRequired
+        value={rooms.bathrooms ?? Number.NaN}
+        onChange={(bathrooms) =>
+          update({ bathrooms: Number.isNaN(bathrooms) ? null : bathrooms })
+        }
         errorMessage={error(field("bathrooms"))}
       />
       <NumberField
@@ -1219,8 +1250,11 @@ function RoomsFields({
         name={field("storeys")}
         minValue={1}
         maxValue={5}
-        value={rooms.storeys}
-        onChange={(storeys) => update({ storeys })}
+        isRequired
+        value={rooms.storeys ?? Number.NaN}
+        onChange={(storeys) =>
+          update({ storeys: Number.isNaN(storeys) ? null : storeys })
+        }
         errorMessage={error(field("storeys"))}
       />
     </div>
@@ -1238,9 +1272,9 @@ function NewHomeFields({
   lang,
 }: {
   lang: Language;
-  home: NewHome;
+  home: HomeDraft;
   asksFloorArea: boolean;
-  update: (change: Partial<NewHome>) => void;
+  update: (change: Partial<HomeDraft>) => void;
   error: (path: string) => string | undefined;
 }) {
   const field = (name: keyof NewHome) => `property.new.${name}`;
