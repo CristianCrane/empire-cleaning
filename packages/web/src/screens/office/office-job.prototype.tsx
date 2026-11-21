@@ -1,6 +1,6 @@
 // PROTOTYPE: throwaway. The Office's Job for Jen, on made-up data, at
 // /prototype/office-job?case=1..10&lang=en|es (no sign-in), inside the real
-// AppLayout and the Office's nav. One layout, from the calls made for it,
+// frame (AppLayout's, switching at lg: FrameAtLg) and the Office's nav. One layout, from the calls made for it,
 // following the Cleaner's Job's layout D (prototype-cleaner-job, 0cf74290),
 // whose parts are copied here: the split button, the phone's action sheet,
 // the sticky header, the crew's faces with a ghost for an open place, the
@@ -19,6 +19,7 @@ import {
   MenuTrigger,
   Modal,
   ModalOverlay,
+  Link as AriaLink,
   Popover as AriaPopover,
 } from "react-aria-components";
 import {
@@ -38,6 +39,7 @@ import {
   DoorClosed,
   Ellipsis,
   KeyRound,
+  Menu as MenuIcon,
   ClipboardCheck,
   ClipboardList,
   Lock,
@@ -58,7 +60,10 @@ import {
 } from "lucide-react";
 import { formats, type Language } from "@empire-cleaning/models";
 import {
-  AppLayout,
+  Drawer,
+  Logo,
+  ThemeToggle,
+  useUiWords,
   Avatar,
   Breadcrumbs,
   Button,
@@ -277,7 +282,7 @@ function SplitButton({
     </Button>
   );
   return (
-    <div className="flex w-full md:w-auto">
+    <div className="flex w-full lg:w-auto">
       {first}
       {more.length > 0 &&
         (opens === "sheet" ? (
@@ -330,11 +335,11 @@ const columns = "grid grid-cols-[minmax(0,1fr)] items-start gap-6";
 function FootBarD({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
-      <div aria-hidden className="h-20 md:hidden print:hidden" />
+      <div aria-hidden className="h-20 lg:hidden print:hidden" />
       <div
         role="group"
         aria-label={label}
-        className="fixed inset-x-0 bottom-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] z-30 flex border-t border-border bg-surface px-4 py-3 shadow-raised md:hidden print:hidden"
+        className="fixed inset-x-0 bottom-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] z-30 flex border-t border-border bg-surface px-4 py-3 shadow-raised lg:hidden print:hidden"
       >
         {children}
       </div>
@@ -360,7 +365,7 @@ function StickyHeadD({
     <div
       inert={!shown}
       aria-hidden={!shown}
-      className={`pointer-events-none fixed inset-x-0 top-0 z-30 hidden transition duration-200 md:left-64 md:block print:hidden ${
+      className={`pointer-events-none fixed inset-x-0 top-0 z-30 hidden transition duration-200 lg:left-64 lg:block print:hidden ${
         shown ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
       }`}
     >
@@ -1407,6 +1412,146 @@ function RareActions({ actions }: { actions: Action[] }) {
   );
 }
 
+// ---- the frame, switching at lg ----
+
+// The ui kit's AppLayout, copied with its frame switching at lg (1024)
+// instead of md: below lg a tablet gets the phone's frame (the top bar and
+// its ☰, the tab bar, the action pinned at the foot), from lg the sidebar.
+// AppLayout's breakpoint is fixed in shared code, so the prototype draws
+// its own (the coordinator's call, "The 768 wrap": for the user to confirm
+// before any build, as it reaches every area). Left out, as a prototype
+// doesn't need them: the loading bar, the skip link's styling details, the
+// account's foot
+function FrameAtLg({
+  area,
+  nav,
+  children,
+}: {
+  area: string;
+  nav: NavItem[];
+  children: ReactNode;
+}) {
+  const section = nav.find((item) => item.isCurrent)?.label ?? area;
+  const tabs = nav.filter((item) => !item.inMenu);
+  const words = useUiWords();
+  return (
+    <div className="min-h-dvh lg:flex">
+      <a
+        href="#main"
+        className="sr-only z-50 rounded-md bg-primary px-4 py-2 font-semibold text-primary-fg focus:not-sr-only focus:fixed focus:top-2 focus:left-2 print:hidden"
+      >
+        Skip to content
+      </a>
+      <aside className="hidden w-64 shrink-0 flex-col gap-6 overflow-y-auto border-r border-border bg-surface p-4 lg:sticky lg:top-0 lg:flex lg:h-dvh print:hidden">
+        <div className="flex flex-col items-center gap-3 px-2 pt-2">
+          <Logo className="w-44" />
+          <span className="text-sm text-fg-muted">{area}</span>
+        </div>
+        <nav aria-label={area} className="flex flex-1 flex-col gap-4">
+          <NavGroups items={nav} />
+        </nav>
+        <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
+          <ThemeToggle />
+        </div>
+      </aside>
+      <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2 lg:hidden print:hidden">
+        <div className="flex min-w-0 items-center gap-1">
+          <DialogTrigger>
+            <Button
+              variant="quiet"
+              size="icon"
+              aria-label={words.menu}
+              className="-ml-2 shrink-0"
+            >
+              <MenuIcon aria-hidden size={22} />
+            </Button>
+            <Drawer aria-label={words.menu}>
+              {({ close }) => (
+                <>
+                  <div className="flex flex-col items-center gap-3 px-2 pt-8">
+                    <Logo className="w-44" />
+                    <span className="text-sm text-fg-muted">{area}</span>
+                  </div>
+                  <nav aria-label={area} className="flex flex-col gap-4">
+                    <NavGroups items={nav} onPress={close} />
+                  </nav>
+                  <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
+                    <ThemeToggle />
+                  </div>
+                </>
+              )}
+            </Drawer>
+          </DialogTrigger>
+          <span className="truncate font-display text-xl font-bold tracking-wide uppercase">
+            {section}
+          </span>
+        </div>
+      </header>
+      <main
+        id="main"
+        tabIndex={-1}
+        className="mx-auto w-full max-w-5xl min-w-0 flex-1 px-4 pt-4 pb-28 outline-none lg:px-8 lg:py-8 print:max-w-none print:p-0"
+      >
+        {children}
+      </main>
+      <nav
+        aria-label={area}
+        className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden print:hidden"
+      >
+        {tabs.map((item) => (
+          <AriaLink
+            key={item.label}
+            href={item.href}
+            aria-current={item.isCurrent ? "page" : undefined}
+            className="flex flex-1 flex-col items-center justify-center gap-0.5 text-xs font-semibold text-fg-muted no-underline -outline-offset-2 current:text-primary focus-visible:outline-2 focus-visible:outline-focus"
+          >
+            <item.icon aria-hidden size={22} />
+            {item.label}
+          </AriaLink>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+// the sidebar's or the menu's links, each run with the same group under
+// its heading (AppLayout's, copied)
+function NavGroups({
+  items,
+  onPress,
+}: {
+  items: NavItem[];
+  onPress?: () => void;
+}) {
+  const groups: { name?: string; items: NavItem[] }[] = [];
+  for (const item of items) {
+    const last = groups.at(-1);
+    if (last && last.name === item.group) last.items.push(item);
+    else groups.push({ name: item.group, items: [item] });
+  }
+  return groups.map((group) => (
+    <div key={group.items[0]!.label} className="flex flex-col gap-1">
+      {group.name && (
+        <span className="px-3 pt-1 text-xs font-semibold tracking-wide text-fg-muted uppercase">
+          {group.name}
+        </span>
+      )}
+      {group.items.map((item) => (
+        <AriaLink
+          key={item.label}
+          href={item.href}
+          aria-current={item.isCurrent ? "page" : undefined}
+          onPress={onPress}
+          className="flex min-h-touch items-center gap-3 rounded-md px-3 font-semibold text-fg-muted no-underline hover:bg-surface-sunken hover:text-fg focus-visible:outline-2 focus-visible:outline-focus current:bg-success-subtle current:text-success-strong"
+        >
+          <item.icon aria-hidden size={20} />
+          {item.label}
+        </AriaLink>
+      ))}
+    </div>
+  ));
+}
+
 // ---- the page ----
 
 function Page({ c }: { c: OfficeCase }) {
@@ -1456,7 +1601,7 @@ function Page({ c }: { c: OfficeCase }) {
             {main && (
               <span
                 ref={headRef}
-                className="flex h-11 shrink-0 items-center max-md:hidden"
+                className="flex h-11 shrink-0 items-center max-lg:hidden"
               >
                 {split("down")}
               </span>
@@ -1537,12 +1682,12 @@ export function OfficeJobPrototype() {
   );
   return (
     <LanguageProvider lang={lang}>
-      <AppLayout area={areaLabels[lang].office} nav={nav} foot={() => null}>
+      <FrameAtLg area={areaLabels[lang].office} nav={nav}>
         {/* the page is the Office's, in English (ADR-0025): only the frame
             follows &lang= */}
         <LanguageProvider lang="en">
           {/* room for the switcher on a phone, so it covers nothing at rest */}
-          <div aria-hidden className="h-12 md:hidden" />
+          <div aria-hidden className="h-12 lg:hidden" />
           <p className="mb-4 text-sm text-fg-muted">
             Case {c.key}: {c.name}
           </p>
@@ -1553,9 +1698,9 @@ export function OfficeJobPrototype() {
           variants={cases.map((x) => ({ key: x.key, name: x.name }))}
           current={c.key}
           onChange={go}
-          className="top-16 md:top-auto md:bottom-4"
+          className="top-16 lg:top-auto lg:bottom-4"
         />
-      </AppLayout>
+      </FrameAtLg>
     </LanguageProvider>
   );
 }
