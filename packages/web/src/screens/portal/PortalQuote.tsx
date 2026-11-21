@@ -543,10 +543,12 @@ function QuoteDetails({
 
       {plan && (
         <div className="flex flex-col gap-3 border-t border-border pt-4">
-          <p className="text-sm text-fg-muted">
-            {plan.days.length > 1 ? t.w.oneADay : ""}
-            {t.w.eachOff(plan.discountPercent)}
-          </p>
+          {(plan.days.length > 1 || plan.discountPercent > 0) && (
+            <p className="text-sm text-fg-muted">
+              {plan.days.length > 1 ? t.w.oneADay : ""}
+              {plan.discountPercent > 0 && t.w.eachOff(plan.discountPercent)}
+            </p>
+          )}
           <div className="grid gap-4 lg:grid-cols-2">
             {plan.days.map((day, i) => (
               <PlanDayCard

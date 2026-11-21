@@ -362,6 +362,50 @@ test("the Client and Property screens pass an accessibility check", async ({
   await expectAccessible(page);
 });
 
+test("a plan quoted at no discount says no saving, on its quote and on the plan", async ({
+  page,
+  browser,
+}) => {
+  await startPlan(page);
+  const discount = page
+    .getByRole("region", { name: "Plan" })
+    .getByRole("textbox", { name: "Plan discount (%)" });
+  await discount.fill("0");
+  await discount.blur();
+  // the plan's price is the one-off price, $224.28 with tax, with no
+  // discount row between them, no saving badge, and no note on where the
+  // discount comes from
+  const standard = planCard(page, "Standard Clean, every 2 weeks");
+  await expect(standard).toContainText(
+    "As a one-off clean$224.28On the plan$224.28",
+  );
+  await expect(standard).not.toContainText("Save $");
+  await expect(page.getByText(/plan discount comes off/)).toHaveCount(0);
+  await saved(page);
+  await startOn19th(page);
+  await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
+  await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
+
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  await client.goto(await quoteLink());
+  const plan = client.getByRole("region", {
+    name: "Mondays at 9:00 AM: Standard Clean",
+  });
+  await expect(plan).toContainText(
+    "As a one-off clean$224.28On the plan$224.28",
+  );
+  await expect(plan).not.toContainText("Save $");
+  await expect(client.getByText(/% off what it would cost/)).toHaveCount(0);
+
+  // started, its page says the price with no discount either
+  await payAndBook(client, "Pay and start your plan").accept.click();
+  await client.getByRole("link", { name: "See your cleaning plan" }).click();
+  const details = client.getByRole("region", { name: "Plan details" });
+  await expect(details).toContainText("$224.28Each clean, tax included");
+  await expect(details).not.toContainText("% off");
+});
+
 test("the Client Declines a Service Plan Quote", async ({ page, browser }) => {
   await startPlan(page);
   await startOn19th(page);

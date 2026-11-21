@@ -631,6 +631,16 @@ describe("a Sent Service Plan Quote", () => {
     expect(updated.text).toContain("has been updated: a Deep Clean every week");
   });
 
+  test("with no Plan Discount, emails the price of a clean and no saving", async () => {
+    const { office, propertyId } = await firstCleanDone();
+
+    await sentPlan(office, propertyId, { discountPercent: 0 });
+
+    const sent = testEmail().lastTo(casey.email);
+    expect(sent.text).toContain("Each clean is $224.28.");
+    expect(sent.text).not.toContain("saves you");
+  });
+
   test("the Client sees the one-off price, the Plan Discount and the per-Job price", async () => {
     const { office, propertyId } = await firstCleanDone();
     const quote = await sentPlan(office, propertyId);
