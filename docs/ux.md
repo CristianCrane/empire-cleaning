@@ -1,9 +1,10 @@
 # UX rules
 
 How Empire Cleaning's screens are meant to look and behave, and why. Read
-this before changing any screen in `packages/web`, `packages/ui`,
-`packages/quote-request` or `packages/landing`, and before writing any
-words a person reads: a server message or an email too (Words).
+this before designing, prototyping, reviewing or changing any screen in
+`packages/web`, `packages/ui`, `packages/quote-request` or
+`packages/landing`, and before writing any words a person reads: a server
+message or an email too (Words).
 
 - **Screen types** says what kinds of screen there are, the design
   principles every one keeps, and each type's rules. Every screen renders
@@ -46,13 +47,12 @@ says before it's built.
 
 The owner's design principles (2026-11-13): **clear, focused, simple,
 peaceful**. No screen overloads anyone with clutter and detail; the `ui`
-skill's "What a screen shows" says how, and here:
+skill says how, and here:
 
 - **What each screen leads with:** a home screen, what's next; a money page,
   whether anything is owed; a Cleaner's list, where they're working.
 - **What waits behind a tap:** a "How it's worked out" link, a folded
-  section, the Actions menu. A blocked step's unblocking action sits in the
-  Notice that explains it.
+  section, the Actions menu.
 - **Details belong on the detail page**, not its row.
 
 ### Record
@@ -73,17 +73,17 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   value and a muted line), with the time, the address and how to reach
   someone among them, not in a part of their own.
 - **Its parts**, each a Section. An action on one part stays on that part's
-  title line (End plan, red, on the plan; Billing's Edit), and so do both
-  answers to an offer (Accept and Decline, Confirm and Not for me). A part
+  title line (End plan, red, on the plan; Billing's Edit). A part
   with nothing in it yet offers its action (`ActionRow`). Money is one
   part: its facts, the price changes in it, "How it's worked out" folded
   (`Fold`).
-- **Its History**, a `Timeline` in a Card, newest first: on the right from
-  `xl`, at the foot below that. What happened (a drop-out, a Cleaner taken
-  off) is told there, not kept as a row elsewhere. A Quote's story is its
+- **Its History**, a `Timeline` in a Card, newest first: last, at every
+  width: one column, as a side column competed with the page (#493 builds
+  it). What happened (a drop-out, a Cleaner taken off) is told there, not
+  kept as a row elsewhere. A Quote's story is its
   body, **Now** on top holding it as it stands; its Draft is a Form page.
-- **A bar at the foot** only for what must stay in reach on site: the
-  Cleaner's Complete.
+- **On a phone, the page's actions pinned at the foot**, above the tab
+  bar, after the facts (#493 builds it).
 
 ("Layout / RecordPage"; "A Record: its header, two alerts, its details, its
 parts"; "A record's History beside it, from xl"; "Records as stories")
@@ -276,9 +276,13 @@ The `ui` skill's rules hold here too; these are this product's.
   the breadcrumbs from the area's nav section down to this page, every
   step; the title and its status badge; a subtitle only when it says what
   nothing else on the page does (a Bill's week), never the title, a crumb
-  or the Client again; and the page's actions at the end of the title row,
-  one Actions ▾ menu, or a Button in its place when there's one, the
-  destructive last in red after a rule. Printed, it's the title alone.
+  or the Client again (each fact once: the `ui` skill); and the page's
+  actions at the end of the title row: one split button, the page's next
+  step its primary and the rest behind its arrow, or a ⋯ menu when nothing
+  is next, sticking in a header once scrolled past, a Record's there on a
+  wider screen only and at the foot on a phone (#493 builds it); the
+  destructive last in red after a rule. Printed,
+  it's the title alone.
   ("Layout / RecordPage / Actions In The Header", "One Action")
 - **What loads holds its room** (the `ui` skill): choices from the API draw
   blank tiles at their size first (`ChoiceTilesLoading`). ("ChoiceTiles /
@@ -331,13 +335,15 @@ The `ui` skill's rules hold here too; these are this product's.
 - **One primary Button per page** (the `ui` skill); everything else is
   secondary, text or quiet.
 - **A bar at the foot of a page is an `ActionFooter`**, which the page's
-  layout places, never a sticky bar of the page's own, which pins under the phone's tab bar (#425). It holds
-  what must stay in reach while a long page scrolls (a Cleaner's Job on
-  site, a Quote Draft's Send): above the tab bar on a phone, full width
-  beside the sidebar on a wider screen. What it sums up (prices, whether
-  it's saved) on its left, the main action last, on the right. The layout
-  test fails a button or link under a fixed bar. ("A bar at the foot is an
-  ActionFooter")
+  layout places, never a sticky bar of the page's own, which pins under the phone's tab bar (#425). It holds,
+  above the tab bar, a Record's actions on a phone (a Cleaner's Job on
+  site), which a wider screen keeps in the header instead (the `ui` skill;
+  #493 builds it), and a form's price and its button (the Quote Draft's
+  Send, New quote's Draft a quote), full width beside the sidebar on a
+  wider screen until #493 settles it with a prototype. What it sums up
+  (prices, whether it's saved) on its left, the main action last, on the
+  right. The layout test fails a button or link under a fixed bar. ("A
+  bar at the foot is an ActionFooter")
 - **Buttons are ranked by fill**: primary filled, secondary outlined,
   `text` for a Section's actions, `danger-text` beside them, `danger`
   alone, `quiet` only to back out. Nothing pressable looks inert.
@@ -353,8 +359,9 @@ The `ui` skill's rules hold here too; these are this product's.
 ### Notices
 
 - **A Notice holds at most one action**, a text Button (or `ButtonLink`) on
-  the right of its text, never primary. Two things to say or do are two
-  Notices. ("Notices hold one action")
+  the right of its text, never primary, and not the page's next step,
+  which is the page's primary (the `ui` skill; #493 builds it). Two
+  things to say or do are two Notices. ("Notices hold one action")
 - **Tone means what a status's does**: warning for something waiting on
   someone, danger for something that failed or is late, info for what
   they're waiting on us for, success for done.
@@ -373,7 +380,8 @@ stays as it is (#336).
   lowercase in a sentence: "Send a quote", "your cleaning plan". A
   Service's name, such as Deep Clean, keeps its capitals.
 - **One word per concept, for every reader, and one concept per word**
-  (ADR-0029). The Office, Cleaners, Clients and Guests read the same word
+  (ADR-0029; a status is the reader's: the `ui` skill). The Office,
+  Cleaners, Clients and Guests read the same word
   for a term: an Add-on is an "extra" to everyone, an Adjustment a "price
   change". No word names two terms, and where a reader also sees extras,
   "extra" isn't an adjective either: more time is "1 more hour", a home's
@@ -386,8 +394,8 @@ stays as it is (#336).
   enough cleaners are free then. Pick another time, or add working hours for
   a cleaner that day." No counting unless the number helps. When nothing can
   be done: "This clean was cancelled."
-- **A field that's too long says its limit**: "Keep the reason under 500
-  characters", from the server's `keepUnder`.
+- **A field that's too long says its limit** (the `ui` skill), from the
+  server's `keepUnder`: "Keep the reason under 500 characters".
 - **Words that state a rule are checked against the code** (the `ui` skill):
   `lateFeeOf` charges a clean's share, not the plan's whole deposit, which
   the app and the first Terms of service once said (#462). Words on money,
@@ -517,7 +525,8 @@ stays as it is (#336).
   badged only when it isn't plain.
 - **An empty place offers what fills it** (`EmptyState` with its action),
   never says again what its Section's
-  description above it already says. ("Empty states offer the action")
+  description above it already says (each fact once: the `ui` skill).
+  ("Empty states offer the action")
 
 ### Forms
 
