@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { MINUTE_MS } from "@empire-cleaning/models";
 import {
   bookJob,
   createClient,
@@ -239,6 +240,44 @@ test("a search that takes a moment leaves the list as it is, still typed in", as
 
   letGo();
   await expect(page.getByText("Nothing matches “nobody”")).toBeVisible();
+});
+
+// the same on a home, whose route is the area's index ("/office/" to the
+// router, "/office" in the address bar): Today's own refresh, once a
+// minute, never puts it out of reach, even for a moment, as it reloads
+// (PR #503 review F7)
+test("Today's own refresh never puts it out of reach", async ({ page }) => {
+  await page.clock.install();
+  await signInWithAJob(page);
+  await expect(page.getByRole("heading", { name: "Hi, Olive" })).toBeVisible();
+  // each time the page on show goes out of reach or back
+  await page.evaluate(() => {
+    const onShow = document.querySelector("main > div")!;
+    const seen: (string | null)[] = [];
+    (window as unknown as { inert: typeof seen }).inert = seen;
+    new MutationObserver(() => seen.push(onShow.getAttribute("inert"))).observe(
+      onShow,
+      { attributeFilter: ["inert"] },
+    );
+  });
+
+  const needs = /\/api\/dashboard\/needs-attention$/;
+  const letGo = await holdApi(page, needs);
+  const asked = page.waitForRequest(needs);
+  await stopTheClock(page);
+  await page.clock.runFor(MINUTE_MS);
+  // under way, and held past the 200ms a move shows itself after
+  await asked;
+  await page.clock.runFor(1_000);
+  await expectNothingShown(page);
+  letGo();
+  await page.clock.resume();
+  await expect(page.getByRole("heading", { name: "Hi, Olive" })).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { inert: (string | null)[] }).inert,
+    ),
+  ).toEqual([]);
 });
 
 eachTheme(() => {
