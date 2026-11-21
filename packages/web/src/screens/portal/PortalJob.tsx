@@ -26,7 +26,6 @@ import {
   IconTile,
   Link,
   Notice,
-  StatusBadge,
   Fact,
   RecordPage,
   DetailsCard,
@@ -45,7 +44,7 @@ import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
 import { addressOf, formatHours, wasSkipped } from "../format.ts";
 import { type Said, useSaid } from "../words.ts";
 import { catalog, oneStop, stopAfter } from "@empire-cleaning/models";
-import { JobStatusBadge } from "../JobBadges.tsx";
+import { cleanBadge } from "./clean-badge.tsx";
 
 // in the Client's language (ADR-0025)
 const words = catalog({
@@ -234,19 +233,20 @@ export function PortalJob() {
         { label: t.formatDateTime(job.startsAt) },
       ]}
       title={job.serviceName}
-      status={
-        completion?.payment.unpaid ? (
-          <StatusBadge tone="danger">{t.unpaid}</StatusBadge>
-        ) : completion ? (
-          <StatusBadge tone="success">{t.jobStatusLabel.completed}</StatusBadge>
-        ) : job.cancellation ? (
-          <StatusBadge>{t.cancelledLabel(wasSkipped(job))}</StatusBadge>
-        ) : job.noAccess ? (
-          <JobStatusBadge status="no_access" />
-        ) : (
-          <JobStatusBadge status="booked" />
-        )
-      }
+      // what waits on them first, in the Cleans list's words
+      status={cleanBadge(
+        t,
+        {
+          status: job.status,
+          unpaid: !!job.payment.unpaid,
+          priceChange: !!completion?.adjustments.some(
+            (a) => a.status === "proposed",
+          ),
+          skipped: wasSkipped(job),
+          moveAsked: booked && job.rescheduleRequest?.status === "pending",
+        },
+        true,
+      )}
       actions={
         booked
           ? [

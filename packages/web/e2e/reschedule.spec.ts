@@ -73,6 +73,11 @@ test(
     await dialog.getByRole("button", { name: "Send request" }).click();
 
     await expect(page.getByText("Request sent")).toBeVisible();
+    // the badge says what's waiting, as the Cleans list does, not Booked
+    const titleLine = page
+      .getByRole("heading", { level: 1 })
+      .locator("xpath=..");
+    await expect(titleLine).toHaveText(/Move asked$/);
     const pending = page
       .getByRole("status")
       .filter({ hasText: "You've asked to move it" });
@@ -86,6 +91,7 @@ test(
     await pending.getByRole("button", { name: "Withdraw request" }).click();
     await expect(page.getByText("Request withdrawn")).toBeVisible();
     await expect(pending).toHaveCount(0);
+    await expect(titleLine).toHaveText(/Booked$/);
   },
 );
 
