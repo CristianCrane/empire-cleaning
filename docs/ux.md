@@ -276,11 +276,12 @@ The `ui` skill's rules hold here too; these are this product's.
   the breadcrumbs from the area's nav section down to this page, every
   step; the title and its status badge; a subtitle only when it says what
   nothing else on the page does (a Bill's week), never the title, a crumb
-  or the Client again (each fact once: the `ui` skill); and, on a wider
-  screen, the page's actions at the end of the title row: one split
-  button, the page's next step its primary and the rest behind its arrow,
-  or a ⋯ menu when nothing is next, sticking in a header once scrolled past
-  (#493 builds it); the destructive last in red after a rule. Printed,
+  or the Client again (each fact once: the `ui` skill); and the page's
+  actions at the end of the title row: one split button, the page's next
+  step its primary and the rest behind its arrow, or a ⋯ menu when nothing
+  is next, sticking in a header once scrolled past, a Record's there on a
+  wider screen only and at the foot on a phone (#493 builds it); the
+  destructive last in red after a rule. Printed,
   it's the title alone.
   ("Layout / RecordPage / Actions In The Header", "One Action")
 - **What loads holds its room** (the `ui` skill): choices from the API draw
@@ -334,11 +335,12 @@ The `ui` skill's rules hold here too; these are this product's.
 - **One primary Button per page** (the `ui` skill); everything else is
   secondary, text or quiet.
 - **A bar at the foot of a page is an `ActionFooter`**, which the page's
-  layout places, never a sticky bar of the page's own, which pins under the phone's tab bar (#425). It holds
-  the page's actions (a Cleaner's Job on site, a Quote Draft's Send) above
-  the tab bar, on a phone only; a wider screen has none (the `ui` skill;
-  #493 builds it). What it sums up (prices, whether
-  it's saved) on its left, the main action last, on the right. The layout
+  layout places, never a sticky bar of the page's own, which pins under the phone's tab bar (#425). It holds,
+  above the tab bar, a Record's actions on a phone (a Cleaner's Job on
+  site), which a wider screen keeps in the header instead (the `ui` skill;
+  #493 builds it), and a Quote Draft's Send, full width beside the sidebar
+  on a wider screen until #493 settles it with a prototype. What it sums up
+  (prices, whether it's saved) on its left, the main action last, on the right. The layout
   test fails a button or link under a fixed bar. ("A bar at the foot is an
   ActionFooter")
 - **Buttons are ranked by fill**: primary filled, secondary outlined,
