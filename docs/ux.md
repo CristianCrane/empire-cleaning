@@ -512,8 +512,8 @@ stays as it is (#336).
 - **Lead a to-do row with what to do** (Send a quote, Find cleaners), a
   toned `IconTile` for the kind; rows that only show things keep the name
   as the title. ("Action First To Do Rows")
-- **A row's title and line wrap, never cut** (the `ui` skill), and Spanish
-  runs longer. `ListItem` wraps both, anywhere, so every List does: a long
+- **A row's title and line wrap rather than cut** (the `ui` skill), and
+  Spanish runs longer. `ListItem` wraps both, anywhere, so every List does: a long
   email in a Settings summary row breaks rather than running off a phone
   (#436). On a phone a row's badge (`end`) sits under its text rather than
   beside it (#305).
