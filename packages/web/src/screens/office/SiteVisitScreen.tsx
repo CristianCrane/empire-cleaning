@@ -39,6 +39,7 @@ import {
   CancelSiteVisit,
   MoveSiteVisit,
   RecordFindings,
+  hasBeen,
   SiteVisitBadge,
 } from "./SiteVisitParts.tsx";
 
@@ -58,11 +59,7 @@ export function SiteVisitScreen() {
   });
   const booked = visit.status === "booked";
   const premises = visit.property.kind === "commercial";
-  // it has been, with nothing recorded yet: recording is what's next
-  const been =
-    booked &&
-    visit.startsAt !== null &&
-    new Date(visit.startsAt).getTime() < Date.now();
+  const been = hasBeen(visit);
 
   return (
     <RecordPage
@@ -71,7 +68,7 @@ export function SiteVisitScreen() {
         { label: "Site visit" },
       ]}
       title="Site visit"
-      status={<SiteVisitBadge status={visit.status} />}
+      status={<SiteVisitBadge visit={visit} />}
       actions={[
         booked && {
           label: "Move or change",

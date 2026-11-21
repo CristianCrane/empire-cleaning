@@ -79,10 +79,25 @@ const statusTone: Record<SiteVisitStatus, StatusTone> = {
   cancelled: "neutral",
 };
 
-export function SiteVisitBadge({ status }: { status: SiteVisitStatus }) {
+// it has been, with nothing recorded yet: recording what it found is
+// what's next
+export const hasBeen = (visit: Pick<OfficeSiteVisit, "status" | "startsAt">) =>
+  visit.status === "booked" &&
+  visit.startsAt !== null &&
+  new Date(visit.startsAt).getTime() < Date.now();
+
+// where it stands for the Office: once it's been, what waits on them (To
+// record), not Booked (the `ui` skill, a screen says only what's true)
+export function SiteVisitBadge({
+  visit,
+}: {
+  visit: Pick<OfficeSiteVisit, "status" | "startsAt">;
+}) {
+  if (hasBeen(visit))
+    return <StatusBadge tone="warning">To record</StatusBadge>;
   return (
-    <StatusBadge tone={statusTone[status]}>
-      {siteVisitStatusLabel[status]}
+    <StatusBadge tone={statusTone[visit.status]}>
+      {siteVisitStatusLabel[visit.status]}
     </StatusBadge>
   );
 }

@@ -346,15 +346,11 @@ function VisitPart({
           }
           description={
             visit.startsAt &&
-            [
-              visit.visitor?.name,
-              formatMinutes(visit.minutes),
-              visit.status === "booked" && "findings to record",
-            ]
+            [visit.visitor?.name, formatMinutes(visit.minutes)]
               .filter(Boolean)
               .join(" · ")
           }
-          end={<SiteVisitBadge status={visit.status} />}
+          end={<SiteVisitBadge visit={visit} />}
         />
       </List>
     </Section>
@@ -406,7 +402,7 @@ const historyOf = (home: OfficePropertyView): HistoryEvent[] =>
             .filter(Boolean)
             .join(" · ")
         : "Findings recorded, no visit",
-      status: <SiteVisitBadge status={visit.status} />,
+      status: <SiteVisitBadge visit={visit} />,
       href: linkTo({
         to: "/office/site-visits/$visitId",
         params: { visitId: visit.id },
