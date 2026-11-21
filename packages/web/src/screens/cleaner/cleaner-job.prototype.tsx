@@ -173,11 +173,6 @@ const W = {
           ? `${open} ${open === 1 ? "place" : "places"} open`
           : `${n} of ${of} confirmed, ${open} open`,
     cancel: "Cancel",
-    // D: the details' count of extras, the line under it pointing down to
-    // their list, and that list's line
-    extrasCount: (n: number) => `${n} ${n === 1 ? "extra" : "extras"}`,
-    listedBelow: "Listed below",
-    extrasLine: (n: number) => `${n} on top of the clean`,
   },
   es: {
     offers: "Ofertas",
@@ -200,7 +195,8 @@ const W = {
     when: "Cuándo",
     where: "Dónde",
     howLong: "Cuánto dura",
-    extras: "Extras",
+    // the app's own word (labels.ts)
+    extras: "Adicionales",
     address: "Dirección",
     number: "Número",
     hiddenUntil: (day: string) => `Aparece el ${day}`,
@@ -276,9 +272,6 @@ const W = {
           : `${confirmed}, ${open} ${libre}`;
     },
     cancel: "Cancelar",
-    extrasCount: (n: number) => `${n} ${n === 1 ? "extra" : "extras"}`,
-    listedBelow: "En la lista de abajo",
-    extrasLine: (n: number) => `${n} además de la limpieza`,
   },
 };
 type Words = (typeof W)["en"];
@@ -1803,26 +1796,23 @@ function JobCardD({ c, j }: { c: JobCase; j: J }) {
               }
             />
           )}
+          {/* the count alone, as every fact is: the signpost to their
+              list below */}
+          {c.extras.length > 0 && (
+            <Fact icon={CirclePlus} label={w.extras} value={c.extras.length} />
+          )}
+          {/* last, and the card's width whatever its length, so a long
+              note never pushes the short facts down or reads cramped */}
           {stage === "day" && (
             <Fact
               icon={KeyRound}
               label={w.gettingIn}
-              // a long note takes the card's width
-              className={c.door ? "col-span-full" : undefined}
+              className="col-span-full"
               value={
                 <span className="text-lg font-semibold">
                   {c.door?.[j.lang] ?? w.door4b}
                 </span>
               }
-            />
-          )}
-          {/* the count alone: the signpost to their list below */}
-          {c.extras.length > 0 && (
-            <Fact
-              icon={CirclePlus}
-              label={w.extras}
-              value={w.extrasCount(c.extras.length)}
-              line={w.listedBelow}
             />
           )}
         </Facts>
@@ -1832,14 +1822,14 @@ function JobCardD({ c, j }: { c: JobCase; j: J }) {
 }
 
 // the extras, a part of their own below the details, built as the crew
-// is: the title and a line counting them on the page, an untitled card
-// under them listing one a line, so they're read down and counted at a
+// is: the title on the page (the details card already counts them), an
+// untitled card under it listing one a line, so they're read down at a
 // glance. None, no part
 function ExtrasD({ c, j }: { c: JobCase; j: J }) {
   const { w } = j;
   if (c.extras.length === 0) return null;
   return (
-    <Section title={w.extras} description={w.extrasLine(c.extras.length)}>
+    <Section title={w.extras}>
       <Card>
         <ul className="-my-3 divide-y divide-border">
           {j.extras.map((x) => (
