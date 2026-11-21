@@ -374,7 +374,8 @@ stays as it is (#336).
   lowercase in a sentence: "Send a quote", "your cleaning plan". A
   Service's name, such as Deep Clean, keeps its capitals.
 - **One word per concept, for every reader, and one concept per word**
-  (ADR-0029). The Office, Cleaners, Clients and Guests read the same word
+  (ADR-0029; a status is the reader's: the `ui` skill). The Office,
+  Cleaners, Clients and Guests read the same word
   for a term: an Add-on is an "extra" to everyone, an Adjustment a "price
   change". No word names two terms, and where a reader also sees extras,
   "extra" isn't an adjective either: more time is "1 more hour", a home's
