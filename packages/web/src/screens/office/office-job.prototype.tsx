@@ -1,13 +1,14 @@
 // PROTOTYPE: throwaway. The Office's Job for Jen, on made-up data, at
 // /prototype/office-job?case=1..10&lang=en|es (no sign-in), inside the real
-// frame (AppLayout's, switching at lg: FrameAtLg) and the Office's nav. One layout, from the calls made for it,
+// frame (AppLayout's, with an icon rail from md to lg: FrameWithRail) and
+// the Office's nav. One layout, from the calls made for it,
 // following the Cleaner's Job's layout D (prototype-cleaner-job, 0cf74290),
 // whose parts are copied here: the split button, the phone's action sheet,
 // the sticky header, the crew's faces with a ghost for an open place, the
 // extras' list, the header card. ←/→ switch cases. The Office reads
 // English (ADR-0025): &lang=es turns only the frame Spanish. Lives only on
 // prototype-office-job.
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 // the split button's menu and sheet, placed as the ui kit's MenuButton and
 // Dialog can't be told to (web lists react-aria-components on this branch
@@ -21,6 +22,8 @@ import {
   ModalOverlay,
   Link as AriaLink,
   Popover as AriaPopover,
+  Tooltip,
+  TooltipTrigger,
 } from "react-aria-components";
 import {
   CalendarCheck,
@@ -282,7 +285,7 @@ function SplitButton({
     </Button>
   );
   return (
-    <div className="flex w-full lg:w-auto">
+    <div className="flex w-full md:w-auto">
       {first}
       {more.length > 0 &&
         (opens === "sheet" ? (
@@ -335,11 +338,11 @@ const columns = "grid grid-cols-[minmax(0,1fr)] items-start gap-6";
 function FootBarD({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
-      <div aria-hidden className="h-20 lg:hidden print:hidden" />
+      <div aria-hidden className="h-20 md:hidden print:hidden" />
       <div
         role="group"
         aria-label={label}
-        className="fixed inset-x-0 bottom-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] z-30 flex border-t border-border bg-surface px-4 py-3 shadow-raised lg:hidden print:hidden"
+        className="fixed inset-x-0 bottom-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] z-30 flex border-t border-border bg-surface px-4 py-3 shadow-raised md:hidden print:hidden"
       >
         {children}
       </div>
@@ -365,7 +368,7 @@ function StickyHeadD({
     <div
       inert={!shown}
       aria-hidden={!shown}
-      className={`pointer-events-none fixed inset-x-0 top-0 z-30 hidden transition duration-200 lg:left-64 lg:block print:hidden ${
+      className={`pointer-events-none fixed inset-x-0 top-0 z-30 hidden transition duration-200 md:left-16 md:block lg:left-64 print:hidden ${
         shown ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
       }`}
     >
@@ -1412,17 +1415,20 @@ function RareActions({ actions }: { actions: Action[] }) {
   );
 }
 
-// ---- the frame, switching at lg ----
+// ---- the frame: a phone's below md, an icon rail md to lg, the sidebar
+// from lg ----
 
-// The ui kit's AppLayout, copied with its frame switching at lg (1024)
-// instead of md: below lg a tablet gets the phone's frame (the top bar and
-// its ☰, the tab bar, the action pinned at the foot), from lg the sidebar.
-// AppLayout's breakpoint is fixed in shared code, so the prototype draws
-// its own (the coordinator's call, "The 768 wrap": for the user to confirm
-// before any build, as it reaches every area). Left out, as a prototype
-// doesn't need them: the loading bar, the skip link's styling details, the
-// account's foot
-function FrameAtLg({
+// The ui kit's AppLayout, copied with one change (the user's correction on
+// f69ecc70): from md to lg the sidebar collapses to a rail of icons, each
+// name its tooltip and its accessible label, the current one highlighted,
+// so a narrow laptop window keeps the desktop's ways (the action in the
+// header, no pinned bar) and the content room for the title row. Below md,
+// the phone's frame, as the app has it; from lg, the full sidebar.
+// AppLayout's frame is shared code, so the prototype draws its own: for the
+// user to confirm before any build, as it reaches every area. Left out, as
+// a prototype doesn't need them: the loading bar, the account's foot, and
+// the theme toggle on the rail
+function FrameWithRail({
   area,
   nav,
   children,
@@ -1435,13 +1441,19 @@ function FrameAtLg({
   const tabs = nav.filter((item) => !item.inMenu);
   const words = useUiWords();
   return (
-    <div className="min-h-dvh lg:flex">
+    <div className="min-h-dvh md:flex">
       <a
         href="#main"
         className="sr-only z-50 rounded-md bg-primary px-4 py-2 font-semibold text-primary-fg focus:not-sr-only focus:fixed focus:top-2 focus:left-2 print:hidden"
       >
         Skip to content
       </a>
+      {/* md to lg: the rail */}
+      <aside className="hidden w-16 shrink-0 flex-col items-center gap-2 overflow-y-auto border-r border-border bg-surface py-4 md:sticky md:top-0 md:flex md:h-dvh lg:hidden print:hidden">
+        <nav aria-label={area} className="flex flex-col items-center gap-2">
+          <RailLinks items={nav} />
+        </nav>
+      </aside>
       <aside className="hidden w-64 shrink-0 flex-col gap-6 overflow-y-auto border-r border-border bg-surface p-4 lg:sticky lg:top-0 lg:flex lg:h-dvh print:hidden">
         <div className="flex flex-col items-center gap-3 px-2 pt-2">
           <Logo className="w-44" />
@@ -1454,7 +1466,7 @@ function FrameAtLg({
           <ThemeToggle />
         </div>
       </aside>
-      <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2 lg:hidden print:hidden">
+      <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2 md:hidden print:hidden">
         <div className="flex min-w-0 items-center gap-1">
           <DialogTrigger>
             <Button
@@ -1490,13 +1502,13 @@ function FrameAtLg({
       <main
         id="main"
         tabIndex={-1}
-        className="mx-auto w-full max-w-5xl min-w-0 flex-1 px-4 pt-4 pb-28 outline-none lg:px-8 lg:py-8 print:max-w-none print:p-0"
+        className="mx-auto w-full max-w-5xl min-w-0 flex-1 px-4 pt-4 pb-28 outline-none md:px-8 md:py-8 print:max-w-none print:p-0"
       >
         {children}
       </main>
       <nav
         aria-label={area}
-        className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden print:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden print:hidden"
       >
         {tabs.map((item) => (
           <AriaLink
@@ -1552,6 +1564,35 @@ function NavGroups({
   ));
 }
 
+// the rail's links: an icon each, its name the tooltip and the label,
+// the current one highlighted as the sidebar does; a rule between groups
+function RailLinks({ items }: { items: NavItem[] }) {
+  return items.map((item, i) => (
+    <Fragment key={item.label}>
+      {i > 0 && item.group !== items[i - 1]!.group && (
+        <hr aria-hidden className="my-1 w-8 border-border" />
+      )}
+      <TooltipTrigger delay={300}>
+        <AriaLink
+          href={item.href}
+          aria-label={item.label}
+          aria-current={item.isCurrent ? "page" : undefined}
+          className="flex size-11 items-center justify-center rounded-md text-fg-muted no-underline hover:bg-surface-sunken hover:text-fg focus-visible:outline-2 focus-visible:outline-focus current:bg-success-subtle current:text-success-strong"
+        >
+          <item.icon aria-hidden size={20} />
+        </AriaLink>
+        <Tooltip
+          placement="end"
+          offset={8}
+          className="rounded-md bg-fg px-2 py-1 text-sm font-semibold text-bg shadow-overlay"
+        >
+          {item.label}
+        </Tooltip>
+      </TooltipTrigger>
+    </Fragment>
+  ));
+}
+
 // ---- the page ----
 
 function Page({ c }: { c: OfficeCase }) {
@@ -1601,7 +1642,7 @@ function Page({ c }: { c: OfficeCase }) {
             {main && (
               <span
                 ref={headRef}
-                className="flex h-11 shrink-0 items-center max-lg:hidden"
+                className="flex h-11 shrink-0 items-center max-md:hidden"
               >
                 {split("down")}
               </span>
@@ -1682,12 +1723,12 @@ export function OfficeJobPrototype() {
   );
   return (
     <LanguageProvider lang={lang}>
-      <FrameAtLg area={areaLabels[lang].office} nav={nav}>
+      <FrameWithRail area={areaLabels[lang].office} nav={nav}>
         {/* the page is the Office's, in English (ADR-0025): only the frame
             follows &lang= */}
         <LanguageProvider lang="en">
           {/* room for the switcher on a phone, so it covers nothing at rest */}
-          <div aria-hidden className="h-12 lg:hidden" />
+          <div aria-hidden className="h-12 md:hidden" />
           <p className="mb-4 text-sm text-fg-muted">
             Case {c.key}: {c.name}
           </p>
@@ -1698,9 +1739,9 @@ export function OfficeJobPrototype() {
           variants={cases.map((x) => ({ key: x.key, name: x.name }))}
           current={c.key}
           onChange={go}
-          className="top-16 lg:top-auto lg:bottom-4"
+          className="top-16 md:top-auto md:bottom-4"
         />
-      </FrameAtLg>
+      </FrameWithRail>
     </LanguageProvider>
   );
 }
