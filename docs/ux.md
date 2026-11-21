@@ -1,9 +1,10 @@
 # UX rules
 
 How Empire Cleaning's screens are meant to look and behave, and why. Read
-this before changing any screen in `packages/web`, `packages/ui`,
-`packages/quote-request` or `packages/landing`, and before writing any
-words a person reads: a server message or an email too (Words).
+this before designing, prototyping, reviewing or changing any screen in
+`packages/web`, `packages/ui`, `packages/quote-request` or
+`packages/landing`, and before writing any words a person reads: a server
+message or an email too (Words).
 
 - **Screen types** says what kinds of screen there are, the design
   principles every one keeps, and each type's rules. Every screen renders
@@ -46,7 +47,7 @@ says before it's built.
 
 The owner's design principles (2026-11-13): **clear, focused, simple,
 peaceful**. No screen overloads anyone with clutter and detail; the `ui`
-skill's "What a screen shows" says how, and here:
+skill says how, and here:
 
 - **What each screen leads with:** a home screen, what's next; a money page,
   whether anything is owed; a Cleaner's list, where they're working.
