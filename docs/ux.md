@@ -276,11 +276,12 @@ The `ui` skill's rules hold here too; these are this product's.
   the breadcrumbs from the area's nav section down to this page, every
   step; the title and its status badge; a subtitle only when it says what
   nothing else on the page does (a Bill's week), never the title, a crumb
-  or the Client again; and, on a wider screen, the page's actions at the
-  end of the title row: one split button, the page's next step its primary
-  and the rest behind its arrow, or a ⋯ menu when nothing is next, sticking
-  in a header once scrolled past (#493 builds it); the destructive last in
-  red after a rule. Printed, it's the title alone.
+  or the Client again (each fact once: the `ui` skill); and, on a wider
+  screen, the page's actions at the end of the title row: one split
+  button, the page's next step its primary and the rest behind its arrow,
+  or a ⋯ menu when nothing is next, sticking in a header once scrolled past
+  (#493 builds it); the destructive last in red after a rule. Printed,
+  it's the title alone.
   ("Layout / RecordPage / Actions In The Header", "One Action")
 - **What loads holds its room** (the `ui` skill): choices from the API draw
   blank tiles at their size first (`ChoiceTilesLoading`). ("ChoiceTiles /
@@ -390,8 +391,8 @@ stays as it is (#336).
   enough cleaners are free then. Pick another time, or add working hours for
   a cleaner that day." No counting unless the number helps. When nothing can
   be done: "This clean was cancelled."
-- **A field that's too long says its limit**: "Keep the reason under 500
-  characters", from the server's `keepUnder`.
+- **A field that's too long says its limit** (the `ui` skill), from the
+  server's `keepUnder`: "Keep the reason under 500 characters".
 - **Words that state a rule are checked against the code** (the `ui` skill):
   `lateFeeOf` charges a clean's share, not the plan's whole deposit, which
   the app and the first Terms of service once said (#462). Words on money,
@@ -521,7 +522,8 @@ stays as it is (#336).
   badged only when it isn't plain.
 - **An empty place offers what fills it** (`EmptyState` with its action),
   never says again what its Section's
-  description above it already says. ("Empty states offer the action")
+  description above it already says (each fact once: the `ui` skill).
+  ("Empty states offer the action")
 
 ### Forms
 
