@@ -144,7 +144,8 @@ Cleaner's Your jobs render through `HomePage`
   Review the price change and an alert says why, its tile stepping aside
   meanwhile (each fact once; where the alert sits is settled on #493's
   prototype). With nothing waiting anywhere, offers to answer included,
-  it's a green all-clear card (#493 builds it). The Office's is its first
+  it's a green all-clear card, as a screen says only what's true (the
+  `ui` skill; #493 builds it). The Office's is its first
   to-do, the server's order.
 - **News** under it, an info Notice each, never an action (a move asked
   for, a bank payment on its way).
@@ -193,7 +194,8 @@ for a dialog. It renders through `FormPage`
   is written to reach (the Draft's, New quote's) leads instead: first
   below `xl`, so a phone reads what it comes to before the parts that
   change it. Until what sets it is known (a business's floor area), it
-  says what's missing in its place, not a number (#493 builds it). It
+  says what's missing in its place, not a number, as a number then would
+  be untrue (the `ui` skill; #493 builds it). It
   shows only totals, each one's working folded under "How
   it's worked out"; what sets a price (a price of your own, its reason)
   stays in the part it prices.
@@ -289,7 +291,8 @@ The `ui` skill's rules hold here too; these are this product's.
   is next, sticking in a header once scrolled past, a Record's there on a
   wider screen only and at the foot on a phone (#493 builds it); a page
   whose only action destroys has no primary, that action in the same
-  place, outlined in red, not in a ⋯ menu (#493 builds it); the
+  place, outlined in red, not in a ⋯ menu, which would hide the page's
+  only action (the `ui` skill; #493 builds it); the
   destructive last in red after a rule. Printed,
   it's the title alone.
   ("Layout / RecordPage / Actions In The Header", "One Action")
@@ -556,8 +559,9 @@ stays as it is (#336).
 ### Time and schedules
 
 - **Schedules are calendars**: a day, three days or a week on the Schedule
-  (a day on a phone; elsewhere three at first, then the span last chosen
-  in that browser; #493 builds it), a month on a
+  (a day on a phone, so its blocks have room to name their client;
+  elsewhere three at first, then the span last chosen in that browser;
+  #493 builds it), a month on a
   Cleaner's availability. Jobs are timed events (start and
   duration), ready for a Google Calendar sync. A Job or a Site Visit
   dragged on the Schedule carries a picture of its block, and an outline
@@ -592,9 +596,11 @@ stays as it is (#336).
   or rearranged into a lockup. Where it doesn't fit, the screen changes
   around it. On a phone the top bar names the section you're in and the
   logo heads the ☰ menu; the sidebar holds it centred; the landing site
-  has no header bar, just Sign in and the theme in the top right corner,
-  and the hero leads with what we clean and where, the logo smaller and
-  the slogan, if it stays, below the headline (#505 builds it).
+  has no header bar, just the language, Sign in and the theme in the top
+  right corner. The hero leads with what we clean and where, as a
+  stranger gives it a few seconds (the `ui` skill): the logo goes up
+  into the header, smaller, and the slogan, if it stays, below the
+  headline (#505 builds it).
   ("Foundations / Logo")
 - **A section is named once on a phone.** The top bar names the section,
   so a section's own page (Jobs, Payments, Your Jobs…) hides its heading
