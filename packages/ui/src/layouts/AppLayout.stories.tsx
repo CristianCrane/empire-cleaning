@@ -242,11 +242,11 @@ export const PhoneMenuFoot: Story = {
   },
 };
 
-// the next page loading, once it has gone on a moment (200ms; a quicker
-// one shows nothing): a bar runs across the top, the page on show fades and
-// can't be pressed until the next one shows, and a screen reader hears
-// "Loading…" once. The navigation stays live, still on the page on show's
-// section (#454)
+// the next page loading: the page on show can't be pressed from the start
+// until the next one shows, and once it has gone on a moment (200ms; a
+// quicker one shows nothing) a bar runs across the top, the page fades, and
+// a screen reader hears "Loading…" once. The navigation stays live, still
+// on the page on show's section (#454)
 export const Loading: Story = {
   globals: { viewport: { value: "tablet" } },
   args: { loading: true },

@@ -321,10 +321,12 @@ The `ui` skill's rules hold here too; these are this product's.
   It writes every Client and Staff member the person is (ADR-0025).
 - **A page that takes a moment to load says so in the frame**, in every
   area (`AppLayout`'s `loading`): after 200ms a thin bar in the brand
-  colour runs across the top, the page on show fades to half and can't be
-  pressed, and a screen reader hears "Loading…" once. The page on show and
-  its section in the navigation stay until the next page is ready; the
-  navigation stays live. A quicker load shows nothing, and so does a change
+  colour runs across the top, the page on show fades to half, and a screen
+  reader hears "Loading…" once. The page on show can't be pressed from the
+  press that leaves it, before it fades, so a press meant for the next page
+  never lands on the old one. It and its section in the navigation stay
+  until the next page is ready; the navigation stays live. A quicker load
+  shows nothing, and so does a change
   within a page (a search, a Tab, the Schedule's week) or its reload after
   a save, which leave the page usable. A link's page starts loading as the
   pointer rests on it, it's focused or pressed down (`preload.ts`), so a

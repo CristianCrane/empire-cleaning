@@ -5,6 +5,7 @@ import {
   useRouteContext,
   useRouter,
   useRouterState,
+  trimPathRight,
 } from "@tanstack/react-router";
 import {
   ArrowRightLeft,
@@ -200,11 +201,16 @@ export function AreaLayout({ area }: { area: AreaId }) {
   // a press that leaves this page, its next one still loading. Not a change
   // within the page (a search, a Tab, the Schedule's week), which leaves it
   // usable as it reloads, nor a reload of this page after a save or on
-  // returning to the tab: those keep their path (#454)
+  // returning to the tab: those keep their path (#454). Over once the next
+  // page is drawn, in the render that draws it, so what it focuses as it
+  // mounts isn't inside the old page's out-of-reach frame. A home's route
+  // is its area's index, drawn at "/office/" for the address "/office", so
+  // both are read without a trailing slash
   const loading = useRouterState({
     select: (s) =>
       s.status === "pending" &&
-      s.location.pathname !== (s.resolvedLocation ?? s.location).pathname,
+      trimPathRight(s.location.pathname) !==
+        trimPathRight(s.matches.at(-1)?.pathname ?? ""),
   });
   const offers = useOffersCount(area === "cleaner", pathname);
   useTours(area, account);
