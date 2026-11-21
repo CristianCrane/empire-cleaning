@@ -38,12 +38,15 @@ import {
   DoorClosed,
   Ellipsis,
   KeyRound,
+  ClipboardCheck,
   ClipboardList,
   Lock,
+  MessageSquareReply,
   MessageSquareText,
   Play,
   Receipt,
   Repeat,
+  RotateCcw,
   Send,
   Sparkles,
   Undo2,
@@ -431,6 +434,10 @@ type OfficeCase = {
   door?: string;
   // free cleaners can take it from then (ADR-0019)
   opensAt?: string;
+  // what the Cleaner wrote when it ended, and the price changes they
+  // reported
+  note?: string;
+  priceChanges?: { cents: number; what: string }[];
   priceCents: number;
   depositCents: number;
   history: Story[];
@@ -654,6 +661,11 @@ const cases: OfficeCase[] = [
     street: "41-12 Austin St, 4B, Queens, NY 11375",
     client: "Casey Morgan",
     extras: ["Inside the oven"],
+    note: "The fridge was packed. Casey said to toss the old takeout, so we did.",
+    priceChanges: [
+      { cents: 4_500, what: "1 more hour" },
+      { cents: 2_500, what: "inside the fridge, asked on the day" },
+    ],
     priceCents: 35_928,
     depositCents: 8_982,
     history: [
@@ -661,12 +673,6 @@ const cases: OfficeCase[] = [
         icon: CreditCard,
         title: "Balance of $269.46 charged",
         when: when(ny("2026-11-19", 12, 41)),
-      },
-      {
-        icon: ClipboardList,
-        title: "2 price changes reported",
-        when: when(ny("2026-11-19", 12, 40)),
-        description: "By Maria",
       },
       {
         icon: CircleCheck,
@@ -733,11 +739,6 @@ const cases: OfficeCase[] = [
     depositCents: 8_982,
     history: [
       {
-        icon: CircleAlert,
-        title: "Balance of $269.46 declined",
-        when: when(ny("2026-11-19", 12, 41)),
-      },
-      {
         icon: CircleCheck,
         title: "Done",
         when: when(ny("2026-11-19", 12, 40)),
@@ -762,14 +763,10 @@ const cases: OfficeCase[] = [
     street: "88 Ridge Rd, Yonkers, NY 10705",
     client: "Priya Shah",
     extras: [],
+    note: "Nobody answered, and the key wasn't where the note says.",
     priceCents: 19_599,
     depositCents: 4_900,
     history: [
-      {
-        icon: CreditCard,
-        title: "Fee of $49.00 charged",
-        when: when(ny("2026-11-20", 9, 21)),
-      },
       {
         icon: DoorClosed,
         title: "Couldn't get in",
@@ -800,11 +797,6 @@ const cases: OfficeCase[] = [
     priceCents: 35_928,
     depositCents: 8_982,
     history: [
-      {
-        icon: Undo2,
-        title: "Deposit of $89.82 refunded",
-        when: when(ny("2026-11-18", 15, 13)),
-      },
       {
         icon: CalendarX,
         title: "Cancelled",
@@ -889,18 +881,14 @@ function statusOf(c: OfficeCase): { tone: StatusTone; text: string } | null {
   }
 }
 
-// only what the badge can't say, each holding its one action, which is
-// nowhere else on the page
+// only what the badge can't say, explained: the step it calls for is the
+// split button's primary, so no action sits in two places (this page drops
+// docs/ux.md's "the unblocking action sits in the Notice")
 function alertsFor(c: OfficeCase, j: J) {
   return [
     c.kind === "moveAsked" && {
       key: "move",
       tone: "warning" as const,
-      action: (
-        <Button variant="text" onPress={say("Answer")}>
-          Answer
-        </Button>
-      ),
       children: (
         <p>
           <strong>
@@ -914,11 +902,6 @@ function alertsFor(c: OfficeCase, j: J) {
     c.kind === "review" && {
       key: "review",
       tone: "warning" as const,
-      action: (
-        <Button variant="text" onPress={say("Review")}>
-          Review
-        </Button>
-      ),
       children: (
         <p>
           <strong>Maria reported 2 price changes.</strong>
@@ -928,11 +911,6 @@ function alertsFor(c: OfficeCase, j: J) {
     c.kind === "unpaid" && {
       key: "unpaid",
       tone: "danger" as const,
-      action: (
-        <Button variant="text" onPress={say("Retry the charge")}>
-          Retry the charge
-        </Button>
-      ),
       children: (
         <p>
           <strong>The card ending 4242 was declined.</strong> Ask {j.first} for
@@ -945,8 +923,8 @@ function alertsFor(c: OfficeCase, j: J) {
 
 type Action = DAction;
 
-// the page's next step, then the rest. When an alert holds the step, the
-// primary is the next thing; when there's no next thing, no primary
+// the page's next step, always the primary (even when an alert explains
+// it), then the rest; when there's no next thing, no primary
 function actionsFor(c: OfficeCase): {
   main: Action | null;
   more: Action[];
@@ -985,14 +963,34 @@ function actionsFor(c: OfficeCase): {
     case "booked":
       return { main: move, more: [ask, cancel] };
     case "moveAsked":
-      // Answer is the alert's
-      return { main: move, more: [cancel] };
+      return {
+        main: {
+          label: "Answer",
+          icon: MessageSquareReply,
+          onPress: say("Answer"),
+        },
+        more: [move, cancel],
+      };
     case "inProgress":
       return null;
     case "review":
+      return {
+        main: {
+          label: "Review",
+          icon: ClipboardCheck,
+          onPress: say("Review"),
+        },
+        more: [notDone],
+      };
     case "unpaid":
-      // Review and Retry are the alert's
-      return { main: null, more: [notDone] };
+      return {
+        main: {
+          label: "Retry the charge",
+          icon: RotateCcw,
+          onPress: say("Retry the charge"),
+        },
+        more: [notDone],
+      };
     case "firstPaid":
       return {
         main: {
@@ -1034,8 +1032,16 @@ const quietLink =
 
 // what Jen knows a Job by: when, the time it runs, where and who for; one
 // rule; then the details, one icon, one value and one line each
-function JobCard({ c, j }: { c: OfficeCase; j: J }) {
-  const freeShown = beforeTheDay(c.kind) && j.freeUntil > NOW;
+function JobCard({
+  c,
+  j,
+  details,
+}: {
+  c: OfficeCase;
+  j: J;
+  // its details under one rule; none on an ended Job, where they fold
+  details: boolean;
+}) {
   return (
     <Card hiddenTitle="Job details">
       <div className="flex items-center gap-4">
@@ -1056,36 +1062,46 @@ function JobCard({ c, j }: { c: OfficeCase; j: J }) {
           </a>
         </div>
       </div>
-      <div className="border-t border-border pt-4">
-        <Facts>
-          <Fact icon={Clock} label="How long" value={j.howLong} />
-          <Fact
-            icon={ClipboardList}
-            label="Cleaning hours"
-            value={j.cleaningHours}
-          />
-          {c.extras.length > 0 && (
-            <Fact icon={CirclePlus} label="Extras" value={c.extras.length} />
-          )}
-          {freeShown && (
-            <Fact
-              icon={CalendarCheck}
-              label="Free to move or cancel"
-              value={formatDateTime(j.freeUntil)}
-              line="Free to move or cancel until"
-            />
-          )}
-          {c.door && (
-            <Fact
-              icon={KeyRound}
-              label="Getting in"
-              className="col-span-full"
-              value={c.door}
-            />
-          )}
-        </Facts>
-      </div>
+      {details && (
+        <div className="border-t border-border pt-4">
+          <JobFacts c={c} j={j} />
+        </div>
+      )}
     </Card>
+  );
+}
+
+// the details, one icon, one value and one line each
+function JobFacts({ c, j }: { c: OfficeCase; j: J }) {
+  const freeShown = beforeTheDay(c.kind) && j.freeUntil > NOW;
+  return (
+    <Facts>
+      <Fact icon={Clock} label="How long" value={j.howLong} />
+      <Fact
+        icon={ClipboardList}
+        label="Cleaning hours"
+        value={j.cleaningHours}
+      />
+      {c.extras.length > 0 && (
+        <Fact icon={CirclePlus} label="Extras" value={c.extras.length} />
+      )}
+      {freeShown && (
+        <Fact
+          icon={CalendarCheck}
+          label="Free to move or cancel"
+          value={formatDateTime(j.freeUntil)}
+          line="Free to move or cancel until"
+        />
+      )}
+      {c.door && (
+        <Fact
+          icon={KeyRound}
+          label="Getting in"
+          className="col-span-full"
+          value={c.door}
+        />
+      )}
+    </Facts>
   );
 }
 
@@ -1280,60 +1296,47 @@ function Money({ c }: { c: OfficeCase }) {
   );
 }
 
-// ---- what happened, on a Job that's over ----
+// ---- how it went, on a Job that's over ----
 
-function WhatHappened({ c }: { c: OfficeCase }) {
-  const facts: ReactNode = (() => {
-    switch (c.kind) {
-      case "noAccess":
-        return (
-          <>
-            <Fact
-              icon={DoorClosed}
-              label="Couldn't get in"
-              value={formatDateTime(ny("2026-11-20", 9, 20))}
-              line={`Couldn't get in, said ${c.crew[0]!.name}`}
-            />
-            <Fact
-              icon={MessageSquareText}
-              label={`What ${c.crew[0]!.name} wrote`}
-              className="col-span-full"
-              value="Nobody answered, and the key wasn't where the note says."
-            />
-          </>
-        );
-      case "cancelled":
-        return (
-          <Fact
-            icon={CalendarX}
-            label="Cancelled"
-            value={formatDateTime(ny("2026-11-18", 15, 12))}
-            line={`Cancelled by ${firstName(c.client)}`}
-          />
-        );
-      default:
-        return (
-          <>
-            <Fact
-              icon={CircleCheck}
-              label="Done"
-              value={formatDateTime(ny("2026-11-19", 12, 40))}
-              line={`Done, by ${c.crew[0]!.name}`}
-            />
+// only what History doesn't say (when, and by whom, are History's; the
+// refund is Money's): done, the home's condition, the Cleaner's note and
+// the price changes they reported; couldn't get in, the Cleaner's note.
+// Cancelled has no lead
+function HowItWent({ c }: { c: OfficeCase }) {
+  if (c.kind === "cancelled") return null;
+  const by = c.crew[0]!.name;
+  return (
+    <Section title="How it went">
+      <Card>
+        <Facts>
+          {c.kind !== "noAccess" && (
             <Fact
               icon={Sparkles}
               label="The home"
               value="About right"
               line="How dirty the home was"
             />
-          </>
-        );
-    }
-  })();
-  return (
-    <Card hiddenTitle="What happened">
-      <Facts>{facts}</Facts>
-    </Card>
+          )}
+          {c.priceChanges?.map((p) => (
+            <Fact
+              key={p.what}
+              icon={ClipboardList}
+              label="Price change"
+              value={`+${formatMoney(p.cents)}`}
+              line={`Price change: ${p.what}`}
+            />
+          ))}
+          {c.note && (
+            <Fact
+              icon={MessageSquareText}
+              label={`What ${by} wrote`}
+              className="col-span-full"
+              value={c.note}
+            />
+          )}
+        </Facts>
+      </Card>
+    </Section>
   );
 }
 
@@ -1393,9 +1396,8 @@ function Page({ c }: { c: OfficeCase }) {
     );
   const badge = s && <StatusBadge tone={s.tone}>{s.text}</StatusBadge>;
   const over = ended(c.kind);
-  const job = (
+  const parts = (
     <>
-      <JobCard c={c} j={j} />
       <Extras c={c} />
       <Crew c={c} />
     </>
@@ -1423,17 +1425,26 @@ function Page({ c }: { c: OfficeCase }) {
           }
           alerts={alertsFor(c, j)}
         />
+        {/* the header card on top in every case: it's how Jen knows the
+            Job. Over, what History doesn't say leads, and only the details
+            fold */}
+        <JobCard c={c} j={j} details={!over} />
         {over ? (
           <>
-            <WhatHappened c={c} />
+            <HowItWent c={c} />
             <Money c={c} />
-            <Fold label="The job">
-              <div className="flex flex-col gap-6">{job}</div>
+            <Fold label="Details">
+              <div className="flex flex-col gap-6">
+                <Card hiddenTitle="Details">
+                  <JobFacts c={c} j={j} />
+                </Card>
+                {parts}
+              </div>
             </Fold>
           </>
         ) : (
           <>
-            {job}
+            {parts}
             <Money c={c} />
           </>
         )}
