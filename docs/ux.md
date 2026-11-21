@@ -156,7 +156,7 @@ Cleaner's Your jobs render through `HomePage`
   the tile links there, the count in its hint (a Client's quote, a
   Cleaner's Offers); where they don't, it shows how many (or what the kind
   is judged by, how many in its hint: the Office's Money shows what's
-  owed) and opens them in place under the tiles, one at a time, pressed again to close (the
+  owed, as its count read as money, the 11-20 audit's Today 3; #507) and opens them in place under the tiles, one at a time, pressed again to close (the
   Office's to-dos by kind and the day's Jobs, a Cleaner's Coming up, every
   payment). A tile with none is greyed out. Which one is open is in the
   URL (`?open=`), so Back from a row comes back to it. What's waiting on a
@@ -288,7 +288,8 @@ The `ui` skill's rules hold here too; these are this product's.
   step; the title and its status badge, which says where the thing stands
   for this reader now: where two states hold, the one waiting on them
   (a Client's clean: Needs your OK, Move asked; a Site Visit that has
-  been: To record), in the words its rows use; a subtitle only when it says what
+  been: To record), in the words its rows use (#493 G3.1; the 11-20
+  audit's Site visit 1; #507); a subtitle only when it says what
   nothing else on the page does (a Bill's week), never the title, a crumb
   or the Client again (each fact once: the `ui` skill); and the page's
   actions at the end of the title row: one split button, the page's next
