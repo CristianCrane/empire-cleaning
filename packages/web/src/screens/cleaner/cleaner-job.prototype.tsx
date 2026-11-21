@@ -1,7 +1,6 @@
 // PROTOTYPE: throwaway. The Cleaner's Job (and Cleaner needed, and an
 // offered Job, which share its parts) for #493, on made-up data, at
-// /prototype/cleaner-job?layout=A..D&case=1..10&lang=en|es (no sign-in;
-// D also takes &open=1..3, how an open place in the crew is drawn),
+// /prototype/cleaner-job?layout=A..D&case=1..10&lang=en|es (no sign-in),
 // inside the real AppLayout and the Cleaner area's nav. ↑/↓ switch layouts,
 // ←/→ switch cases. Lives only on prototype-cleaner-job.
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -19,7 +18,6 @@ import {
   Popover as AriaPopover,
 } from "react-aria-components";
 import {
-  Armchair,
   Check,
   ChevronDown,
   ChevronUp,
@@ -39,7 +37,6 @@ import {
   Sparkles,
   UserMinus,
   UserRound,
-  UserRoundSearch,
   Users,
   X,
 } from "lucide-react";
@@ -176,6 +173,11 @@ const W = {
           ? `${open} ${open === 1 ? "place" : "places"} open`
           : `${n} of ${of} confirmed, ${open} open`,
     cancel: "Cancel",
+    // D: the details' count of extras, the line under it pointing down to
+    // their list, and that list's line
+    extrasCount: (n: number) => `${n} ${n === 1 ? "extra" : "extras"}`,
+    listedBelow: "Listed below",
+    extrasLine: (n: number) => `${n} on top of the clean`,
   },
   es: {
     offers: "Ofertas",
@@ -274,6 +276,9 @@ const W = {
           : `${confirmed}, ${open} ${libre}`;
     },
     cancel: "Cancelar",
+    extrasCount: (n: number) => `${n} ${n === 1 ? "extra" : "extras"}`,
+    listedBelow: "En la lista de abajo",
+    extrasLine: (n: number) => `${n} además de la limpieza`,
   },
 };
 type Words = (typeof W)["en"];
@@ -1382,8 +1387,8 @@ function LayoutC({ c, j }: { c: JobCase; j: J }) {
 // One header card: the date tile, the time range large (B's), the address;
 // one rule; then the details, one icon each: how long, the Client (their
 // name in every case), their number once the Job is theirs (a link that
-// dials it), getting in on the day, extras; then the crew, a card of its
-// own below, saying in a line how many have confirmed. What this reader
+// dials it), getting in on the day, how many extras; then the extras' list
+// and the crew, each a part of its own below. What this reader
 // can't use yet isn't drawn at all: an offer has no Directions, door or
 // number. Every action is one split button, the same at every stage: the
 // main one pressed straight away, the rest behind its arrow (on site, Mark
@@ -1392,11 +1397,13 @@ function LayoutC({ c, j }: { c: JobCase; j: J }) {
 // scrolls away; there's no foot bar from md. On a phone it's in a foot bar,
 // after the details (read, then decide), and its arrow opens a sheet from
 // the bottom (&sheet=0: a menu opening upward, to compare).
-// The crew: a Section, its title and line on the page above an untitled
-// card, as every part's title sits. One look for every face, a tick for
-// confirmed and nothing for not yet; an open place is no face, drawn three
-// ways to compare (&open=1..3, OpenMark). "You" only once the reader has confirmed: on an offer
-// the place they'd take is open, like any other.
+// The extras and the crew: each a Section, its title and line on the page
+// above an untitled card, as every part's title sits. The extras come
+// first: they're the work itself, what to bring and how long it runs, and
+// an offer's yes leans on them; the crew is who's beside you. The crew: one
+// look for every face, a tick for confirmed and nothing for not yet; an
+// open place is no face (OpenMark). "You" only once the reader has
+// confirmed: on an offer the place they'd take is open, like any other.
 
 // what each stage shows (a Cleaner's side of the Job's lifecycle)
 const dStage = (k: Kind) =>
@@ -1710,44 +1717,28 @@ function actionsD(c: JobCase, j: J): { main: DAction; more: DAction[] } | null {
   }
 }
 
-// How an open place is drawn, to compare (&open=1..3): 1, a ghost of a
-// face, the faces' own person drawn faint and thin in a dashed ring, no
-// fill (dashing the person too broke its head into crumbs at this size); 2, lucide's someone-being-looked-for (UserRoundSearch) in a thin
-// plain ring; 3, an empty chair (Armchair) in the dashed ring: a place to
-// fill, with no person at all. Each is unfilled where a face is a filled
-// disc, its line thin, its word quiet where a name is bold
-type OpenLook = "1" | "2" | "3";
-
-function OpenMark({ look }: { look: OpenLook }) {
-  const ring =
-    "flex size-10 shrink-0 items-center justify-center rounded-full text-fg-muted";
-  if (look === "2")
-    return (
-      <span aria-hidden className={`${ring} border border-border-strong`}>
-        <UserRoundSearch size={20} strokeWidth={1.75} />
-      </span>
-    );
+// An open place: a ghost of a face, the faces' own person drawn faint and
+// thin in a dashed ring, no fill (dashing the person too broke its head
+// into crumbs at this size): unfilled where a face is a filled disc, its
+// line thin, its word quiet where a name is bold
+function OpenMark() {
   return (
     <span
       aria-hidden
-      className={`${ring} border-2 border-dashed border-border-strong`}
+      className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-border-strong text-fg-muted"
     >
-      {look === "3" ? (
-        <Armchair size={20} strokeWidth={1.75} />
-      ) : (
-        <UserRound size={22} strokeWidth={1.5} className="opacity-60" />
-      )}
+      <UserRound size={22} strokeWidth={1.5} className="opacity-60" />
     </span>
   );
 }
 
 // a face: every one the same, a tick when they've confirmed, nothing yet.
 // An open place isn't a face: its mark the face's size, its word quiet
-function CrewFace({ m, w, look }: { m: Member; w: Words; look: OpenLook }) {
+function CrewFace({ m, w }: { m: Member; w: Words }) {
   if (!m)
     return (
       <span className="inline-flex items-center gap-2">
-        <OpenMark look={look} />
+        <OpenMark />
         <span className="text-fg-muted">
           {w.open}
           <span className="sr-only">, {w.seatOpen}</span>
@@ -1825,11 +1816,13 @@ function JobCardD({ c, j }: { c: JobCase; j: J }) {
               }
             />
           )}
+          {/* the count alone: the signpost to their list below */}
           {c.extras.length > 0 && (
             <Fact
               icon={CirclePlus}
               label={w.extras}
-              value={j.f.formatList(j.extras)}
+              value={w.extrasCount(c.extras.length)}
+              line={w.listedBelow}
             />
           )}
         </Facts>
@@ -1838,11 +1831,33 @@ function JobCardD({ c, j }: { c: JobCase; j: J }) {
   );
 }
 
+// the extras, a part of their own below the details, built as the crew
+// is: the title and a line counting them on the page, an untitled card
+// under them listing one a line, so they're read down and counted at a
+// glance. None, no part
+function ExtrasD({ c, j }: { c: JobCase; j: J }) {
+  const { w } = j;
+  if (c.extras.length === 0) return null;
+  return (
+    <Section title={w.extras} description={w.extrasLine(c.extras.length)}>
+      <Card>
+        <ul className="-my-3 divide-y divide-border">
+          {j.extras.map((x) => (
+            <li key={x} className="py-3 text-fg">
+              {x}
+            </li>
+          ))}
+        </ul>
+      </Card>
+    </Section>
+  );
+}
+
 // the crew, a part of its own below the details: its title and a line
 // saying where it stands on the page, the faces in a card under them. The
 // reader is "You" once they've confirmed; till then (an offer) the place
 // they'd take is open
-function CrewD({ c, w, look }: { c: JobCase; w: Words; look: OpenLook }) {
+function CrewD({ c, w }: { c: JobCase; w: Words }) {
   const places = c.crew.map((m) => (m?.you && !m.confirmed ? null : m));
   const confirmed = places.filter((m) => m?.confirmed).length;
   const open = places.filter((m) => !m).length;
@@ -1854,7 +1869,7 @@ function CrewD({ c, w, look }: { c: JobCase; w: Words; look: OpenLook }) {
       <Card>
         <div className="flex flex-wrap gap-x-6 gap-y-3">
           {places.map((m, i) => (
-            <CrewFace key={i} m={m} w={w} look={look} />
+            <CrewFace key={i} m={m} w={w} />
           ))}
         </div>
       </Card>
@@ -1937,17 +1952,7 @@ function useScrolledAway() {
   return [ref, away] as const;
 }
 
-function LayoutD({
-  c,
-  j,
-  sheet,
-  look,
-}: {
-  c: JobCase;
-  j: J;
-  sheet: boolean;
-  look: OpenLook;
-}) {
+function LayoutD({ c, j, sheet }: { c: JobCase; j: J; sheet: boolean }) {
   const { w } = j;
   const s = statusD(c, w);
   const actions = actionsD(c, j);
@@ -1965,7 +1970,8 @@ function LayoutD({
   const job = (
     <>
       <JobCardD c={c} j={j} />
-      <CrewD c={c} w={w} look={look} />
+      <ExtrasD c={c} j={j} />
+      <CrewD c={c} w={w} />
     </>
   );
   // the whole page in the main column, the header's actions too, so they
@@ -2029,18 +2035,16 @@ function Layout({
   layout,
   lang,
   sheet,
-  look,
 }: {
   c: JobCase;
   layout: LayoutKey;
   lang: Language;
   sheet: boolean;
-  look: OpenLook;
 }) {
   const j = useJob(c, lang);
   if (layout === "B") return <LayoutB c={c} j={j} />;
   if (layout === "C") return <LayoutC c={c} j={j} />;
-  if (layout === "D") return <LayoutD c={c} j={j} sheet={sheet} look={look} />;
+  if (layout === "D") return <LayoutD c={c} j={j} sheet={sheet} />;
   return <LayoutA c={c} j={j} />;
 }
 
@@ -2050,7 +2054,6 @@ export function CleanerJobPrototype() {
     layout?: string;
     lang?: string;
     sheet?: string | number;
-    open?: string | number;
   };
   const navigate = useNavigate();
   const layout: LayoutKey =
@@ -2059,9 +2062,6 @@ export function CleanerJobPrototype() {
   const lang: Language = search.lang === "es" ? "es" : "en";
   // D on a phone: its arrow opens a sheet; &sheet=0, a menu upward
   const sheet = String(search.sheet) !== "0";
-  // D's open place in the crew: three ways to draw it, 1 by default
-  const look: OpenLook =
-    (["2", "3"] as const).find((k) => k === String(search.open)) ?? "1";
   // the root sets the signed-out language on every navigation: say ours again
   useEffect(() => setAppLanguage(lang));
   const go = (change: { case?: string; layout?: string }) =>
@@ -2072,7 +2072,6 @@ export function CleanerJobPrototype() {
         layout,
         lang,
         ...(sheet ? {} : { sheet: "0" }),
-        ...(look === "1" ? {} : { open: look }),
         ...change,
       },
       replace: true,
@@ -2102,7 +2101,6 @@ export function CleanerJobPrototype() {
           layout={layout}
           lang={lang}
           sheet={sheet}
-          look={look}
         />
         {atFoot && <div aria-hidden className="hidden h-28 md:block" />}
         <PrototypeSwitcher
