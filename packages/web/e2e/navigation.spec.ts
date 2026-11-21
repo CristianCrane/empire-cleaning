@@ -123,7 +123,8 @@ const aJob = /\/api\/jobs\/[0-9a-f-]{36}$/;
 
 // what the frame shows while the next page loads (AppLayout's `loading`):
 // the bar across the top, the page on show faded and out of reach, and
-// "Loading…" for a screen reader
+// "Loading…" for a screen reader. The page on show is out of reach from
+// the press on, before any of the rest shows
 const loadingShown = (page: Page) => ({
   bar: page.locator("[data-loading-bar=loading]"),
   said: page.getByRole("status").filter({ hasText: /^Loading…$/ }),
@@ -140,12 +141,15 @@ const expectLoadingShown = async (page: Page) => {
 };
 
 // none of it, the bar's fade included; with the clock standing still,
-// checked while nothing it waits on can come
-const expectNothingShown = async (page: Page) => {
+// checked while nothing it waits on can come. `leaving`: the next page is
+// on its way, so the page on show is out of reach already, else a press
+// meant for the next page lands on it
+const expectNothingShown = async (page: Page, { leaving = false } = {}) => {
   const { said, onShow } = loadingShown(page);
   await expect(page.locator("[data-loading-bar]")).toHaveCount(0);
   await expect(said).toHaveCount(0);
-  await expect(onShow).not.toHaveAttribute("inert");
+  if (leaving) await expect(onShow).toHaveAttribute("inert");
+  else await expect(onShow).not.toHaveAttribute("inert");
   await expect(onShow).toHaveCSS("opacity", "1");
 };
 
@@ -163,7 +167,8 @@ const signInWithAJob = async (page: Page) => {
 
 // picked on prototype-nav-loading (C): a page that takes a moment shows a
 // bar and fades the one on show, which stays until the next is ready; one
-// ready within 200ms shows nothing, so a quick move doesn't flash (#454).
+// ready within 200ms shows nothing, so a quick move doesn't flash (#454),
+// though the page on show takes no press from the press that leaves it.
 // The clock stands still only while a load is timed: a phone's ☰ menu
 // slides on the running clock
 test(
@@ -178,7 +183,7 @@ test(
     await (await openTile(page, "Jobs")).getByRole("row").click();
     await expect(page).toHaveURL(/\/office\/jobs\//);
     await page.clock.runFor(199);
-    await expectNothingShown(page);
+    await expectNothingShown(page, { leaving: true });
     await page.clock.runFor(1);
     await expectLoadingShown(page);
     // the page on show stays, and so does its section in the navigation:

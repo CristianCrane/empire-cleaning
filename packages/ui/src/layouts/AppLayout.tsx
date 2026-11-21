@@ -41,10 +41,11 @@ export type AppLayoutProps = {
   foot: (opts: { close: () => void }) => ReactNode;
   // something pressed in the ☰ menu's foot is under way: it stays open
   menuBusy?: boolean;
-  // the next page is loading, after a press that leaves this one: once it
-  // has gone on a moment, a bar runs across the top and this page fades and
-  // can't be pressed until the next one shows; a screen reader hears
-  // "Loading…" once (#454)
+  // the next page is loading, after a press that leaves this one: this page
+  // can't be pressed from then until the next one shows, so a press meant
+  // for the next page never lands on this one. Once it has gone on a
+  // moment, a bar runs across the top and this page fades; a screen reader
+  // hears "Loading…" once (#454)
   loading?: boolean;
   children: ReactNode;
 };
@@ -134,8 +135,9 @@ export function AppLayout({
         className="mx-auto w-full max-w-5xl min-w-0 flex-1 px-4 pt-4 pb-28 outline-none md:px-8 md:py-8 print:max-w-none print:p-0"
       >
         {/* the page on show, until the next one is ready; the navigation
-            stays live, so another section can still be pressed */}
-        <div aria-busy={shown} inert={shown} className={staleFade(shown)}>
+            stays live, so another section can still be pressed. Out of
+            reach at once, faded only after the hold */}
+        <div aria-busy={shown} inert={loading} className={staleFade(shown)}>
           <InAppLayout value>{children}</InAppLayout>
         </div>
       </main>
