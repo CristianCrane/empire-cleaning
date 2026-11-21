@@ -1986,7 +1986,6 @@ function LayoutD({ c, j, sheet }: { c: JobCase; j: J; sheet: boolean }) {
               )}
             </>
           }
-          subtitle={c.kind === "open" ? w.firstToConfirm : undefined}
           alerts={alertsFor(c, j)}
         />
         <div className="flex min-w-0 flex-col gap-6">
