@@ -52,8 +52,7 @@ skill says how, and here:
 - **What each screen leads with:** a home screen, what's next; a money page,
   whether anything is owed; a Cleaner's list, where they're working.
 - **What waits behind a tap:** a "How it's worked out" link, a folded
-  section, the Actions menu. A blocked step's unblocking action sits in the
-  Notice that explains it.
+  section, the Actions menu.
 - **Details belong on the detail page**, not its row.
 
 ### Record
@@ -354,8 +353,9 @@ The `ui` skill's rules hold here too; these are this product's.
 ### Notices
 
 - **A Notice holds at most one action**, a text Button (or `ButtonLink`) on
-  the right of its text, never primary. Two things to say or do are two
-  Notices. ("Notices hold one action")
+  the right of its text, never primary, and not the page's next step,
+  which is the page's primary (the `ui` skill; #493 builds it). Two
+  things to say or do are two Notices. ("Notices hold one action")
 - **Tone means what a status's does**: warning for something waiting on
   someone, danger for something that failed or is late, info for what
   they're waiting on us for, success for done.
