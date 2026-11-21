@@ -675,6 +675,12 @@ const cases: OfficeCase[] = [
         when: when(ny("2026-11-19", 12, 41)),
       },
       {
+        icon: ClipboardList,
+        title: "2 price changes reported",
+        when: when(ny("2026-11-19", 12, 40)),
+        description: "By Maria",
+      },
+      {
         icon: CircleCheck,
         title: "Done",
         when: when(ny("2026-11-19", 12, 40)),
@@ -739,6 +745,11 @@ const cases: OfficeCase[] = [
     depositCents: 8_982,
     history: [
       {
+        icon: CircleAlert,
+        title: "Balance of $269.46 declined",
+        when: when(ny("2026-11-19", 12, 41)),
+      },
+      {
         icon: CircleCheck,
         title: "Done",
         when: when(ny("2026-11-19", 12, 40)),
@@ -767,6 +778,11 @@ const cases: OfficeCase[] = [
     priceCents: 19_599,
     depositCents: 4_900,
     history: [
+      {
+        icon: CreditCard,
+        title: "Fee of $49.00 charged",
+        when: when(ny("2026-11-20", 9, 21)),
+      },
       {
         icon: DoorClosed,
         title: "Couldn't get in",
@@ -797,6 +813,11 @@ const cases: OfficeCase[] = [
     priceCents: 35_928,
     depositCents: 8_982,
     history: [
+      {
+        icon: Undo2,
+        title: "Deposit of $89.82 refunded",
+        when: when(ny("2026-11-18", 15, 13)),
+      },
       {
         icon: CalendarX,
         title: "Cancelled",
@@ -870,6 +891,8 @@ function statusOf(c: OfficeCase): { tone: StatusTone; text: string } | null {
     case "inProgress":
       return { tone: "success", text: "In progress" };
     case "review":
+      // the price changes wait on her; "Done" once they're reviewed
+      return { tone: "warning", text: "To review" };
     case "firstPaid":
       return { tone: "success", text: "Done" };
     case "unpaid":
@@ -896,15 +919,6 @@ function alertsFor(c: OfficeCase, j: J) {
             .
           </strong>{" "}
           It's a {formatMoney(4_000)} fee.
-        </p>
-      ),
-    },
-    c.kind === "review" && {
-      key: "review",
-      tone: "warning" as const,
-      children: (
-        <p>
-          <strong>Maria reported 2 price changes.</strong>
         </p>
       ),
     },
@@ -1077,11 +1091,14 @@ function JobFacts({ c, j }: { c: OfficeCase; j: J }) {
   return (
     <Facts>
       <Fact icon={Clock} label="How long" value={j.howLong} />
-      <Fact
-        icon={ClipboardList}
-        label="Cleaning hours"
-        value={j.cleaningHours}
-      />
+      {/* a crew of one: the same fact as how long, so said once */}
+      {c.crew.length > 1 && (
+        <Fact
+          icon={ClipboardList}
+          label="Cleaning hours"
+          value={j.cleaningHours}
+        />
+      )}
       {c.extras.length > 0 && (
         <Fact icon={CirclePlus} label="Extras" value={c.extras.length} />
       )}
