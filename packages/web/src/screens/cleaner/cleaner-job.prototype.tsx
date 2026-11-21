@@ -154,7 +154,14 @@ const W = {
     zip: (z: string) => `Zip code ${z}`,
     callClient: (n: string) => `Call ${n}`,
     clientsNumber: "Client's number",
-    crewConfirmed: (n: number, of: number) => `${n} of ${of} confirmed`,
+    // the crew's line: how many confirmed of the crew, then how many places
+    // are open; a zero isn't said (an offer: "2 places open")
+    crewLine: (n: number, of: number, open: number) =>
+      open === 0
+        ? `${n} of ${of} confirmed`
+        : n === 0
+          ? `${open} ${open === 1 ? "place" : "places"} open`
+          : `${n} of ${of} confirmed, ${open} open`,
     cancel: "Cancel",
   },
   es: {
@@ -234,8 +241,15 @@ const W = {
     zip: (z: string) => `Código postal ${z}`,
     callClient: (n: string) => `Llamar a ${n}`,
     clientsNumber: "Teléfono del cliente",
-    crewConfirmed: (n: number, of: number) =>
-      `${n} de ${of} ${of === 1 ? "confirmado" : "confirmados"}`,
+    crewLine: (n: number, of: number, open: number) => {
+      const libre = open === 1 ? "libre" : "libres";
+      const confirmed = `${n} de ${of} ${of === 1 ? "confirmado" : "confirmados"}`;
+      return open === 0
+        ? confirmed
+        : n === 0
+          ? `${open} ${open === 1 ? "lugar" : "lugares"} ${libre}`
+          : `${confirmed}, ${open} ${libre}`;
+    },
     cancel: "Cancelar",
   },
 };
@@ -1332,8 +1346,11 @@ function LayoutC({ c, j }: { c: JobCase; j: J }) {
 // scrolls away; there's no foot bar from md. On a phone it's in a foot bar,
 // after the details (read, then decide), and its arrow opens a sheet from
 // the bottom (&sheet=0: a menu opening upward, to compare).
-// The crew: one look for every face, a tick for confirmed and nothing for
-// not yet, and an open place drawn as an empty seat.
+// The crew: a Section, its title and line on the page above an untitled
+// card, as every part's title sits. One look for every face, a tick for
+// confirmed and nothing for not yet; an open place is a gap, a dashed ring
+// with nothing in it. "You" only once the reader has confirmed: on an offer
+// the place they'd take is open, like any other.
 
 // what each stage shows (a Cleaner's side of the Job's lifecycle)
 const dStage = (k: Kind) =>
@@ -1647,18 +1664,17 @@ function actionsD(c: JobCase, j: J): { main: DAction; more: DAction[] } | null {
   }
 }
 
-// a face: every one the same, a tick when they've confirmed, nothing yet
+// a face: every one the same, a tick when they've confirmed, nothing yet.
+// An open place isn't a face: a gap the face's size, its edge dashed and
+// nothing inside, its word quiet beside it
 function CrewFace({ m, w }: { m: Member; w: Words }) {
   if (!m)
     return (
       <span className="inline-flex items-center gap-2">
-        {/* an empty seat: the face's shape, hollow, waiting for someone */}
         <span
           aria-hidden
-          className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-sunken text-border-strong ring-1 ring-border ring-inset"
-        >
-          <UserRound size={22} />
-        </span>
+          className="size-10 shrink-0 rounded-full border-2 border-dashed border-border-strong"
+        />
         <span className="text-fg-muted">
           {w.open}
           <span className="sr-only">, {w.seatOpen}</span>
@@ -1749,21 +1765,27 @@ function JobCardD({ c, j }: { c: JobCase; j: J }) {
   );
 }
 
-// the crew, a card of its own below the details, one line saying where it
-// stands
+// the crew, a part of its own below the details: its title and a line
+// saying where it stands on the page, the faces in a card under them. The
+// reader is "You" once they've confirmed; till then (an offer) the place
+// they'd take is open
 function CrewD({ c, w }: { c: JobCase; w: Words }) {
-  const confirmed = c.crew.filter((m) => m?.confirmed).length;
+  const places = c.crew.map((m) => (m?.you && !m.confirmed ? null : m));
+  const confirmed = places.filter((m) => m?.confirmed).length;
+  const open = places.filter((m) => !m).length;
   return (
-    <Card
+    <Section
       title={w.crew}
-      description={w.crewConfirmed(confirmed, c.crew.length)}
+      description={w.crewLine(confirmed, places.length, open)}
     >
-      <div className="flex flex-wrap gap-x-6 gap-y-3">
-        {c.crew.map((m, i) => (
-          <CrewFace key={i} m={m} w={w} />
-        ))}
-      </div>
-    </Card>
+      <Card>
+        <div className="flex flex-wrap gap-x-6 gap-y-3">
+          {places.map((m, i) => (
+            <CrewFace key={i} m={m} w={w} />
+          ))}
+        </div>
+      </Card>
+    </Section>
   );
 }
 
