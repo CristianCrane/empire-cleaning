@@ -140,7 +140,8 @@ Cleaner's Your jobs render through `HomePage`
   to right behind its tile (a `DateTile` for when, an `IconTile` for
   what), the kind of answer muted above, the answer large, a line or two,
   and the page's one primary Button. What waits on the reader leads,
-  money owed first: while a price change waits, the card's primary is
+  money owed first, as it's what they came to the page to do (the `ui`
+  skill): while a price change waits, the card's primary is
   Review the price change and an alert says why, its tile stepping aside
   meanwhile (each fact once; where the alert sits is settled on #493's
   prototype). With nothing waiting anywhere, offers to answer included,
