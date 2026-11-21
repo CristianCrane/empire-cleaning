@@ -139,10 +139,13 @@ Cleaner's Your jobs render through `HomePage`
 - **One answer card** (`AnswerCard`): what's next or what's owed, read left
   to right behind its tile (a `DateTile` for when, an `IconTile` for
   what), the kind of answer muted above, the answer large, a line or two,
-  and the page's one primary Button. Money owed comes first: a Client
-  owing something that asks anything of them sees it here before their
-  next clean. With nothing waiting, it's a green all-clear card. The
-  Office's is its first to-do, the server's order.
+  and the page's one primary Button. What waits on the reader leads,
+  money owed first: while a price change waits, the card's primary is
+  Review the price change and an alert says why, its tile stepping aside
+  meanwhile (each fact once; where the alert sits is settled on #493's
+  prototype). With nothing waiting anywhere, offers to answer included,
+  it's a green all-clear card (#493 builds it). The Office's is its first
+  to-do, the server's order.
 - **News** under it, an info Notice each, never an action (a move asked
   for, a bank payment on its way).
 - **Two to four tiles**, two a row on a phone and one row from `sm`, each
@@ -154,8 +157,10 @@ Cleaner's Your jobs render through `HomePage`
   Office's to-dos by kind and the day's Jobs, a Cleaner's Coming up, every
   payment). A tile with none is greyed out. Which one is open is in the
   URL (`?open=`), so Back from a row comes back to it. What's waiting on a
-  Client (a quote, a price change to OK) is a tile, never cut for a
-  shortcut. Lists of past things live on their own pages.
+  Client (a quote, a price change to OK) is a tile rather than cut for a
+  shortcut, so it stays in reach, unless the card holds it (a price
+  change, while it waits; #493 builds it). Lists of past things live on
+  their own pages.
 
 Today also keeps "Lead a to-do row with what to do". ("Layout / HomePage";
 "A home screen answers one question: what's next"; "A money page answers
@@ -187,7 +192,9 @@ for a dialog. It renders through `FormPage`
   History's (`Beside`), and after the card below that. A price the form
   is written to reach (the Draft's, New quote's) leads instead: first
   below `xl`, so a phone reads what it comes to before the parts that
-  change it. It shows only totals, each one's working folded under "How
+  change it. Until what sets it is known (a business's floor area), it
+  says what's missing in its place, not a number (#493 builds it). It
+  shows only totals, each one's working folded under "How
   it's worked out"; what sets a price (a price of your own, its reason)
   stays in the part it prices.
 - **Its button at the card's foot**, after what saving agrees to (a
@@ -280,7 +287,9 @@ The `ui` skill's rules hold here too; these are this product's.
   actions at the end of the title row: one split button, the page's next
   step its primary and the rest behind its arrow, or a ⋯ menu when nothing
   is next, sticking in a header once scrolled past, a Record's there on a
-  wider screen only and at the foot on a phone (#493 builds it); the
+  wider screen only and at the foot on a phone (#493 builds it); a page
+  whose only action destroys has no primary, that action in the same
+  place, outlined in red, not in a ⋯ menu (#493 builds it); the
   destructive last in red after a rule. Printed,
   it's the title alone.
   ("Layout / RecordPage / Actions In The Header", "One Action")
@@ -348,13 +357,17 @@ The `ui` skill's rules hold here too; these are this product's.
   bar at the foot is an ActionFooter")
 - **Buttons are ranked by fill**: primary filled, secondary outlined,
   `text` for a Section's actions, `danger-text` beside them, `danger`
-  alone, `quiet` only to back out. What's pressable looks it, and the
+  alone in a dialog, a page's lone destructive action outlined in red
+  (#493 builds it), `quiet` only to back out. What's pressable looks it, and the
   reverse (the `ui` skill).
   ("Clickable catches the eye")
 - **A Section's actions are text Buttons** on the title's line, no taller
   than it; on a phone they wrap under the title.
-- **Destructive actions are red** (the `ui` skill): End plan, Cancel bill,
-  Deactivate, Decline.
+- **A red button is for what can't be got back** (the `ui` skill): End
+  plan, Cancel bill, Deactivate (the places it frees on Jobs don't come
+  back). Declining a quote is `quiet`, as it backs out of the quote, not
+  red, as the Client can ask again, and its confirm isn't red either
+  (#493 builds it).
 - **Continue with Google is Google's own button** (the `ui` skill: a
   third-party sign-in keeps its owner's look): their colours in light and
   dark, their logo, Roboto. Only the 44px touch height is ours.
@@ -543,7 +556,8 @@ stays as it is (#336).
 ### Time and schedules
 
 - **Schedules are calendars**: a day, three days or a week on the Schedule
-  (three at first, then the span last chosen in that browser), a month on a
+  (a day on a phone; elsewhere three at first, then the span last chosen
+  in that browser; #493 builds it), a month on a
   Cleaner's availability. Jobs are timed events (start and
   duration), ready for a Google Calendar sync. A Job or a Site Visit
   dragged on the Schedule carries a picture of its block, and an outline
@@ -573,12 +587,14 @@ stays as it is (#336).
 
 ### The logo
 
-- **The logo is used exactly as drawn** (`Logo`): never redrawn, cropped,
-  recoloured beyond its own dark version, or rearranged into a lockup.
-  Where it doesn't fit, the screen changes around it. On a phone the top
-  bar names the section you're in and the logo heads the ☰ menu; the
-  sidebar holds it centred; the landing site has no header bar, just Sign
-  in and the theme in the top right corner, and the logo leads the hero.
+- **The logo is used exactly as drawn** (`Logo`), as it's the business's
+  own mark: not redrawn, cropped, recoloured beyond its own dark version,
+  or rearranged into a lockup. Where it doesn't fit, the screen changes
+  around it. On a phone the top bar names the section you're in and the
+  logo heads the ☰ menu; the sidebar holds it centred; the landing site
+  has no header bar, just Sign in and the theme in the top right corner,
+  and the hero leads with what we clean and where, the logo smaller and
+  the slogan, if it stays, below the headline (#505 builds it).
   ("Foundations / Logo")
 - **A section is named once on a phone.** The top bar names the section,
   so a section's own page (Jobs, Payments, Your Jobs…) hides its heading
