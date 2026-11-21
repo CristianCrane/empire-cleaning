@@ -4,7 +4,7 @@ import { page } from "vitest/browser";
 import { List, ListItem } from "./List.tsx";
 import { StatusBadge } from "./StatusBadge.tsx";
 
-// a row's title wraps, never cut (docs/ux.md, Lists and tables): a
+// a row's title wraps rather than cuts (docs/ux.md, Lists and tables): a
 // payment's "Price change: 1 more hour" lost its hour at phone width
 test("a row's title shows whole on a phone, wrapping rather than cut", async () => {
   await page.viewport(390, 844);
