@@ -348,7 +348,8 @@ The `ui` skill's rules hold here too; these are this product's.
   bar at the foot is an ActionFooter")
 - **Buttons are ranked by fill**: primary filled, secondary outlined,
   `text` for a Section's actions, `danger-text` beside them, `danger`
-  alone, `quiet` only to back out. Nothing pressable looks inert.
+  alone, `quiet` only to back out. What's pressable looks it, and the
+  reverse (the `ui` skill).
   ("Clickable catches the eye")
 - **A Section's actions are text Buttons** on the title's line, no taller
   than it; on a phone they wrap under the title.
