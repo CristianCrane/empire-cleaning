@@ -216,6 +216,21 @@ test("the Client Declines a Quote from the portal", async ({
   await expect(page.getByText(/ declined it$/)).toBeVisible();
 });
 
+test("the Quotes list names the Service its total is for", async ({ page }) => {
+  // a Standard Clean asked for, quoted leading with the Deep Clean
+  // recommended for a first visit
+  await requestQuoteAsGuest(casey);
+  await signInAsOffice(page);
+  await startDraft(page);
+  await proposeNextMonday(page);
+  await send(page);
+
+  await page.goto("/office/quotes");
+  const row = page.getByRole("row", { name: new RegExp(casey.name) });
+  await expect(row).toContainText("Deep Clean");
+  await expect(row).not.toContainText("Standard Clean");
+});
+
 test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as history", async ({
   page,
 }) => {
