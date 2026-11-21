@@ -62,6 +62,7 @@ import {
 } from "./language.ts";
 import { linkTo } from "./links.ts";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
+import { OfficeJobPrototype } from "./screens/office/office-job.prototype.tsx";
 import { CleanerHome, yourJobsTiles } from "./screens/cleaner/CleanerHome.tsx";
 import { ConfirmEmail } from "./screens/ConfirmEmail.tsx";
 import { SignInLink, type SignInLinkSearch } from "./screens/SignInLink.tsx";
@@ -882,8 +883,23 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: the Office's Job, on made-up data, signed out
+const officeJobPrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/office-job",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; lang?: string } => ({
+    // ?case=1 arrives as a number
+    case: search.case === undefined ? undefined : String(search.case),
+    lang: search.lang === undefined ? undefined : String(search.lang),
+  }),
+  component: OfficeJobPrototype,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  officeJobPrototypeRoute,
   signInRoute,
   signInLinkRoute,
   confirmEmailRoute,
