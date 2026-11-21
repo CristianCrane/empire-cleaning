@@ -18,6 +18,7 @@ import {
   pageAction,
   expectNoPageAction,
   openTile,
+  searchList,
 } from "./harness.ts";
 
 const olive = {
@@ -229,6 +230,11 @@ test("the Quotes list names the Service its total is for", async ({ page }) => {
   const row = page.getByRole("row", { name: new RegExp(casey.name) });
   await expect(row).toContainText("Deep Clean");
   await expect(row).not.toContainText("Standard Clean");
+  // still found by the Service asked for, as a search for another isn't
+  await searchList(page, "Search quotes", "Painting");
+  await expect(row).toBeHidden();
+  await page.getByRole("searchbox", { name: "Search quotes" }).fill("Standard");
+  await expect(row).toBeVisible();
 });
 
 test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as history", async ({

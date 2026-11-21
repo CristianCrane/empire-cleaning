@@ -34,13 +34,15 @@ const serviceOf = (quote: QuoteSummary) =>
     ? `${quote.service.name} plan`
     : (quote.headlineServiceName ?? quote.service.name);
 
-// the words a search looks through: who, where, and what
+// the words a search looks through: who, where, and what, both the
+// Service it's for and the one asked, as the caller may name it
 const searchable = (quote: QuoteSummary) =>
   [
     quote.client.name,
     quote.client.businessName,
     addressOf(quote.property),
     serviceOf(quote),
+    quote.service.name,
   ]
     .join(" ")
     .toLowerCase();
