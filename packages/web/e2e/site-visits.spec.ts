@@ -139,6 +139,8 @@ test("a Site Visit that has been is badged To record, on its page and its home's
   const row = page.getByRole("grid", { name: "Site visit" }).getByRole("row");
   await expect(row).toHaveText(/To record$/);
   await expect(row).not.toContainText("findings to record");
+  await page.goBack();
+  await expect(page.getByText("Cory Cleaner has been.")).toBeVisible();
 });
 
 test("a Quote for business premises can't be drafted until their findings are recorded", async ({

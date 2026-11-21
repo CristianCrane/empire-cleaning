@@ -101,9 +101,10 @@ test("the form starts blank for someone new, and asks each answer before going o
   }
   await next.click();
   await expect(step).toHaveText("Step 3 of 4");
-  await describeTheHome(page);
-  await nextStep(page);
-  await expect(step).toHaveText("Step 4 of 4");
+  await expect(page.getByRole("textbox", { name: "Bedrooms" })).toHaveAttribute(
+    "aria-invalid",
+    "true",
+  );
 });
 
 test("a home with a Quote open can't be asked about again, and points to it", async ({

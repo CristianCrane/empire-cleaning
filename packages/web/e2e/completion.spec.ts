@@ -183,6 +183,19 @@ test(
   },
 );
 
+test("Today's Money tile shows what's owed as its number", async ({ page }) => {
+  const { job, cory } = await jobUnderway();
+  await failCharges("card_declined");
+  await completeJob(job.id, cory.id, { condition: "moderate", reports: [] });
+  await failCharges(null);
+
+  await signedInAs(page, olive.email);
+  // what's owed as its number, how many to do under it
+  await expect(page.getByRole("button", { name: /^Money/ })).toHaveText(
+    /^Money\s*\$[\d,]+\.\d\d\s*1 to do$/,
+  );
+});
+
 test("a Job that couldn't be charged is Unpaid until the Client saves a new card", async ({
   page,
   browser,
@@ -193,10 +206,6 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   await failCharges(null);
 
   await signedInAs(page, olive.email);
-  // Money's number is what's owed, how many to do under it
-  await expect(page.getByRole("button", { name: /^Money/ })).toHaveText(
-    /^Money\s*\$[\d,]+\.\d\d\s*1 to do$/,
-  );
   const attention = await openTile(page, "Money");
   await expect(
     attention.getByRole("row").filter({ hasText: "Collect the balance" }),

@@ -203,6 +203,30 @@ test("Office Staff keep the Premises Types, and the Services each Add-on goes wi
   ).toContainText("Commercial cleaning");
 });
 
+test("New quote gives no price for a business until its floor area is known", async ({
+  page,
+}) => {
+  await signInAsOffice(page);
+  await page.goto("/office/quotes/new");
+  await page.getByRole("button", { name: "New client" }).click();
+  await page
+    .locator("form")
+    .getByText("Commercial cleaning", { exact: true })
+    .click();
+  await choose(page, /Type of business/, "Retail");
+
+  // the minimum charge, read out, would be a price for a business of no
+  // size: what's missing says so in the price's place, and the footer's
+  const comesTo = page.getByRole("region", { name: "What it comes to" });
+  await expect(comesTo).toContainText(
+    "No price until the floor area is known.",
+  );
+  await expect(comesTo).not.toContainText("$");
+  await expect(
+    page.getByText("No price until the floor area is known."),
+  ).toHaveCount(2);
+});
+
 test("Office Staff quote a business caller from New quote", async ({
   page,
 }) => {
@@ -219,13 +243,6 @@ test("Office Staff quote a business caller from New quote", async ({
   await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
   await choose(page, /Type of business/, "Retail");
   await page.getByText("One-off", { exact: true }).click();
-  // no price until the floor area is known: the minimum charge, read out,
-  // would be a price for a business of no size
-  const comesTo = page.getByRole("region", { name: "What it comes to" });
-  await expect(comesTo).toContainText(
-    "No price until the floor area is known.",
-  );
-  await expect(comesTo).not.toContainText("$");
   await page
     .getByRole("textbox", { name: "Business name" })
     .fill("Phoner & Co");
