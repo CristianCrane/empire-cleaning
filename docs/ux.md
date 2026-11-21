@@ -77,9 +77,10 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   with nothing in it yet offers its action (`ActionRow`). Money is one
   part: its facts, the price changes in it, "How it's worked out" folded
   (`Fold`).
-- **Its History**, a `Timeline` in a Card, newest first: on the right from
-  `xl`, at the foot below that. What happened (a drop-out, a Cleaner taken
-  off) is told there, not kept as a row elsewhere. A Quote's story is its
+- **Its History**, a `Timeline` in a Card, newest first: last, at every
+  width: one column, as a side column competed with the page (#493 builds
+  it). What happened (a drop-out, a Cleaner taken off) is told there, not
+  kept as a row elsewhere. A Quote's story is its
   body, **Now** on top holding it as it stands; its Draft is a Form page.
 - **On a phone, the page's actions pinned at the foot**, above the tab
   bar, after the facts (#493 builds it).
