@@ -493,13 +493,14 @@ Keeps: a message page; centred, home a link (#168); one Button that does it
 
 #### Welcome
 
-Keeps: in steps, what's next beside (#168). Renders through `FormPage`
-(#434).
+Keeps: in steps (#168); what's next said once, in the line under the
+title (#493 G5.3). Renders through `FormPage` (#434).
 
 - Its own page, no breadcrumbs: the logo, who's signed in and Sign out;
   the title, what to do here.
-- Body: the Quote form in its steps, in the Card; What happens next, its
-  steps and a Notice, in a sticky aside from `xl`.
+- Alert: asked for a quote with a different email? Sign out and sign in
+  with that one.
+- Body: the Quote form in its steps, in the Card.
 
 #### People
 
