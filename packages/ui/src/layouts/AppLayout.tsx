@@ -242,14 +242,14 @@ function RailGroups({ items }: { items: NavItem[] }) {
   ));
 }
 
-// a section on the rail: its icon, its name the tooltip, and its text for a
-// screen reader (and the tours, which find a link by its text); a count,
-// such as the Offers waiting, marked on the icon
 // the rail's one rule: between its groups, and over its foot
 function RailRule({ className = "" }: { className?: string }) {
   return <hr aria-hidden className={`w-8 border-border ${className}`} />;
 }
 
+// a section on the rail: its icon, its name the tooltip, and its text for a
+// screen reader (and the tours, which find a link by its text); a count,
+// such as the Offers waiting, marked on the icon
 function RailLink({ item }: { item: NavItem }) {
   const Icon = item.icon;
   return (
