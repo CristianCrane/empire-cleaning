@@ -11,7 +11,7 @@ import {
   useId,
   type ReactNode,
 } from "react";
-import { Button } from "../Button.tsx";
+import { Button, type ButtonProps } from "../Button.tsx";
 import { DialogTrigger } from "../Dialog.tsx";
 import { Drawer } from "../Drawer.tsx";
 import { Logo } from "../Logo.tsx";
@@ -296,12 +296,7 @@ function RailAccount({
   const words = useUiWords();
   return (
     <DialogTrigger>
-      <Button variant="quiet" className={`${railItem} h-auto`}>
-        <span className="flex flex-col items-center gap-0.5">
-          <CircleUserRound aria-hidden size={20} />
-          {words.account}
-        </span>
-      </Button>
+      <RailButton icon={CircleUserRound}>{words.account}</RailButton>
       <Popover
         placement="end bottom"
         offset={8}
@@ -312,6 +307,27 @@ function RailAccount({
         <RailAccountParts foot={foot} />
       </Popover>
     </DialogTrigger>
+  );
+}
+
+// a button on the rail, its name under its icon as a section's is: the
+// Account, and the app's own (the other language)
+export function RailButton({
+  icon: Icon,
+  children,
+  ...props
+}: Omit<ButtonProps, "variant" | "size" | "className" | "children"> & {
+  icon: LucideIcon;
+  children: ReactNode;
+}) {
+  return (
+    <Button variant="quiet" className={`${railItem} h-auto`} {...props}>
+      {/* Button lays its children out in a row of its own */}
+      <span className="flex flex-col items-center gap-0.5">
+        <Icon aria-hidden size={20} />
+        {children}
+      </span>
+    </Button>
   );
 }
 

@@ -9,6 +9,7 @@ export { Actions } from "./Actions.tsx";
 export {
   AppLayout,
   type FootPlace,
+  RailButton,
   type NavItem,
 } from "./layouts/AppLayout.tsx";
 export { Avatar } from "./Avatar.tsx";

@@ -635,9 +635,8 @@ stays as it is (#336).
   own mark: not redrawn, cropped, recoloured beyond its own dark version,
   or rearranged into a lockup. Where it doesn't fit, the screen changes
   around it. On a phone the top bar names the section you're in and the
-  logo heads the ☰ menu; the sidebar holds it, and the rail has no room
-  for it;
-  centred; the landing site
+  logo heads the ☰ menu; the sidebar holds it centred, and the rail has
+  no room for it; the landing site
   has no header bar, just the language, Sign in and the theme in the top
   right corner. The hero leads with what we clean and where, as a
   stranger gives it a few seconds (the `ui` skill): the logo goes up

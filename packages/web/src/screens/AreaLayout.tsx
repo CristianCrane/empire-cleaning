@@ -36,6 +36,7 @@ import {
   type FootPlace,
   Notice,
   type NavItem,
+  RailButton,
   useLanguage,
   LanguageName,
 } from "@empire-cleaning/ui";
@@ -442,31 +443,22 @@ function OtherLanguage({
     if (ok) onChanged?.();
   };
 
+  const press = {
+    isPending: action.isPending,
+    onPress: () => void change(),
+  };
+  if (onRail) {
+    return (
+      <RailButton icon={Languages} {...press}>
+        <LanguageName language={other} />
+      </RailButton>
+    );
+  }
   return (
     <>
-      <Button
-        variant="quiet"
-        className={
-          onRail
-            ? "h-auto min-h-touch w-full px-0.5 py-1.5 text-xs leading-tight"
-            : "justify-start"
-        }
-        isPending={action.isPending}
-        onPress={() => void change()}
-      >
-        {onRail ? (
-          // the name under its icon, so it fits the rail's width (Button
-          // lays its children out in a row of its own)
-          <span className="flex flex-col items-center gap-0.5">
-            <Languages aria-hidden size={20} />
-            <LanguageName language={other} />
-          </span>
-        ) : (
-          <>
-            <Languages aria-hidden size={20} />
-            <LanguageName language={other} />
-          </>
-        )}
+      <Button variant="quiet" className="justify-start" {...press}>
+        <Languages aria-hidden size={20} />
+        <LanguageName language={other} />
       </Button>
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
     </>
