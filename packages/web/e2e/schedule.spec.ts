@@ -392,14 +392,17 @@ test("Office Staff move a Job from the Job screen, at any width", async ({
     labourHours: 1,
     crewSize: 1,
   });
+  // a short phone, where the dialog runs past the screen
+  await page.setViewportSize({ width: 390, height: 667 });
   await signedInAs(page, olive.email);
   await page.goto(`/office/jobs/${job.id}`);
 
   await pageAction(page, "Move job");
   const dialog = page.getByRole("dialog", { name: "Move this job" });
-  await expect(dialog).toContainText(
-    "That's when it's booked now. Pick a different time.",
-  );
+  // why Move job is greyed, in the first view: its fields hold its time now
+  await expect(
+    dialog.getByText("That's when it's booked now. Pick a different time."),
+  ).toBeInViewport();
   const moveButton = dialog.getByRole("button", { name: "Move job" });
   await expect(moveButton).toBeDisabled();
 
@@ -422,7 +425,7 @@ test("Office Staff move a Job from the Job screen, at any width", async ({
     .getByRole("spinbutton", { name: /hour/i })
     .click();
   await page.keyboard.type("0115PM");
-  await expect(dialog).toContainText("ToFri, Mar 5, 1:15 PM");
+  await expect(dialog).toContainText("There's room on Fri, Mar 5 then.");
   await moveButton.click();
 
   await expect(page.getByText("Job moved")).toBeVisible();
@@ -859,7 +862,7 @@ test(
     await schedule.getByRole("button", { name: "Fri, Mar 5, 1:00 PM" }).click();
 
     await expect(page.getByRole("dialog")).toHaveCount(1);
-    await expect(dialog).toContainText("ToFri, Mar 5, 1:00 PM");
+    await expect(dialog).toContainText("There's room on Fri, Mar 5 then.");
     await dialog.getByRole("button", { name: "Move job" }).click();
     await expect(
       page.locator("#main").getByText("Fri, Mar 5, 1:00 PM", { exact: true }),

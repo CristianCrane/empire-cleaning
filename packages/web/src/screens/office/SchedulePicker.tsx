@@ -120,6 +120,12 @@ function PickStart({
 
   return (
     <>
+      <RangeBar
+        from={range.from}
+        to={range.to}
+        onShow={(span, day) => setRange(rangeShowing(span, day))}
+      />
+      {/* what the grid under it is for, and its marks, by it */}
       <p className="text-sm text-fg-muted">
         Pick a start time.
         {limits && " Grey days are full."}
@@ -128,11 +134,6 @@ function PickStart({
           repeats &&
           ` Then ${repeats.label.toLowerCase()} on ${weekdayName(date)}s.`}
       </p>
-      <RangeBar
-        from={range.from}
-        to={range.to}
-        onShow={(span, day) => setRange(rangeShowing(span, day))}
-      />
       {problem && (
         <Notice tone="danger">
           The schedule didn't load. Please try again.
