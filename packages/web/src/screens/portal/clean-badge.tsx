@@ -1,4 +1,4 @@
-import type { JobStatus } from "@empire-cleaning/models";
+import type { ClientUpcomingJob, JobStatus } from "@empire-cleaning/models";
 import { StatusBadge } from "@empire-cleaning/ui";
 import { JobStatusBadge } from "../JobBadges.tsx";
 import type { Said } from "../words.ts";
@@ -40,3 +40,17 @@ export function cleanBadge(t: Said, clean: CleanState, plain = false) {
     <JobStatusBadge status="booked" />
   );
 }
+
+// an upcoming clean's badge, wherever it's listed (Cleans, a plan's page):
+// nothing while it's simply booked, Move asked while a move waits
+export const upcomingBadge = (
+  t: Said,
+  job: Pick<ClientUpcomingJob, "movingTo">,
+) =>
+  cleanBadge(t, {
+    status: "booked",
+    unpaid: false,
+    priceChange: false,
+    skipped: false,
+    moveAsked: job.movingTo !== null,
+  });

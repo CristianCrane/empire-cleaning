@@ -10,7 +10,7 @@ import { ListPage, type ListRow } from "@empire-cleaning/ui";
 import { addressOf, formatHours, formatMinutes } from "../format.ts";
 import { tabShown, useListUrl } from "../list-search.ts";
 import { type Said, useSaid } from "../words.ts";
-import { cleanBadge } from "./clean-badge.tsx";
+import { cleanBadge, upcomingBadge } from "./clean-badge.tsx";
 
 // in the Client's language (ADR-0025)
 const words = catalog({
@@ -58,15 +58,7 @@ const upcomingRow =
       homes > 1 && addressOf(job.property),
       t.w.about(formatHours(job.hoursOnSite)),
     ]),
-    badges: [
-      cleanBadge(t, {
-        status: "booked",
-        unpaid: false,
-        priceChange: false,
-        skipped: false,
-        moveAsked: job.movingTo !== null,
-      }),
-    ],
+    badges: [upcomingBadge(t, job)],
     onOpen: () => open(job.id),
   });
 
