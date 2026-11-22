@@ -33,6 +33,8 @@ export const labels = catalog({
     // a bank payment, or a Bill paid by one, on its way
     clearing: "Clearing",
     howWeGetIn: "How we get in",
+    // a Job's header card, as a screen reader names it (JobLead)
+    jobDetails: "Job details",
     jobStatus: {
       booked: "Booked",
       completed: "Done",
@@ -68,6 +70,7 @@ export const labels = catalog({
     payBill: (n: string) => `Pagar la factura ${n}`,
     clearing: "En proceso",
     howWeGetIn: "Cómo entramos",
+    jobDetails: "Detalles del trabajo",
     jobStatus: {
       booked: "Reservada",
       completed: "Terminada",

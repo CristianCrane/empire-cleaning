@@ -54,13 +54,17 @@ export function ConditionFact({
   );
 }
 
+// how we get in; `empty` is what's said when nothing's written down, if
+// not "Not added yet" (the Cleaner's: call the client when you get there)
 export function AccessFact({
   property,
   line,
+  empty,
   className,
 }: {
   property: Pick<PropertyView, "accessInstructions">;
   line?: string;
+  empty?: string;
   className?: string;
 }) {
   const t = useSaid(words);
@@ -70,7 +74,7 @@ export function AccessFact({
       label={t.howWeGetIn}
       value={
         <span className="whitespace-pre-line">
-          {property.accessInstructions || t.notAdded}
+          {property.accessInstructions || (empty ?? t.notAdded)}
         </span>
       }
       line={line}
