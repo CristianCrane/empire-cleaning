@@ -83,6 +83,11 @@ test(
     await expectAccessible(page);
     await nextStep(page);
     await giveDetails(page);
+    // where the quote goes is said once, under the page's title, not again
+    // at this step
+    await expect(
+      page.getByText("We'll email your quote to nina@example.com"),
+    ).toHaveCount(0);
     await expectAccessible(page);
     await page.getByRole("button", { name: "Request a quote" }).click();
 

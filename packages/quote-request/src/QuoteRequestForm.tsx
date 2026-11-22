@@ -230,7 +230,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   const lang = useLanguage();
   const t = formWords[lang];
   const words = asker.kind === "office" ? officeWords : t.own;
-  const { openAlready, quoteEmailedTo } = messages[lang];
+  const { openAlready } = messages[lang];
   const { formatClock } = formats[lang];
   const weekdays = formats[lang].weekdays.map((label, day) => ({
     day: day as Weekday,
@@ -576,9 +576,9 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         onChange={(name) => setContact({ ...contact, name })}
         errorMessage={error("contact.name")}
       />
-      {asker.kind === "account" ? (
-        <p className="text-sm text-fg-muted">{quoteEmailedTo(asker.email)}</p>
-      ) : (
+      {/* an Account's email is known and its page says where the quote goes
+          (Welcome's line under the title, its header's Signed in as) */}
+      {asker.kind !== "account" && (
         <TextField
           label={words.email}
           name="contact.email"
