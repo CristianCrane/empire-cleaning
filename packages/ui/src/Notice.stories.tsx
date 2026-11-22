@@ -31,8 +31,7 @@ export const Danger: Story = {
 // with the one thing to do about it, as text on its right
 export const WithAction: Story = {
   args: {
-    children:
-      "Waiting for Max to accept, until Fri, Nov 6. To record an acceptance by phone, he needs a card saved first.",
+    children: "Max has no card saved, so a yes by phone can't be recorded yet.",
     action: (
       <Button variant="text" size="sm">
         <Mail aria-hidden size={16} />
