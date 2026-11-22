@@ -15,7 +15,6 @@ import { Card } from "../Card.tsx";
 import { Fold } from "../Fold.tsx";
 import { Section } from "../Section.tsx";
 import { Alerts, type Alert } from "./Alerts.tsx";
-import { Beside } from "./Beside.tsx";
 import { PageFrame } from "./PageFrame.tsx";
 import { PageHeader, type PageActions } from "./PageHeader.tsx";
 
@@ -83,6 +82,24 @@ export function FormPage({
       )}
     </Card>
   );
+  const form =
+    footer && end ? (
+      <div className="flex flex-col gap-4">
+        {card}
+        {end}
+      </div>
+    ) : (
+      card
+    );
+  const side = aside && (
+    <div
+      className={`xl:sticky xl:top-6 ${aside.leads ? "xl:col-start-2 xl:row-start-1" : ""}`}
+    >
+      <Section title={aside.title}>
+        <Card>{aside.children}</Card>
+      </Section>
+    </div>
+  );
   return (
     <PageFrame wide account={account}>
       <PageHeader
@@ -98,26 +115,22 @@ export function FormPage({
           <Fold label={about.label}>{about.children}</Fold>
         </div>
       )}
-      <Beside
-        sticky
-        leads={aside?.leads}
-        side={
-          aside && (
-            <Section title={aside.title}>
-              <Card>{aside.children}</Card>
-            </Section>
-          )
-        }
+      {/* the form, and what it comes to beside it in a 22rem column from
+          xl, sticky as the form scrolls past; below xl after the form, or
+          first when it leads: first in the page too, so a phone reads and
+          tabs through it in the order it's seen. With nothing beside it,
+          one column, the content's width, lined up with the header */}
+      <div
+        className={`grid grid-cols-[minmax(0,1fr)] items-start gap-6 ${side ? "xl:grid-cols-[minmax(0,1fr)_22rem]" : ""}`}
       >
-        {footer && end ? (
-          <div className="flex flex-col gap-4">
-            {card}
-            {end}
-          </div>
+        {aside?.leads && side}
+        {aside?.leads ? (
+          <div className="min-w-0 xl:col-start-1 xl:row-start-1">{form}</div>
         ) : (
-          card
+          form
         )}
-      </Beside>
+        {!aside?.leads && side}
+      </div>
       {footer && (
         <ActionFooter
           aria-label={footer.label}

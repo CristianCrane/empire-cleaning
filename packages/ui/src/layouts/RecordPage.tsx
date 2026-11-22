@@ -5,14 +5,14 @@ import { Card } from "../Card.tsx";
 import { useUiWords } from "../language.ts";
 import { Section } from "../Section.tsx";
 import { Alerts, type Alert } from "./Alerts.tsx";
-import { Beside } from "./Beside.tsx";
 import { PageHeader, type PageActions } from "./PageHeader.tsx";
 
 // The Record type's layout (docs/ux.md, Screen types, Record; #432): a page
 // about one thing. Its PageHeader; its alerts, most pressing first, two of
 // them and the rest behind "Show N more"; its DetailsCard; each part of it,
-// a Section; and its History in a Card, on the right from `xl` and at the
-// foot below that. A bar at the foot holds only what must stay in reach on
+// a Section; and its History in a Card, last, at every width: one column,
+// the content's width, as a side column competed with the page (#493). A
+// bar at the foot holds only what must stay in reach on
 // site (a Cleaner's Complete): every other action is in the header, or on
 // the part it acts on
 export function RecordPage({
@@ -54,20 +54,13 @@ export function RecordPage({
         actions={actions}
       />
       <Alerts alerts={alerts} />
-      <Beside
-        side={
-          history && (
-            <Section title={words.history}>
-              <Card>{history}</Card>
-            </Section>
-          )
-        }
-      >
-        <div className="flex min-w-0 flex-col gap-6">
-          {details}
-          {children}
-        </div>
-      </Beside>
+      {details}
+      {children}
+      {history && (
+        <Section title={words.history}>
+          <Card>{history}</Card>
+        </Section>
+      )}
       {footer && (
         <ActionFooter
           aria-label={footer.label}

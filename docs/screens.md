@@ -153,8 +153,7 @@ Keeps: Actions ▾ (#406). Renders through `RecordPage` (#432).
 - Body: Job details (`DetailsCard`: `DateTile`, the time large, icon facts);
   How it went; Crew (Section: List, those on it only); Money (Card: its
   facts, price changes, How it's worked out folded).
-- History: a Card, on the right from `xl`, at the foot below; a drop-out is
-  told here.
+- History: a Card, last, at every width; a drop-out is told here.
 
 #### Office > Quotes
 
@@ -226,7 +225,7 @@ Keeps: title outside the Card (#119). Renders through `RecordPage` (#432).
 
 #### Office > Property
 
-Keeps: two columns, history right (#155). Renders through `RecordPage` (#432).
+Keeps: one page of Sections, its History last (#493). Renders through `RecordPage` (#432).
 
 - Header: Clients › client › address; the address.
 - Actions: Menu (New quote, Correct details).
@@ -235,7 +234,7 @@ Keeps: two columns, history right (#155). Renders through `RecordPage` (#432).
 - Body: Home details (`DetailsCard`: `IconTile`, icon facts); Cleaning plan
   (Section: Change terms and End plan in red on its title line, the plan's
   card), or an `ActionRow` to set one up; Site visit.
-- History: a Card, on the right from `xl`, at the foot below.
+- History: a Card, last, at every width.
 
 #### Office > Ended cleaning plan
 
