@@ -38,6 +38,7 @@ import {
   DetailsCard,
   Facts,
   type DialogState,
+  FieldRow,
 } from "@empire-cleaning/ui";
 import { deleteJson, patchJson, postJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
@@ -537,9 +538,7 @@ function UsualWeek({
             <p className="text-sm text-fg-muted">
               The hours they can usually work each day. Days off are 0.
             </p>
-            {/* as many days to a row as fit at a readable width: the
-                field's − and + buttons alone take 88px */}
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
+            <FieldRow>
               {weekdays.map((day, i) => (
                 <NumberField
                   key={day}
@@ -557,7 +556,7 @@ function UsualWeek({
                   }
                 />
               ))}
-            </div>
+            </FieldRow>
             <WhatItFrees
               member={member}
               jobs={jobs}

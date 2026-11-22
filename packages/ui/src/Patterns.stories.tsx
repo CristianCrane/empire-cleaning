@@ -280,8 +280,8 @@ function AFormsWidth() {
           <code>short</code> to about 8 characters (a ZIP code, a time),{" "}
           <code>medium</code> to about 14 (a phone, a day, a number),{" "}
           <code>long</code> a few words (a <code>Select</code>'s default).
-          Fields side by side go two to a row in a <code>FieldRow</code>, no
-          wider than a form. On a phone every field is full width.
+          Fields side by side go in a <code>FieldRow</code>, no wider than a
+          form. On a phone every field is full width.
         </p>
       </Rule>
       <Example verdict="Do">

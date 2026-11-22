@@ -599,11 +599,11 @@ const condition = (list: PriceList) =>
     fields: (figures, set) => {
       const field = figure(figures, set);
       return (
-        <div className="grid gap-4 sm:grid-cols-3">
+        <FieldRow>
           {conditionFigures.map(([c, name]) =>
             field(`${conditionLabel[c]} (×)`, name, multiplier),
           )}
-        </div>
+        </FieldRow>
       );
     },
   });

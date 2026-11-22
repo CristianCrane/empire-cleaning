@@ -1231,7 +1231,7 @@ function RoomsFields({
   const field = (name: keyof HomeRooms) => `${at}.${name}`;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
+    <FieldRow>
       <NumberField
         label={t.bedrooms}
         name={field("bedrooms")}
@@ -1271,7 +1271,7 @@ function RoomsFields({
         }
         errorMessage={error(field("storeys"))}
       />
-    </div>
+    </FieldRow>
   );
 }
 

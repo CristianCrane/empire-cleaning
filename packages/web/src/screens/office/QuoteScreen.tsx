@@ -1357,7 +1357,7 @@ function PlanTerms({
           </Radio>
         ))}
       </RadioGroup>
-      <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]">
+      <FieldRow>
         <NumberField
           label="Plan discount (%)"
           name="plan.discountPercent"
@@ -1378,7 +1378,7 @@ function PlanTerms({
             </SelectItem>
           ))}
         </Select>
-      </div>
+      </FieldRow>
     </>
   );
 }
@@ -1917,7 +1917,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
             .filter(Boolean)
             .join(" · ")}
         >
-          <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]">
+          <FieldRow>
             {!plan && (
               <NumberField
                 label="Cleaners"
@@ -1944,7 +1944,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
               value={fields.validityDays}
               onChange={(validityDays) => set({ validityDays })}
             />
-          </div>
+          </FieldRow>
         </FormPart>
 
         {/* a plan's weekdays each have their own, above; a time too soon
@@ -2095,7 +2095,7 @@ function PlanDayFields({
           stale={stale}
         />
       )}
-      <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]">
+      <FieldRow>
         <NumberField
           label="Cleaners"
           name={`${name}.crewSize`}
@@ -2104,7 +2104,7 @@ function PlanDayFields({
           value={day.crewSize}
           onChange={(crewSize) => onChange({ crewSize })}
         />
-      </div>
+      </FieldRow>
       {/* its price is beside the form, with the rest */}
       {option && (
         <OverrideFields

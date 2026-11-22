@@ -67,11 +67,16 @@ const width = {
   long: "sm:max-w-xs",
 } satisfies Record<FieldWidth, string>;
 
-// fields side by side from sm, two to a row, a row no wider than a form, so
-// a short field's neighbour sits near it, not across a wide dialog
-// (docs/ux.md, Forms); stacked on a phone
+// fields side by side, the row no wider than a form, so a short field's
+// neighbour sits near it, not across a wide dialog (docs/ux.md, Forms):
+// columns of 13rem or more, three to a row at a form's width, fewer as it
+// narrows, one on a phone. 13rem holds a number's − and + with its number
 export function FieldRow({ children }: { children: ReactNode }) {
-  return <div className="grid max-w-form gap-4 sm:grid-cols-2">{children}</div>;
+  return (
+    <div className="grid max-w-form grid-cols-[repeat(auto-fill,minmax(min(13rem,100%),1fr))] gap-4">
+      {children}
+    </div>
+  );
 }
 
 // a text box: a tinted box with a line along its bottom, quieter than a full

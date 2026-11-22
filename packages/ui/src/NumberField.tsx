@@ -17,11 +17,10 @@ export type NumberFieldProps = AriaNumberFieldProps & {
 
 // for amounts and counts (prices, Labour Hours, Crew Size); pass formatOptions
 // for currency, e.g. { style: "currency", currency: "USD" }. The − and +
-// buttons take 88px, so it needs at least 10rem: in a grid, let fields wrap
-// (grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]) rather than fixing a
-// column count, which squeezes the number out of sight on some widths. Its
-// box is `medium` from sm (Field.tsx), not the row's: $100,000.00 and
-// 1,000,000 sq ft whole
+// buttons take 88px, so it needs at least 10rem: side by side, put fields in
+// a FieldRow, whose columns wrap, rather than fixing a column count, which
+// squeezes the number out of sight on some widths. Its box is `medium` from
+// sm (Field.tsx), not the row's: $100,000.00 and 1,000,000 sq ft whole
 export function NumberField({
   label,
   description,

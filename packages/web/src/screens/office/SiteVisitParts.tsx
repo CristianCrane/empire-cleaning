@@ -44,6 +44,7 @@ import {
   TimeField,
   type StatusTone,
   type DialogState,
+  FieldRow,
 } from "@empire-cleaning/ui";
 import { getJson, postJson } from "../../api.ts";
 import { useLoaded } from "../load.ts";
@@ -189,9 +190,7 @@ function BookingForm({
           </SelectItem>
         ))}
       </Select>
-      {/* as many to a row as fit the dialog, not the screen: three squeeze
-          the date and the stepper out of sight */}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-4">
+      <FieldRow>
         <DatePicker label="Day" name="date" value={date} onChange={setDate} />
         <TimeField
           label="Start time"
@@ -208,7 +207,7 @@ function BookingForm({
           value={minutes}
           onChange={setMinutes}
         />
-      </div>
+      </FieldRow>
       <PickFromSchedule
         date={date?.toString()}
         time={timeOfField(time)}

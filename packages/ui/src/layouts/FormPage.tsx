@@ -18,6 +18,9 @@ import { Alerts, type Alert } from "./Alerts.tsx";
 import { PageFrame } from "./PageFrame.tsx";
 import { PageHeader, type PageActions } from "./PageHeader.tsx";
 
+// what the fields come to, beside them from xl
+type Aside = { title: string; leads?: boolean; children: ReactNode };
+
 // The Form page type's layout (docs/ux.md, Screen types, Form page; #434): a
 // form with a page of its own. Its PageHeader, a single page action at the
 // end of the title row; its alerts; what the page needs explained, folded
@@ -31,8 +34,6 @@ import { PageHeader, type PageActions } from "./PageHeader.tsx";
 // `leads` (a price the form is written to reach). With no aside, the page
 // is a form's width, its header with it (docs/ux.md, Forms). Outside an
 // area it's a page of its own, the logo above (Welcome)
-type Aside = { title: string; leads?: boolean; children: ReactNode };
-
 export function FormPage({
   trail,
   title,
@@ -74,7 +75,7 @@ export function FormPage({
     }
   // a footer spans the content's width, so it comes with an aside, the
   // page then that wide too; a form's width alone keeps its buttons in
-  // its card (docs/ux.md, Forms)
+  // its card (docs/ux.md, Form page)
   | { buttons?: never; footer: Footer; aside: Aside }
 )) {
   const card = (

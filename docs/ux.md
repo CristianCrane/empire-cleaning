@@ -209,7 +209,9 @@ for a dialog. It renders through `FormPage`
   quote) has the page's `ActionFooter` instead (FormPage's `footer`),
   its total and whether it's saved on the left, the button on the right;
   what's said before the button (a refusal, a warning) comes after the
-  card.
+  card. That bar spans the content's width, so such a form has an aside
+  and the page is that wide too; a form alone keeps a form's width and
+  its button in its card (FormPage's type holds it).
 - **Outside an area** (Welcome), a page of its own, the logo above and
   who's signed in beside it (`PageFrame`), centred at a form's width
   with no aside.
@@ -612,15 +614,16 @@ stays as it is (#336).
   its header with it (in an area at the content's start, outside one
   centred), a form's dialog (`lg`), and the landing site's Quote form,
   whose band is that width. No field's box is wider, nor a
-  `SegmentedControl`, wherever it sits (a wide dialog, a card beside an
+  `SegmentedControl`'s track, wherever it sits (a wide dialog, a card beside an
   aside), and from `sm` one with a short answer is sized to it by its
   longest answer (`Field.tsx`'s `width`): to about 8 characters 9rem
   (a ZIP code, a time), to about 14 13rem (a phone, by `type="tel"`; a
   day, a unit, a number, an amount), a few words 20rem (a `Select`'s
   default); each holding its longest answer whole ($100,000.00, 1,000,000
-  sq ft). Fields side by side go two to a row in a `FieldRow`, no wider
-  than a form, so a short field's neighbour sits near it, not across a
-  wide dialog. On a phone every field is full width, a thumb's target.
+  sq ft). Fields side by side go in a `FieldRow`, no wider than a
+  form, columns of 13rem or more (three to a row at a form's width, one on
+  a phone), so a short field's neighbour sits near it, not across a wide
+  dialog; `ChoiceTiles` keep a form's width too. On a phone every field is full width, a thumb's target.
   ("A form keeps a form's width")
 - **Every search field shows a magnifying glass.**
 
