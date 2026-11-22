@@ -61,7 +61,9 @@ function useDialogs(actions: PageAction[]) {
 // dialog it opens is its own. A page's one action when nothing is next
 // (WEB-9), outlined in red when it's `danger` (the page has no primary
 // then), a List's primary, an empty List's way to fill it, and the split
-// button's main half
+// button's main half. A `danger` one is outlined in red wherever it is:
+// a page's next step never destroys, as the step a page leads to is done
+// in the primary's colour (the `ui` skill)
 export function ActionButton({
   action,
   variant,
