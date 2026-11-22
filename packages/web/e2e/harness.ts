@@ -592,9 +592,11 @@ export const payAndBook = (
   };
 };
 
-// a Bill's form to pay it on its page, and its button
-export const payThisBill = (page: Page) => {
-  const form = page.getByRole("region", { name: "Pay this bill" });
+// a Bill's form to pay it on its page, in the dialog its Pay this bill
+// opens (the page's next step, or behind More actions), and its button
+export const payThisBill = async (page: Page) => {
+  await pageAction(page, "Pay this bill");
+  const form = page.getByRole("dialog", { name: "Pay this bill" });
   return { form, pay: form.getByRole("button", { name: /^Pay \$/ }) };
 };
 

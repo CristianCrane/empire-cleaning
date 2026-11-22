@@ -11,6 +11,7 @@ import {
   RecordPage,
   type Alert,
   type DialogState,
+  type PageAction,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
@@ -27,12 +28,21 @@ import { clientTrail } from "./trails.ts";
 const { formatDate, formatDay, formatMoney } = formats.en;
 
 // one weekly Bill for the Office (ADR-0016), a Record (docs/ux.md): the
-// whole Bill as the Client sees it, where it stands, and while it's unpaid,
-// voiding it (cancelling, on screen) or recording a payment made another way
+// whole Bill as the Client sees it, where it stands, and while it's due,
+// voiding it (cancelling, on screen) or recording a payment made another
+// way. Once its payment didn't go through or it's late, recording one is
+// the page's next step (the `ui` skill), unless it's a payment we try
+// again ourselves (ADR-0022)
 export function BillScreen() {
   const bill = useLoaderData({ from: "/office/bills/$billId" });
   const due = bill.status === "due";
   const print = usePrintBill();
+  const record: PageAction | false = due && {
+    label: "Record a payment",
+    icon: Banknote,
+    dialog: (state) => <RecordPayment bill={bill} {...state} />,
+  };
+  const next = !!bill.unpaid && bill.unpaid.kind !== "waiting";
 
   return (
     <>
@@ -43,12 +53,9 @@ export function BillScreen() {
         status={<BillStatusBadge bill={bill} />}
         // WEB-G: the week, which nothing else above says; not the Client
         subtitle={billWeek("en", bill)}
+        next={(next && record) || undefined}
         actions={[
-          due && {
-            label: "Record a payment",
-            icon: Banknote,
-            dialog: (state) => <RecordPayment bill={bill} {...state} />,
-          },
+          !next && record,
           print,
           due && {
             label: "Cancel bill",
@@ -93,12 +100,8 @@ function standing(bill: BillView): Alert | null {
       } ${officeFix[kind]} Until it's paid, the client's cleaning plans with jobs on this bill are paused.`,
     };
   }
-  return bill.payment === "on_page" && bill.totalCents > 0
-    ? {
-        key: "waiting",
-        children: `Waiting for the client to pay it on its page, by ${formatDay(bill.dueOn)}.`,
-      }
-    : null;
+  // one simply due says when by in its line, and how it's paid in its facts
+  return null;
 }
 
 // a short note, required, sent with the action; the API's message shown if

@@ -1,13 +1,11 @@
 import { catalog, type Language } from "@empire-cleaning/models";
 import {
   Ban,
-  CalendarClock,
   CalendarDays,
   CalendarRange,
   CreditCard,
   FileText,
   Printer,
-  Receipt,
 } from "lucide-react";
 import type { BillSummary, BillView } from "@empire-cleaning/models";
 import {
@@ -37,6 +35,7 @@ const words = catalog({
     creditOf: (amount: string) => `${amount} credit`,
     dueBy: (day: string) => `due by ${day}`,
     chargedToYour: "Charged to your card",
+    fromYourCard: "From your card, automatically",
     paidOnPage: "Paid on this page",
     paidAnother: "Paid another way",
     creditOffYour: "Nothing to pay: the credit comes off your next bill",
@@ -47,21 +46,14 @@ const words = catalog({
     toPayBy: (day: string) => `To pay by ${day}`,
     toBeCharged: "To be charged to your card",
     offYourNext: "Comes off your next bill",
-    paidOn: (day: string) => `Paid ${day}`,
     cancelledOn: (day: string) => `Cancelled ${day}`,
-    notPaid: "Not paid",
-    paymentDidnt: (because: string) =>
-      `The payment didn't go through${because}.`,
-    dueByLabel: "Due by",
     details: "Bill details",
     week: "Week",
     weekRange: (from: string, to: string) => `${from} to ${to}`,
     covers: "The week it covers",
     made: "Made",
     howPaid: "How it's paid",
-    automatically: "Charged automatically",
-    onItsPage: "On its page",
-    cardOrBank: "Paid by card or bank",
+    onItsPage: "On its page, by card or bank",
     whatFor: "What it's for",
     pricesTax: "· prices include tax",
     taxIncluded: "Tax included",
@@ -77,6 +69,7 @@ const words = catalog({
     creditOf: (amount: string) => `${amount} de crédito`,
     dueBy: (day: string) => `vence el ${day}`,
     chargedToYour: "Cobrada a su tarjeta",
+    fromYourCard: "De su tarjeta, automáticamente",
     paidOnPage: "Pagada en esta página",
     paidAnother: "Pagada de otra forma",
     creditOffYour:
@@ -88,20 +81,14 @@ const words = catalog({
     toPayBy: (day: string) => `A pagar antes del ${day}`,
     toBeCharged: "Se cobrará a su tarjeta",
     offYourNext: "Se descuenta de su próxima factura",
-    paidOn: (day: string) => `Pagada el ${day}`,
     cancelledOn: (day: string) => `Cancelada el ${day}`,
-    notPaid: "Sin pagar",
-    paymentDidnt: (because: string) => `El pago no pasó${because}.`,
-    dueByLabel: "Vence el",
     details: "Detalles de la factura",
     week: "Semana",
     weekRange: (from: string, to: string) => `Del ${from} al ${to}`,
     covers: "La semana que cubre",
     made: "Emitida",
     howPaid: "Cómo se paga",
-    automatically: "Se cobra automáticamente",
-    onItsPage: "En su página",
-    cardOrBank: "Se paga con tarjeta o banco",
+    onItsPage: "En su página, con tarjeta o banco",
     whatFor: "Por qué es",
     pricesTax: "· los precios incluyen impuestos",
     taxIncluded: "Impuestos incluidos",
@@ -194,38 +181,19 @@ const nowLine = (t: T, bill: BillView, forClient: boolean) => {
         : "To be charged to their card";
   if (bill.totalCents < 0)
     return forClient ? w.offYourNext : "Comes off their next bill";
-  return bill.paidAt ? w.paidOn(t.formatDate(bill.paidAt)) : w.nothingToPay;
+  return paidHow(t, bill, forClient) ?? w.nothingToPay;
 };
 
-// the last fact: due by, why its payment didn't go through, how it was
-// paid, or why it was cancelled
-const standingFact = (t: T, bill: BillView, forClient: boolean) => {
-  const { w } = t;
-  if (bill.status === "void")
-    return {
-      icon: Ban,
-      label: w.cancelled,
-      value: w.cancelledOn(t.formatDate(bill.voidedAt!)),
-      line: bill.voidReason ?? w.cancelled,
-    };
-  if (bill.unpaid)
-    return {
-      icon: CreditCard,
-      label: w.notPaid,
-      value: t.formatDate(bill.unpaid.since),
-      line: w.paymentDidnt(bill.unpaid.why ? ` (${bill.unpaid.why})` : ""),
-    };
-  if (bill.status === "due" || bill.status === "processing")
-    return bill.payment === "on_page" && bill.totalCents > 0
-      ? {
-          icon: CalendarClock,
-          label: w.dueByLabel,
-          value: t.formatDay(bill.dueOn),
-        }
-      : null;
-  const paid = paidHow(t, bill, forClient);
-  return paid ? { icon: Receipt, label: w.paid, value: paid } : null;
-};
+// the last fact, on a cancelled Bill: when and why. Where any other
+// stands, its line under the total says (nowLine), and why a payment
+// didn't go through, its page's alert
+const cancelledFact = (t: T, bill: BillView) =>
+  bill.status === "void" && {
+    icon: Ban,
+    label: t.w.cancelled,
+    value: t.w.cancelledOn(t.formatDate(bill.voidedAt!)),
+    line: bill.voidReason ?? t.w.cancelled,
+  };
 
 /**
  * A Bill in full, its details card, read like an invoice (UX pass, #96):
@@ -246,7 +214,7 @@ export function BillDetail({
   const t = useSaid(words);
   const { w, formatDate, formatDay, formatMoney, taxIncludedOf, total } = t;
   const credit = bill.totalCents < 0;
-  const standing = standingFact(t, bill, forClient);
+  const standing = cancelledFact(t, bill);
   const row = "flex items-start justify-between gap-6";
 
   return (
@@ -281,13 +249,12 @@ export function BillDetail({
         <Fact
           icon={CreditCard}
           label={w.howPaid}
-          value={bill.payment === "automatic" ? w.automatically : w.onItsPage}
-          line={
-            bill.payment === "automatic"
-              ? forClient
-                ? w.chargedToYour
-                : "Charged to their card"
-              : w.cardOrBank
+          value={
+            bill.payment === "on_page"
+              ? w.onItsPage
+              : forClient
+                ? w.fromYourCard
+                : "From their card, automatically"
           }
         />
         {standing && (
