@@ -18,6 +18,11 @@ const words = catalog({
     toPay: "To pay",
     billDue: (n: string, day: string) => `Bill ${n} is due by ${day}`,
     andMore: (first: string, n: number) => `${first}, and ${n} more`,
+    // one the payment service is trying again, which we see to (ADR-0022)
+    billNotYet: (n: string) =>
+      `Your payment for bill ${n} hasn't gone through yet`,
+    cleanNotYet: (day: string) =>
+      `Your payment for your ${day} clean hasn't gone through yet`,
     onPage: "You pay each bill on its page",
     noCard: "No card saved yet",
     refundOnBill: (n: string) => `Refund on bill ${n}`,
@@ -42,6 +47,9 @@ const words = catalog({
     toPay: "Por pagar",
     billDue: (n: string, day: string) => `La factura ${n} vence el ${day}`,
     andMore: (first: string, n: number) => `${first}, y ${n} más`,
+    billNotYet: (n: string) => `El pago de la factura ${n} aún no ha pasado`,
+    cleanNotYet: (day: string) =>
+      `El pago de su limpieza del ${day} aún no ha pasado`,
     onPage: "Paga cada factura en su página",
     noCard: "Aún no hay tarjeta guardada",
     refundOnBill: (n: string) => `Devolución de la factura ${n}`,
@@ -113,10 +121,13 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
       .filter((b) => b.unpaid && b.status === "due")
       .map((b) => ({
         cents: b.totalCents,
-        late: true,
-        // one the payment service is trying again asks nothing yet
+        // one the payment service is trying again asks nothing yet, and
+        // isn't late: it waits on us
+        late: asksTheClient(b.unpaid!.kind),
         asks: asksTheClient(b.unpaid!.kind),
-        text: billNotPaid(b.number),
+        text: asksTheClient(b.unpaid!.kind)
+          ? billNotPaid(b.number)
+          : w.billNotYet(b.number),
         action: { label: payBill(b.number), href: billLink(b.id) },
       })),
     // a clean, or its fee, that couldn't be charged
@@ -124,9 +135,11 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
       .filter((j) => j.unpaid)
       .map((j) => ({
         cents: j.owedCents,
-        late: true,
+        late: asksTheClient(j.unpaid!),
         asks: asksTheClient(j.unpaid!),
-        text: cleanNotPaid(shortDayOf(j.startsAt)),
+        text: asksTheClient(j.unpaid!)
+          ? cleanNotPaid(shortDayOf(j.startsAt))
+          : w.cleanNotYet(shortDayOf(j.startsAt)),
         // we try one waiting on the payment service again ourselves
         action: !asksTheClient(j.unpaid!)
           ? {
@@ -155,6 +168,8 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         action: { label: payBill(b.number), href: billLink(b.id) },
       })),
   ];
+  // what asks something of them leads (the sort keeps the order otherwise)
+  owing.sort((a, b) => Number(b.asks) - Number(a.asks));
   const [first] = owing;
   const owed: Owed | null = first
     ? {

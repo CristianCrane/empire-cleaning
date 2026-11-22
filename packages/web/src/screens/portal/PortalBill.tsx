@@ -147,7 +147,7 @@ function useStanding(bill: BillView): Alert | null {
             : t.clientFix[kind]}
         </>
       ),
-      action: asksTheClient(kind) && (
+      action: (
         <ButtonLink
           variant="text"
           href={linkTo({ to: "/portal/payment-method" })}

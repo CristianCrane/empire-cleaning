@@ -78,9 +78,11 @@ describe("what a Client owes now", () => {
     );
 
     expect(owed).toMatchObject({
-      text: "We couldn't take payment for your Oct 20 clean",
-      // so their Home leads with what's next, not this
+      text: "Your payment for your Oct 20 clean hasn't gone through yet",
+      // so their Home leads with what's next, not this, and Payments
+      // says it calmly
       asks: false,
+      late: false,
       action: {
         label: "See the clean",
         href: { to: "/portal/jobs/$jobId", params: { jobId: "job" } },
@@ -92,17 +94,30 @@ describe("what a Client owes now", () => {
     const waiting = bill({
       unpaid: { since: "", kind: "waiting", why: null },
     });
-    expect(moneyNow(data({ bills: [waiting] })).owed?.asks).toBe(false);
+    expect(moneyNow(data({ bills: [waiting] })).owed).toMatchObject({
+      asks: false,
+      late: false,
+      text: "Your payment for bill EC-000041 hasn't gone through yet",
+    });
+    // the declined one leads, though the waiting one came first
     expect(
       moneyNow(
         data({
           bills: [
             waiting,
-            bill({ unpaid: { since: "", kind: "declined", why: null } }),
+            bill({
+              id: "declined",
+              number: "EC-000042",
+              unpaid: { since: "", kind: "declined", why: null },
+            }),
           ],
         }),
-      ).owed?.asks,
-    ).toBe(true);
+      ).owed,
+    ).toMatchObject({
+      asks: true,
+      late: true,
+      text: "We couldn't take payment for bill EC-000042, and 1 more",
+    });
   });
 
   test("a Bill due on its page: pay it there", () => {

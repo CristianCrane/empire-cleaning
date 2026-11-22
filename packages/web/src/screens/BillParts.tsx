@@ -43,6 +43,8 @@ const words = catalog({
     bankOnWay: "A bank payment is on its way",
     notPaidBy: (day: string) => `Not paid by ${day}`,
     didntGo: (day: string) => `Payment didn't go through ${day}`,
+    // one the payment service is trying again, which we see to
+    notYet: "Payment hasn't gone through yet",
     toPayBy: (day: string) => `To pay by ${day}`,
     toBeCharged: "To be charged to your card",
     offYourNext: "Comes off your next bill",
@@ -77,6 +79,7 @@ const words = catalog({
     bankOnWay: "Hay un pago bancario en camino",
     notPaidBy: (day: string) => `No se pagó antes del ${day}`,
     didntGo: (day: string) => `El pago no pasó el ${day}`,
+    notYet: "El pago aún no ha pasado",
     toPayBy: (day: string) => `A pagar antes del ${day}`,
     toBeCharged: "Se cobrará a su tarjeta",
     offYourNext: "Se descuenta de su próxima factura",
@@ -176,7 +179,9 @@ const nowLine = (t: T, bill: BillView, forClient: boolean) => {
   if (bill.unpaid)
     return bill.unpaid.kind === "late"
       ? w.notPaidBy(t.formatDay(bill.dueOn))
-      : w.didntGo(t.formatDate(bill.unpaid.since));
+      : asksTheClient(bill.unpaid.kind)
+        ? w.didntGo(t.formatDate(bill.unpaid.since))
+        : w.notYet;
   if (bill.status === "due")
     return bill.payment === "on_page"
       ? w.toPayBy(t.formatDay(bill.dueOn))
