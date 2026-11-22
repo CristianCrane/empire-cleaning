@@ -12,8 +12,8 @@ const words = catalog({
 });
 
 // The Client's Home, a Home (docs/ux.md, Screen types): what waits on them
-// first, or the one thing next, in a card, why above it when that's out of
-// the usual; then what else waits on them and what they can do from there,
+// first, or the one thing next, in a card, why above it when it needs a
+// reason; then what else waits on them and what they can do from there,
 // in tiles (see whats-next.ts)
 export function PortalHome() {
   const data = useLoaderData({ from: "/portal/" });

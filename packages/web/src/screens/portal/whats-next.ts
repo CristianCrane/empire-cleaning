@@ -450,8 +450,6 @@ export function whatsNext(
     paused,
     now,
     card: yourCardTile(money, lang),
-    // Your card, unless it's the card's own Button (Update your card); a
-    // tile the card says
   });
   // a tile is a repeat when it's the one the card names (Your card, or the
   // lead's) and leads where the card's Button does: the card holds it
