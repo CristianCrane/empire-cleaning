@@ -170,29 +170,7 @@ export function DraftQuote({ quote }: { quote: OfficeQuote }) {
           <Button variant="text" size="sm">
             {label}
           </Button>
-          <Dialog title="Which kind of quote?">
-            <p>
-              A one-off clean, or a cleaning plan of regular cleans at a
-              discount.
-            </p>
-            <Actions>
-              <Button
-                variant="quiet"
-                isPending={starting === "one_off"}
-                isDisabled={starting !== undefined}
-                onPress={() => draft("one_off")}
-              >
-                A one-off quote
-              </Button>
-              <Button
-                isPending={starting === "service_plan"}
-                isDisabled={starting !== undefined}
-                onPress={() => draft("service_plan")}
-              >
-                A cleaning plan quote
-              </Button>
-            </Actions>
-          </Dialog>
+          <WhichKindDialog quote={quote} />
         </DialogTrigger>
       ) : (
         <Button
@@ -205,6 +183,40 @@ export function DraftQuote({ quote }: { quote: OfficeQuote }) {
         </Button>
       )}
     </>
+  );
+}
+
+// Asks which kind a Requested Quote's first Revision is, where either can
+// be, and drafts it: a page action's dialog, or DraftQuote's
+export function WhichKindDialog({
+  quote,
+  ...state
+}: { quote: OfficeQuote } & Partial<DialogState>) {
+  const { start, starting } = useStartDraft();
+  const draft = (kind: QuoteKind) => void start({ quoteId: quote.id, kind });
+  return (
+    <Dialog title="Which kind of quote?" {...state}>
+      <p>
+        A one-off clean, or a cleaning plan of regular cleans at a discount.
+      </p>
+      <Actions>
+        <Button
+          variant="quiet"
+          isPending={starting === "one_off"}
+          isDisabled={starting !== undefined}
+          onPress={() => draft("one_off")}
+        >
+          A one-off quote
+        </Button>
+        <Button
+          isPending={starting === "service_plan"}
+          isDisabled={starting !== undefined}
+          onPress={() => draft("service_plan")}
+        >
+          A cleaning plan quote
+        </Button>
+      </Actions>
+    </Dialog>
   );
 }
 

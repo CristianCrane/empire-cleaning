@@ -986,11 +986,8 @@ function EmailCardLink({ quote }: { quote: OfficeQuote }) {
   );
 }
 
-// The Client said yes another way, e.g. by phone: the Office records it,
-// charging the Deposit to the card the Client saved (a plan change charges
-// nothing). The dialog asks which Service they chose and confirms. While a
-// new Revision is `drafting`, it's the offer standing that's accepted, and
-// accepting it discards the Draft.
+// The Client said yes another way, e.g. by phone: the Office records it.
+// Without a card only a plan change, which charges nothing, can go ahead
 function RecordAcceptance({
   quote,
   drafting,
@@ -998,6 +995,31 @@ function RecordAcceptance({
   quote: ShownQuote;
   drafting?: number;
 }) {
+  if (!quote.changesPlan && !quote.paymentMethod) return null;
+  return (
+    <DialogTrigger>
+      <Button variant="text" size="sm">
+        <CircleCheck aria-hidden size={16} />
+        Record acceptance
+      </Button>
+      <RecordAcceptanceDialog quote={quote} drafting={drafting} />
+    </DialogTrigger>
+  );
+}
+
+// Records the Client's yes, charging the Deposit to the card they saved (a
+// plan change charges nothing): it asks which Service they chose and
+// confirms. While a new Revision is `drafting`, it's the offer standing
+// that's accepted, and accepting it discards the Draft. A page action's
+// dialog, or RecordAcceptance's
+function RecordAcceptanceDialog({
+  quote,
+  drafting,
+  ...state
+}: {
+  quote: ShownQuote;
+  drafting?: number;
+} & Partial<DialogState>) {
   // the recommended Service, unless only the other still fits
   const [serviceKey, setServiceKey] = useState(
     quote.options.find((o) => quote.bookable.includes(o.serviceKey))!
@@ -1006,8 +1028,6 @@ function RecordAcceptance({
   const action = useAction("That didn't work. Please try again.");
   const chosen = quote.options.find((o) => o.serviceKey === serviceKey)!;
   const depositCents = quote.plan?.depositCents ?? chosen.depositCents;
-  // without a card only a plan change, which charges nothing, can go ahead
-  if (!quote.changesPlan && !quote.paymentMethod) return null;
 
   const accept = async (close: () => void) => {
     const ok = await action.run(
@@ -1029,63 +1049,57 @@ function RecordAcceptance({
   };
 
   return (
-    <DialogTrigger>
-      <Button variant="text" size="sm">
-        <CircleCheck aria-hidden size={16} />
-        Record acceptance
-      </Button>
-      <Dialog title="Record acceptance?" role="alertdialog">
-        {({ close }) => (
-          <>
-            {!quote.plan && !quote.changesPlan && (
-              <RadioGroup
-                label="Service they chose"
-                value={serviceKey}
-                onChange={setServiceKey}
-              >
-                {quote.options.map((option) => (
-                  <Radio
-                    key={option.serviceKey}
-                    value={option.serviceKey}
-                    isDisabled={!quote.bookable.includes(option.serviceKey)}
-                    description={
-                      quote.bookable.includes(option.serviceKey)
-                        ? `${formatMoney(option.totalCents)}, deposit ${formatMoney(option.depositCents)}`
-                        : "No longer fits: its time has filled up"
-                    }
-                  >
-                    {option.serviceName}
-                  </Radio>
-                ))}
-              </RadioGroup>
-            )}
-            <p>
-              {quote.changesPlan
-                ? `This changes ${quote.client.name}'s cleaning plan to ${planName(quote.plan!)} from ${formatDateTime(quote.proposedStartsAt!)}, and cancels its booked jobs from then on. Nothing is charged.`
-                : quote.plan
-                  ? `This charges the ${formatMoney(depositCents)} deposit to ${quote.client.name}'s ${quote.paymentMethod!.label}, kept for as long as the plan runs, and starts their cleaning plan, ${planName(quote.plan)}, with its first clean on ${formatDateTime(quote.proposedStartsAt!)}.`
-                  : `This charges the ${formatMoney(chosen.depositCents)} deposit to ${quote.client.name}'s ${quote.paymentMethod!.label} and books their ${chosen.serviceName} for ${formatDateTime(quote.proposedStartsAt!)}.`}{" "}
-              {drafting
-                ? "It accepts the quote you sent, and deletes your draft."
-                : ""}{" "}
-              Only do this if they've told you they accept.
-            </p>
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <Button variant="quiet" onPress={close}>
-                Cancel
-              </Button>
-              <Button
-                isPending={action.isPending}
-                onPress={() => void accept(close)}
-              >
-                {quote.changesPlan ? "Change the plan" : "Charge and book"}
-              </Button>
-            </Actions>
-          </>
-        )}
-      </Dialog>
-    </DialogTrigger>
+    <Dialog title="Record acceptance?" role="alertdialog" {...state}>
+      {({ close }) => (
+        <>
+          {!quote.plan && !quote.changesPlan && (
+            <RadioGroup
+              label="Service they chose"
+              value={serviceKey}
+              onChange={setServiceKey}
+            >
+              {quote.options.map((option) => (
+                <Radio
+                  key={option.serviceKey}
+                  value={option.serviceKey}
+                  isDisabled={!quote.bookable.includes(option.serviceKey)}
+                  description={
+                    quote.bookable.includes(option.serviceKey)
+                      ? `${formatMoney(option.totalCents)}, deposit ${formatMoney(option.depositCents)}`
+                      : "No longer fits: its time has filled up"
+                  }
+                >
+                  {option.serviceName}
+                </Radio>
+              ))}
+            </RadioGroup>
+          )}
+          <p>
+            {quote.changesPlan
+              ? `This changes ${quote.client.name}'s cleaning plan to ${planName(quote.plan!)} from ${formatDateTime(quote.proposedStartsAt!)}, and cancels its booked jobs from then on. Nothing is charged.`
+              : quote.plan
+                ? `This charges the ${formatMoney(depositCents)} deposit to ${quote.client.name}'s ${quote.paymentMethod!.label}, kept for as long as the plan runs, and starts their cleaning plan, ${planName(quote.plan)}, with its first clean on ${formatDateTime(quote.proposedStartsAt!)}.`
+                : `This charges the ${formatMoney(chosen.depositCents)} deposit to ${quote.client.name}'s ${quote.paymentMethod!.label} and books their ${chosen.serviceName} for ${formatDateTime(quote.proposedStartsAt!)}.`}{" "}
+            {drafting
+              ? "It accepts the quote you sent, and deletes your draft."
+              : ""}{" "}
+            Only do this if they've told you they accept.
+          </p>
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              Cancel
+            </Button>
+            <Button
+              isPending={action.isPending}
+              onPress={() => void accept(close)}
+            >
+              {quote.changesPlan ? "Change the plan" : "Charge and book"}
+            </Button>
+          </Actions>
+        </>
+      )}
+    </Dialog>
   );
 }
 
