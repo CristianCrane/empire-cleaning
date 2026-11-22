@@ -11,6 +11,7 @@ import {
   requestReschedule,
   setClock,
   signedInAs,
+  recordNoAccess,
   signUp,
   test,
   addCleaner,
@@ -651,13 +652,85 @@ test(
         true,
       );
     }
-    // too short for every line, a block still says them all to a screen
-    // reader
+    // too short for more than its Client and its mark, a block still says
+    // its time and state to a screen reader, which can't see its place
     const short = jobsOn(page, "Wed, Mar 3")
       .getByRole("link")
       .filter({ hasText: "9:30 AM" });
     await expect(short).toHaveAccessibleName(
-      /9:30 AM Robin \d+ ?, Needs cleaners, No cleaners yet/,
+      /^9:30 AM Robin \d+ ?, Needs cleaners$/,
+    );
+  },
+);
+
+// a block too small to wrap keeps its Client's name: its time is its place on
+// the grid, its state a mark beside the name, both read out (#493 G4.1)
+test(
+  "a day's blocks lead with their Client, each state a mark",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    await requestQuoteForPremises(casey, "Acme Dental");
+    const cory = await addCleaner("Cory Cleaner");
+    await addCleaner("Dee Cleaner");
+    // Tuesday: one staffed and one short of cleaners at 9, side by side,
+    // one Cory couldn't get into at 11:30, a short one at 1, a site visit at 3
+    const staffed = (await bookJob({
+      startsAt: TUESDAY_9AM,
+      labourHours: 2,
+      crewSize: 1,
+    })) as { id: string };
+    await offerJob(staffed.id, cory.id, { confirmed: true });
+    await bookJob({ startsAt: TUESDAY_9AM, labourHours: 4 });
+    await bookJob({ startsAt: "2027-03-02T18:00:00Z", labourHours: 1 });
+    await bookSiteVisit({
+      street: "200 Park Ave S",
+      staffEmail: cory.email,
+      date: "2027-03-02",
+      time: "15:00",
+    });
+    const missed = (await bookJob({
+      startsAt: "2027-03-02T16:30:00Z",
+      labourHours: 1,
+      crewSize: 1,
+    })) as { id: string };
+    await offerJob(missed.id, cory.id, { confirmed: true });
+    await setClock("2027-03-02T17:00:00Z");
+    await recordNoAccess(missed.id, cory.id, "Nobody answered");
+    await signInAsOffice(page);
+
+    // a phone opens on a day; a wider screen shows the week
+    await page.goto(
+      isMobile ? "/office/schedule?from=2027-03-02&to=2027-03-02" : week,
+    );
+
+    const blocks = jobsOn(page, "Tue, Mar 2").getByRole("link");
+    await expect(blocks).toHaveCount(5);
+    // the name leads what's seen, the time first in what's read out; a
+    // crew line only where someone's on it
+    await expect(
+      blocks.filter({ hasText: "9:00 AM" }).filter({ hasText: "Cory Cleaner" }),
+    ).toHaveAccessibleName(/^9:00 AM Robin \d+ ?, Staffed ?, Cory Cleaner$/);
+    await expect(
+      blocks
+        .filter({ hasText: "9:00 AM" })
+        .filter({ hasNotText: "Cory Cleaner" }),
+    ).toHaveAccessibleName(/^9:00 AM Robin \d+ ?, Needs cleaners$/);
+    await expect(blocks.filter({ hasText: "Site visit" })).toHaveAccessibleName(
+      /^3:00 PM Acme Dental ?, Site visit · 30 min ?, Cory Cleaner$/,
+    );
+    const short = blocks.filter({ hasText: "1:00 PM" });
+    await expect(short).toHaveAccessibleName(
+      /^1:00 PM Robin \d+ ?, Needs cleaners$/,
+    );
+    // its state a mark, not words; its time not shown, as it hasn't room
+    await expect(short.locator("svg")).toBeVisible();
+    // read out only: drawn 1px wide, as a screen reader's words are
+    for (const words of ["Needs cleaners", "1:00 PM"]) {
+      const box = (await short.getByText(words).boundingBox())!;
+      expect(box.width, words).toBeLessThanOrEqual(1);
+    }
+    await expect(blocks.filter({ hasText: "11:30 AM" })).toHaveAccessibleName(
+      /^11:30 AM Robin \d+ ?, Couldn't get in ?, Cory Cleaner$/,
     );
   },
 );

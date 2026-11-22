@@ -5,14 +5,18 @@ import { CalendarPage, Dialog } from "@empire-cleaning/ui";
 import { ConfirmMove } from "./JobMove.tsx";
 import { ConfirmVisitMove } from "./SiteVisitParts.tsx";
 import { RangeBar } from "../CalendarGrid.tsx";
-import { ScheduleCalendar, type Moving } from "./ScheduleCalendar.tsx";
+import {
+  BlockKey,
+  ScheduleCalendar,
+  VisitKey,
+  type Moving,
+} from "./ScheduleCalendar.tsx";
 import {
   chooseSpan,
   rangeShowing,
   scheduleRange,
   type Span,
 } from "../schedule-range.ts";
-import { CrewBadge, JobStatusBadge } from "../JobBadges.tsx";
 
 /**
  * The Schedule as a calendar: days as columns over a time axis, each Job a
@@ -36,10 +40,11 @@ export function ScheduleScreen() {
     <CalendarPage title="Schedule">
       <RangeBar from={from} to={to} onShow={show} />
       <div className="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
-        <CrewBadge assignment="unassigned" />
-        <CrewBadge assignment="assigned" />
-        <JobStatusBadge status="completed" />
-        <JobStatusBadge status="no_access" />
+        <BlockKey job={{ status: "booked", assignment: "unassigned" }} />
+        <BlockKey job={{ status: "booked", assignment: "assigned" }} />
+        <BlockKey job={{ status: "completed", assignment: "assigned" }} />
+        <BlockKey job={{ status: "no_access", assignment: "assigned" }} />
+        <VisitKey />
         <span className="hidden md:inline">
           Drag a job or site visit to move it, or open it to pick any time.
         </span>

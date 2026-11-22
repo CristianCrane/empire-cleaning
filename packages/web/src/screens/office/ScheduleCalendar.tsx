@@ -67,12 +67,12 @@ import {
 
 const { formatClock, formatDay, formatTime } = formats.en;
 
-// a short Job is still tall enough to read its time and Client
+// a short Job is still tall enough to read its Client
 const MIN_BLOCK_PX = 22;
 // shorter than this, a Job's block has room for only that one line
 const COMPACT_PX = 44;
 const PICK_HOURS = PICK_MINUTES / 60;
-// in the week view, a lane narrower than this can't show a Job's time, so
+// in the week view, a lane narrower than this can't show a Job's Client, so
 // the Jobs that don't fit are listed behind "+N more" instead
 const MIN_LANE_PX = 60;
 // the time axis's labels, and how narrow the week's days can get before the
@@ -99,10 +99,48 @@ const outlineOf = {
   neutral: "border-neutral-strong bg-neutral-subtle/60",
 } as const;
 
-const toneOf = (job: ScheduledJob) => {
-  const { label, tone } = jobLabelOf(job);
-  return { label, tone, block: blockOf[tone] };
+// a Job's state as a mark: its icon, in its tone's strong colour
+const markOf = {
+  success: "text-success-strong",
+  danger: "text-danger-strong",
+  info: "text-info-strong",
+  warning: "text-warning-strong",
+  neutral: "text-neutral-strong",
+} as const;
+
+const toneOf = (job: Pick<ScheduledJob, "status" | "assignment">) => {
+  const { label, tone, icon } = jobLabelOf(job);
+  return { label, tone, icon, block: blockOf[tone], mark: markOf[tone] };
 };
+
+// a Job's state, drawn as its block is: its colours and its mark, then its
+// name, for the Schedule's key
+export function BlockKey({
+  job,
+}: {
+  job: Pick<ScheduledJob, "status" | "assignment">;
+}) {
+  const { label, icon: Mark, block, mark } = toneOf(job);
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-md border-s-4 px-1.5 py-0.5 text-xs font-semibold ${block}`}
+    >
+      {Mark && <Mark aria-hidden className={`size-3 shrink-0 ${mark}`} />}
+      {label}
+    </span>
+  );
+}
+
+// a Site Visit's block in the key: its neutral colours, its name
+export function VisitKey() {
+  return (
+    <span
+      className={`inline-flex items-center rounded-md border-s-4 px-1.5 py-0.5 text-xs font-semibold ${blockOf.neutral}`}
+    >
+      Site visit
+    </span>
+  );
+}
 
 // a Site Visit's place on the time axis
 const visitSpanOf = (visit: ScheduledSiteVisit) => {
@@ -635,7 +673,7 @@ const layoutDay = (
 
 // a day's blocks, laid out. On the Schedule, a Job or a Site Visit is a link
 // that can be dragged; otherwise only to see, letting clicks through to the time under it.
-// In the week's narrow days, a Job's time and Client each get a line
+// In the week's narrow days, a block keeps less room at its sides
 function DayJobs({
   layout: { lanes, jobs, visits, proposed },
   axisStart,
@@ -680,9 +718,9 @@ function DayJobs({
       {jobs.map(({ job, block }) => {
         const style = place(block);
         const tone = toneOf(job);
-        const crew = crewOf(job.crew);
-        // too short for three lines: the time and Client, the rest unseen
-        // but still read out
+        const Mark = tone.icon;
+        // too short for more than a line: the Client's name and the state's
+        // mark, the rest unseen but still read out
         const compact = style.height < COMPACT_PX;
         return (
           <ScheduleBlock
@@ -701,32 +739,27 @@ function DayJobs({
             onDragStart={startDrag}
             onDragEnd={onDragEnd}
           >
-            {compact ? (
-              <span className="truncate font-semibold">
-                {formatTime(job.startsAt)} {shortClientName(job.client)}
-                <span className="sr-only">
-                  , {tone.label}, {crew}
-                </span>
+            <span
+              className={`flex gap-1 font-semibold ${compact ? "items-center" : "items-start"}`}
+            >
+              {Mark && (
+                <Mark
+                  aria-hidden
+                  className={`size-3 shrink-0 ${compact ? "" : "mt-px"} ${tone.mark}`}
+                />
+              )}
+              <BlockName compact={compact}>
+                <span className="sr-only">{formatTime(job.startsAt)} </span>
+                {shortClientName(job.client)}
+              </BlockName>
+            </span>
+            <BlockTime compact={compact}>{formatTime(job.startsAt)}</BlockTime>
+            <span className="sr-only">, {tone.label}</span>
+            {job.crew.length > 0 && (
+              <span className={compact ? "sr-only" : "truncate text-fg-muted"}>
+                <span className="sr-only">, </span>
+                {crewOf(job.crew)}
               </span>
-            ) : (
-              <>
-                {narrow ? (
-                  <>
-                    <span className="truncate font-semibold">
-                      {formatTime(job.startsAt)}
-                    </span>{" "}
-                    <span className="truncate font-semibold">
-                      {shortClientName(job.client)}
-                    </span>
-                  </>
-                ) : (
-                  <span className="truncate font-semibold">
-                    {formatTime(job.startsAt)} {shortClientName(job.client)}
-                  </span>
-                )}
-                <span className="truncate">{tone.label}</span>
-                <span className="truncate text-fg-muted">{crew}</span>
-              </>
             )}
           </ScheduleBlock>
         );
@@ -751,15 +784,23 @@ function DayJobs({
             onDragStart={startDrag}
             onDragEnd={onDragEnd}
           >
-            <span className="truncate font-semibold">
-              {formatTime(visit.startsAt)} {shortClientName(visit.client)}
-            </span>
+            <BlockName compact={compact}>
+              <span className="sr-only">{formatTime(visit.startsAt)} </span>
+              {shortClientName(visit.client)}
+            </BlockName>
             <span className={compact ? "sr-only" : "truncate"}>
+              <span className="sr-only">, </span>
               Site visit · {formatMinutes(visit.minutes)}
             </span>
-            <span className={compact ? "sr-only" : "truncate text-fg-muted"}>
-              {visit.visitor?.name}
-            </span>
+            <BlockTime compact={compact}>
+              {formatTime(visit.startsAt)}
+            </BlockTime>
+            {visit.visitor && (
+              <span className={compact ? "sr-only" : "truncate text-fg-muted"}>
+                <span className="sr-only">, </span>
+                {visit.visitor.name}
+              </span>
+            )}
           </ScheduleBlock>
         );
       })}
@@ -820,6 +861,40 @@ function ScheduleBlock({
         <div className={inside}>{children}</div>
       )}
     </div>
+  );
+}
+
+// a block's Client: where it has the height, the name wraps rather than
+// being cut, as it's what tells the block apart; on one line, cut
+function BlockName({
+  compact,
+  children,
+}: {
+  compact: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <span
+      className={`min-w-0 font-semibold ${compact ? "truncate" : "[overflow-wrap:anywhere]"}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+// a block's start, shown under its name where there's room; read out with
+// the name instead, as a screen reader can't see the block's place
+function BlockTime({
+  compact,
+  children,
+}: {
+  compact: boolean;
+  children: ReactNode;
+}) {
+  return compact ? null : (
+    <span aria-hidden className="truncate text-fg-muted">
+      {children}
+    </span>
   );
 }
 
