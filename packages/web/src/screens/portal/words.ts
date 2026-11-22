@@ -45,6 +45,14 @@ export const portalWords = catalog({
     needsOk: "Needs your OK",
     // by when a price change proposed to them wants their answer
     answerBy: (day: string) => `Please answer by ${day}.`,
+    // a price change: on Home's card, which leads to its clean's page,
+    // where it's the next step
+    reviewThe: (n: number) =>
+      n === 1 ? "Review the price change" : "Review the price changes",
+    // one, by what it's for: a payment, and the dialog answering it
+    priceChange: (item: string) => `Price change: ${item}`,
+    // after a crew couldn't get in, on Home and the clean's page
+    checkGetIn: "Check how we get in",
   },
   es: {
     home: "Inicio",
@@ -80,5 +88,9 @@ export const portalWords = catalog({
     moveAsked: "Reprogramación pedida",
     needsOk: "Necesita su aprobación",
     answerBy: (day: string) => `Responda antes del ${day}.`,
+    reviewThe: (n: number) =>
+      n === 1 ? "Revisar el cambio de precio" : "Revisar los cambios de precio",
+    priceChange: (item: string) => `Cambio de precio: ${item}`,
+    checkGetIn: "Revisar cómo entramos",
   },
 });

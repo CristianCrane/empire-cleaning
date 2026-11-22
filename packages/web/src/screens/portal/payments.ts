@@ -26,7 +26,6 @@ const words = catalog({
     towardsLast: "Goes towards your plan's last clean",
     depositFor: (service: string) => `Deposit for ${service}`,
     bookedFor: (day: string) => `Booked for ${day}`,
-    priceChange: (item: string) => `Price change: ${item}`,
     approvedAfter: (day: string, service: string) =>
       `Approved after your ${day} ${service}`,
     priceChangeOn: (service: string) => `Price change on ${service}`,
@@ -50,7 +49,6 @@ const words = catalog({
     towardsLast: "Se aplica a la última limpieza de su plan",
     depositFor: (service: string) => `Depósito de ${service}`,
     bookedFor: (day: string) => `Reservada para el ${day}`,
-    priceChange: (item: string) => `Cambio de precio: ${item}`,
     approvedAfter: (day: string, service: string) =>
       `Aprobado después de su ${service} del ${day}`,
     priceChangeOn: (service: string) => `Cambio de precio en ${service}`,
@@ -267,7 +265,7 @@ export function paymentRow(p: ClientPayment, lang: Language): PaymentRow {
     case "adjustment":
       return p.item
         ? {
-            title: w.priceChange(p.item),
+            title: portal.priceChange(p.item),
             line: w.approvedAfter(cleanDay!, job.serviceName),
             href,
           }

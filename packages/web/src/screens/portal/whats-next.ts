@@ -46,8 +46,6 @@ const words = catalog({
     toAnswer: (n: number) =>
       n === 1 ? "A price change to answer" : `${n} price changes to answer`,
     more: (amount: string) => `${amount} more`,
-    reviewThe: (n: number) =>
-      n === 1 ? "Review the price change" : "Review the price changes",
     // and why, above it: what happened on which clean
     neededMore: (more: string, day: string) =>
       `The crew needed ${more} on your ${day} clean.`,
@@ -59,7 +57,6 @@ const words = catalog({
     // the tile, while what's owed is the card
     answerByHint: (amount: string, day: string) =>
       `${amount}, answer by ${day}`,
-    checkGetIn: "Check how we get in",
     // only on that day, so its time and "today", where the clean's page
     // (PortalJob's teamCame) says the day, as it keeps it after
     cameToday: (time: string, reason: string) =>
@@ -128,8 +125,6 @@ const words = catalog({
         ? "Un cambio de precio por responder"
         : `${n} cambios de precio por responder`,
     more: (amount: string) => `${amount} más`,
-    reviewThe: (n: number) =>
-      n === 1 ? "Revisar el cambio de precio" : "Revisar los cambios de precio",
     neededMore: (more: string, day: string) =>
       `El equipo necesitó ${more} en su limpieza del ${day}.`,
     alsoDid: (addOn: string, day: string) =>
@@ -139,7 +134,6 @@ const words = catalog({
     answerFirstBy: (day: string) => `Responda al primero antes del ${day}.`,
     answerByHint: (amount: string, day: string) =>
       `${amount}, responda antes del ${day}`,
-    checkGetIn: "Revisar cómo entramos",
     cameToday: (time: string, reason: string) =>
       `El equipo llegó hoy a ${theTimeEs(time)}, pero no pudo entrar: "${reason}".`,
     andMore: (first: string, more: number) => `${first} · ${more} más`,
@@ -348,7 +342,7 @@ export function whatsNext(
           headline: w.more(t.formatMoney(changedCents)),
           lines: [],
           action: {
-            label: w.reviewThe(changes.length),
+            label: t.p.reviewThe(changes.length),
             href: reviewHref,
           },
         },
@@ -383,7 +377,7 @@ export function whatsNext(
           tone: "warning",
           headline: home.accessInstructions || t.notAdded,
           lines: [],
-          action: { label: w.checkGetIn, href: homeLink(home.id) },
+          action: { label: t.p.checkGetIn, href: homeLink(home.id) },
         },
         why: {
           tone: "warning",
