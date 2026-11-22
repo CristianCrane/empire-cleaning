@@ -1,4 +1,4 @@
-import { formats } from "@empire-cleaning/models";
+import { formats, placeOwner } from "@empire-cleaning/models";
 import { useLoaderData } from "@tanstack/react-router";
 import {
   CalendarCheck,
@@ -103,7 +103,7 @@ export function SiteVisitScreen() {
         },
         visit.status === "cancelled" && {
           key: "cancelled",
-          children: `Cancelled ${formatDateTime(visit.cancelledAt!)}. Book another from the ${premises ? "business's" : "home's"} page.`,
+          children: `Cancelled ${formatDateTime(visit.cancelledAt!)}. Book another from ${placeOwner(visit.property.kind)} page.`,
         },
       ]}
       details={
@@ -190,9 +190,8 @@ function Found({
             }
           >
             <p>
-              When it's done, add what was found. It updates the{" "}
-              {visit.property.kind === "commercial" ? "business's" : "home's"}{" "}
-              details so you can send a quote.
+              When it's done, add what was found. It updates{" "}
+              {placeOwner(visit.property.kind)} details so you can send a quote.
             </p>
           </ActionRow>
         ) : (

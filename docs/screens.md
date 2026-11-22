@@ -192,11 +192,22 @@ Keeps: a record as its story (#145). Renders through `RecordPage` (#432).
 
 - Header: Quotes › client › home › kind; "kind for client", its status, and
   a second badge while a change is being drafted.
-- Actions: Menu while unsent (Book a site visit; Turn down in red); Turn
-  down alone, outlined in red, while a site visit is needed or booked.
-- Alerts: what's next (`alertsFor`), the plan change.
-- Body: a Timeline, Now on top holding Current quote (Card), then each
-  moment; What was asked folded (`Fold`), the home's facts in it.
+- Actions: its next step the primary (`useNow`): Draft the quote (asked),
+  Book a site visit (its Service seen first), Carry on with the draft,
+  Record acceptance (sent, with a card or a plan change), Change quote
+  (its time filled up); behind the arrow Book a site visit (optional),
+  Turn down, Change quote, Record acceptance (while a change is drafted).
+  Turn down alone, outlined in red, while its visit is booked; Change
+  quote alone when sent with no card, or expired; none once declined,
+  accepted or turned down.
+- Alerts: only why, where the badge, the facts and the story don't say it:
+  the visit to book or booked, the draft not sent, no card to record a yes
+  by phone (its one action, Email a link to add a card), the time filled
+  up, the plan an acceptance started or changed; the home's plan, the plan
+  change.
+- Body: a Timeline, Now on top holding Current quote (Card; once a
+  one-off is accepted, only the Service booked, "Booked for" its time), then
+  each moment; What was asked folded (`Fold`), the home's facts in it.
 - History: the page itself.
 
 #### Office > Draft quote

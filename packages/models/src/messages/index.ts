@@ -48,7 +48,7 @@ export {
 } from "./cancellation.ts";
 export { ADD_HOURS, DAY_FULL, MORE_HOURS, NO_CREW, whyNoRoom } from "./jobs.ts";
 export { officeFix } from "./payments.ts";
-export { needsVisit, noEmailYet, notSeenYet } from "./quotes.ts";
+export { needsVisit, noEmailYet, notSeenYet, placeOwner } from "./quotes.ts";
 export {
   LATE_RESCHEDULE_HOURS,
   moveCostForOffice,

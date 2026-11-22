@@ -14,6 +14,10 @@ import {
   recordFindingsWithoutVisit,
   addCleaner,
   serviceKey,
+  pageAction,
+  expectNoPageAction,
+  expectNextStep,
+  expectNothingNext,
 } from "./harness.ts";
 
 // The API's clock starts at 4am on Monday 5 January 2026 in New York.
@@ -53,10 +57,13 @@ test(
     await expect(page.getByText("Needs a site visit")).toBeVisible();
     await page.getByText("Acme Dental").click();
     await expect(
-      page.getByText("This business needs a site visit before it's quoted"),
+      page.getByText(
+        "Commercial cleaning needs a site visit before it's quoted",
+      ),
     ).toBeVisible();
 
-    await page.getByRole("button", { name: "Book a site visit" }).click();
+    await expectNextStep(page, "Book a site visit");
+    await pageAction(page, "Book a site visit");
     const dialog = page.getByRole("dialog", { name: "Book a site visit" });
     await choose(dialog, /Who visits/, "Olive Owner");
     await dialog
@@ -131,7 +138,7 @@ test("a Site Visit that has been is badged To record, on its page and its home's
   await expect(
     page.getByText("When it's done, add what was found."),
   ).toBeVisible();
-  await expect(page.getByRole("group", { name: "What to do" })).toHaveCount(0);
+  await expectNothingNext(page);
 
   // the next day: it's been, with nothing recorded. Recording is the page's
   // next step, pinned at a phone's foot after the facts; the alert says
@@ -143,11 +150,7 @@ test("a Site Visit that has been is badged To record, on its page and its home's
       exact: true,
     }),
   ).toBeVisible();
-  await expect(
-    page
-      .getByRole("group", { name: "What to do" })
-      .getByRole("button", { name: "Record findings" }),
-  ).toBeVisible();
+  await expectNextStep(page, "Record findings");
   await expect(
     page.getByRole("button", { name: "Record findings" }),
   ).toHaveCount(1);
@@ -181,11 +184,12 @@ test("a Quote for business premises can't be drafted until their findings are re
 
   // not seen yet: seeing them is the only thing to do
   await expect(
-    page.getByText("This business needs a site visit before it's quoted."),
+    page.getByText(
+      "Commercial cleaning needs a site visit before it's quoted.",
+    ),
   ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Draft the quote" }),
-  ).toHaveCount(0);
+  await expectNextStep(page, "Book a site visit");
+  await expectNoPageAction(page, "Draft the quote");
 
   // premises the Office knows already
   await recordFindingsWithoutVisit(page);
@@ -262,9 +266,13 @@ test("a home's Quote for a Service seen first asks for a site visit as a home's"
   await page.goto("/office/quotes");
   await page.getByText("41-12 Austin St").click();
 
-  await expect(page.getByText(/^This home needs a site visit/)).toBeVisible();
+  // it's the Service that needs seeing, not the home
+  await expect(
+    page.getByText("Painting needs a site visit before it's quoted."),
+  ).toBeVisible();
   await expect(page.getByText(/business premises/i)).toHaveCount(0);
-  // the notice's Book button, not another in the header
+  // the page's next step, and only there
+  await expectNextStep(page, "Book a site visit");
   await expect(
     page.getByRole("button", { name: /^Book a site visit$/i }),
   ).toHaveCount(1);

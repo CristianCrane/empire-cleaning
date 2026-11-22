@@ -13,6 +13,7 @@ import {
   startOn,
   linkIn,
   payAndBook,
+  expectNoPageAction,
 } from "./harness.ts";
 
 const olive = {
@@ -168,9 +169,7 @@ test("business premises can be offered a Service Plan with no First Clean, once 
   await page.goto("/office/quotes");
   await page.getByText("Acme Dental").click();
   // seen first: there's nothing to draft until they are
-  await expect(
-    page.getByRole("button", { name: "Draft the quote" }),
-  ).toHaveCount(0);
+  await expectNoPageAction(page, "Draft the quote");
 
   await recordFindingsWithoutVisit(page);
   await draftTheQuote(page, "cleaning plan");

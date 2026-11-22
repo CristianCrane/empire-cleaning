@@ -135,7 +135,13 @@ test("a Record's next step on a wide screen is at the title row's end, then stic
 
   await expect.element(press).toBeVisible();
   expect(box(more.element()).right).toBe(box(region("Details")).right);
-  expect(page.getByRole("group", { name: "What to do" }).query()).toBeNull();
+  // named as a phone's foot is, the one copy there to press
+  expect(
+    page
+      .getByRole("group", { name: "What to do" })
+      .getByRole("button", { name: "Record findings" })
+      .all(),
+  ).toHaveLength(1);
 
   // scrolled until the button is cut by the window's top: never half a
   // button, the header that sticks is there already. In view at the top,

@@ -85,11 +85,12 @@ export const quoteStatusLabel = {
   turned_down: "Turned down",
 };
 
+// one meaning per colour (docs/ux.md, Notices): done is success
 export const quoteStatusTone = {
   requested: "warning",
   draft: "neutral",
   sent: "info",
-  accepted: "info",
+  accepted: "success",
   declined: "neutral",
   expired: "warning",
   turned_down: "neutral",

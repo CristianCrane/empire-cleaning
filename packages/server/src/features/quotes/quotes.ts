@@ -30,6 +30,7 @@ import {
   dayOf,
   noEmailYet,
   notSeenYet,
+  placeOwner,
   timeOf,
   weekdayOf,
   messages,
@@ -1721,7 +1722,7 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
     // some Services are seen before they're quoted (ADR-0018)
     if (await needsSiteVisit(list.services, property, quoted, tx)) {
       throw new ConflictError(
-        `${notSeenYet(property.kind)} Record what the visit found on the property page, then send it.`,
+        `${notSeenYet(property.kind)} Record what the visit found on ${placeOwner(property.kind)} page, then send it.`,
       );
     }
     // a Service priced by area is priced on one, which sending fixes
@@ -1738,7 +1739,7 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
       options.some((o) => methodOf(o) === "rooms")
     ) {
       throw new ConflictError(
-        "This home's rooms aren't filled in yet, so this quote can't be sent. Add them on the property page, then send it.",
+        "This home's rooms aren't filled in yet, so this quote can't be sent. Add them on the home's page, then send it.",
       );
     }
 
