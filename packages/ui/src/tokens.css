@@ -143,6 +143,19 @@
   }
 }
 
+/* the page's content column: AppLayout's main, and what lines up with it
+   (a bar at the page's foot, the header that sticks once scrolled), as
+   wide and as far in */
+@utility page-column {
+  margin-inline: auto;
+  width: 100%;
+  max-width: var(--container-5xl);
+  padding-inline: --spacing(4);
+  @variant md {
+    padding-inline: --spacing(8);
+  }
+}
+
 @layer base {
   html {
     @apply bg-bg font-sans text-fg antialiased print:bg-surface;

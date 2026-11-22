@@ -53,11 +53,9 @@ export function ActionFooter({
         ref={footer}
         role="group"
         aria-label={label}
-        className="fixed inset-x-0 bottom-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] z-30 border-t border-border bg-surface px-4 py-3 shadow-raised left-side md:bottom-0 md:px-0 print:hidden"
+        className="fixed inset-x-0 bottom-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] z-30 border-t border-border bg-surface py-3 shadow-raised left-side md:bottom-0 print:hidden"
       >
-        {/* the page's content column: as wide, and as far in, as AppLayout's
-            main */}
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-end gap-2 md:px-8">
+        <div className="page-column flex flex-wrap items-center justify-end gap-2">
           {(summary || status) && (
             <div className="flex min-w-0 flex-1 flex-col">
               {summary && (
