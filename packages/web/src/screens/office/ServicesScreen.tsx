@@ -312,7 +312,6 @@ function ServiceForm({
           service && {
             label: service.active ? "Retire" : "Offer again",
             icon: service.active ? Archive : ArchiveRestore,
-            danger: service.active,
             isPending: retire.isPending || action.isPending,
             onAction: () =>
               void retire.run(
