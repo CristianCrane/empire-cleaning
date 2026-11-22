@@ -292,8 +292,7 @@ export function BookSiteVisitDialog({
   );
 }
 
-// the same, from its own button: on a part (a home's Site visit) or in a
-// Notice
+// the same, from its own button, on a part (a home's Site visit)
 export function BookSiteVisit({
   quoteId,
   primary = false,
