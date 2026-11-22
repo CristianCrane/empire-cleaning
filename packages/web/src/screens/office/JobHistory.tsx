@@ -103,18 +103,6 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       });
     }
   }
-  job.payment?.charges.forEach((c, i) =>
-    moments.push({
-      key: `charge-${i}`,
-      at: c.chargedAt,
-      icon: CreditCard,
-      title: `${chargeLabel[c.kind]} of ${formatMoney(c.amountCents)} charged`,
-      description:
-        c.refundedCents > 0
-          ? `${formatMoney(c.refundedCents)} refunded`
-          : undefined,
-    }),
-  );
   if (job.completion) {
     moments.push({
       key: "completed",
@@ -154,7 +142,25 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       title: `${noAccess.recordedBy?.name ?? "The crew"} couldn't get in`,
     });
   }
-  return moments.sort((a, b) => b.at.localeCompare(a.at));
+  // each charge last, as each follows what it's for
+  job.payment?.charges.forEach((c, i) =>
+    moments.push({
+      key: `charge-${i}`,
+      at: c.chargedAt,
+      icon: CreditCard,
+      title: `${chargeLabel[c.kind]} of ${formatMoney(c.amountCents)} charged`,
+      description:
+        c.refundedCents > 0
+          ? `${formatMoney(c.refundedCents)} refunded`
+          : undefined,
+    }),
+  );
+  // newest first; of two at the same moment, the later told first: a
+  // Deposit charged over the offer made at its booking, a Balance over Done
+  return moments
+    .map((m, i) => ({ m, i }))
+    .sort((a, b) => b.m.at.localeCompare(a.m.at) || b.i - a.i)
+    .map(({ m }) => m);
 };
 
 // the Job's story, newest first, as a Timeline, for its Record's History
