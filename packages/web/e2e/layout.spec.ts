@@ -183,6 +183,12 @@ const problemsAt = (page: Page) =>
 const expectFitsEveryWidth = async (page: Page, path: string) => {
   await page.goto(path);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  // from the page's top: a page opened again at the URL it was on can open
+  // scrolled down (the Draft, after "Add a weekday": 249 px at 320 wide),
+  // and from md the header that sticks would then be over the page's top
+  // as the checks start. At a phone's width it never shows, so it's gone
+  // long before the widths reach md
+  await page.evaluate(() => window.scrollTo(0, 0));
   const problems: string[] = [];
   for (const width of widths) {
     await page.setViewportSize({ width, height: 900 });
