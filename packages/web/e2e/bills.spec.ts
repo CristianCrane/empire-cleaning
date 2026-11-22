@@ -367,7 +367,7 @@ test("a weekly-billed clean's receipt names its Bill and where it stands", async
 
   // done, how long it was to take goes: the receipt says when it was
   await expect(page.getByRole("region", { name: "Details" })).not.toContainText(
-    "On site",
+    "How long",
   );
   const receipt = page.getByRole("region", { name: "Your receipt" });
   const bill = receipt.getByRole("link", { name: "Bill EC-000001" });

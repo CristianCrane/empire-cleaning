@@ -43,9 +43,13 @@ test("a quote ready to answer says Ready, each option's badge under its title", 
     .getByRole("region", { name: "Quote details" })
     .getByRole("radio", { name: "Deep Clean" });
   await expect(deep).toBeChecked();
-  await expect(
-    page.getByRole("region", { name: "Quote details" }),
-  ).toContainText("Recommended");
+  const details = page.getByRole("region", { name: "Quote details" });
+  await expect(details).toContainText("Recommended");
+  // how long the crew is there, as the clean will say it: not the Office's
+  // cleaning hours
+  await expect(details).toContainText("How long, with 2 cleaners");
+  await expect(details).toContainText("2½ h · $74.85 deposit");
+  await expect(details).not.toContainText("of cleaning");
   // paying is its own part, under the quote
   await expect(payAndBook(page).form).toBeVisible();
 });
@@ -69,6 +73,12 @@ test("a quote whose day filled up has nothing next, declining its one action", a
   // no: the page's one action, not the alert's
   await expect(payAndBook(page).form).toHaveCount(0);
   await expectNothingNext(page);
+  // its badge and subtitle say so too: it waits on us, not on them
+  await expect(page.getByText("Fully booked", { exact: true })).toBeVisible();
+  await expect(page.getByText("Ready", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/^Open until/)).toHaveCount(0);
+  // the alert says it once, not each option again
+  await expect(page.getByText(/^No longer fits/)).toHaveCount(0);
   await expect(bookedUp.getByRole("button")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Decline this quote" }),

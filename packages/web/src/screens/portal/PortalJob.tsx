@@ -44,7 +44,7 @@ import { linkTo } from "../../links.ts";
 import { requestQuoteHref } from "./whats-next.ts";
 import { PickAvailableTime } from "../AvailabilityPicker.tsx";
 import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
-import { addressOf, formatHours, wasSkipped } from "../format.ts";
+import { addressOf, howLong, wasSkipped } from "../format.ts";
 import { type Said, useSaid } from "../words.ts";
 import { catalog, oneStop, stopAfter } from "@empire-cleaning/models";
 import { cleanBadge } from "./clean-badge.tsx";
@@ -61,7 +61,7 @@ const words = catalog({
       `Price with your ${percent}% plan discount, tax included`,
     taxIncluded: "Price, tax included",
     heldThere: "Its deposit is held there",
-    offPrice: "Deposit, comes off the price",
+    offPrice: "Deposit paid, comes off the price",
     // until when moving it, and cancelling or skipping it, costs nothing
     freeToMoveOr: (skip: boolean) =>
       skip ? "Free to move or skip" : "Free to move or cancel",
@@ -95,14 +95,10 @@ const words = catalog({
       `We're refunding ${amount} to your ${card}.`,
     sorry: "We're sorry, we had to cancel this clean.",
     notCharged: "You haven't been charged anything for it.",
-    couldntGetIn: "We couldn't get in",
     // shown after that day too, so its day ("came on", as "came at" takes
     // a time; Home's cameToday says the time alone, that day)
     teamCame: (when: string, reason: string) =>
       `The crew came on ${when}, but couldn't get in: "${reason}".`,
-    beforeNext: (carriesOn: string) =>
-      `${carriesOn} Before your next clean, please check how we get in.`,
-    beforeBooking: "Before booking again, please check how we get in.",
     answerNotSaved: "Your answer wasn't saved. Please try again.",
     approved: "Approved",
     declined: "Declined",
@@ -115,7 +111,8 @@ const words = catalog({
       `, tax included, and you only pay it if you approve it. If we don't hear from you by ${day}, you won't pay it.`,
     approve: (amount: string) => `Approve ${amount}`,
     // what each kind of charge is called; a deposit is the screens' `deposit`
-    charge: { balance: "Paid", fee: "Fee" },
+    // the rest, as the quote they accepted called it: "Paid" is the sum's
+    charge: { balance: "The rest", fee: "Fee" },
     receipt: "Your receipt",
     doneAt: (when: string) => `Done ${when}.`,
     quoted: "Quoted price",
@@ -139,7 +136,7 @@ const words = catalog({
       `Precio con su ${percent}% de descuento del plan, impuestos incluidos`,
     taxIncluded: "Precio, impuestos incluidos",
     heldThere: "Su depósito está retenido allí",
-    offPrice: "Depósito, se descuenta del precio",
+    offPrice: "Depósito pagado, se descuenta del precio",
     freeToMoveOr: (skip: boolean) =>
       skip
         ? "Reprogramar o saltar sin cargo"
@@ -179,13 +176,8 @@ const words = catalog({
       `Le estamos devolviendo ${amount} a su ${card}.`,
     sorry: "Lo sentimos, tuvimos que cancelar esta limpieza.",
     notCharged: "No se le cobró nada por ella.",
-    couldntGetIn: "No se pudo entrar",
     teamCame: (when: string, reason: string) =>
       `El equipo llegó el ${when}, pero no pudo entrar: "${reason}".`,
-    beforeNext: (carriesOn: string) =>
-      `${carriesOn} Antes de su próxima limpieza, por favor revise cómo entramos.`,
-    beforeBooking:
-      "Antes de reservar de nuevo, por favor revise cómo entramos.",
     answerNotSaved: "No se guardó su respuesta. Vuelva a intentarlo.",
     approved: "Aprobado",
     declined: "Rechazado",
@@ -196,7 +188,7 @@ const words = catalog({
     onlyIfApprove: (day: string) =>
       `, impuestos incluidos, y solo lo paga si lo aprueba. Si no sabemos de usted antes del ${day}, no lo pagará.`,
     approve: (amount: string) => `Aprobar ${amount}`,
-    charge: { balance: "Pagado", fee: "Cargo" },
+    charge: { balance: "El resto", fee: "Cargo" },
     receipt: "Su recibo",
     doneAt: (when: string) => oneStop(`Terminada el ${when}.`),
     quoted: "Precio cotizado",
@@ -248,8 +240,6 @@ export function PortalJob() {
     >
       {job.cancellation ? (
         <Cancelled job={job} />
-      ) : job.noAccess ? (
-        <NoAccess job={job} />
       ) : (
         job.completion && <Receipt job={job} />
       )}
@@ -366,6 +356,7 @@ function useNow(job: ClientJobDetail): {
     // what's needed of them first, before what the clean is
     alerts: [
       payment.unpaid && unpaid(t, payment),
+      job.noAccess && noAccess(t, job),
       ...proposed.map((a): Alert => ({
         key: a.id,
         tone: "warning",
@@ -459,9 +450,9 @@ function JobDetails({
       <Fact
         key="long"
         icon={Clock}
-        label={t.onSite}
-        value={t.about(formatHours(job.hoursOnSite))}
-        line={t.onSiteWith(t.cleaners(job.crewSize))}
+        label={t.howLong}
+        value={howLong(t, job.hoursOnSite)}
+        line={t.howLongWith(t.cleaners(job.crewSize))}
       />
     ),
     happens && job.addOns.length > 0 && (
@@ -719,38 +710,39 @@ function Cancelled({ job }: { job: ClientJobDetail }) {
   );
 }
 
-function NoAccess({ job }: { job: ClientJobDetail }) {
-  const t = useSaid(words);
-  const noAccess = job.noAccess!;
-  return (
-    <PartCard title={t.w.couldntGetIn}>
-      <p>
-        {t.w.teamCame(
-          t.dayAt(
-            t.dayOf(noAccess.recordedAt),
-            t.formatTime(noAccess.recordedAt),
-          ),
-          noAccess.reason,
-        )}
-      </p>
-      {noAccess.feeCents > 0 && (
+// The crew came and couldn't get in: when, the reason they gave, and what
+// it cost; checking how we get in is the page's next step, so the alert
+// says only why. Red, as its badge. (#493 PR 14's UX review, U15)
+const noAccess = (
+  t: Said & { w: (typeof words)["en"] },
+  job: ClientJobDetail,
+): Alert => {
+  const { recordedAt, reason, feeCents, payment } = job.noAccess!;
+  return {
+    key: "no access",
+    tone: "danger",
+    children: (
+      <>
         <p>
-          {t.noAccessFee({
-            onPlan: job.servicePlanId !== null,
-            fee: t.formatMoney(noAccess.feeCents),
-          })}
+          {t.w.teamCame(
+            t.dayAt(t.dayOf(recordedAt), t.formatTime(recordedAt)),
+            reason,
+          )}
         </p>
-      )}
-      <Refund payment={noAccess.payment} />
-      {/* the page's Check how we get in goes there */}
-      <p>
-        {job.servicePlanId
-          ? t.w.beforeNext(t.PLAN_CARRIES_ON)
-          : t.w.beforeBooking}
-      </p>
-    </PartCard>
-  );
-}
+        {feeCents > 0 && (
+          <p>
+            {t.noAccessFee({
+              onPlan: job.servicePlanId !== null,
+              fee: t.formatMoney(feeCents),
+            })}
+          </p>
+        )}
+        <Refund payment={payment} />
+        {job.servicePlanId && <p>{t.PLAN_CARRIES_ON}</p>}
+      </>
+    ),
+  };
+};
 
 // A charge that failed: what it was, and how it's put right, which the
 // page's Update your card does (saving a card tries it again). Red, as
@@ -873,8 +865,13 @@ function Receipt({ job }: { job: ClientJobDetail }) {
       description={`${t.w.doneAt(t.formatDateTime(completedAt))} ${t.PRICES_INCLUDE_TAX}`}
     >
       <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-2">
-        <dt>{t.w.quoted}</dt>
-        <dd className="text-end">{t.formatMoney(payment.quotedCents)}</dd>
+        {/* what was quoted, only where a change makes the total differ */}
+        {counted.length > 0 && (
+          <>
+            <dt>{t.w.quoted}</dt>
+            <dd className="text-end">{t.formatMoney(payment.quotedCents)}</dd>
+          </>
+        )}
         {counted.map((a) => (
           <div key={a.id} className="contents">
             <dt>{t.adjustmentLabel(a)}</dt>

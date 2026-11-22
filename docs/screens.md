@@ -472,25 +472,28 @@ Keeps: the Record (ux-portal). Renders through `RecordPage` (#432).
 - Alerts: each only why: Unpaid (one we try again ourselves info, its
   badge "Not paid yet", as it asks nothing), a price change (one that isn't the next
   step keeping its own Review), a move asked for (Withdraw request, its one action) or
-  turned down.
+  turned down, the crew couldn't get in (red: when, why, what it cost).
 - Body: Details (`DetailsCard`: a date tile, the time large, the address,
-  icon facts, a row only with something in it (price, how long and the
-  deposit only while it's booked, its extras and plan while booked or done),
+  icon facts, a row only with something in it (price, how long ("How long,
+  with 1 cleaner") and the deposit paid only while it's booked, its extras and plan while booked or done),
   and while it's still free,
-  until when it's free to move or cancel); cancelled, no access or the
-  receipt (a weekly Bill it went on by its number, linked, with its badge).
+  until when it's free to move or cancel); cancelled, or the receipt (the
+  quoted price only when a change makes the total differ, the rest by that
+  name, a weekly Bill it went on by its number, linked, with its badge).
 
 #### Client portal > Your quote
 
 Keeps: read like a Quote, paying under it (#165). Renders through `RecordPage` (#432).
 
 - Header: Home › Your quote; the title and its status (Ready while it's
-  theirs to answer); "updated · open until", while it applies.
+  theirs to answer, Fully booked once its day filled up); "updated · open
+  until", while it applies.
 - Actions: turned down, Request a quote the primary; booked up, Decline
-  this quote its one action (quiet); else none.
+  this quote its one action (a Button); else none.
 - Alerts: each only why: how it ended (accepted, declined, expired, turned
   down), what it does to the plan, booked up.
-- Body: Quote details (`DetailsCard`: what it comes to, icon facts); Accept
+- Body: Quote details (`DetailsCard`: what it comes to, icon facts, how
+  long its crew is there, on each option too); Accept
   (Decline beside it, quiet; its confirm not red). While it's being
   prepared: what they asked for.
 

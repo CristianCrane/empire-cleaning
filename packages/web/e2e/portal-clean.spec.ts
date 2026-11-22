@@ -39,6 +39,10 @@ test("a booked clean leads with Pick a new time, what it is in its details", asy
   await expectNextStep(page, "Pick a new time");
   const details = page.getByRole("region", { name: "Details" });
   await expect(details).toContainText("Price");
+  // how long, asked as they'd ask it, as their quote said it
+  await expect(details).toContainText("How long, with 1 cleaner");
+  // paid when they booked, so it says so
+  await expect(details).toContainText("Deposit paid, comes off the price");
   await expect(details).toContainText("Free to move or cancel");
   // nothing booked on it but the clean: no row saying None
   await expect(details).not.toContainText("None");
@@ -83,7 +87,7 @@ test("a payment we try again ourselves asks nothing of the clean's reader", asyn
 }) => {
   const { job, cory } = await bookedClean(olive);
   await setClock("2026-01-12T16:00:00Z");
-  // the payment service unreachable: we try again ourselves
+  // the bank payment still clearing: we try again ourselves
   await failCharges("processing");
   await completeJob(job.id, cory.id, { condition: "moderate", reports: [] });
   await clean(page, job.id);
@@ -99,6 +103,11 @@ test("a payment we try again ourselves asks nothing of the clean's reader", asyn
   );
   await expect(page.getByText("Payment needed.")).toHaveCount(0);
   await expectNothingNext(page);
+  // nothing changed the price: the total alone, and the rest by its name
+  const receipt = page.getByRole("region", { name: "Your receipt" });
+  await expect(receipt).not.toContainText("Quoted price");
+  await expect(receipt).toContainText("Deposit");
+  await expect(receipt.getByText("Paid", { exact: true })).toHaveCount(1);
 });
 
 test("a move asked for waits on us: nothing next, Withdraw in its alert", async ({
@@ -125,7 +134,11 @@ test("after the crew couldn't get in, the clean leads with Check how we get in",
   await recordNoAccess(job.id, cory.id, "The code didn't open the door");
   await clean(page, job.id);
   await expectNextStep(page, "Check how we get in");
+  // why, in an alert as red as its badge, with what it cost
+  const why = page.getByRole("main").getByRole("alert");
+  await expect(why).toContainText("The code didn't open the door");
+  await expect(why).toContainText("$89.82 deposit is kept");
   await expect(
     page.getByRole("region", { name: "We couldn't get in" }),
-  ).toContainText("The code didn't open the door");
+  ).toHaveCount(0);
 });

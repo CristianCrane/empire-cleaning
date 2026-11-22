@@ -171,9 +171,7 @@ test(
     const client = await (await browser.newContext()).newPage();
     await signedInAs(client, casey.email);
     await client.goto(`/portal/jobs/${job.id}`);
-    await expect(
-      client.getByRole("region", { name: "We couldn't get in" }),
-    ).toContainText(
+    await expect(client.getByRole("main").getByRole("alert")).toContainText(
       'The crew came on Mon, Jan 12 at 9:30 AM, but couldn\'t get in: "Nobody answered and the doorman had no key".',
     );
     // putting how we get in right is the page's next step
@@ -181,7 +179,7 @@ test(
     // a clean that didn't happen says no price or how long
     await expect(
       client.getByRole("region", { name: "Details" }),
-    ).not.toContainText(/Price|On site/);
+    ).not.toContainText(/Price|How long/);
   },
 );
 

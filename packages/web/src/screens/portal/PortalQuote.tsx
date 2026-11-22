@@ -1,13 +1,12 @@
-import { useState, type ComponentProps } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
 import { useLoaderData } from "@tanstack/react-router";
 import {
   CalendarClock,
+  Clock,
   CircleX,
   ClipboardPenLine,
   CreditCard,
-  FileText,
   MapPin,
-  Users,
   CalendarDays,
   Sparkles,
 } from "lucide-react";
@@ -43,7 +42,8 @@ import {
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { addressOf, formatHours, formatMinutes } from "../format.ts";
+import { addressOf, formatMinutes, howLong } from "../format.ts";
+import { QuoteIcon } from "../icons.ts";
 import { type Said, useSaid } from "../words.ts";
 import {
   AskedRows,
@@ -69,6 +69,8 @@ const words = catalog({
     askedFor: "What you asked for",
     asked: "Asked",
     yourKind: (kind: string) => `Your ${kind.toLowerCase()}`,
+    // its badge, once its day filled up: it waits on us for a new quote
+    fullyBooked: "Fully booked",
     bookedUp: (planDays: boolean, when: string) =>
       `Sorry, ${planDays ? "one of the days your plan starts on has" : `${when} has`} been fully booked since we sent this quote, so it can't be accepted. We'll send you a new quote for another time.`,
     details: "Quote details",
@@ -78,13 +80,12 @@ const words = catalog({
     from: (when: string) => `From ${when}`,
     yourClean: "Your clean",
     where: "Where",
-    crewAbout: (cleaners: string, hours: string) =>
-      `${cleaners}, about ${hours}`,
     recommend: (recommended: string, own: string) =>
       `We recommend a ${recommended} for a first visit: it brings your home up to standard. A ${own} costs less.`,
     recommended: "Recommended",
+    // how long it runs, as the clean's page says it
     hoursDeposit: (hours: string, deposit: string) =>
-      `${hours} of cleaning · ${deposit} deposit`,
+      `${hours} · ${deposit} deposit`,
     noLongerFits:
       "No longer fits on that day: it's been booked up since we sent this quote",
     oneADay: "One clean a day. ",
@@ -163,6 +164,7 @@ const words = catalog({
     askedFor: "Lo que pidió",
     asked: "Pedida",
     yourKind: (kind: string) => `Su ${kind.toLowerCase()}`,
+    fullyBooked: "Día lleno",
     bookedUp: (planDays: boolean, when: string) =>
       `Lo sentimos, ${planDays ? "uno de los días en que empieza su plan se llenó" : `el ${when} se llenó`} después de que le enviamos esta cotización, así que no se puede aceptar. Le enviaremos una nueva cotización para otra hora.`,
     details: "Detalles de la cotización",
@@ -173,13 +175,11 @@ const words = catalog({
     from: (when: string) => `Desde el ${when}`,
     yourClean: "Su limpieza",
     where: "Dónde",
-    crewAbout: (cleaners: string, hours: string) =>
-      `${cleaners}, cerca de ${hours}`,
     recommend: (recommended: string, own: string) =>
       `Le recomendamos una ${recommended} para la primera visita: deja su casa en buen estado. Una ${own} cuesta menos.`,
     recommended: "Recomendada",
     hoursDeposit: (hours: string, deposit: string) =>
-      `${hours} de limpieza · ${deposit} de depósito`,
+      `${hours} · ${deposit} de depósito`,
     noLongerFits:
       "Ya no cabe ese día: se llenó después de que le enviamos esta cotización",
     oneADay: "Una limpieza por día. ",
@@ -274,6 +274,7 @@ function QuotePage({
   title,
   updatedAt = null,
   openUntil = null,
+  badge = <ClientQuoteStatusBadge status={quote.status} />,
   ...page
 }: {
   quote: ClientQuoteView;
@@ -281,6 +282,8 @@ function QuotePage({
   updatedAt?: string | null;
   // while an offer is open
   openUntil?: string | null;
+  // the status's own, unless the page knows more
+  badge?: ReactNode;
 } & Pick<
   ComponentProps<typeof RecordPage>,
   "next" | "actions" | "alerts" | "details" | "children"
@@ -300,7 +303,7 @@ function QuotePage({
         { label: t.p.yourQuote },
       ]}
       title={title}
-      status={<ClientQuoteStatusBadge status={quote.status} />}
+      status={badge}
       subtitle={subtitle || undefined}
       {...page}
     />
@@ -407,7 +410,12 @@ function OfferedQuote({
       quote={quote}
       title={t.w.yourKind(t.quoteKindName(quote.kind))}
       updatedAt={quote.updatedAt}
-      openUntil={open ? quote.expiresAt : null}
+      openUntil={open && !bookedUp ? quote.expiresAt : null}
+      badge={
+        bookedUp ? (
+          <StatusBadge tone="info">{t.w.fullyBooked}</StatusBadge>
+        ) : undefined
+      }
       actions={
         bookedUp
           ? [
@@ -471,7 +479,7 @@ function QuoteDetails({
   return (
     <DetailsCard
       label={t.w.details}
-      tile={<IconTile icon={FileText} size="lg" />}
+      tile={<IconTile icon={QuoteIcon} size="lg" />}
       kicker={
         plan
           ? plan.days.length > 1
@@ -509,13 +517,10 @@ function QuoteDetails({
           line={t.p.yourHome}
         />
         <Fact
-          icon={Users}
-          label={t.onSite}
-          value={t.w.crewAbout(
-            t.cleaners(quote.crewSize),
-            formatHours(chosen.hoursOnSite),
-          )}
-          line={t.onSite}
+          icon={Clock}
+          label={t.howLong}
+          value={howLong(t, chosen.hoursOnSite)}
+          line={t.howLongWith(t.cleaners(quote.crewSize))}
         />
       </Facts>
 
@@ -547,9 +552,11 @@ function QuoteDetails({
                   {t.formatMoney(option.totalCents)}
                 </span>
                 <span className="text-sm text-fg-muted">
-                  {quote.bookable.includes(option.serviceKey)
+                  {/* the alert says when none fits */}
+                  {quote.bookable.includes(option.serviceKey) ||
+                  quote.bookable.length === 0
                     ? t.w.hoursDeposit(
-                        formatHours(option.labourHours),
+                        howLong(t, option.hoursOnSite),
                         t.formatMoney(option.depositCents),
                       )
                     : t.w.noLongerFits}
