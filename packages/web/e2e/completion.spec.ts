@@ -85,11 +85,9 @@ test(
       .getByRole("textbox", { name: /Why\? .* \(Inside the fridge\)/ })
       .fill("Casey asked on the day");
     await form
-      .getByRole("textbox", { name: "More hours, all of you together" })
+      .getByRole("textbox", { name: "More hours", exact: true })
       .fill("1");
-    await form
-      .getByRole("textbox", { name: "More hours, all of you together" })
-      .blur();
+    await form.getByRole("textbox", { name: "More hours", exact: true }).blur();
     await form
       .getByRole("textbox", { name: "What took longer?" })
       .fill("Heavy grease in the kitchen");
@@ -139,7 +137,7 @@ test("on a short phone, Mark done's sheet opens with its buttons in view, its la
 
   // the sheet runs past the screen: its last question is below it
   await expect(
-    form.getByRole("textbox", { name: "More hours, all of you together" }),
+    form.getByRole("textbox", { name: "More hours", exact: true }),
   ).not.toBeInViewport();
   await expect(form.getByRole("button", { name: "Go back" })).toBeInViewport({
     ratio: 1,

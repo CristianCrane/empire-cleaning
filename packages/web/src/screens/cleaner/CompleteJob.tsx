@@ -47,6 +47,7 @@ const words = catalog({
     whyMore: "Why? For example, the client asked",
     moreTime: "More time",
     moreHours: "More hours, all of you together",
+    moreHoursAlone: "More hours",
     leaveAt0: "Leave at 0 if the clean took about as long as planned.",
     whatTookLonger: "What took longer?",
     markedAt: (time: string, by: string) =>
@@ -68,6 +69,7 @@ const words = catalog({
     whyMore: "¿Por qué? Por ejemplo, lo pidió el cliente",
     moreTime: "Más tiempo",
     moreHours: "Horas de más, entre todos",
+    moreHoursAlone: "Horas de más",
     leaveAt0: "Déjalo en 0 si la limpieza tomó más o menos lo previsto.",
     whatTookLonger: "¿Qué tomó más tiempo?",
     markedAt: (time: string, by: string) =>
@@ -181,7 +183,7 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
             <fieldset className="flex flex-col gap-3">
               <Heading level={3}>{w.moreTime}</Heading>
               <NumberField
-                label={w.moreHours}
+                label={job.crew.length > 1 ? w.moreHours : w.moreHoursAlone}
                 description={w.leaveAt0}
                 minValue={0}
                 maxValue={24}
