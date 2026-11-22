@@ -92,11 +92,12 @@ const problemsAt = (page: Page) =>
         continue;
       const { width } = field.getBoundingClientRect();
       if (width > form + 1) {
+        // a choice's button is named by its answer, then its label
         const label =
           field.getAttribute("aria-label") ??
           (field as HTMLInputElement).labels?.[0]?.textContent ??
           document.getElementById(
-            field.getAttribute("aria-labelledby")?.split(" ")[0] ?? "",
+            field.getAttribute("aria-labelledby")?.split(" ").at(-1) ?? "",
           )?.textContent;
         problems.push(
           `"${label}" is ${Math.round(width)}px wide, past a form's ${form}px`,
