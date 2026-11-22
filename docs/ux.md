@@ -365,7 +365,7 @@ The `ui` skill's rules hold here too; these are this product's.
 - **One primary Button per page** (the `ui` skill); everything else is
   secondary, text or quiet.
 - **A bar at the foot of a page is an `ActionFooter`**, which the page's
-  layout places, never a sticky bar of the page's own, which pins under the phone's tab bar (#425). It holds,
+  layout places, never a sticky bar of the page's own, which pins under the phone's tab bar (#425); a dialog's pinned Buttons are the dialog's, over the tab bar (Dialogs and rows). It holds,
   above the tab bar, a Record's actions on a phone (a Cleaner's Job on
   site), which a wider screen keeps in the header instead (the `ui` skill;
   #493 builds it), and a form's price and its button (the Quote Draft's
@@ -537,6 +537,11 @@ stays as it is (#336).
   takes someone off). ("Rows open one dialog, two Buttons")
 - **A dialog has at most two Buttons**, one filled (primary, or danger) and
   one quiet (Cancel, or an alternative like Dismiss), plus the ✕.
+- **A dialog's Buttons stay pinned at its foot** while what's above them
+  scrolls: read after the facts, as a page's, and in reach however long it
+  runs, a phone's sheet and a centred dialog alike (#493). The dialog places
+  its `Actions` row itself.
+  ("Components/Dialog: Long Sheet")
 - **Never a dialog on a dialog.** A second look (Remove, Turn down) is a
   step inside the same dialog; a picker sits in the dialog itself, the
   dialog made wide if it needs room.

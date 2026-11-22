@@ -165,6 +165,52 @@ export const Wide: Story = {
   ),
 };
 
+// longer than the screen: its Buttons stay pinned at its foot while what's
+// above them scrolls, a phone's sheet and a centred dialog alike
+export const LongSheet: Story = {
+  globals: { viewport: { value: "phone" } },
+  args: { title: "Mark this job done" },
+  render: ({ onConfirm, ...args }) => (
+    <DialogTrigger>
+      <Button>Mark done</Button>
+      <Dialog {...args}>
+        {({ close }) => (
+          <Form
+            onSubmit={(e) => {
+              e.preventDefault();
+              onConfirm();
+              close();
+            }}
+          >
+            {[
+              "How was the home?",
+              "Extras you couldn't do",
+              "Extras you did on the day",
+              "Anything broken?",
+              "Notes for the office",
+              "More hours, all of you together",
+            ].map((label) => (
+              <TextField key={label} label={label} />
+            ))}
+            <Actions>
+              <Button variant="quiet" onPress={close}>
+                Go back
+              </Button>
+              <Button type="submit">Mark done</Button>
+            </Actions>
+          </Form>
+        )}
+      </Dialog>
+    </DialogTrigger>
+  ),
+  play: async ({ canvas, canvasElement, userEvent }) => {
+    await userEvent.click(canvas.getByRole("button", { name: "Mark done" }));
+    await within(canvasElement.ownerDocument.body).findByRole("dialog", {
+      name: "Mark this job done",
+    });
+  },
+};
+
 // opened from code (here a button, in an app something being dropped) rather
 // than a DialogTrigger; closing it tells its owner
 function FromCode({ onConfirm, ...args }: Args) {

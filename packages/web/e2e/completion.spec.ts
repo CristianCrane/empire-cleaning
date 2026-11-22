@@ -118,6 +118,37 @@ test(
   },
 );
 
+test("on a short phone, Mark done's buttons stay at the sheet's foot while what's above them scrolls", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 667 });
+  // the sheet lists every extra: the Job's, to say one wasn't done, and the
+  // rest, to say one was done on the day
+  await jobUnderway();
+  await signedInAs(page, "cory@example.com");
+  await page
+    .getByRole("region", { name: "Now" })
+    .getByRole("button", { name: "Open job" })
+    .click();
+  await page
+    .getByRole("group", { name: "What to do" })
+    .getByRole("button", { name: "Mark done" })
+    .click();
+  const form = page.getByRole("dialog", { name: "Mark this job done" });
+  await expect(form).toBeVisible();
+
+  // the sheet runs past the screen: its last question is below it
+  await expect(
+    form.getByRole("textbox", { name: "More hours, all of you together" }),
+  ).not.toBeInViewport();
+  await expect(form.getByRole("button", { name: "Go back" })).toBeInViewport({
+    ratio: 1,
+  });
+  await expect(form.getByRole("button", { name: "Mark done" })).toBeInViewport({
+    ratio: 1,
+  });
+});
+
 test(
   "the Office proposes a price change the Cleaner reported, and the Client approves it in the portal",
   { tag: ["@desktop"] },

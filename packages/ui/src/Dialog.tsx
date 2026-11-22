@@ -34,7 +34,10 @@ export type DialogProps = Omit<AriaDialogProps, "children"> & {
 // quiet (Cancel, or an alternative such as Dismiss). The ✕ in its corner
 // closes it without doing anything. Never open a dialog on a dialog: a second
 // look is a step in the same one. For a destructive confirmation, pass
-// role="alertdialog" (not dismissable by tapping outside).
+// role="alertdialog" (not dismissable by tapping outside). Its Actions row
+// stays pinned at its foot while what's above it scrolls, read after the
+// facts and always in reach, a phone's sheet and a centred dialog alike
+// (docs/ux.md, Dialogs and rows).
 export function Dialog({
   title,
   children,
@@ -55,11 +58,16 @@ export function Dialog({
       className="fixed inset-0 z-50 flex items-end justify-center bg-backdrop entering:animate-in entering:fade-in exiting:animate-out exiting:fade-out sm:items-center sm:p-4"
     >
       <Modal
-        className={`max-h-[90dvh] w-full overflow-auto rounded-t-xl bg-overlay text-fg shadow-overlay entering:animate-in entering:slide-in-from-bottom-8 exiting:animate-out exiting:slide-out-to-bottom-8 sm:rounded-lg ${{ md: "sm:max-w-md", lg: "sm:max-w-2xl", wide: "sm:max-w-6xl" }[size]}`}
+        // room for the pinned Actions under a field brought into view: two
+        // Buttons stacked (a phone's), the most a dialog has, and the safe area
+        className={`max-h-[90dvh] w-full overflow-auto scroll-pb-[calc(8.5rem+env(safe-area-inset-bottom))] rounded-t-xl bg-overlay text-fg shadow-overlay entering:animate-in entering:slide-in-from-bottom-8 exiting:animate-out exiting:slide-out-to-bottom-8 sm:rounded-lg ${{ md: "sm:max-w-md", lg: "sm:max-w-2xl", wide: "sm:max-w-6xl" }[size]}`}
       >
         <AriaDialog
           {...props}
-          className="flex flex-col gap-4 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] outline-none"
+          // its padding, and its Actions row (data-actions) pinned at its foot:
+          // as wide as the dialog, over what scrolls under it, taking the
+          // padding at the foot (the safe area's) as its own
+          className="flex flex-col gap-4 p-5 pb-(--foot) outline-none [--foot:max(1.25rem,env(safe-area-inset-bottom))] [&_[data-actions]]:sticky [&_[data-actions]]:bottom-0 [&_[data-actions]]:z-10 [&_[data-actions]]:-mx-5 [&_[data-actions]]:-mb-(--foot) [&_[data-actions]]:border-t [&_[data-actions]]:border-border [&_[data-actions]]:bg-overlay [&_[data-actions]]:px-5 [&_[data-actions]]:pt-3 [&_[data-actions]]:pb-(--foot)"
         >
           {({ close }) => (
             <>
