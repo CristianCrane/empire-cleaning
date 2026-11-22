@@ -131,15 +131,20 @@ test("a Record's next step on a wide screen is at the title row's end, then stic
   expect(box(more.element()).right).toBe(box(region("Details")).right);
   expect(page.getByRole("group", { name: "What to do" }).query()).toBeNull();
 
-  window.scrollTo(0, 600);
-  // the header that sticks: in view at the top, its bar's edge the
-  // content's, its button inside the bar's padding
+  // scrolled until the button is cut by the window's top: never half a
+  // button, the header that sticks is there already. In view at the top,
+  // its bar's edge the content's, its button inside the bar's padding
+  window.scrollTo(0, box(press.element()).top + 10);
   await expect.poll(() => box(press.element()).top).toBeGreaterThan(0);
   expect(box(press.element()).bottom).toBeLessThan(80);
   expect(box(more.element()).right).toBeGreaterThan(
     box(region("Details")).right - 24,
   );
   expect(box(more.element()).right).toBeLessThan(box(region("Details")).right);
+
+  window.scrollTo(0, 600);
+  await expect.element(press).toBeVisible();
+  expect(box(press.element()).bottom).toBeLessThan(80);
 });
 
 // on a phone, read after the facts: pinned at the foot, above the tab bar;

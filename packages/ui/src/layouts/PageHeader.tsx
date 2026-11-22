@@ -175,21 +175,24 @@ function StickyHeader({
   );
 }
 
-// whether the element has scrolled up out of view, and not merely hidden,
-// as the title row's split button is on a phone. Given by its ref, so it
-// watches the element from whenever it's drawn
+// whether the element has scrolled up past the window's top, even in part
+// (so the reader never meets half a button), and not merely hidden, as the
+// title row's split button is on a phone. Given by its ref, so it watches
+// the element from whenever it's drawn
 function useScrolledAway() {
   const [element, setElement] = useState<HTMLElement | null>(null);
   const [away, setAway] = useState(false);
   useEffect(() => {
     if (!element) return setAway(false);
-    const watch = new IntersectionObserver(([entry]) =>
-      setAway(
-        !!entry &&
-          !entry.isIntersecting &&
-          entry.boundingClientRect.height > 0 &&
-          entry.boundingClientRect.bottom < 1,
-      ),
+    const watch = new IntersectionObserver(
+      ([entry]) =>
+        setAway(
+          !!entry &&
+            entry.intersectionRatio < 1 &&
+            entry.boundingClientRect.height > 0 &&
+            entry.boundingClientRect.top < 0,
+        ),
+      { threshold: 1 },
     );
     watch.observe(element);
     return () => watch.disconnect();
