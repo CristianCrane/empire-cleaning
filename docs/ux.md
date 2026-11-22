@@ -621,8 +621,8 @@ stays as it is (#336).
   day, a unit, a number, an amount), a few words 20rem (a `Select`'s
   default); each holding its longest answer whole ($100,000.00, 1,000,000
   sq ft). Fields side by side go in a `FieldRow`, no wider than a
-  form, columns of 13rem or more (three to a row at a form's width, one on
-  a phone), so a short field's neighbour sits near it, not across a wide
+  form, columns of 13rem or more (two to a row in a form's card, three in a
+  wider one, one on a phone), so a short field's neighbour sits near it, not across a wide
   dialog; `ChoiceTiles` keep a form's width too. On a phone every field is full width, a thumb's target.
   ("A form keeps a form's width")
 - **Every search field shows a magnifying glass.**

@@ -69,8 +69,8 @@ const width = {
 
 // fields side by side, the row no wider than a form, so a short field's
 // neighbour sits near it, not across a wide dialog (docs/ux.md, Forms):
-// columns of 13rem or more, three to a row at a form's width, fewer as it
-// narrows, one on a phone. 13rem holds a number's − and + with its number
+// columns of 13rem or more, two to a row in a form's card, three in a
+// wider one (a wide dialog), one on a phone. 13rem holds a number's − and + with its number
 export function FieldRow({ children }: { children: ReactNode }) {
   return (
     <div className="grid max-w-form grid-cols-[repeat(auto-fill,minmax(min(13rem,100%),1fr))] gap-4">
