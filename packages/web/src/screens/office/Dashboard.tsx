@@ -43,7 +43,8 @@ import { billWeek } from "../BillParts.tsx";
 import { addressOf, clientName } from "../format.ts";
 import { QUOTE_A_PLAN } from "./StartDraft.tsx";
 
-// a tile's hint: how many of its Jobs have no cleaner yet
+// a tile's hint: how many of its Jobs are Unassigned, their crew not yet
+// all Confirmed
 const needCleaners = (n: number) =>
   `${n} ${n === 1 ? "needs" : "need"} cleaners`;
 
