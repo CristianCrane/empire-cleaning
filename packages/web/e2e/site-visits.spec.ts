@@ -6,6 +6,7 @@ import {
   emailsTo,
   expect,
   expectAccessible,
+  expectCurrentSection,
   requestQuoteForPremises,
   signedInAs,
   test,
@@ -75,7 +76,7 @@ test(
 
     await expect(page).toHaveURL(/\/office\/site-visits\/[0-9a-f-]{36}$/);
     await expect(page.getByText("Booked", { exact: true })).toBeVisible();
-    await expect(page.getByText("Tue, Jan 6 at 10:00 AM")).toBeVisible();
+    await expect(page.getByText("Tue, Jan 6, 10:00 AM")).toBeVisible();
     await expect(
       page.locator("#main").getByText("Olive Owner", { exact: true }),
     ).toBeVisible();
@@ -156,6 +157,8 @@ test("a Site Visit that has been is badged To record, on its page and its home's
   await expect(
     page.getByRole("heading", { level: 1 }).locator("xpath=.."),
   ).toHaveText(/To record$/);
+  // in the section its crumbs start from, as a home's other pages are
+  await expectCurrentSection(page, "Clients");
   // its home's row says it too, not "findings to record" beside Booked
   await page
     .getByRole("link", { name: /200 Park Ave S/ })
