@@ -62,6 +62,7 @@ import {
 } from "./language.ts";
 import { linkTo } from "./links.ts";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
+import { FormFootBarPrototype } from "./screens/office/form-foot-bar.prototype.tsx";
 import { CleanerHome, yourJobsTiles } from "./screens/cleaner/CleanerHome.tsx";
 import { ConfirmEmail } from "./screens/ConfirmEmail.tsx";
 import { SignInLink, type SignInLinkSearch } from "./screens/SignInLink.tsx";
@@ -882,8 +883,25 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: where a form's price and button sit on a wider screen (#493 D1), on made-up data, signed out
+const formFootBarPrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/form-foot-bar",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string; lang?: string; shot?: string } => ({
+    // ?case=1 arrives as a number
+    case: search.case === undefined ? undefined : String(search.case),
+    layout: search.layout === undefined ? undefined : String(search.layout),
+    lang: search.lang === undefined ? undefined : String(search.lang),
+    shot: search.shot === undefined ? undefined : String(search.shot),
+  }),
+  component: FormFootBarPrototype,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  formFootBarPrototypeRoute,
   signInRoute,
   signInLinkRoute,
   confirmEmailRoute,
