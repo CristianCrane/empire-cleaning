@@ -120,9 +120,11 @@ const toneOf = (job: Pick<ScheduledJob, "status" | "assignment">) => {
   return { label, tone, icon, block: blockOf[tone], mark: markOf[tone] };
 };
 
-// a Job's state as its mark: its icon in its tone's strong colour, on its
-// block and in the key alike. A Staffed Job, the usual case, has none
+// a block's mark: an icon in its tone's strong colour, on the block and in
+// the key alike. A Job's is its state's (a Staffed Job, the usual case, has
+// none); a Site Visit's is its own
 type Mark = { icon: LucideIcon | undefined; mark: string };
+
 function StateMark({
   icon: Icon,
   mark,
