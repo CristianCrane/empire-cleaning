@@ -30,7 +30,7 @@ import {
   Phone,
   Receipt,
   Search,
-  TriangleAlert,
+  Wallet,
   UserRound,
   type LucideIcon,
 } from "lucide-react";
@@ -61,7 +61,7 @@ import { PrototypeSwitcher } from "../PrototypeSwitcher.tsx";
 
 const here = linkTo({ to: "/portal" });
 
-type Why = { tone: "warning" | "danger"; text: ReactNode };
+type Why = { tone: "info" | "warning" | "danger"; text: ReactNode };
 
 type HomeCase = {
   key: string;
@@ -139,7 +139,7 @@ const tile = {
     id: "review",
     icon: ClipboardCheck,
     label: "Review a price change",
-    hint: "Your Sat, Nov 14 clean",
+    hint: "$59.88, answer by Wed, Nov 25",
     href: here,
   } as HomeTile,
 };
@@ -149,15 +149,15 @@ const priceChange = {
   tone: "warning" as const,
   label: "A price change to answer",
   headline: "$59.88 more",
-  lines: ["Your Sat, Nov 14 clean: 1 more hour"],
+  lines: [] as string[],
   action: "Review the price change",
 };
 const priceChangeWhy: Why = {
   tone: "warning",
   text: (
     <p>
-      <strong>The crew needed 1 more hour on Sat, Nov 14.</strong> Please answer
-      by Wed, Nov 25.
+      <strong>The crew needed 1 more hour on your Sat, Nov 14 clean.</strong>{" "}
+      Please answer by Wed, Nov 25.
     </p>
   ),
 };
@@ -221,7 +221,7 @@ const cases: HomeCase[] = [
     key: "4",
     name: "money owed, and a price change too",
     card: {
-      tile: { icon: TriangleAlert },
+      tile: { icon: Wallet },
       tone: "danger",
       label: "To pay",
       headline: "$247.13",
@@ -250,14 +250,16 @@ const cases: HomeCase[] = [
     name: "the plan paused (we try the payment again ourselves)",
     card: {
       tile: { icon: PauseCircle },
-      tone: "warning",
+      tone: "info",
       label: "Your cleaning plan",
       headline: "Standard Clean, every two weeks",
-      lines: ["Once it's paid, your plan carries on from its next date."],
+      lines: [
+        "Nothing booked until it's paid. Then your next clean is Sat, Dec 5.",
+      ],
       action: "See your plan",
     },
     why: {
-      tone: "warning",
+      tone: "info",
       text: (
         <p>
           <strong>Your cleaning plan is paused.</strong> A payment on it hasn't
@@ -268,8 +270,8 @@ const cases: HomeCase[] = [
     },
     // today's paused card
     toned: [
-      "A payment on it hasn't gone through yet. We'll try again by ourselves, so there's nothing you need to do.",
-      "Once it's paid, your plan carries on from its next date.",
+      "Paused: a payment on it hasn't gone through yet. We'll try again by ourselves, so there's nothing you need to do.",
+      "Nothing booked until it's paid. Then your next clean is Sat, Dec 5.",
     ],
     tiles: [tile.card, tile.past, tile.call],
     asks: false,
@@ -282,7 +284,7 @@ const cases: HomeCase[] = [
       tone: "warning",
       label: "How we get in",
       headline: "Side door, code 4417",
-      lines: ["Your next clean: Sat, Dec 5"],
+      lines: [] as string[],
       action: "Check how we get in",
     },
     why: {
@@ -297,7 +299,6 @@ const cases: HomeCase[] = [
     },
     toned: [
       "Our crew couldn't get in at 9:00 this morning: the code didn't open the door. The couldn't-get-in fee of $68.06 applies.",
-      "Your next clean: Sat, Dec 5",
     ],
     tiles: [tile.moveOrSkip("Sat, Dec 5"), tile.card, tile.past, tile.call],
     asks: true,
@@ -335,7 +336,7 @@ function Card({ c, layout }: { c: HomeCase; layout: Layout }) {
   // C: the card's edge in the alert's colour
   return (
     <div
-      className={`rounded-xl border-l-4 ${c.why!.tone === "danger" ? "border-danger" : "border-warning-strong"} [&>*]:rounded-l-none`}
+      className={`rounded-xl border-l-4 ${c.why!.tone === "danger" ? "border-danger" : c.why!.tone === "info" ? "border-info-strong" : "border-warning-strong"} [&>*]:rounded-l-none`}
     >
       {card}
     </div>
