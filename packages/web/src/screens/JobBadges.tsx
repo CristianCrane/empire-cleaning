@@ -1,16 +1,6 @@
-import type {
-  AssignmentState,
-  AssignmentStatus,
-  JobStatus,
-} from "@empire-cleaning/models";
+import type { AssignmentStatus, JobStatus } from "@empire-cleaning/models";
 import { StatusBadge } from "@empire-cleaning/ui";
-import {
-  assignmentStateTone,
-  crewLabel,
-  crewTone,
-  jobLabelOf,
-  jobStatusTone,
-} from "./format.ts";
+import { crewLabel, crewTone, jobLabelOf, jobStatusTone } from "./format.ts";
 import { useShared } from "./words.ts";
 
 // how a Job's statuses read, the same on every screen
@@ -43,14 +33,4 @@ export function JobBadge({
 }) {
   const { label, tone } = jobLabelOf(job);
   return <StatusBadge tone={tone}>{label}</StatusBadge>;
-}
-
-// where someone stands on a Job's crew
-export function AssignmentStateBadge({ state }: { state: AssignmentState }) {
-  const { assignmentStateLabel } = useShared();
-  return (
-    <StatusBadge tone={assignmentStateTone[state]}>
-      {assignmentStateLabel[state]}
-    </StatusBadge>
-  );
 }

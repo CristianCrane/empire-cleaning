@@ -150,18 +150,32 @@ Keeps: Table + Tabs (#146). Renders through `ListPage` (#433).
 
 #### Office > Job
 
-Keeps: its actions in one place on the title row (#406; a ⋯ since #493). Renders through `RecordPage` (#432).
+Keeps: one column, History last, as every Record (#493). Renders through `RecordPage` (#432).
 
-- Header: Jobs › Job; "Service at street" and its status.
-- Actions: Menu (Move job, Ask for a new time, Mark not done once done;
-  Cancel job in red).
-- Alerts: Ended, Move asked for (answer), Cleaners needed (offer), Price
-  changes to review, Unpaid (retry; a failed retry is a Toast), Plan offer
-  (once the First Clean is paid); two shown.
-- Body: Job details (`DetailsCard`: `DateTile`, the time large, icon facts);
-  How it went; Crew (Section: List, those on it only); Money (Card: its
-  facts, price changes, How it's worked out folded).
-- History: a Card, last, at every width; a drop-out is told here.
+- Header: Jobs › its day and time; the Service; one badge, from the
+  Office's side: Unpaid, To review, Move asked, Needs cleaners, In
+  progress or Today while booked (none when staffed before its day, the
+  usual case), Done, Couldn't get in, Cancelled or Skipped once over. The
+  next step the split button's primary (Try the payment again, Review,
+  Answer, Offer to a cleaner, Quote a cleaning plan, else Move job), the
+  rest behind its arrow (Ask for a new time, Correct the condition; Cancel
+  job and Mark not done in red, last); none while it's going on.
+- Alerts: only what the badge can't say, with no buttons: the time a move
+  is asked for and what it costs; how much didn't go through and why; no
+  cleaner free.
+- Body: the header card (`JobLead`: `DateTile`, muted once it won't
+  happen; the times; the home and the client, each a link; while booked, a
+  fact each: How long, Cleaning hours for a crew of more than one, Extras,
+  until when it's free to move or cancel, how we get in last and full
+  width). While booked: Extras, Crew (`CrewSection`: a face each, a ghost
+  for each still needed, ✕ to take one off; who it's open to and who said
+  no in its line), Money (Price, Deposit paid). Once over: How it went (the
+  condition and the price changes, or what the cleaner said when they
+  couldn't get in), Money (one line a fact: what it came to and how it was
+  paid, on weekly bills, refunded, still owed; How it's worked out
+  folded), then Details folded: the facts, Extras, who was there.
+- History: a Card, last, at every width, whole: booked, each offer and
+  answer, each move asked, each charge, how it ended, who in each title.
 
 #### Office > Quotes
 

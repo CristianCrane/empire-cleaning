@@ -250,15 +250,15 @@ describe("completing a Job", () => {
       completedBy: { id: cory.id, name: "Cory Cleaner" },
       condition: "heavy",
       adjustments: [],
-      payment: {
-        quotedCents: deep.totalCents,
-        adjustmentsCents: 0,
-        totalCents: deep.totalCents,
-        paidCents: deep.totalCents,
-        owedCents: 0,
-        paymentMethod: "Test card ending 4242",
-        unpaid: null,
-      },
+    });
+    expect(job.payment).toMatchObject({
+      quotedCents: deep.totalCents,
+      adjustmentsCents: 0,
+      totalCents: deep.totalCents,
+      paidCents: deep.totalCents,
+      owedCents: 0,
+      paymentMethod: "Test card ending 4242",
+      unpaid: null,
     });
     const [property] = await db
       .select()
@@ -664,7 +664,7 @@ describe("an Unpaid Job", () => {
     await complete(cory.agent, jobId).expect(200);
 
     const job = await officeJob(office, jobId);
-    expect(job.completion!.payment).toMatchObject({
+    expect(job.payment).toMatchObject({
       owedCents: deep.totalCents - deep.depositCents,
       unpaid: {
         since: MONDAY_11AM.toISOString(),
@@ -712,9 +712,7 @@ describe("an Unpaid Job", () => {
       deep.depositCents,
       deep.totalCents - deep.depositCents,
     ]);
-    expect((await officeJob(office, jobId)).completion!.payment.unpaid).toBe(
-      null,
-    );
+    expect((await officeJob(office, jobId)).payment!.unpaid).toBe(null);
     expect(await needsAttention(office)).not.toContainEqual(
       expect.objectContaining({ kind: "job_unpaid" }),
     );
@@ -749,16 +747,16 @@ describe("an Unpaid Job", () => {
     testPayments().loseNextReply();
 
     await complete(cory.agent, jobId).expect(200);
-    expect(
-      (await officeJob(office, jobId)).completion!.payment.unpaid,
-    ).toMatchObject({ kind: "waiting" });
+    expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
+      kind: "waiting",
+    });
 
     await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(200);
     expect(amounts()).toEqual([
       deep.depositCents,
       deep.totalCents - deep.depositCents,
     ]);
-    expect((await officeJob(office, jobId)).completion!.payment).toMatchObject({
+    expect((await officeJob(office, jobId)).payment).toMatchObject({
       owedCents: 0,
       unpaid: null,
     });
@@ -772,9 +770,7 @@ describe("an Unpaid Job", () => {
     await complete(cory.agent, jobId).expect(200);
 
     await settleOpenPayments();
-    expect(
-      (await officeJob(office, jobId)).completion!.payment.unpaid,
-    ).not.toBeNull();
+    expect((await officeJob(office, jobId)).payment!.unpaid).not.toBeNull();
 
     testClock().advance({ minutes: 15 });
     await settleOpenPayments();
@@ -783,7 +779,7 @@ describe("an Unpaid Job", () => {
       deep.depositCents,
       deep.totalCents - deep.depositCents,
     ]);
-    expect((await officeJob(office, jobId)).completion!.payment).toMatchObject({
+    expect((await officeJob(office, jobId)).payment).toMatchObject({
       owedCents: 0,
       unpaid: null,
     });
@@ -806,7 +802,7 @@ describe("an Unpaid Job", () => {
 
     testClock().advance({ minutes: 15 });
     await settleOpenPayments();
-    expect((await officeJob(office, jobId)).completion!.payment).toMatchObject({
+    expect((await officeJob(office, jobId)).payment).toMatchObject({
       owedCents: 0,
       unpaid: null,
     });
@@ -835,9 +831,9 @@ describe("an Unpaid Job", () => {
 
     testClock().advance({ minutes: 15 });
     await settleOpenPayments();
-    expect(
-      (await officeJob(office, jobId)).completion!.payment.unpaid,
-    ).toMatchObject({ kind: "declined" });
+    expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
+      kind: "declined",
+    });
     expect(amounts()).toHaveLength(1);
   });
 
@@ -851,7 +847,7 @@ describe("an Unpaid Job", () => {
     );
     const job = await officeJob(office, jobId);
     expect(job.status).toBe("completed");
-    expect(job.completion!.payment.unpaid).not.toBeNull();
+    expect(job.payment!.unpaid).not.toBeNull();
     expect(testEmail().lastTo(casey.email).subject).toMatch(/receipt/i);
 
     await office.post(`/api/jobs/${jobId}/balance/retry`).expect(200);
@@ -859,7 +855,7 @@ describe("an Unpaid Job", () => {
       deep.depositCents,
       deep.totalCents - deep.depositCents,
     ]);
-    expect((await officeJob(office, jobId)).completion!.payment).toMatchObject({
+    expect((await officeJob(office, jobId)).payment).toMatchObject({
       owedCents: 0,
       unpaid: null,
     });

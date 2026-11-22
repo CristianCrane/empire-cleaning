@@ -13,21 +13,24 @@ import { useShared } from "./words.ts";
 // A Job's details card, as the Cleaner and the Office read it (#493's
 // layout D): its day as a date tile, its times large, from its start to
 // when it should be over, and where (the Cleaner's: the address once it's
-// theirs, the ZIP code before); then its facts, ruled off
+// theirs, the ZIP code before); then its facts, ruled off. Its tile is
+// `muted` for a Job that won't happen
 export function JobLead({
   job,
   where,
+  muted,
   children,
 }: {
   job: { startsAt: string; hoursOnSite: number };
   where: ReactNode;
+  muted?: boolean;
   children?: ReactNode;
 }) {
   const t = useShared();
   return (
     <DetailsCard
       label={t.jobDetails}
-      tile={<DateTile date={job.startsAt} />}
+      tile={<DateTile date={job.startsAt} muted={muted} />}
       title={
         <span className="tabular-nums">
           {t.formatTimeRange(

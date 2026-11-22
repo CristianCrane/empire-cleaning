@@ -187,7 +187,7 @@ test(
     await expect(dialog).toContainText(
       /The client asked\s*A late cancellation: the \$[\d.]+ deposit is kept as the fee\./,
     );
-    await dialog.getByText("Empire Cleaning can't do it").click();
+    await dialog.getByText("We can't do it", { exact: true }).click();
     await dialog
       .getByRole("textbox", { name: "Why? (the client sees this)" })
       .fill("Our crew is unwell.");
@@ -195,14 +195,20 @@ test(
     await dialog.getByRole("button", { name: "Cancel job" }).click();
 
     await expect(page.getByText("Job cancelled")).toBeVisible();
-    await expect(
-      page.getByText(
-        "By Empire Cleaning, refunded in full. Our crew is unwell.",
-      ),
-    ).toBeVisible();
-    await expect(page.getByRole("region", { name: "History" })).toContainText(
+    // who and why in its story, what it cost once in Money: the Deposit
+    // refunded, nothing charged (#496)
+    const history = page.getByRole("region", { name: "History" });
+    await expect(history).toContainText("Cancelled by us");
+    await expect(history).toContainText("Our crew is unwell.");
+    await expect(history).toContainText(
       /Deposit of \$[\d.]+ charged.*\$[\d.]+ refunded/,
     );
+    const money = page.getByRole("region", { name: "Money" });
+    await expect(money.getByRole("definition")).toHaveText([
+      /^\$[\d.]+$/,
+      "Deposit refunded",
+    ]);
+    await expect(page.getByText("Cancelled", { exact: true })).toBeVisible();
     await expectNoPageAction(page, "Cancel job");
 
     const client = await (await browser.newContext()).newPage();

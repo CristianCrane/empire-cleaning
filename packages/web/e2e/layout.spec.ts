@@ -670,7 +670,7 @@ test("cancelling, Cancelled and No Access Jobs fit every width", async ({
   });
   await page.goto(`/office/jobs/${cancelled.id}`);
   await pageAction(page, "Cancel job");
-  await page.getByText("Empire Cleaning can't do it").click();
+  await page.getByText("We can't do it", { exact: true }).click();
   await page
     .getByRole("textbox", { name: "Why? (the client sees this)" })
     .fill("Our crew is unwell.");
@@ -678,9 +678,7 @@ test("cancelling, Cancelled and No Access Jobs fit every width", async ({
     .getByRole("alertdialog")
     .getByRole("button", { name: "Cancel job" })
     .click();
-  await expect(
-    page.getByText("By Empire Cleaning, refunded in full."),
-  ).toBeVisible();
+  await expect(page.getByText("Cancelled by us")).toBeVisible();
   await expectFitsEveryWidth(page, `/office/jobs/${cancelled.id}`);
   await expectFitsInBoth(client, `/portal/jobs/${cancelled.id}`);
 });

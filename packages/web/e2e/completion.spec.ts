@@ -307,10 +307,16 @@ test("Office Staff correct the Condition and undo a completion made by mistake",
   await signedInAs(page, olive.email);
   await page.goto(`/office/jobs/${job.id}`);
 
+  // the condition the cleaner found, a fact; corrected from the header
   const completed = page.getByRole("region", { name: "How it went" });
-  await completed.getByRole("button", { name: /Condition reported/ }).click();
-  await page.getByRole("option", { name: "Light" }).click();
+  await expect(completed).toContainText("HeavyHow dirty the home was");
+  await pageAction(page, "Correct the condition");
+  const correct = page.getByRole("dialog", { name: "Correct the condition" });
+  await correct.getByText("Light", { exact: true }).click();
+  await correct.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Condition corrected")).toBeVisible();
+  await expect(completed).toContainText("LightHow dirty the home was");
+  await expect(page.getByText("Done", { exact: true })).toBeVisible();
 
   await pageAction(page, "Mark not done");
   await page
@@ -320,7 +326,9 @@ test("Office Staff correct the Condition and undo a completion made by mistake",
 
   await expect(page.getByText("Marked not done")).toBeVisible();
   await expect(completed).toHaveCount(0);
-  await expect(page.getByText("Staffed", { exact: true })).toBeVisible();
+  // booked again, staffed, before its day: the usual case, no badge
+  await expect(page.getByRole("region", { name: "Crew" })).toBeVisible();
+  await expect(page.getByText("Done", { exact: true })).toHaveCount(0);
   expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
     "A correction to your clean",
   );

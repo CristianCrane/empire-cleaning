@@ -125,9 +125,11 @@ test(
       .getByRole("row", { name: /Casey Client/ })
       .click();
     await expect(
-      page.getByText("The Client asked to move it to Wed, Jan 14, 10:00 AM."),
+      page.getByText("Casey asked to move it to Wed, Jan 14, 10:00 AM."),
     ).toBeVisible();
-    await page.getByRole("button", { name: "Answer" }).click();
+    await expect(page.getByText("Move asked", { exact: true })).toBeVisible();
+    // answering is the page's next step, not a button in the alert
+    await pageAction(page, "Answer");
     const dialog = page.getByRole("dialog", { name: "Move this job?" });
     await expect(dialog).toContainText("Mon, Jan 12, 9:00 AM");
     await expect(dialog).toContainText("Wed, Jan 14, 10:00 AM");
@@ -138,9 +140,10 @@ test(
     await expect(
       page.locator("#main").getByText("Wed, Jan 14, 10:00 AM", { exact: true }),
     ).toBeVisible();
-    await expect(page.getByRole("region", { name: "Crew" })).toContainText(
-      "Offered",
-    );
+    // Cory has to confirm the new time
+    await expect(
+      page.getByRole("region", { name: "Crew" }).getByRole("listitem"),
+    ).toHaveText(["Cory Cleaner, not confirmed yet"]);
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
       "Your clean has moved",
     );

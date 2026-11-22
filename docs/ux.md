@@ -78,8 +78,9 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   action is the page's next step, in the header: then the part waits until
   it has something (a Site Visit that has been, Record findings; each
   action once). Money is one
-  part: its facts, the price changes in it, "How it's worked out" folded
-  (`Fold`).
+  part: its facts, one line a fact, "How it's worked out" folded
+  (`Fold`); a Job's price changes are in How it went, beside the
+  condition the cleaner found, as they're what happened there.
 - **Its History**, a `Timeline` in a Card, newest first: last, at every
   width: one column, as a side column competed with the page (#493). Each
   entry says what happened on one line and when on the line under it, every
@@ -440,7 +441,7 @@ The `ui` skill's rules hold here too; these are this product's.
 
 - **A Notice holds at most one action**, a text Button (or `ButtonLink`) on
   the right of its text, never primary, and not the page's next step,
-  which is the page's primary (the `ui` skill; #493 builds it). Two
+  which is the page's primary (the `ui` skill). Two
   things to say or do are two Notices. ("Notices hold one action")
 - **Tone means what a status's does**: warning for something waiting on
   someone, danger for something that failed or is late, info for what

@@ -1,19 +1,23 @@
 import { useState } from "react";
 import { useLoaderData } from "@tanstack/react-router";
 import {
+  CalendarCheck,
   CalendarClock,
   CalendarSync,
   CalendarX,
   CirclePlus,
+  ClipboardCheck,
+  ClipboardList,
   Clock,
-  ContactRound,
-  MapPin,
-  UserPlus,
-  Users,
-  X,
+  MessageSquareText,
+  Repeat,
+  Sparkles,
   Undo2,
+  UserPlus,
+  X,
 } from "lucide-react";
 import {
+  firstNameOf,
   isOnCrew,
   type AssignmentView,
   type OfficeJob,
@@ -22,142 +26,262 @@ import {
 import { MORE_HOURS, officeFix } from "@empire-cleaning/models";
 import {
   Actions,
-  Avatar,
   Button,
   Card,
+  CrewSection,
   Dialog,
   DialogTrigger,
+  ExtrasSection,
+  Fact,
+  Facts,
   Form,
   Link,
-  List,
-  ListItem,
   Notice,
+  RecordPage,
   Section,
   Select,
   SelectItem,
-  RecordPage,
-  DetailsCard,
-  DateTile,
-  Facts,
-  Fact,
+  StatusBadge,
   type Alert,
+  type DialogState,
+  type PageAction,
+  type StatusTone,
 } from "@empire-cleaning/ui";
 import { deleteJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { addressOf, clientName, formatHours, screenWords } from "../format.ts";
-import { jobStatusIcon } from "../icons.ts";
-import { costForOffice } from "../RescheduleParts.tsx";
-import { CancelJob, howItEnded } from "./JobCancellation.tsx";
+import { AccessFact, ConditionFact } from "../Fact.tsx";
 import {
-  ConditionField,
+  addressOf,
+  clientName,
+  crewLabel,
+  crewTone,
+  formatHours,
+  howLong,
+  jobStatusTone,
+  screenWords,
+  wasSkipped,
+} from "../format.ts";
+import { JobFold, JobLead } from "../JobLead.tsx";
+import { costForOffice } from "../RescheduleParts.tsx";
+import { CancelJob } from "./JobCancellation.tsx";
+import {
+  AdjustmentDialog,
+  Adjustments,
+  CorrectCondition,
   JobMoney,
-  RetryCharge,
+  TO_REVIEW,
   UndoCompletion,
+  toReviewOf,
+  useRetryCharge,
 } from "./JobCompletion.tsx";
 import { JobHistory } from "./JobHistory.tsx";
 import { AnswerRequest, AskForNewTime } from "./JobReschedule.tsx";
 import { MoveJob } from "./JobMove.tsx";
-import { OfferServicePlan } from "./StartDraft.tsx";
-import { AssignmentStateBadge, JobBadge } from "../JobBadges.tsx";
+import { QUOTE_A_PLAN, useStartDraft } from "./StartDraft.tsx";
 
-const { assignmentStateLabel, cleaners } = screenWords.en;
+const w = screenWords.en;
+const { cleaners, cancelledLabel, jobStatusLabel } = w;
 
-const { formatDate, formatDateTime, formatMoney } = formats.en;
-
-const sinceOf = (a: AssignmentView) =>
-  a.status === "offered"
-    ? `Offered ${formatDate(a.offeredAt)}`
-    : `${assignmentStateLabel[a.status]} ${formatDate(a.answeredAt!)}`;
+const { formatDateTime, formatMoney } = formats.en;
 
 const booked = (job: OfficeJob) => job.status === "booked";
 
+// a Job that won't happen: cancelled, or the crew couldn't get in
+const wontHappen = (job: OfficeJob) =>
+  job.status === "cancelled" || job.status === "no_access";
+
 /**
- * A Job for the Office, a Record (docs/ux.md): what there is to do in
- * alerts on top; when, who for and where; how it went, who's on it and its
- * money; its story last. Office Staff Offer it to Cleaners
- * and take people off, move or cancel it, and once it's Completed, review
- * and correct the completion.
+ * A Job for the Office, a Record (docs/ux.md), as settled on #493: titled
+ * its Service, under the crumb of its day; one badge, from Jen's side; its
+ * next step the split button's primary, the rest behind its arrow, and an
+ * alert only for what the badge can't say. Its header card says when,
+ * where and who for; then, while it's booked, its extras, crew and money.
+ * Once it's over, what History doesn't say leads (how it went, its money),
+ * and the rest folds under Details. Its story is last.
  */
 export function JobScreen() {
   const job = useLoaderData({ from: "/office/jobs/$jobId" });
-  const title = `${job.serviceName} at ${placeOf(job.property)}`;
-  const terms = job.rescheduleTerms;
+  const { next, more } = useActionsOf(job);
+  const over = !booked(job);
+  const parts = (
+    <>
+      <ExtrasSection title={w.extras} extras={job.addOns} />
+      <Crew job={job} />
+    </>
+  );
 
   return (
     <RecordPage
       trail={[
         { label: "Jobs", href: linkTo({ to: "/office/jobs" }) },
-        { label: title },
+        { label: formatDateTime(job.startsAt) },
       ]}
-      title={title}
-      status={<JobBadge job={job} />}
-      actions={[
-        terms && {
-          label: "Move job",
-          icon: CalendarSync,
-          dialog: (state) => <MoveJob job={job} {...state} />,
-        },
-        terms && {
-          label: "Ask for a new time",
-          icon: CalendarClock,
-          dialog: (state) => <AskForNewTime job={job} {...state} />,
-        },
-        job.cancelTerms && {
-          label: "Cancel job",
-          icon: CalendarX,
-          danger: true,
-          dialog: (state) => <CancelJob job={job} {...state} />,
-        },
-        job.completion && {
-          label: "Mark not done",
-          icon: Undo2,
-          danger: true,
-          dialog: (state) => <UndoCompletion job={job} {...state} />,
-        },
-      ]}
+      title={job.serviceName}
+      status={<OfficeJobBadge job={job} />}
+      next={next}
+      actions={more}
       alerts={alertsFor(job)}
-      details={<JobDetails job={job} />}
+      details={
+        <JobLead
+          job={job}
+          where={<WhereAndWho job={job} />}
+          muted={wontHappen(job)}
+        >
+          {!over && <JobFacts job={job} />}
+        </JobLead>
+      }
       history={<JobHistory job={job} />}
     >
-      {job.completion && <HowItWent job={job} completion={job.completion} />}
-      <Crew job={job} />
-      <JobMoney job={job} />
+      {over ? (
+        <>
+          <HowItWent job={job} />
+          <JobMoney job={job} />
+          <JobFold label="Details">
+            <Card hiddenTitle="Details">
+              <JobFacts job={job} />
+            </Card>
+            {parts}
+          </JobFold>
+        </>
+      ) : (
+        <>
+          {parts}
+          <JobMoney job={job} />
+        </>
+      )}
     </RecordPage>
   );
 }
 
-// What there is to do with the Job, above it: one alert per thing, each
-// with at most one text action, warning when it's the Office's to do; or,
-// once it isn't booked, how it ended. Done is in How it went (WEB-5)
+// One badge, from Jen's side: what waits on her first (Unpaid, a price
+// change To review, a Move asked, Needs cleaners), then where it stands;
+// none for a booked Job, staffed, before its day, the usual case
+const badgeOf = (
+  job: OfficeJob,
+): { label: string; tone: StatusTone } | null => {
+  if (job.payment?.unpaid) return { label: w.unpaid, tone: "danger" };
+  switch (job.status) {
+    // booked: below
+    case "booked":
+      break;
+    case "no_access":
+      return { label: jobStatusLabel.no_access, tone: jobStatusTone.no_access };
+    case "cancelled":
+      return { label: cancelledLabel(wasSkipped(job)), tone: "neutral" };
+    case "completed":
+      return toReviewOf(job).length > 0
+        ? { label: TO_REVIEW, tone: "warning" }
+        : { label: jobStatusLabel.completed, tone: jobStatusTone.completed };
+  }
+  if (job.rescheduleRequest?.status === "pending")
+    return { label: w.moveAsked, tone: "warning" };
+  if (job.assignment === "unassigned")
+    return { label: crewLabel.unassigned, tone: crewTone.unassigned };
+  if (job.started) return { label: "In progress", tone: "success" };
+  if (job.today) return { label: w.today, tone: "info" };
+  return null;
+};
+
+function OfficeJobBadge({ job }: { job: OfficeJob }) {
+  const badge = badgeOf(job);
+  return badge && <StatusBadge tone={badge.tone}>{badge.label}</StatusBadge>;
+}
+
+// The page's next step, the first of these that applies: take the payment
+// that failed, review a price change, answer a move asked, offer it to a
+// cleaner, offer the home a cleaning plan; else, while it can move, Move
+// job. The rest behind the split button's arrow, red last; a red one is
+// never the next step
+function useActionsOf(job: OfficeJob): {
+  next?: PageAction;
+  more: PageAction[];
+} {
+  const retry = useRetryCharge(job);
+  const { start, starting } = useStartDraft();
+  const request = job.rescheduleRequest;
+  const [reported] = toReviewOf(job);
+  const terms = job.rescheduleTerms;
+
+  const all = [
+    job.payment?.unpaid && retry,
+    reported && {
+      label: "Review",
+      icon: ClipboardCheck,
+      dialog: (state: DialogState) => (
+        <AdjustmentDialog job={job} adjustment={reported} {...state} />
+      ),
+    },
+    request?.status === "pending" && {
+      label: "Answer",
+      icon: CalendarCheck,
+      dialog: (state: DialogState) => <AnswerRequest job={job} {...state} />,
+    },
+    booked(job) &&
+      job.cleanersNeeded > 0 &&
+      job.cleaners.length > 0 && {
+        label: "Offer to a cleaner",
+        icon: UserPlus,
+        dialog: (state: DialogState) => <OfferToCleaner job={job} {...state} />,
+      },
+    job.canOfferServicePlan && {
+      label: QUOTE_A_PLAN,
+      icon: Repeat,
+      isPending: starting === "service_plan",
+      onAction: () =>
+        void start({ propertyId: job.property.id, kind: "service_plan" }),
+    },
+    terms && {
+      label: "Move job",
+      icon: CalendarSync,
+      dialog: (state: DialogState) => <MoveJob job={job} {...state} />,
+    },
+    terms && {
+      label: "Ask for a new time",
+      icon: CalendarClock,
+      dialog: (state: DialogState) => <AskForNewTime job={job} {...state} />,
+    },
+    job.completion && {
+      label: "Correct the condition",
+      icon: Sparkles,
+      dialog: (state: DialogState) => <CorrectCondition job={job} {...state} />,
+    },
+    job.cancelTerms && {
+      label: "Cancel job",
+      icon: CalendarX,
+      danger: true,
+      dialog: (state: DialogState) => <CancelJob job={job} {...state} />,
+    },
+    job.completion && {
+      label: "Mark not done",
+      icon: Undo2,
+      danger: true,
+      dialog: (state: DialogState) => <UndoCompletion job={job} {...state} />,
+    },
+  ].filter((a): a is PageAction => !!a);
+  const [first] = all;
+  const next = first && !first.danger ? first : undefined;
+  return { next, more: next ? all.slice(1) : all };
+}
+
+// only what the badge can't say: to when a move is asked and what it
+// costs; why a payment failed and what puts it right; that no cleaner is
+// free to take it. The step each calls for is the page's primary
 const alertsFor = (job: OfficeJob): Alert[] => {
   const alerts: Alert[] = [];
   const request = job.rescheduleRequest;
-  const completion = job.completion;
-  const payment =
-    completion?.payment ?? job.cancellation?.payment ?? job.noAccess?.payment;
-
-  const ended = howItEnded(job);
-  if (ended) {
-    alerts.push({
-      key: "ended",
-      children: (
-        <p>
-          <strong>{ended.title}.</strong> {ended.description}
-        </p>
-      ),
-    });
-  }
+  const unpaid = job.payment?.unpaid;
   if (request?.status === "pending") {
     alerts.push({
       key: "reschedule",
       tone: "warning",
-      action: <AnswerRequest job={job} />,
       children: (
         <p>
           <strong>
-            {request.byClient ? "The client asked" : "The office asked"} to move
-            it to {formatDateTime(request.startsAt)}.
+            {request.byClient
+              ? `${firstNameOf(job.client.name)} asked`
+              : "The office asked"}{" "}
+            to move it to {formatDateTime(request.startsAt)}.
           </strong>{" "}
           {costForOffice(request.cost, request.feeCents, job)} The new time is
           held until you answer.
@@ -165,249 +289,212 @@ const alertsFor = (job: OfficeJob): Alert[] => {
       ),
     });
   }
-  if (booked(job) && job.cleanersNeeded > 0) {
-    alerts.push({
-      key: "cleaners-needed",
-      tone:
-        job.openTo.opened && job.openTo.cleaners === 0 ? "danger" : "warning",
-      action: job.cleaners.length > 0 && <OfferToCleaner job={job} />,
-      children: (
-        <>
-          <p>
-            <strong>Needs {cleaners(job.cleanersNeeded, "more")}.</strong>
-          </p>
-          <OpenTo job={job} />
-        </>
-      ),
-    });
-  }
-  const toReview =
-    completion?.adjustments.filter((a) => a.status === "reported").length ?? 0;
-  if (toReview > 0) {
-    alerts.push({
-      key: "review",
-      tone: "warning",
-      children: (
-        <p>
-          <strong>
-            The cleaner reported {toReview}{" "}
-            {toReview === 1 ? "price change" : "price changes"} to check.
-          </strong>
-        </p>
-      ),
-    });
-  }
-  if (payment?.unpaid) {
+  if (job.payment && unpaid) {
     alerts.push({
       key: "unpaid",
       tone: "danger",
-      action: <RetryCharge job={job} />,
       children: (
         <p>
           <strong>
-            Unpaid since {formatDate(payment.unpaid.since)}:{" "}
-            {formatMoney(payment.owedCents)} didn't go through
-            {payment.unpaid.why && ` (${payment.unpaid.why})`}.
+            {formatMoney(job.payment.owedCents)} didn't go through
+            {unpaid.why && ` (${unpaid.why})`}.
           </strong>{" "}
-          {officeFix[payment.unpaid.kind]}
+          {officeFix[unpaid.kind]}
         </p>
       ),
     });
   }
-  if (job.canOfferServicePlan) {
+  if (
+    booked(job) &&
+    job.cleanersNeeded > 0 &&
+    job.openTo.opened &&
+    job.openTo.cleaners === 0
+  ) {
     alerts.push({
-      key: "plan",
-      action: <OfferServicePlan propertyId={job.property.id} />,
-      children: <p>The first clean is paid: offer a cleaning plan.</p>,
+      key: "no-cleaner-free",
+      tone: "danger",
+      children: (
+        <p>
+          <strong>No cleaner is free then.</strong> Offer it to someone, or{" "}
+          {MORE_HOURS}.
+        </p>
+      ),
     });
   }
   return alerts;
 };
 
-// where a Job is, for its title: the street and unit
-const placeOf = (p: OfficeJob["property"]) =>
-  [p.street, p.unit].filter(Boolean).join(", ");
-
-// when, large; who it's for, where, what's in it; and while it's booked,
-// until when it's free to move or cancel (WEB-2)
-function JobDetails({ job }: { job: OfficeJob }) {
+// where, and who for, under the header card's times: each a link to its
+// page
+function WhereAndWho({ job }: { job: OfficeJob }) {
   return (
-    <DetailsCard
-      label="Job details"
-      tile={<DateTile date={job.startsAt} />}
-      kicker={job.serviceName}
-      title={formatDateTime(job.startsAt)}
-      line={`${formatHours(job.hoursOnSite)} on site`}
-    >
-      <Facts>
-        <Fact
-          icon={ContactRound}
-          label="Client"
-          value={
-            <Link
-              href={linkTo({
-                to: "/office/clients/$clientId",
-                params: { clientId: job.client.id },
-              })}
-            >
-              {clientName(job.client)}
-            </Link>
-          }
-        />
-        <Fact
-          icon={MapPin}
-          label="Home"
-          value={
-            <Link
-              href={linkTo({
-                to: "/office/properties/$propertyId",
-                params: { propertyId: job.property.id },
-              })}
-            >
-              {addressOf(job.property)}
-            </Link>
-          }
-        />
-        <Fact
-          icon={CirclePlus}
-          label="Extras"
-          value={job.addOns.length > 0 ? job.addOns.join(", ") : "None"}
-        />
-        <Fact
-          icon={Clock}
-          label="Cleaning hours"
-          value={formatHours(job.labourHours)}
-        />
-        <Fact icon={Users} label="Cleaners" value={job.crewSize} />
-        {job.rescheduleTerms && (
-          <Fact
-            icon={CalendarSync}
-            label="Moving"
-            value={formatDateTime(job.rescheduleTerms.freeUntil)}
-            line="Free to move until then"
-          />
-        )}
-        {job.cancelTerms && (
-          <Fact
-            icon={CalendarX}
-            label="Cancelling"
-            value={formatDateTime(job.cancelTerms.client.freeUntil)}
-            line="Free for the client to cancel until then"
-          />
-        )}
-      </Facts>
-    </DetailsCard>
+    <span className="flex flex-col items-start gap-1">
+      <Link
+        href={linkTo({
+          to: "/office/properties/$propertyId",
+          params: { propertyId: job.property.id },
+        })}
+      >
+        {addressOf(job.property)}
+      </Link>
+      <Link
+        href={linkTo({
+          to: "/office/clients/$clientId",
+          params: { clientId: job.client.id },
+        })}
+      >
+        {clientName(job.client)}
+      </Link>
+    </span>
   );
 }
 
-// once it's done: when and by whom, and the condition the cleaner found,
-// which the Office can correct
-function HowItWent({
-  job,
-  completion,
-}: {
-  job: OfficeJob;
-  completion: NonNullable<OfficeJob["completion"]>;
-}) {
+// a fact each: how long; the cleaning hours, for a crew of more than one
+// (for one, they're how long); how many extras, the signpost to their list;
+// while it's free to move or cancel, until when (one row when the two
+// agree); and how we get in, last and the card's width
+function JobFacts({ job }: { job: OfficeJob }) {
+  const moveUntil =
+    job.rescheduleTerms?.cost === "free" ? job.rescheduleTerms.freeUntil : null;
+  const cancelTerms = job.cancelTerms?.client;
+  const cancelUntil =
+    cancelTerms && !cancelTerms.late && cancelTerms.feeCents === 0
+      ? cancelTerms.freeUntil
+      : null;
+  return (
+    <Facts>
+      <Fact
+        icon={Clock}
+        label={w.howLong}
+        value={howLong(w, job.hoursOnSite)}
+      />
+      {job.crewSize > 1 && (
+        <Fact
+          icon={ClipboardList}
+          label="Cleaning hours"
+          value={howLong(w, job.labourHours)}
+          line="Cleaning hours, the crew together"
+        />
+      )}
+      {job.addOns.length > 0 && (
+        <Fact icon={CirclePlus} label={w.extras} value={job.addOns.length} />
+      )}
+      {moveUntil && moveUntil === cancelUntil ? (
+        <Fact
+          icon={CalendarCheck}
+          label="Free to move or cancel"
+          value={formatDateTime(moveUntil)}
+          line="Free to move or cancel until"
+        />
+      ) : (
+        <>
+          {moveUntil && (
+            <Fact
+              icon={CalendarSync}
+              label="Free to move"
+              value={formatDateTime(moveUntil)}
+              line="Free to move until"
+            />
+          )}
+          {cancelUntil && (
+            <Fact
+              icon={CalendarX}
+              label="Free to cancel"
+              value={formatDateTime(cancelUntil)}
+              line="Free for the client to cancel until"
+            />
+          )}
+        </>
+      )}
+      {job.property.accessInstructions && (
+        <AccessFact property={job.property} className="col-span-full" />
+      )}
+    </Facts>
+  );
+}
+
+// once it's over, only what History doesn't say: done, the home's condition
+// the cleaner found and the price changes they reported; couldn't get in,
+// what the cleaner said. A cancelled Job has none: History says why
+function HowItWent({ job }: { job: OfficeJob }) {
+  const { completion, noAccess } = job;
+  if (!completion && !noAccess) return null;
   return (
     <Section title="How it went">
       <Card>
         <Facts>
-          <Fact
-            icon={jobStatusIcon.completed}
-            label="Done"
-            value={formatDateTime(completion.completedAt)}
-            line={
-              completion.completedBy
-                ? `Done, by ${completion.completedBy.name}`
-                : "Done"
-            }
-          />
+          {completion && (
+            <ConditionFact
+              property={completion}
+              line="How dirty the home was"
+            />
+          )}
+          {noAccess && (
+            <Fact
+              icon={MessageSquareText}
+              label={`What ${noAccess.recordedBy?.name ?? "the cleaner"} said`}
+              value={noAccess.reason}
+              className="col-span-full"
+            />
+          )}
         </Facts>
-        <ConditionField job={job} completion={completion} />
+        {completion && <Adjustments job={job} />}
       </Card>
     </Section>
   );
 }
 
-// who's on the Job, each as the Staff list draws its people: their
-// picture, name and since when, a badge when it's not the usual
-// (Confirmed), and while it's booked an X to take them off. Someone who
-// dropped out or was taken off isn't on it: History says so (WEB-3)
+// the crew as faces (Crew.tsx): while it's booked, everyone on it, a ghost
+// for each still needed, a ✕ to take each off, and in its line who its
+// Cleaners Needed are open to (ADR-0019) and who said no. Once it's over,
+// who was there; nobody, no part
 function Crew({ job }: { job: OfficeJob }) {
-  const crew = job.assignments.filter((a) => isOnCrew(a.status));
-  const confirmed = crew.filter((a) => a.status === "confirmed").length;
+  const over = !booked(job);
+  const crew = job.assignments.filter((a) =>
+    over ? a.status === "confirmed" : isOnCrew(a.status),
+  );
   return (
-    <Section
+    <CrewSection
       title="Crew"
-      description={`${confirmed} of ${cleaners(job.crewSize)} confirmed`}
-      actions={
-        booked(job) &&
-        job.cleanersNeeded > 0 &&
-        job.cleaners.length > 0 && <OfferToCleaner job={job} />
-      }
-    >
-      {crew.length === 0 ? (
-        <p className="text-sm text-fg-muted">Nobody is on it yet.</p>
-      ) : (
-        <List aria-label="Crew">
-          {crew.map((a) => (
-            <ListItem
-              key={a.id}
-              id={a.id}
-              title={a.staff.name}
-              start={<Avatar src={a.staff.imageUrl} />}
-              description={sinceOf(a)}
-              end={
-                a.status !== "confirmed" && (
-                  <AssignmentStateBadge state={a.status} />
-                )
-              }
-              action={booked(job) && <Remove job={job} assignment={a} />}
-            />
-          ))}
-        </List>
-      )}
-    </Section>
+      size={job.crewSize}
+      over={over}
+      line={over ? undefined : openToOf(job)}
+      members={crew.map((a) => ({
+        name: a.staff.name,
+        confirmed: a.status === "confirmed",
+        picture: a.staff.imageUrl,
+        action: !over && <Remove job={job} assignment={a} />,
+      }))}
+    />
   );
 }
 
-// who a Job's Cleaners Needed are open to: from 7 days before it, every free
-// Cleaner, first to Confirm taking each (ADR-0019)
-function OpenTo({ job }: { job: OfficeJob }) {
+// who a booked Job's Cleaners Needed are open to: from 7 days before it,
+// every free Cleaner, first to Confirm taking each (ADR-0019; none free is
+// the page's alert); and who said no
+const openToOf = (job: OfficeJob) => {
   const { opensAt, opened, cleaners: free, passedBy } = job.openTo;
   const firstTo =
     job.cleanersNeeded === 1
       ? "the first to confirm gets it"
       : `the first ${job.cleanersNeeded} to confirm get it`;
-  return (
-    <>
-      <p>
-        {!opened
-          ? `Free cleaners can take it from ${formatDateTime(opensAt)}.`
-          : free === 0
-            ? `No cleaner is free then. Offer it to someone, or ${MORE_HOURS}.`
-            : `${cleaners(free, "free")} can take it: ${firstTo}.`}
-      </p>
-      {passedBy.length > 0 && (
-        <p>Said no: {passedBy.map((p) => p.name).join(", ")}.</p>
-      )}
-    </>
-  );
-}
+  const openTo =
+    job.cleanersNeeded > 0 &&
+    (!opened
+      ? `Free cleaners can take it from ${formatDateTime(opensAt)}.`
+      : free > 0 && `${cleaners(free, "free")} can take it: ${firstTo}.`);
+  const saidNo =
+    passedBy.length > 0 &&
+    `Said no: ${passedBy.map((p) => p.name).join(", ")}.`;
+  return [openTo, saidNo].filter(Boolean).join(" ") || undefined;
+};
 
 // Offers a Cleaner Needed to a Cleaner of the Office's choosing, in a dialog
-function OfferToCleaner({ job }: { job: OfficeJob }) {
+function OfferToCleaner({ job, ...state }: { job: OfficeJob } & DialogState) {
   return (
-    <DialogTrigger>
-      <Button variant="text" size="sm">
-        <UserPlus aria-hidden size={16} />
-        Offer to a cleaner
-      </Button>
-      <Dialog title="Offer to a cleaner">
-        {({ close }) => <Offer job={job} close={close} />}
-      </Dialog>
-    </DialogTrigger>
+    <Dialog title="Offer to a cleaner" {...state}>
+      {({ close }) => <Offer job={job} close={close} />}
+    </Dialog>
   );
 }
 
@@ -484,7 +571,7 @@ function Remove({
   return (
     <DialogTrigger>
       <Button variant="quiet" size="icon" aria-label={`Remove ${name}`}>
-        <X aria-hidden size={20} className="text-fg-muted" />
+        <X aria-hidden size={18} className="text-fg-muted" />
       </Button>
       <Dialog title={`Take ${name} off this job?`} role="alertdialog">
         {({ close }) => (

@@ -43,6 +43,8 @@ export const labels = catalog({
     } satisfies Record<JobStatus, string>,
     welcome: "Welcome",
     today: "Today",
+    // a Job's badge while a move asked for waits on the Office's answer
+    moveAsked: "Move asked",
     send: "Send",
     siteVisit: "Site visit",
   },
@@ -81,6 +83,7 @@ export const labels = catalog({
     // everyone is on #206 for Jen
     welcome: "Bienvenido",
     today: "Hoy",
+    moveAsked: "Reprogramación pedida",
     send: "Enviar",
     siteVisit: "Visita previa",
   },

@@ -25,6 +25,8 @@ import {
 } from "../cancellation/cancellation.ts";
 import { weeklyBillOfJob } from "../bills/billed-weekly.ts";
 import { clients } from "../clients/clients.schema.ts";
+import { paymentOf } from "../completion/balance.ts";
+import { quotedJobs } from "../completion/pricing.ts";
 import {
   cleanerCompletionsOf,
   officeCompletionOf,
@@ -56,6 +58,16 @@ import {
 import { cleanOf, serviceVersions } from "../services/services.ts";
 import { offerEmail, releasedEmail, takenOffEmail } from "./emails.ts";
 
+// how a Job ended, without the payment the Office's Job carries once, at
+// its top
+const withoutPayment = <T extends { payment: unknown }>(
+  ending: T | null,
+): Omit<T, "payment"> | null => {
+  if (!ending) return null;
+  const { payment: _payment, ...rest } = ending;
+  return rest;
+};
+
 // a booked Job with its Property
 const findJob = async (jobId: string) => {
   const [found] = await db
@@ -83,10 +95,10 @@ const toView = (
 });
 
 // a Job, on the Schedule or Cancelled, with everyone Offered it, the
-// Cleaners who could be, who its Cleaners Needed are open to, what cancelling or moving it would cost, any
-// request to move it, and once it has
-// happened or been Cancelled, how it went and its payment, and whether its
-// Property can be offered a Service Plan from it
+// Cleaners who could be, who its Cleaners Needed are open to, what
+// cancelling or moving it would cost, any request to move it, its payment
+// and how we get in; once it has happened or been Cancelled, how it went,
+// and whether its Property can be offered a Service Plan from it
 export const officeJob = async (jobId: string): Promise<OfficeJob> => {
   const [row] = await db.select().from(jobs).where(eq(jobs.id, jobId));
   if (!row) throw new NotFoundError("Job not found");
@@ -107,6 +119,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     servicePlanId,
     openTo,
     weeklyBill,
+    [home],
   ] = await Promise.all([
     jobView(jobId),
     selectStaff({ assignment: assignments })
@@ -133,7 +146,17 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     planOfJob(jobId),
     openToOf(row),
     weeklyBillOfJob(row, db),
+    db
+      .select({ accessInstructions: properties.accessInstructions })
+      .from(properties)
+      .where(eq(properties.id, row.propertyId)),
   ]);
+  // how it ended carries its payment, read already; a booked Job's is read
+  // here, when a Quote prices it
+  const payment =
+    (completion ?? cancellation ?? noAccess)?.payment ??
+    ((await quotedJobs([row.id])).has(row.id) ? await paymentOf(row) : null);
+  const now = clock.now();
 
   const holding = rows.filter((r) => isOnCrew(r.assignment.status));
   const released = rows.filter((r) => !isOnCrew(r.assignment.status));
@@ -142,9 +165,14 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
 
   return {
     ...job,
-    completion,
-    cancellation,
-    noAccess,
+    property: { ...job.property, accessInstructions: home!.accessInstructions },
+    bookedAt: row.bookedAt.toISOString(),
+    today: isToday(row.startsAt),
+    started: row.startsAt <= now,
+    payment,
+    completion: withoutPayment(completion),
+    cancellation: withoutPayment(cancellation),
+    noAccess: withoutPayment(noAccess),
     cancelTerms,
     rescheduleTerms,
     rescheduleRequest,

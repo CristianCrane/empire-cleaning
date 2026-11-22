@@ -210,16 +210,17 @@ describe("the Client cancelling", () => {
     );
     const job = await officeJob(office, jobId);
     expect(job.status).toBe("cancelled");
-    expect(job.cancellation!.payment.unpaid).not.toBeNull();
+    expect(job.payment!.unpaid).not.toBeNull();
     expect(testEmail().lastTo(casey.email).subject).toBe(
       "Your clean is cancelled",
     );
 
     await office.post(`/api/jobs/${jobId}/balance/retry`).expect(200);
     expect(refunded()).toEqual([deposit]);
-    expect(
-      (await officeJob(office, jobId)).cancellation!.payment,
-    ).toMatchObject({ owedCents: 0, unpaid: null });
+    expect((await officeJob(office, jobId)).payment).toMatchObject({
+      owedCents: 0,
+      unpaid: null,
+    });
   });
 
   test("whose Refund wasn't recorded gives the Deposit back once, retried a day later", async () => {
@@ -235,9 +236,10 @@ describe("the Client cancelling", () => {
     await office.post(`/api/jobs/${jobId}/balance/retry`).expect(200);
 
     expect(refunded()).toEqual([deposit]);
-    expect(
-      (await officeJob(office, jobId)).cancellation!.payment,
-    ).toMatchObject({ owedCents: 0, unpaid: null });
+    expect((await officeJob(office, jobId)).payment).toMatchObject({
+      owedCents: 0,
+      unpaid: null,
+    });
   });
 
   test("less than 24 hours ahead keeps the Deposit as the fee", async () => {
@@ -356,8 +358,8 @@ describe("Office Staff cancelling", () => {
       late: false,
       feeCents: 0,
       reason: "Our crew's van broke down.",
-      payment: { paidCents: 0 },
     });
+    expect(job.payment).toMatchObject({ paidCents: 0 });
     expect(refunded()).toEqual([deposit]);
     const email = testEmail().lastTo(casey.email);
     expect(email.text).toContain("we've had to cancel your clean.");
@@ -410,11 +412,8 @@ describe("No Access", () => {
       status: "no_access",
       completion: null,
       cancelTerms: null,
-      noAccess: {
-        recordedBy: { name: "Cory Cleaner" },
-        feeCents: deposit,
-        payment: { paidCents: deposit, owedCents: 0 },
-      },
+      noAccess: { recordedBy: { name: "Cory Cleaner" }, feeCents: deposit },
+      payment: { paidCents: deposit, owedCents: 0 },
     });
     expect((await clientJob(client, jobId)).noAccess).toMatchObject({
       feeCents: deposit,

@@ -1,6 +1,7 @@
-import { formats } from "@empire-cleaning/models";
+import { firstNameOf, formats, messages } from "@empire-cleaning/models";
 import {
   CalendarCheck,
+  CalendarPlus,
   CalendarClock,
   CalendarX,
   CreditCard,
@@ -18,9 +19,11 @@ import { Timeline, TimelineItem } from "@empire-cleaning/ui";
 import { wasSkipped, screenWords } from "../format.ts";
 import { jobStatusIcon } from "../icons.ts";
 
-const { assignmentStateLabel, cancelledLabel, jobStatusLabel } = screenWords.en;
+const { assignmentStateLabel, cancelledLabel } = screenWords.en;
 
-const { formatDate, formatDateTime, formatMoney } = formats.en;
+const { formatDateTime, formatMoney } = formats.en;
+
+const { planCancelled } = messages.en;
 
 type Moment = {
   key: string;
@@ -54,12 +57,15 @@ const requestAnswered: Record<
   withdrawn: { icon: CalendarX, title: "Move withdrawn by the client" },
 };
 
-// everything that happened to a Job, newest first: its Assignments Offered,
-// Confirmed, Released or taken off, Reschedule Requests and their answers
-// (closed unanswered if the Job stopped being booked first), each
-// charge, and how it went or ended
+// everything that happened to a Job, newest first, whole: its booking, its
+// Assignments Offered, Confirmed, Released or taken off, Reschedule
+// Requests and their answers (closed unanswered if the Job stopped being
+// booked first), each charge, and how it went or ended, who did it named in
+// its title
 const momentsOf = (job: OfficeJob): Moment[] => {
-  const moments: Moment[] = [];
+  const moments: Moment[] = [
+    { key: "booked", at: job.bookedAt, icon: CalendarPlus, title: "Booked" },
+  ];
   for (const a of job.assignments) {
     moments.push({
       key: `offered-${a.id}`,
@@ -83,7 +89,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       key: "asked",
       at: request.requestedAt,
       icon: CalendarClock,
-      title: `${request.byClient ? "The client" : "The office"} asked to move it`,
+      title: `${request.byClient ? firstNameOf(job.client.name) : "The office"} asked to move it`,
       description: `${formatDateTime(request.fromStartsAt)} to ${formatDateTime(request.startsAt)}`,
     });
     if (request.answeredAt && request.status !== "pending") {
@@ -97,11 +103,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       });
     }
   }
-  const payment =
-    job.completion?.payment ??
-    job.cancellation?.payment ??
-    job.noAccess?.payment;
-  payment?.charges.forEach((c, i) =>
+  job.payment?.charges.forEach((c, i) =>
     moments.push({
       key: `charge-${i}`,
       at: c.chargedAt,
@@ -118,33 +120,38 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       key: "completed",
       at: job.completion.completedAt,
       icon: jobStatusIcon.completed,
-      title: jobStatusLabel.completed,
-      description: job.completion.completedBy
-        ? `By ${job.completion.completedBy.name}`
-        : undefined,
+      title: job.completion.completedBy
+        ? `Done by ${job.completion.completedBy.name}`
+        : "Done",
     });
   }
-  if (job.cancellation) {
+  const { cancellation, noAccess } = job;
+  if (cancellation) {
+    const skipped = wasSkipped(job);
     moments.push({
       key: "cancelled",
-      at: job.cancellation.cancelledAt,
+      at: cancellation.cancelledAt,
       icon: jobStatusIcon.cancelled,
-      title: cancelledLabel(wasSkipped(job)),
+      title: `${cancelledLabel(skipped)} ${cancellation.by === "empire" ? "by us" : "by the client"}`,
+      // whether it was late, which its fee is for; the plan's part in it;
+      // and why, as we told the client
       description:
-        job.cancellation.by === "empire"
-          ? "By Empire Cleaning"
-          : "By the client",
+        [
+          cancellation.late && "A late cancellation.",
+          skipped && "The plan carries on.",
+          cancellation.withPlan && `${planCancelled[cancellation.withPlan]}.`,
+          cancellation.reason,
+        ]
+          .filter(Boolean)
+          .join(" ") || undefined,
     });
   }
-  if (job.noAccess) {
+  if (noAccess) {
     moments.push({
       key: "no-access",
-      at: job.noAccess.recordedAt,
+      at: noAccess.recordedAt,
       icon: jobStatusIcon.no_access,
-      title: jobStatusLabel.no_access,
-      description: job.noAccess.recordedBy
-        ? `Recorded by ${job.noAccess.recordedBy.name}`
-        : undefined,
+      title: `${noAccess.recordedBy?.name ?? "The crew"} couldn't get in`,
     });
   }
   return moments.sort((a, b) => b.at.localeCompare(a.at));
@@ -153,16 +160,14 @@ const momentsOf = (job: OfficeJob): Moment[] => {
 // the Job's story, newest first, as a Timeline, for its Record's History
 export function JobHistory({ job }: { job: OfficeJob }) {
   const moments = momentsOf(job);
-  return moments.length === 0 ? (
-    <p className="text-sm text-fg-muted">Nothing has happened yet.</p>
-  ) : (
+  return (
     <Timeline aria-label="History, newest first">
       {moments.map((m) => (
         <TimelineItem
           key={m.key}
           icon={m.icon}
           title={m.title}
-          when={formatDate(m.at)}
+          when={formatDateTime(m.at)}
           description={m.description}
         />
       ))}

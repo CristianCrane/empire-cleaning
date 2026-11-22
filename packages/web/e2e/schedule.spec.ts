@@ -432,7 +432,10 @@ test("Office Staff move a Job from the Job screen, at any width", async ({
   await expect(
     page.locator("#main").getByText("Fri, Mar 5, 1:15 PM", { exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("0 of 1 Cleaner Confirmed")).toBeVisible();
+  // its Cleaner has to confirm the new time
+  await expect(page.getByRole("region", { name: "Crew" })).toContainText(
+    "0 of 1 confirmed",
+  );
 });
 
 test("a Job that has started, or isn't booked, can't be moved", async ({

@@ -8,6 +8,7 @@ import type {
   OfficeQuote,
   CleanerNeeded,
   ScheduleDay,
+  SignedInAccount,
 } from "@empire-cleaning/models";
 import { apart } from "#db";
 import { assignments } from "#features/assignments";
@@ -22,6 +23,7 @@ import {
   testEmail,
 } from "../../../tests/harness.ts";
 import {
+  acceptedJob,
   bookedJob,
   casey,
   guestAsk,
@@ -783,5 +785,75 @@ describe("Releasing an Assignment while its Job is being moved (#242)", () => {
 
     expect(await released).toBe(204);
     expect(await statusOf(assignmentId)).toBe("released");
+  });
+});
+
+describe("The Office's Job (#493)", () => {
+  test("says when it was booked, whether it's today and has started, how we get in, and its price and Deposit while it's booked", async () => {
+    const office = await signInAsOffice();
+    // free that day, so it fits
+    await staffMember("Cory Cleaner");
+    const me = (await office.get("/api/me").expect(200))
+      .body as SignedInAccount;
+    const { id } = await acceptedJob({
+      startsAt: THURSDAY_9AM,
+      byAccountId: me.id,
+    });
+
+    const job = await jobFor(office, id);
+    expect(job).toMatchObject({
+      bookedAt: "2026-01-05T09:00:00.000Z",
+      today: false,
+      started: false,
+      property: { accessInstructions: "Ring 4B; the doorman has a key." },
+    });
+    // its price, and the Deposit taken for it, before it's done
+    const [deposit] = job.payment!.charges;
+    expect(job.payment!.charges).toHaveLength(1);
+    expect(deposit).toMatchObject({ kind: "deposit", refundedCents: 0 });
+    expect(job.payment).toMatchObject({
+      totalCents: job.payment!.quotedCents,
+      paidCents: deposit!.amountCents,
+      owedCents: 0,
+    });
+
+    // its day, by the Clock: an hour before it, then as it starts
+    testClock().set(new Date("2026-01-08T13:00:00Z"));
+    expect(await jobFor(office, id)).toMatchObject({
+      today: true,
+      started: false,
+    });
+    testClock().set(new Date(THURSDAY_9AM));
+    expect(await jobFor(office, id)).toMatchObject({
+      today: true,
+      started: true,
+    });
+  });
+
+  test("carries its payment once, at its top, once it has ended", async () => {
+    const office = await signInAsOffice();
+    // free that day, so it fits
+    await staffMember("Cory Cleaner");
+    const me = (await office.get("/api/me").expect(200))
+      .body as SignedInAccount;
+    const { id } = await acceptedJob({
+      startsAt: THURSDAY_9AM,
+      byAccountId: me.id,
+    });
+    await office
+      .post(`/api/jobs/${id}/cancel`)
+      .send({ by: "empire", feeCents: 0, reason: "Our crew is unwell." })
+      .expect(200);
+
+    const job = await jobFor(office, id);
+    expect(job.cancellation).not.toHaveProperty("payment");
+    // the Deposit, refunded in full
+    expect(job.payment!.charges).toEqual([
+      expect.objectContaining({
+        kind: "deposit",
+        refundedCents: job.payment!.charges[0]!.amountCents,
+      }),
+    ]);
+    expect(job.payment!.paidCents).toBe(0);
   });
 });

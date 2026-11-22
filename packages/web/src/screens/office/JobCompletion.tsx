@@ -17,7 +17,6 @@ import type {
   AdjustmentStatus,
   AdjustmentView,
   Condition,
-  JobCompletion,
   OfficeJob,
 } from "@empire-cleaning/models";
 import {
@@ -31,8 +30,6 @@ import {
   Notice,
   NumberField,
   Section,
-  Select,
-  SelectItem,
   StatusBadge,
   Table,
   TableBody,
@@ -42,19 +39,23 @@ import {
   Facts,
   Fold,
   type DialogState,
+  type PageAction,
   Card,
 } from "@empire-cleaning/ui";
 import { deleteJson, patchJson, postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
-import { dollars, formatHours, screenWords } from "../format.ts";
-
-const { conditionLabel } = screenWords.en;
+import { dollars, formatHours } from "../format.ts";
+import { ConditionField } from "./PropertyFields.tsx";
 
 const { formatDate, formatMoney } = formats.en;
 
+// a price change the Cleaner reported, waiting on the Office: the Job's
+// badge and its row's both say so
+export const TO_REVIEW = "To review";
+
 const statusBadge: Record<AdjustmentStatus, ReactNode> = {
   applied: <StatusBadge tone="success">Added</StatusBadge>,
-  reported: <StatusBadge tone="warning">To review</StatusBadge>,
+  reported: <StatusBadge tone="warning">{TO_REVIEW}</StatusBadge>,
   dismissed: <StatusBadge>Dismissed</StatusBadge>,
   proposed: <StatusBadge tone="info">Waiting on the client</StatusBadge>,
   approved: <StatusBadge tone="success">Approved</StatusBadge>,
@@ -62,36 +63,58 @@ const statusBadge: Record<AdjustmentStatus, ReactNode> = {
   lapsed: <StatusBadge>Not answered</StatusBadge>,
 };
 
-export function ConditionField({
+// the price changes the Cleaner reported that the Office hasn't reviewed
+export const toReviewOf = (job: OfficeJob) =>
+  job.completion?.adjustments.filter((a) => a.status === "reported") ?? [];
+
+// Office Staff correct the condition the Cleaner reported, which is the
+// home's too, opened from the Job's header
+export function CorrectCondition({
   job,
-  completion,
-}: {
-  job: OfficeJob;
-  completion: JobCompletion;
-}) {
+  ...state
+}: { job: OfficeJob } & DialogState) {
+  const reported = job.completion!.condition;
+  const [condition, setCondition] = useState<Condition>(reported);
   const action = useAction("The condition wasn't saved. Please try again.");
   return (
-    <Select
-      label="Condition reported"
-      description="It's the home's condition too, for future quotes."
-      selectedKey={completion.condition}
-      onSelectionChange={(key) =>
-        void action.run(
-          () =>
-            patchJson(`/api/jobs/${job.id}/completion`, {
-              condition: key as Condition,
-            }),
-          "Condition corrected",
-        )
-      }
-      width="medium"
+    <Dialog
+      title="Correct the condition"
+      {...state}
+      onOpenChange={(isOpen) => {
+        // each time it opens, it starts from what's recorded
+        if (isOpen) setCondition(reported);
+        state.onOpenChange(isOpen);
+      }}
     >
-      {(["light", "moderate", "heavy"] as const).map((c) => (
-        <SelectItem key={c} id={c}>
-          {conditionLabel[c]}
-        </SelectItem>
-      ))}
-    </Select>
+      {({ close }) => (
+        <Form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void action
+              .run(
+                () =>
+                  patchJson(`/api/jobs/${job.id}/completion`, { condition }),
+                "Condition corrected",
+              )
+              .then((ok) => ok && close());
+          }}
+        >
+          <ConditionField value={condition} onChange={setCondition} />
+          <p className="text-sm text-fg-muted">
+            It's the home's condition too, for future quotes.
+          </p>
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              Cancel
+            </Button>
+            <Button type="submit" isPending={action.isPending}>
+              Save
+            </Button>
+          </Actions>
+        </Form>
+      )}
+    </Dialog>
   );
 }
 
@@ -200,7 +223,7 @@ const counts = (a: AdjustmentView) =>
  * opens the Adjustment, where Office Staff review an increase, or correct
  * or remove one.
  */
-function Adjustments({ job }: { job: OfficeJob }) {
+export function Adjustments({ job }: { job: OfficeJob }) {
   const adjustments = job.completion!.adjustments;
   const [openId, setOpenId] = useState<string | null>(null);
   // the latest, once an action reloads the Job; gone if it was removed
@@ -241,7 +264,8 @@ function Adjustments({ job }: { job: OfficeJob }) {
           key={open.id}
           job={job}
           adjustment={open}
-          close={() => setOpenId(null)}
+          isOpen
+          onOpenChange={(isOpen) => !isOpen && setOpenId(null)}
         />
       )}
     </Section>
@@ -251,24 +275,29 @@ function Adjustments({ job }: { job: OfficeJob }) {
 // One Adjustment, opened: what happened, then what can be done to it, in
 // this one dialog (never a dialog on a dialog). An increase to review is
 // proposed to the Client or dismissed; one that counts has its price
-// corrected, or is removed, after a second look.
-function AdjustmentDialog({
+// corrected, or is removed, after a second look. Opened from its row, or
+// as the page's Review
+export function AdjustmentDialog({
   job,
   adjustment: a,
-  close,
+  isOpen,
+  onOpenChange,
 }: {
   job: OfficeJob;
   adjustment: AdjustmentView;
-  close: () => void;
-}) {
+} & DialogState) {
   const [removing, setRemoving] = useState(false);
+  const close = () => {
+    setRemoving(false);
+    onOpenChange(false);
+  };
   return (
     <Dialog
       title={removing ? `Remove ${whatOf(a)}?` : whatOf(a)}
       role={removing ? "alertdialog" : "dialog"}
-      isOpen
+      isOpen={isOpen}
       isDismissable={!removing}
-      onOpenChange={(isOpen) => !isOpen && close()}
+      onOpenChange={(open) => !open && close()}
     >
       {removing ? (
         <ConfirmRemove job={job} adjustment={a} close={close} />
@@ -546,62 +575,117 @@ export function UndoCompletion({
   );
 }
 
-// What a Job's money comes to, once it's done or didn't happen (WEB-6):
-// its total or fee, what's paid and what's still owed; the price changes;
-// how it's worked out, folded. Each charge is in its History, and a failed
-// one is an alert above, with its retry.
+// What a Job's money comes to, one line a fact (WEB-6, #493): while it's
+// booked, its price and the Deposit paid; once done, its total when it
+// isn't what's paid, what's paid and how, what's on weekly bills and what's
+// still owed or to refund, how it's worked out folded; once it didn't
+// happen, its fee and what was refunded. Nothing, no part. Each charge is
+// in its History, and a failed one an alert above
 export function JobMoney({ job }: { job: OfficeJob }) {
-  const lost = job.cancellation ?? job.noAccess;
-  const payment = job.completion?.payment ?? lost?.payment;
+  const payment = job.payment;
   if (!payment) return null;
-  const owed = payment.owedCents;
-  return (
-    <Section title="Money">
-      <Card>
-        <Facts>
-          {job.completion ? (
-            <Fact
-              icon={Receipt}
-              label="Total"
-              value={formatMoney(payment.totalCents)}
-              line="Total, tax included"
-            />
-          ) : (
-            <Fact
-              icon={Receipt}
-              label="Fee"
-              value={lost!.feeCents > 0 ? formatMoney(lost!.feeCents) : "None"}
-            />
-          )}
+  const { paidCents: paid, owedCents: owed } = payment;
+  // how it was paid, when the card is known: " by Visa ending 4242"
+  const by = payment.paymentMethod ? ` by ${payment.paymentMethod}` : "";
+  const refunded = payment.charges.reduce((sum, c) => sum + c.refundedCents, 0);
+  // what it came to once over: its total, or what not happening cost
+  const due = job.completion
+    ? payment.totalCents
+    : ((job.cancellation ?? job.noAccess)?.feeCents ?? 0);
+  const dueFact = (line?: string) =>
+    job.completion ? (
+      <Fact
+        key="due"
+        icon={Receipt}
+        label="Total"
+        value={formatMoney(due)}
+        line={line ?? "Total, tax included"}
+      />
+    ) : (
+      <Fact
+        key="due"
+        icon={Receipt}
+        label="Fee"
+        value={formatMoney(due)}
+        line={line}
+      />
+    );
+  const facts =
+    job.status === "booked"
+      ? [
           <Fact
-            icon={CreditCard}
-            label="Paid"
-            value={formatMoney(payment.paidCents)}
-            line={
-              payment.paymentMethod
-                ? `Paid by ${payment.paymentMethod}`
-                : undefined
-            }
-          />
-          {owed !== 0 && (
+            key="price"
+            icon={Receipt}
+            label="Price"
+            value={formatMoney(payment.totalCents)}
+            line="Price, tax included"
+          />,
+          paid > 0 && (
             <Fact
+              key="deposit"
+              icon={CreditCard}
+              label="Deposit"
+              value={formatMoney(paid)}
+              line="Deposit paid"
+            />
+          ),
+        ]
+      : [
+          // paid in full, it's said once: what it came to, and how it was
+          // paid
+          due > 0 && due === paid
+            ? dueFact(`${job.completion ? "Total" : "Fee"}, paid${by}`)
+            : due > 0 && dueFact(),
+          paid > 0 && paid !== due && (
+            <Fact
+              key="paid"
+              icon={CreditCard}
+              label="Paid"
+              value={formatMoney(paid)}
+              line={`Paid${by}`}
+            />
+          ),
+          payment.billedCents !== 0 && (
+            <Fact
+              key="billed"
+              icon={Files}
+              label="On weekly bills"
+              value={formatMoney(payment.billedCents)}
+              line="On the client's weekly bills"
+            />
+          ),
+          refunded > 0 && (
+            <Fact
+              key="refunded"
+              icon={Undo2}
+              label="Refunded"
+              value={formatMoney(refunded)}
+              line={job.cancellation ? "Deposit refunded" : "Refunded"}
+            />
+          ),
+          owed !== 0 && (
+            <Fact
+              key="owed"
               icon={owed > 0 ? CircleAlert : Undo2}
               label={owed > 0 ? "Still owed" : "To refund"}
               value={formatMoney(Math.abs(owed))}
             />
-          )}
-        </Facts>
-        {(payment.billedCents !== 0 ||
-          (job.completion && payment.totalCents !== payment.quotedCents)) && (
+          ),
+        ];
+  const shown = facts.filter(Boolean);
+  if (shown.length === 0) return null;
+  return (
+    <Section title="Money">
+      <Card>
+        <Facts>{shown}</Facts>
+        {job.completion && payment.totalCents !== payment.quotedCents && (
           <Fold label="How it's worked out">
             <Facts>
-              {job.completion && (
-                <Fact
-                  icon={FileText}
-                  label="Quoted"
-                  value={formatMoney(payment.quotedCents)}
-                />
-              )}
+              <Fact
+                icon={FileText}
+                label="Quoted"
+                value={formatMoney(payment.quotedCents)}
+              />
               {payment.adjustmentsCents !== 0 && (
                 <Fact
                   icon={ClipboardList}
@@ -609,43 +693,29 @@ export function JobMoney({ job }: { job: OfficeJob }) {
                   value={formatMoney(payment.adjustmentsCents)}
                 />
               )}
-              {payment.billedCents !== 0 && (
-                <Fact
-                  icon={Files}
-                  label="On weekly bills"
-                  value={formatMoney(payment.billedCents)}
-                />
-              )}
             </Facts>
           </Fold>
         )}
       </Card>
-      {job.completion && <Adjustments job={job} />}
     </Section>
   );
 }
 
 // charges what a Job owes again, after a failed charge: a Balance, or the
-// fee of a plan Job that didn't happen
-export function RetryCharge({ job }: { job: OfficeJob }) {
-  // a retry that fails is a Toast, not a Notice in the Unpaid one (WEB-5)
+// fee of a plan Job that didn't happen. The page's next step while it's
+// Unpaid; a retry that fails is a Toast (WEB-5)
+export function useRetryCharge(job: OfficeJob): PageAction {
   const action = useAction("It wasn't tried again. Please try again.", {
     toast: true,
   });
-  return (
-    <Button
-      variant="text"
-      size="sm"
-      isPending={action.isPending}
-      onPress={() =>
-        void action.run(
-          () => postJson(`/api/jobs/${job.id}/balance/retry`),
-          "Payment taken",
-        )
-      }
-    >
-      <CreditCard aria-hidden size={16} />
-      Try the payment again
-    </Button>
-  );
+  return {
+    label: "Try the payment again",
+    icon: CreditCard,
+    isPending: action.isPending,
+    onAction: () =>
+      void action.run(
+        () => postJson(`/api/jobs/${job.id}/balance/retry`),
+        "Payment taken",
+      ),
+  };
 }

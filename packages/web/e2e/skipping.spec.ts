@@ -131,13 +131,13 @@ test(
     await dialog.getByRole("button", { name: "Cancel job" }).click();
 
     await expect(page.getByText("Job cancelled")).toBeVisible();
-    await expect(
-      page.getByText(
-        "By the client, a late cancellation; the plan carries on.",
-      ),
-    ).toBeVisible();
+    const history = page.getByRole("region", { name: "History" });
+    await expect(history).toContainText("Skipped by the client");
+    await expect(history).toContainText(
+      "A late cancellation. The plan carries on.",
+    );
     await expect(page.getByRole("region", { name: "Money" })).toContainText(
-      "Fee$50.46",
+      "$50.46Fee, paid",
     );
     await expect(page.getByRole("region", { name: "History" })).toContainText(
       "Fee of $50.46 charged",

@@ -49,6 +49,27 @@ export const OneNotYet: Story = {
   },
 };
 
+// what this reader needs to know too, after where it stands
+export const WithLine: Story = {
+  args: { line: "Free cleaners can take it from Mon, Jan 5, 9:00 AM." },
+  play: async ({ canvasElement }) => {
+    await expect(canvasElement).toHaveTextContent(
+      "1 of 2 confirmed, 1 needed. Free cleaners can take it from Mon, Jan 5, 9:00 AM.",
+    );
+  },
+};
+
+// a Job that's over: who was there, no line, no ghost, no tick, nothing
+// read out of whether they'd confirmed
+export const Over: Story = {
+  args: { over: true, line: "Free cleaners can take it." },
+  play: async ({ canvasElement }) => {
+    const crew = within(canvasElement).getByRole("region", { name: "Crew" });
+    await expect(within(crew).getAllByRole("listitem")).toHaveLength(1);
+    await expect(crew).toHaveTextContent(/^Crew\s*You$/);
+  },
+};
+
 // a Job's extras, one a line; none, no part
 export const Extras: Story = {
   render: () => (

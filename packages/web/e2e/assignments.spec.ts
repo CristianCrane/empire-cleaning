@@ -18,6 +18,7 @@ import {
   openTile,
   pageAction,
   expectNoPageAction,
+  expectNextStep,
 } from "./harness.ts";
 
 // the API's fake clock is at 4am on Monday 5 January 2026 in New York. The
@@ -48,12 +49,9 @@ const thursdayJob = (crewSize = 2) =>
     id: string;
   }>;
 
-// from the Crew Section's action: the Cleaners Needed Notice has one too
+// the Job's next step while it needs a cleaner and one is free (#493)
 const offerTo = async (page: Page, name: RegExp) => {
-  await page
-    .getByRole("region", { name: "Crew" })
-    .getByRole("button", { name: "Offer to a cleaner" })
-    .click();
+  await pageAction(page, "Offer to a cleaner");
   const dialog = page.getByRole("dialog", { name: "Offer to a cleaner" });
   await dialog.getByRole("button", { name: /Offer to$/ }).click();
   await page.getByRole("option", { name }).click();
@@ -77,29 +75,34 @@ test(
     await expect(
       page.locator("#main").getByText("Thu, Jan 8, 9:00 AM", { exact: true }),
     ).toBeVisible();
-    // what and where is the title
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(/ at /);
+    // what it is is the title; when, the crumb's and the card's
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Deep Clean",
+    );
 
     const crew = page.getByRole("region", { name: "Crew" });
-    await expect(crew).toContainText("0 of 2 cleaners confirmed");
+    await expect(crew).toContainText("2 needed");
     await offerTo(page, /^Cory Cleaner \(8 h\)/);
     await expect(page.getByRole("region", { name: "History" })).toContainText(
       "Offered to Cory Cleaner",
     );
-    const list = crew.getByRole("grid", { name: "Crew" });
-    await expect(list.getByRole("row", { name: /Cory Cleaner/ })).toContainText(
-      "Offered",
-    );
+    // a face each, ticked once confirmed, a ghost for the one still needed
+    const faces = crew.getByRole("listitem");
+    await expect(faces).toHaveText([
+      "Cory Cleaner, not confirmed yet",
+      "Needed, a cleaner still needed",
+    ]);
     expect((await emailsTo(cory.email)).at(-1)!.subject).toBe(
       "You've been offered a job",
     );
 
     await offerTo(page, /^Dee Cleaner/);
-    await expect(list.getByRole("row")).toHaveCount(2);
+    await expect(faces).toHaveText([
+      "Cory Cleaner, not confirmed yet",
+      "Dee Cleaner, not confirmed yet",
+    ]);
     // the crew is whole: nothing left to offer
-    await expect(
-      page.getByRole("button", { name: "Offer to a cleaner" }),
-    ).toHaveCount(0);
+    await expectNoPageAction(page, "Offer to a cleaner");
   },
 );
 
@@ -111,7 +114,8 @@ test("Office Staff take someone off a Job, leaving a Cleaner Needed", async ({
   await offerJob(job.id, cory.id, { confirmed: true });
   await signInAsOffice(page);
   await page.goto(`/office/jobs/${job.id}`);
-  await expect(page.getByText("1 of 1 Cleaner Confirmed")).toBeVisible();
+  const crew = page.getByRole("region", { name: "Crew" });
+  await expect(crew).toContainText("1 of 1 confirmed");
 
   await page.getByRole("button", { name: "Remove Cory Cleaner" }).click();
   await page
@@ -120,27 +124,25 @@ test("Office Staff take someone off a Job, leaving a Cleaner Needed", async ({
     .click();
 
   await expect(page.getByText("Cory Cleaner taken off the Job")).toBeVisible();
-  await expect(page.getByText("0 of 1 Cleaner Confirmed")).toBeVisible();
-  // off the Crew, which lists who's on it; History says who was (WEB-3)
-  await expect(
-    page
-      .getByRole("grid", { name: "Crew" })
-      .getByRole("row", { name: /Cory Cleaner/ }),
-  ).toHaveCount(0);
+  await expect(crew).toContainText("1 needed");
+  // off the Crew, which shows who's on it; History says who was (WEB-3)
+  await expect(crew.getByRole("listitem")).toHaveText([
+    "Needed, a cleaner still needed",
+  ]);
   await expect(page.getByRole("region", { name: "History" })).toContainText(
     "Cory Cleaner taken off",
   );
-  await expect(
-    page.getByRole("button", { name: "Offer to a cleaner" }).first(),
-  ).toBeVisible();
+  // offering it is the next step again
+  await expectNextStep(page, "Offer to a cleaner");
   expect((await emailsTo(cory.email)).at(-1)!.subject).toBe(
     "You're no longer on a job",
   );
 });
 
-// #406: what can be done to the Job in its menu (a ⋯ since #493), Cancel
-// last after a rule; each fact with its label; the Crew drawn as the Staff list, the
-// picture the Staff list shows, a badge only when it isn't Confirmed
+// #406, #493: the Job's next step its primary, the rest behind its arrow,
+// Cancel last after a rule; a fact each, the cleaning hours for a crew of
+// two; the crew a face each, the picture the Staff list shows, a tick once
+// confirmed, and an ✕ to take each off
 test(
   "the Office's Job page names its actions, its details and its crew",
   { tag: "@desktop" },
@@ -161,8 +163,8 @@ test(
 
     await page.getByRole("button", { name: "More actions" }).click();
     const menu = page.getByRole("menu");
+    await expectNextStep(page, "Move job");
     await expect(menu.getByRole("menuitem")).toHaveText([
-      "Move job",
       "Ask for a new time",
       "Cancel job",
     ]);
@@ -172,28 +174,23 @@ test(
 
     const details = page.getByRole("region", { name: "Job details" });
     await expect(details.getByRole("term")).toHaveText([
-      "Client",
-      "Home",
-      "Extras",
+      "How long",
       "Cleaning hours",
-      "Cleaners",
-      "Moving",
-      "Cancelling",
+      "Free to move or cancel",
+      "How we get in",
     ]);
 
-    const crew = page.getByRole("grid", { name: "Crew" });
-    const coryRow = crew.getByRole("row", { name: /Cory Cleaner/ });
-    const deeRow = crew.getByRole("row", { name: /Dee Cleaner/ });
-    await expect(coryRow.locator("img")).toHaveAttribute(
+    const crew = page.getByRole("region", { name: "Crew" });
+    await expect(crew.getByRole("listitem")).toHaveText([
+      "Cory Cleaner, confirmed",
+      "Dee Cleaner, not confirmed yet",
+    ]);
+    await expect(crew.locator("img")).toHaveAttribute(
       "src",
       "https://lh3.googleusercontent.com/a/cory-photo",
     );
-    await expect(coryRow.getByText("Confirmed", { exact: true })).toHaveCount(
-      0,
-    );
-    await expect(deeRow.getByText("Offered", { exact: true })).toBeVisible();
     await expect(
-      deeRow.getByRole("button", { name: "Remove Dee Cleaner" }),
+      crew.getByRole("button", { name: "Remove Dee Cleaner" }),
     ).toBeVisible();
     await expectAccessible(page);
   },
@@ -620,5 +617,7 @@ test("the Office sees when a Job's Cleaners Needed open to Cleaners", async ({
   await expect(
     page.getByText("Free cleaners can take it from Tue, Jan 6, 9:00 AM."),
   ).toBeVisible();
-  await expect(page.getByText("Needs 2 more cleaners.")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Crew" })).toContainText(
+    "2 needed",
+  );
 });

@@ -1425,9 +1425,21 @@ export type AssignmentView = {
 // a booked Job as Office Staff manage its Assignments, and once Completed,
 // its Adjustments and payment
 export type OfficeJob = ScheduledJob & {
-  completion: JobCompletion | null;
-  cancellation: JobCancellation | null;
-  noAccess: JobNoAccess | null;
+  // its home, and how we get in there
+  property: Pick<PropertyView, "accessInstructions">;
+  // when it was booked
+  bookedAt: string;
+  // whether it's today, in New York, and whether it has started, by the
+  // Clock
+  today: boolean;
+  started: boolean;
+  // its price, Deposit and what's been charged, whatever has become of it:
+  // once, here, as how it ended doesn't carry it too. Null for a booked Job
+  // no Quote prices, which only tests put on the Schedule
+  payment: JobPayment | null;
+  completion: Omit<JobCompletion, "payment"> | null;
+  cancellation: Omit<JobCancellation, "payment"> | null;
+  noAccess: Omit<JobNoAccess, "payment"> | null;
   // what cancelling it would cost now, either way; null once it isn't
   // booked
   cancelTerms: Record<CancelledBy, CancellationTerms> | null;
