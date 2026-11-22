@@ -162,7 +162,7 @@ test("what's owed leads Home, a price change waiting a tile with what it adds an
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: /^Review a price change/ }),
-  ).toContainText("$59.88, answer by Mon, Jan 19");
+  ).toContainText("$59.88 more, answer by Mon, Jan 19");
 });
 
 test("a paused plan, nothing booked and nothing to do, says so calmly above the plan", async ({
@@ -197,7 +197,7 @@ test("a paused plan, nothing booked and nothing to do, says so calmly above the 
   );
   await expect(
     page.getByRole("region", { name: "Your cleaning plan" }),
-  ).toContainText("Nothing's booked until it's paid.");
+  ).toContainText("Nothing's booked until it goes through.");
   // nothing asked of them: the usual step stays
   await expect(
     page.getByRole("link", { name: "Request a quote", exact: true }),
@@ -214,7 +214,7 @@ test("the morning a crew couldn't get in, Home says what happened and leads with
   await page.clock.install({ time: new Date("2026-01-12T15:00:00Z") });
   await home(page);
   await expect(why(page)).toContainText(
-    "Our team came at Mon, Jan 12, 9:30 AM, but couldn't get in: \"The code didn't open the door\".",
+    "The crew came at Mon, Jan 12, 9:30 AM, but couldn't get in: \"The code didn't open the door\".",
   );
   await expect(why(page)).toContainText(
     /As with a late cancellation, your \$[\d.]+ deposit is kept as the fee\./,

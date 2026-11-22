@@ -80,7 +80,7 @@ const words = catalog({
     weTryAgain:
       "A payment on it hasn't gone through yet. We'll try again by ourselves, so there's nothing you need to do.",
     untilPaid:
-      "Nothing's booked until it's paid. Then your plan carries on from its next date.",
+      "Nothing's booked until it goes through. Then your plan carries on from its next date.",
     carriesOn: "Once it's paid, your plan carries on from its next date.",
     forWhen: (when: string) => `For ${when}`,
     at: " at ",
@@ -157,7 +157,7 @@ const words = catalog({
     weTryAgain:
       "Un pago del plan aún no ha pasado. Lo volveremos a intentar por nuestra cuenta, así que no tiene que hacer nada.",
     untilPaid:
-      "No hay nada reservado hasta que se pague. Después, su plan continúa desde su próxima fecha.",
+      "No hay nada reservado hasta que el pago pase. Después, su plan continúa desde su próxima fecha.",
     carriesOn: "Cuando esté pagado, su plan continúa desde su próxima fecha.",
     forWhen: (when: string) => `Para el ${when}`,
     at: " en ",
@@ -431,8 +431,8 @@ export function whatsNext(
       label: w.reviewPrices(changes.length),
       // what they add, and by when the first wants an answer
       hint: firstBy
-        ? w.answerByHint(t.formatMoney(changedCents), dayOf(firstBy))
-        : t.formatMoney(changedCents),
+        ? w.answerByHint(w.more(t.formatMoney(changedCents)), dayOf(firstBy))
+        : w.more(t.formatMoney(changedCents)),
       href: reviewHref,
     })),
   ];

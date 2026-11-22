@@ -304,7 +304,7 @@ describe("Home's hero, with nothing booked", () => {
       tone: "info",
       headline: "Standard Clean, every 2 weeks",
       lines: [
-        "Nothing's booked until it's paid. Then your plan carries on from its next date.",
+        "Nothing's booked until it goes through. Then your plan carries on from its next date.",
       ],
       action: { label: "See your plan" },
     });
@@ -468,7 +468,7 @@ describe("Home's card: what waits on the Client leads (#493)", () => {
     expect(hero).toMatchObject({ label: "To pay", headline: "$184.50" });
     expect(tiles[0]).toMatchObject({
       label: "Review a price change",
-      hint: "$59.88, answer by Wed, Nov 4",
+      hint: "$59.88 more, answer by Wed, Nov 4",
     });
   });
 
@@ -504,7 +504,7 @@ describe("Home's card: what waits on the Client leads (#493)", () => {
     });
     expect(why).toEqual({
       tone: "warning",
-      lead: "Our team came at Sun, Nov 1, 9:20 AM, but couldn't get in: \"The code didn't open the door\".",
+      lead: "The crew came at Sun, Nov 1, 9:20 AM, but couldn't get in: \"The code didn't open the door\".",
       more: "As with a late cancellation, your $68.06 deposit is kept as the fee.",
     });
     expect(asks).toBe(true);
@@ -573,7 +573,7 @@ describe("Home's tiles: what else waits on the Client comes first", () => {
     });
     expect(tiles.map((s) => [s.label, s.hint])).toEqual([
       ["See your 3 quotes", "Deep Clean $391.04 · 2 more"],
-      ["Review 3 price changes", "$179.64, answer by Wed, Nov 4"],
+      ["Review 3 price changes", "$179.64 more, answer by Wed, Nov 4"],
       ["Move or cancel", expect.any(String)],
       ["How we get in", "Key under the mat"],
     ]);

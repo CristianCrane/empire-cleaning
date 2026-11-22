@@ -47,7 +47,7 @@ export const portalWords = catalog({
     answerBy: (day: string) => `Please answer by ${day}.`,
     // the morning a crew couldn't get in, on the clean's page and Home
     teamCame: (when: string, reason: string) =>
-      `Our team came at ${when}, but couldn't get in: "${reason}".`,
+      `The crew came at ${when}, but couldn't get in: "${reason}".`,
   },
   es: {
     home: "Inicio",
