@@ -1,5 +1,6 @@
 import {
   Ban,
+  ClipboardCheck,
   Building2,
   CircleCheck,
   DoorClosed,
@@ -19,6 +20,10 @@ export { BrushCleaning as JobIcon } from "lucide-react";
 // a home, a building for business premises
 export const homeIcon = (kind: PropertyKind) =>
   kind === "commercial" ? Building2 : House;
+
+// the one icon for a Site Visit, wherever it shows: its page's tile before
+// it has a time, its block on the Schedule and its key
+export const SiteVisitIcon = ClipboardCheck;
 
 // the one icon for a booked Job still short of cleaners, wherever it shows:
 // Today's to-do row, the Schedule's block and its key

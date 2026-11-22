@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useLayoutEffect,
   useRef,
   useState,
@@ -53,6 +54,7 @@ import {
   timeOfDay,
   today,
 } from "../format.ts";
+import { SiteVisitIcon } from "../icons.ts";
 import {
   axisFor,
   fitLanes,
@@ -69,10 +71,9 @@ const { formatClock, formatDay, formatTime } = formats.en;
 
 // a short Job is still tall enough to read its Client
 const MIN_BLOCK_PX = 22;
-// shorter than this, a Job's block has room for only that one line
-const COMPACT_PX = 44;
 // a block's line of text (text-xs, leading-tight), and how many fit whole
-// inside its padding (py-1)
+// inside its padding (py-1). With room for one, a block is compact: that
+// line, centred, the rest read out only
 const LINE_PX = 15;
 const wholeLines = (height: number) =>
   Math.max(1, Math.floor((height - 8) / LINE_PX));
@@ -166,9 +167,17 @@ export function JobKey({
   );
 }
 
-// a Site Visit's block in the key: its neutral colours, its name
+// a Site Visit's block in the key: its neutral colours, its mark, its name
 export function VisitKey() {
-  return <KeyEntry colours={blockOf.neutral}>Site visit</KeyEntry>;
+  return (
+    <KeyEntry colours={blockOf.neutral}>
+      <SiteVisitIcon
+        aria-hidden
+        className={`size-3 shrink-0 ${markOf.neutral}`}
+      />
+      Site visit
+    </KeyEntry>
+  );
 }
 
 // a Site Visit's place on the time axis
@@ -614,7 +623,8 @@ function DayHeader({
       <p className="text-xs text-fg-muted">
         {nobody && day.bookedHours === 0
           ? "Nobody working"
-          : [
+          : // each figure kept whole on its line, not "7.5 h" over "free"
+            [
               `${formatHours(day.bookedHours)} booked`,
               ...(day.heldHours > 0
                 ? [`${formatHours(day.heldHours)} held`]
@@ -622,7 +632,12 @@ function DayHeader({
               day.freeHours < 0
                 ? `${formatHours(-day.freeHours)} over`
                 : `${formatHours(day.freeHours)} free`,
-            ].join(" · ")}
+            ].map((part, i) => (
+              <Fragment key={part}>
+                {i > 0 && " · "}
+                <span className="whitespace-nowrap">{part}</span>
+              </Fragment>
+            ))}
       </p>
       {more}
     </header>
@@ -749,7 +764,7 @@ function DayJobs({
         const tone = toneOf(job);
         // too short for more than a line: the Client's name and the state's
         // mark, the rest unseen but still read out
-        const compact = style.height < COMPACT_PX;
+        const compact = wholeLines(style.height) < 2;
         return (
           <ScheduleBlock
             key={job.id}
@@ -789,7 +804,7 @@ function DayJobs({
       })}
       {visits.map(({ visit, block }) => {
         const style = place(block);
-        const compact = style.height < COMPACT_PX;
+        const compact = wholeLines(style.height) < 2;
         return (
           <ScheduleBlock
             key={visit.id}
@@ -807,10 +822,18 @@ function DayJobs({
             onDragStart={startDrag}
             onDragEnd={onDragEnd}
           >
-            <BlockName compact={compact}>
-              <span className="sr-only">{formatTime(visit.startsAt)} </span>
-              {shortClientName(visit.client)}
-            </BlockName>
+            <span
+              className={`flex gap-1 font-semibold ${compact ? "items-center" : "items-start"}`}
+            >
+              <SiteVisitIcon
+                aria-hidden
+                className={`size-3 shrink-0 ${compact ? "" : "mt-px"} ${markOf.neutral}`}
+              />
+              <BlockName compact={compact}>
+                <span className="sr-only">{formatTime(visit.startsAt)} </span>
+                {shortClientName(visit.client)}
+              </BlockName>
+            </span>
             <BlockTime compact={compact}>
               {formatTime(visit.startsAt)}
             </BlockTime>
@@ -869,8 +892,8 @@ function ScheduleBlock({
 }) {
   const inside = `flex h-full flex-col ${narrow ? "px-1" : "px-1.5"} text-xs leading-tight font-normal text-fg no-underline ${compact ? "justify-center" : "py-1"}`;
   // only the lines that fit whole, so none shows cut in half: each keeps its
-  // height, and those past the last whole line aren't drawn. A screen
-  // reader's words sit outside this, so they're all read out still
+  // height, and those past the last whole line aren't drawn. What's clipped
+  // is still read out, as a screen reader reads what isn't drawn too
   const lines = compact ? (
     children
   ) : (

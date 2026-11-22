@@ -590,8 +590,10 @@ stays as it is (#336).
   gives its time: the time shows under the name where there's room, and is
   read out first, as a screen reader can't see the grid. A Job's state is a
   mark beside the name (its icon from `screens/icons.ts`, in its colour; a
-  Staffed Job, the usual case, has none), its words read out; the crew's
-  names show only when someone's on it. The key draws each state as a block
+  Staffed Job, the usual case, has none), its words read out; a Site
+  Visit's is its own icon, so it isn't told from a Staffed Job by colour
+  alone; the crew's names show only when someone's on it, and a block
+  draws only the lines that fit whole. The key draws each state as a block
   (#493 G4.1). A Job or a Site Visit dragged on the Schedule carries a picture of its block, and an outline
   its size shows where it would land, snapped as the drop is: its own
   colours, a see-through fill inside a dashed edge, red where it can't go

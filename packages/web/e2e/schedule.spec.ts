@@ -710,6 +710,20 @@ test(
     await expect(blocks.filter({ hasText: "Site visit" })).toHaveAccessibleName(
       /^3:00 PM Acme Dental ?, Site visit · 30 min ?, Cory Cleaner$/,
     );
+    // a Site Visit is told from a Staffed Job by its mark, not its colour
+    // alone
+    await expect(
+      blocks.filter({ hasText: "Site visit" }).locator("svg"),
+    ).toBeVisible();
+    await expect(
+      blocks
+        .filter({ hasText: "9:00 AM" })
+        .filter({ hasText: "Cory Cleaner" })
+        .locator("svg"),
+    ).toHaveCount(0);
+    // the day's hours keep each figure whole on its line
+    const free = day(page, "Tue, Mar 2").getByText(/^[\d.]+ h free$/);
+    expect((await free.boundingBox())!.height).toBeLessThan(20);
     const short = blocks.filter({ hasText: "1:00 PM" });
     await expect(short).toHaveAccessibleName(
       /^1:00 PM Robin \d+ ?, Needs cleaners$/,

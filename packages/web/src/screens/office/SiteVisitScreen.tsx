@@ -2,7 +2,6 @@ import { formats } from "@empire-cleaning/models";
 import { useLoaderData } from "@tanstack/react-router";
 import {
   CalendarCheck,
-  ClipboardCheck,
   Clock,
   NotebookPen,
   UserRound,
@@ -33,7 +32,7 @@ import {
   screenWords,
 } from "../format.ts";
 import { AccessFact, ConditionFact } from "../Fact.tsx";
-import { homeIcon, QuoteIcon } from "../icons.ts";
+import { homeIcon, QuoteIcon, SiteVisitIcon } from "../icons.ts";
 import { homeTrail } from "./trails.ts";
 import {
   CancelSiteVisit,
@@ -100,7 +99,7 @@ export function SiteVisitScreen() {
             visit.startsAt ? (
               <DateTile date={visit.startsAt} />
             ) : (
-              <IconTile icon={ClipboardCheck} size="lg" />
+              <IconTile icon={SiteVisitIcon} size="lg" />
             )
           }
           kicker={premises ? "A business" : "A home"}
