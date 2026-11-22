@@ -67,7 +67,7 @@ const words = catalog({
     noAccess: {
       subject: "No pudimos entrar para su limpieza",
       came: (reason: string) =>
-        `Nuestro equipo fue para su limpieza, pero no pudo entrar ("${reason}").`,
+        `El equipo fue para su limpieza, pero no pudo entrar ("${reason}").`,
       NO_CHARGE: "No tiene ningún cargo.",
       CHECK_NEXT:
         "Antes de su próxima limpieza, por favor revise cómo entramos.",

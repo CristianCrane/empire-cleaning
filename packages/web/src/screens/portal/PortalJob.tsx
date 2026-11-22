@@ -102,7 +102,7 @@ const words = catalog({
     declined: "Declined",
     review: "Review",
     pleaseApprove: "Please approve a price change",
-    didMore: "Our team did more than was quoted:",
+    didMore: "The crew did more than was quoted:",
     comesTo: "It comes to",
     onlyIfApprove: (day: string) =>
       `, tax included, and you only pay it if you approve it. If we don't hear from you by ${day}, you won't pay it.`,
@@ -184,7 +184,7 @@ const words = catalog({
     declined: "Rechazado",
     review: "Revisar",
     pleaseApprove: "Apruebe un cambio de precio",
-    didMore: "Nuestro equipo hizo más de lo cotizado:",
+    didMore: "El equipo hizo más de lo cotizado:",
     comesTo: "Son",
     onlyIfApprove: (day: string) =>
       `, impuestos incluidos, y solo lo paga si lo aprueba. Si no sabemos de usted antes del ${day}, no lo pagará.`,

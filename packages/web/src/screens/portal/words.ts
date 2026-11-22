@@ -84,6 +84,6 @@ export const portalWords = catalog({
     needsOk: "Necesita su aprobación",
     answerBy: (day: string) => `Responda antes del ${day}.`,
     teamCame: (when: string, reason: string) =>
-      `Nuestro equipo llegó el ${when}, pero no pudo entrar: "${reason}".`,
+      `El equipo llegó el ${when}, pero no pudo entrar: "${reason}".`,
   },
 });
