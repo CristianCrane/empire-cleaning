@@ -83,7 +83,7 @@ export function Dashboard() {
   // all of it
   const first = needsAttention[0];
   const card = first && rowFor(first);
-  const hints = hintsFor(needsAttention);
+  const shows = tilesShow(needsAttention);
   const kind = (tile: Tile) =>
     needsAttention.filter((item) => tileOf[item.kind] === tile).map(rowFor);
   const unassigned = today.jobs.filter(
@@ -134,7 +134,7 @@ export function Dashboard() {
         icon,
         label,
         count: rows.length,
-        hint: hints[id] || undefined,
+        ...shows[id],
         rows: rows.map((row): ListRow => ({
           id: row.key,
           title: row.action,
@@ -209,12 +209,19 @@ const tileOf: Record<NeedsAttentionKind, Kind> = {
   plan_on_hold: "money",
 };
 
-// what the tiles say beside their counts: how many need cleaners, how many
-// Quotes are newly asked for, and what's owed (a plan On Hold owes for Jobs
-// and Bills already counted)
-const hintsFor = (items: NeedsAttentionItem[]): Record<Kind, string> => {
+// what each kind's tile says beside its count: how many need cleaners, how
+// many Quotes are newly asked for; and Money's number is what's owed, its
+// to-dos the hint, as the eye reads a money tile's number as money (11-20
+// audit, Today 3; #507). A plan On Hold owes for Jobs and Bills already
+// counted, so with plans On Hold alone nothing's owed, and it counts them
+export const tilesShow = (
+  items: NeedsAttentionItem[],
+): Record<Kind, { value?: string; hint?: string }> => {
   const count = (kind: NeedsAttentionKind) =>
     items.filter((item) => item.kind === kind).length;
+  const unassigned = count("job_unassigned");
+  const asked = count("quote_requested");
+  const toDo = items.filter((item) => tileOf[item.kind] === "money").length;
   const owedCents = items.reduce(
     (sum, item) =>
       sum +
@@ -225,12 +232,13 @@ const hintsFor = (items: NeedsAttentionItem[]): Record<Kind, string> => {
           : 0),
     0,
   );
-  const unassigned = count("job_unassigned");
-  const asked = count("quote_requested");
   return {
-    jobs: unassigned > 0 ? `${unassigned} need cleaners` : "",
-    quotes: asked > 0 ? `${asked} asked for` : "",
-    money: owedCents > 0 ? `${formatMoney(owedCents)} owed` : "",
+    jobs: unassigned > 0 ? { hint: `${unassigned} need cleaners` } : {},
+    quotes: asked > 0 ? { hint: `${asked} asked for` } : {},
+    money:
+      owedCents > 0
+        ? { value: formatMoney(owedCents), hint: `${toDo} to do` }
+        : {},
   };
 };
 

@@ -5,6 +5,7 @@ import {
   emailsTo,
   expect,
   expectAccessible,
+  describeTheHome,
   newEmail,
   test,
 } from "./harness.ts";
@@ -138,7 +139,10 @@ test("a Guest asks for a Quote in Spanish, sees the API's messages in Spanish, a
   await expect(
     page.getByRole("group", { name: "¿Algún adicional?" }),
   ).toContainText("Dentro del horno");
-  await page.getByText("Intensa", { exact: true }).click();
+  await describeTheHome(page, {
+    condition: "Intensa",
+    names: ["Dormitorios", "Baños", "Pisos"],
+  });
   await next(page);
   await page
     .getByRole("textbox", { name: "Nombre completo" })

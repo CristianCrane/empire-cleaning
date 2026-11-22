@@ -43,6 +43,8 @@ test(
   "Office Staff book a Site Visit for business premises, and record what it found",
   { tag: "@smoke" },
   async ({ page }) => {
+    // the browser's clock at the API's, so the visit is still to come
+    await page.clock.setFixedTime("2026-01-05T09:00:00Z");
     await requestQuoteForPremises(casey, "Acme Dental");
     await signInAsOffice(page);
 
@@ -108,6 +110,49 @@ test(
     ).toBeVisible();
   },
 );
+
+test("a Site Visit that has been is badged To record, on its page and its home's", async ({
+  page,
+}) => {
+  await requestQuoteForPremises(casey, "Acme Dental");
+  await addCleaner("Cory Cleaner");
+  const visit = await bookSiteVisit({
+    street: "200 Park Ave S",
+    staffEmail: "cory@example.com",
+    date: "2026-01-06",
+    time: "10:00",
+  });
+  // the day before, its findings card says when to add them
+  await page.clock.setFixedTime("2026-01-05T15:00:00Z");
+  await signInAsOffice(page);
+  await page.goto(`/office/site-visits/${visit.id}`);
+  await expect(
+    page.getByText("When it's done, add what was found."),
+  ).toBeVisible();
+
+  // the next day: it's been, with nothing recorded; the alert says why to
+  // record, so the card keeps only its button, not a line about later
+  await page.clock.setFixedTime("2026-01-07T15:00:00Z");
+  await page.reload();
+  await expect(page.getByText("Cory Cleaner has been.")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Record findings" }),
+  ).toBeVisible();
+  await expect(page.getByText("When it's done")).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { level: 1 }).locator("xpath=.."),
+  ).toHaveText(/To record$/);
+  // its home's row says it too, not "findings to record" beside Booked
+  await page
+    .getByRole("link", { name: /200 Park Ave S/ })
+    .first()
+    .click();
+  const row = page.getByRole("grid", { name: "Site visit" }).getByRole("row");
+  await expect(row).toHaveText(/To record$/);
+  await expect(row).not.toContainText("findings to record");
+  await page.goBack();
+  await expect(page.getByText("Cory Cleaner has been.")).toBeVisible();
+});
 
 test("a Quote for business premises can't be drafted until their findings are recorded", async ({
   page,

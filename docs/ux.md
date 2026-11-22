@@ -146,7 +146,7 @@ Cleaner's Your jobs render through `HomePage`
   meanwhile (each fact once; where the alert sits is settled on #493's
   prototype). With nothing waiting anywhere, offers to answer included,
   it's a green all-clear card, as a screen says only what's true (the
-  `ui` skill; #493 builds it). The Office's is its first
+  `ui` skill). The Office's is its first
   to-do, the server's order.
 - **News** under it, an info Notice each, never an action (a move asked
   for, a bank payment on its way).
@@ -154,8 +154,9 @@ Cleaner's Your jobs render through `HomePage`
   with a hint of what's there so a glance often answers. No row shows
   until a tile is pressed. Where its rows have a List page of their own,
   the tile links there, the count in its hint (a Client's quote, a
-  Cleaner's Offers); where they don't, it shows how many and opens them in
-  place under the tiles, one at a time, pressed again to close (the
+  Cleaner's Offers); where they don't, it shows how many (or what the kind
+  is judged by, how many in its hint: the Office's Money shows what's
+  owed, as its count read as money, the 11-20 audit's Today 3; #507) and opens them in place under the tiles, one at a time, pressed again to close (the
   Office's to-dos by kind and the day's Jobs, a Cleaner's Coming up, every
   payment). A tile with none is greyed out. Which one is open is in the
   URL (`?open=`), so Back from a row comes back to it. What's waiting on a
@@ -196,7 +197,7 @@ for a dialog. It renders through `FormPage`
   below `xl`, so a phone reads what it comes to before the parts that
   change it. Until what sets it is known (a business's floor area), it
   says what's missing in its place, not a number, as a number then would
-  be untrue (the `ui` skill; #493 builds it). It
+  be untrue (the `ui` skill). It
   shows only totals, each one's working folded under "How
   it's worked out"; what sets a price (a price of your own, its reason)
   stays in the part it prices.
@@ -284,7 +285,11 @@ The `ui` skill's rules hold here too; these are this product's.
 
 - **The page header is the layout's** (`PageHeader`, `packages/ui/src/layouts/PageHeader.tsx`):
   the breadcrumbs from the area's nav section down to this page, every
-  step; the title and its status badge; a subtitle only when it says what
+  step; the title and its status badge, which says where the thing stands
+  for this reader now: where two states hold, the one waiting on them
+  (a Client's clean: Needs your OK, Move asked; a Site Visit that has
+  been: To record), in the words its rows use (#493 G3.1; the 11-20
+  audit's Site visit 1; #507); a subtitle only when it says what
   nothing else on the page does (a Bill's week), never the title, a crumb
   or the Client again (each fact once: the `ui` skill); and the page's
   actions at the end of the title row: one split button, the page's next
@@ -555,6 +560,11 @@ stays as it is (#336).
   choices; optional fields behind "+ Add …"; long forms in steps, who's
   asking last. The Office on the phone gets one page in the order of a call
   instead. ("Quiet Forms In Steps")
+- **A form starts blank for someone new**: no answer is picked for them,
+  as one would say something about their place they never said; each
+  required one is asked before Next. A place on file starts at what's
+  recorded, and a form one person fills again and again (the Office's)
+  at their usual answers (#493 G2.3).
 - **Every search field shows a magnifying glass.**
 
 ### Time and schedules

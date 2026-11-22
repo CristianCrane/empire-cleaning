@@ -72,6 +72,11 @@ test(
       0,
     );
     await expect(page.getByText("Any extras?")).toHaveCount(0);
+    // how often, unsaid until they say it
+    for (const often of ["Regularly", "One-off"]) {
+      await expect(page.getByRole("radio", { name: often })).not.toBeChecked();
+    }
+    await page.getByText("Regularly", { exact: true }).click();
     await page.getByText("Mon", { exact: true }).click();
     await page.getByText("Fri", { exact: true }).click();
     await choose(page, /Preferred start time/, "6:00 PM");
@@ -96,6 +101,7 @@ test("a business wanting regular cleaning is asked which days, or may ask for a 
 }) => {
   await signedInAs(page, "nina@example.com");
   await describeNewPremises(page);
+  await page.getByText("Regularly", { exact: true }).click();
   await nextStep(page);
   await giveDetails(page);
 
@@ -203,6 +209,33 @@ test("Office Staff keep the Premises Types, and the Services each Add-on goes wi
   ).toContainText("Commercial cleaning");
 });
 
+test("New quote gives no price for a business until its floor area is known", async ({
+  page,
+}) => {
+  await signInAsOffice(page);
+  await page.goto("/office/quotes/new");
+  await page.getByRole("button", { name: "New client" }).click();
+  await page
+    .locator("form")
+    .getByText("Commercial cleaning", { exact: true })
+    .click();
+  await choose(page, /Type of business/, "Retail");
+
+  // the minimum charge, read out, would be a price for a business of no
+  // size: what's missing says so in the price's place, and the footer's
+  const comesTo = page.getByRole("region", { name: "What it comes to" });
+  await expect(comesTo).toContainText(
+    "No price until the floor area is known.",
+  );
+  await expect(comesTo).not.toContainText("$");
+  await expect(
+    page.getByText("No price until the floor area is known."),
+  ).toHaveCount(2);
+  // Painting asks the area to work on, not the floor area
+  await page.locator("form").getByText("Painting", { exact: true }).click();
+  await expect(comesTo).toContainText("No price until the area is known.");
+});
+
 test("Office Staff quote a business caller from New quote", async ({
   page,
 }) => {
@@ -219,10 +252,6 @@ test("Office Staff quote a business caller from New quote", async ({
   await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
   await choose(page, /Type of business/, "Retail");
   await page.getByText("One-off", { exact: true }).click();
-  // a first idea only: the floor area isn't known
-  await expect(
-    page.getByRole("region", { name: "What it comes to" }),
-  ).toContainText("priced after its site visit");
   await page
     .getByRole("textbox", { name: "Business name" })
     .fill("Phoner & Co");

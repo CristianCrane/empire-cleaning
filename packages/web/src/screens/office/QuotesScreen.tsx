@@ -26,19 +26,23 @@ const waiting = (quote: QuoteSummary) => {
   return days === 0 ? "today" : days === 1 ? "1 day" : `${days} days`;
 };
 
-// what it's a Quote of: its Service, or a Service Plan of it
+// what it's a Quote of: a Service Plan of its Service, or the Service its
+// total is for, the option it leads with (a Deep Clean recommended for a
+// Standard Clean asked), until it has one the Service asked for
 const serviceOf = (quote: QuoteSummary) =>
   quote.kind === "service_plan"
     ? `${quote.service.name} plan`
-    : quote.service.name;
+    : (quote.headlineServiceName ?? quote.service.name);
 
-// the words a search looks through: who, where, and what
+// the words a search looks through: who, where, and what, both the
+// Service it's for and the one asked, as the caller may name it
 const searchable = (quote: QuoteSummary) =>
   [
     quote.client.name,
     quote.client.businessName,
     addressOf(quote.property),
     serviceOf(quote),
+    quote.service.name,
   ]
     .join(" ")
     .toLowerCase();

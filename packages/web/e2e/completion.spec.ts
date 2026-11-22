@@ -157,6 +157,11 @@ test(
       .getByRole("status")
       .filter({ hasText: "Please approve a price change" });
     await expect(proposal).toContainText("1 more hour, $59.88");
+    // the badge says what waits on them, in the Cleans list's words, not Done
+    const titleLine = client
+      .getByRole("heading", { level: 1 })
+      .locator("xpath=..");
+    await expect(titleLine).toHaveText(/Needs your OK$/);
     await expectAccessible(client);
     await proposal.getByRole("button", { name: "Review" }).click();
     const dialog = client.getByRole("dialog", {
@@ -168,6 +173,7 @@ test(
 
     await expect(client.getByText("Approved")).toBeVisible();
     await expect(proposal).toBeHidden();
+    await expect(titleLine).toHaveText(/Done$/);
     const receipt = client.getByRole("region", { name: "Your receipt" });
     await expect(receipt).toContainText("1 more hour");
     await expect(receipt).toContainText("$59.88");
@@ -176,6 +182,19 @@ test(
     await expect(adjustments).toContainText("Approved");
   },
 );
+
+test("Today's Money tile shows what's owed as its number", async ({ page }) => {
+  const { job, cory } = await jobUnderway();
+  await failCharges("card_declined");
+  await completeJob(job.id, cory.id, { condition: "moderate", reports: [] });
+  await failCharges(null);
+
+  await signedInAs(page, olive.email);
+  // what's owed as its number, how many to do under it
+  await expect(page.getByRole("button", { name: /^Money/ })).toHaveText(
+    /^Money\s*\$[\d,]+\.\d\d\s*1 to do$/,
+  );
+});
 
 test("a Job that couldn't be charged is Unpaid until the Client saves a new card", async ({
   page,

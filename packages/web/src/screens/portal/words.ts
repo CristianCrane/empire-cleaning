@@ -40,6 +40,9 @@ export const portalWords = catalog({
     // what a payment was made with, when its card isn't known
     card: "card",
     decline: "Decline",
+    // a clean's badges (cleanBadge), on the Cleans list and its page
+    moveAsked: "Move asked",
+    needsOk: "Needs your OK",
   },
   es: {
     home: "Inicio",
@@ -72,5 +75,7 @@ export const portalWords = catalog({
     yourClean: (day: string) => `Su limpieza del ${day}`,
     card: "tarjeta",
     decline: "Rechazar",
+    moveAsked: "Reprogramación pedida",
+    needsOk: "Necesita su aprobación",
   },
 });

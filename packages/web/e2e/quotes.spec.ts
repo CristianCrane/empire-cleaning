@@ -18,6 +18,7 @@ import {
   pageAction,
   expectNoPageAction,
   openTile,
+  searchList,
 } from "./harness.ts";
 
 const olive = {
@@ -214,6 +215,26 @@ test("the Client Declines a Quote from the portal", async ({
   ).toBeHidden();
   await page.reload();
   await expect(page.getByText(/ declined it$/)).toBeVisible();
+});
+
+test("the Quotes list names the Service its total is for", async ({ page }) => {
+  // a Standard Clean asked for, quoted leading with the Deep Clean
+  // recommended for a first visit
+  await requestQuoteAsGuest(casey);
+  await signInAsOffice(page);
+  await startDraft(page);
+  await proposeNextMonday(page);
+  await send(page);
+
+  await page.goto("/office/quotes");
+  const row = page.getByRole("row", { name: new RegExp(casey.name) });
+  await expect(row).toContainText("Deep Clean");
+  await expect(row).not.toContainText("Standard Clean");
+  // still found by the Service asked for, as a search for another isn't
+  await searchList(page, "Search quotes", "Painting");
+  await expect(row).toBeHidden();
+  await page.getByRole("searchbox", { name: "Search quotes" }).fill("Standard");
+  await expect(row).toBeVisible();
 });
 
 test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as history", async ({

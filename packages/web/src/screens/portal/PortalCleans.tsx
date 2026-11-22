@@ -6,20 +6,18 @@ import type {
   ClientUpcomingJob,
 } from "@empire-cleaning/models";
 import { catalog } from "@empire-cleaning/models";
-import { ListPage, StatusBadge, type ListRow } from "@empire-cleaning/ui";
+import { ListPage, type ListRow } from "@empire-cleaning/ui";
 import { addressOf, formatHours, formatMinutes } from "../format.ts";
 import { tabShown, useListUrl } from "../list-search.ts";
-import { JobStatusBadge } from "../JobBadges.tsx";
 import { type Said, useSaid } from "../words.ts";
+import { cleanBadge, upcomingBadge } from "./clean-badge.tsx";
 
 // in the Client's language (ADR-0025)
 const words = catalog({
   en: {
     about: (length: string) => `about ${length}`,
-    moveAsked: "Move asked",
     visit: (visitor: string, length: string) =>
       `${visitor}, about ${length}, free`,
-    needsOk: "Needs your OK",
     fee: (amount: string) => `${amount} fee`,
     noCharge: "No charge",
     upcoming: "Upcoming",
@@ -28,10 +26,8 @@ const words = catalog({
   },
   es: {
     about: (length: string) => `cerca de ${length}`,
-    moveAsked: "Reprogramación pedida",
     visit: (visitor: string, length: string) =>
       `${visitor}, cerca de ${length}, gratis`,
-    needsOk: "Necesita su aprobación",
     fee: (amount: string) => `cargo de ${amount}`,
     noCharge: "Sin cargo",
     upcoming: "Próximas",
@@ -43,8 +39,8 @@ type T = Said & { w: (typeof words)["en"] };
 
 // The Client's cleans (#96, #433), a List: Upcoming (with their Site
 // Visits) and Past, each by month, the kind of clean leading each row
-// after its time. Only what isn't plain gets a badge: a clean booked or
-// done needs none.
+// after its time. Only what isn't plain gets a badge (cleanBadge): a
+// clean booked or done needs none.
 
 export const cleansTabs = ["upcoming", "past"] as const;
 type CleansTab = (typeof cleansTabs)[number];
@@ -62,13 +58,7 @@ const upcomingRow =
       homes > 1 && addressOf(job.property),
       t.w.about(formatHours(job.hoursOnSite)),
     ]),
-    badges: [
-      job.movingTo && (
-        <StatusBadge key="move" tone="info">
-          {t.w.moveAsked}
-        </StatusBadge>
-      ),
-    ],
+    badges: [upcomingBadge(t, job)],
     onOpen: () => open(job.id),
   });
 
@@ -84,17 +74,6 @@ const visitRow =
     ]),
   });
 
-// what's not plain about a past clean, the most pressing first
-const pastBadge = (t: T, job: ClientPastJob) => {
-  if (job.unpaid) return <StatusBadge tone="danger">{t.unpaid}</StatusBadge>;
-  if (job.awaitingAnswer > 0)
-    return <StatusBadge tone="warning">{t.w.needsOk}</StatusBadge>;
-  if (job.status === "no_access") return <JobStatusBadge status="no_access" />;
-  if (job.status === "cancelled")
-    return <StatusBadge>{t.cancelledLabel(job.skipped)}</StatusBadge>;
-  return undefined;
-};
-
 const pastRow =
   (t: T, homes: number, open: (jobId: string) => void) =>
   (job: ClientPastJob): ListRow => ({
@@ -109,7 +88,15 @@ const pastRow =
           ? t.w.fee(t.formatMoney(job.feeCents))
           : t.w.noCharge,
     ]),
-    badges: [pastBadge(t, job)],
+    badges: [
+      cleanBadge(t, {
+        status: job.status,
+        unpaid: job.unpaid !== null,
+        priceChange: job.awaitingAnswer > 0,
+        skipped: job.skipped,
+        moveAsked: false,
+      }),
+    ],
     onOpen: () => open(job.id),
   });
 

@@ -91,6 +91,9 @@ export type HomeTile = {
 } & (
   | {
       count: number;
+      // shown in the count's place, where the kind is judged by something
+      // else (CountTile)
+      value?: string;
       rows?: ListRow[];
       panel?: ReactNode;
       more?: ReactNode;
@@ -170,6 +173,7 @@ export function HomeTiles({
                 icon={tile.icon}
                 label={tile.label}
                 count={tile.count}
+                value={tile.value}
                 hint={tile.hint}
                 isSelected={tile === opened}
                 onChange={(on) => onOpen?.(on ? tile.id : null)}

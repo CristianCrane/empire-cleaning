@@ -5,6 +5,7 @@ import {
   expect,
   expectAccessible,
   nextStep,
+  describeTheHome,
   chooseService,
   requestQuoteAsGuest,
   test,
@@ -320,6 +321,7 @@ test("the request form offers the Add-ons by name, and the choice reaches the Of
     extras.getByRole("checkbox", { name: "Inside the oven" }),
   ).toBeChecked();
 
+  await describeTheHome(page);
   await nextStep(page);
   await page.getByRole("textbox", { name: "Full name" }).fill("Nina New");
   await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0111");
