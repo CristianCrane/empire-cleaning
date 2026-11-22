@@ -77,7 +77,7 @@ redirect (Screen: none); Not found and Something went wrong have no path.
 | (an error)                       | Message pages                   | Something went wrong, inside its area                                                                                | `PageError.tsx`                   | Message page |
 | `/welcome`                       | Welcome                         | an Account connected to nothing requests a Quote to become a Client                                                  | `Welcome.tsx`                     | Form page    |
 | `/people`                        | People                          | test site only: sign in as a demo person (`?as=` first name, `?next=` the page after)                                | `PeopleScreen.tsx`                | none         |
-| `/office` | Office > Today | the first to-do, then to-dos and the day counted by kind (`?open=`) | `office/Dashboard.tsx` | Home |
+| `/office`                        | Office > Today                  | the first to-do, then to-dos and the day counted by kind (`?open=`)                                                  | `office/Dashboard.tsx`            | Home         |
 | `/office/schedule`               | Office > Schedule               | booked Jobs and free Staff hours over a range of days (`?from=&to=`)                                                 | `office/ScheduleScreen.tsx`       | Calendar     |
 | `/office/jobs`                   | Office > Jobs                   | every Job (`?tab=&q=&shown=`)                                                                                        | `office/JobsScreen.tsx`           | List         |
 | `/office/jobs/$jobId`            | Office > Job                    | its crew, a move asked for, moving or cancelling it; once done, price changes and correcting it                      | `office/JobScreen.tsx`            | Record       |
@@ -99,13 +99,13 @@ redirect (Screen: none); Not found and Something went wrong have no path.
 | `/office/services`               | Office > Services               | every Service, retired ones on a Tab (`?tab=`)                                                                       | `office/ServicesScreen.tsx`       | List         |
 | `/office/services/new`           | Office > Service, New service   | a new Service                                                                                                        | `office/ServicesScreen.tsx`       | Form page    |
 | `/office/services/$serviceKey`   | Office > Service, New service   | a Service's figures, with a worked example                                                                           | `office/ServicesScreen.tsx`       | Form page    |
-| `/cleaner` | Cleaner > Your jobs | next up, then coming up and done today counted (`?open=`) | `cleaner/CleanerHome.tsx` | Home |
+| `/cleaner`                       | Cleaner > Your jobs             | next up, then coming up and done today counted (`?open=`)                                                            | `cleaner/CleanerHome.tsx`         | Home         |
 | `/cleaner/offers`                | Cleaner > Offers                | Jobs offered or open to them (`?tab=`)                                                                               | `cleaner/CleanerOffers.tsx`       | List         |
 | `/cleaner/jobs/$jobId`           | Cleaner > Job                   | a Job they're on, where the Offer email leads: take or drop it, complete it, record no access                        | `cleaner/CleanerJobScreen.tsx`    | Record       |
 | `/cleaner/open/$jobId`           | Cleaner > Cleaner needed        | a Job open to them, to take                                                                                          | `cleaner/CleanerNeededScreen.tsx` | Record       |
 | `/portal`                        | Client portal > Home            | what's next                                                                                                          | `portal/PortalHome.tsx`           | Home         |
 | `/portal/cleans`                 | Client portal > Cleans          | upcoming and past cleans (`?tab=`)                                                                                   | `portal/PortalCleans.tsx`         | List         |
-| `/portal/payments` | Client portal > Payments | what's owed, then every payment (`?open=`) | `portal/PortalPayments.tsx` | Home |
+| `/portal/payments`               | Client portal > Payments        | what's owed, then every payment (`?open=`)                                                                           | `portal/PortalPayments.tsx`       | Home         |
 | `/portal/details`                | Client portal > Your details    | contact details and homes                                                                                            | `portal/PortalDetails.tsx`        | Settings     |
 | `/portal/payment-method`         | Client portal > Your card       | add or replace it, where the add-a-card email leads                                                                  | `portal/PortalPaymentMethod.tsx`  | Form page    |
 | `/portal/request`                | Client portal > Request a quote | for a new home or one of theirs                                                                                      | `portal/PortalRequest.tsx`        | Form page    |
@@ -470,8 +470,8 @@ Keeps: the Record (ux-portal). Renders through `RecordPage` (#432).
   a move is asked (Cancel or Skip its one action, outlined in red) or once
   cancelled (a Button to the plan or to request a quote).
 - Alerts: each only why: Unpaid (one we try again ourselves info, its
-  badge "Not paid yet", as it asks nothing), a price change (a second one keeping its
-  own Review), a move asked for (Withdraw request, its one action) or
+  badge "Not paid yet", as it asks nothing), a price change (one that isn't the next
+  step keeping its own Review), a move asked for (Withdraw request, its one action) or
   turned down.
 - Body: Details (`DetailsCard`: a date tile, the time large, the address,
   icon facts, a row only with something in it (price, how long and the

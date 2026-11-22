@@ -85,7 +85,9 @@ function standing(bill: BillView): Alert | null {
     const { kind, why } = bill.unpaid;
     return {
       key: "unpaid",
-      tone: "danger",
+      // one we try again ourselves waits on the payment service, as its
+      // badge says
+      tone: kind === "waiting" ? "info" : "danger",
       children: `${
         kind === "late"
           ? `It wasn't paid by its due date, ${formatDay(bill.dueOn)}.`

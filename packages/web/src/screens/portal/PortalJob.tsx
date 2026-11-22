@@ -120,9 +120,8 @@ const words = catalog({
     doneAt: (when: string) => `Done ${when}.`,
     quoted: "Quoted price",
     depositKept: " (your deposit, kept)",
-    refunded: (amount: string) => `, ${amount} refunded`,
-    // given back for it from a weekly Bill's Charge
-    billRefunded: (amount: string) => `${amount} refunded`,
+    // what a charge, or a weekly Bill's Charge, gave back for it
+    refunded: (amount: string) => `${amount} refunded`,
     paid: "Paid",
     notChargedFor: "Not charged:",
     youDeclined: "you declined it",
@@ -202,8 +201,7 @@ const words = catalog({
     doneAt: (when: string) => oneStop(`Terminada el ${when}.`),
     quoted: "Precio cotizado",
     depositKept: " (su depósito, retenido)",
-    refunded: (amount: string) => `, ${amount} devueltos`,
-    billRefunded: (amount: string) => `${amount} devueltos`,
+    refunded: (amount: string) => `${amount} devueltos`,
     paid: "Pagado",
     notChargedFor: "No cobrado:",
     youDeclined: "lo rechazó",
@@ -264,9 +262,9 @@ export function PortalJob() {
 // to put right (unless we try again ourselves); a price change to answer,
 // the one that lapses first; how we get in, after the crew couldn't; while
 // it's booked, a new time. The rest wait behind its arrow, and each alert
-// says only why, a second price change keeping its own Review. With
-// nothing next (a move asked waits on us; a cancelled clean is there to be
-// read), what's left is the page's other actions. With them, the two
+// says only why, a price change that isn't the next step keeping its own
+// Review. With nothing next (a move asked waits on us; a cancelled clean
+// is there to be read), what's left is the page's other actions. With them, the two
 // states the page's badge and details read: whether it's still to come,
 // and the price changes waiting on them.
 function useNow(job: ClientJobDetail): {
@@ -904,7 +902,7 @@ function Receipt({ job }: { job: ClientJobDetail }) {
               {{ deposit: t.deposit, ...t.w.charge }[c.kind]}{" "}
               {t.formatDate(c.chargedAt)}
               {c.refundedCents > 0 &&
-                t.w.refunded(t.formatMoney(c.refundedCents))}
+                `, ${t.w.refunded(t.formatMoney(c.refundedCents))}`}
             </dt>
             <dd className="text-end">
               {t.formatMoney(c.amountCents - c.refundedCents)}
@@ -927,7 +925,7 @@ function Receipt({ job }: { job: ClientJobDetail }) {
               <BillStatusBadge bill={bill} />
               {bill.refundedCents > 0 && (
                 <span className="text-sm text-fg-muted">
-                  {t.w.billRefunded(t.formatMoney(bill.refundedCents))}
+                  {t.w.refunded(t.formatMoney(bill.refundedCents))}
                 </span>
               )}
             </dt>

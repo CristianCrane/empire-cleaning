@@ -1055,6 +1055,18 @@ export const quoteSent = async (
   await expect(page.getByText(`Quote sent to ${client.email}`)).toBeVisible();
 };
 
+// from a Quote asked for, open in the Office: turned down as outside the
+// area we clean, and the page left on it
+export const turnDownQuote = async (page: Page) => {
+  await pageAction(page, "Turn down");
+  const dialog = page.getByRole("alertdialog", {
+    name: "Turn down this quote?",
+  });
+  await dialog.getByText("Outside the area we clean").click();
+  await dialog.getByRole("button", { name: "Turn down" }).click();
+  await expect(page.getByText("Quote turned down")).toBeVisible();
+};
+
 // from a business's Quote whose premises haven't been seen: records the
 // premises as the Office knows them, with no visit, and comes back
 export const recordFindingsWithoutVisit = async (page: Page) => {

@@ -6,12 +6,12 @@ import {
   expectNextStep,
   expectNothingNext,
   linkIn,
-  pageAction,
   payAndBook,
   quoteSent,
   requestQuoteAsGuest,
   signedInAs,
   test,
+  turnDownQuote,
 } from "./harness.ts";
 
 // A Client's quote (#493): what's waiting on them is its badge, a way on
@@ -85,13 +85,7 @@ test("a turned-down quote leads with Request a quote, its alert saying why", asy
   await signedInAs(staff, olive.email);
   await staff.goto("/office/quotes");
   await staff.getByText(casey.name).click();
-  await pageAction(staff, "Turn down");
-  const dialog = staff.getByRole("alertdialog", {
-    name: "Turn down this quote?",
-  });
-  await dialog.getByText("Outside the area we clean").click();
-  await dialog.getByRole("button", { name: "Turn down" }).click();
-  await expect(staff.getByText("Quote turned down")).toBeVisible();
+  await turnDownQuote(staff);
 
   await quote(page, "About your quote from Empire Cleaning");
   const why = page

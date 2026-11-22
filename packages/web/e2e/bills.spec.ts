@@ -376,3 +376,26 @@ test("a weekly-billed clean's receipt names its Bill and where it stands", async
   // ending on the receipt, for its picture (pr:shots)
   await expect(bill).toHaveAttribute("href", `/portal/bills/${billId}`);
 });
+
+// a Bill's payment we try again ourselves waits on us: its badge and its
+// alert say so alike, the Client's and the Office's (#493 PR 14)
+test("a Bill we try again ourselves reads as not paid yet, not failed", async ({
+  page,
+  browser,
+}) => {
+  await failCharges("processing");
+  const { billId } = await billed();
+  await signedInAs(page, olive.email);
+  await page.goto(`/office/bills/${billId}`);
+  await expect(badge(page, "Not paid yet")).toBeVisible();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  await client.goto(`/portal/bills/${billId}`);
+  await expect(badge(client, "Not paid yet")).toBeVisible();
+  await expect(client.getByRole("main").getByRole("alert")).toHaveCount(0);
+  await expect(client.getByRole("main").getByRole("status")).toContainText(
+    "We'll try again by ourselves",
+  );
+});

@@ -119,7 +119,8 @@ function useStanding(bill: BillView): Alert | null {
     const { kind, why } = bill.unpaid;
     return {
       key: "unpaid",
-      tone: "danger",
+      // one we try again ourselves waits on us, as its badge says
+      tone: kind === "waiting" ? "info" : "danger",
       children: (
         <>
           {t.notTaken(
