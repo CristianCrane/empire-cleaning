@@ -1,4 +1,4 @@
-import { Sparkles, ClipboardList } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 import { useState } from "react";
 import {
   type AddOnChoice,
@@ -29,6 +29,7 @@ import {
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
+import { ConditionFact } from "../Fact.tsx";
 import { useSaid } from "../words.ts";
 
 const words = catalog({
@@ -288,11 +289,7 @@ export function Completed({ job }: { job: CleanerJob }) {
         })}
       </p>
       <Facts>
-        <Fact
-          icon={Sparkles}
-          label={t.condition}
-          value={t.conditionLabel[completion.condition]}
-        />
+        <ConditionFact property={completion} />
         <Fact
           icon={ClipboardList}
           label={w.reported}
