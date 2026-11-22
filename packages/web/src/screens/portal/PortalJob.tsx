@@ -784,8 +784,8 @@ const unpaid = (
 
 // A price change (an Adjustment) the Office has proposed, which they only
 // pay if they approve, answered in a dialog titled by what it's for: from
-// the page's Review the price change, or a second one's own alert. (UX
-// pass, #96)
+// the page's Review the price change, or the alert of one that isn't next.
+// (UX pass, #96)
 function Review({
   job,
   adjustment,
