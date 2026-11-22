@@ -71,7 +71,7 @@ export const Destructive: Story = {
   args: { title: "End cleaning plan", role: "alertdialog" },
   render: ({ onConfirm, ...args }) => (
     <DialogTrigger>
-      <Button variant="danger">End cleaning plan</Button>
+      <Button variant="danger-outline">End cleaning plan</Button>
       <Dialog {...args}>
         {({ close }) => (
           <>

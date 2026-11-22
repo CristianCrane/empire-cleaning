@@ -15,8 +15,9 @@ export type DialogState = {
 };
 
 // Something done to the whole page's subject: a dialog it opens (given its
-// open state), another page, or a thing done straight away. `danger` undoes
-// or removes something: red, and last. `isPending` while one done straight
+// open state), another page, or a thing done straight away. `danger` loses
+// what can't be got back (the `ui` skill): red, and last; alone, outlined
+// in red. `isPending` while one done straight
 // away still runs (starting a Draft): the Button, or the Actions menu, shows
 // it, so the press is seen to be heard
 export type PageAction = {
@@ -114,7 +115,8 @@ export function PageHeader({
 
 // One action as a Button, or a ButtonLink when it opens another page; a
 // dialog it opens is its own. A Record's one action where the menu would
-// be (WEB-9), a List's primary, and an empty List's way to fill it
+// be (WEB-9), outlined in red when it's `danger` (the page has no primary
+// then), a List's primary, and an empty List's way to fill it
 export function ActionButton({
   action,
   variant,
@@ -123,7 +125,7 @@ export function ActionButton({
   variant: "primary" | "secondary";
 }) {
   const [isOpen, setOpen] = useState(false);
-  const look = action.danger ? "danger-text" : variant;
+  const look = action.danger ? "danger-outline" : variant;
   const content = (
     <>
       <action.icon aria-hidden size={18} />

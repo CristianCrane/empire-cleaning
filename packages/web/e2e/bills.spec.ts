@@ -163,7 +163,9 @@ test("Office Staff void a Bill that shouldn't have gone out", async ({
   await page.goto(`/office/bills/${billId}`);
 
   await pageAction(page, "Cancel bill");
-  const dialog = page.getByRole("dialog", { name: "Cancel bill EC-000001?" });
+  const dialog = page.getByRole("alertdialog", {
+    name: "Cancel bill EC-000001?",
+  });
   // a reason is needed
   await dialog.getByRole("button", { name: "Cancel bill" }).click();
   await expect(dialog).toBeVisible();

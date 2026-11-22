@@ -483,12 +483,15 @@ export const test = base.extend<{
 
 // something in the navigation or the account's parts, wherever it shows:
 // on a phone, sections that don't fit the tab bar (#200) and every area's
-// account parts (#305) are in the ☰ menu, in either language, which is
-// opened first. Whether it opened it, so a check
+// account parts (#305) are in the ☰ menu, and from 768 to 1024 the account's
+// parts but the language behind the rail's Account (#493), in either
+// language, which is opened first. Whether it opened it, so a check
 // can close it again
 export const showInMenu = async (page: Page, wanted: Locator) => {
   const item = wanted.filter({ visible: true });
-  const menu = page.getByRole("button", { name: /^(Menu|Menú)$/ });
+  const menu = page
+    .getByRole("button", { name: /^(Menu|Menú|Account|Cuenta)$/ })
+    .filter({ visible: true });
   await expect(item.or(menu).first()).toBeVisible();
   if (await item.isVisible()) return { item, opened: false };
   await menu.click();
@@ -613,8 +616,8 @@ export const searchList = async (page: Page, label: string, text: string) => {
 };
 
 // shows what the person can do with their Account: at the sidebar's foot
-// on a larger screen, at the ☰ menu's foot on a phone, which is opened
-// first (#305)
+// on a larger screen, behind the rail's Account from 768 to 1024, at the ☰
+// menu's foot on a phone, either opened first (#305, #493)
 export const openAccount = async (page: Page, name: string) => {
   await showInMenu(
     page,

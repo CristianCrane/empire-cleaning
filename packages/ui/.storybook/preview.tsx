@@ -52,6 +52,12 @@ const preview: Preview = {
           styles: { width: "768px", height: "1024px" },
           type: "tablet",
         },
+        // where AppLayout's rail gives way to the sidebar
+        laptop: {
+          name: "Laptop",
+          styles: { width: "1024px", height: "768px" },
+          type: "desktop",
+        },
       },
     },
   },

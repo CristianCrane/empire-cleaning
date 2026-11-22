@@ -12,7 +12,7 @@ const meta = {
     "aria-label": "What to do",
     children: (
       <>
-        <Button variant="danger-text">Couldn't get in</Button>
+        <Button variant="secondary">Couldn't get in</Button>
         <Button>Mark done</Button>
       </>
     ),

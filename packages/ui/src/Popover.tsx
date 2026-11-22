@@ -4,7 +4,8 @@ import {
 } from "react-aria-components";
 import { composeTailwindRenderProps } from "./utils.ts";
 
-// the floating panel under a Select or date picker
+// the floating panel under a Select, a date picker or a MenuButton, and
+// beside the rail its Account (AppLayout)
 export function Popover(props: PopoverProps) {
   return (
     <AriaPopover

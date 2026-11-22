@@ -23,6 +23,7 @@ import {
   Send,
   Store,
   UserX,
+  Trash2,
   X,
 } from "lucide-react";
 import { Avatar } from "./Avatar.tsx";
@@ -424,11 +425,11 @@ function NoticesHoldOneAction() {
       <Rule title="A Notice holds one action, as text, on its right">
         <p>
           A Notice is passing news, never the page's main action, so its action
-          is a <code>text</code> Button (<code>danger-text</code> to remove
-          something), on the right of its text. One action per Notice: two
-          things to say or do are two Notices, and an action that doesn't fit
-          one belongs where it acts (Change quote on the Current quote, Delete
-          the draft in the draft's header).
+          is a <code>text</code> Button (<code>danger-text</code> when it loses
+          what can't be got back), on the right of its text. One action per
+          Notice: two things to say or do are two Notices, and an action that
+          doesn't fit one belongs where it acts (Change quote on the Current
+          quote, Delete the draft in the draft's header).
         </p>
         <p>
           A page has at most one primary Button: once there are two, neither is
@@ -858,12 +859,14 @@ function ClickableCatchesTheEye() {
           <code>primary</code> (filled) for the one thing to do,{" "}
           <code>secondary</code> (outlined) beside it, <code>text</code> for a
           Section's or page's own actions like Edit (<code>danger-text</code>{" "}
-          when one undoes something, like Cancel visit), <code>danger</code>{" "}
-          (filled red) for a destructive action standing alone, like End plan,
-          and <code>quiet</code> only in a dialog, for its Cancel or the one
-          alternative beside its main action. A form's Save is primary, faded
-          until there's something to save. Rows that open something show the
-          hand cursor.
+          when one loses what can't be got back, like End plan),{" "}
+          <code>danger-outline</code> (outlined red) for a page's only action
+          when it does, like Delete draft, <code>danger</code> (filled red) only
+          in the dialog that confirms it, and <code>quiet</code> only to back
+          out: a dialog's Cancel, or a no that can be taken back, like declining
+          a quote. Red is for what can't be got back, not every no. A form's
+          Save is primary, faded until there's something to save. Rows that open
+          something show the hand cursor.
         </p>
       </Rule>
       <div className="flex flex-wrap items-center gap-3">
@@ -875,7 +878,11 @@ function ClickableCatchesTheEye() {
         </Button>
         <Button variant="danger-text" size="sm">
           <CalendarX aria-hidden size={16} />
-          Cancel visit
+          End plan
+        </Button>
+        <Button variant="danger-outline">
+          <Trash2 aria-hidden size={18} />
+          Delete draft
         </Button>
         <Button variant="quiet">Cancel</Button>
       </div>
@@ -1273,9 +1280,9 @@ function BarAtTheFoot() {
             What must stay in reach while a long page scrolls (a Cleaner's Job
             on site, a Quote Draft's Send) goes in an <code>ActionFooter</code>,
             which the page's layout places: above the tab bar on a phone, full
-            width beside the sidebar on a wider screen. Never a sticky bar of
-            the page's own: it pins under the tab bar. What it sums up on its
-            left, the main action last, on the right.
+            width beside the rail or the sidebar on a wider screen. Never a
+            sticky bar of the page's own: it pins under the tab bar. What it
+            sums up on its left, the main action last, on the right.
           </p>
         </Rule>
         <div className="h-[120vh] rounded-lg bg-bg" />

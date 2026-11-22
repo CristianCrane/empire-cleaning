@@ -410,7 +410,7 @@ function OfferedQuote({
         open &&
           quote.bookable.length === 0 && {
             key: "booked up",
-            action: <Decline quote={quote} />,
+            action: <Decline quote={quote} variant="text" />,
             children: t.w.bookedUp(
               Boolean(quote.plan && quote.plan.days.length > 1),
               t.formatDateTime(quote.proposedStartsAt),
@@ -809,7 +809,7 @@ function Accept({
         {newCard && <ConsentNote action="paying" />}
         {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <Actions>
-          <Decline quote={quote} />
+          <Decline quote={quote} variant="quiet" />
           <Button
             isPending={action.isPending}
             isDisabled={!payment.isReady}
@@ -893,7 +893,7 @@ function AcceptChange({ quote }: { quote: QuoteView }) {
         </p>
         {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <Actions>
-          <Decline quote={quote} />
+          <Decline quote={quote} variant="quiet" />
           <Button isPending={action.isPending} onPress={() => void accept()}>
             {t.w.acceptNew}
           </Button>
@@ -903,8 +903,16 @@ function AcceptChange({ quote }: { quote: QuoteView }) {
   );
 }
 
-// beside accepting, quietly: they're asked once more before it's done
-function Decline({ quote }: { quote: QuoteView }) {
+// beside accepting, quietly, or a Notice's text action: they're asked once
+// more before it's done. Not red, as they can ask for a quote again (the
+// `ui` skill)
+function Decline({
+  quote,
+  variant,
+}: {
+  quote: QuoteView;
+  variant: "quiet" | "text";
+}) {
   const t = useSaid(words);
   const action = useAction(t.p.didntWork);
 
@@ -918,7 +926,7 @@ function Decline({ quote }: { quote: QuoteView }) {
 
   return (
     <DialogTrigger>
-      <Button variant="text">{t.w.decline}</Button>
+      <Button variant={variant}>{t.w.decline}</Button>
       <Dialog title={t.w.declineQ} role="alertdialog">
         {({ close }) => (
           <>
@@ -929,7 +937,6 @@ function Decline({ quote }: { quote: QuoteView }) {
                 {t.w.keep}
               </Button>
               <Button
-                variant="danger"
                 isPending={action.isPending}
                 onPress={() => void decline(close)}
               >

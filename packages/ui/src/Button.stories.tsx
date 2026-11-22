@@ -51,6 +51,20 @@ export const DangerText: Story = {
   },
 };
 
+// a page's only action, when it loses what can't be got back
+export const DangerOutline: Story = {
+  args: {
+    variant: "danger-outline",
+    children: (
+      <>
+        <Trash2 aria-hidden size={18} />
+        Delete draft
+      </>
+    ),
+  },
+};
+
+// in the dialog that confirms it
 export const Danger: Story = {
   args: { variant: "danger", children: "Turn Down" },
 };
