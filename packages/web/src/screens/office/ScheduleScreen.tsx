@@ -39,16 +39,12 @@ export function ScheduleScreen() {
   return (
     <CalendarPage title="Schedule">
       <RangeBar from={from} to={to} onShow={show} />
-      <div className="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
+      <div className="flex flex-wrap items-center gap-2">
         <BlockKey job={{ status: "booked", assignment: "unassigned" }} />
         <BlockKey job={{ status: "booked", assignment: "assigned" }} />
         <BlockKey job={{ status: "completed", assignment: "assigned" }} />
         <BlockKey job={{ status: "no_access", assignment: "assigned" }} />
         <VisitKey />
-        <span className="hidden md:inline">
-          Drag a job or site visit to move it, or open it to pick any time.
-        </span>
-        <span className="md:hidden">Open a job or site visit to move it.</span>
       </div>
       <ScheduleCalendar
         days={days}
