@@ -149,7 +149,7 @@ export function SiteVisitScreen() {
             {visit.quoteId && (
               <Fact
                 icon={QuoteIcon}
-                label="The quote it's for"
+                label="What it's for"
                 value={
                   <Link
                     href={linkTo({
@@ -157,7 +157,7 @@ export function SiteVisitScreen() {
                       params: { quoteId: visit.quoteId },
                     })}
                   >
-                    Open the quote
+                    The quote
                   </Link>
                 }
               />
