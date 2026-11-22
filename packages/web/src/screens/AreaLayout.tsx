@@ -195,6 +195,8 @@ const navFor = (lang: Language): Record<AreaId, AreaNavItem[]> => ({
       href: linkTo({ to: "/portal/details" }),
       label: portalWords[lang].yourDetails,
       icon: UserRound,
+      // and a home and its plan, as their crumbs say
+      alsoCurrentFor: ["/portal/properties/", "/portal/plans/"],
     },
   ],
 });
