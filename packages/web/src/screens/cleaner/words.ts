@@ -13,7 +13,6 @@ export const cleanerWords = catalog({
     offeredToYou: "Offered to you",
     nextUp: "Next up",
     openJob: "Open job",
-    canYouTakeIt: "Can you take it?",
     markDone: "Mark done",
     confirm: "Confirm",
     notForMe: "Not for me",
@@ -22,8 +21,20 @@ export const cleanerWords = catalog({
     directions: "Directions",
     crew: "Crew",
     justYou: "Just you",
+    // the reader, on a crew they're in
+    you: "You",
     goBack: "Go back",
-    couldntGetIn: "Couldn't get in?",
+    callOffice: "Call the office",
+    // the toast once they've said an offer's not for them
+    takenOff: "Taken off your list",
+    // on the Job's day: the client's number, and what's said when no way
+    // in is written down
+    clientsNumber: "Client's number",
+    nothingWritten:
+      "Nothing's written down. Call the client when you get there.",
+    // a Job offered or open to them: theirs to take, said from their side
+    // (the Office calls it offered)
+    available: "Available",
     // a Job they've marked done
     done: "Done",
     // "until about 12:00 PM": when a Job or Site Visit should be over
@@ -40,7 +51,6 @@ export const cleanerWords = catalog({
     offeredToYou: "Te lo ofrecieron",
     nextUp: "Lo próximo",
     openJob: "Ver el trabajo",
-    canYouTakeIt: "¿Puedes tomarlo?",
     markDone: "Marcar como terminado",
     confirm: "Confirmar",
     notForMe: "No es para mí",
@@ -49,8 +59,13 @@ export const cleanerWords = catalog({
     directions: "Cómo llegar",
     crew: "Equipo",
     justYou: "Solo tú",
+    you: "Tú",
     goBack: "Volver",
-    couldntGetIn: "¿No pudiste entrar?",
+    callOffice: "Llamar a la oficina",
+    takenOff: "Quitado de tu lista",
+    clientsNumber: "Teléfono del cliente",
+    nothingWritten: "No hay nada escrito. Llama al cliente cuando llegues.",
+    available: "Disponible",
     done: "Terminado",
     untilAbout: (time: string) => `hasta cerca de ${theTimeEs(time)}`,
     by: (name: string | null) => (name ? ` por ${name}` : ""),

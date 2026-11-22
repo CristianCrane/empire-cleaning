@@ -1493,8 +1493,10 @@ export type CleanerJob = {
     phone: string;
     accessInstructions: PropertyView["accessInstructions"];
   } | null;
-  // everyone on the crew, this Cleaner included
-  crew: { name: string; status: CrewState }[];
+  // how many Cleaners the Job takes, and who's on its crew so far, this
+  // Cleaner (`you`) included: the rest of its places are open
+  crewSize: number;
+  crew: { name: string; status: CrewState; you: boolean }[];
   // this Cleaner's own Assignment
   assignment: {
     id: string;

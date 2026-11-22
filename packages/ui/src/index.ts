@@ -20,6 +20,13 @@ export { CalendarPage } from "./layouts/CalendarPage.tsx";
 export { Card } from "./Card.tsx";
 export { EmptyState } from "./EmptyState.tsx";
 export { Checkbox } from "./Checkbox.tsx";
+export {
+  CrewFace,
+  CrewSection,
+  ExtrasSection,
+  OpenMark,
+  type CrewMember,
+} from "./Crew.tsx";
 export { DateTile } from "./DateTile.tsx";
 export { Chip, ChipGroup } from "./ChipGroup.tsx";
 export { ChoiceTile, ChoiceTiles, ChoiceTilesLoading } from "./ChoiceTiles.tsx";

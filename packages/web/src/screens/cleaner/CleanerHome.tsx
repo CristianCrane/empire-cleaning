@@ -33,7 +33,6 @@ import {
   formatMinutes,
   jobStatusTone,
 } from "../format.ts";
-import { AssignmentStateBadge } from "../JobBadges.tsx";
 import { type Said, useSaid, useShared } from "../words.ts";
 
 const words = catalog({
@@ -74,10 +73,12 @@ const words = catalog({
   },
 });
 
-// whether the Cleaner has Confirmed it yet, or once done, how it went: a
-// trabajo, so its Spanish isn't a clean's (Terminado, not Terminada)
+// where the Job stands for its Cleaner, when it isn't the usual (theirs,
+// before the day: no badge): Available while it's theirs to take, Today,
+// On site once it's started, then how it went: a trabajo, so its Spanish
+// isn't a clean's (Terminado, not Terminada)
 export function CleanerJobBadge({ job }: { job: CleanerJob }) {
-  const { c, jobStatusLabel } = useShared();
+  const { c, jobStatusLabel, today, onSite } = useShared();
   if (job.outcome) {
     return (
       <StatusBadge tone={jobStatusTone[job.outcome]}>
@@ -85,11 +86,11 @@ export function CleanerJobBadge({ job }: { job: CleanerJob }) {
       </StatusBadge>
     );
   }
-  return (
-    <AssignmentStateBadge
-      state={job.assignment.status === "confirmed" ? "confirmed" : "offered"}
-    />
-  );
+  if (job.assignment.status === "offered")
+    return <StatusBadge tone="info">{c.available}</StatusBadge>;
+  if (job.started) return <StatusBadge tone="success">{onSite}</StatusBadge>;
+  if (job.onTheDay) return <StatusBadge tone="info">{today}</StatusBadge>;
+  return null;
 }
 
 // a map app's directions to an address

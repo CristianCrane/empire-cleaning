@@ -48,6 +48,19 @@ export const uiWords = catalog({
     retired: (n: number) => `Retired (${n})`,
     // the next page, on its way (AppLayout)
     loading: "Loading…",
+    // a Job's crew (CrewSection): where it stands, a zero left unsaid ("2
+    // places open", "1 of 2 confirmed, 1 open"); an open place and what a
+    // screen reader hears of it; what it hears of each face
+    crewLine: (confirmed: number, of: number, open: number) =>
+      open === 0
+        ? `${confirmed} of ${of} confirmed`
+        : confirmed === 0
+          ? `${open} ${open === 1 ? "place" : "places"} open`
+          : `${confirmed} of ${of} confirmed, ${open} open`,
+    open: "Open",
+    placeOpen: "a place still open",
+    confirmed: "confirmed",
+    notConfirmedYet: "not confirmed yet",
   },
   es: {
     close: "Cerrar",
@@ -76,6 +89,19 @@ export const uiWords = catalog({
     clearSearch: "Borrar la búsqueda",
     retired: (n: number) => `Retirados (${n})`,
     loading: "Cargando…",
+    crewLine: (confirmed: number, of: number, open: number) => {
+      const libre = open === 1 ? "libre" : "libres";
+      const done = `${confirmed} de ${of} ${of === 1 ? "confirmado" : "confirmados"}`;
+      return open === 0
+        ? done
+        : confirmed === 0
+          ? `${open} ${open === 1 ? "lugar" : "lugares"} ${libre}`
+          : `${done}, ${open} ${libre}`;
+    },
+    open: "Libre",
+    placeOpen: "un lugar aún libre",
+    confirmed: "confirmado",
+    notConfirmedYet: "aún sin confirmar",
   },
 });
 

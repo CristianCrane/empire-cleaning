@@ -314,6 +314,7 @@ const cleanerJobs = async (
     db
       .select({
         jobId: assignments.jobId,
+        staffId: assignments.staffId,
         name: staff.name,
         status: assignments.status,
       })
@@ -364,11 +365,13 @@ const cleanerJobs = async (
             accessInstructions: property.accessInstructions,
           }
         : null,
+      crewSize: job.crewSize,
       crew: crews
         .filter((c) => c.jobId === job.id)
         .map((c) => ({
           name: c.name,
           status: c.status as CrewState,
+          you: c.staffId === staffId,
         })),
       assignment: {
         id: assignment.id,

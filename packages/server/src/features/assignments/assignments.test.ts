@@ -341,9 +341,12 @@ describe("a Cleaner's Jobs", () => {
       client: { firstName: "Robin" },
       // Offered, before the day: no phone and no way in
       onTheDay: null,
+      // the places it takes, and who's in them so far, Cory marked as the
+      // one reading (#497)
+      crewSize: 2,
       crew: [
-        { name: "Cory Cleaner", status: "offered" },
-        { name: "Dee Cleaner", status: "offered" },
+        { name: "Cory Cleaner", status: "offered", you: true },
+        { name: "Dee Cleaner", status: "offered", you: false },
       ],
       assignment: { id: assignmentId, status: "offered", canRelease: true },
       outcome: null,

@@ -16,6 +16,8 @@ import {
   addCleaner,
   listRows,
   openTile,
+  pageAction,
+  expectNoPageAction,
 } from "./harness.ts";
 
 // the API's fake clock is at 4am on Monday 5 January 2026 in New York. The
@@ -251,26 +253,44 @@ test(
     await expect(offered).toContainText("Thu 9:00 AM");
     await offered.click();
     await expect(page).toHaveURL(`/cleaner/jobs/${job.id}`);
+    // an offer lights Offers, as its crumbs say
+    await expect(
+      page.getByRole("link", { name: "Offers (1)" }).first(),
+    ).toHaveAttribute("aria-current", "page");
+    await expect(page.getByText("Available", { exact: true })).toBeVisible();
     const details = page.getByRole("region", { name: "Job details" });
-    // how we get in and the number wait for the day
-    await expect(
-      details.getByRole("definition").filter({ hasText: /^Shows on the day$/ }),
-    ).toBeVisible();
-    await expect(
-      details
-        .getByRole("definition")
-        .filter({ hasText: /^Robin, number shows on the day$/ }),
-    ).toBeVisible();
+    await expect(details).toContainText("9:00 AM – 12:00 PM");
+    // the client by name; their number and how we get in aren't drawn at
+    // all, not "shows on the day" (#230, D3)
+    await expect(details.getByRole("term")).toHaveText(["How long", "Client"]);
+    for (const value of [/^3 h$/, /^Robin$/])
+      await expect(
+        details.getByRole("definition").filter({ hasText: value }),
+      ).toBeVisible();
     await expect(details).not.toContainText("Ring 4B");
-    await expect(details).toContainText("Dee Cleaner not confirmed yet");
+    // #497: a crew of two, offered to Cory and Dee: Dee's face, not yet
+    // confirmed, and the place Cory would take open, never "Just you" or
+    // Cory named as not confirmed
+    const crew = page.getByRole("region", { name: "Crew" });
+    await expect(crew.getByRole("listitem")).toHaveText([
+      "Dee, not confirmed yet",
+      "Open, a place still open",
+    ]);
+    await expect(crew).toContainText("1 place open");
     // never any prices
     await expect(page.locator("main")).not.toContainText("$");
 
-    await page.getByRole("button", { name: "Confirm", exact: true }).click();
+    await pageAction(page, "Confirm");
     await expect(page.getByText("Job confirmed")).toBeVisible();
+    // theirs now: they're on the crew, and the next step is getting there
+    await expect(crew.getByRole("listitem")).toHaveText([
+      "You, confirmed",
+      "Dee, not confirmed yet",
+    ]);
+    await expectNoPageAction(page, "Confirm");
     await expect(
-      page.getByRole("region", { name: "Offered to you" }),
-    ).toHaveCount(0);
+      page.getByRole("link", { name: "Directions" }).first(),
+    ).toBeVisible();
     await page.getByRole("link", { name: "Your jobs" }).first().click();
     await expect(await openTile(page, "Coming up")).toContainText(
       "Thu 9:00 AM",
@@ -290,7 +310,7 @@ test("a Cleaner can't confirm a Job at a time they weren't shown", async ({
 
   // the Office moves it while the page is open
   await moveJob(job.id, { date: "2026-01-08", time: "11:00" });
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
+  await pageAction(page, "Confirm");
   await expect(
     page.getByText(
       "This job moved to Thursday, January 8 at 11:00 AM. Check the new time, then confirm again.",
@@ -298,7 +318,7 @@ test("a Cleaner can't confirm a Job at a time they weren't shown", async ({
   ).toBeVisible();
   // the page shows the new time, and it can be confirmed
   await expect(page.getByText("Thu, Jan 8, 11:00 AM").first()).toBeVisible();
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
+  await pageAction(page, "Confirm");
   await expect(page.getByText("Job confirmed")).toBeVisible();
 });
 
@@ -312,15 +332,37 @@ test("a Cleaner can't take a Cleaner Needed at a time they weren't shown", async
   await expect(page.getByText("Thu, Jan 8, 9:00 AM").first()).toBeVisible();
 
   await moveJob(job.id, { date: "2026-01-08", time: "11:00" });
-  await page.getByRole("button", { name: "Confirm" }).click();
+  await pageAction(page, "Confirm");
   await expect(page.getByText(/^This job moved to/)).toBeVisible();
   await expect(page.getByText("Thu, Jan 8, 11:00 AM").first()).toBeVisible();
-  await page.getByRole("button", { name: "Confirm" }).click();
+  await pageAction(page, "Confirm");
   await expect(page.getByText("Job confirmed")).toBeVisible();
   await expect(page).toHaveURL(`/cleaner/jobs/${job.id}`);
 });
 
-test("a Cleaner releases a Job they can't make", async ({ page }) => {
+// #497: offered alone a Job for two, the reader isn't "Just you", nor
+// named as not confirmed: both places are open until they confirm
+test("a Job for two offered to one Cleaner shows both places open", async ({
+  page,
+}) => {
+  const cory = await addCleaner("Cory Cleaner");
+  const job = await thursdayJob();
+  await offerJob(job.id, cory.id);
+  await signInAsCleaner(page, cory.email);
+  await page.goto(`/cleaner/jobs/${job.id}`);
+
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByText("Just you")).toHaveCount(0);
+  await expect(page.locator("main")).not.toContainText("Cory");
+  const crew = page.getByRole("region", { name: "Crew" });
+  await expect(crew).toContainText("2 places open");
+  await expect(crew.getByRole("listitem")).toHaveText([
+    "Open, a place still open",
+    "Open, a place still open",
+  ]);
+});
+
+test("a Cleaner says an offered Job is not for them", async ({ page }) => {
   const cory = await addCleaner("Cory Cleaner");
   await createStaff(olive);
   const job = await thursdayJob();
@@ -328,18 +370,35 @@ test("a Cleaner releases a Job they can't make", async ({ page }) => {
   await signInAsCleaner(page, cory.email);
   await page.goto(`/cleaner/jobs/${job.id}`);
 
-  await page.getByRole("button", { name: "Not for me" }).click();
+  await pageAction(page, "Not for me");
   await page
-    .getByRole("alertdialog")
+    .getByRole("alertdialog", { name: "Not for you?" })
+    .getByRole("button", { name: "Not for me" })
+    .click();
+
+  await expect(page).toHaveURL("/cleaner/offers");
+  await expect(page.getByText("Taken off your list")).toBeVisible();
+  expect((await emailsTo(olive.email)).at(-1)!.subject).toBe(
+    "Cory Cleaner dropped out of a job",
+  );
+});
+
+test("a Cleaner drops out of a Job they'd confirmed", async ({ page }) => {
+  const cory = await addCleaner("Cory Cleaner");
+  const job = await thursdayJob();
+  await offerJob(job.id, cory.id, { confirmed: true });
+  await signInAsCleaner(page, cory.email);
+  await page.goto(`/cleaner/jobs/${job.id}`);
+
+  await pageAction(page, "Drop out");
+  await page
+    .getByRole("alertdialog", { name: "Drop out of this job?" })
     .getByRole("button", { name: "Drop out" })
     .click();
 
   await expect(page).toHaveURL("/cleaner");
   await expect(page.getByText("You've dropped out")).toBeVisible();
   await expect(page.getByText("Nothing booked for you yet")).toBeVisible();
-  expect((await emailsTo(olive.email)).at(-1)!.subject).toBe(
-    "Cory Cleaner dropped out of a job",
-  );
 });
 
 test("a Cleaner with nothing booked but an offer waiting is sent to it, with no all-clear", async ({
@@ -372,8 +431,10 @@ test("a Confirmed Job can't be released within 48 hours of it", async ({
   await signInAsCleaner(page, cory.email);
   await page.goto(`/cleaner/jobs/${job.id}`);
 
-  await expect(page.getByText("you can't drop out here")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Drop out" })).toHaveCount(0);
+  // the office's to sort out then: no Drop out, and the office a press away
+  await expectNoPageAction(page, "Drop out");
+  await page.keyboard.press("Escape");
+  await pageAction(page, "Call the office");
 });
 
 test("a Cleaner sees the Client's phone and how we get in on the day of the Job", async ({
@@ -387,13 +448,18 @@ test("a Cleaner sees the Client's phone and how we get in on the day of the Job"
   await page.goto(`/cleaner/jobs/${job.id}`);
 
   const details = page.getByRole("region", { name: "Job details" });
+  await expect(page.getByText("Today", { exact: true })).toBeVisible();
+  // the number on its own, the field named by its line; how we get in
+  // last, the card's width
+  await expect(details.getByRole("term")).toHaveText([
+    "How long",
+    "Client",
+    "Client's number",
+    "How we get in",
+  ]);
   await expect(
-    details.getByRole("link", { name: "Robin, (646) 555-0100", exact: true }),
+    details.getByRole("link", { name: "(646) 555-0100", exact: true }),
   ).toHaveAttribute("href", "tel:(646) 555-0100");
-  // the grey line names the field, as every row's does
-  await expect(
-    details.getByRole("definition").filter({ hasText: /^Client$/ }),
-  ).toBeVisible();
   await expect(
     details
       .getByRole("definition")
@@ -430,9 +496,7 @@ test("the Job screens pass automated accessibility checks", async ({
   ).toBeVisible();
   await expectAccessible(asCory);
   await asCory.goto(`/cleaner/jobs/${job.id}`);
-  await expect(
-    asCory.getByRole("region", { name: "Offered to you" }),
-  ).toBeVisible();
+  await expect(asCory.getByRole("region", { name: "Crew" })).toBeVisible();
   await expectAccessible(asCory);
 
   // Friday, when Cory is free
@@ -443,7 +507,7 @@ test("the Job screens pass automated accessibility checks", async ({
   })) as { id: string };
   await asCory.goto(`/cleaner/open/${open.id}`);
   await expect(
-    asCory.getByRole("region", { name: "Can you take it?" }),
+    asCory.getByRole("region", { name: "Job details" }),
   ).toBeVisible();
   await expectAccessible(asCory);
 });
@@ -478,21 +542,19 @@ test(
     );
     await expect(
       page.getByRole("region", { name: "Job details" }),
-    ).toContainText("11375");
+    ).toContainText("ZIP code 11375");
     // no address, Access Instructions, Client or prices before Confirming
     await expect(page.locator("main")).not.toContainText("Austin St");
     await expect(page.locator("main")).not.toContainText("Ring 4B");
     await expect(page.locator("main")).not.toContainText("$");
 
-    await page.getByRole("button", { name: "Confirm" }).click();
+    await pageAction(page, "Confirm");
     await expect(page).toHaveURL(`/cleaner/jobs/${job.id}`);
-    await expect(page.getByText("Confirmed", { exact: true })).toBeVisible();
-    // the address once theirs; how we get in on the day
+    await expect(page.getByText("Job confirmed")).toBeVisible();
+    // the address once theirs; how we get in on the day, not drawn before
     const details = page.getByRole("region", { name: "Job details" });
     await expect(details).toContainText("Austin St");
-    await expect(
-      details.getByRole("definition").filter({ hasText: /^Shows on the day$/ }),
-    ).toBeVisible();
+    await expect(details.getByRole("term")).toHaveText(["How long", "Client"]);
   },
 );
 
@@ -508,7 +570,7 @@ test("a Cleaner is told when someone else took the Cleaner Needed first", async 
 
   // Dee gets there first
   await offerJob(job.id, dee.id, { confirmed: true });
-  await page.getByRole("button", { name: "Confirm" }).click();
+  await pageAction(page, "Confirm");
 
   await expect(
     page.getByText("Someone else already took this job."),
@@ -525,7 +587,7 @@ test("a Cleaner says a Cleaner Needed is not for them, and the Office sees it", 
   await signInAsCleaner(page, cory.email);
   await page.goto(`/cleaner/open/${job.id}`);
 
-  await page.getByRole("button", { name: "Not for me" }).click();
+  await pageAction(page, "Not for me");
 
   await expect(page).toHaveURL("/cleaner/offers");
   await expect(page.getByText("Taken off your list")).toBeVisible();

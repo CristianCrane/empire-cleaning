@@ -349,23 +349,30 @@ Keeps: only theirs (ux-cleaner). Renders through `ListPage` (#433).
 
 #### Cleaner > Job
 
-Keeps: the Record, Complete in a bar at the foot (ux-cleaner). Renders through `RecordPage` (#432).
+Keeps: the Record, layout D (#493). Renders through `RecordPage` (#432).
 
-- Header: Offers or Your jobs › day and time; the Service and its status.
-- Actions: once theirs, Menu or one Button (No access; Drop out of this job
-  in red, before it starts); a Footer (Complete).
-- Alerts: not everyone has confirmed (warning); too late to drop out.
-- Body: Job details (`DetailsCard`: the time large, the address and
-  directions, how we get in and the rest as icon facts; how we get in and
-  the client's number on the Job's day, "Shows on the day" before); while
-  offered, Take (Confirm, and Not for me beside it); Completed or No access.
+- Header: Offers (while offered, lit in the nav too) or Your jobs › day
+  and time; the Service and its stage's badge (Available, Today, On site,
+  Done, Couldn't get in; none before the day).
+- Actions: the split button. Offered: Confirm; Not for me. Theirs:
+  Directions; Call the office, Drop out in red (absent inside 48 hours).
+  On site: Mark done (greyed till the crew's confirmed); Couldn't get in,
+  Call the office.
+- Alerts: not everyone has confirmed (warning, calling the office).
+- Body: Job details (`DetailsCard`: a `DateTile`, the times large, the
+  address; How long, Client, on the Job's day once theirs the client's
+  number, Extras as a count, How we get in last and full width); Extras
+  (`ExtrasSection`); Crew (`CrewSection`). Once over, Completed or
+  Couldn't get in first, the Job folded under it.
 
 #### Cleaner > Cleaner needed
 
 Keeps: Cleaner needed (#148). Renders through `RecordPage` (#432).
 
-- Header: Offers › date and time; the Service and an Open badge.
-- Body: Job details (`DetailsCard`); Can you take it? (Confirm, Not for me).
+- Header: Offers › date and time; the Service and an Available badge.
+- Actions: the split button, Confirm; Not for me.
+- Body: Job details (`DetailsCard`: a `DateTile`, the times large, the
+  ZIP code; How long, Crew as how many, never who).
 
 ### Client portal
 
