@@ -16,7 +16,7 @@ import {
   AnswerCard,
   Button,
   ButtonLink,
-  buttonStyles,
+  ExternalButtonLink,
   DateTile,
   HomePage,
   IconTile,
@@ -269,25 +269,17 @@ function NextUp({
       ]}
       actions={
         <>
-          <a
-            className={buttonStyles({ variant: "secondary" })}
-            href={directionsTo(address)}
-            target="_blank"
-            rel="noreferrer"
-          >
+          <ExternalButtonLink variant="secondary" href={directionsTo(address)}>
             <Navigation aria-hidden size={18} />
             {t.c.directions}
-          </a>
+          </ExternalButtonLink>
           {job ? (
             <Button onPress={() => openJob(job.id)}>{t.c.openJob}</Button>
           ) : (
-            <a
-              className={buttonStyles({ variant: "primary" })}
-              href={`tel:${visit!.client.phone}`}
-            >
+            <ExternalButtonLink href={`tel:${visit!.client.phone}`}>
               <Phone aria-hidden size={18} />
               {w.call(clientName(visit!.client))}
-            </a>
+            </ExternalButtonLink>
           )}
         </>
       }
