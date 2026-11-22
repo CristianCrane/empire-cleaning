@@ -162,7 +162,7 @@ export const Explained: Story = {
 };
 
 // outside an area: a page of its own, the logo above, who's signed in
-// beside it
+// beside it, with a line under it
 export const OnItsOwn: Story = {
   parameters: { layout: "fullscreen" },
   args: {
@@ -170,19 +170,18 @@ export const OnItsOwn: Story = {
     title: "Welcome",
     subtitle: "Ask us for a quote and we'll email it to you.",
     account: (
-      <span className="flex items-center gap-2 text-sm text-fg-muted">
-        Signed in as sam@example.com
-        <Button variant="text" size="sm">
-          Sign out
-        </Button>
-      </span>
+      <div className="flex flex-col text-sm text-fg-muted">
+        <span className="flex items-center gap-2">
+          Signed in as sam@example.com
+          <Button variant="text" size="sm">
+            Sign out
+          </Button>
+        </span>
+        <p className="text-xs">
+          Asked with another email? Sign out and use that one.
+        </p>
+      </div>
     ),
-    alerts: [
-      {
-        key: "other-email",
-        children: "Asked with a different email? Sign in with that one.",
-      },
-    ],
     children: (
       // a stepped form keeps its own steps, Back and Next
       <FormPart title="Where's the clean?">

@@ -95,12 +95,16 @@ test.describe("signing up and in with an emailed link", () => {
       await expect(
         page.getByText("Signed in as new@example.com"),
       ).toBeVisible();
-      // a different email's way out, once, as the page's alert
+      // a different email's way out, under Sign out, not an alert
       await expect(
-        page.getByRole("status").filter({ hasText: "different email" }),
-      ).toHaveText(
-        "Asked us for a quote with a different email? Sign out and sign in with that one.",
-      );
+        page.getByText(
+          "Asked for a quote with another email? Sign out and use that one.",
+          { exact: true },
+        ),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("status").filter({ hasText: "another email" }),
+      ).toHaveCount(0);
       // what happens next is the line under the title, said once: no
       // steps beside the form, once its first step shows
       await expect(

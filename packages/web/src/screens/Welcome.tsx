@@ -10,12 +10,12 @@ const words = catalog({
   en: {
     signedInAs: (email: string) => `Signed in as ${email}`,
     otherEmail:
-      "Asked us for a quote with a different email? Sign out and sign in with that one.",
+      "Asked for a quote with another email? Sign out and use that one.",
   },
   es: {
     signedInAs: (email: string) => `Sesión iniciada como ${email}`,
     otherEmail:
-      "¿Nos pidió una cotización con otro correo electrónico? Cierre sesión e inicie sesión con ese.",
+      "¿Pidió una cotización con otro correo electrónico? Cierre sesión y use ese.",
   },
 });
 
@@ -23,7 +23,8 @@ const words = catalog({
 // before asking for a Quote, or with a different email from their Quote
 // Request. Asking for a Quote here makes them a Client. A Form page of its
 // own: the form in its steps, what happens next said once, in the line
-// under the title (UX pass, #96; #434; #493 G5.3)
+// under the title (UX pass, #96; #434; #493 G5.3), and a different email's
+// way out under Sign out, its action (#493)
 export function Welcome() {
   const { account } = useRouteContext({ from: "/welcome" });
   const navigate = useNavigate();
@@ -36,21 +37,23 @@ export function Welcome() {
       title={t.welcome}
       subtitle={ASK_US}
       account={
-        <span className="flex items-center gap-2 text-sm text-fg-muted">
-          {w.signedInAs(account.email)}
-          <Button
-            variant="text"
-            size="sm"
-            onPress={async () => {
-              await signOut();
-              void navigate({ to: "/sign-in" });
-            }}
-          >
-            {t.signOut}
-          </Button>
-        </span>
+        <div className="flex flex-col text-sm text-fg-muted">
+          <span className="flex items-center gap-2">
+            {w.signedInAs(account.email)}
+            <Button
+              variant="text"
+              size="sm"
+              onPress={async () => {
+                await signOut();
+                void navigate({ to: "/sign-in" });
+              }}
+            >
+              {t.signOut}
+            </Button>
+          </span>
+          <p className="text-xs">{w.otherEmail}</p>
+        </div>
       }
-      alerts={[{ key: "other-email", tone: "info", children: w.otherEmail }]}
     >
       <QuoteRequestForm
         headingLevel={2}
