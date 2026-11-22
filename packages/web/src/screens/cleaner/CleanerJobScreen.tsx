@@ -95,7 +95,7 @@ export function CleanerJobScreen() {
           ? { label: c.offers, href: linkTo({ to: "/cleaner/offers" }) }
           : { label: c.yourJobs, href: linkTo({ to: "/cleaner" }) },
         {
-          label: `${t.formatDay(dayOfInstant(job.startsAt))}, ${t.formatTime(job.startsAt)}`,
+          label: t.formatDateTime(job.startsAt),
         },
       ]}
       title={job.serviceName}
