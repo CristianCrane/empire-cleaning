@@ -2,6 +2,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type DragEvent,
   type ReactNode,
   type RefObject,
@@ -33,7 +34,7 @@ import {
   ListItem,
   StatusBadge,
 } from "@empire-cleaning/ui";
-import { linkTo } from "../../links.ts";
+import { linkTo, type AppHref } from "../../links.ts";
 import {
   HOUR_PX,
   onAxis,
@@ -666,9 +667,6 @@ function DayJobs({
     );
     onDragStart({ moving, grabbedAtPx });
   };
-  const grabs = (can: boolean) =>
-    can ? "cursor-grab active:cursor-grabbing" : "";
-
   const place = (block: Block) => {
     const { lane, lanes: of } = lanes.get(block.id)!;
     return onAxis(block.start, block.end - block.start, axisStart, {
@@ -686,64 +684,73 @@ function DayJobs({
         // too short for three lines: the time and Client, the rest unseen
         // but still read out
         const compact = style.height < COMPACT_PX;
-        const words = compact ? (
-          <span className="truncate font-semibold">
-            {formatTime(job.startsAt)} {shortClientName(job.client)}
-            <span className="sr-only">
-              , {tone.label}, {crew}
-            </span>
-          </span>
-        ) : (
-          <>
-            {narrow ? (
-              <>
-                <span className="truncate font-semibold">
-                  {formatTime(job.startsAt)}
-                </span>{" "}
-                <span className="truncate font-semibold">
-                  {shortClientName(job.client)}
-                </span>
-              </>
-            ) : (
+        return (
+          <ScheduleBlock
+            key={job.id}
+            moving={{ kind: "job", job }}
+            href={linkTo({
+              to: "/office/jobs/$jobId",
+              params: { jobId: job.id },
+            })}
+            colours={tone.block}
+            style={style}
+            compact={compact}
+            narrow={narrow}
+            interactive={interactive}
+            draggable={movable && job.movable}
+            onDragStart={startDrag}
+            onDragEnd={onDragEnd}
+          >
+            {compact ? (
               <span className="truncate font-semibold">
                 {formatTime(job.startsAt)} {shortClientName(job.client)}
+                <span className="sr-only">
+                  , {tone.label}, {crew}
+                </span>
               </span>
-            )}
-            <span className="truncate">{tone.label}</span>
-            <span className="truncate text-fg-muted">{crew}</span>
-          </>
-        );
-        const inside = `flex h-full flex-col ${narrow ? "px-1" : "px-1.5"} text-xs leading-tight font-normal text-fg no-underline ${compact ? "justify-center" : "py-1"}`;
-        return (
-          <div
-            key={job.id}
-            draggable={movable && job.movable}
-            onDragStart={startDrag({ kind: "job", job })}
-            onDragEnd={onDragEnd}
-            className={`absolute overflow-hidden rounded-md border-s-4 shadow-sm ${tone.block} ${interactive ? grabs(movable && job.movable) : "pointer-events-none"}`}
-            style={style}
-          >
-            {interactive ? (
-              <Link
-                href={linkTo({
-                  to: "/office/jobs/$jobId",
-                  params: { jobId: job.id },
-                })}
-                className={inside}
-              >
-                {words}
-              </Link>
             ) : (
-              <div className={inside}>{words}</div>
+              <>
+                {narrow ? (
+                  <>
+                    <span className="truncate font-semibold">
+                      {formatTime(job.startsAt)}
+                    </span>{" "}
+                    <span className="truncate font-semibold">
+                      {shortClientName(job.client)}
+                    </span>
+                  </>
+                ) : (
+                  <span className="truncate font-semibold">
+                    {formatTime(job.startsAt)} {shortClientName(job.client)}
+                  </span>
+                )}
+                <span className="truncate">{tone.label}</span>
+                <span className="truncate text-fg-muted">{crew}</span>
+              </>
             )}
-          </div>
+          </ScheduleBlock>
         );
       })}
       {visits.map(({ visit, block }) => {
         const style = place(block);
         const compact = style.height < COMPACT_PX;
-        const words = (
-          <>
+        return (
+          <ScheduleBlock
+            key={visit.id}
+            moving={{ kind: "visit", visit }}
+            href={linkTo({
+              to: "/office/site-visits/$visitId",
+              params: { visitId: visit.id },
+            })}
+            colours={blockOf.neutral}
+            style={style}
+            compact={compact}
+            narrow={narrow}
+            interactive={interactive}
+            draggable={movable && visit.movable}
+            onDragStart={startDrag}
+            onDragEnd={onDragEnd}
+          >
             <span className="truncate font-semibold">
               {formatTime(visit.startsAt)} {shortClientName(visit.client)}
             </span>
@@ -753,32 +760,7 @@ function DayJobs({
             <span className={compact ? "sr-only" : "truncate text-fg-muted"}>
               {visit.visitor?.name}
             </span>
-          </>
-        );
-        const inside = `flex h-full flex-col ${narrow ? "px-1" : "px-1.5"} text-xs leading-tight font-normal text-fg no-underline ${compact ? "justify-center" : "py-1"}`;
-        return (
-          <div
-            key={visit.id}
-            draggable={movable && visit.movable}
-            onDragStart={startDrag({ kind: "visit", visit })}
-            onDragEnd={onDragEnd}
-            className={`absolute overflow-hidden rounded-md border-s-4 shadow-sm ${blockOf.neutral} ${interactive ? grabs(movable && visit.movable) : "pointer-events-none"}`}
-            style={style}
-          >
-            {interactive ? (
-              <Link
-                href={linkTo({
-                  to: "/office/site-visits/$visitId",
-                  params: { visitId: visit.id },
-                })}
-                className={inside}
-              >
-                {words}
-              </Link>
-            ) : (
-              <div className={inside}>{words}</div>
-            )}
-          </div>
+          </ScheduleBlock>
         );
       })}
       {proposed && (
@@ -790,6 +772,54 @@ function DayJobs({
         </div>
       )}
     </>
+  );
+}
+
+// a Job's or Site Visit's block on the calendar, at its place on the axis in
+// its colours: on the Schedule a link to its page that can be dragged,
+// otherwise only to see, letting clicks through to the time under it
+function ScheduleBlock({
+  moving,
+  href,
+  colours,
+  style,
+  compact,
+  narrow,
+  interactive,
+  draggable,
+  onDragStart,
+  onDragEnd,
+  children,
+}: {
+  moving: Moving;
+  href: AppHref;
+  colours: string;
+  style: CSSProperties;
+  compact: boolean;
+  narrow: boolean;
+  interactive: boolean;
+  draggable: boolean;
+  onDragStart: (moving: Moving) => (e: DragEvent<HTMLDivElement>) => void;
+  onDragEnd: () => void;
+  children: ReactNode;
+}) {
+  const inside = `flex h-full flex-col ${narrow ? "px-1" : "px-1.5"} text-xs leading-tight font-normal text-fg no-underline ${compact ? "justify-center" : "py-1"}`;
+  return (
+    <div
+      draggable={draggable}
+      onDragStart={onDragStart(moving)}
+      onDragEnd={onDragEnd}
+      className={`absolute overflow-hidden rounded-md border-s-4 shadow-sm ${colours} ${interactive ? (draggable ? "cursor-grab active:cursor-grabbing" : "") : "pointer-events-none"}`}
+      style={style}
+    >
+      {interactive ? (
+        <Link href={href} className={inside}>
+          {children}
+        </Link>
+      ) : (
+        <div className={inside}>{children}</div>
+      )}
+    </div>
   );
 }
 
