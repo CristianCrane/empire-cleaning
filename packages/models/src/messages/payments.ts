@@ -137,6 +137,11 @@ export const payments = catalog({
   },
 });
 
+// whether a payment that didn't go through asks anything of the Client:
+// not one we try again ourselves (ADR-0022), which waits on us. On the
+// server and every screen that offers a way to put it right
+export const asksTheClient = (kind: UnpaidKind) => kind !== "waiting";
+
 // what happens next, once a payment didn't go through, as the Office reads
 // it, in English (ADR-0025)
 export const officeFix: Record<UnpaidKind, string> = {

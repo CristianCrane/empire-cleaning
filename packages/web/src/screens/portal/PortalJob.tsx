@@ -43,7 +43,12 @@ import { PickAvailableTime } from "../AvailabilityPicker.tsx";
 import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
 import { addressOf, formatHours, wasSkipped } from "../format.ts";
 import { type Said, useSaid } from "../words.ts";
-import { catalog, oneStop, stopAfter } from "@empire-cleaning/models";
+import {
+  asksTheClient,
+  catalog,
+  oneStop,
+  stopAfter,
+} from "@empire-cleaning/models";
 import { cleanBadge } from "./clean-badge.tsx";
 
 // in the Client's language (ADR-0025)
@@ -693,7 +698,7 @@ const unpaid = (
   return {
     key: "unpaid",
     tone: "danger",
-    action: kind !== "waiting" && (
+    action: asksTheClient(kind) && (
       <ButtonLink
         variant="danger-text"
         href={linkTo({ to: "/portal/payment-method" })}

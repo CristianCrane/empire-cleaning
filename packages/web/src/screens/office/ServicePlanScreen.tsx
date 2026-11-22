@@ -76,7 +76,7 @@ export function ServicePlanScreen() {
         { label: "Cleaning plan" },
       ]}
       title="Cleaning plan"
-      status={<PlanStatusBadge plan={plan} />}
+      status={<PlanStatusBadge status={plan.status} />}
       next={onHold.next}
       actions={[
         plan.status !== "ended" && {
@@ -143,7 +143,7 @@ export function PlanDetails({
           plan={plan}
           forClient={false}
           label="Plan details"
-          badge={<PlanStatusBadge plan={plan} />}
+          badge={<PlanStatusBadge status={plan.status} />}
         >
           <QuoteLink plan={plan} />
         </PlanCard>

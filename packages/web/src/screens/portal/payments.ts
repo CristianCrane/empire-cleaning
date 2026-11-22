@@ -1,4 +1,5 @@
 import {
+  asksTheClient,
   type BillSummary,
   type ClientPastJob,
   type ClientPayment,
@@ -8,7 +9,7 @@ import {
 } from "@empire-cleaning/models";
 import { CreditCard, Wallet } from "lucide-react";
 import { linkTo, type AppHref } from "../../links.ts";
-import type { Hero } from "./HeroCard.tsx";
+import type { Hero, Why } from "./HeroCard.tsx";
 import { said, saidWith } from "../words.ts";
 
 // in the Client's language (ADR-0025)
@@ -114,7 +115,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         cents: b.totalCents,
         late: true,
         // one the payment service is trying again asks nothing yet
-        asks: b.unpaid!.kind !== "waiting",
+        asks: asksTheClient(b.unpaid!.kind),
         text: billNotPaid(b.number),
         action: { label: payBill(b.number), href: billLink(b.id) },
       })),
@@ -124,19 +125,18 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
       .map((j) => ({
         cents: j.owedCents,
         late: true,
-        asks: j.unpaid !== "waiting",
+        asks: asksTheClient(j.unpaid!),
         text: cleanNotPaid(shortDayOf(j.startsAt)),
         // we try one waiting on the payment service again ourselves
-        action:
-          j.unpaid === "waiting"
-            ? {
-                label: t.p.seeTheClean,
-                href: linkTo({
-                  to: "/portal/jobs/$jobId",
-                  params: { jobId: j.id },
-                }),
-              }
-            : { label: t.UPDATE_CARD, href: cardLink },
+        action: !asksTheClient(j.unpaid!)
+          ? {
+              label: t.p.seeTheClean,
+              href: linkTo({
+                to: "/portal/jobs/$jobId",
+                params: { jobId: j.id },
+              }),
+            }
+          : { label: t.UPDATE_CARD, href: cardLink },
       })),
     // a Bill to pay on its page, not yet late
     ...data.bills
@@ -185,17 +185,24 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
 }
 
 // what's owed as a Home's answer (AnswerCard): Payments' card, and the
-// Client's Home's when it asks something of them
-export function owedAnswer(owed: Owed, lang: Language): Hero {
+// Client's Home's when it asks something of them. One that's late says
+// why above the card (whyAlert); one simply due, in its line
+export function owedAnswer(
+  owed: Owed,
+  lang: Language,
+): { hero: Hero; why?: Why } {
   const t = saidWith(lang, words);
   return {
-    label: t.w.toPay,
-    // money, not a warning: the warning's triangle is a Notice's
-    icon: Wallet,
-    tone: owed.late ? ("danger" as const) : ("warning" as const),
-    headline: t.formatMoney(owed.cents),
-    lines: [owed.text],
-    action: owed.action,
+    hero: {
+      label: t.w.toPay,
+      // money, not a warning: the warning's triangle is a Notice's
+      icon: Wallet,
+      tone: owed.late ? "danger" : "warning",
+      headline: t.formatMoney(owed.cents),
+      lines: owed.late ? [] : [owed.text],
+      action: owed.action,
+    },
+    ...(owed.late && { why: { tone: "danger", lead: `${owed.text}.` } }),
   };
 }
 

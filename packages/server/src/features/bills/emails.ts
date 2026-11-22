@@ -10,6 +10,7 @@ import {
 } from "../../services/email/blocks.ts";
 import {
   addDays,
+  asksTheClient,
   catalog,
   type Card,
   inLanguage,
@@ -533,7 +534,8 @@ export const chargedPerCleanEmail = (
       // a card puts it right, unless we're trying again ourselves
       unpaid &&
       settled.some(
-        (s) => s.settled.failure && unpaidKind(s.settled.failure) !== "waiting",
+        (s) =>
+          s.settled.failure && asksTheClient(unpaidKind(s.settled.failure)),
       )
         ? button(UPDATE_CARD, "/portal/payment-method")
         : cleansButton(lang),

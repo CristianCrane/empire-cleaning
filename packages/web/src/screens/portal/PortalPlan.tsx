@@ -107,7 +107,7 @@ export function PortalPlan() {
         { label: t.p.yourPlan },
       ]}
       title={t.p.yourPlan}
-      status={<PlanStatusBadge plan={plan} />}
+      status={<PlanStatusBadge status={plan.status} />}
       next={onHold.next}
       actions={[
         plan.status !== "ended" && {
@@ -126,7 +126,11 @@ export function PortalPlan() {
         </PlanCard>
       }
     >
-      <Section title={t.w.upcoming} description={t.w.ahead}>
+      <Section
+        title={t.w.upcoming}
+        // none is booked while it's paused, as its alert says
+        description={plan.status === "on_hold" ? undefined : t.w.ahead}
+      >
         <List
           aria-label={t.w.upcoming}
           onAction={openJob}

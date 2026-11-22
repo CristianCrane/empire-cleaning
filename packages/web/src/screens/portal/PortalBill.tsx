@@ -1,5 +1,5 @@
 import { useLoaderData } from "@tanstack/react-router";
-import { type BillView, catalog } from "@empire-cleaning/models";
+import { asksTheClient, type BillView, catalog } from "@empire-cleaning/models";
 import { CreditCard } from "lucide-react";
 import {
   Actions,
@@ -20,7 +20,6 @@ import {
   BillLetterhead,
   BillStatusBadge,
   usePrintBill,
-  billWeek,
 } from "../BillParts.tsx";
 import { useBillPaymentForm } from "./CardForm.tsx";
 import { useSaid } from "../words.ts";
@@ -61,9 +60,9 @@ const words = catalog({
 // one of the Client's weekly Bills (ADR-0016), a Record (docs/ux.md),
 // where its emails lead: the whole Bill, which prints cleanly, and paying it
 // here by card or bank debit while it's due, the page's next step (the `ui`
-// skill), its form in a dialog so the page has one Pay; behind the arrow
-// while it's a payment we try again ourselves (ADR-0022), which asks
-// nothing of them
+// skill), its form in a dialog so the page has one Pay; beside Print behind
+// a ⋯ while it's a payment we try again ourselves (ADR-0022), which asks
+// nothing of them. Its week is its Week fact (BillDetail)
 export function PortalBill() {
   const t = useSaid(words);
   const bill = useLoaderData({ from: "/portal/bills/$billId" });
@@ -73,7 +72,7 @@ export function PortalBill() {
     icon: CreditCard,
     dialog: (state) => <PayBill bill={bill} {...state} />,
   };
-  const ours = bill.unpaid?.kind === "waiting";
+  const ours = !!bill.unpaid && !asksTheClient(bill.unpaid.kind);
 
   return (
     <>
@@ -85,7 +84,6 @@ export function PortalBill() {
         ]}
         title={t.p.bill(bill.number)}
         status={<BillStatusBadge bill={bill} />}
-        subtitle={billWeek(t.lang, bill)}
         next={(!ours && pay) || undefined}
         actions={[ours && pay, print]}
         alerts={[useStanding(bill)]}
@@ -137,7 +135,7 @@ function useStanding(bill: BillView): Alert | null {
             : t.clientFix[kind]}
         </>
       ),
-      action: kind !== "waiting" && (
+      action: asksTheClient(kind) && (
         <ButtonLink
           variant="text"
           href={linkTo({ to: "/portal/payment-method" })}
@@ -147,19 +145,31 @@ function useStanding(bill: BillView): Alert | null {
       ),
     };
   }
-  // a Bill simply due says so in its badge and when by in its facts
+  // a Bill simply due says so in its badge, and when by in the line under
+  // its total
   return null;
 }
 
 // paying it here, by card or bank debit: a card pays at once, a bank debit
-// is processing until it clears. The payment starts once it opens, one for
-// the Bill however often it's opened (startBillPayment)
+// is processing until it clears
 function PayBill({ bill, ...state }: { bill: BillView } & DialogState) {
+  const t = useSaid(words);
+  return (
+    <Dialog title={t.w.payThis} {...state}>
+      {({ close }) => <PayForm bill={bill} close={close} />}
+    </Dialog>
+  );
+}
+
+// the dialog's content, rendered only while it's open: the payment starts
+// then, and the provider's form mounts into a box that's on the page (one
+// payment for the Bill however often it's opened: startBillPayment)
+function PayForm({ bill, close }: { bill: BillView; close: () => void }) {
   const t = useSaid(words);
   const payment = useBillPaymentForm(bill.id);
   const action = useAction(t.p.didntWork);
 
-  const pay = async (close: () => void) => {
+  const pay = async () => {
     const ok = await action.run(
       async () => {
         const ref = await payment.pay();
@@ -177,26 +187,22 @@ function PayBill({ bill, ...state }: { bill: BillView } & DialogState) {
   };
 
   return (
-    <Dialog title={t.w.payThis} {...state}>
-      {({ close }) => (
-        <>
-          <p>{t.w.byCardOrBank(t.formatMoney(bill.totalCents))}</p>
-          {payment.field}
-          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-          <Actions>
-            <Button variant="quiet" onPress={close}>
-              {t.p.cancel}
-            </Button>
-            <Button
-              onPress={() => void pay(close)}
-              isPending={action.isPending}
-              isDisabled={!payment.isReady}
-            >
-              {t.w.pay(t.formatMoney(bill.totalCents))}
-            </Button>
-          </Actions>
-        </>
-      )}
-    </Dialog>
+    <>
+      <p>{t.w.byCardOrBank(t.formatMoney(bill.totalCents))}</p>
+      {payment.field}
+      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+      <Actions>
+        <Button variant="quiet" onPress={close}>
+          {t.p.cancel}
+        </Button>
+        <Button
+          onPress={() => void pay()}
+          isPending={action.isPending}
+          isDisabled={!payment.isReady}
+        >
+          {t.w.pay(t.formatMoney(bill.totalCents))}
+        </Button>
+      </Actions>
+    </>
   );
 }

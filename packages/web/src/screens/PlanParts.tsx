@@ -16,6 +16,7 @@ import {
   type EndPlanTerms,
   type ServicePlanView,
   type UnpaidKind,
+  asksTheClient,
   catalog,
   officeFix,
   oneStop,
@@ -49,8 +50,10 @@ const words = catalog({
     cleanOn: (when: string, amount: string) =>
       `the clean on ${when} (${amount})`,
     billN: (n: string, amount: string) => `bill ${n} (${amount})`,
-    paused: "Your cleaning plan is paused.",
     couldntTake: "We couldn't take payment for ",
+    // a payment we try again ourselves, still on its way
+    notYet: (what: string) =>
+      `The payment for ${what} hasn't gone through yet.`,
     cancels: (cleans: number, hours: number, when: string) =>
       `It cancels your ${cleans === 1 ? "clean" : `${cleans} cleans`} booked more than ${hours} hours away, free: ${when}.`,
     goesAhead: (when: string, hours: number) =>
@@ -82,8 +85,8 @@ const words = catalog({
     cleanOn: (when: string, amount: string) =>
       `la limpieza del ${when} (${amount})`,
     billN: (n: string, amount: string) => `la factura ${n} (${amount})`,
-    paused: "Su plan de limpieza está en pausa.",
     couldntTake: "No pudimos cobrar ",
+    notYet: (what: string) => `El pago de ${what} aún no ha pasado.`,
     cancels: (cleans: number, hours: number, when: string) =>
       oneStop(
         `Cancela, sin cargo, ${cleans === 1 ? "su limpieza reservada" : `sus ${cleans} limpiezas reservadas`} a más de ${hours} horas: ${when}.`,
@@ -118,24 +121,15 @@ const words = catalog({
 });
 type T = Said & { w: (typeof words)["en"] };
 
-// an Unpaid Job or Bill asks something of the Client, unless it's a
-// payment we try again ourselves (ADR-0022)
-const asks = ({ kind }: { kind: UnpaidKind }) => kind !== "waiting";
-
-// a Service Plan's status. On Hold waits on the Client (warning), unless
-// all it holds for is a payment we try again ourselves (info, as its
-// alerts say: useOnHold), when its Unpaid items are at hand
+// a Service Plan's status
 export function PlanStatusBadge({
-  plan: { status, unpaid, unpaidBills },
+  status,
 }: {
-  plan: Pick<ServicePlanView, "status"> &
-    Partial<Pick<ServicePlanView, "unpaid" | "unpaidBills">>;
+  status: ServicePlanView["status"];
 }) {
   const t = useSaid(words);
-  const items = [...(unpaid ?? []), ...(unpaidBills ?? [])];
-  const ours = status === "on_hold" && items.length > 0 && !items.some(asks);
   return (
-    <StatusBadge tone={ours ? "info" : t.planStatus[status].tone}>
+    <StatusBadge tone={t.planStatus[status].tone}>
       {t.planStatus[status].label}
     </StatusBadge>
   );
@@ -153,11 +147,11 @@ type Viewer = {
 // Why a plan is On Hold, and the way to put it right as the page's next
 // step (the `ui` skill: the next step is the primary, the alert says why).
 // An alert for each Unpaid Job or Bill, the first saying what the hold
-// means: warning, as the plan waits on the Client, with the plan's badge in
-// the same tone (PlanStatusBadge); info for a payment we try again
-// ourselves (ADR-0022), which asks nothing of anyone. The first that asks
-// something is the next step; any other keeps its way to it in its alert,
-// a text link, as it isn't the page's next step
+// means: warning, as the plan waits on the Client, in its badge's tone;
+// info for a payment we try again ourselves (ADR-0022), which asks
+// nothing of the Client. The first that asks something is the next step;
+// any other way to one keeps a text link in its alert (the Office's to a
+// waiting one too), unless it goes where the next step does
 export function useOnHold(
   plan: Omit<ServicePlanView, "upcoming"> | null,
   {
@@ -202,11 +196,15 @@ export function useOnHold(
       },
     })),
   ];
+  const asks = (u: { kind: UnpaidKind }) => asksTheClient(u.kind);
   const first = unpaid.find(asks);
+  // an AppHref is options, made afresh: the same place says so by value
+  const goesWhereFirstDoes = (u: (typeof unpaid)[number]) =>
+    !!first && JSON.stringify(u.way.href) === JSON.stringify(first.way.href);
   const alerts = unpaid.map((u, i): Alert => ({
     key: u.key,
     tone: asks(u) ? "warning" : "info",
-    action: asks(u) && u !== first && (
+    action: (asks(u) || !forClient) && !goesWhereFirstDoes(u) && (
       <ButtonLink variant="text" href={u.way.href}>
         {u.way.label}
       </ButtonLink>
@@ -215,14 +213,14 @@ export function useOnHold(
       <p>
         {i === 0 && (
           <>
-            <strong>{forClient ? t.w.paused : "Paused."}</strong>{" "}
+            <strong>{forClient ? t.p.planPaused : "Paused."}</strong>{" "}
           </>
         )}
-        {forClient
-          ? t.w.couldntTake
-          : "The client's payment didn't go through for "}
-        {u.what}.
-        {!asks(u) && ` ${forClient ? t.clientFix.waiting : officeFix.waiting}`}
+        {asks(u)
+          ? `${forClient ? t.w.couldntTake : "The client's payment didn't go through for "}${u.what}.`
+          : forClient
+            ? `${t.w.notYet(u.what)} ${t.clientFix.waiting}`
+            : `The client's payment for ${u.what} hasn't gone through yet. ${officeFix.waiting}`}
         {i === 0 &&
           (forClient
             ? ` ${t.BOOKED_GO_AHEAD}`

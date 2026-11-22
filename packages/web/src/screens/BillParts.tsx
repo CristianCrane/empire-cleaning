@@ -55,7 +55,6 @@ const words = catalog({
     howPaid: "How it's paid",
     onItsPage: "On its page, by card or bank",
     whatFor: "What it's for",
-    pricesTax: "· prices include tax",
     taxIncluded: "Tax included",
     print: "Print",
   },
@@ -90,7 +89,6 @@ const words = catalog({
     howPaid: "Cómo se paga",
     onItsPage: "En su página, con tarjeta o banco",
     whatFor: "Por qué es",
-    pricesTax: "· los precios incluyen impuestos",
     taxIncluded: "Impuestos incluidos",
     print: "Imprimir",
   },
@@ -197,10 +195,11 @@ const cancelledFact = (t: T, bill: BillView) =>
 
 /**
  * A Bill in full, its details card, read like an invoice (UX pass, #96):
- * what it comes to, large, and where that stands; its week, when it was
- * made, how it's paid and how it was paid or why it was voided; then each
- * line with its amount, the tax in it and the total, under a divider. A line for a Job
- * links to it. Prints as it reads, under BillLetterhead.
+ * what it comes to, large, and where that stands (how it was paid, once
+ * it is); its week, when it was made, how it's paid, and when and why it
+ * was voided; then each line with its amount, the tax in it and the total,
+ * under a divider. A line for a Job links to it. Prints as it reads, under
+ * BillLetterhead.
  */
 export function BillDetail({
   bill,
@@ -269,12 +268,8 @@ export function BillDetail({
         )}
       </Facts>
       <div className="flex flex-col gap-3 border-t border-border pt-4">
-        <p className="font-semibold text-fg">
-          {w.whatFor}{" "}
-          <span className="text-sm font-normal text-fg-muted">
-            {w.pricesTax}
-          </span>
-        </p>
+        {/* the tax is said by the total's label and its own line below */}
+        <p className="font-semibold text-fg">{w.whatFor}</p>
         <div className="flex flex-col">
           {bill.lines.map((line, i) => (
             <div
@@ -285,7 +280,7 @@ export function BillDetail({
                 {line.jobId ? (
                   <Link
                     href={jobHref(line.jobId)}
-                    className="font-normal text-fg no-underline hover:underline print:no-underline"
+                    className="print:text-fg print:no-underline"
                   >
                     {line.label}
                   </Link>

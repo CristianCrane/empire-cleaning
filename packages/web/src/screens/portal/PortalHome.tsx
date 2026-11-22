@@ -3,7 +3,7 @@ import { catalog } from "@empire-cleaning/models";
 import { HomePage, Notice } from "@empire-cleaning/ui";
 import { useSaid } from "../words.ts";
 import { QuoteIcon } from "../icons.ts";
-import { HeroCard } from "./HeroCard.tsx";
+import { HeroCard, whyAlert } from "./HeroCard.tsx";
 import { requestQuoteHref, whatsNext } from "./whats-next.ts";
 
 const words = catalog({
@@ -33,18 +33,7 @@ export function PortalHome() {
           href: requestQuoteHref,
         },
       ]}
-      alerts={[
-        why && {
-          key: "why",
-          tone: why.tone,
-          children: (
-            <p>
-              <strong>{why.lead}</strong>
-              {why.more && ` ${why.more}`}
-            </p>
-          ),
-        },
-      ]}
+      alerts={[whyAlert(why)]}
       answer={<HeroCard hero={hero} />}
       notices={news.map((text) => (
         <Notice key={text}>{text}</Notice>

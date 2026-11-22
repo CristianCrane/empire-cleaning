@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 import {
   completedFirstClean,
   createStaff,
@@ -168,6 +169,59 @@ test("a Client's plan is On Hold while a fee is Unpaid, and back on once they pa
   await expect(page.getByText("Your cleaning plan is paused")).toHaveCount(0);
   await expect(page.getByText("Active", { exact: true })).toBeVisible();
 });
+
+// skips a clean of Casey's plan late, for a fee that can't be charged
+const skipLate = async (page: Page, jobId: string) => {
+  await page.goto(`/portal/jobs/${jobId}`);
+  await pageAction(page, "Skip this clean");
+  await page
+    .getByRole("alertdialog", { name: "Skip this clean?" })
+    .getByRole("button", { name: "Skip this clean" })
+    .click();
+  await expect(page.getByText("Your clean is skipped")).toBeVisible();
+};
+
+test(
+  "a plan On Hold for two payments leads with putting the first right, and the Office reaches each",
+  { tag: "@desktop" },
+  async ({ page, browser }) => {
+    const { planId, firstJob } = await planStarted();
+    await failCharges();
+    await signedInAs(page, casey.email);
+    await setClock(SUNDAY_10AM);
+    await skipLate(page, firstJob.id);
+    // the next week's clean, skipped late too
+    await page.goto(`/portal/plans/${planId}`);
+    await page
+      .getByRole("grid", { name: "Your upcoming cleans" })
+      .getByRole("row")
+      .filter({ hasText: "Mon, Jan 26" })
+      .click();
+    await expect(page).toHaveURL(/\/portal\/jobs\//);
+    const secondJob = page.url().split("/").pop()!;
+    await setClock("2026-01-25T15:00:00Z");
+    await skipLate(page, secondJob);
+
+    // one next step for both: a card that works tries each again
+    await page.goto(`/portal/plans/${planId}`);
+    const held = page.getByRole("status").filter({ hasText: "the clean on" });
+    await expect(held).toHaveCount(2);
+    await expectNextStep(page, "Update your card");
+    await expect(held.getByRole("link")).toHaveCount(0);
+
+    // the Office: the first job its next step, the second its alert's link
+    const office = await (await browser.newContext()).newPage();
+    await signedInAs(office, olive.email);
+    await office.goto(`/office/service-plans/${planId}`);
+    await expectNextStep(office, "See the job");
+    await office
+      .getByRole("status")
+      .filter({ hasText: "Mon, Jan 26" })
+      .getByRole("link", { name: "See the job" })
+      .click();
+    await expect(office).toHaveURL(`/office/jobs/${secondJob}`);
+  },
+);
 
 test("a plan On Hold for a payment we try again ourselves asks nothing of the Client", async ({
   page,

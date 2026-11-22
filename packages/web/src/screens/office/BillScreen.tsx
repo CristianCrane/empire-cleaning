@@ -1,6 +1,11 @@
 import { useLoaderData } from "@tanstack/react-router";
 import { Ban, Banknote } from "lucide-react";
-import { officeFix, type BillView, formats } from "@empire-cleaning/models";
+import {
+  asksTheClient,
+  officeFix,
+  type BillView,
+  formats,
+} from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -20,7 +25,6 @@ import {
   BillLetterhead,
   BillStatusBadge,
   usePrintBill,
-  billWeek,
 } from "../BillParts.tsx";
 import { useAction } from "../action.ts";
 import { clientTrail } from "./trails.ts";
@@ -42,7 +46,7 @@ export function BillScreen() {
     icon: Banknote,
     dialog: (state) => <RecordPayment bill={bill} {...state} />,
   };
-  const next = !!bill.unpaid && bill.unpaid.kind !== "waiting";
+  const next = !!bill.unpaid && asksTheClient(bill.unpaid.kind);
 
   return (
     <>
@@ -51,8 +55,6 @@ export function BillScreen() {
         trail={[...clientTrail(bill.client), { label: `Bill ${bill.number}` }]}
         title={`Bill ${bill.number}`}
         status={<BillStatusBadge bill={bill} />}
-        // WEB-G: the week, which nothing else above says; not the Client
-        subtitle={billWeek("en", bill)}
         next={(next && record) || undefined}
         actions={[
           !next && record,
