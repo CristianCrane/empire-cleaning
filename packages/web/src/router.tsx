@@ -62,6 +62,7 @@ import {
 } from "./language.ts";
 import { linkTo } from "./links.ts";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
+import { HomeAlertPrototype } from "./screens/portal/home-alert.prototype.tsx";
 import { CleanerHome, yourJobsTiles } from "./screens/cleaner/CleanerHome.tsx";
 import { ConfirmEmail } from "./screens/ConfirmEmail.tsx";
 import { SignInLink, type SignInLinkSearch } from "./screens/SignInLink.tsx";
@@ -882,8 +883,25 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: where a Client's Home's alert sits (#493 D2), on made-up data, signed out
+const homeAlertPrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/home-alert",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string; lang?: string; shot?: string } => ({
+    // ?case=1 arrives as a number
+    case: search.case === undefined ? undefined : String(search.case),
+    layout: search.layout === undefined ? undefined : String(search.layout),
+    lang: search.lang === undefined ? undefined : String(search.lang),
+    shot: search.shot === undefined ? undefined : String(search.shot),
+  }),
+  component: HomeAlertPrototype,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  homeAlertPrototypeRoute,
   signInRoute,
   signInLinkRoute,
   confirmEmailRoute,
