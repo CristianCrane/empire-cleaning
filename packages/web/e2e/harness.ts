@@ -572,17 +572,28 @@ const pageButton = (page: Page, name: string) => {
 export const pageAction = async (page: Page, name: string) => {
   const more = moreActions(page);
   const button = pageButton(page, name);
-  // whichever the page shows, once it's the page wanted
-  await expect(more.or(button).first()).toBeVisible();
-  if ((await button.count()) > 0) {
-    await button.click();
-    return;
-  }
-  await more.click();
-  await page.getByRole("menuitem", { name, exact: true }).click();
+  const menu = page.getByRole("menu");
+  const item = page.getByRole("menuitem", { name, exact: true });
+  // whichever the page shows, once it's the page wanted: straight after a
+  // navigation the page before can still be on screen, its More actions
+  // without the item, so a menu without it is closed and the page looked
+  // at again (#493 PR 14, docs/testing-log.md)
+  await expect(async () => {
+    await expect(more.or(button).first()).toBeVisible({ timeout: 1000 });
+    if ((await button.count()) > 0) return;
+    if ((await menu.count()) === 0) await more.click({ timeout: 1000 });
+    try {
+      await expect(item).toBeVisible({ timeout: 1000 });
+    } catch (error) {
+      await page.keyboard.press("Escape");
+      throw error;
+    }
+  }).toPass({ timeout: 10_000 });
+  if ((await item.count()) > 0) await item.click();
+  else await button.click();
   // gone, the menu's popover or the phone's sheet too, so the dialog it
   // opens is the only one
-  await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(menu).toHaveCount(0);
 };
 
 // a page's next step, its primary, in what names it "What to do": its

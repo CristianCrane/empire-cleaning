@@ -29,12 +29,6 @@ export const billLinesOf = (jobId: string, tx: Tx | typeof db) =>
     .where(and(eq(billLines.jobId, jobId), ne(bills.status, "void")))
     .orderBy(asc(bills.number));
 
-// what those lines come to, and whether it has any
-export const billedOf = (lines: Awaited<ReturnType<typeof billLinesOf>>) => ({
-  cents: lines.reduce((sum, { line }) => sum + line.amountCents, 0),
-  lines: lines.length,
-});
-
 // how a Client pays for their cleans: on a weekly Bill, charged or paid on
 // its page (ADR-0016), or null when each is charged when it's done
 export const weeklyBillOf = (

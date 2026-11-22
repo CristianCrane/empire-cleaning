@@ -42,8 +42,6 @@ export const portalWords = catalog({
     // a clean's badges (cleanBadge), on the Cleans list and its page
     moveAsked: "Move asked",
     needsOk: "Needs your OK",
-    // a payment we try again ourselves: not failed for them, not paid
-    notPaidYet: "Not paid yet",
     // by when a price change proposed to them wants their answer
     answerBy: (day: string) => `Please answer by ${day}.`,
     // a price change: on Home's card, which leads to its clean's page,
@@ -87,7 +85,6 @@ export const portalWords = catalog({
     decline: "Rechazar",
     moveAsked: "Reprogramación pedida",
     needsOk: "Necesita su aprobación",
-    notPaidYet: "Aún sin pagar",
     answerBy: (day: string) => `Responda antes del ${day}.`,
     reviewThe: (n: number) =>
       n === 1 ? "Revisar el cambio de precio" : "Revisar los cambios de precio",

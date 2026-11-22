@@ -121,6 +121,8 @@ const words = catalog({
     quoted: "Quoted price",
     depositKept: " (your deposit, kept)",
     refunded: (amount: string) => `, ${amount} refunded`,
+    // given back for it from a weekly Bill's Charge
+    billRefunded: (amount: string) => `${amount} refunded`,
     paid: "Paid",
     notChargedFor: "Not charged:",
     youDeclined: "you declined it",
@@ -201,6 +203,7 @@ const words = catalog({
     quoted: "Precio cotizado",
     depositKept: " (su depósito, retenido)",
     refunded: (amount: string) => `, ${amount} devueltos`,
+    billRefunded: (amount: string) => `${amount} devueltos`,
     paid: "Pagado",
     notChargedFor: "No cobrado:",
     youDeclined: "lo rechazó",
@@ -219,8 +222,6 @@ const words = catalog({
 export function PortalJob() {
   const t = useSaid(words);
   const job = useLoaderData({ from: "/portal/jobs/$jobId" });
-  const { completion } = job;
-  const booked = !completion && !job.cancellation && !job.noAccess;
   const now = useNow(job);
 
   return (
@@ -236,25 +237,23 @@ export function PortalJob() {
         {
           status: job.status,
           unpaid: job.payment.unpaid?.kind ?? null,
-          priceChange: !!completion?.adjustments.some(
-            (a) => a.status === "proposed",
-          ),
+          priceChange: now.proposed.length > 0,
           skipped: wasSkipped(job),
-          moveAsked: booked && job.rescheduleRequest?.status === "pending",
+          moveAsked: now.booked && job.rescheduleRequest?.status === "pending",
         },
         true,
       )}
       next={now.next}
       actions={now.actions}
       alerts={now.alerts}
-      details={<JobDetails job={job} />}
+      details={<JobDetails job={job} booked={now.booked} />}
     >
       {job.cancellation ? (
         <Cancelled job={job} />
       ) : job.noAccess ? (
         <NoAccess job={job} />
       ) : (
-        completion && <Receipt job={job} />
+        job.completion && <Receipt job={job} />
       )}
     </RecordPage>
   );
@@ -267,8 +266,12 @@ export function PortalJob() {
 // it's booked, a new time. The rest wait behind its arrow, and each alert
 // says only why, a second price change keeping its own Review. With
 // nothing next (a move asked waits on us; a cancelled clean is there to be
-// read), what's left is the page's other actions.
+// read), what's left is the page's other actions. With them, the two
+// states the page's badge and details read: whether it's still to come,
+// and the price changes waiting on them.
 function useNow(job: ClientJobDetail): {
+  booked: boolean;
+  proposed: AdjustmentView[];
   next?: PageAction;
   actions: PageAction[];
   alerts: Alert[];
@@ -358,6 +361,8 @@ function useNow(job: ClientJobDetail): {
     (a): a is PageAction => a !== false && a !== next && a !== review,
   );
   return {
+    booked,
+    proposed,
     next,
     actions,
     // what's needed of them first, before what the clean is
@@ -427,11 +432,16 @@ function FreeUntil({ job }: { job: ClientJobDetail }) {
 // says the money) or didn't happen; what it included stays once done, and
 // its plan too, as a clean that didn't happen has the plan in its actions
 // (UX pass, #96)
-function JobDetails({ job }: { job: ClientJobDetail }) {
+function JobDetails({
+  job,
+  booked,
+}: {
+  job: ClientJobDetail;
+  booked: boolean;
+}) {
   const t = useSaid(words);
   const { payment } = job;
   const deposit = payment.charges.find((c) => c.kind === "deposit");
-  const booked = !job.completion && !job.cancellation && !job.noAccess;
   const happens = booked || !!job.completion;
   const facts = [
     booked && (
@@ -915,8 +925,15 @@ function Receipt({ job }: { job: ClientJobDetail }) {
                 {t.p.bill(bill.number)}
               </Link>
               <BillStatusBadge bill={bill} />
+              {bill.refundedCents > 0 && (
+                <span className="text-sm text-fg-muted">
+                  {t.w.billRefunded(t.formatMoney(bill.refundedCents))}
+                </span>
+              )}
             </dt>
-            <dd className="text-end">{t.formatMoney(bill.cents)}</dd>
+            <dd className="text-end">
+              {t.formatMoney(bill.cents - bill.refundedCents)}
+            </dd>
           </div>
         ))}
         {payment.bills.length === 0 && (

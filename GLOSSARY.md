@@ -257,6 +257,7 @@ _Spanish_: factura; a voided one is cancelada
 
 **Unpaid**:
 A Job whose Balance, or part of it, or whose fee failed to be charged and has not yet been recovered; or a Bill whose Charge failed, or that is still unpaid after its due date.
+_On screen_: "Unpaid"; one we try again ourselves, which asks nothing of the Client (the payment service unreachable, a bank payment still clearing), "Not paid yet"
 _Avoid_: Overdue, outstanding, failed payment
 _Spanish_: sin pagar
 

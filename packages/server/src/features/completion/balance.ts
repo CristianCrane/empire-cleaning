@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, sql, sum } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { currentLanguage } from "#services/request";
 import {
   type Card,
@@ -11,7 +11,6 @@ import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 import {
-  billedOf,
   billLinesOf,
   billNumber,
   isBilledWeekly,
@@ -73,10 +72,9 @@ type Ledger = {
   billedCents: number;
   // the Charges of those Bills, which a Refund for it comes from first
   billCharges: Charge[];
-  // whether any has
-  billedLines: number;
-  // those Bills, each once, with what each billed for it
-  bills: { bill: Bill; cents: number }[];
+  // those Bills, each once, with what each billed for it and what its
+  // Charges gave back for it
+  bills: { bill: Bill; cents: number; refundedCents: number }[];
   owedCents: number;
 };
 
@@ -117,23 +115,33 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
     .from(charges)
     .where(eq(charges.jobId, job.id))
     .orderBy(desc(charges.chargedAt), desc(charges.createdAt));
-  const lines = await billLinesOf(job.id, tx);
-  const billed = billedOf(lines);
-  const onBills = new Map<string, { bill: Bill; cents: number }>();
-  for (const { bill, line } of lines)
+  const onBills = new Map<
+    string,
+    { bill: Bill; cents: number; refundedCents: number }
+  >();
+  for (const { bill, line } of await billLinesOf(job.id, tx))
     onBills.set(bill.id, {
       bill,
       cents: (onBills.get(bill.id)?.cents ?? 0) + line.amountCents,
+      refundedCents: 0,
     });
   const billCharges = await billChargesOf(
     [...onBills.values()].map((b) => b.bill),
     tx,
   );
-  const [fromBills] = await tx
-    .select({ cents: sum(refunds.amountCents).mapWith(Number) })
+  // given back for it from Bills' Charges, each to the Bill it came from
+  const fromBills = await tx
+    .select({ cents: refunds.amountCents, chargeId: refunds.chargeId })
     .from(refunds)
     .where(and(eq(refunds.jobId, job.id), isNull(refunds.failedAt)));
-  const billedCents = billed.cents - (fromBills?.cents ?? 0);
+  for (const { cents, chargeId } of fromBills) {
+    const billId = billCharges.find((c) => c.id === chargeId)?.billId;
+    const onBill = billId ? onBills.get(billId) : undefined;
+    if (onBill) onBill.refundedCents += cents;
+  }
+  const billedCents =
+    [...onBills.values()].reduce((total, b) => total + b.cents, 0) -
+    fromBills.reduce((total, r) => total + r.cents, 0);
   const given =
     taken.length === 0
       ? []
@@ -185,7 +193,6 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
     refundedAtProviderCents,
     billedCents,
     billCharges,
-    billedLines: billed.lines,
     bills: [...onBills.values()],
     owedCents:
       Math.max(owes - refundedAtProviderCents, 0) - paidCents - billedCents,
@@ -231,13 +238,14 @@ export const paymentOf = async (job: Job): Promise<JobPayment> => {
     })),
     paidCents: ledger.paidCents,
     billedCents: ledger.billedCents,
-    bills: ledger.bills.map(({ bill, cents }) => ({
+    bills: ledger.bills.map(({ bill, cents, refundedCents }) => ({
       id: bill.id,
       number: billNumber(bill.number),
       status: bill.status,
       unpaid: unpaidOf(currentLanguage(), bill.unpaidSince, bill.unpaidReason),
       totalCents: bill.totalCents,
       cents,
+      refundedCents,
     })),
     owedCents: ledger.owedCents,
     // in the reply's language
@@ -328,7 +336,7 @@ export const settleJob = async (
       paymentMethod: method && cardIn(method),
       plan: null,
       billed: isBilledWeekly(job!, client, {
-        lines: ledger.billedLines,
+        lines: ledger.bills.length,
       }),
     };
 

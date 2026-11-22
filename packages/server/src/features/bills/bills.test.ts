@@ -259,6 +259,7 @@ describe("making Bills", () => {
         unpaid: null,
         totalCents: priceCents - depositCents,
         cents: priceCents - depositCents,
+        refundedCents: 0,
       },
     ]);
   });
@@ -1414,7 +1415,15 @@ describe("switching weekly billing off", () => {
         }),
       ]);
       const [row] = await db.select().from(jobs).where(eq(jobs.id, jobId));
-      expect((await paymentOf(row!)).owedCents).toBe(0);
+      const payment = await paymentOf(row!);
+      expect(payment.owedCents).toBe(0);
+      // the Bill it went on says what it gave back
+      expect(payment.bills).toEqual([
+        expect.objectContaining({
+          number: "EC-000001",
+          refundedCents: extra!.totalCents,
+        }),
+      ]);
       // settling again gives nothing more back
       await settleJob(jobId);
       expect(testPayments().refunds).toHaveLength(1);
