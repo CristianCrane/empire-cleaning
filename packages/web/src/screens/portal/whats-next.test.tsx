@@ -531,13 +531,13 @@ describe("Home's card: what waits on the Client leads (#493)", () => {
       whatsNext(
         data({
           plans: [plan()],
-          pastJobs: [lockedOut("2026-11-01T14:20:00.000Z")],
+          pastJobs: [lockedOut("2026-11-01T18:20:00.000Z")],
         }),
         "es",
         NOW,
       ).why?.lead,
     ).toBe(
-      'El equipo llegó hoy a las 9:20 a.m., pero no pudo entrar: "The code didn\'t open the door".',
+      'El equipo llegó hoy a la 1:20 p.m., pero no pudo entrar: "The code didn\'t open the door".',
     );
     // the day after, the clean's page says it
     expect(

@@ -26,6 +26,7 @@ import {
   catalog,
   oneStop,
   sameDay,
+  theTimeEs,
   type Language,
 } from "@empire-cleaning/models";
 import type { HomeTile } from "@empire-cleaning/ui";
@@ -140,7 +141,7 @@ const words = catalog({
       `${amount}, responda antes del ${day}`,
     checkGetIn: "Revisar cómo entramos",
     cameToday: (time: string, reason: string) =>
-      `El equipo llegó hoy a las ${time}, pero no pudo entrar: "${reason}".`,
+      `El equipo llegó hoy a ${theTimeEs(time)}, pero no pudo entrar: "${reason}".`,
     andMore: (first: string, more: number) => `${first} · ${more} más`,
     seeQuotes: (n: number) => `Ver sus ${n} cotizaciones`,
     quoteReadyLabel: "Su cotización está lista",
