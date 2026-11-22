@@ -14,6 +14,8 @@ import {
   linkIn,
   openTile,
   payAndBook,
+  pageAction,
+  expectNextStep,
 } from "./harness.ts";
 
 const olive = {
@@ -169,9 +171,7 @@ test(
     ).toContainText("Mon, Jan 19, 9:00 AM");
     // Casey hasn't been asked to accept by phone, but could be: their card
     // is saved from the First Clean
-    await expect(
-      page.getByRole("button", { name: "Record acceptance" }),
-    ).toBeVisible();
+    await expectNextStep(page, "Record acceptance");
     // offered unprompted: it belongs to the home, not a request
     await page
       .getByLabel("Breadcrumbs")
@@ -294,7 +294,7 @@ test("a request for a home whose First Clean is done can be answered with either
   await page.goto(`/office/quotes/${asked}`);
 
   // asked which kind
-  await page.getByRole("button", { name: "Draft the quote" }).click();
+  await pageAction(page, "Draft the quote");
   await expect(
     page.getByRole("dialog").getByRole("button", { name: "A one-off quote" }),
   ).toBeVisible();

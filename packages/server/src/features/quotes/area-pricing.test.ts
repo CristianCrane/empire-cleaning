@@ -171,7 +171,7 @@ describe("a Quote for a Service priced by area", () => {
       .post(`/api/quotes/${draft.id}/send`)
       .expect(409);
     expect(refused.body.message).toBe(
-      "This home's rooms aren't filled in yet, so this quote can't be sent. Add them on the property page, then send it.",
+      "This home's rooms aren't filled in yet, so this quote can't be sent. Add them on the home's page, then send it.",
     );
     const property = `/api/properties/${draft.property.id}`;
     await office.patch(property).send({ bedrooms: 2 }).expect(400);

@@ -127,7 +127,7 @@ test("a Client is told, not charged, when cancelling has become late since they 
 test(
   "a Cleaner records No Access on their phone, never seeing a price",
   { tag: ["@smoke"] },
-  async ({ page }) => {
+  async ({ page, browser }) => {
     const job = await bookedJob();
     await setClock(MONDAY_9_30AM);
     await signedInAs(page, "cory@example.com");
@@ -160,6 +160,16 @@ test(
         e.subject.startsWith("Couldn't get in at"),
       ),
     ).toBe(true);
+
+    // the Client's clean says when and why, kept after that day
+    const client = await (await browser.newContext()).newPage();
+    await signedInAs(client, casey.email);
+    await client.goto(`/portal/jobs/${job.id}`);
+    await expect(
+      client.getByRole("region", { name: "We couldn't get in" }),
+    ).toContainText(
+      'The crew came on Mon, Jan 12 at 9:30 AM, but couldn\'t get in: "Nobody answered and the doorman had no key".',
+    );
   },
 );
 

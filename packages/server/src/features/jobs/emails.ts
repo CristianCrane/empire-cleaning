@@ -15,12 +15,12 @@ export const getInWords = catalog({
     // a clean coming up, as its Client is reminded, and how they put right
     // how we get in; the caller ends the sentence
     CAN_GET_IN:
-      "Please make sure our team can get in. If anything has changed, such as a gate code or where the key is, update how we get in",
+      "Please make sure the crew can get in. If anything has changed, such as a gate code or where the key is, update how we get in",
     CHECK_GET_IN: "Check how we get in",
   },
   es: {
     CAN_GET_IN:
-      "Por favor, asegúrese de que nuestro equipo pueda entrar. Si algo cambió, como el código de la puerta o dónde está la llave, actualice cómo entramos",
+      "Por favor, asegúrese de que el equipo pueda entrar. Si algo cambió, como el código de la puerta o dónde está la llave, actualice cómo entramos",
     CHECK_GET_IN: "Revisar cómo entramos",
   },
 });

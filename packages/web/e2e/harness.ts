@@ -160,6 +160,14 @@ export const completeJob = (
     body: JSON.stringify({ staffId, ...input }),
   });
 
+// every price change reported on the Job proposed to its Client, at its
+// worked-out price, by the Office Staff member with `officeEmail`
+export const proposeReported = (jobId: string, officeEmail: string) =>
+  control(`/jobs/${jobId}/propose`, {
+    method: "POST",
+    body: JSON.stringify({ officeEmail }),
+  });
+
 // No Access recorded by a Cleaner Confirmed on the Job
 export const recordNoAccess = (
   jobId: string,
@@ -534,6 +542,28 @@ export const pageAction = async (page: Page, name: string) => {
   // gone, the menu's popover or the phone's sheet too, so the dialog it
   // opens is the only one
   await expect(page.getByRole("menu")).toHaveCount(0);
+};
+
+// a page's next step, its primary, in what names it "What to do": its
+// header's split button from md, a phone's foot (docs/ux.md, Page
+// structure); not a page's one action when nothing is next, a button in an
+// alert or a part, nor behind More actions
+const whatToDo = (page: Page) =>
+  page.getByRole("group", { name: "What to do" });
+export const expectNextStep = async (page: Page, name: string) => {
+  const where = whatToDo(page);
+  await expect(
+    where
+      .getByRole("button", { name, exact: true })
+      .or(where.getByRole("link", { name, exact: true })),
+  ).toBeVisible();
+};
+
+// nothing is next on the page: no primary, its actions (if any) a lone
+// Button or behind a quiet ⋯
+export const expectNothingNext = async (page: Page) => {
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(whatToDo(page)).toHaveCount(0);
 };
 
 // one of a page's actions isn't on offer on it: not pressed straight away,
@@ -942,7 +972,7 @@ export const draftTheQuote = async (
   page: Page,
   kind?: "one-off" | "cleaning plan",
 ) => {
-  await page.getByRole("button", { name: "Draft the quote" }).click();
+  await pageAction(page, "Draft the quote");
   if (kind) {
     await page
       .getByRole("dialog")
@@ -977,7 +1007,9 @@ export const quoteSent = async (
 // premises as the Office knows them, with no visit, and comes back
 export const recordFindingsWithoutVisit = async (page: Page) => {
   const quote = page.url();
-  await page.getByRole("link", { name: "property page", exact: true }).click();
+  await page
+    .getByRole("link", { name: /^the (home|business)'s page$/ })
+    .click();
   await page
     .getByRole("button", { name: "Record findings without a visit" })
     .click();

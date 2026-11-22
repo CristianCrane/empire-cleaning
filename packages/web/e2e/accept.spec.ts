@@ -12,11 +12,10 @@ import {
   payAndBook,
   requestQuoteAsGuest,
   openTile,
-  createStaff,
-  signUp,
-  completedFirstClean,
-  sentServicePlanQuote,
   saveACard,
+  pageAction,
+  expectNoPageAction,
+  expectNextStep,
 } from "./harness.ts";
 
 const olive = {
@@ -76,38 +75,6 @@ test(
     await expect(page.getByText(/ accepted it$/)).toBeVisible();
     await page.goto("/office/schedule?from=2026-01-12&to=2026-01-12");
     await expect(page.getByText(casey.name)).toBeVisible();
-  },
-);
-
-test(
-  "a Client's Home leads with a Quote that's ready, and says it once",
-  { tag: "@desktop" },
-  async ({ page }) => {
-    // Casey's first clean done, and a cleaning plan offered after it
-    await createStaff(olive);
-    await signUp(olive.email);
-    const { propertyId } = await completedFirstClean(olive.email);
-    await sentServicePlanQuote({
-      officeEmail: olive.email,
-      propertyId,
-      startsAt: "2026-01-26T14:00:00Z",
-    });
-    await signedInAs(page, casey.email);
-
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Hi, Casey" }),
-    ).toBeVisible();
-    const card = page.getByRole("region", { name: "Your quote is ready" });
-    await expect(card).toContainText("Cleaning plan");
-    // the card's Button, so not a tile too
-    const tiles = page.getByRole("list", { name: "Shortcuts" });
-    await expect(tiles.getByRole("link")).toHaveCount(3);
-    await expect(
-      tiles.getByRole("link", { name: /^See your quote/ }),
-    ).toHaveCount(0);
-    await expect(
-      card.getByRole("link", { name: "See your quote" }),
-    ).toHaveAttribute("href", /^\/portal\/quotes\//);
   },
 );
 
@@ -171,12 +138,14 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
   browser,
 }) => {
   await quoteSent(page, olive, casey);
-  // what's next, above the Quote's story
-  const waiting = page
+  // with no card, a yes by phone can't be recorded: the alert says why,
+  // and holds the way to ask for one
+  const noCard = page
     .getByRole("status")
-    .filter({ hasText: "Waiting for Casey to accept" });
-  await expect(waiting).toContainText("they need to save a card first");
-  await waiting
+    .filter({ hasText: "Casey has no card saved" });
+  await expect(noCard).toContainText("so a yes by phone can't be recorded yet");
+  await expectNoPageAction(page, "Record acceptance");
+  await noCard
     .getByRole("button", { name: "Email Casey a link to add a card" })
     .click();
   await expect(page.getByText(`Link sent to ${casey.email}`)).toBeVisible();
@@ -199,20 +168,22 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
   ).toBeVisible();
 
   await page.reload();
-  await expect(waiting).toContainText(
-    "The deposit is charged to their Test card ending 4242",
-  );
-  await waiting.getByRole("button", { name: "Record acceptance" }).click();
-  await page
-    .getByRole("alertdialog")
-    .getByRole("button", { name: "Charge and book" })
-    .click();
+  await expect(noCard).toHaveCount(0);
+  // with one, recording their yes is the next step
+  await expectNextStep(page, "Record acceptance");
+  await pageAction(page, "Record acceptance");
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toContainText("Test card ending 4242");
+  await confirm.getByRole("button", { name: "Charge and book" }).click();
 
   await expect(page.getByText("Accepted and booked")).toBeVisible();
-  await expect(
-    page.getByRole("status").filter({ hasText: "Deep Clean, booked" }),
-  ).toBeVisible();
-  await expect(waiting).toBeHidden();
+  // the Service booked alone, for the time it's booked for
+  const offer = page.getByRole("region", { name: "Current quote" });
+  await expect(offer).toContainText("Booked for");
+  await expect(offer.getByRole("heading", { level: 3 })).toHaveText([
+    "Deep Clean",
+  ]);
+  await expectNoPageAction(page, "Record acceptance");
 });
 
 test(
@@ -257,16 +228,16 @@ test("Office Staff record acceptance of the offer while drafting a new Revision,
 
   await page.reload();
   const quote = page.url();
-  await page.getByRole("button", { name: "Change quote" }).click();
+  await pageAction(page, "Change quote");
   await expect(page).toHaveURL(/\/draft$/);
-  // back on the Quote, the offer can still be accepted
+  // back on the Quote, the offer can still be accepted, behind the arrow:
+  // carrying on with the draft is the next step
   await page.goto(quote);
-  await expect(page.getByText("This draft isn't sent yet.")).toBeVisible();
-  await page
-    .getByRole("status")
-    .filter({ hasText: "Waiting for Casey to accept the quote you sent" })
-    .getByRole("button", { name: "Record acceptance" })
-    .click();
+  await expect(
+    page.getByText("Casey Client still sees the quote as you sent it"),
+  ).toBeVisible();
+  await expectNextStep(page, "Carry on with the draft");
+  await pageAction(page, "Record acceptance");
   const confirm = page.getByRole("alertdialog");
   await expect(confirm).toContainText(
     "It accepts the quote you sent, and deletes your draft.",
@@ -276,8 +247,10 @@ test("Office Staff record acceptance of the offer while drafting a new Revision,
   await expect(page.getByText("Accepted and booked")).toBeVisible();
   await expect(page.getByText("Being updated")).toHaveCount(0);
   await expect(
-    page.getByRole("status").filter({ hasText: "Deep Clean, booked" }),
-  ).toBeVisible();
+    page
+      .getByRole("region", { name: "Current quote" })
+      .getByRole("heading", { level: 3 }),
+  ).toHaveText(["Deep Clean"]);
 });
 
 test("a Quote whose day has filled up can't be paid for, and the Office is asked for another time", async ({
@@ -310,11 +283,13 @@ test("a Quote whose day has filled up can't be paid for, and the Office is asked
   await needs.getByText(casey.name).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
   await expect(
-    page.getByText(`can't accept it. Change the quote to another time`),
+    page.getByText(
+      /filled up since this quote was sent, so Casey Client can't accept it\.$/,
+    ),
   ).toBeVisible();
-  await expect(
-    page.getByRole("region", { name: "Record acceptance" }),
-  ).toHaveCount(0);
+  // changing it to another time is the next step
+  await expectNextStep(page, "Change quote");
+  await expectNoPageAction(page, "Record acceptance");
 });
 
 // declining is asked once more, and a Client who backs out has declined

@@ -192,11 +192,22 @@ Keeps: a record as its story (#145). Renders through `RecordPage` (#432).
 
 - Header: Quotes › client › home › kind; "kind for client", its status, and
   a second badge while a change is being drafted.
-- Actions: Menu while unsent (Book a site visit; Turn down in red); Turn
-  down alone, outlined in red, while a site visit is needed or booked.
-- Alerts: what's next (`alertsFor`), the plan change.
-- Body: a Timeline, Now on top holding Current quote (Card), then each
-  moment; What was asked folded (`Fold`), the home's facts in it.
+- Actions: its next step the primary (`useNow`): Draft the quote (asked),
+  Book a site visit (its Service seen first), Carry on with the draft,
+  Record acceptance (sent, with a card or a plan change), Change quote
+  (its time filled up); behind the arrow Book a site visit (optional),
+  Turn down, Change quote, Record acceptance (while a change is drafted).
+  Turn down alone, outlined in red, while its visit is booked; Change
+  quote alone when sent with no card, or expired; none once declined,
+  accepted or turned down.
+- Alerts: only why, where the badge, the facts and the story don't say it:
+  the visit to book or booked, the draft not sent, no card to record a yes
+  by phone (its one action, Email a link to add a card), the time filled
+  up, the plan an acceptance started or changed; the home's plan, the plan
+  change.
+- Body: a Timeline, Now on top holding Current quote (Card; once a
+  one-off is accepted, only the Service booked, "Booked for" its time), then
+  each moment; What was asked folded (`Fold`), the home's facts in it.
 - History: the page itself.
 
 #### Office > Draft quote
@@ -382,11 +393,18 @@ Keeps: what's next, date tile, shortcut tiles (ux-portal). Renders through
 `HomePage` (#435).
 
 - Header: "Hi, name", not in the bar; Request a quote (secondary), unless
-  the card asks something.
-- Body: what's owed when it asks something of them (`AnswerCard`: the
-  amount, Pay or Update your card), else the next clean (`DateTile`, the
-  primary); news (info Notices); up to four link tiles, what waits on them
-  first (a quote, a price change), then shortcuts.
+  the card asks something out of the usual (money owed that asks, a price
+  change, a crew who couldn't get in) or is Request a quote itself.
+- Body: an alert saying why, when the card needs a reason (`Alerts`:
+  money late, a price change, the morning a crew couldn't get in, a plan
+  paused with nothing to do); the card (`AnswerCard`): what's owed when it asks
+  something of them (the amount, Pay or Update your card), else a price
+  change to answer (what it adds, Review the price change), else that
+  morning's How we get in, else a quote ready, else the next clean
+  (`DateTile`, the primary), else the plan paused or where they stand;
+  news (info Notices); up to four link tiles, what else waits on them
+  first (a quote, a price change with what it adds and by when), then
+  shortcuts.
 
 #### Client portal > Cleans
 

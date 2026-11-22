@@ -409,14 +409,14 @@ function RecordsAsStories() {
                 key: "card",
                 children: (
                   <p>
-                    <strong>Waiting for Max to accept.</strong> He needs a card
-                    saved first.
+                    Max has no card saved, so a yes by phone can't be recorded
+                    yet.
                   </p>
                 ),
                 action: (
                   <Button variant="text" size="sm">
                     <Mail aria-hidden size={16} />
-                    Email Max a link
+                    Email Max a link to add a card
                   </Button>
                 ),
               },
@@ -469,8 +469,9 @@ function NoticesHoldOneAction() {
           is a <code>text</code> Button (<code>danger-text</code> when it loses
           what can't be got back), on the right of its text. One action per
           Notice: two things to say or do are two Notices, and an action that
-          doesn't fit one belongs where it acts (Change quote on the Current
-          quote, Delete the draft in the draft's header).
+          doesn't fit one belongs where it acts: the page's next step is its
+          primary (Carry on with the draft, Record acceptance), the rest behind
+          its arrow (Turn down, behind Draft the quote).
         </p>
         <p>
           A page has at most one primary Button: once there are two, neither is
@@ -480,29 +481,19 @@ function NoticesHoldOneAction() {
       <div className="flex flex-col gap-4 lg:flex-row">
         <Example verdict="Do">
           <div className="flex flex-col gap-3">
-            <Notice
-              tone="warning"
-              action={
-                <Button variant="text" size="sm">
-                  <Pencil aria-hidden size={16} />
-                  Carry on with the draft
-                </Button>
-              }
-            >
-              <strong>This draft isn't sent yet.</strong>
+            <Notice tone="warning">
+              Kim still sees the quote as you sent it until you send your
+              changes.
             </Notice>
             <Notice
               action={
                 <Button variant="text" size="sm">
                   <Mail aria-hidden size={16} />
-                  Email Kim a link
+                  Email Kim a link to add a card
                 </Button>
               }
             >
-              <strong>
-                Waiting for Kim to accept the quote you sent.
-              </strong>{" "}
-              They need to save a card first.
+              Kim has no card saved, so a yes by phone can't be recorded yet.
             </Notice>
           </div>
         </Example>

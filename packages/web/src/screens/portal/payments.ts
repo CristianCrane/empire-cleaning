@@ -6,7 +6,7 @@ import {
   catalog,
   type Language,
 } from "@empire-cleaning/models";
-import { CreditCard, TriangleAlert } from "lucide-react";
+import { CreditCard, Wallet } from "lucide-react";
 import { linkTo, type AppHref } from "../../links.ts";
 import type { Hero } from "./HeroCard.tsx";
 import { said, saidWith } from "../words.ts";
@@ -190,7 +190,8 @@ export function owedAnswer(owed: Owed, lang: Language): Hero {
   const t = saidWith(lang, words);
   return {
     label: t.w.toPay,
-    icon: TriangleAlert,
+    // money, not a warning: the warning's triangle is a Notice's
+    icon: Wallet,
     tone: owed.late ? ("danger" as const) : ("warning" as const),
     headline: t.formatMoney(owed.cents),
     lines: [owed.text],

@@ -301,7 +301,7 @@ describe("the First Clean and Site Visit follow the Service", () => {
       .post(`/api/quotes/${draft.id}/send`)
       .expect(409);
     expect(refused.body.message).toBe(
-      "This home hasn't had a site visit yet, so this quote can't be sent. Record what the visit found on the property page, then send it.",
+      "This home hasn't had a site visit yet, so this quote can't be sent. Record what the visit found on the home's page, then send it.",
     );
   });
 });

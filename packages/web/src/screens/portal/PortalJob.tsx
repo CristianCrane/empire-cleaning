@@ -93,8 +93,10 @@ const words = catalog({
     sorry: "We're sorry, we had to cancel this clean.",
     notCharged: "You haven't been charged anything for it.",
     couldntGetIn: "We couldn't get in",
+    // shown after that day too, so its day ("came on", as "came at" takes
+    // a time; Home's cameToday says the time alone, that day)
     teamCame: (when: string, reason: string) =>
-      `Our team came at ${when}, but couldn't get in: "${reason}".`,
+      `The crew came on ${when}, but couldn't get in: "${reason}".`,
     beforeNext: (carriesOn: string) =>
       `${carriesOn} Before your next clean, please `,
     beforeBooking: "Before booking again, please ",
@@ -104,13 +106,12 @@ const words = catalog({
     declined: "Declined",
     review: "Review",
     pleaseApprove: "Please approve a price change",
-    didMore: "Our team did more than was quoted:",
+    didMore: "The crew did more than was quoted:",
     comesTo: "It comes to",
     onlyIfApprove: (day: string) =>
       `, tax included, and you only pay it if you approve it. If we don't hear from you by ${day}, you won't pay it.`,
     approve: (amount: string) => `Approve ${amount}`,
     pleaseApproveDot: "Please approve a price change.",
-    answerBy: (day: string) => `Please answer by ${day}.`,
     // what each kind of charge is called; a deposit is the screens' `deposit`
     charge: { balance: "Paid", fee: "Fee" },
     receipt: "Your receipt",
@@ -179,7 +180,7 @@ const words = catalog({
     notCharged: "No se le cobró nada por ella.",
     couldntGetIn: "No se pudo entrar",
     teamCame: (when: string, reason: string) =>
-      `Nuestro equipo llegó el ${when}, pero no pudo entrar: "${reason}".`,
+      `El equipo llegó el ${when}, pero no pudo entrar: "${reason}".`,
     beforeNext: (carriesOn: string) =>
       `${carriesOn} Antes de su próxima limpieza, por favor `,
     beforeBooking: "Antes de reservar de nuevo, por favor ",
@@ -189,13 +190,12 @@ const words = catalog({
     declined: "Rechazado",
     review: "Revisar",
     pleaseApprove: "Apruebe un cambio de precio",
-    didMore: "Nuestro equipo hizo más de lo cotizado:",
+    didMore: "El equipo hizo más de lo cotizado:",
     comesTo: "Son",
     onlyIfApprove: (day: string) =>
       `, impuestos incluidos, y solo lo paga si lo aprueba. Si no sabemos de usted antes del ${day}, no lo pagará.`,
     approve: (amount: string) => `Aprobar ${amount}`,
     pleaseApproveDot: "Apruebe un cambio de precio.",
-    answerBy: (day: string) => `Responda antes del ${day}.`,
     charge: { balance: "Pagado", fee: "Cargo" },
     receipt: "Su recibo",
     doneAt: (when: string) => oneStop(`Terminada el ${when}.`),
@@ -312,7 +312,7 @@ export function PortalJob() {
               <p>
                 <strong>{t.w.pleaseApproveDot}</strong> {t.adjustmentLabel(a)},{" "}
                 {t.formatMoney(a.totalCents)}.{" "}
-                {t.w.answerBy(t.formatDate(a.lapsesAt!))}
+                {t.p.answerBy(t.formatDate(a.lapsesAt!))}
               </p>
             ),
           })),
@@ -648,7 +648,13 @@ function NoAccess({ job }: { job: ClientJobDetail }) {
   return (
     <PartCard title={t.w.couldntGetIn}>
       <p>
-        {t.w.teamCame(t.formatDateTime(noAccess.recordedAt), noAccess.reason)}
+        {t.w.teamCame(
+          t.dayAt(
+            t.dayOf(noAccess.recordedAt),
+            t.formatTime(noAccess.recordedAt),
+          ),
+          noAccess.reason,
+        )}
       </p>
       {noAccess.feeCents > 0 && (
         <p>
