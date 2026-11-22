@@ -170,7 +170,7 @@ export const OnItsOwn: Story = {
     title: "Welcome",
     subtitle: "Ask us for a quote and we'll email it to you.",
     account: (
-      <div className="flex flex-col text-sm text-fg-muted">
+      <div className="flex flex-col text-sm text-fg-muted sm:items-end sm:text-end">
         <span className="flex items-center gap-2">
           Signed in as sam@example.com
           <Button variant="text" size="sm">

@@ -37,7 +37,7 @@ export function Welcome() {
       title={t.welcome}
       subtitle={ASK_US}
       account={
-        <div className="flex flex-col text-sm text-fg-muted">
+        <div className="flex flex-col text-sm text-fg-muted sm:items-end sm:text-end">
           <span className="flex items-center gap-2">
             {w.signedInAs(account.email)}
             <Button
