@@ -1688,6 +1688,8 @@ export type AdjustmentCorrection = { priceCents: number; reason: string };
 // Cancelled (Skipped, for a Service Plan clean they cancelled) or No Access
 export type ClientPastJob = ClientJob & {
   status: "completed" | "cancelled" | "no_access";
+  // the Service Plan it was generated for; null for a one-off Job
+  servicePlanId: string | null;
   skipped: boolean;
   completedAt: string | null;
   // a Completed one's price; 0 otherwise
@@ -1699,7 +1701,12 @@ export type ClientPastJob = ClientJob & {
   // what an Unpaid one still owes; 0 otherwise
   owedCents: number;
   // increases proposed to them, waiting on their answer
-  awaitingAnswer: number;
+  waiting: Pick<
+    AdjustmentView,
+    "id" | "kind" | "addOnName" | "hours" | "totalCents" | "lapsesAt"
+  >[];
+  // a No Access one's: when, why and what it cost
+  noAccess: Pick<JobNoAccess, "recordedAt" | "reason" | "feeCents"> | null;
 };
 
 // one of the Client's Jobs, with its receipt once Completed. They see only

@@ -897,20 +897,17 @@ export const pastJobsFor = async (
       ),
     )
     .orderBy(desc(jobs.startsAt));
-  // what each Completed one cost, read for them all at once; an Unpaid
-  // one's whole ledger only for what it owes
-  const [quoted, adjusted] = await Promise.all([
+  // what each Completed one cost, read for them all at once, with the price
+  // changes waiting on the Client; an Unpaid one's whole ledger only for
+  // what it owes
+  const [quoted, adjusted, nameOf] = await Promise.all([
     quotedJobs(
       rows.filter((r) => r.job.status === "completed").map((r) => r.job.id),
     ),
     rows.length === 0
       ? []
       : db
-          .select({
-            jobId: adjustments.jobId,
-            status: adjustments.status,
-            totalCents: adjustments.totalCents,
-          })
+          .select()
           .from(adjustments)
           .where(
             inArray(
@@ -918,6 +915,7 @@ export const pastJobsFor = async (
               rows.map((r) => r.job.id),
             ),
           ),
+    addOnNamesIn(currentLanguage()),
   ]);
   return Promise.all(
     rows.map(async ({ job, property, planId }) => {
@@ -925,6 +923,7 @@ export const pastJobsFor = async (
       return {
         ...(await clientJobOf(job, property)),
         status: job.status as ClientPastJob["status"],
+        servicePlanId: planId,
         skipped:
           job.status === "cancelled" &&
           job.cancelledBy === "client" &&
@@ -938,7 +937,23 @@ export const pastJobsFor = async (
         feeCents: job.status === "completed" ? 0 : (job.feeCents ?? 0),
         unpaid: job.unpaidSince ? unpaidKind(job.unpaidReason ?? "") : null,
         owedCents: job.unpaidSince ? (await paymentOf(job)).owedCents : 0,
-        awaitingAnswer: own.filter((a) => a.status === "proposed").length,
+        waiting: own
+          .filter((a) => a.status === "proposed")
+          .map((a) => {
+            const { id, kind, addOnName, hours, totalCents, lapsesAt } = toView(
+              a,
+              nameOf,
+            );
+            return { id, kind, addOnName, hours, totalCents, lapsesAt };
+          }),
+        noAccess:
+          job.status === "no_access"
+            ? {
+                recordedAt: job.noAccessAt!.toISOString(),
+                reason: job.noAccessReason ?? "",
+                feeCents: job.feeCents ?? 0,
+              }
+            : null,
       };
     }),
   );

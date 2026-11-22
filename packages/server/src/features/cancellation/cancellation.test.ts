@@ -420,6 +420,22 @@ describe("No Access", () => {
       feeCents: deposit,
       reason: "Nobody home and the gate was locked",
     });
+    // and among their past cleans, for their Home to say that morning
+    const past = (await client.get("/api/jobs/mine/past").expect(200))
+      .body as ClientPastJob[];
+    expect(past).toEqual([
+      expect.objectContaining({
+        id: jobId,
+        status: "no_access",
+        servicePlanId: null,
+        feeCents: deposit,
+        noAccess: {
+          recordedAt: MONDAY_9_30AM.toISOString(),
+          reason: "Nobody home and the gate was locked",
+          feeCents: deposit,
+        },
+      }),
+    ]);
     // the Schedule shows it as No Access
     const [monday] = (
       await office

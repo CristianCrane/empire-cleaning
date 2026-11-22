@@ -246,7 +246,7 @@ export function whatsNext(
   // to where they all are: a home's page lists its quotes (Your details its
   // homes), Cleans' Past tab the cleans with prices to review
   const quotes = sent.filter((q) => q !== leadingQuote);
-  const reviews = data.pastJobs.filter((j) => j.awaitingAnswer > 0);
+  const reviews = data.pastJobs.filter((j) => j.waiting.length > 0);
   const hintFor = (first: string, all: unknown[]) =>
     all.length > 1 ? w.andMore(first, all.length - 1) : first;
   const waiting: HomeTile[] = [
@@ -269,7 +269,7 @@ export function whatsNext(
       id: "review",
       icon: ClipboardCheck,
       label: w.reviewPrices(
-        reviews.reduce((sum, j) => sum + j.awaitingAnswer, 0),
+        reviews.reduce((sum, j) => sum + j.waiting.length, 0),
       ),
       hint: hintFor(t.p.yourClean(dayOf(job.startsAt)), reviews),
       href: reviews.length === 1 ? jobLink(job.id) : pastCleansLink,

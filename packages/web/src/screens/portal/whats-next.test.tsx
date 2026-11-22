@@ -51,9 +51,24 @@ const pastJob = (over: Partial<ClientPastJob> = {}): ClientPastJob => ({
   feeCents: 0,
   unpaid: null,
   owedCents: 0,
-  awaitingAnswer: 0,
+  waiting: [],
+  noAccess: null,
   ...over,
 });
+// a price change proposed to them: 1 more hour, answered by Wednesday the
+// 4th, 10am
+type Change = ClientPastJob["waiting"][number];
+const change = (over: Partial<Change> = {}): Change => ({
+  id: "change",
+  kind: "extra_time",
+  addOnName: null,
+  hours: 1,
+  totalCents: 5988,
+  lapsesAt: "2026-11-04T15:00:00.000Z",
+  ...over,
+});
+const changes = (n: number) =>
+  Array.from({ length: n }, (_, i) => change({ id: `change-${i}` }));
 const plan = (over: Partial<ServicePlanSummary> = {}): ServicePlanSummary => ({
   id: "plan",
   status: "active",
@@ -376,7 +391,7 @@ describe("Home's tiles: what's waiting on the Client comes first", () => {
 
   test("a price change to agree to", () => {
     expect(
-      next({ jobs: [job()], pastJobs: [pastJob({ awaitingAnswer: 1 })] })
+      next({ jobs: [job()], pastJobs: [pastJob({ waiting: changes(1) })] })
         .tiles[0],
     ).toMatchObject({
       label: "Review a price change",
@@ -393,8 +408,8 @@ describe("Home's tiles: what's waiting on the Client comes first", () => {
         { ...sentQuote, id: "quote-3" },
       ],
       pastJobs: [
-        pastJob({ awaitingAnswer: 2 }),
-        pastJob({ id: "past-2", awaitingAnswer: 1 }),
+        pastJob({ waiting: changes(2) }),
+        pastJob({ id: "past-2", waiting: changes(1) }),
       ],
     });
     expect(tiles.map((s) => [s.label, s.hint])).toEqual([
@@ -410,8 +425,8 @@ describe("Home's tiles: what's waiting on the Client comes first", () => {
       jobs: [job()],
       quotes: [sentQuote, { ...sentQuote, id: "quote-2" }],
       pastJobs: [
-        pastJob({ awaitingAnswer: 1 }),
-        pastJob({ id: "past-2", awaitingAnswer: 1 }),
+        pastJob({ waiting: changes(1) }),
+        pastJob({ id: "past-2", waiting: changes(1) }),
       ],
     });
     // both Quotes for one home: its page lists them
