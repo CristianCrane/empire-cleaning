@@ -520,7 +520,7 @@ function QuoteDetails({
           icon={Clock}
           label={t.howLong}
           value={howLong(t, chosen.hoursOnSite)}
-          line={t.howLongWith(t.cleaners(quote.crewSize))}
+          line={t.howLong}
         />
       </Facts>
 

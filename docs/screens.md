@@ -474,8 +474,8 @@ Keeps: the Record (ux-portal). Renders through `RecordPage` (#432).
   step keeping its own Review), a move asked for (Withdraw request, its one action) or
   turned down, the crew couldn't get in (red: when, why, what it cost).
 - Body: Details (`DetailsCard`: a date tile, the time large, the address,
-  icon facts, a row only with something in it (price, how long ("How long,
-  with 1 cleaner") and the deposit paid only while it's booked, its extras and plan while booked or done),
+  icon facts, a row only with something in it (price, how long (no crew
+  count) and the deposit paid only while it's booked, its extras and plan while booked or done),
   and while it's still free,
   until when it's free to move or cancel); cancelled, or the receipt (the
   quoted price only when a change makes the total differ, the rest by that

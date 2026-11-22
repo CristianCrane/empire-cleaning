@@ -39,8 +39,10 @@ test("a booked clean leads with Pick a new time, what it is in its details", asy
   await expectNextStep(page, "Pick a new time");
   const details = page.getByRole("region", { name: "Details" });
   await expect(details).toContainText("Price");
-  // how long, asked as they'd ask it, as their quote said it
-  await expect(details).toContainText("How long, with 1 cleaner");
+  // how long, asked as they'd ask it, as their quote said it, without the
+  // crew count
+  await expect(details).toContainText("6 hHow long");
+  await expect(details).not.toContainText("cleaner");
   // paid when they booked, so it says so
   await expect(details).toContainText("Deposit paid, comes off the price");
   await expect(details).toContainText("Free to move or cancel");

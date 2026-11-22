@@ -47,7 +47,8 @@ test("a quote ready to answer says Ready, each option's badge under its title", 
   await expect(details).toContainText("Recommended");
   // how long the crew is there, as the clean will say it: not the Office's
   // cleaning hours
-  await expect(details).toContainText("How long, with 2 cleaners");
+  await expect(details).toContainText("2½ hHow long");
+  await expect(details).not.toContainText(/On site|cleaners/);
   await expect(details).toContainText("2½ h · $74.85 deposit");
   await expect(details).not.toContainText("of cleaning");
   // paying is its own part, under the quote
