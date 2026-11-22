@@ -1,16 +1,9 @@
 // component tests render with the real styles, so they see what people see
 import "./tokens.css";
 
-// and the real fonts, loaded before any test measures: a font loads only
-// once text first asks for it, so a test measuring right after it renders
-// could read a fallback's widths (Field.test's Price ran 126 px in a
-// 118 px box, a fallback's width, on a loaded machine)
-await Promise.all(
-  [
-    "16px Barlow",
-    "500 16px Barlow",
-    "600 16px Barlow",
-    "600 16px 'Barlow Condensed'",
-    "700 16px 'Barlow Condensed'",
-  ].map((font) => document.fonts.load(font)),
-);
+// and in the real fonts, loaded before any test measures text: a web font
+// loads only once text uses it, so a test measuring right after its render
+// saw the fallback's widths on a cold run ($100,000.00 126px wide in
+// system-ui against 118 in Barlow; docs/testing-log.md). Every face the
+// styles declare, so a weight added to tokens.css is loaded too
+await Promise.all([...document.fonts].map((face) => face.load()));

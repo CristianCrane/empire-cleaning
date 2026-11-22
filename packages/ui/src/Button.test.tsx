@@ -33,3 +33,51 @@ test("shows the focus ring for keyboard focus but not for taps", async () => {
   await userEvent.tab();
   expect(getComputedStyle(button).outlineWidth).toBe("2px");
 });
+
+test.each(["sm", "md"] as const)(
+  "flush, a %s Button's words meet the edge, its padding hanging outside",
+  async (size) => {
+    const screen = await render(
+      <div className="flex w-80 flex-col items-start">
+        <Button variant="text" size={size} flush="start">
+          Show more
+        </Button>
+        <Button variant="text" size={size} flush="end" className="self-end">
+          Sign out
+        </Button>
+      </div>,
+    );
+    const edges = screen.container
+      .querySelector("div")!
+      .getBoundingClientRect();
+    const words = (name: string) => {
+      const range = document.createRange();
+      range.selectNodeContents(
+        screen.getByRole("button", { name }).element().lastElementChild!,
+      );
+      return range.getBoundingClientRect();
+    };
+
+    expect(Math.round(words("Show more").left)).toBe(Math.round(edges.left));
+    expect(Math.round(words("Sign out").right)).toBe(Math.round(edges.right));
+  },
+);
+
+test("flush both, a Button's words are as wide as the space it takes", async () => {
+  const screen = await render(
+    <div className="inline-flex">
+      <Button variant="quiet" size="sm" flush="both">
+        + Add a note
+      </Button>
+    </div>,
+  );
+  const edges = screen.container.querySelector("div")!.getBoundingClientRect();
+  const range = document.createRange();
+  range.selectNodeContents(
+    screen.getByRole("button").element().lastElementChild!,
+  );
+  const words = range.getBoundingClientRect();
+
+  expect(Math.round(words.left)).toBe(Math.round(edges.left));
+  expect(Math.round(words.right)).toBe(Math.round(edges.right));
+});

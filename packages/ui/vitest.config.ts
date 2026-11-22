@@ -40,7 +40,8 @@ const storybookProject = (
   ],
   test: {
     ...limits,
-    setupFiles: [`./.storybook/test-theme-${theme}.ts`],
+    // the real styles and fonts, as the unit tests have them
+    setupFiles: ["./src/test-setup.ts", `./.storybook/test-theme-${theme}.ts`],
     browser: browser(`ui-storybook-${theme}`),
   },
 });

@@ -250,7 +250,14 @@ export const Alerts: Story = {
     await expect(canvas.getByRole("alert")).toHaveTextContent(
       "didn't go through",
     );
-    await userEvent.click(canvas.getByRole("button", { name: "Show 1 more" }));
+    // Show more's words start where the alerts do, its padding outside
+    const showMore = canvas.getByRole("button", { name: "Show 1 more" });
+    const words = document.createRange();
+    words.selectNodeContents(showMore.lastElementChild!);
+    await expect(Math.round(words.getBoundingClientRect().left)).toBe(
+      Math.round(shown()[0]!.getBoundingClientRect().left),
+    );
+    await userEvent.click(showMore);
     await expect(shown()).toHaveLength(3);
   },
 };

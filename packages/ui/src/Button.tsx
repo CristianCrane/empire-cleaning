@@ -40,19 +40,30 @@ export const buttonStyles = tv({
       sm: "min-h-9 px-3 text-sm",
       icon: "size-touch",
     },
+    // a text-like Button whose words, not its padding, meet the edge of what
+    // it lines up with: its padding hangs outside, by its own size's padding
+    flush: { start: "", end: "", both: "" },
   },
+  compoundVariants: [
+    { size: "md", flush: "start", className: "-ms-4" },
+    { size: "md", flush: "end", className: "-me-4" },
+    { size: "md", flush: "both", className: "-mx-4" },
+    { size: "sm", flush: "start", className: "-ms-3" },
+    { size: "sm", flush: "end", className: "-me-3" },
+    { size: "sm", flush: "both", className: "-mx-3" },
+  ],
   defaultVariants: { variant: "primary", size: "md" },
 });
 
 export type ButtonProps = AriaButtonProps & VariantProps<typeof buttonStyles>;
 
 // for an icon-only button, pass aria-label
-export function Button({ variant, size, ...props }: ButtonProps) {
+export function Button({ variant, size, flush, ...props }: ButtonProps) {
   return (
     <AriaButton
       {...props}
       className={composeRenderProps(props.className, (className, renderProps) =>
-        buttonStyles({ ...renderProps, variant, size, className }),
+        buttonStyles({ ...renderProps, variant, size, flush, className }),
       )}
     >
       {composeRenderProps(props.children, (children, { isPending }) => (
