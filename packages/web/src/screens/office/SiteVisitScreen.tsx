@@ -26,12 +26,7 @@ import {
   Facts,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
-import {
-  addressOf,
-  dayOfInstant,
-  formatMinutes,
-  screenWords,
-} from "../format.ts";
+import { addressOf, formatMinutes, screenWords } from "../format.ts";
 import { AccessFact, ConditionFact } from "../Fact.tsx";
 import { homeIcon, QuoteIcon, SiteVisitIcon } from "../icons.ts";
 import { homeTrail } from "./trails.ts";
@@ -47,7 +42,7 @@ import {
 
 const { propertySummary } = screenWords.en;
 
-const { formatDateTime, formatDay, formatTime } = formats.en;
+const { formatDateTime } = formats.en;
 
 // One Site Visit for the Office (ADR-0015), a Record (docs/ux.md): when,
 // large, behind a date tile; who, how long, how to get in and the Quote
@@ -124,7 +119,7 @@ export function SiteVisitScreen() {
           kicker={premises ? "A business" : "A home"}
           title={
             visit.startsAt
-              ? `${formatDay(dayOfInstant(visit.startsAt))} at ${formatTime(visit.startsAt)}`
+              ? formatDateTime(visit.startsAt)
               : "Findings recorded, with no visit"
           }
           line={addressOf(visit.property)}
