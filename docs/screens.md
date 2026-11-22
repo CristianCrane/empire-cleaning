@@ -498,7 +498,7 @@ Keeps: in steps (#168); what's next said once, in the line under the
 title (#493 G5.3). Renders through `FormPage` (#434).
 
 - Its own page, no breadcrumbs: the logo, who's signed in and Sign out,
-  and under them, in small text: asked for a quote with another email?
+  and under them, the same size: asked for a quote with another email?
   Sign out and use that one. The title, what to do here.
 - Body: the Quote form in its steps, in the Card.
 

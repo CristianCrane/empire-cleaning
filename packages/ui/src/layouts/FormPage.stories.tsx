@@ -174,7 +174,7 @@ export const OnItsOwn: Story = {
       <div className="flex flex-col text-sm text-fg-muted sm:items-end sm:text-end">
         <span className="flex items-center gap-2">
           Signed in as sam@example.com
-          <Button variant="text" size="sm" className="sm:-me-3">
+          <Button variant="text" size="sm" flush="end">
             Sign out
           </Button>
         </span>

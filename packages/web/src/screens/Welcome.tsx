@@ -43,8 +43,8 @@ export function Welcome() {
             <Button
               variant="text"
               size="sm"
-              // from sm its word, not its padding, ends where the line under it does
-              className="sm:-me-3"
+              // its word, not its padding, ends where the line under it does
+              flush="end"
               onPress={async () => {
                 await signOut();
                 void navigate({ to: "/sign-in" });

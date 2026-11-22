@@ -46,7 +46,8 @@ export function Alerts({
       {hidden > 0 && (
         <Button
           variant="text"
-          className="-ms-3 self-start"
+          flush="start"
+          className="self-start"
           onPress={() => setAll(true)}
         >
           <ChevronDown aria-hidden size={18} />
