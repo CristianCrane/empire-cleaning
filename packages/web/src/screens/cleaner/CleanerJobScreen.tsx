@@ -97,11 +97,11 @@ const directionsAction = (t: Said, address: string): PageAction => ({
 
 // One Job as its Cleaner sees it, a Record (docs/ux.md), never with prices
 // (UX pass, #96), at each stage of it (#493's layout D): while it's offered,
-// what they'd take on; once it's theirs, where too; on the day the
-// client's number and how we get in (#230, D3); once it's over, how it went
-// first, the Job folded under it. One split button at every stage: Confirm
-// while offered, Directions till it starts, then Mark done; the rest
-// behind its arrow
+// what they'd take on; once it's theirs, where too; once they've confirmed,
+// on the day, the client's number and how we get in (#230, D3); once it's
+// over, how it went first, the Job folded under it. One split button at
+// every stage: Confirm while offered, Directions till it starts, then Mark
+// done; the rest behind its arrow
 export function CleanerJobScreen() {
   const job = useLoaderData({ from: "/cleaner/jobs/$jobId" });
   const offered = job.assignment.status === "offered";
@@ -247,14 +247,15 @@ const crewOf = (t: Said, job: CleanerJob) =>
     }));
 
 // the Job's details: when and where (JobLead), then a fact each: how long,
-// the client; on the day their number; how many extras, the signpost to
-// their list below; and on the day how we get in, last and the card's
-// width, so a long note never pushes the short facts down
+// the client; once they've confirmed, on the day, their number; how many
+// extras, the signpost to their list below; and, confirmed and on the day,
+// how we get in, last and the card's width, so a long note never pushes the
+// short facts down
 function JobDetails({ job }: { job: CleanerJob }) {
   const t = useSaid(words);
   const { w } = t;
-  // what the server holds back until the day (#230, D3): drawn as it
-  // comes, the server's rule, never a copy of it here
+  // what the server holds back until they've confirmed and it's the day
+  // (#230, D3): drawn as it comes, the server's rule, never a copy of it here
   const { onTheDay } = job;
   return (
     <JobLead job={job} where={addressOf(job.property)}>
