@@ -379,7 +379,8 @@ The `ui` skill's rules hold here too; these are this product's.
   red, as the Client can ask again, and its confirm is the dialog's
   primary; so is the Office's Turn down of a Client's move. A Service's
   Retire isn't red (Offer again brings it back), nor a Draft's Remove
-  <weekday> (Add a weekday does).
+  <weekday> (nothing sent or booked is lost, and Add a weekday gives a day
+  again in a tap).
 - **Continue with Google is Google's own button** (the `ui` skill: a
   third-party sign-in keeps its owner's look): their colours in light and
   dark, their logo, Roboto. Only the 44px touch height is ours.

@@ -2049,7 +2049,8 @@ function PlanDayFields({
       title={title}
       actions={
         onRemove && (
-          // not red: Add a weekday brings it back
+          // not red: nothing sent or booked is lost, only a day's few
+          // fields, and Add a weekday gives a day again in a tap
           <Button variant="text" size="sm" onPress={onRemove}>
             <Trash2 aria-hidden size={16} />
             Remove {title}
