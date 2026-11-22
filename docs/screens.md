@@ -66,7 +66,7 @@ redirect (Screen: none); Not found and Something went wrong have no path.
 | `/sign-in`                       | Sign in                         | sign in by emailed link or Google (`?error=` says why a link failed, `?next=` the page after)                        | `SignIn.tsx`                      | Message page |
 | `/sign-in/link`                  | Message pages                   | the emailed link's page, whose one Button signs in                                                                   | `SignInLink.tsx`                  | Message page |
 | `/confirm-email`                 | Message pages                   | confirming a new email address                                                                                       | `ConfirmEmail.tsx`                | Message page |
-| (no match)                       | Message pages                   | Not found                                                                                                            | `NotFound.tsx`                    | Message page |
+| (no match)                       | Message pages                   | Not found, inside its area (after the area's sign-in check) when the path is in one                                  | `NotFound.tsx`                    | Message page |
 | (an error)                       | Message pages                   | Something went wrong, inside its area                                                                                | `PageError.tsx`                   | Message page |
 | `/welcome`                       | Welcome                         | an Account connected to nothing requests a Quote to become a Client                                                  | `Welcome.tsx`                     | Form page    |
 | `/people`                        | People                          | test site only: sign in as a demo person (`?as=` first name, `?next=` the page after)                                | `PeopleScreen.tsx`                | none         |
@@ -490,6 +490,9 @@ Keeps: a message page; centred, home a link (#168); one Button that does it
 - `MessagePage`: a narrow centred card, a large `IconTile`, the title,
   one line, at most one Button, home a text link. Not found; Something went
   wrong (Try again); Sign-in link (Sign in); Confirm email (three states).
+  Not found and Something went wrong in an area keep its frame and its
+  reader's language, an address no page has as much as a record that isn't
+  there (#493 G6.4).
 
 #### Welcome
 
