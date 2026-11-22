@@ -198,13 +198,16 @@ Keeps: a record as its story (#145). Renders through `RecordPage` (#432).
   (its time filled up); behind the arrow Book a site visit (optional),
   Turn down, Change quote, Record acceptance (while a change is drafted).
   Turn down alone, outlined in red, while its visit is booked; Change
-  quote alone when sent with no card, expired or declined.
+  quote alone when sent with no card, or expired; none once declined,
+  accepted or turned down.
 - Alerts: only why, where the badge, the facts and the story don't say it:
   the visit to book or booked, the draft not sent, no card to record a yes
   by phone (its one action, Email a link to add a card), the time filled
-  up, what an acceptance booked; the home's plan, the plan change.
-- Body: a Timeline, Now on top holding Current quote (Card), then each
-  moment; What was asked folded (`Fold`), the home's facts in it.
+  up, the plan an acceptance started or changed; the home's plan, the plan
+  change.
+- Body: a Timeline, Now on top holding Current quote (Card; once a
+  one-off is accepted, only the Service booked, "Booked for" its time), then
+  each moment; What was asked folded (`Fold`), the home's facts in it.
 - History: the page itself.
 
 #### Office > Draft quote

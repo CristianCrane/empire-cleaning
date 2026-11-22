@@ -296,8 +296,7 @@ function useNow(quote: OfficeQuote): Now {
       action: <EmailCardLink quote={quote} />,
       children: (
         <p>
-          {firstNameOf(name)} has no card saved, so an acceptance by phone can't
-          be recorded yet. We never take card details for them.
+          {name} has no card saved, so a yes by phone can't be recorded yet.
         </p>
       ),
     };
@@ -385,34 +384,34 @@ function useNow(quote: OfficeQuote): Now {
               },
             ],
           };
-    // the badge, the Expired fact and the story's moment say what happened
+    // the badge, the Expired fact and the story's moment say what
+    // happened; an Expired one can be offered again, a Declined one is
+    // closed, as the server holds (openQuote), the Client asking anew
     case "expired":
-    case "declined":
       return { actions: [changeQuote], alerts: [] };
+    case "declined":
+      return { actions: [], alerts: [] };
+    // the badge and the story say when, and the quote what was booked; a
+    // plan's says where it went on
     case "accepted":
       return {
         actions: [],
         alerts: [
-          {
+          !!quote.servicePlanId && {
             key: "accepted",
             tone: "success",
             children: (
               <p>
-                Accepted {formatDateTime(quote.acceptedAt!)}:{" "}
-                {quote.servicePlanId ? (
-                  <Link
-                    href={linkTo({
-                      to: "/office/service-plans/$planId",
-                      params: { planId: quote.servicePlanId },
-                    })}
-                  >
-                    {quote.changedPlan
-                      ? "its cleaning plan has changed"
-                      : "its cleaning plan has started"}
-                  </Link>
-                ) : (
-                  `${offer!.options.find((o) => o.serviceKey === quote.acceptedServiceKey)?.serviceName}, booked`
-                )}
+                <Link
+                  href={linkTo({
+                    to: "/office/service-plans/$planId",
+                    params: { planId: quote.servicePlanId },
+                  })}
+                >
+                  {quote.changedPlan
+                    ? "Its cleaning plan has changed"
+                    : "Its cleaning plan has started"}
+                </Link>
                 .
               </p>
             ),
@@ -755,6 +754,12 @@ function PlanChangeText({
 // each weekday's, on a plan) and the Deposit. A Sent Revision never changes
 function Offer({ quote }: { quote: ShownQuote }) {
   const { plan } = quote;
+  // once a one-off is accepted, the Service booked alone: the other was
+  // never taken
+  const booked = quote.status === "accepted" && !plan;
+  const options = booked
+    ? quote.options.filter((o) => o.serviceKey === quote.acceptedServiceKey)
+    : quote.options;
   return (
     <Section
       title="Current quote"
@@ -769,7 +774,9 @@ function Offer({ quote }: { quote: ShownQuote }) {
                 ? "New terms start"
                 : plan
                   ? "Starts"
-                  : "Proposed time"
+                  : booked
+                    ? "Booked for"
+                    : "Proposed time"
             }
             value={formatDateTime(quote.proposedStartsAt!)}
           />
@@ -800,7 +807,7 @@ function Offer({ quote }: { quote: ShownQuote }) {
           />
         </Facts>
         <div className="grid gap-6 border-t border-border pt-4 lg:grid-cols-2">
-          {quote.options.map((option, i) => {
+          {options.map((option, i) => {
             const day = plan?.days[i];
             return (
               <OfferPrice
@@ -813,7 +820,8 @@ function Offer({ quote }: { quote: ShownQuote }) {
                       discountPercent={plan!.discountPercent}
                     />
                   ) : (
-                    option.recommended && (
+                    option.recommended &&
+                    !booked && (
                       <StatusBadge tone="success">Recommended</StatusBadge>
                     )
                   )

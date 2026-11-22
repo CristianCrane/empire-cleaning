@@ -217,6 +217,8 @@ test("the Client Declines a Quote from the portal", async ({
   ).toBeHidden();
   await page.reload();
   await expect(page.getByText(/ declined it$/)).toBeVisible();
+  // closed: the server takes no new Revision of it, so none is offered
+  await expectNoPageAction(page, "Change quote");
 });
 
 test("the Quotes list names the Service its total is for", async ({ page }) => {
@@ -258,7 +260,7 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
   // Sent and waiting, with no card to record a yes by phone: nothing is
   // next, and Change quote is the page's one action
   await expect(
-    page.getByText(`Casey has no card saved`, { exact: false }),
+    page.getByText(`${casey.name} has no card saved`, { exact: false }),
   ).toBeVisible();
   await expectNothingNext(page);
   await pageAction(page, "Change quote");

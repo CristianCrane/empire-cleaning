@@ -178,10 +178,8 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
   // and holds the way to ask for one
   const noCard = page
     .getByRole("status")
-    .filter({ hasText: "Casey has no card saved" });
-  await expect(noCard).toContainText(
-    "so an acceptance by phone can't be recorded yet",
-  );
+    .filter({ hasText: "Casey Client has no card saved" });
+  await expect(noCard).toContainText("so a yes by phone can't be recorded yet");
   await expectNoPageAction(page, "Record acceptance");
   await noCard
     .getByRole("button", { name: "Email Casey a link to add a card" })
@@ -215,9 +213,12 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
   await confirm.getByRole("button", { name: "Charge and book" }).click();
 
   await expect(page.getByText("Accepted and booked")).toBeVisible();
-  await expect(
-    page.getByRole("status").filter({ hasText: "Deep Clean, booked" }),
-  ).toBeVisible();
+  // the Service booked alone, for the time it's booked for
+  const offer = page.getByRole("region", { name: "Current quote" });
+  await expect(offer).toContainText("Booked for");
+  await expect(offer.getByRole("heading", { level: 3 })).toHaveText([
+    "Deep Clean",
+  ]);
   await expectNoPageAction(page, "Record acceptance");
 });
 
@@ -282,8 +283,10 @@ test("Office Staff record acceptance of the offer while drafting a new Revision,
   await expect(page.getByText("Accepted and booked")).toBeVisible();
   await expect(page.getByText("Being updated")).toHaveCount(0);
   await expect(
-    page.getByRole("status").filter({ hasText: "Deep Clean, booked" }),
-  ).toBeVisible();
+    page
+      .getByRole("region", { name: "Current quote" })
+      .getByRole("heading", { level: 3 }),
+  ).toHaveText(["Deep Clean"]);
 });
 
 test("a Quote whose day has filled up can't be paid for, and the Office is asked for another time", async ({
