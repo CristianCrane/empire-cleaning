@@ -14,6 +14,7 @@ import {
   goTo,
   eachTheme,
   serviceKey,
+  expectNextStep,
 } from "./harness.ts";
 
 const casey = { name: "Casey Client", email: "casey@example.com" };
@@ -358,9 +359,7 @@ eachTheme(() => {
     await signInAsOffice(page);
     await page.goto("/office/quotes");
     await page.getByText("Casey Client").click();
-    await expect(
-      page.getByRole("button", { name: "Draft the quote" }),
-    ).toBeVisible();
+    await expectNextStep(page, "Draft the quote");
     await expectAccessible(page);
 
     await draftTheQuote(page);

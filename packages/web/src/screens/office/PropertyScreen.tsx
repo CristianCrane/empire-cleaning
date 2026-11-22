@@ -158,7 +158,7 @@ const quoteInTheWay = (home: OfficePropertyView) => {
 
 // a business, seen before it's quoted (ADR-0014); seeing it records what
 // it is
-const SEE_IT_FIRST = `${needsVisit("commercial")} Book one, or record what you know about it already.`;
+const SEE_IT_FIRST = `${needsVisit("This business")} Book one, or record what you know about it already.`;
 
 // a home asked about first for a Service not priced from its rooms
 const roomsMissing = (fix: "Correct" | "Enter") =>

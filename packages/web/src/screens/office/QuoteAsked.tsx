@@ -1,6 +1,5 @@
 import { useState, type ReactNode } from "react";
 import {
-  FilePenLine,
   CalendarDays,
   Globe,
   ClipboardList,
@@ -15,12 +14,11 @@ import type {
   QuoteSource,
   TurnDownReason,
 } from "@empire-cleaning/models";
-import { needsVisit, formats } from "@empire-cleaning/models";
+import { needsVisit, placeOwner, formats } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
   Dialog,
-  DialogTrigger,
   Link,
   Notice,
   Radio,
@@ -34,7 +32,6 @@ import {
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { BookSiteVisit } from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
 import { addressOf, formatHours, roomsText, screenWords } from "../format.ts";
 import { homeIcon } from "../icons.ts";
@@ -148,78 +145,54 @@ export function AskedFacts({ quote }: { quote: OfficeQuote }) {
   );
 }
 
-// A Requested Quote's way on: drafting its first Revision, which sets its
-// kind. Where either kind is possible (the home's First Clean is Completed,
-// or for business premises at any time, ADR-0014), it asks which first
-export function DraftQuote({ quote }: { quote: OfficeQuote }) {
+// Asks which kind a Requested Quote's first Revision is, where either can
+// be, and drafts it: the Quote's Draft the quote
+export function WhichKindDialog({
+  quote,
+  ...state
+}: { quote: OfficeQuote } & Partial<DialogState>) {
   const { start, starting } = useStartDraft();
-  const eitherKind =
-    quote.firstCleanCompleted || quote.property.kind === "commercial";
   const draft = (kind: QuoteKind) => void start({ quoteId: quote.id, kind });
-  const label = (
-    <>
-      <FilePenLine aria-hidden size={16} />
-      Draft the quote
-    </>
-  );
-
   return (
-    <>
-      {eitherKind ? (
-        <DialogTrigger>
-          <Button variant="text" size="sm">
-            {label}
-          </Button>
-          <Dialog title="Which kind of quote?">
-            <p>
-              A one-off clean, or a cleaning plan of regular cleans at a
-              discount.
-            </p>
-            <Actions>
-              <Button
-                variant="quiet"
-                isPending={starting === "one_off"}
-                isDisabled={starting !== undefined}
-                onPress={() => draft("one_off")}
-              >
-                A one-off quote
-              </Button>
-              <Button
-                isPending={starting === "service_plan"}
-                isDisabled={starting !== undefined}
-                onPress={() => draft("service_plan")}
-              >
-                A cleaning plan quote
-              </Button>
-            </Actions>
-          </Dialog>
-        </DialogTrigger>
-      ) : (
+    <Dialog title="Which kind of quote?" {...state}>
+      <p>
+        A one-off clean, or a cleaning plan of regular cleans at a discount.
+      </p>
+      <Actions>
         <Button
-          variant="text"
-          size="sm"
-          isPending={starting !== undefined}
+          variant="quiet"
+          isPending={starting === "one_off"}
+          isDisabled={starting !== undefined}
           onPress={() => draft("one_off")}
         >
-          {label}
+          A one-off quote
         </Button>
-      )}
-    </>
+        <Button
+          isPending={starting === "service_plan"}
+          isDisabled={starting !== undefined}
+          onPress={() => draft("service_plan")}
+        >
+          A cleaning plan quote
+        </Button>
+      </Actions>
+    </Dialog>
   );
 }
 
 // A Service seen first is seen before it's quoted (ADR-0018), for a home
-// too: the Office books a Site Visit, or records findings it knows already
-// on the Property
+// too: why the Quote's next step is Book a site visit, and the other way,
+// recording findings the Office knows already on the Property
 export const seeThePremises = (quote: OfficeQuote): Alert => ({
   key: "see",
   tone: "warning",
-  action: <BookSiteVisit quoteId={quote.id} />,
   children: (
     <p>
-      <strong>{needsVisit(quote.property.kind)}</strong> Book one, or if you
-      know it already, record what you know on the{" "}
-      <Link href={propertyLink(quote)}>property page</Link>.
+      <strong>{needsVisit(quote.service.name)}</strong> If you know what it
+      would find already, record it on{" "}
+      <Link href={propertyLink(quote)}>
+        {placeOwner(quote.property.kind)} page
+      </Link>{" "}
+      instead.
     </p>
   ),
 });

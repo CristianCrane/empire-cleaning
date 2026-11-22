@@ -139,7 +139,9 @@ function items(
 // a rule: a menu under it at the top of a wider screen, a sheet from a
 // phone's foot. With nothing more, the primary alone. Its dialogs are its
 // own, so each place it's drawn (the title row, the header that sticks, a
-// phone's foot) stands alone
+// phone's foot) stands alone. In a header it's named "What to do", as a
+// phone's foot holding it is, so a page with a next step says so at any
+// width, and one with nothing next has no such group
 export function SplitButton({
   next,
   more,
@@ -163,7 +165,11 @@ export function SplitButton({
     </Button>
   );
   return (
-    <div className="flex w-full md:w-auto">
+    <div
+      role={opens === "menu" ? "group" : undefined}
+      aria-label={opens === "menu" ? words.whatToDo : undefined}
+      className="flex w-full md:w-auto"
+    >
       <ActionButton
         action={next}
         variant="primary"
