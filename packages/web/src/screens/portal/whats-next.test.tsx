@@ -534,7 +534,8 @@ describe("Home's card: what waits on the Client leads (#493)", () => {
           pastJobs: [lockedOut("2026-11-01T18:20:00.000Z")],
         }),
         "es",
-        NOW,
+        // at 1 o'clock, so "a la"; now after it, as the server stamps it
+        new Date("2026-11-01T19:00:00Z"),
       ).why?.lead,
     ).toBe(
       'El equipo llegó hoy a la 1:20 p.m., pero no pudo entrar: "The code didn\'t open the door".',
