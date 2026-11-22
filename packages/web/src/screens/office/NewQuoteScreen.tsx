@@ -37,6 +37,7 @@ import { clientName, screenWords } from "../format.ts";
 import { FoldedPrice } from "./QuoteAsked.tsx";
 import { OnSite } from "./WorkedOutQuote.tsx";
 import { reportUnexpected } from "../../monitoring.ts";
+import { QuoteIcon } from "../icons.ts";
 
 const { formatFloorArea } = screenWords.en;
 const { formatMoney } = formats.en;
@@ -119,18 +120,22 @@ export function NewQuoteScreen() {
               children: <PriceSoFar price={price} />,
             }}
             end={end}
-            footer={{
+            // the form's submit, the page's next step: the header's from
+            // md, the foot's on a phone, the price beside it (#493 D1)
+            next={{
               label: submit,
-              summary:
-                price?.now &&
-                `${price.now.serviceName} ${formatMoney(price.now.totalCents)}`,
-              status: price ? price.missing : PICK_FIRST,
-              children: (
-                <Button type="submit" isPending={isSending}>
-                  {submit}
-                </Button>
-              ),
+              icon: QuoteIcon,
+              submit: true,
+              isPending: isSending,
             }}
+            price={
+              price?.now
+                ? {
+                    line: `${price.now.serviceName} ${formatMoney(price.now.totalCents)}`,
+                    short: formatMoney(price.now.totalCents),
+                  }
+                : { missing: price?.missing ?? PICK_FIRST }
+            }
           >
             {client && (
               <Caller client={client} onChange={() => choose(undefined)} />
@@ -267,7 +272,7 @@ const pricing = (
   };
 };
 
-// what the footer says before a Service is picked, and the aside too
+// what's said in the price's place before a Service is picked
 const PICK_FIRST = "Pick what they need to see what it comes to.";
 
 // what it says in the price's place while what sets it isn't known: a

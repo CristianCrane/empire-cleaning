@@ -882,11 +882,23 @@ function DraftPrices({
   stale: boolean;
 }) {
   const { plan } = quote;
+  // a plan's week, what it comes to, first: below xl the prices lead the
+  // page, and three weekdays' pushed it off a laptop's screen
+  const week = plan && plan.days.length > 1 && (
+    <OfferPrice title="Each week">
+      <PlanTotals
+        plan={plan}
+        depositPercent={quote.depositPercent}
+        change={quote.changesPlan}
+      />
+    </OfferPrice>
+  );
   return (
     <div
       aria-busy={stale}
       className={`flex flex-col gap-5 [&>section+section]:border-t [&>section+section]:border-border [&>section+section]:pt-5 ${staleFade(stale)}`}
     >
+      {week}
       {/* as the sent Quote's Offer draws them: a plan's weekday or an option */}
       {quote.options.map((option, i) => {
         const day = plan?.days[i];
@@ -947,8 +959,8 @@ function DraftPrices({
           </OfferPrice>
         );
       })}
-      {plan && (
-        <OfferPrice title={plan.days.length > 1 ? "Each week" : "Deposit"}>
+      {plan && !week && (
+        <OfferPrice title="Deposit">
           <PlanTotals
             plan={plan}
             depositPercent={quote.depositPercent}
@@ -1473,17 +1485,29 @@ const saveStateLabel: Record<SaveState, string> = {
 // how long after the last change the Draft is saved and priced again
 const SAVE_DELAY_MS = 500;
 
-// the prices as last worked out, in a line: what the bar at the bottom shows
-const priceSummary = (quote: ShownQuote) => {
+// the prices as last worked out: in a line, as a phone's foot shows them,
+// and in the fewest words, for the header that sticks on a wider screen
+const priceOf = (quote: ShownQuote) => {
   const { plan } = quote;
   if (plan) {
+    const clean = formatMoney(quote.options[0]!.totalCents);
+    const week = formatMoney(plan.roundTotalCents);
     return plan.days.length === 1
-      ? `${planName(plan)}: ${formatMoney(quote.options[0]!.totalCents)} a clean`
-      : `${plan.days.length} cleans a week: ${formatMoney(plan.roundTotalCents)} a week`;
+      ? {
+          line: `${planName(plan)}: ${clean} a clean`,
+          short: `${clean} a clean`,
+        }
+      : {
+          line: `${plan.days.length} cleans a week: ${week} a week`,
+          short: `${week} a week`,
+        };
   }
-  return quote.options
-    .map((o) => `${o.serviceName} ${formatMoney(o.totalCents)}`)
-    .join(" · ");
+  return {
+    line: quote.options
+      .map((o) => `${o.serviceName} ${formatMoney(o.totalCents)}`)
+      .join(" · "),
+    short: quote.options.map((o) => formatMoney(o.totalCents)).join(" · "),
+  };
 };
 
 // The area a Service priced by area is priced on: typed, or left empty to
@@ -1517,8 +1541,9 @@ function AreaField({
 
 /**
  * A Draft, saved and priced again by the server a moment after each change,
- * so the prices always follow what's on screen; the bar at the foot keeps
- * them in view wherever the change was made. On a Service Plan Quote, the
+ * so the prices always follow what's on screen; a phone's bar at the foot,
+ * or a wider screen's header that sticks, keeps them in view wherever the
+ * change was made. On a Service Plan Quote, the
  * plan's Service is chosen from its price cards.
  */
 function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
@@ -1754,8 +1779,8 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
           },
           { label: "Draft quote" },
         ]}
+        // the title says it's a draft, not sent: no badge to say it again
         title={`Draft quote for ${clientName(draft.client)}`}
-        status={<StatusBadge tone="neutral">Not sent yet</StatusBadge>}
         actions={[
           {
             label: "Delete draft",
@@ -1786,25 +1811,22 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
           ),
         }}
         end={problems.length > 0 && problems}
-        // the prices stay in view wherever the change was made, in the
-        // app's one bar at a page's foot, clear of a phone's tab bar (#425)
-        footer={{
-          label: "Send the quote",
-          summary: priceSummary(quote),
-          status: saveStateLabel[saveState],
-          children: (
-            <Button
-              isPending={isSending}
-              isDisabled={!quote.client.email || quote.needsSiteVisit}
-              onPress={() => void onSend()}
-            >
-              {/* just Send, so a long name doesn't squeeze the prices; the
-                  heading names who it goes to, and so does this for a
-                  screen reader */}
-              Send<span className="sr-only"> to {quote.client.name}</span>
-            </Button>
-          ),
+        // the page's next step; the prices and whether they're saved stay
+        // in view wherever the change was made: a phone's bar at the foot,
+        // a wider screen's header that sticks (#425, #493 D1)
+        next={{
+          // just Send, so a long name doesn't squeeze the prices; the
+          // heading names who it goes to, and so does this for a screen
+          // reader
+          label: "Send",
+          srLabel: `to ${quote.client.name}`,
+          icon: Send,
+          isPending: isSending,
+          isDisabled: !quote.client.email || quote.needsSiteVisit,
+          onAction: () => void onSend(),
         }}
+        price={priceOf(quote)}
+        note={saveStateLabel[saveState]}
       >
         {draft.asked && (
           <FormPart title="What was asked" summary={askedSummary(draft)}>

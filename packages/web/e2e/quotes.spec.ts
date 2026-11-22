@@ -156,6 +156,49 @@ test("a Quote can't be sent without a proposed time", async ({ page }) => {
   await expect(page.getByText("Pick a time")).toBeVisible();
 });
 
+// a bar at the foot is a phone's (#493 D1): there it holds the prices,
+// whether they're saved and Send, Delete draft on the title row; from md Send
+// is the header's next step, Delete draft behind its arrow, "Saved" beside
+// it, and once scrolled the header that sticks keeps the prices in view
+test(
+  "a Draft's Send is its next step, its prices kept in view as it scrolls",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    await requestQuoteAsGuest(casey);
+    await signInAsOffice(page);
+    await startDraft(page);
+    await saved(page);
+    await expectNextStep(page, `Send to ${casey.name}`);
+    const next = page.getByRole("group", { name: "What to do" });
+    if (isMobile) {
+      await expect(next).toContainText(
+        /^Deep Clean \$[\d,.]+ · Standard Clean \$[\d,.]+Saved/,
+      );
+      await expect(
+        page.getByRole("button", { name: "Delete draft" }),
+      ).toBeVisible();
+      return;
+    }
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await expect(
+      next.getByRole("button", { name: "More actions" }),
+    ).toBeVisible();
+    await page
+      .getByRole("region", { name: "Proposed time" })
+      .scrollIntoViewIfNeeded();
+    // the header that sticks: the prices in the fewest words, as the
+    // prices beside the form aren't, and Saved
+    await expect(page.getByText(/^\$[\d,.]+ · \$[\d,.]+$/)).toBeVisible();
+    await saved(page);
+    await pageAction(page, "Delete draft");
+    await page
+      .getByRole("alertdialog")
+      .getByRole("button", { name: "Keep it" })
+      .click();
+    await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  },
+);
+
 test("a Draft whose prices changed since it was saved shows them before it's sent", async ({
   page,
 }) => {
