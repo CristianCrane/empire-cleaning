@@ -86,11 +86,8 @@ export function AppLayout({
         Skip to content
       </a>
 
-      <aside className="hidden w-64 print:hidden shrink-0 flex-col gap-6 overflow-y-auto border-r border-border bg-surface p-4 md:sticky md:top-0 md:flex md:h-dvh">
-        <div className="flex flex-col items-center gap-3 px-2 pt-2">
-          <Logo className="w-44" />
-          <span className="text-sm text-fg-muted">{area}</span>
-        </div>
+      <aside className="hidden w-side print:hidden shrink-0 flex-col gap-6 overflow-y-auto border-r border-border bg-surface p-4 md:sticky md:top-0 md:flex md:h-dvh">
+        <Head area={area} className="pt-2" />
         <nav aria-label={area} className="flex flex-1 flex-col gap-4">
           <NavGroups items={nav} />
         </nav>
@@ -111,10 +108,7 @@ export function AppLayout({
             <Drawer aria-label={words.menu} isBusy={menuBusy}>
               {({ close }) => (
                 <>
-                  <div className="flex flex-col items-center gap-3 px-2 pt-8">
-                    <Logo className="w-44" />
-                    <span className="text-sm text-fg-muted">{area}</span>
-                  </div>
+                  <Head area={area} className="pt-8" />
                   <nav aria-label={area} className="flex flex-col gap-4">
                     <NavGroups items={nav} onPress={close} />
                   </nav>
@@ -154,6 +148,16 @@ export function AppLayout({
   );
 }
 
+// the logo and the area, at the head of the sidebar or the ☰ menu
+function Head({ area, className }: { area: string; className: string }) {
+  return (
+    <div className={`flex flex-col items-center gap-3 px-2 ${className}`}>
+      <Logo className="w-44" />
+      <span className="text-sm text-fg-muted">{area}</span>
+    </div>
+  );
+}
+
 // the account's parts and the theme, at the foot of the sidebar or the ☰
 // menu
 function Foot({ children }: { children: ReactNode }) {
@@ -165,6 +169,18 @@ function Foot({ children }: { children: ReactNode }) {
   );
 }
 
+// each run of items next to each other with the same group (NavItem.group),
+// in order; items with none make a run with no name
+const runs = (items: NavItem[]) => {
+  const groups: { name?: string; items: NavItem[] }[] = [];
+  for (const item of items) {
+    const last = groups.at(-1);
+    if (last && last.name === item.group) last.items.push(item);
+    else groups.push({ name: item.group, items: [item] });
+  }
+  return groups;
+};
+
 // the sidebar's or the menu's links, each run of items with the same group
 // under its heading; items with none sit under the logo without one
 function NavGroups({
@@ -174,13 +190,7 @@ function NavGroups({
   items: NavItem[];
   onPress?: () => void;
 }) {
-  const groups: { name?: string; items: NavItem[] }[] = [];
-  for (const item of items) {
-    const last = groups.at(-1);
-    if (last && last.name === item.group) last.items.push(item);
-    else groups.push({ name: item.group, items: [item] });
-  }
-  return groups.map((group) => (
+  return runs(items).map((group) => (
     <NavGroup key={group.items[0]!.label} name={group.name}>
       {group.items.map((item) => (
         <SidebarLink key={item.label} item={item} onPress={onPress} />

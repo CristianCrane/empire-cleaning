@@ -124,10 +124,20 @@
   /* the phone's tab bar (AppLayout), its top border included, above the
      safe area; what floats over the page's foot sits above it */
   --spacing-tab-bar: calc(3.5rem + 1px);
+  /* the side navigation's width at this screen's width (AppLayout), where
+     what sits beside it starts: none on a phone, which has the tab bar */
+  --spacing-side: 0px;
 
   --shadow-raised:
     0 1px 2px rgb(16 25 35 / 0.08), 0 4px 12px rgb(16 25 35 / 0.08);
   --shadow-overlay: 0 8px 32px rgb(16 25 35 / 0.24);
+}
+
+/* the sidebar, from md */
+:root {
+  @variant md {
+    --spacing-side: 16rem;
+  }
 }
 
 @layer base {
