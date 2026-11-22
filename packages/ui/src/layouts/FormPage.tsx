@@ -28,8 +28,9 @@ import { PageHeader, type PageActions } from "./PageHeader.tsx";
 // `footer`, an ActionFooter, what's said before them after the card. What
 // the fields come to (a price, a worked example) is an aside, sticky beside
 // the card from `xl`; below that after the card, or before it when it
-// `leads` (a price the form is written to reach). Outside an area it's a
-// page of its own, the logo above (Welcome)
+// `leads` (a price the form is written to reach). With no aside, the page
+// is a form's width, its header with it (docs/ux.md, Forms). Outside an
+// area it's a page of its own, the logo above (Welcome)
 export function FormPage({
   trail,
   title,
@@ -101,7 +102,7 @@ export function FormPage({
     </div>
   );
   return (
-    <PageFrame wide account={account}>
+    <PageFrame width={aside ? "wide" : "form"} account={account}>
       <PageHeader
         trail={trail}
         title={title}
@@ -119,7 +120,7 @@ export function FormPage({
           xl, sticky as the form scrolls past; below xl after the form, or
           first when it leads: first in the page too, so a phone reads and
           tabs through it in the order it's seen. With nothing beside it,
-          one column, the content's width, lined up with the header */}
+          one column, a form's width, lined up with the header */}
       <div
         className={`grid grid-cols-[minmax(0,1fr)] items-start gap-6 ${side ? "xl:grid-cols-[minmax(0,1fr)_22rem]" : ""}`}
       >
