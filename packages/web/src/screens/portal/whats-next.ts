@@ -29,7 +29,7 @@ import {
   type Language,
 } from "@empire-cleaning/models";
 import type { HomeTile } from "@empire-cleaning/ui";
-import { linkTo } from "../../links.ts";
+import { linkTo, sameHref } from "../../links.ts";
 import { QuoteIcon, SiteVisitIcon } from "../icons.ts";
 import { addressOf, formatHours, formatMinutes } from "../format.ts";
 import { saidWith } from "../words.ts";
@@ -198,9 +198,11 @@ type Said = ReturnType<typeof saidWith<(typeof words)["en"]>>;
 // the Home layout, #435). What waits on them leads (#493): what's owed,
 // when that asks anything of them, then a price change to answer, then the
 // morning a crew couldn't get in, then a Quote ready; else the soonest thing
-// booked, or, with nothing booked, where they stand with us. Out of the
-// usual, an alert above the card says why and the card's Button does it,
-// Request a quote standing aside meanwhile. What they're waiting on us for
+// booked, or, with nothing booked, where they stand with us. When the
+// card needs a reason (money late, a price change, a crew who couldn't get
+// in, a plan paused), an alert above it says why; while it asks something
+// of them out of the usual (money owed that asks, a price change, a crew
+// who couldn't get in), Request a quote stands aside. What they're waiting on us for
 // is news under it; what else waits on them, and what they can do from
 // there, tiles.
 
@@ -215,7 +217,8 @@ export type HomeData = {
   paymentMethod: PaymentMethodView | null;
 };
 
-// why the card asks what it does, when that's out of the usual: its first
+// why the card says what it does, when it needs a reason (money late, a
+// price change, a crew who couldn't get in, a plan paused): its first
 // sentence bold, as a page's alerts read
 type Why = {
   tone: "info" | "warning" | "danger";
@@ -229,7 +232,8 @@ export type WhatsNext = {
   // what waits on them first; else what's next
   hero: Hero;
   why?: Why;
-  // the card asks something of them out of the usual: the usual step
+  // the card asks something of them out of the usual (money owed that
+  // asks, a price change, a crew who couldn't get in): the usual step
   // (Request a quote) stands aside
   asks: boolean;
   // what's waiting on them, a tile a kind, never cut; then what they can
@@ -299,6 +303,9 @@ export function whatsNext(
   );
   const changedCents = changes.reduce((sum, c) => sum + c.change.totalCents, 0);
   const firstBy = changes[0]?.change.lapsesAt;
+  // one to review leads to its clean; several to where they all are
+  const reviewHref =
+    reviews.length === 1 ? jobLink(reviews[0]!.id) : pastCleansLink;
   // the morning a crew couldn't get in, New York's day: they're emailed it,
   // and the clean's page keeps it after
   const lockedOut = data.pastJobs.find(
@@ -308,7 +315,7 @@ export function whatsNext(
   // what waits on them, most pressing first: what's owed, when it asks
   // anything of them (a paused plan's line under it); a price change to
   // answer; how we get in, the morning we couldn't
-  const lead = ((): Lead | undefined => {
+  const lead = ((): Answer | undefined => {
     if (money.owed?.asks) {
       const owed = owedAnswer(money.owed, lang);
       const pausedLine = paused
@@ -335,7 +342,7 @@ export function whatsNext(
           lines: [],
           action: {
             label: w.reviewThe(changes.length),
-            href: reviews.length === 1 ? jobLink(job.id) : pastCleansLink,
+            href: reviewHref,
           },
         },
         // the card says the price changes
@@ -418,7 +425,7 @@ export function whatsNext(
               })
             : detailsLink,
     })),
-    ...reviews.slice(0, 1).map((job) => ({
+    ...reviews.slice(0, 1).map(() => ({
       id: "review",
       icon: ClipboardCheck,
       label: w.reviewPrices(changes.length),
@@ -426,9 +433,9 @@ export function whatsNext(
       hint: firstBy
         ? w.answerByHint(t.formatMoney(changedCents), dayOf(firstBy))
         : t.formatMoney(changedCents),
-      href: reviews.length === 1 ? jobLink(job.id) : pastCleansLink,
+      href: reviewHref,
     })),
-  ].filter((tile) => tile.id !== lead?.aside);
+  ];
 
   const news = data.jobs.flatMap((job) =>
     job.movingTo
@@ -437,21 +444,7 @@ export function whatsNext(
   );
 
   const { hero, why, aside } =
-    lead ??
-    // paused with nothing booked: the plan, and why there's nothing
-    (paused && !next && !leadingQuote
-      ? {
-          hero: {
-            label: t.p.yourPlan,
-            icon: PauseCircle,
-            tone: "info",
-            headline: t.planName(paused),
-            lines: [w.untilPaid],
-            action: { label: t.p.seeYourPlan, href: planLink(paused.id) },
-          },
-          why: { tone: "info", lead: w.planPaused, more: w.weTryAgain },
-        }
-      : { hero: heroOf(data, t, { next, leadingQuote, now }) });
+    lead ?? heroOf(data, t, { next, paused, leadingQuote, now });
   const shortcuts = shortcutsOf(data, t, {
     next,
     paused,
@@ -459,24 +452,31 @@ export function whatsNext(
     card: yourCardTile(money, lang),
     // Your card, unless it's the card's own Button (Update your card); a
     // tile the card says
-  }).filter(
-    (s) =>
-      s.id !== aside &&
-      !(s.id === "card" && "href" in s && s.href === hero.action?.href),
-  );
+  });
+  // a tile is a repeat when it's the one the card names (Your card, or the
+  // lead's) and leads where the card's Button does: the card holds it
+  const repeats = (tile: HomeTile) =>
+    (tile.id === "card" || tile.id === aside) &&
+    "href" in tile &&
+    sameHref(tile.href, hero.action?.href);
+  const waitingLeft = waiting.filter((tile) => !repeats(tile));
+  const shortcutsLeft = shortcuts.filter((tile) => !repeats(tile));
 
   return {
     news,
     hero,
     why,
     asks: lead !== undefined,
-    tiles: [...waiting, ...shortcuts.slice(0, Math.max(0, 4 - waiting.length))],
+    tiles: [
+      ...waitingLeft,
+      ...shortcutsLeft.slice(0, Math.max(0, 4 - waitingLeft.length)),
+    ],
   };
 }
 
-// the card, why it asks what it does when that's out of the usual, and a
-// tile it makes a repeat
-type Lead = { hero: Hero; why?: Why; aside?: string };
+// the card, why it says what it does when it needs a reason, and
+// the tile it makes a repeat
+type Answer = { hero: Hero; why?: Why; aside?: string };
 
 type Context = {
   next: Booked | undefined;
@@ -485,29 +485,31 @@ type Context = {
   now: Date;
 };
 
-function heroOf(data: HomeData, t: Said, ctx: Omit<Context, "paused">): Hero {
-  const { next, leadingQuote, now } = ctx;
+function heroOf(data: HomeData, t: Said, ctx: Context): Answer {
+  const { next, paused, leadingQuote, now } = ctx;
   const { w, dayOf, formatDateTime } = t;
 
   if (leadingQuote) {
     return {
-      label: w.quoteReadyLabel,
-      icon: QuoteIcon,
-      tone: "info",
-      headline: t.quoteHeadline(leadingQuote),
-      lines: [
-        [
-          leadingQuote.proposedStartsAt &&
-            w.forWhen(formatDateTime(leadingQuote.proposedStartsAt)),
-          addressOf(leadingQuote.property),
-        ]
-          .filter(Boolean)
-          .join(w.at),
-        ...(leadingQuote.expiresAt
-          ? [t.p.openUntil(dayOf(leadingQuote.expiresAt))]
-          : []),
-      ],
-      action: seeQuote(t, leadingQuote.id),
+      hero: {
+        label: w.quoteReadyLabel,
+        icon: QuoteIcon,
+        tone: "info",
+        headline: t.quoteHeadline(leadingQuote),
+        lines: [
+          [
+            leadingQuote.proposedStartsAt &&
+              w.forWhen(formatDateTime(leadingQuote.proposedStartsAt)),
+            addressOf(leadingQuote.property),
+          ]
+            .filter(Boolean)
+            .join(w.at),
+          ...(leadingQuote.expiresAt
+            ? [t.p.openUntil(dayOf(leadingQuote.expiresAt))]
+            : []),
+        ],
+        action: seeQuote(t, leadingQuote.id),
+      },
     };
   }
 
@@ -521,38 +523,58 @@ function heroOf(data: HomeData, t: Said, ctx: Omit<Context, "paused">): Hero {
       );
     const today = sameDay(new Date(job.startsAt), now);
     return {
-      label: today ? t.today : first ? w.firstClean : w.nextClean,
-      icon: CalendarCheck,
-      tone: "info",
-      startsAt: job.startsAt,
-      headline: today
-        ? t.formatTime(job.startsAt)
-        : formatDateTime(job.startsAt),
-      lines: [
-        w.serviceAt(job.serviceName, addressOf(job.property)),
-        ...(plan ? [w.partOfPlan(t.recurrence[plan.recurrence])] : []),
-        w.crewOnSite(t.cleaners(job.crewSize), formatHours(job.hoursOnSite)),
-      ],
-      action: { label: t.p.seeTheClean, href: jobLink(job.id) },
+      hero: {
+        label: today ? t.today : first ? w.firstClean : w.nextClean,
+        icon: CalendarCheck,
+        tone: "info",
+        startsAt: job.startsAt,
+        headline: today
+          ? t.formatTime(job.startsAt)
+          : formatDateTime(job.startsAt),
+        lines: [
+          w.serviceAt(job.serviceName, addressOf(job.property)),
+          ...(plan ? [w.partOfPlan(t.recurrence[plan.recurrence])] : []),
+          w.crewOnSite(t.cleaners(job.crewSize), formatHours(job.hoursOnSite)),
+        ],
+        action: { label: t.p.seeTheClean, href: jobLink(job.id) },
+      },
     };
   }
 
   if (next?.kind === "visit") {
     const { visit } = next;
     return {
-      label: w.siteVisit,
-      icon: SiteVisitIcon,
-      tone: "info",
-      startsAt: visit.startsAt,
-      headline: formatDateTime(visit.startsAt),
-      lines: [
-        w.comesToSee(
-          visit.visitorName,
-          addressOf(visit.property),
-          formatMinutes(visit.minutes),
-        ),
-        w.visitFree(business.phone.display),
-      ],
+      hero: {
+        label: w.siteVisit,
+        icon: SiteVisitIcon,
+        tone: "info",
+        startsAt: visit.startsAt,
+        headline: formatDateTime(visit.startsAt),
+        lines: [
+          w.comesToSee(
+            visit.visitorName,
+            addressOf(visit.property),
+            formatMinutes(visit.minutes),
+          ),
+          w.visitFree(business.phone.display),
+        ],
+      },
+    };
+  }
+
+  // paused, with nothing to do (a payment that asks something of them is
+  // the owed card): the plan, and why nothing's booked
+  if (paused) {
+    return {
+      hero: {
+        label: t.p.yourPlan,
+        icon: PauseCircle,
+        tone: "info",
+        headline: t.planName(paused),
+        lines: [w.untilPaid],
+        action: { label: t.p.seeYourPlan, href: planLink(paused.id) },
+      },
+      why: { tone: "info", lead: w.planPaused, more: w.weTryAgain },
     };
   }
 
@@ -564,40 +586,46 @@ function heroOf(data: HomeData, t: Said, ctx: Omit<Context, "paused">): Hero {
     };
     if (asked.siteVisit === "needed") {
       return {
-        label: w.beforeWeQuote,
-        icon: SiteVisitIcon,
-        tone: "info",
-        headline: w.callToArrange,
-        lines: [w.weSee(addressOf(asked.property)), w.callWithinDay],
-        action: seeIt,
+        hero: {
+          label: w.beforeWeQuote,
+          icon: SiteVisitIcon,
+          tone: "info",
+          headline: w.callToArrange,
+          lines: [w.weSee(addressOf(asked.property)), w.callWithinDay],
+          action: seeIt,
+        },
       };
     }
     return {
-      label: t.p.yourQuote,
-      icon: Hourglass,
-      tone: "info",
-      headline: w.workingOnIt,
-      lines: [
-        w.askedOn(
-          asked.service.name,
-          addressOf(asked.property),
-          dayOf(asked.createdAt),
-        ),
-        w.emailIt(t.WITHIN_A_DAY),
-      ],
-      action: seeIt,
+      hero: {
+        label: t.p.yourQuote,
+        icon: Hourglass,
+        tone: "info",
+        headline: w.workingOnIt,
+        lines: [
+          w.askedOn(
+            asked.service.name,
+            addressOf(asked.property),
+            dayOf(asked.createdAt),
+          ),
+          w.emailIt(t.WITHIN_A_DAY),
+        ],
+        action: seeIt,
+      },
     };
   }
 
   const plan = data.plans.find((p) => p.status === "active");
   if (plan) {
     return {
-      label: t.p.yourPlan,
-      icon: Repeat,
-      tone: "info",
-      headline: t.planName(plan),
-      lines: [t.p.nextShowsHere],
-      action: { label: t.p.seeYourPlan, href: planLink(plan.id) },
+      hero: {
+        label: t.p.yourPlan,
+        icon: Repeat,
+        tone: "info",
+        headline: t.planName(plan),
+        lines: [t.p.nextShowsHere],
+        action: { label: t.p.seeYourPlan, href: planLink(plan.id) },
+      },
     };
   }
 
@@ -605,56 +633,66 @@ function heroOf(data: HomeData, t: Said, ctx: Omit<Context, "paused">): Hero {
   const last = data.quotes[0];
   if (last?.status === "expired") {
     return {
-      label: w.expired,
-      icon: CalendarClock,
-      tone: "neutral",
-      headline: t.quoteHeadline(last),
-      lines: [
-        last.expiresAt ? w.wasOpenUntil(dayOf(last.expiresAt)) : w.askAgain,
-      ],
-      action: requestQuote(t),
+      hero: {
+        label: w.expired,
+        icon: CalendarClock,
+        tone: "neutral",
+        headline: t.quoteHeadline(last),
+        lines: [
+          last.expiresAt ? w.wasOpenUntil(dayOf(last.expiresAt)) : w.askAgain,
+        ],
+        action: requestQuote(t),
+      },
     };
   }
   if (last?.status === "turned_down") {
     return {
-      label: w.couldntTake,
-      icon: Ban,
-      tone: "neutral",
-      headline: last.turnDownReason
-        ? t.turnDownReason[last.turnDownReason]
-        : w.sorry,
-      lines: [`${addressOf(last.property)}. ${t.ASK_AGAIN}`],
-      action: requestQuote(t),
+      hero: {
+        label: w.couldntTake,
+        icon: Ban,
+        tone: "neutral",
+        headline: last.turnDownReason
+          ? t.turnDownReason[last.turnDownReason]
+          : w.sorry,
+        lines: [`${addressOf(last.property)}. ${t.ASK_AGAIN}`],
+        action: requestQuote(t),
+      },
     };
   }
   if (last?.status === "declined") {
     return {
-      label: t.p.nothingBooked,
-      icon: CalendarDays,
-      tone: "info",
-      headline: w.changedMind,
-      lines: [w.declined(last.service.name)],
-      action: requestQuote(t),
+      hero: {
+        label: t.p.nothingBooked,
+        icon: CalendarDays,
+        tone: "info",
+        headline: w.changedMind,
+        lines: [w.declined(last.service.name)],
+        action: requestQuote(t),
+      },
     };
   }
   const latest = data.pastJobs.find((j) => j.status === "completed");
   if (last || latest) {
     return {
-      label: t.p.nothingBooked,
-      icon: CalendarDays,
-      tone: "info",
-      headline: w.wantUsBack,
-      lines: latest ? [w.lastClean(dayOf(latest.startsAt))] : [],
-      action: requestQuote(t),
+      hero: {
+        label: t.p.nothingBooked,
+        icon: CalendarDays,
+        tone: "info",
+        headline: w.wantUsBack,
+        lines: latest ? [w.lastClean(dayOf(latest.startsAt))] : [],
+        action: requestQuote(t),
+      },
     };
   }
   return {
-    label: w.welcome,
-    icon: Sparkles,
-    tone: "info",
-    headline: w.getAQuote,
-    lines: [t.ASK_US],
-    action: requestQuote(t),
+    hero: {
+      label: w.welcome,
+      icon: Sparkles,
+      tone: "info",
+      headline: w.getAQuote,
+      lines: [t.ASK_US],
+      action: requestQuote(t),
+    },
   };
 }
 

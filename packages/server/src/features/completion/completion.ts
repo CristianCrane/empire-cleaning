@@ -40,6 +40,7 @@ import {
   cancellationOf,
   cancelTermsOf,
   planOfJob,
+  noAccessFactsOf,
   noAccessOf,
 } from "../cancellation/cancellation.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
@@ -429,7 +430,7 @@ export const cleanerCompletionsOf = async (
 
   const extras = list.map((job): [string, CleanerExtras] => {
     const completed = job.status === "completed";
-    const noAccess = job.status === "no_access";
+    const noAccess = noAccessFactsOf(job);
     return [
       job.id,
       {
@@ -457,11 +458,10 @@ export const cleanerCompletionsOf = async (
           : null,
         noAccess: noAccess
           ? {
-              recordedAt: job.noAccessAt!.toISOString(),
+              ...noAccess,
               recordedBy: job.noAccessBy
                 ? (nameOf.get(job.noAccessBy) ?? null)
                 : null,
-              reason: job.noAccessReason ?? "",
             }
           : null,
       },
@@ -920,6 +920,7 @@ export const pastJobsFor = async (
   return Promise.all(
     rows.map(async ({ job, property, planId }) => {
       const own = adjusted.filter((a) => a.jobId === job.id);
+      const noAccess = noAccessFactsOf(job);
       return {
         ...(await clientJobOf(job, property)),
         status: job.status as ClientPastJob["status"],
@@ -946,14 +947,10 @@ export const pastJobsFor = async (
             );
             return { id, kind, addOnName, hours, totalCents, lapsesAt };
           }),
-        noAccess:
-          job.status === "no_access"
-            ? {
-                recordedAt: job.noAccessAt!.toISOString(),
-                reason: job.noAccessReason ?? "",
-                feeCents: job.feeCents ?? 0,
-              }
-            : null,
+        noAccess: noAccess && {
+          ...noAccess,
+          feeCents: job.feeCents ?? 0,
+        },
       };
     }),
   );

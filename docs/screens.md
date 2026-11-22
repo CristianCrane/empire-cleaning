@@ -377,9 +377,9 @@ Keeps: what's next, date tile, shortcut tiles (ux-portal). Renders through
 - Header: "Hi, name", not in the bar; Request a quote (secondary), unless
   the card asks something out of the usual (money owed that asks, a price
   change, a crew who couldn't get in) or is Request a quote itself.
-- Body: an alert saying why, when the card's case is out of the usual
-  (`Alerts`: late money, a price change, the morning a crew couldn't get
-  in, a paused plan); the card (`AnswerCard`): what's owed when it asks
+- Body: an alert saying why, when the card needs a reason (`Alerts`:
+  money late, a price change, the morning a crew couldn't get in, a plan
+  paused with nothing to do); the card (`AnswerCard`): what's owed when it asks
   something of them (the amount, Pay or Update your card), else a price
   change to answer (what it adds, Review the price change), else that
   morning's How we get in, else a quote ready, else the next clean

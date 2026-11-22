@@ -14,8 +14,8 @@ import type { PageActions } from "./PageActions.tsx";
 import { PageHeader } from "./PageHeader.tsx";
 
 // The Home type's layout (docs/ux.md, Screen types, Home; #435): where an
-// area starts. The person greeted, why the card asks what it does when
-// that's out of the usual (an alert, #493), one card answering what's next
+// area starts. The person greeted, why the card says what it does when
+// it needs a reason (an alert, #493), one card answering what's next
 // or what's owed with the page's one primary, then two to four tiles; no
 // row shows until a tile is pressed
 
@@ -123,8 +123,8 @@ export function HomePage({
   // or the page's own name, which a phone's top bar shows (Payments)
   title?: string;
   actions?: PageActions;
-  // why the card asks what it does, above it, when that's out of the usual
-  // (a price change to answer): the facts before the decision (#493)
+  // why the card says what it does, above it, when it needs a reason (a
+  // price change to answer): the facts before the decision (#493)
   alerts?: (Alert | false | null | undefined)[];
   // an AnswerCard
   answer: ReactNode;

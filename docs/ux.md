@@ -141,7 +141,7 @@ Cleaner's Your jobs render through `HomePage`
   first page; Payments keeps its name, hidden on a phone where the bar
   says it. Its one secondary action on the title row (Request a quote, Your
   card), which stands aside while the card asks something out of the
-  usual of them (#493).
+  usual of them (below; #493).
 - **One answer card** (`AnswerCard`): what's next or what's owed, read left
   to right behind its tile (a `DateTile` for when, an `IconTile` for
   what), the kind of answer muted above, the answer large, a line or two,
@@ -149,14 +149,17 @@ Cleaner's Your jobs render through `HomePage`
   money owed first, as it's what they came to the page to do (the `ui`
   skill): on a Client's, money owed that asks something, then a price
   change to answer, then the morning a crew couldn't get in, then a quote
-  ready. When that's out of the usual, an alert in its sentiment's colour
-  sits between the greeting and the card and says why (what happened, on
-  which clean, by when), and the card says what to do, its amount and its
-  primary, so each fact shows once: the facts before the decision, read
-  top to bottom (#493's D2, `prototype-home-alert`). What the card holds
-  steps out of the tiles meanwhile. A paused plan with nothing to do is
-  the plan's card, its alert calm (info). With nothing waiting anywhere, offers to answer included,
-  it's a green all-clear card, as a screen says only what's true (the
+  ready. When the card needs a reason (money late, a price change, a crew
+  who couldn't get in), an alert in its sentiment's colour sits between
+  the greeting and the card and says why (what happened, on which clean,
+  by when), and the card says what to do, its amount and its primary, so
+  each fact shows once: the facts before the decision, read top to bottom
+  (#493's D2, `prototype-home-alert`). What the card holds steps out of
+  the tiles meanwhile; while it asks something out of the usual (money
+  owed that asks, a price change, a crew who couldn't get in), the title
+  row's action stands aside too. A paused plan with nothing to do is the
+  plan's card, its alert calm (info). With nothing waiting anywhere,
+  offers to answer included, it's a green all-clear card, as a screen says only what's true (the
   `ui` skill). The Office's is its first
   to-do, the server's order.
 - **News** under it, an info Notice each, never an action (a move asked

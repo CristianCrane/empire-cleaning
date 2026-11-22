@@ -508,8 +508,25 @@ describe("Home's card: what waits on the Client leads (#493)", () => {
       more: "As with a late cancellation, your $68.06 deposit is kept as the fee.",
     });
     expect(asks).toBe(true);
-    // the card says how we get in
     expect(tiles.map((s) => s.id)).not.toContain("getIn");
+    // with a clean booked there, the card says how we get in: no tile
+    // says it again; with the next clean at another home, its tile stays
+    const other = {
+      ...home,
+      id: "other",
+      street: "3 Oak Ave",
+      accessInstructions: "Ring 2",
+    };
+    const twoHomes = (property: typeof at) =>
+      next({
+        client: { properties: [home, other] } as unknown as ClientView,
+        jobs: [job({ property })],
+        pastJobs: [lockedOut("2026-11-01T14:20:00.000Z")],
+      }).tiles.find((s) => s.id === "getIn");
+    expect(twoHomes(at)).toBeUndefined();
+    expect(twoHomes({ ...at, id: "other", street: "3 Oak Ave" })).toMatchObject(
+      { label: "How we get in", hint: "Ring 2" },
+    );
     // the day after, the clean's page says it
     expect(
       next({

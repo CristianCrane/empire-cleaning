@@ -14,6 +14,7 @@ import {
   proposeReported,
   recordNoAccess,
   requestReschedule,
+  sentServicePlanQuote,
   setClock,
   setLanguage,
   signedInAs,
@@ -225,6 +226,38 @@ test("the morning a crew couldn't get in, Home says what happened and leads with
   ).toBeVisible();
   await expectNoPageAction(page, "Request a quote");
 });
+
+test(
+  "a Client's Home leads with a Quote that's ready, and says it once",
+  { tag: "@desktop" },
+  async ({ page }) => {
+    // Casey's first clean done, and a cleaning plan offered after it
+    await createStaff(olive);
+    await signUp(olive.email);
+    const { propertyId } = await completedFirstClean(olive.email);
+    await sentServicePlanQuote({
+      officeEmail: olive.email,
+      propertyId,
+      startsAt: "2026-01-26T14:00:00Z",
+    });
+    await signedInAs(page, casey.email);
+
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Hi, Casey" }),
+    ).toBeVisible();
+    const card = page.getByRole("region", { name: "Your quote is ready" });
+    await expect(card).toContainText("Cleaning plan");
+    // the card's Button, so not a tile too
+    const tiles = page.getByRole("list", { name: "Shortcuts" });
+    await expect(tiles.getByRole("link")).toHaveCount(3);
+    await expect(
+      tiles.getByRole("link", { name: /^See your quote/ }),
+    ).toHaveCount(0);
+    await expect(
+      card.getByRole("link", { name: "See your quote" }),
+    ).toHaveAttribute("href", /^\/portal\/quotes\//);
+  },
+);
 
 test("a price change to answer leads Home in Spanish", async ({ page }) => {
   await priceChangeWaiting();

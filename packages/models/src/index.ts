@@ -1381,13 +1381,14 @@ export type ClientJob = {
   // Labour Hours divided by Crew Size
   hoursOnSite: number;
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
+  // the Service Plan it was generated for, which cancelling it skips; null
+  // for a one-off Job
+  servicePlanId: string | null;
 };
 
-// one still to come: the Service Plan it was generated for (null for a
-// one-off Job), and the time the Client asked to move it to while Office
+// one still to come: the time the Client asked to move it to while Office
 // Staff haven't answered (null with no Reschedule Request pending)
 export type ClientUpcomingJob = ClientJob & {
-  servicePlanId: string | null;
   movingTo: string | null;
 };
 
@@ -1688,8 +1689,6 @@ export type AdjustmentCorrection = { priceCents: number; reason: string };
 // Cancelled (Skipped, for a Service Plan clean they cancelled) or No Access
 export type ClientPastJob = ClientJob & {
   status: "completed" | "cancelled" | "no_access";
-  // the Service Plan it was generated for; null for a one-off Job
-  servicePlanId: string | null;
   skipped: boolean;
   completedAt: string | null;
   // a Completed one's price; 0 otherwise
@@ -1732,9 +1731,6 @@ export type ClientJobDetail = ClientJob & {
   weeklyBill: BillPayment | null;
   // its latest Reschedule Request, pending or answered; null if none
   rescheduleRequest: RescheduleRequestView | null;
-  // the Service Plan it was generated for, which cancelling it skips; null
-  // for a one-off Job
-  servicePlanId: string | null;
   // that plan's Plan Discount, which its price has had taken off; null for
   // a one-off Job
   planDiscountPercent: number | null;

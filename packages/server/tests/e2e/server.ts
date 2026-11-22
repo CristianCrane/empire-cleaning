@@ -76,6 +76,16 @@ await listen(app, env.PORT);
 console.log(`e2e API on port ${env.PORT}`);
 
 const control = express();
+
+// the id of the account signed up with `email` (a Staff member's, who must
+// have signed up)
+const accountIdOf = async (email: string) => {
+  const [account] = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.email, email));
+  return account!.id;
+};
 control.use(express.json());
 
 control.get("/health", (_req, res) => {
@@ -160,11 +170,9 @@ control.post("/jobs/accepted", async (req, res) => {
   const { officeEmail, ...job } = req.body as {
     officeEmail: string;
   } & Omit<Parameters<typeof acceptedJob>[0], "byAccountId">;
-  const [account] = await db
-    .select({ id: accounts.id })
-    .from(accounts)
-    .where(eq(accounts.email, officeEmail));
-  res.json(await acceptedJob({ ...job, byAccountId: account!.id }));
+  res.json(
+    await acceptedJob({ ...job, byAccountId: await accountIdOf(officeEmail) }),
+  );
 });
 
 // a home whose First Clean is Completed, so it can be offered a Service
@@ -173,11 +181,9 @@ control.post("/jobs/accepted", async (req, res) => {
 // where the clock is left
 control.post("/first-cleans/completed", async (req, res) => {
   const { officeEmail } = req.body as { officeEmail: string };
-  const [account] = await db
-    .select({ id: accounts.id })
-    .from(accounts)
-    .where(eq(accounts.email, officeEmail));
-  res.json(await completedFirstClean({ byAccountId: account!.id }));
+  res.json(
+    await completedFirstClean({ byAccountId: await accountIdOf(officeEmail) }),
+  );
 });
 
 // a Service Plan Quote Sent for the home by the Office Staff member with
@@ -187,11 +193,12 @@ control.post("/service-plan-quotes", async (req, res) => {
     Parameters<typeof sentServicePlanQuote>[0],
     "byAccountId"
   >;
-  const [account] = await db
-    .select({ id: accounts.id })
-    .from(accounts)
-    .where(eq(accounts.email, officeEmail));
-  res.json(await sentServicePlanQuote({ ...plan, byAccountId: account!.id }));
+  res.json(
+    await sentServicePlanQuote({
+      ...plan,
+      byAccountId: await accountIdOf(officeEmail),
+    }),
+  );
 });
 
 // a Service Plan started at the home from a Quote Sent by the Office Staff
@@ -201,11 +208,12 @@ control.post("/service-plans/started", async (req, res) => {
     Parameters<typeof startedServicePlan>[0],
     "byAccountId"
   >;
-  const [account] = await db
-    .select({ id: accounts.id })
-    .from(accounts)
-    .where(eq(accounts.email, officeEmail));
-  res.json(await startedServicePlan({ ...plan, byAccountId: account!.id }));
+  res.json(
+    await startedServicePlan({
+      ...plan,
+      byAccountId: await accountIdOf(officeEmail),
+    }),
+  );
 });
 
 // a Job Offered to a Cleaner, as Office Staff do, and Confirmed
@@ -228,11 +236,9 @@ control.post("/bills/billed-week", async (req, res) => {
     Parameters<typeof billedWeek>[0],
     "byAccountId"
   >;
-  const [account] = await db
-    .select({ id: accounts.id })
-    .from(accounts)
-    .where(eq(accounts.email, officeEmail));
-  res.json(await billedWeek({ ...week, byAccountId: account!.id }));
+  res.json(
+    await billedWeek({ ...week, byAccountId: await accountIdOf(officeEmail) }),
+  );
 });
 
 // how the test payment form pays a Bill: by card, or a bank debit that stays
@@ -283,16 +289,13 @@ control.post("/jobs/:id/complete", async (req, res) => {
 // worked-out price, as the Office Staff member with `officeEmail` does
 control.post("/jobs/:id/propose", async (req, res) => {
   const { officeEmail } = req.body as { officeEmail: string };
-  const [account] = await db
-    .select({ id: accounts.id })
-    .from(accounts)
-    .where(eq(accounts.email, officeEmail));
+  const byAccountId = await accountIdOf(officeEmail);
   const reported = await db
     .select({ id: adjustments.id, status: adjustments.status })
     .from(adjustments)
     .where(eq(adjustments.jobId, req.params.id));
   for (const a of reported.filter((r) => r.status === "reported")) {
-    await proposeAdjustment(req.params.id, a.id, {}, account!.id);
+    await proposeAdjustment(req.params.id, a.id, {}, byAccountId);
   }
   res.json({ status: "ok" });
 });
