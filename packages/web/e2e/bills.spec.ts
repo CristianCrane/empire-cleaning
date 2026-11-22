@@ -365,6 +365,10 @@ test("a weekly-billed clean's receipt names its Bill and where it stands", async
   await signedInAs(page, casey.email);
   await page.goto(`/portal/jobs/${jobId}`);
 
+  // done, how long it was to take goes: the receipt says when it was
+  await expect(page.getByRole("region", { name: "Details" })).not.toContainText(
+    "On site",
+  );
   const receipt = page.getByRole("region", { name: "Your receipt" });
   const bill = receipt.getByRole("link", { name: "Bill EC-000001" });
   await expect(bill.locator("..")).toHaveText("Bill EC-000001Paid");

@@ -465,7 +465,9 @@ Keeps: the Record (ux-portal). Renders through `RecordPage` (#432).
   own Review), a move asked for (Withdraw request, its one action) or
   turned down.
 - Body: Details (`DetailsCard`: a date tile, the time large, the address,
-  icon facts, a row only with something in it, and while it's still free,
+  icon facts, a row only with something in it (price, how long and the
+  deposit only while it's booked, its extras and plan while booked or done),
+  and while it's still free,
   until when it's free to move or cancel); cancelled, no access or the
   receipt (a weekly Bill it went on by its number, linked, with its badge).
 

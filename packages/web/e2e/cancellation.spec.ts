@@ -69,6 +69,11 @@ test(
     await expect(cancelled).toContainText("There's no charge for cancelling.");
     await expect(cancelled).toContainText(/We've refunded \$[\d.]+ to your/);
     await expectNoPageAction(page, "Cancel clean");
+    // what it would cost and how long it would take go with the booking
+    const details = page.getByRole("region", { name: "Details" });
+    await expect(details).not.toContainText("Price");
+    await expect(details).not.toContainText("Deposit");
+    await expect(page.getByText(/reminder/)).toHaveCount(0);
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
       "Your clean is cancelled",
     );
@@ -171,6 +176,10 @@ test(
     );
     // putting how we get in right is the page's next step
     await expectNextStep(client, "Check how we get in");
+    // a clean that didn't happen says no price or how long
+    await expect(
+      client.getByRole("region", { name: "Details" }),
+    ).not.toContainText(/Price|On site/);
   },
 );
 

@@ -62,7 +62,6 @@ const words = catalog({
     taxIncluded: "Price, tax included",
     heldThere: "Its deposit is held there",
     offPrice: "Deposit, comes off the price",
-    reminder: "We'll email a reminder the day before.",
     // until when moving it, and cancelling or skipping it, costs nothing
     freeToMoveOr: (skip: boolean) =>
       skip ? "Free to move or skip" : "Free to move or cancel",
@@ -140,7 +139,6 @@ const words = catalog({
     taxIncluded: "Precio, impuestos incluidos",
     heldThere: "Su depósito está retenido allí",
     offPrice: "Depósito, se descuenta del precio",
-    reminder: "Le enviaremos un recordatorio por correo el día antes.",
     freeToMoveOr: (skip: boolean) =>
       skip
         ? "Reprogramar o saltar sin cargo"
@@ -421,12 +419,77 @@ function FreeUntil({ job }: { job: ClientJobDetail }) {
 
 // The clean as its Client reads it, as their plan's page does: when, large,
 // its date a tile as on Home and Cleans, then its facts; a row only with
-// something in it (UX pass, #96)
+// something in it, and only while it's true: what it costs, how long and
+// its deposit describe a booking, so they go once it's done (the receipt
+// says the money) or didn't happen; what it included stays once done, and
+// its plan too, as a clean that didn't happen has the plan in its actions
+// (UX pass, #96)
 function JobDetails({ job }: { job: ClientJobDetail }) {
   const t = useSaid(words);
   const { payment } = job;
   const deposit = payment.charges.find((c) => c.kind === "deposit");
   const booked = !job.completion && !job.cancellation && !job.noAccess;
+  const happens = booked || !!job.completion;
+  const facts = [
+    booked && (
+      <Fact
+        key="price"
+        icon={ReceiptIcon}
+        label={t.w.price}
+        value={t.formatMoney(payment.totalCents)}
+        line={
+          job.planDiscountPercent
+            ? t.w.withDiscount(job.planDiscountPercent)
+            : t.w.taxIncluded
+        }
+      />
+    ),
+    booked && (
+      <Fact
+        key="long"
+        icon={Clock}
+        label={t.onSite}
+        value={t.about(formatHours(job.hoursOnSite))}
+        line={t.onSiteWith(t.cleaners(job.crewSize))}
+      />
+    ),
+    happens && job.addOns.length > 0 && (
+      <Fact
+        key="extras"
+        icon={CirclePlus}
+        label={t.extras}
+        value={job.addOns.join(", ")}
+      />
+    ),
+    happens && job.servicePlanId && (
+      <Fact
+        key="plan"
+        icon={CalendarSync}
+        label={t.p.cleaningPlan}
+        value={
+          <Link
+            href={linkTo({
+              to: "/portal/plans/$planId",
+              params: { planId: job.servicePlanId },
+            })}
+          >
+            {t.p.seeYourPlan}
+          </Link>
+        }
+        line={t.w.heldThere}
+      />
+    ),
+    booked && !job.servicePlanId && deposit && (
+      <Fact
+        key="deposit"
+        icon={PiggyBank}
+        label={t.deposit}
+        value={t.formatMoney(deposit.amountCents)}
+        line={t.w.offPrice}
+      />
+    ),
+    booked && <FreeUntil key="free" job={job} />,
+  ].filter(Boolean);
   return (
     <DetailsCard
       label={t.w.details}
@@ -435,59 +498,7 @@ function JobDetails({ job }: { job: ClientJobDetail }) {
       title={t.formatDateTime(job.startsAt)}
       line={addressOf(job.property)}
     >
-      <Facts>
-        <Fact
-          icon={ReceiptIcon}
-          label={t.w.price}
-          value={t.formatMoney(payment.totalCents)}
-          line={
-            job.planDiscountPercent
-              ? t.w.withDiscount(job.planDiscountPercent)
-              : t.w.taxIncluded
-          }
-        />
-        <Fact
-          icon={Clock}
-          label={t.onSite}
-          value={t.about(formatHours(job.hoursOnSite))}
-          line={t.onSiteWith(t.cleaners(job.crewSize))}
-        />
-        {job.addOns.length > 0 && (
-          <Fact
-            icon={CirclePlus}
-            label={t.extras}
-            value={job.addOns.join(", ")}
-          />
-        )}
-        {job.servicePlanId ? (
-          <Fact
-            icon={CalendarSync}
-            label={t.p.cleaningPlan}
-            value={
-              <Link
-                href={linkTo({
-                  to: "/portal/plans/$planId",
-                  params: { planId: job.servicePlanId },
-                })}
-              >
-                {t.p.seeYourPlan}
-              </Link>
-            }
-            line={t.w.heldThere}
-          />
-        ) : (
-          deposit && (
-            <Fact
-              icon={PiggyBank}
-              label={t.deposit}
-              value={t.formatMoney(deposit.amountCents)}
-              line={t.w.offPrice}
-            />
-          )
-        )}
-        {booked && <FreeUntil job={job} />}
-      </Facts>
-      {booked && <p className="text-sm text-fg-muted">{t.w.reminder}</p>}
+      {facts.length > 0 && <Facts>{facts}</Facts>}
     </DetailsCard>
   );
 }
