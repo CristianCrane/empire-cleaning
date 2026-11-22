@@ -193,7 +193,8 @@ for a dialog. It renders through `FormPage`
   Back and Next.
 - **What the fields come to** (a worked example, a price) in an aside,
   sticky beside the card in a 22rem column from `xl`, and after the
-  card below that; with no aside, the card is the content's width. A price the form
+  card below that; with no aside, the card is the content's width ("A
+  wide screen keeps a readable column", below). A price the form
   is written to reach (the Draft's, New quote's) leads instead: first
   below `xl`, so a phone reads what it comes to before the parts that
   change it. Until what sets it is known (a business's floor area), it
@@ -304,11 +305,11 @@ The `ui` skill's rules hold here too; these are this product's.
   it's the title alone.
   ("Layout / RecordPage / Actions In The Header", "One Action")
 - **A wide screen keeps a readable column**: the content's, AppLayout's
-  `max-w-5xl` (960 px inside its margins), the one width every screen
-  type reads at. A page with nothing beside it (a Record, a Form page
+  `max-w-5xl` (960 px inside its margins), the width every page in an
+  area reads at (a page outside one keeps `PageFrame`'s). A page with nothing beside it (a Record, a Form page
   without an aside) fills it, its header's buttons on its right edge, and
   a bar at the page's foot lines up with it too (`ActionFooter`); a Form
-  page's aside is the one side column (#493 G4.4: a card stopped 380 px
+  page's aside is the one side column (#493 G4.4: a card stopped 376 px
   short of its button). No second, narrower cap: the user's pick on the
   Office's Job drew one column at this width.
 - **What loads holds its room** (the `ui` skill): choices from the API draw
@@ -370,7 +371,7 @@ The `ui` skill's rules hold here too; these are this product's.
   #493 builds it), and a form's price and its button (the Quote Draft's
   Send, New quote's Draft a quote), full width beside the sidebar on a
   wider screen until #493 settles it with a prototype, its row the
-  content's width. What it sums up
+  content's ("A wide screen keeps a readable column"). What it sums up
   (prices, whether it's saved) on its left, the main action last, on the
   right. The layout test fails a button or link under a fixed bar. ("A
   bar at the foot is an ActionFooter")

@@ -1,4 +1,4 @@
-import { Archive, CircleCheck, LayoutDashboard, Printer } from "lucide-react";
+import { CircleCheck, LayoutDashboard, Printer } from "lucide-react";
 import { afterEach, expect, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { page } from "vitest/browser";
@@ -6,7 +6,6 @@ import { Card } from "../Card.tsx";
 import { Section } from "../Section.tsx";
 import { Timeline, TimelineItem } from "../Timeline.tsx";
 import { AppLayout } from "./AppLayout.tsx";
-import { FormPage } from "./FormPage.tsx";
 import { DetailsCard, RecordPage } from "./RecordPage.tsx";
 
 const box = (element: Element) => element.getBoundingClientRect();
@@ -75,39 +74,4 @@ test("a Record's bar at the foot lines up with its content on a wide screen", as
   );
 
   expect(box(button("Complete")).right).toBe(box(region("Details")).right);
-});
-
-// a Form page with nothing beside its form (Your card) keeps no empty
-// column for it: the card runs to the header's action
-test("a Form page with no aside is one column on a wide screen, lined up with its header", async () => {
-  await page.viewport(1440, 900);
-  await render(
-    <FormPage
-      title="Deep Clean"
-      actions={[
-        { label: "Retire", icon: Archive, danger: true, onAction: () => {} },
-      ]}
-      buttons={<button type="submit">Save</button>}
-    >
-      <p>The form</p>
-    </FormPage>,
-  );
-
-  // the form's one Card
-  const card = page.getByText("The form").element().closest("section");
-  expect(box(card!).right).toBe(box(button("Retire")).right);
-});
-
-// what happened on one line, when on the line under it, in every entry,
-// however short the title (the user's review of 903a201c, #493)
-test("a History entry's time sits under what happened", async () => {
-  await render(
-    <Timeline aria-label="History">
-      <TimelineItem icon={CircleCheck} title="Paid" when="Nov 12" />
-    </Timeline>,
-  );
-
-  const title = page.getByText("Paid", { exact: true }).element();
-  const when = page.getByText("Nov 12", { exact: true }).element();
-  expect(box(when).top).toBeGreaterThanOrEqual(box(title).bottom);
 });

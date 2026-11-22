@@ -224,7 +224,7 @@ Keeps: title outside the Card (#119). Renders through `RecordPage` (#432).
 
 #### Office > Property
 
-Keeps: one page of Sections, its History last (#155, #493). Renders through `RecordPage` (#432).
+Keeps: one page of Sections, its History last (#493). Renders through `RecordPage` (#432).
 
 - Header: Clients › client › address; the address.
 - Actions: Menu (New quote, Correct details).
