@@ -30,14 +30,16 @@ const meta = {
   args: {
     area: "Office",
     nav: officeNav,
-    // the app puts the account's parts here: the sidebar's foot, and on a
-    // phone the ☰ menu's
-    foot: () => (
-      <Button variant="quiet" className="justify-start">
-        <LogOut aria-hidden size={20} />
-        Sign out
-      </Button>
-    ),
+    // the app puts the account's parts here: the sidebar's foot, the rail's
+    // Account, and on a phone the ☰ menu's. The rail itself keeps only the
+    // other language, which the Office has none of
+    foot: ({ place }) =>
+      place !== "rail" && (
+        <Button variant="quiet" className="justify-start">
+          <LogOut aria-hidden size={20} />
+          Sign out
+        </Button>
+      ),
     children: (
       <div className="flex flex-col gap-4">
         <Heading level={1} inBar>
@@ -84,8 +86,55 @@ export const Phone: Story = {
   },
 };
 
-export const Desktop: Story = {
+// from md to lg the sidebar folds to a rail, each icon's name small under
+// it; the account's parts behind Account at its foot: the person and what
+// they can do, no logo (#493)
+export const Rail: Story = {
   globals: { viewport: { value: "tablet" } },
+  play: async ({ canvas, userEvent }) => {
+    const rail = canvas.getByRole("navigation", { name: "Office" });
+    await expect(
+      canvas.getByRole("complementary").getBoundingClientRect().width,
+    ).toBeLessThanOrEqual(80);
+    await expect(within(rail).getByText("Today")).toBeVisible();
+    await expect(
+      within(rail).getByRole("link", { name: "Today" }),
+    ).toHaveAttribute("aria-current", "page");
+    // the account's parts behind Account, not on the rail itself
+    await expect(
+      within(canvas.getByRole("complementary")).queryByRole("button", {
+        name: "Sign out",
+      }),
+    ).toBeNull();
+    await userEvent.click(canvas.getByRole("button", { name: "Account" }));
+    const account = within(document.body).getByRole("dialog", {
+      name: "Account",
+    });
+    // the popover fades in, so wait for it to be seen (docs/testing-log.md,
+    // 2026-11-13)
+    await waitFor(() =>
+      expect(
+        within(account).getByRole("button", { name: "Sign out" }),
+      ).toBeVisible(),
+    );
+    await expect(
+      within(account).queryByRole("img", { name: /Empire Cleaning/ }),
+    ).toBeNull();
+  },
+};
+
+// from lg the full sidebar: the logo, every section named, the account's
+// parts at its foot
+export const Sidebar: Story = {
+  globals: { viewport: { value: "laptop" } },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByRole("button", { name: "Sign out" }),
+    ).toBeVisible();
+    await expect(
+      canvas.getByRole("img", { name: /Empire Cleaning/ }),
+    ).toBeVisible();
+  },
 };
 
 export const Cleaner: Story = {
@@ -145,10 +194,10 @@ export const PhoneMenu: Story = {
   },
 };
 
-// related sections under a heading, in the sidebar and the ☰ menu; the
-// busiest come first, without one
+// related sections under a heading, in the sidebar and the ☰ menu (on the
+// rail, a rule between them); the busiest come first, without one
 export const Groups: Story = {
-  globals: { viewport: { value: "tablet" } },
+  globals: { viewport: { value: "laptop" } },
   args: {
     nav: [
       {

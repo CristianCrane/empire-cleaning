@@ -49,6 +49,23 @@ const problemsAt = (page: Page) =>
         `the page scrolls sideways (${root.scrollWidth}px in ${root.clientWidth}px)`,
       );
     }
+    // a bar fixed at the page's foot (an ActionFooter) starts where the side
+    // navigation shown ends, the rail's or the sidebar's, or at the screen's
+    // edge on a phone: neither over it nor short of it
+    const side = [...document.querySelectorAll("aside")].find(
+      (aside) => aside.getClientRects().length > 0,
+    );
+    const sideEnds = side ? side.getBoundingClientRect().right : 0;
+    for (const bar of document.querySelectorAll('[role="group"]')) {
+      if (getComputedStyle(bar).position !== "fixed") continue;
+      if (bar.getClientRects().length === 0) continue;
+      const starts = bar.getBoundingClientRect().left;
+      if (Math.abs(starts - sideEnds) > 1) {
+        problems.push(
+          `"${bar.getAttribute("aria-label")}" starts at ${starts}px, the side navigation ends at ${sideEnds}px`,
+        );
+      }
+    }
     for (const input of document.querySelectorAll("input")) {
       if (input.type === "hidden" || input.type === "checkbox") continue;
       if (input.getClientRects().length === 0) continue;

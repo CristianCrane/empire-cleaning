@@ -43,6 +43,11 @@ import { billWeek } from "../BillParts.tsx";
 import { addressOf, clientName } from "../format.ts";
 import { QUOTE_A_PLAN } from "./StartDraft.tsx";
 
+// a tile's hint: how many of its Jobs are Unassigned, their crew not yet
+// all Confirmed
+const needCleaners = (n: number) =>
+  `${n} ${n === 1 ? "needs" : "need"} cleaners`;
+
 const { formatDate, formatDateTime, formatDay, formatMoney, formatList } =
   formats.en;
 
@@ -96,7 +101,7 @@ export function Dashboard() {
       icon: CalendarDays,
       label: "On today",
       count: today.jobs.length,
-      hint: unassigned > 0 ? `${unassigned} need cleaners` : undefined,
+      hint: unassigned > 0 ? needCleaners(unassigned) : undefined,
       rows: today.jobs.map((job): ListRow => ({
         id: job.id,
         at: job.startsAt,
@@ -233,7 +238,7 @@ export const tilesShow = (
     0,
   );
   return {
-    jobs: unassigned > 0 ? { hint: `${unassigned} need cleaners` } : {},
+    jobs: unassigned > 0 ? { hint: needCleaners(unassigned) } : {},
     quotes: asked > 0 ? { hint: `${asked} asked for` } : {},
     money:
       owedCents > 0

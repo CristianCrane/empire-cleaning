@@ -330,23 +330,34 @@ The `ui` skill's rules hold here too; these are this product's.
   the ☰ menu, a drawer from the left opened from the top bar with the logo
   at its head, is the full menu, every section as the sidebar lists them,
   the shortcuts too (#305). Sections that aren't shortcuts are `inMenu`:
-  the Office's tab bar keeps Today and the Schedule. Larger screens list
-  every section in the sidebar.
-  ("Layout / AppLayout / Phone Menu")
+  the Office's tab bar keeps Today and the Schedule. From lg (1024) the
+  sidebar lists every section. From md (768) to lg it folds to a rail, so
+  a narrow laptop window keeps a laptop's ways and the page its room,
+  never the phone's frame (#493): each section's icon with its name small
+  under it, always shown, as a touch tablet never hovers and an icon
+  alone doesn't say what it is; the current one highlighted, a rule
+  between groups, and a count (the Cleaner's Offers) in its name, as in
+  the sidebar.
+  ("Layout / AppLayout / Phone Menu", "Rail", "Sidebar")
 - **Related sections share a heading** in the sidebar and the ☰ menu
   (`NavItem.group`), the busiest first with none: the Office's Today and
   Schedule, then Work (Jobs, Quotes), People (Clients, Staff) and Pricing
   (Services, Prices). ("Layout / AppLayout / Groups")
 - **The account's parts are the menu's foot**, in every area: under a
-  divider at the foot of the sidebar, and of the ☰ menu on a phone, one
-  plain item each, never behind a dialog (name and email, the other
+  divider at the foot of the full sidebar, and of the ☰ menu on a phone,
+  one plain item each, never behind a dialog (name and email, the other
   language in the portal and the Cleaner area, Switch to, Show tips again,
   Sign out, the theme; `AppLayout`'s `foot`). So a phone's top bar is the
-  ☰ and the section. ("Layout / AppLayout / Phone Menu Foot")
+  ☰ and the section. The rail is the one exception (#493): it has no room
+  for a line of them, and they're seldom used, so the other language
+  stays on it, one press away, and the rest sit behind one Account at its
+  foot, a popover holding the person (name and email) and the items, with
+  no logo or area heading, as the account isn't where the brand lives.
+  ("Layout / AppLayout / Phone Menu Foot", "Rail")
 - **The language is changed in one press, by the other language named in
   its own words** ("Español" on an English screen, "English" on a Spanish
   one), so someone who can't read the screen's language still finds it:
-  at the foot of the sidebar and of the ☰ menu on a phone.
+  at the foot of the sidebar, on the rail, and of the ☰ menu on a phone.
   It writes every Client and Staff member the person is (ADR-0025).
 - **A page that takes a moment to load says so in the frame**, in every
   area (`AppLayout`'s `loading`): after 200ms a thin bar in the brand
@@ -370,8 +381,8 @@ The `ui` skill's rules hold here too; these are this product's.
   above the tab bar, a Record's actions on a phone (a Cleaner's Job on
   site), which a wider screen keeps in the header instead (the `ui` skill;
   #493 builds it), and a form's price and its button (the Quote Draft's
-  Send, New quote's Draft a quote), full width beside the sidebar on a
-  wider screen until #493 settles it with a prototype, its row the
+  Send, New quote's Draft a quote), full width beside the rail or the
+  sidebar on a wider screen until #493 settles it with a prototype, its row the
   content's ("A wide screen keeps a readable column"). What it sums up
   (prices, whether it's saved) on its left, the main action last, on the
   right. The layout test fails a button or link under a fixed bar. ("A
@@ -624,7 +635,8 @@ stays as it is (#336).
   own mark: not redrawn, cropped, recoloured beyond its own dark version,
   or rearranged into a lockup. Where it doesn't fit, the screen changes
   around it. On a phone the top bar names the section you're in and the
-  logo heads the ☰ menu; the sidebar holds it centred; the landing site
+  logo heads the ☰ menu; the sidebar holds it centred, and the rail has
+  no room for it; the landing site
   has no header bar, just the language, Sign in and the theme in the top
   right corner. The hero leads with what we clean and where, as a
   stranger gives it a few seconds (the `ui` skill): the logo goes up
