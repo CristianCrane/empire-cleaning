@@ -60,7 +60,7 @@ const words = catalog({
       `${amount}, answer by ${day}`,
     checkGetIn: "Check how we get in",
     // only on that day, so its time and "today", where the clean's page
-    // (portal words' teamCame) says the date it keeps it after
+    // (PortalJob's teamCame) says the day, as it keeps it after
     cameToday: (time: string, reason: string) =>
       `The crew came at ${time} today, but couldn't get in: "${reason}".`,
     // a waiting tile's hint, when there are several

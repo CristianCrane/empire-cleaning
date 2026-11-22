@@ -93,6 +93,10 @@ const words = catalog({
     sorry: "We're sorry, we had to cancel this clean.",
     notCharged: "You haven't been charged anything for it.",
     couldntGetIn: "We couldn't get in",
+    // shown after that day too, so its day ("came on", as "came at" takes
+    // a time; Home's cameToday says the time alone, that day)
+    teamCame: (day: string, time: string, reason: string) =>
+      `The crew came on ${day} at ${time}, but couldn't get in: "${reason}".`,
     beforeNext: (carriesOn: string) =>
       `${carriesOn} Before your next clean, please `,
     beforeBooking: "Before booking again, please ",
@@ -175,6 +179,8 @@ const words = catalog({
     sorry: "Lo sentimos, tuvimos que cancelar esta limpieza.",
     notCharged: "No se le cobró nada por ella.",
     couldntGetIn: "No se pudo entrar",
+    teamCame: (day: string, time: string, reason: string) =>
+      `El equipo llegó el ${day} a las ${time}, pero no pudo entrar: "${reason}".`,
     beforeNext: (carriesOn: string) =>
       `${carriesOn} Antes de su próxima limpieza, por favor `,
     beforeBooking: "Antes de reservar de nuevo, por favor ",
@@ -642,7 +648,11 @@ function NoAccess({ job }: { job: ClientJobDetail }) {
   return (
     <PartCard title={t.w.couldntGetIn}>
       <p>
-        {t.p.teamCame(t.formatDateTime(noAccess.recordedAt), noAccess.reason)}
+        {t.w.teamCame(
+          t.dayOf(noAccess.recordedAt),
+          t.formatTime(noAccess.recordedAt),
+          noAccess.reason,
+        )}
       </p>
       {noAccess.feeCents > 0 && (
         <p>
