@@ -121,11 +121,9 @@ function PickStart({
   return (
     <>
       <p className="text-sm text-fg-muted">
-        {limits
-          ? "Pick a start time. Grey days are full."
-          : "Pick a time to start the clean."}{" "}
-        {crew && !limits && "Striped times don't have enough cleaners free. "}
-        New York time.
+        Pick a start time.
+        {limits && " Grey days are full."}
+        {crew && !limits && " Striped times don't have enough cleaners free."}
         {date &&
           repeats &&
           ` Then ${repeats.label.toLowerCase()} on ${weekdayName(date)}s.`}

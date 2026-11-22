@@ -14,7 +14,11 @@ const meta = {
     title: "Page not found",
     icon: SearchX,
     home: "#",
-    children: <p className="text-fg-muted">That page doesn't exist.</p>,
+    children: (
+      <p className="text-fg-muted">
+        The link may be old, or the address mistyped.
+      </p>
+    ),
   },
 } satisfies Meta<typeof MessagePage>;
 

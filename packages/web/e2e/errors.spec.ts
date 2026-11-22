@@ -2,6 +2,7 @@ import {
   createStaff,
   expect,
   requestQuoteAsGuest,
+  setLanguage,
   signedInAs,
   test,
 } from "./harness.ts";
@@ -33,6 +34,8 @@ test("a record that doesn't exist is a page not found in the Office, with a way 
     `/office/clients/${missing}`,
     // a mangled link reads the same
     "/office/jobs/not-an-id",
+    // and so does an address no page has
+    "/office/no-such-page",
   ]) {
     await page.goto(path);
     await expect(
@@ -57,11 +60,14 @@ test("a record that doesn't exist is a page not found in the portal, with a way 
     `/portal/quotes/${missing}`,
     `/portal/plans/${missing}`,
     `/portal/bills/${missing}`,
+    `/portal/properties/${missing}`,
   ]) {
     await page.goto(path);
     await expect(
       page.getByRole("heading", { level: 1, name: "Page not found" }),
     ).toBeVisible();
+    // still in the portal, nav and all
+    await expect(page.getByRole("link", { name: "Cleans" })).toBeVisible();
   }
 
   await page.getByRole("link", { name: "Go to your home page" }).click();
@@ -116,4 +122,38 @@ test("a page that fails to load says something went wrong, without details, and 
   await page.unroute("**/api/clients/me");
   await page.getByRole("link", { name: "Go to your home page" }).click();
   await expect(page).toHaveURL("/portal");
+});
+
+// an address in an area no page has is the area's to answer: after its
+// checks, in its frame and its reader's language (#493 G6.4)
+test(
+  "an address no page has, in an area, is not found in the area's frame and language",
+  { tag: "@desktop" },
+  async ({ page }) => {
+    await requestQuoteAsGuest(casey);
+    await signedInAs(page, casey.email);
+    await setLanguage(page, "es");
+
+    await page.goto("/portal/no-such-page");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "No se encontró la página" }),
+    ).toBeVisible();
+    // the line under it says what the title doesn't
+    await expect(
+      page.getByText(
+        "Puede que el enlace sea antiguo o que la dirección esté mal escrita.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("lang", "es");
+    await expect(page.getByRole("link", { name: "Limpiezas" })).toBeVisible();
+  },
+);
+
+// signed out, the area asks who's there first, as for any page in it
+test("signed out, an address no page has in an area goes to sign-in", async ({
+  page,
+}) => {
+  await page.goto("/portal/no-such-page");
+  await expect(page).toHaveURL(/\/sign-in\?next=%2Fportal%2Fno-such-page/);
 });

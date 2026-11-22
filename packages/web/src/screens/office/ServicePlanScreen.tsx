@@ -270,12 +270,7 @@ function BookOrSkip({
     <>
       <div className="grid gap-4 sm:grid-cols-2">
         <DatePicker label="Day" value={date} onChange={setDate} />
-        <TimeField
-          label="Start time"
-          description="New York time."
-          value={time}
-          onChange={setTime}
-        />
+        <TimeField label="Start time" value={time} onChange={setTime} />
       </div>
       <PickFromSchedule
         date={date?.toString()}
