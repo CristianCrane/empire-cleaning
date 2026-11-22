@@ -22,7 +22,6 @@ import {
   Hourglass,
   Receipt,
   Repeat,
-  UserX,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -38,7 +37,7 @@ import {
 import { linkTo } from "../../links.ts";
 import { useHomeUrl } from "../home-search.ts";
 import { CrewBadge } from "../JobBadges.tsx";
-import { JobIcon, QuoteIcon } from "../icons.ts";
+import { JobIcon, NeedsCleanersIcon, QuoteIcon } from "../icons.ts";
 import { billWeek } from "../BillParts.tsx";
 import { addressOf, clientName } from "../format.ts";
 import { QUOTE_A_PLAN } from "./StartDraft.tsx";
@@ -309,7 +308,7 @@ function useRowFor() {
         return {
           key: `job_unassigned ${job.id}`,
           action: "Find cleaners",
-          icon: UserX,
+          icon: NeedsCleanersIcon,
           tone: "warning",
           client: clientName(job.client),
           description: `${addressOf(job.property)} · ${formatDateTime(job.startsAt)}`,

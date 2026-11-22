@@ -1,12 +1,9 @@
 import { formats } from "@empire-cleaning/models";
 import {
-  Ban,
   CalendarCheck,
   CalendarClock,
   CalendarX,
-  CircleCheck,
   CreditCard,
-  DoorClosed,
   Send,
   UserCheck,
   UserMinus,
@@ -19,6 +16,7 @@ import type {
 } from "@empire-cleaning/models";
 import { Timeline, TimelineItem } from "@empire-cleaning/ui";
 import { wasSkipped, screenWords } from "../format.ts";
+import { jobStatusIcon } from "../icons.ts";
 
 const { assignmentStateLabel, cancelledLabel, jobStatusLabel } = screenWords.en;
 
@@ -119,7 +117,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
     moments.push({
       key: "completed",
       at: job.completion.completedAt,
-      icon: CircleCheck,
+      icon: jobStatusIcon.completed,
       title: jobStatusLabel.completed,
       description: job.completion.completedBy
         ? `By ${job.completion.completedBy.name}`
@@ -130,7 +128,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
     moments.push({
       key: "cancelled",
       at: job.cancellation.cancelledAt,
-      icon: Ban,
+      icon: jobStatusIcon.cancelled,
       title: cancelledLabel(wasSkipped(job)),
       description:
         job.cancellation.by === "empire"
@@ -142,7 +140,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
     moments.push({
       key: "no-access",
       at: job.noAccess.recordedAt,
-      icon: DoorClosed,
+      icon: jobStatusIcon.no_access,
       title: jobStatusLabel.no_access,
       description: job.noAccess.recordedBy
         ? `Recorded by ${job.noAccess.recordedBy.name}`

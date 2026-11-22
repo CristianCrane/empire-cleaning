@@ -26,6 +26,7 @@ import {
 } from "@empire-cleaning/models";
 import { conditions, formWords } from "@empire-cleaning/quote-request";
 import { labels } from "./labels.ts";
+import { jobStatusIcon, NeedsCleanersIcon } from "./icons.ts";
 import type { StatusTone } from "@empire-cleaning/ui";
 
 export const addressOf = (
@@ -161,16 +162,22 @@ export const crewTone = {
 } as const satisfies Record<AssignmentStatus, string>;
 
 // how a Job reads for Office Staff: how it went, or while it's booked,
-// whether its crew is whole (JobBadge, the Schedule's blocks)
+// whether its crew is whole (JobBadge, the Schedule's blocks), and its icon
+// where it isn't the usual case
 export const jobLabelOf = (job: {
   status: JobStatus;
   assignment: AssignmentStatus;
 }) =>
   job.status === "booked"
-    ? { label: crewLabel[job.assignment], tone: crewTone[job.assignment] }
+    ? {
+        label: crewLabel[job.assignment],
+        tone: crewTone[job.assignment],
+        icon: job.assignment === "unassigned" ? NeedsCleanersIcon : undefined,
+      }
     : {
         label: screenWords.en.jobStatusLabel[job.status],
         tone: jobStatusTone[job.status],
+        icon: jobStatusIcon[job.status],
       };
 
 export const assignmentStateTone = {
