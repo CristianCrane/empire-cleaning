@@ -216,10 +216,7 @@ test(
   "a Cleaner's Offers counts what waits on them, in the sidebar and on the rail",
   { tag: "@desktop" },
   async ({ page, isMobile }) => {
-    test.skip(
-      isMobile,
-      "the phone's tab bar is navigation.spec's other tests'",
-    );
+    test.skip(isMobile, "the phone's tab bar: assignments.spec's smoke test");
     const cory = await addCleaner("Cory Cleaner");
     const job = (await bookJob({
       startsAt: "2026-01-08T14:00:00Z",

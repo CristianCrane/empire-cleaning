@@ -120,7 +120,9 @@ export function AppLayout({
         <nav aria-label={area} className="flex flex-col items-center gap-2">
           <RailGroups items={nav} />
         </nav>
-        <div className="mt-auto flex flex-col items-center gap-2 border-t border-border pt-4">
+        {/* the same rule as between the groups, whatever the foot holds */}
+        <div className="mt-auto flex flex-col items-center gap-2">
+          <hr aria-hidden className="mb-2 w-8 border-border" />
           {foot({ close: () => {}, place: "rail" })}
           <RailAccount area={area} foot={foot} isBusy={menuBusy} />
         </div>
