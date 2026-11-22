@@ -41,7 +41,7 @@ import { emailOffer } from "../assignments/assignments.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { billLines, bills } from "../bills/bills.schema.ts";
-import { billNumber } from "../bills/bills.ts";
+import { billNumber } from "../bills/billed-weekly.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { paymentOf } from "../completion/balance.ts";
 import {

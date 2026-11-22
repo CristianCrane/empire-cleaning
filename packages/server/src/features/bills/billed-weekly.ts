@@ -1,4 +1,4 @@
-import { and, count, eq, ne, sum } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { startOfDay } from "@empire-cleaning/models";
 import type { db, Tx } from "../../db/index.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
@@ -15,18 +15,24 @@ export const owesOnBill = (job: Pick<Job, "status" | "feeCents">) =>
   ((job.status === "cancelled" || job.status === "no_access") &&
     (job.feeCents ?? 0) > 0);
 
-// what a Job's lines on Bills not voided come to, and whether it has any
-export const billedOf = async (jobId: string, tx: Tx | typeof db) => {
-  const [row] = await tx
-    .select({
-      cents: sum(billLines.amountCents).mapWith(Number),
-      lines: count(),
-    })
+// EC-000123
+export const billNumber = (number: number) =>
+  `EC-${String(number).padStart(6, "0")}`;
+
+// a Job's lines on Bills not voided, each with its Bill: what's billed it,
+// what for, and where those Bills stand
+export const billLinesOf = (jobId: string, tx: Tx | typeof db) =>
+  tx
+    .select({ line: billLines, bill: bills })
     .from(billLines)
     .innerJoin(bills, eq(bills.id, billLines.billId))
     .where(and(eq(billLines.jobId, jobId), ne(bills.status, "void")));
-  return { cents: row?.cents ?? 0, lines: row?.lines ?? 0 };
-};
+
+// what those lines come to, and whether it has any
+export const billedOf = (lines: Awaited<ReturnType<typeof billLinesOf>>) => ({
+  cents: lines.reduce((sum, { line }) => sum + line.amountCents, 0),
+  lines: lines.length,
+});
 
 // how a Client pays for their cleans: on a weekly Bill, charged or paid on
 // its page (ADR-0016), or null when each is charged when it's done
