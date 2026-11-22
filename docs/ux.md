@@ -213,8 +213,8 @@ for a dialog. It renders through `FormPage`
   and the page is that wide too; a form alone keeps a form's width and
   its button in its card (FormPage's type holds it).
 - **Outside an area** (Welcome), a page of its own, the logo above and
-  who's signed in beside it (`PageFrame`), centred at a form's width
-  with no aside.
+  who's signed in under it on a phone, beside it from `sm` (`PageFrame`),
+  centred at a form's width with no aside.
 
 It also keeps "Forms ask quietly, a few questions at a time". ("Layout /
 FormPage")

@@ -7,8 +7,9 @@ import { InAppLayout } from "./AppLayout.tsx";
 // #168): narrow and centred, as a message or signing in; a form's width, as
 // a Form page in one column (docs/ux.md, Forms: in an area at the content's
 // start, so its title sits where every page's does; outside one centred,
-// the logo and who's signed in (`account`) above it); or `wide`, a Form page
-// with its aside, the content's width
+// the logo above it, who's signed in (`account`) under the logo on a phone
+// and beside it from sm); or `wide`, a Form page with its aside, the
+// content's width
 export function PageFrame({
   width = "narrow",
   account,
@@ -33,7 +34,9 @@ export function PageFrame({
         // a form's width inside its margins, as in an area
         className={`mx-auto flex min-h-dvh flex-col gap-6 p-4 py-10 ${width === "form" ? "box-content max-w-form" : "max-w-6xl"}`}
       >
-        <header className="flex flex-wrap items-center justify-between gap-4">
+        {/* who's signed in goes under the logo on a phone and beside it from
+            sm, one breakpoint, so what's in it can line up by the same one */}
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <Logo className="w-32" />
           {account}
         </header>

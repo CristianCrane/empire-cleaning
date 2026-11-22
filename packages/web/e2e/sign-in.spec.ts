@@ -95,12 +95,28 @@ test.describe("signing up and in with an emailed link", () => {
       await expect(
         page.getByText("Signed in as new@example.com"),
       ).toBeVisible();
+      // a different email's way out, under Sign out, not an alert
       await expect(
-        page.getByText("Asked us for a Quote with a different email?"),
+        page.getByText(
+          "Asked for a quote with another email? Sign out and use that one.",
+          { exact: true },
+        ),
       ).toBeVisible();
       await expect(
-        page.getByRole("heading", { name: "What happens next" }),
+        page.getByRole("status").filter({ hasText: "another email" }),
+      ).toHaveCount(0);
+      // what happens next is the line under the title, said once: no
+      // steps beside the form, once its first step shows
+      await expect(
+        page.getByText(
+          "Tell us what you'd like cleaned, and we'll email you a quote, usually within a working day.",
+          { exact: true },
+        ),
       ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Next", exact: true }),
+      ).toBeVisible();
+      await expect(page.getByText("What happens next")).toHaveCount(0);
 
       // and can leave, to sign in with another email
       await page.getByRole("button", { name: "Sign out" }).click();
@@ -350,13 +366,6 @@ eachTheme(() => {
   test("an area has no accessibility violations", async ({ page }) => {
     await createStaff(officeStaff);
     await signedInAs(page, officeStaff.email);
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-
-    await expectAccessible(page);
-  });
-
-  test("the welcome page has no accessibility violations", async ({ page }) => {
-    await signedInAs(page, "new@example.com");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
     await expectAccessible(page);

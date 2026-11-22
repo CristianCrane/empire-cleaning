@@ -4,7 +4,7 @@ The one Request a Quote form (#3), used by the landing site for Guests and by th
 
 ```tsx
 <QuoteRequestForm
-  asker={{ kind: "guest" }} // or { kind: "account", email } / { kind: "client", properties }
+  asker={{ kind: "guest" }} // or { kind: "account" } / { kind: "client", properties }
   lang="es" // the page's language, or a Client's Preferred Language; "en" for the Office
   apiUrl="https://…" // "" (the default) when served alongside the API
   headingLevel={2} // one below the heading the form sits under (default 3)
