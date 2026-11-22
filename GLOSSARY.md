@@ -22,7 +22,7 @@ _On screen_: type of business
 _Spanish_: tipo de negocio
 
 **Access Instructions**:
-How Staff get into and around a Property, such as gate codes, key location and pets; maintained by the Client. A Job's crew, Offered or Confirmed, see them only on the Job's day (in New York), as with the Client's phone (#230); the Staff member a Site Visit is booked to sees them from the booking on.
+How Staff get into and around a Property, such as gate codes, key location and pets; maintained by the Client. Only a Job's Confirmed Cleaners see them, and only on the Job's day (in New York), as with the Client's phone; an Offered Cleaner, who may still say no, sees neither (#230). The Staff member a Site Visit is booked to sees them from the booking on.
 _Avoid_: Entry notes, access notes, directions
 _On screen_: how we get in
 _Spanish_: cómo entramos
@@ -210,8 +210,8 @@ _Spanish_: none
 **Cleaner Needed**:
 One of a Job's Crew Size that no Assignment puts on its crew, as the Office sees it in "Needs 1 more cleaner". Once the Job is within 7 days of starting, it is open to every Cleaner free for it, except any who said it's not for them, and the first to Confirm takes it. Free here is stricter than for Schedule room: Available Hours that day and no Job or Site Visit of theirs overlapping it (ADR-0019). Until they Confirm, a Cleaner sees only its Service, time, Crew Size and area.
 _Avoid_: Open Place, place, vacancy, shift, open job, broadcast
-_On screen_: open job
-_Spanish_: trabajo disponible
+_On screen_: open job; in a Job's crew, Needed ("1 of 2 confirmed, 1 needed")
+_Spanish_: trabajo disponible; in a Job's crew, Falta ("1 de 2 confirmados, falta 1")
 
 ## Payment
 

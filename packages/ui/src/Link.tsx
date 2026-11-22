@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   Link as AriaLink,
   composeRenderProps,
@@ -25,6 +26,38 @@ export function Link(props: LinkProps) {
     />
   );
 }
+
+// a link drawn as a button to somewhere outside the app: a phone number to
+// call, a map's directions, an inbox. A web page opens in a new tab, as
+// the app stays where it was; a phone number in place, as it opens the
+// phone's dialler. A plain <a>, as the app's router reads every link
+// ButtonLink draws, so it falls back to the browser's :focus-visible
+export function ExternalButtonLink({
+  href,
+  variant,
+  className,
+  children,
+}: {
+  href: string;
+  className?: string;
+  children: ReactNode;
+} & Pick<VariantProps<typeof buttonStyles>, "variant">) {
+  return (
+    <a
+      href={href}
+      {...(opensATab(href) ? { target: "_blank", rel: "noreferrer" } : {})}
+      className={buttonStyles({
+        variant,
+        className: `no-underline ${className ?? ""}`,
+      })}
+    >
+      {children}
+    </a>
+  );
+}
+
+// whether an outside link opens in a new tab: a web page does
+export const opensATab = (href: string) => /^https?:/.test(href);
 
 // a link drawn as a button, for navigation that's a main action on the page
 // (e.g. "Request a Quote"); use Button for actions that don't go anywhere

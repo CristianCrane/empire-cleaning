@@ -16,7 +16,7 @@ import {
   Notice,
   PageFrame,
   TextField,
-  buttonStyles,
+  ExternalButtonLink,
 } from "@empire-cleaning/ui";
 import { authClient, signOut } from "../session.ts";
 
@@ -92,14 +92,9 @@ export function PeopleScreen() {
               Pick someone else
             </Button>
             {gmail && (
-              <a
-                href={gmail}
-                target="_blank"
-                rel="noreferrer"
-                className={buttonStyles({ variant: "primary" })}
-              >
+              <ExternalButtonLink href={gmail}>
                 Open it in Gmail
-              </a>
+              </ExternalButtonLink>
             )}
           </Actions>
         </Card>

@@ -48,6 +48,20 @@ export const uiWords = catalog({
     retired: (n: number) => `Retired (${n})`,
     // the next page, on its way (AppLayout)
     loading: "Loading…",
+    // a Job's crew (CrewSection): where it stands, a zero left unsaid ("2
+    // needed", "1 of 2 confirmed, 1 needed"); a Cleaner Needed, by the
+    // glossary's word, and what a screen reader hears of it; what it hears
+    // of each face
+    crewLine: (confirmed: number, of: number, needed: number) =>
+      needed === 0
+        ? `${confirmed} of ${of} confirmed`
+        : confirmed === 0
+          ? `${needed} needed`
+          : `${confirmed} of ${of} confirmed, ${needed} needed`,
+    needed: "Needed",
+    cleanerNeeded: "a cleaner still needed",
+    confirmed: "confirmed",
+    notConfirmedYet: "not confirmed yet",
   },
   es: {
     close: "Cerrar",
@@ -76,6 +90,19 @@ export const uiWords = catalog({
     clearSearch: "Borrar la búsqueda",
     retired: (n: number) => `Retirados (${n})`,
     loading: "Cargando…",
+    crewLine: (confirmed: number, of: number, needed: number) => {
+      const falta = `${needed === 1 ? "falta" : "faltan"} ${needed}`;
+      const done = `${confirmed} de ${of} ${of === 1 ? "confirmado" : "confirmados"}`;
+      return needed === 0
+        ? done
+        : confirmed === 0
+          ? falta.charAt(0).toUpperCase() + falta.slice(1)
+          : `${done}, ${falta}`;
+    },
+    needed: "Falta",
+    cleanerNeeded: "aún falta un limpiador",
+    confirmed: "confirmado",
+    notConfirmedYet: "aún sin confirmar",
   },
 });
 

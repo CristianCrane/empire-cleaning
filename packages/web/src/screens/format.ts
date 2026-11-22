@@ -20,8 +20,11 @@ import {
   clockTime,
   dayOf,
   formats,
+  HOUR_MS,
   type Language,
   messages,
+  quarterHours,
+  quarterHoursText,
   timeOf,
 } from "@empire-cleaning/models";
 import { conditions, formWords } from "@empire-cleaning/quote-request";
@@ -63,6 +66,22 @@ export const shortClientName = (c: Pick<ClientName, "name" | "businessName">) =>
 
 // 3.75 -> "3.75 h", 4 -> "4 h"
 export const formatHours = (hours: number) => `${hours} h`;
+
+// how long a Job runs, as a person says it: to the quarter hour, and
+// "About" only when that rounded it: 6 -> "6 h", 3.3 -> "About 3¼ h"
+export const howLong = (
+  t: { about: (hours: string) => string },
+  hours: number,
+) => {
+  const rounded = quarterHours(hours);
+  const text = `${quarterHoursText(rounded)} h`;
+  return rounded === hours ? text : t.about(text);
+};
+
+// when a Job is over: its start and its hours, to the quarter hour as
+// howLong says them
+export const endOf = (startsAt: string, hours: number) =>
+  new Date(Date.parse(startsAt) + quarterHours(hours) * HOUR_MS).toISOString();
 
 export const roleLabel = {
   cleaner: "Cleaner",

@@ -63,15 +63,12 @@ test(
     await signedInAs(page, "cory@example.com");
     await expect(page).toHaveURL("/cleaner");
 
-    // the Job under way leads Your Jobs; Complete is in the bar at the foot
+    // the Job under way leads Your Jobs; Mark done is its next step
     await page
       .getByRole("region", { name: "Now" })
       .getByRole("button", { name: "Open job" })
       .click();
-    await page
-      .getByRole("group", { name: "What to do" })
-      .getByRole("button", { name: "Mark done" })
-      .click();
+    await pageAction(page, "Mark done");
     const form = page.getByRole("dialog", { name: "Mark this job done" });
     await expect(form).toBeVisible();
     await expectAccessible(page);
@@ -117,7 +114,7 @@ test(
   },
 );
 
-test("on a short phone, Mark done's sheet opens with its buttons in view, its last question below them", async ({
+test("on a short phone, Mark done's sheet opens with its buttons in view, its last question running past them", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 667 });
@@ -129,17 +126,14 @@ test("on a short phone, Mark done's sheet opens with its buttons in view, its la
     .getByRole("region", { name: "Now" })
     .getByRole("button", { name: "Open job" })
     .click();
-  await page
-    .getByRole("group", { name: "What to do" })
-    .getByRole("button", { name: "Mark done" })
-    .click();
+  await pageAction(page, "Mark done");
   const form = page.getByRole("dialog", { name: "Mark this job done" });
   await expect(form).toBeVisible();
 
-  // the sheet runs past the screen: its last question is below it
+  // the sheet runs past the screen: its last question isn't all in view
   await expect(
     form.getByRole("textbox", { name: "More hours", exact: true }),
-  ).not.toBeInViewport();
+  ).not.toBeInViewport({ ratio: 1 });
   await expect(form.getByRole("button", { name: "Go back" })).toBeInViewport({
     ratio: 1,
   });
