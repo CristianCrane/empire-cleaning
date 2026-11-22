@@ -160,6 +160,14 @@ export const completeJob = (
     body: JSON.stringify({ staffId, ...input }),
   });
 
+// every price change reported on the Job proposed to its Client, at its
+// worked-out price, by the Office Staff member with `officeEmail`
+export const proposeReported = (jobId: string, officeEmail: string) =>
+  control(`/jobs/${jobId}/propose`, {
+    method: "POST",
+    body: JSON.stringify({ officeEmail }),
+  });
+
 // No Access recorded by a Cleaner Confirmed on the Job
 export const recordNoAccess = (
   jobId: string,

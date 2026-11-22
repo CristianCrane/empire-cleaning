@@ -44,8 +44,10 @@ import {
   startedServicePlan,
 } from "../fixtures.ts";
 import {
+  adjustments,
   chaseProposedAdjustments,
   completeJob,
+  proposeAdjustment,
 } from "../../src/features/completion/index.ts";
 import { recordNoAccess } from "../../src/features/cancellation/index.ts";
 import {
@@ -274,6 +276,24 @@ control.post("/jobs/:id/complete", async (req, res) => {
     typeof completeJob
   >[2];
   await completeJob(staffId, req.params.id, input);
+  res.json({ status: "ok" });
+});
+
+// every price change reported on a Job proposed to the Client at its
+// worked-out price, as the Office Staff member with `officeEmail` does
+control.post("/jobs/:id/propose", async (req, res) => {
+  const { officeEmail } = req.body as { officeEmail: string };
+  const [account] = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.email, officeEmail));
+  const reported = await db
+    .select({ id: adjustments.id, status: adjustments.status })
+    .from(adjustments)
+    .where(eq(adjustments.jobId, req.params.id));
+  for (const a of reported.filter((r) => r.status === "reported")) {
+    await proposeAdjustment(req.params.id, a.id, {}, account!.id);
+  }
   res.json({ status: "ok" });
 });
 

@@ -41,6 +41,24 @@ const words = catalog({
   en: {
     reviewPrices: (n: number) =>
       n === 1 ? "Review a price change" : `Review ${n} price changes`,
+    // a price change waiting on them, as the card
+    toAnswer: (n: number) =>
+      n === 1 ? "A price change to answer" : `${n} price changes to answer`,
+    more: (amount: string) => `${amount} more`,
+    reviewThe: (n: number) =>
+      n === 1 ? "Review the price change" : "Review the price changes",
+    // and why, above it: what happened on which clean
+    neededMore: (more: string, day: string) =>
+      `The crew needed ${more} on your ${day} clean.`,
+    alsoDid: (addOn: string, day: string) =>
+      `The crew also did ${addOn} on your ${day} clean.`,
+    needAnswer: (n: number) =>
+      `${n} price changes on your cleans need your answer.`,
+    answerFirstBy: (day: string) => `Please answer the first by ${day}.`,
+    // the tile, while what's owed is the card
+    answerByHint: (amount: string, day: string) =>
+      `${amount}, answer by ${day}`,
+    checkGetIn: "Check how we get in",
     // a waiting tile's hint, when there are several
     andMore: (first: string, more: number) => `${first} · ${more} more`,
     seeQuotes: (n: number) => `See your ${n} quotes`,
@@ -58,9 +76,11 @@ const words = catalog({
       `${visitor} comes to see ${address} for about ${length}`,
     visitFree: (phone: string) =>
       `Free: we look before we quote. To change the time, call ${phone}.`,
-    planPaused: "Your cleaning plan is paused",
-    paymentDue: "A payment is due",
-    notThroughYet: "A payment on it hasn't gone through yet.",
+    planPaused: "Your cleaning plan is paused.",
+    weTryAgain:
+      "A payment on it hasn't gone through yet. We'll try again by ourselves, so there's nothing you need to do.",
+    untilPaid:
+      "Nothing's booked until it's paid. Then your plan carries on from its next date.",
     carriesOn: "Once it's paid, your plan carries on from its next date.",
     forWhen: (when: string) => `For ${when}`,
     at: " at ",
@@ -100,6 +120,23 @@ const words = catalog({
       n === 1
         ? "Revisar un cambio de precio"
         : `Revisar ${n} cambios de precio`,
+    toAnswer: (n: number) =>
+      n === 1
+        ? "Un cambio de precio por responder"
+        : `${n} cambios de precio por responder`,
+    more: (amount: string) => `${amount} más`,
+    reviewThe: (n: number) =>
+      n === 1 ? "Revisar el cambio de precio" : "Revisar los cambios de precio",
+    neededMore: (more: string, day: string) =>
+      `El equipo necesitó ${more} en su limpieza del ${day}.`,
+    alsoDid: (addOn: string, day: string) =>
+      `El equipo también hizo ${addOn} en su limpieza del ${day}.`,
+    needAnswer: (n: number) =>
+      `${n} cambios de precio en sus limpiezas necesitan su respuesta.`,
+    answerFirstBy: (day: string) => `Responda al primero antes del ${day}.`,
+    answerByHint: (amount: string, day: string) =>
+      `${amount}, responda antes del ${day}`,
+    checkGetIn: "Revisar cómo entramos",
     andMore: (first: string, more: number) => `${first} · ${more} más`,
     seeQuotes: (n: number) => `Ver sus ${n} cotizaciones`,
     quoteReadyLabel: "Su cotización está lista",
@@ -118,9 +155,11 @@ const words = catalog({
       `${visitor} va a ver ${address} durante cerca de ${length}`,
     visitFree: (phone: string) =>
       `Gratis: vemos el lugar antes de cotizar. Para cambiar la hora, llame al ${phone}.`,
-    planPaused: "Su plan de limpieza está en pausa",
-    paymentDue: "Hay un pago pendiente",
-    notThroughYet: "Un pago del plan aún no ha pasado.",
+    planPaused: "Su plan de limpieza está en pausa.",
+    weTryAgain:
+      "Un pago del plan aún no ha pasado. Lo volveremos a intentar por nuestra cuenta, así que no tiene que hacer nada.",
+    untilPaid:
+      "No hay nada reservado hasta que se pague. Después, su plan continúa desde su próxima fecha.",
     carriesOn: "Cuando esté pagado, su plan continúa desde su próxima fecha.",
     forWhen: (when: string) => `Para el ${when}`,
     at: " en ",
@@ -160,10 +199,14 @@ const words = catalog({
 type Said = ReturnType<typeof saidWith<(typeof words)["en"]>>;
 
 // The Client's Home answers one question: what's next (UX pass, #96;
-// the Home layout, #435). Its hero is what's owed when that asks anything
-// of them, else the soonest thing booked, or, with nothing booked, where
-// they stand with us. What they're waiting on us for is news under it;
-// what's waiting on them, and what they can do from there, tiles.
+// the Home layout, #435). What waits on them leads (#493): what's owed,
+// when that asks anything of them, then a price change to answer, then the
+// morning a crew couldn't get in, then a Quote ready; else the soonest thing
+// booked, or, with nothing booked, where they stand with us. Out of the
+// usual, an alert above the card says why and the card's Button does it,
+// Request a quote standing aside meanwhile. What they're waiting on us for
+// is news under it; what else waits on them, and what they can do from
+// there, tiles.
 
 export type HomeData = {
   client: ClientView;
@@ -176,11 +219,23 @@ export type HomeData = {
   paymentMethod: PaymentMethodView | null;
 };
 
+// why the card asks what it does, when that's out of the usual: its first
+// sentence bold, as a page's alerts read
+type Why = {
+  tone: "info" | "warning" | "danger";
+  lead: string;
+  more?: string;
+};
+
 export type WhatsNext = {
   // what they're waiting on us for
   news: string[];
-  // what's owed first, when it asks anything of them; else what's next
+  // what waits on them first; else what's next
   hero: Hero;
+  why?: Why;
+  // the card asks something of them out of the usual: the usual step
+  // (Request a quote) stands aside
+  asks: boolean;
   // what's waiting on them, a tile a kind, never cut; then what they can
   // do from there, as many as fit four in all
   tiles: HomeTile[];
@@ -238,15 +293,117 @@ export function whatsNext(
   const money = moneyNow(data, lang);
   const paused = data.plans.find((p) => p.status === "on_hold");
   const sent = data.quotes.filter((q) => q.status === "sent");
-  // a Sent Quote leads only when nothing is booked
-  const leadingQuote = next || paused ? undefined : sent[0];
+  const reviews = data.pastJobs.filter((j) => j.waiting.length > 0);
+  const changes = reviews.flatMap((job) =>
+    job.waiting.map((change) => ({ job, change })),
+  );
+  // the earliest answer wanted first
+  changes.sort((a, b) =>
+    (a.change.lapsesAt ?? "").localeCompare(b.change.lapsesAt ?? ""),
+  );
+  const changedCents = changes.reduce((sum, c) => sum + c.change.totalCents, 0);
+  const firstBy = changes[0]?.change.lapsesAt;
+  // the morning a crew couldn't get in, New York's day: they're emailed it,
+  // and the clean's page keeps it after
+  const lockedOut = data.pastJobs.find(
+    (j) => j.noAccess && sameDay(new Date(j.noAccess.recordedAt), now),
+  );
+
+  // what waits on them, most pressing first: what's owed, when it asks
+  // anything of them (a paused plan's line under it); a price change to
+  // answer; how we get in, the morning we couldn't
+  const lead = ((): Lead | undefined => {
+    if (money.owed?.asks) {
+      const owed = owedAnswer(money.owed, lang);
+      const pausedLine = paused
+        ? // booked cleans go ahead; none is booked till it is paid
+          [next ? t.BOOKED_GO_AHEAD : w.carriesOn]
+        : [];
+      // one that's late says why above the card; one simply due, its line
+      return money.owed.late
+        ? {
+            hero: { ...owed, lines: pausedLine },
+            why: { tone: "danger", lead: `${money.owed.text}.` },
+          }
+        : { hero: { ...owed, lines: [...owed.lines, ...pausedLine] } };
+    }
+    if (changes.length > 0) {
+      const [{ job, change }] = changes as [(typeof changes)[number]];
+      const day = dayOf(job.startsAt);
+      return {
+        hero: {
+          label: w.toAnswer(changes.length),
+          icon: ClipboardCheck,
+          tone: "warning",
+          headline: w.more(t.formatMoney(changedCents)),
+          lines: [],
+          action: {
+            label: w.reviewThe(changes.length),
+            href: reviews.length === 1 ? jobLink(job.id) : pastCleansLink,
+          },
+        },
+        // the card says the price changes
+        aside: "review",
+        why: {
+          tone: "warning",
+          ...(changes.length === 1
+            ? {
+                lead:
+                  change.kind === "extra_time"
+                    ? w.neededMore(t.adjustmentLabel(change), day)
+                    : w.alsoDid(change.addOnName!, day),
+                more: firstBy ? t.p.answerBy(dayOf(firstBy)) : undefined,
+              }
+            : {
+                lead: w.needAnswer(changes.length),
+                more: firstBy ? w.answerFirstBy(dayOf(firstBy)) : undefined,
+              }),
+        },
+      };
+    }
+    const home = data.client.properties.find(
+      (p) => p.id === lockedOut?.property.id,
+    );
+    if (lockedOut && home) {
+      const noAccess = lockedOut.noAccess!;
+      return {
+        hero: {
+          label: t.howWeGetIn,
+          icon: KeyRound,
+          tone: "warning",
+          headline: home.accessInstructions || t.notAdded,
+          lines: [],
+          action: { label: w.checkGetIn, href: homeLink(home.id) },
+        },
+        why: {
+          tone: "warning",
+          lead: t.p.teamCame(
+            formatDateTime(noAccess.recordedAt),
+            noAccess.reason,
+          ),
+          more:
+            noAccess.feeCents > 0
+              ? t.noAccessFee({
+                  onPlan: lockedOut.servicePlanId !== null,
+                  fee: t.formatMoney(noAccess.feeCents),
+                })
+              : undefined,
+        },
+        // the card says how we get in
+        aside: "getIn",
+      };
+    }
+    return undefined;
+  })();
+  // a Sent Quote leads when nothing else waits on them, a clean booked or
+  // not: it waits on their answer
+  const leadingQuote = lead ? undefined : sent[0];
 
   // what's waiting on them besides the card: a tile a kind, so never more
   // than two and the shortcuts keep two places. One leads to it; several
   // to where they all are: a home's page lists its quotes (Your details its
   // homes), Cleans' Past tab the cleans with prices to review
   const quotes = sent.filter((q) => q !== leadingQuote);
-  const reviews = data.pastJobs.filter((j) => j.waiting.length > 0);
   const hintFor = (first: string, all: unknown[]) =>
     all.length > 1 ? w.andMore(first, all.length - 1) : first;
   const waiting: HomeTile[] = [
@@ -268,13 +425,14 @@ export function whatsNext(
     ...reviews.slice(0, 1).map((job) => ({
       id: "review",
       icon: ClipboardCheck,
-      label: w.reviewPrices(
-        reviews.reduce((sum, j) => sum + j.waiting.length, 0),
-      ),
-      hint: hintFor(t.p.yourClean(dayOf(job.startsAt)), reviews),
+      label: w.reviewPrices(changes.length),
+      // what they add, and by when the first wants an answer
+      hint: firstBy
+        ? w.answerByHint(t.formatMoney(changedCents), dayOf(firstBy))
+        : t.formatMoney(changedCents),
       href: reviews.length === 1 ? jobLink(job.id) : pastCleansLink,
     })),
-  ];
+  ].filter((tile) => tile.id !== lead?.aside);
 
   const news = data.jobs.flatMap((job) =>
     job.movingTo
@@ -282,34 +440,47 @@ export function whatsNext(
       : [],
   );
 
-  // money first: what's owed, when it asks anything of them, is the card,
-  // a paused plan's line under it
-  const hero: Hero = money.owed?.asks
-    ? {
-        ...owedAnswer(money.owed, lang),
-        lines: [
-          money.owed.text,
-          // booked cleans go ahead; none is booked till it is paid
-          ...(paused ? [next ? t.BOOKED_GO_AHEAD : w.carriesOn] : []),
-        ],
-      }
-    : heroOf(data, t, { next, paused, leadingQuote, now });
+  const { hero, why, aside } =
+    lead ??
+    // paused with nothing booked: the plan, and why there's nothing
+    (paused && !next && !leadingQuote
+      ? {
+          hero: {
+            label: t.p.yourPlan,
+            icon: PauseCircle,
+            tone: "info",
+            headline: t.planName(paused),
+            lines: [w.untilPaid],
+            action: { label: t.p.seeYourPlan, href: planLink(paused.id) },
+          },
+          why: { tone: "info", lead: w.planPaused, more: w.weTryAgain },
+        }
+      : { hero: heroOf(data, t, { next, leadingQuote, now }) });
   const shortcuts = shortcutsOf(data, t, {
     next,
     paused,
     now,
     card: yourCardTile(money, lang),
-    // Your card, unless it's the card's own Button (Update your card)
+    // Your card, unless it's the card's own Button (Update your card); a
+    // tile the card says
   }).filter(
-    (s) => !(s.id === "card" && "href" in s && s.href === hero.action?.href),
+    (s) =>
+      s.id !== aside &&
+      !(s.id === "card" && "href" in s && s.href === hero.action?.href),
   );
 
   return {
     news,
     hero,
+    why,
+    asks: lead !== undefined,
     tiles: [...waiting, ...shortcuts.slice(0, Math.max(0, 4 - waiting.length))],
   };
 }
+
+// the card, why it asks what it does when that's out of the usual, and a
+// tile it makes a repeat
+type Lead = { hero: Hero; why?: Why; aside?: string };
 
 type Context = {
   next: Booked | undefined;
@@ -318,9 +489,31 @@ type Context = {
   now: Date;
 };
 
-function heroOf(data: HomeData, t: Said, ctx: Context): Hero {
-  const { next, paused, leadingQuote, now } = ctx;
+function heroOf(data: HomeData, t: Said, ctx: Omit<Context, "paused">): Hero {
+  const { next, leadingQuote, now } = ctx;
   const { w, dayOf, formatDateTime } = t;
+
+  if (leadingQuote) {
+    return {
+      label: w.quoteReadyLabel,
+      icon: QuoteIcon,
+      tone: "info",
+      headline: t.quoteHeadline(leadingQuote),
+      lines: [
+        [
+          leadingQuote.proposedStartsAt &&
+            w.forWhen(formatDateTime(leadingQuote.proposedStartsAt)),
+          addressOf(leadingQuote.property),
+        ]
+          .filter(Boolean)
+          .join(w.at),
+        ...(leadingQuote.expiresAt
+          ? [t.p.openUntil(dayOf(leadingQuote.expiresAt))]
+          : []),
+      ],
+      action: seeQuote(t, leadingQuote.id),
+    };
+  }
 
   if (next?.kind === "job") {
     const { job } = next;
@@ -364,41 +557,6 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Hero {
         ),
         w.visitFree(business.phone.display),
       ],
-    };
-  }
-
-  // paused on a payment that asks nothing of them yet (one that does is
-  // the owed card)
-  if (paused) {
-    return {
-      label: w.planPaused,
-      icon: PauseCircle,
-      tone: "warning",
-      headline: w.paymentDue,
-      lines: [w.notThroughYet, w.carriesOn],
-      action: { label: t.p.seeYourPlan, href: planLink(paused.id) },
-    };
-  }
-
-  if (leadingQuote) {
-    return {
-      label: w.quoteReadyLabel,
-      icon: QuoteIcon,
-      tone: "info",
-      headline: t.quoteHeadline(leadingQuote),
-      lines: [
-        [
-          leadingQuote.proposedStartsAt &&
-            w.forWhen(formatDateTime(leadingQuote.proposedStartsAt)),
-          addressOf(leadingQuote.property),
-        ]
-          .filter(Boolean)
-          .join(w.at),
-        ...(leadingQuote.expiresAt
-          ? [t.p.openUntil(dayOf(leadingQuote.expiresAt))]
-          : []),
-      ],
-      action: seeQuote(t, leadingQuote.id),
     };
   }
 
@@ -504,6 +662,8 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Hero {
   };
 }
 
+const homeLink = (propertyId: string) =>
+  linkTo({ to: "/portal/properties/$propertyId", params: { propertyId } });
 const planLink = (planId: string) =>
   linkTo({ to: "/portal/plans/$planId", params: { planId } });
 
@@ -552,10 +712,7 @@ function shortcutsOf(
           id: "getIn",
           label: t.howWeGetIn,
           hint: home.accessInstructions || t.notAdded,
-          href: linkTo({
-            to: "/portal/properties/$propertyId",
-            params: { propertyId: home.id },
-          }),
+          href: homeLink(home.id),
         },
       ]
     : [];

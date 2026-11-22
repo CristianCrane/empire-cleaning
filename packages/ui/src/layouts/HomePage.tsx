@@ -8,14 +8,16 @@ import { Heading } from "../Heading.tsx";
 import { useUiWords } from "../language.ts";
 import { List } from "../List.tsx";
 import { ShortcutTile } from "../ShortcutTile.tsx";
+import { Alerts, type Alert } from "./Alerts.tsx";
 import { listRowItem, type ListRow } from "./ListPage.tsx";
 import type { PageActions } from "./PageActions.tsx";
 import { PageHeader } from "./PageHeader.tsx";
 
 // The Home type's layout (docs/ux.md, Screen types, Home; #435): where an
-// area starts. The person greeted, one card answering what's next or
-// what's owed with the page's one primary, then two to four tiles; no row
-// shows until a tile is pressed
+// area starts. The person greeted, why the card asks what it does when
+// that's out of the usual (an alert, #493), one card answering what's next
+// or what's owed with the page's one primary, then two to four tiles; no
+// row shows until a tile is pressed
 
 // on a wider screen, a column a tile, up to four, so fewer fill the row
 const wideColumns = [
@@ -107,6 +109,7 @@ export function HomePage({
   greet,
   title,
   actions,
+  alerts = [],
   answer,
   notices,
   tilesLabel,
@@ -120,6 +123,9 @@ export function HomePage({
   // or the page's own name, which a phone's top bar shows (Payments)
   title?: string;
   actions?: PageActions;
+  // why the card asks what it does, above it, when that's out of the usual
+  // (a price change to answer): the facts before the decision (#493)
+  alerts?: (Alert | false | null | undefined)[];
   // an AnswerCard
   answer: ReactNode;
   // news under the card, never an action (a bank payment on its way)
@@ -140,6 +146,7 @@ export function HomePage({
         inBar={!greet}
         actions={actions}
       />
+      <Alerts alerts={alerts} />
       {answer}
       {notices}
       <HomeTiles label={tilesLabel} tiles={tiles} open={open} onOpen={onOpen} />

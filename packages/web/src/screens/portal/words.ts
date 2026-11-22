@@ -43,6 +43,11 @@ export const portalWords = catalog({
     // a clean's badges (cleanBadge), on the Cleans list and its page
     moveAsked: "Move asked",
     needsOk: "Needs your OK",
+    // by when a price change proposed to them wants their answer
+    answerBy: (day: string) => `Please answer by ${day}.`,
+    // the morning a crew couldn't get in, on the clean's page and Home
+    teamCame: (when: string, reason: string) =>
+      `Our team came at ${when}, but couldn't get in: "${reason}".`,
   },
   es: {
     home: "Inicio",
@@ -77,5 +82,8 @@ export const portalWords = catalog({
     decline: "Rechazar",
     moveAsked: "Reprogramación pedida",
     needsOk: "Necesita su aprobación",
+    answerBy: (day: string) => `Responda antes del ${day}.`,
+    teamCame: (when: string, reason: string) =>
+      `Nuestro equipo llegó el ${when}, pero no pudo entrar: "${reason}".`,
   },
 });

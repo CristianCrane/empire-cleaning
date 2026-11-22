@@ -140,16 +140,22 @@ Cleaner's Your jobs render through `HomePage`
 - **The greeting**: "Hi, Jen", by the person's first name, on an area's
   first page; Payments keeps its name, hidden on a phone where the bar
   says it. Its one secondary action on the title row (Request a quote, Your
-  card).
+  card), which stands aside while the card asks something out of the
+  usual of them (#493).
 - **One answer card** (`AnswerCard`): what's next or what's owed, read left
   to right behind its tile (a `DateTile` for when, an `IconTile` for
   what), the kind of answer muted above, the answer large, a line or two,
   and the page's one primary Button. What waits on the reader leads,
   money owed first, as it's what they came to the page to do (the `ui`
-  skill): while a price change waits, the card's primary is
-  Review the price change and an alert says why, its tile stepping aside
-  meanwhile (each fact once; where the alert sits is settled on #493's
-  prototype). With nothing waiting anywhere, offers to answer included,
+  skill): on a Client's, money owed that asks something, then a price
+  change to answer, then the morning a crew couldn't get in, then a quote
+  ready. When that's out of the usual, an alert in its sentiment's colour
+  sits between the greeting and the card and says why (what happened, on
+  which clean, by when), and the card says what to do, its amount and its
+  primary, so each fact shows once: the facts before the decision, read
+  top to bottom (#493's D2, `prototype-home-alert`). What the card holds
+  steps out of the tiles meanwhile. A paused plan with nothing to do is
+  the plan's card, its alert calm (info). With nothing waiting anywhere, offers to answer included,
   it's a green all-clear card, as a screen says only what's true (the
   `ui` skill). The Office's is its first
   to-do, the server's order.
@@ -166,8 +172,7 @@ Cleaner's Your jobs render through `HomePage`
   payment). A tile with none is greyed out. Which one is open is in the
   URL (`?open=`), so Back from a row comes back to it. What's waiting on a
   Client (a quote, a price change to OK) is a tile rather than cut for a
-  shortcut, so it stays in reach, unless the card holds it (a price
-  change, while it waits; #493 builds it). Lists of past things live on
+  shortcut, so it stays in reach, unless the card holds it. Lists of past things live on
   their own pages.
 
 Today also keeps "Lead a to-do row with what to do". ("Layout / HomePage";
