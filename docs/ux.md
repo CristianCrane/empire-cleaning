@@ -217,8 +217,9 @@ for a dialog. It renders through `FormPage`
   the total (below `xl`, where the prices beside the form don't stay in
   view) and the button; on a phone the page's `ActionFooter`, its total
   and whether it's saved on the left, the button on the right, Delete
-  draft alone on the title row. The price is said once at each width: in
-  the sticky header only once the aside has scrolled away. What's said
+  draft alone on the title row. The sticky header's total slides in with
+  it, once the title row's button has scrolled away, and never from `xl`,
+  where the prices beside the form stick too. What's said
   before the button (a refusal, a warning) comes after the card. Such a
   form has an aside, its price, and the page is the content's width; a
   form alone keeps a form's width and its button in its card (FormPage's
@@ -322,8 +323,8 @@ The `ui` skill's rules hold here too; these are this product's.
   the title, the badge and the same actions (the split button, or the ⋯ or
   lone Button when nothing is next), lined up with the page's column (a
   form's width on a Form page with no aside), with room
-  beside the button for what the step rests on (a Form page's price and
-  whether it's saved, below `xl`; #493 D1); a List's New stays on its row. A Record's next step is
+  beside the button for what the step rests on (a Form page's price,
+  below `xl`, and whether it's saved; #493 D1); a List's New stays on its row. A Record's next step is
   there on a wider screen only, and at
   the foot on a phone. Printed, it's the title alone.
   ("Layout / RecordPage / Next Step In The Header", "Nothing Next", "One Action";
