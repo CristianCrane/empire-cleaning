@@ -353,8 +353,9 @@ function useNow(job: ClientJobDetail): {
 
   const steps: (PageAction | false)[] = [updateCard, review, getIn, move];
   const next = steps.find((a) => a !== false);
+  // a price change that isn't the next step keeps its Review in its alert
   const actions = [...steps, after, cancel].filter(
-    (a): a is PageAction => a !== false && a !== next,
+    (a): a is PageAction => a !== false && a !== next && a !== review,
   );
   return {
     next,
@@ -365,8 +366,10 @@ function useNow(job: ClientJobDetail): {
       ...proposed.map((a): Alert => ({
         key: a.id,
         tone: "warning",
-        // the first is the page's next step
-        action: a !== first && <Review job={job} adjustment={a} />,
+        // the first is the page's next step, unless something leads it
+        action: (a !== first || next !== review) && (
+          <Review job={job} adjustment={a} />
+        ),
         children: (
           <p>
             {t.w.didMore} {t.adjustmentLabel(a)}, {t.formatMoney(a.totalCents)}.{" "}

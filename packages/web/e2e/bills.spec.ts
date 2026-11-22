@@ -373,6 +373,6 @@ test("a weekly-billed clean's receipt names its Bill and where it stands", async
   const bill = receipt.getByRole("link", { name: "Bill EC-000001" });
   await expect(bill.locator("..")).toHaveText("Bill EC-000001Paid");
   await expect(receipt.getByText("Paid", { exact: true })).toHaveCount(1);
-  await bill.click();
-  await expect(page).toHaveURL(`/portal/bills/${billId}`);
+  // ending on the receipt, for its picture (pr:shots)
+  await expect(bill).toHaveAttribute("href", `/portal/bills/${billId}`);
 });

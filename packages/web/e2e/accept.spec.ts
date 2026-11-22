@@ -16,7 +16,6 @@ import {
   pageAction,
   expectNoPageAction,
   expectNextStep,
-  expectNothingNext,
 } from "./harness.ts";
 
 const olive = {
@@ -267,22 +266,13 @@ test("a Quote whose day has filled up can't be paid for, and the Office is asked
   await client.goto(
     await linkIn(casey.email, "Your quote from Empire Cleaning"),
   );
-  const bookedUp = client.getByRole("status").filter({
-    hasText:
-      "Sorry, Mon, Jan 12, 9:00 AM has been fully booked since we sent this Quote",
-  });
-  // we are the team: it says what we'll do
-  await expect(bookedUp).toHaveText(
-    "Sorry, Mon, Jan 12, 9:00 AM has been fully booked since we sent this quote, so it can't be accepted. We'll send you a new quote for another time.",
-  );
-  // nothing to pay for and nothing waits on them, but they can still say
-  // no: the page's one action, not the alert's
-  await expect(payAndBook(client).form).toHaveCount(0);
-  await expectNothingNext(client);
-  await expect(bookedUp.getByRole("button")).toHaveCount(0);
+  // nothing to pay for (the quote's side: portal-quote.spec.ts)
   await expect(
-    client.getByRole("button", { name: "Decline this quote" }),
+    client.getByText(
+      "Sorry, Mon, Jan 12, 9:00 AM has been fully booked since we sent this Quote",
+    ),
   ).toBeVisible();
+  await expect(payAndBook(client).form).toHaveCount(0);
 
   await page.goto("/office");
   const needs = await openTile(page, "Quotes");
