@@ -17,6 +17,7 @@ import {
   Radio,
   RadioGroup,
   TextField,
+  type DialogState,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { wasSkipped, screenWords } from "../format.ts";
@@ -47,12 +48,7 @@ export function CancelJob({
   job,
   isOpen,
   onOpenChange,
-}: {
-  job: OfficeJob;
-  // whether it's open, and told when it closes
-  isOpen: boolean;
-  onOpenChange: (isOpen: boolean) => void;
-}) {
+}: { job: OfficeJob } & DialogState) {
   const terms = job.cancelTerms!;
   const onPlan = job.servicePlanId !== null;
   const router = useRouter();
