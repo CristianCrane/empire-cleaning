@@ -2,14 +2,6 @@ import { createContext, useContext, type ReactNode } from "react";
 import { Logo } from "../Logo.tsx";
 import { InAppLayout } from "./AppLayout.tsx";
 
-// A page's frame. In an area it sits in AppLayout's frame, nav and all;
-// anywhere else it's a page of its own, the logo above it (UX pass, #96;
-// #168): narrow and centred, as a message or signing in; a form's width, as
-// a Form page in one column (docs/ux.md, Forms: in an area at the content's
-// start, so its title sits where every page's does; outside one centred,
-// the logo above it, who's signed in (`account`) under the logo on a phone
-// and beside it from sm); or `wide`, a Form page with its aside, the
-// content's width
 // in an area, the frame's column inside the content's: the header that
 // sticks (PageHeader) keeps it too, so its actions stay over the title
 // row's when a page is narrower than the content
@@ -20,6 +12,14 @@ const frameColumn = {
 };
 export const FrameColumn = createContext("");
 
+// A page's frame. In an area it sits in AppLayout's frame, nav and all;
+// anywhere else it's a page of its own, the logo above it (UX pass, #96;
+// #168): narrow and centred, as a message or signing in; a form's width, as
+// a Form page in one column (docs/ux.md, Forms: in an area at the content's
+// start, so its title sits where every page's does; outside one centred,
+// the logo above it, who's signed in (`account`) under the logo on a phone
+// and beside it from sm); or `wide`, a Form page with its aside, the
+// content's width
 export function PageFrame({
   width = "narrow",
   account,
