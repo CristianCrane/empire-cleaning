@@ -1,11 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import {
-  NotebookPen,
-  Sparkles,
-  SquarePen,
-  type LucideIcon,
-} from "lucide-react";
+import { NotebookPen, SquarePen, type LucideIcon } from "lucide-react";
 import type {
   HomeView,
   OfficePropertyView,
@@ -43,7 +38,7 @@ import { linkTo, type AppHref } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { addressOf, formatMinutes, screenWords } from "../format.ts";
 import { AccessFact, ConditionFact, FloorAreaFact } from "../Fact.tsx";
-import { homeIcon, QuoteIcon, SiteVisitIcon } from "../icons.ts";
+import { homeIcon, JobIcon, QuoteIcon, SiteVisitIcon } from "../icons.ts";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
 import {
   BookSiteVisit,
@@ -384,7 +379,7 @@ const historyOf = (home: OfficePropertyView): HistoryEvent[] =>
     ...home.jobs.map((job) => ({
       id: `job ${job.id}`,
       on: job.startsAt,
-      icon: Sparkles,
+      icon: JobIcon,
       kind: "Job",
       what: job.serviceName,
       status: <JobStatusBadge status={job.status} />,
