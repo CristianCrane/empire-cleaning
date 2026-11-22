@@ -2,6 +2,8 @@ import { useState, type ComponentProps } from "react";
 import { useLoaderData } from "@tanstack/react-router";
 import {
   CalendarClock,
+  CircleX,
+  ClipboardPenLine,
   CreditCard,
   FileText,
   MapPin,
@@ -35,6 +37,7 @@ import {
   DetailsCard,
   Facts,
   type Alert,
+  type DialogState,
   ButtonLink,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
@@ -280,7 +283,7 @@ function QuotePage({
   openUntil?: string | null;
 } & Pick<
   ComponentProps<typeof RecordPage>,
-  "alerts" | "details" | "children"
+  "next" | "actions" | "alerts" | "details" | "children"
 >) {
   const t = useSaid(words);
   const subtitle = [
@@ -316,15 +319,20 @@ function AskedQuote({ quote }: { quote: AskedQuoteView }) {
     <QuotePage
       quote={quote}
       title={t.p.yourQuote}
+      // asking again is the one way on from a no
+      next={
+        quote.status === "turned_down"
+          ? {
+              label: t.REQUEST_A_QUOTE,
+              icon: ClipboardPenLine,
+              href: requestQuoteHref,
+            }
+          : undefined
+      }
       alerts={[
         quote.status === "turned_down"
           ? {
               key: "turned down",
-              action: (
-                <ButtonLink variant="text" href={requestQuoteHref}>
-                  {t.REQUEST_A_QUOTE}
-                </ButtonLink>
-              ),
               children: `${t.turnedDown(quote.turnDownReason!)} ${t.ASK_AGAIN}`,
             }
           : siteVisit
@@ -391,12 +399,26 @@ function OfferedQuote({
     quote.options.find((o) => o.serviceKey === serviceKey) ?? quote.options[0]!;
 
   const open = quote.status === "sent";
+  // its day filled up after it was sent: nothing to pay for, and nothing
+  // waits on them, as we send a new quote; saying no is what's left
+  const bookedUp = open && quote.bookable.length === 0;
   return (
     <QuotePage
       quote={quote}
       title={t.w.yourKind(t.quoteKindName(quote.kind))}
       updatedAt={quote.updatedAt}
       openUntil={open ? quote.expiresAt : null}
+      actions={
+        bookedUp
+          ? [
+              {
+                label: t.w.decline,
+                icon: CircleX,
+                dialog: (state) => <DeclineDialog quote={quote} {...state} />,
+              },
+            ]
+          : undefined
+      }
       alerts={[
         standing(t, quote, chosen),
         quote.changesPlan &&
@@ -406,16 +428,13 @@ function OfferedQuote({
               <PlanChangeText quote={quote} change={quote.changesPlan} />
             ),
           },
-        // its day filled up after it was sent: nothing to pay for
-        open &&
-          quote.bookable.length === 0 && {
-            key: "booked up",
-            action: <Decline quote={quote} variant="text" />,
-            children: t.w.bookedUp(
-              Boolean(quote.plan && quote.plan.days.length > 1),
-              t.formatDateTime(quote.proposedStartsAt),
-            ),
-          },
+        bookedUp && {
+          key: "booked up",
+          children: t.w.bookedUp(
+            Boolean(quote.plan && quote.plan.days.length > 1),
+            t.formatDateTime(quote.proposedStartsAt),
+          ),
+        },
       ]}
       details={
         <QuoteDetails quote={quote} chosen={chosen} onChoose={setServiceKey} />
@@ -809,7 +828,7 @@ function Accept({
         {newCard && <ConsentNote action="paying" />}
         {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <Actions>
-          <Decline quote={quote} variant="quiet" />
+          <Decline quote={quote} />
           <Button
             isPending={action.isPending}
             isDisabled={!payment.isReady}
@@ -893,7 +912,7 @@ function AcceptChange({ quote }: { quote: QuoteView }) {
         </p>
         {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <Actions>
-          <Decline quote={quote} variant="quiet" />
+          <Decline quote={quote} />
           <Button isPending={action.isPending} onPress={() => void accept()}>
             {t.w.acceptNew}
           </Button>
@@ -903,16 +922,23 @@ function AcceptChange({ quote }: { quote: QuoteView }) {
   );
 }
 
-// beside accepting, quietly, or a Notice's text action: they're asked once
-// more before it's done. Not red, as they can ask for a quote again (the
-// `ui` skill)
-function Decline({
+// beside accepting, quietly, or the page's one action once it's booked up:
+// they're asked once more before it's done. Not red, as they can ask for a
+// quote again (the `ui` skill)
+function Decline({ quote }: { quote: QuoteView }) {
+  const t = useSaid(words);
+  return (
+    <DialogTrigger>
+      <Button variant="quiet">{t.w.decline}</Button>
+      <DeclineDialog quote={quote} />
+    </DialogTrigger>
+  );
+}
+
+function DeclineDialog({
   quote,
-  variant,
-}: {
-  quote: QuoteView;
-  variant: "quiet" | "text";
-}) {
+  ...state
+}: { quote: QuoteView } & Partial<DialogState>) {
   const t = useSaid(words);
   const action = useAction(t.p.didntWork);
 
@@ -925,27 +951,24 @@ function Decline({
   };
 
   return (
-    <DialogTrigger>
-      <Button variant={variant}>{t.w.decline}</Button>
-      <Dialog title={t.w.declineQ} role="alertdialog">
-        {({ close }) => (
-          <>
-            <p>{t.w.thanks}</p>
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <Button variant="quiet" onPress={close}>
-                {t.w.keep}
-              </Button>
-              <Button
-                isPending={action.isPending}
-                onPress={() => void decline(close)}
-              >
-                {t.p.decline}
-              </Button>
-            </Actions>
-          </>
-        )}
-      </Dialog>
-    </DialogTrigger>
+    <Dialog title={t.w.declineQ} role="alertdialog" {...state}>
+      {({ close }) => (
+        <>
+          <p>{t.w.thanks}</p>
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              {t.w.keep}
+            </Button>
+            <Button
+              isPending={action.isPending}
+              onPress={() => void decline(close)}
+            >
+              {t.p.decline}
+            </Button>
+          </Actions>
+        </>
+      )}
+    </Dialog>
   );
 }

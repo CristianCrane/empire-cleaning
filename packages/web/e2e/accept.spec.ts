@@ -16,6 +16,7 @@ import {
   pageAction,
   expectNoPageAction,
   expectNextStep,
+  expectNothingNext,
 } from "./harness.ts";
 
 const olive = {
@@ -266,13 +267,16 @@ test("a Quote whose day has filled up can't be paid for, and the Office is asked
   await client.goto(
     await linkIn(casey.email, "Your quote from Empire Cleaning"),
   );
-  await expect(
-    client.getByText(
+  const bookedUp = client.getByRole("status").filter({
+    hasText:
       "Sorry, Mon, Jan 12, 9:00 AM has been fully booked since we sent this Quote",
-    ),
-  ).toBeVisible();
-  // nothing to pay for, but they can still say no
+  });
+  await expect(bookedUp).toBeVisible();
+  // nothing to pay for and nothing waits on them, but they can still say
+  // no: the page's one action, not the alert's
   await expect(payAndBook(client).form).toHaveCount(0);
+  await expectNothingNext(client);
+  await expect(bookedUp.getByRole("button")).toHaveCount(0);
   await expect(
     client.getByRole("button", { name: "Decline this quote" }),
   ).toBeVisible();

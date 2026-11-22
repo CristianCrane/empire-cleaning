@@ -208,7 +208,7 @@ const words = catalog({
     clientQuoteStatus: {
       requested: "Asked for",
       draft: "Asked for",
-      sent: "To answer",
+      sent: "Ready",
       accepted: "Accepted",
       declined: "Declined",
       expired: "Expired",
@@ -253,7 +253,7 @@ const words = catalog({
     clientQuoteStatus: {
       requested: "Solicitada",
       draft: "Solicitada",
-      sent: "Por responder",
+      sent: "Lista",
       accepted: "Aceptada",
       declined: "Rechazada",
       expired: "Vencida",

@@ -473,10 +473,12 @@ Keeps: the Record (ux-portal). Renders through `RecordPage` (#432).
 
 Keeps: read like a Quote, paying under it (#165). Renders through `RecordPage` (#432).
 
-- Header: Home › Your quote; the title and its status; "updated · open
-  until", while it applies.
-- Alerts: how it ended (accepted, declined, expired), what it does to the
-  plan, booked up (decline).
+- Header: Home › Your quote; the title and its status (Ready while it's
+  theirs to answer); "updated · open until", while it applies.
+- Actions: turned down, Request a quote the primary; booked up, Decline
+  this quote its one action (quiet); else none.
+- Alerts: each only why: how it ended (accepted, declined, expired, turned
+  down), what it does to the plan, booked up.
 - Body: Quote details (`DetailsCard`: what it comes to, icon facts); Accept
   (Decline beside it, quiet; its confirm not red). While it's being
   prepared: what they asked for.

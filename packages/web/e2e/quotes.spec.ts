@@ -389,6 +389,8 @@ test("Office Staff Turn down a Quote asked for, and the Client is told why", asy
     ),
   ).toBeVisible();
   await expect(client.getByText("Turned down")).toBeVisible();
+  // asking again is their way on
+  await expectNextStep(client, "Request a quote");
   // closed, so off the list of open Quotes
   await page.goto("/office/quotes");
   await expect(page.getByText("No quotes yet")).toBeVisible();
