@@ -71,6 +71,11 @@ const { formatClock, formatDay, formatTime } = formats.en;
 const MIN_BLOCK_PX = 22;
 // shorter than this, a Job's block has room for only that one line
 const COMPACT_PX = 44;
+// a block's line of text (text-xs, leading-tight), and how many fit whole
+// inside its padding (py-1)
+const LINE_PX = 15;
+const wholeLines = (height: number) =>
+  Math.max(1, Math.floor((height - 8) / LINE_PX));
 const PICK_HOURS = PICK_MINUTES / 60;
 // in the week view, a lane narrower than this can't show a Job's Client, so
 // the Jobs that don't fit are listed behind "+N more" instead
@@ -845,6 +850,19 @@ function ScheduleBlock({
   children: ReactNode;
 }) {
   const inside = `flex h-full flex-col ${narrow ? "px-1" : "px-1.5"} text-xs leading-tight font-normal text-fg no-underline ${compact ? "justify-center" : "py-1"}`;
+  // only the lines that fit whole, so none shows cut in half: each keeps its
+  // height, and those past the last whole line aren't drawn. A screen
+  // reader's words sit outside this, so they're all read out still
+  const lines = compact ? (
+    children
+  ) : (
+    <span
+      className="flex flex-col overflow-hidden [&>*]:shrink-0"
+      style={{ maxHeight: wholeLines(Number(style.height)) * LINE_PX }}
+    >
+      {children}
+    </span>
+  );
   return (
     <div
       draggable={draggable}
@@ -855,10 +873,10 @@ function ScheduleBlock({
     >
       {interactive ? (
         <Link href={href} className={inside}>
-          {children}
+          {lines}
         </Link>
       ) : (
-        <div className={inside}>{children}</div>
+        <div className={inside}>{lines}</div>
       )}
     </div>
   );

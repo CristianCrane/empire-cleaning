@@ -732,6 +732,40 @@ test(
     await expect(blocks.filter({ hasText: "11:30 AM" })).toHaveAccessibleName(
       /^11:30 AM Robin \d+ ?, Couldn't get in ?, Cory Cleaner$/,
     );
+    // a line that doesn't fit isn't drawn cut in half: each line of words
+    // keeps its height, and ends above the edge that clips it or starts
+    // past it, not drawn
+    const cut = await blocks.evaluateAll((links) =>
+      links.flatMap((link) =>
+        [...link.querySelectorAll("span")]
+          .filter((span) => !span.closest(".sr-only"))
+          .filter((span) =>
+            [...span.childNodes].some(
+              (node) => node.nodeType === 3 && node.textContent!.trim(),
+            ),
+          )
+          .filter((span) => {
+            // the nearest edge clipping it: a box around it, up to the block
+            let edge = Infinity;
+            for (
+              let box = span.parentElement;
+              box && box !== link.parentElement!.parentElement;
+              box = box.parentElement
+            ) {
+              if (getComputedStyle(box).overflow === "hidden") {
+                edge = Math.min(edge, box.getBoundingClientRect().bottom);
+              }
+            }
+            const line = span.getBoundingClientRect();
+            const squeezed = span.scrollHeight > span.clientHeight + 1;
+            return (
+              squeezed || (line.top < edge - 0.5 && line.bottom > edge + 0.5)
+            );
+          })
+          .map((span) => span.textContent),
+      ),
+    );
+    expect(cut).toEqual([]);
   },
 );
 
