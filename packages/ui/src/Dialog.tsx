@@ -2,7 +2,6 @@ import {
   Dialog as AriaDialog,
   Heading,
   Modal,
-  ModalOverlay,
   type DialogProps as AriaDialogProps,
   type ModalOverlayProps,
 } from "react-aria-components";
@@ -10,6 +9,7 @@ import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import { useUiWords } from "./language.ts";
 import { Button } from "./Button.tsx";
+import { Overlay } from "./Overlay.tsx";
 
 export { DialogTrigger } from "react-aria-components";
 
@@ -57,11 +57,11 @@ export function Dialog({
 
   const words = useUiWords();
   return (
-    <ModalOverlay
+    <Overlay
       isDismissable={isDismissable ?? !isAlert}
       isOpen={isOpen}
       onOpenChange={onOpenChange}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-backdrop entering:animate-in entering:fade-in exiting:animate-out exiting:fade-out sm:items-center sm:p-4"
+      className="flex items-end justify-center sm:items-center sm:p-4"
     >
       <Modal
         // on a phone, room for the pinned Actions under a field brought into
@@ -100,6 +100,6 @@ export function Dialog({
           )}
         </AriaDialog>
       </Modal>
-    </ModalOverlay>
+    </Overlay>
   );
 }
