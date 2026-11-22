@@ -461,7 +461,8 @@ Keeps: the Record (ux-portal). Renders through `RecordPage` (#432).
   costs; the plan or Request a quote after a No Access). Nothing next while
   a move is asked (Cancel or Skip its one action, outlined in red) or once
   cancelled (a Button to the plan or to request a quote).
-- Alerts: each only why: Unpaid, a price change (a second one keeping its
+- Alerts: each only why: Unpaid (one we try again ourselves info, its
+  badge "Not paid yet", as it asks nothing), a price change (a second one keeping its
   own Review), a move asked for (Withdraw request, its one action) or
   turned down.
 - Body: Details (`DetailsCard`: a date tile, the time large, the address,

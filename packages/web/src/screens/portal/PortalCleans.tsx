@@ -91,7 +91,7 @@ const pastRow =
     badges: [
       cleanBadge(t, {
         status: job.status,
-        unpaid: job.unpaid !== null,
+        unpaid: job.unpaid,
         priceChange: job.waiting.length > 0,
         skipped: job.skipped,
         moveAsked: false,

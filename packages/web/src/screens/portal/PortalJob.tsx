@@ -235,7 +235,7 @@ export function PortalJob() {
         t,
         {
           status: job.status,
-          unpaid: !!job.payment.unpaid,
+          unpaid: job.payment.unpaid?.kind ?? null,
           priceChange: !!completion?.adjustments.some(
             (a) => a.status === "proposed",
           ),
@@ -743,7 +743,8 @@ function NoAccess({ job }: { job: ClientJobDetail }) {
 
 // A charge that failed: what it was, and how it's put right, which the
 // page's Update your card does (saving a card tries it again). Red, as
-// it's already late. (UX pass, #96)
+// it's already late; one we try again ourselves asks nothing and waits on
+// us, so it's info, and needs no "Payment needed". (UX pass, #96)
 const unpaid = (
   t: Said & { w: (typeof words)["en"] },
   payment: JobPayment,
@@ -751,10 +752,14 @@ const unpaid = (
   const { kind, why } = payment.unpaid!;
   return {
     key: "unpaid",
-    tone: "danger",
+    tone: kind === "waiting" ? "info" : "danger",
     children: (
       <p>
-        <strong>{t.p.paymentNeeded}</strong>{" "}
+        {kind !== "waiting" && (
+          <>
+            <strong>{t.p.paymentNeeded}</strong>{" "}
+          </>
+        )}
         {t.notTaken(
           t.formatMoney(payment.owedCents),
           kind === "no_card" ? null : (payment.paymentMethod ?? t.p.card),

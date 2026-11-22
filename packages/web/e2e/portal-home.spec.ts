@@ -202,6 +202,17 @@ test("a paused plan, nothing booked and nothing to do, says so calmly above the 
   await expect(
     page.getByRole("link", { name: "Request a quote", exact: true }),
   ).toBeVisible();
+
+  // and the clean says the same: waiting on us, not failed
+  await page.goto(`/portal/jobs/${firstJob.id}`);
+  await expect(page.getByText("Not paid yet")).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(
+    page.getByRole("status").filter({ hasText: "We couldn't take" }),
+  ).toContainText(
+    "We'll try again by ourselves, so there's nothing you need to do.",
+  );
+  await expect(page.getByText("Payment needed.")).toHaveCount(0);
 });
 
 test("the morning a crew couldn't get in, Home says what happened and leads with how we get in", async ({
