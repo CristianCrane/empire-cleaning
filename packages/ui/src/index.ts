@@ -24,7 +24,7 @@ export { DateTile } from "./DateTile.tsx";
 export { Chip, ChipGroup } from "./ChipGroup.tsx";
 export { ChoiceTile, ChoiceTiles, ChoiceTilesLoading } from "./ChoiceTiles.tsx";
 export { DatePicker, TimeField } from "./DateField.tsx";
-export { Dialog, DialogTrigger } from "./Dialog.tsx";
+export { Dialog, DialogTrigger, type DialogState } from "./Dialog.tsx";
 export { Drawer } from "./Drawer.tsx";
 export { Fact, Facts } from "./Facts.tsx";
 export { FieldRow } from "./Field.tsx";
@@ -46,13 +46,12 @@ export {
   type ListSearch,
   type ListTab,
 } from "./layouts/ListPage.tsx";
+export { PageHeader } from "./layouts/PageHeader.tsx";
 export {
   ActionButton,
-  PageHeader,
-  type DialogState,
   type PageAction,
   type PageActions,
-} from "./layouts/PageHeader.tsx";
+} from "./layouts/PageActions.tsx";
 export { type Alert } from "./layouts/Alerts.tsx";
 export { FormPage, FormPart } from "./layouts/FormPage.tsx";
 export { PageFrame } from "./layouts/PageFrame.tsx";
@@ -68,7 +67,7 @@ export {
   SettingsPage,
   type SettingsPart,
 } from "./layouts/SettingsPage.tsx";
-export { MenuButton, MenuItem, MenuSeparator } from "./Menu.tsx";
+export { Menu, MenuItem, MenuSeparator } from "./Menu.tsx";
 export { useLanguage, useUiWords } from "./language.ts";
 export { LanguageName, LanguagePicker } from "./LanguagePicker.tsx";
 export { LanguageProvider } from "./LanguageProvider.tsx";

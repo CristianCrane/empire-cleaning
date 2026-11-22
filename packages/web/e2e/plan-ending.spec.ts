@@ -4,12 +4,14 @@ import {
   emailsTo,
   expect,
   expectAccessible,
+  expectCurrentSection,
   failCharges,
   setClock,
   signedInAs,
   signUp,
   startedServicePlan,
   test,
+  expectNoPageAction,
   pageAction,
   openTile,
   saveACard,
@@ -93,6 +95,21 @@ test(
     await expect(cancelled).not.toContainText("carries on");
   },
 );
+
+// a Client's plan and home sit under Your details, as their crumbs say
+test("a Client's plan and home light Your details in the nav", async ({
+  page,
+}) => {
+  const { planId } = await planStarted();
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/plans/${planId}`);
+  await expectCurrentSection(page, "Your details");
+  await page
+    .getByRole("link", { name: "41-12 Austin St", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/portal\/properties\//);
+  await expectCurrentSection(page, "Your details");
+});
 
 test("a plan's clean with a move asked is badged so, as the Cleans list badges it", async ({
   page,
@@ -229,9 +246,8 @@ test(
     await expect(
       page.getByText("Ended", { exact: true }).first(),
     ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Actions", exact: true }),
-    ).toHaveCount(0);
+    await expectNoPageAction(page, "Change terms");
+    await expectNoPageAction(page, "End plan");
     await expectAccessible(page);
   },
 );

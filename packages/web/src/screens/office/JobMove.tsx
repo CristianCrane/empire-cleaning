@@ -22,6 +22,7 @@ import {
   Fact,
   Facts,
   FieldRow,
+  type DialogState,
 } from "@empire-cleaning/ui";
 import { getJson, postJson } from "../../api.ts";
 import { useLoaded } from "../load.ts";
@@ -145,12 +146,7 @@ export function MoveJob({
   job,
   isOpen,
   onOpenChange,
-}: {
-  job: ScheduledJob;
-  // whether it's open, and told when it closes
-  isOpen: boolean;
-  onOpenChange: (isOpen: boolean) => void;
-}) {
+}: { job: ScheduledJob } & DialogState) {
   return (
     <Dialog
       title="Move this job"

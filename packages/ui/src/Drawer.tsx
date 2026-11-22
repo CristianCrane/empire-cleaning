@@ -1,13 +1,13 @@
 import {
   Dialog as AriaDialog,
   Modal,
-  ModalOverlay,
   type ModalOverlayProps,
 } from "react-aria-components";
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import { useUiWords } from "./language.ts";
 import { Button } from "./Button.tsx";
+import { Overlay } from "./Overlay.tsx";
 
 export type DrawerProps = {
   // what a screen reader announces, as the drawer has no visible title
@@ -32,12 +32,11 @@ export function Drawer({
 }: DrawerProps) {
   const words = useUiWords();
   return (
-    <ModalOverlay
+    <Overlay
       isDismissable={!isBusy}
       isKeyboardDismissDisabled={isBusy}
       isOpen={isOpen}
       onOpenChange={onOpenChange}
-      className="fixed inset-0 z-50 bg-backdrop entering:animate-in entering:fade-in exiting:animate-out exiting:fade-out"
     >
       <Modal className="fixed inset-y-0 left-0 w-72 max-w-[85vw] overflow-auto bg-surface text-fg shadow-overlay entering:animate-in entering:slide-in-from-left exiting:animate-out exiting:slide-out-to-left">
         <AriaDialog
@@ -61,6 +60,6 @@ export function Drawer({
           )}
         </AriaDialog>
       </Modal>
-    </ModalOverlay>
+    </Overlay>
   );
 }

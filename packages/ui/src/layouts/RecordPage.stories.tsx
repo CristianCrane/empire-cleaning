@@ -17,7 +17,7 @@ import {
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import { Button } from "../Button.tsx";
 import { DateTile } from "../DateTile.tsx";
-import { Dialog } from "../Dialog.tsx";
+import { Dialog, type DialogState } from "../Dialog.tsx";
 import { Fact, Facts } from "../Facts.tsx";
 import { Fold } from "../Fold.tsx";
 import { IconTile } from "../IconTile.tsx";
@@ -77,39 +77,48 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-// what can be done to it in one Actions menu at the end of the title row,
-// the destructive last in red; one opens its dialog
-export const ActionsInTheHeader: Story = {
+const money = (
+  <Section title="Money">
+    <Card>
+      <Facts>
+        <Fact icon={Banknote} label="Total" value="$370.17" />
+      </Facts>
+      <Fold label="How it's worked out">
+        <p>7 h at $45.00, and tax.</p>
+      </Fold>
+    </Card>
+  </Section>
+);
+
+const undo = {
+  label: "Undo completion",
+  icon: RotateCcw,
+  danger: true,
+  dialog: (state: DialogState) => (
+    <Dialog title="Undo completion?" role="alertdialog" {...state}>
+      <p>It goes back to booked.</p>
+    </Dialog>
+  ),
+};
+
+// its next step, the primary, at the end of the title row; the rest behind
+// the arrow, named "More actions", the destructive last in red; one opens
+// its dialog
+export const NextStepInTheHeader: Story = {
+  globals: { viewport: { value: "laptop" } },
   args: {
+    next: { label: "Send receipt", icon: Send, onAction: () => {} },
     actions: [
-      {
-        label: "Undo completion",
-        icon: RotateCcw,
-        danger: true,
-        dialog: (state) => (
-          <Dialog title="Undo completion?" role="alertdialog" {...state}>
-            <p>It goes back to booked.</p>
-          </Dialog>
-        ),
-      },
-      { label: "Send receipt again", icon: Send, onAction: () => {} },
+      undo,
       { label: "Correct how it went", icon: FilePen, onAction: () => {} },
     ],
-    children: (
-      <Section title="Money">
-        <Card>
-          <Facts>
-            <Fact icon={Banknote} label="Total" value="$370.17" />
-          </Facts>
-          <Fold label="How it's worked out">
-            <p>7 h at $45.00, and tax.</p>
-          </Fold>
-        </Card>
-      </Section>
-    ),
+    children: money,
   },
   play: async ({ canvas }) => {
-    await userEvent.click(canvas.getByRole("button", { name: "Actions" }));
+    await expect(
+      canvas.getByRole("button", { name: "Send receipt" }),
+    ).toBeVisible();
+    await userEvent.click(canvas.getByRole("button", { name: "More actions" }));
     const menu = within(document.body).getByRole("menu");
     const items = within(menu).getAllByRole("menuitem");
     // the destructive one last, whatever order it's given in
@@ -123,7 +132,45 @@ export const ActionsInTheHeader: Story = {
   },
 };
 
-// one action: a Button in the menu's place
+// on a phone, the next step pinned at the foot, read after the facts; the
+// rest in a sheet rising from it
+export const NextStepAtAPhonesFoot: Story = {
+  globals: { viewport: { value: "phone" } },
+  args: NextStepInTheHeader.args,
+  play: async ({ canvas }) => {
+    const foot = canvas.getByRole("group", { name: "What to do" });
+    await expect(
+      within(foot).getByRole("button", { name: "Send receipt" }),
+    ).toBeVisible();
+    await userEvent.click(
+      within(foot).getByRole("button", { name: "More actions" }),
+    );
+    const sheet = await within(document.body).findByRole("dialog", {
+      name: "More actions",
+    });
+    const items = within(sheet).getAllByRole("menuitem");
+    await expect(items.at(-1)).toHaveTextContent("Undo completion");
+  },
+};
+
+// nothing next: what can be done waits behind a quiet ⋯, so nothing stands
+// in the primary's place
+export const NothingNext: Story = {
+  args: {
+    actions: [
+      undo,
+      { label: "Send receipt again", icon: Send, onAction: () => {} },
+    ],
+    children: money,
+  },
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole("button", { name: "More actions" }));
+    const menu = within(document.body).getByRole("menu");
+    await expect(within(menu).getAllByRole("menuitem")).toHaveLength(2);
+  },
+};
+
+// one action, and nothing next: a Button, as a menu of one would hide it
 export const OneAction: Story = {
   args: {
     trail: [{ label: "Bills", href: "#" }, { label: "EC-000123" }],
@@ -143,12 +190,14 @@ export const OneAction: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("button", { name: "Print" })).toBeVisible();
-    await expect(canvas.queryByRole("button", { name: "Actions" })).toBeNull();
+    await expect(
+      canvas.queryByRole("button", { name: "More actions" }),
+    ).toBeNull();
   },
 };
 
-// an action done straight away that's still running: the menu shows it
-// and waits, so the press is seen to be heard
+// an action done straight away that's still running: the ⋯ that holds it
+// shows it and waits, so the press is seen to be heard
 export const WhilePending: Story = {
   args: {
     actions: [
@@ -168,7 +217,7 @@ export const WhilePending: Story = {
   },
   play: async ({ canvas }) => {
     await expect(
-      canvas.getByRole("button", { name: /Actions/ }),
+      canvas.getByRole("button", { name: "More actions" }),
     ).toHaveAttribute("data-pending", "true");
   },
 };
@@ -226,7 +275,6 @@ export const OnSite: Story = {
       { label: "Drop out", icon: CalendarX, danger: true, onAction: () => {} },
     ],
     footer: {
-      label: "Job",
       children: (
         <Button>
           <CircleCheck aria-hidden size={18} />

@@ -16,7 +16,8 @@ import { Fold } from "../Fold.tsx";
 import { Section } from "../Section.tsx";
 import { Alerts, type Alert } from "./Alerts.tsx";
 import { PageFrame } from "./PageFrame.tsx";
-import { PageHeader, type PageActions } from "./PageHeader.tsx";
+import type { PageActions } from "./PageActions.tsx";
+import { PageHeader } from "./PageHeader.tsx";
 
 // what the fields come to, beside them from xl
 type Aside = { title: string; leads?: boolean; children: ReactNode };

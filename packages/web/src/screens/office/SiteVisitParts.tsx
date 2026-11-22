@@ -571,46 +571,61 @@ function FindingsForm({
   );
 }
 
-// records a booked visit's findings, and it's Done
-export function RecordFindings({
+export const RECORD_FINDINGS = "Record findings";
+
+// records a booked visit's findings, and it's Done: the page's next step
+// once it's been, or RecordFindings'
+export function RecordFindingsDialog({
   visit,
   premisesTypes,
-  primary = true,
+  ...state
 }: {
   visit: OfficeSiteVisit;
   premisesTypes: PremisesTypeChoice[];
-  // the page's one thing to do once the visit has been; before, secondary
-  primary?: boolean;
-}) {
+} & Partial<DialogState>) {
   const action = useAction("The findings weren't saved. Please try again.");
   return (
-    <DialogTrigger>
-      <Button variant={primary ? "primary" : "secondary"}>
-        <ClipboardCheck aria-hidden size={18} />
-        Record findings
-      </Button>
-      <Dialog title="What the site visit found" size="lg">
-        {({ close }) => (
-          <FindingsForm
-            property={visit.property}
-            officeNotes={visit.officeNotes}
-            premisesTypes={premisesTypes}
-            submitLabel="Save findings"
-            action={action}
-            close={close}
-            onSubmit={async (findings) => {
-              if (
-                await action.run(
-                  () =>
-                    postJson(`/api/site-visits/${visit.id}/findings`, findings),
-                  "Findings recorded",
-                )
+    <Dialog title="What the site visit found" size="lg" {...state}>
+      {({ close }) => (
+        <FindingsForm
+          property={visit.property}
+          officeNotes={visit.officeNotes}
+          premisesTypes={premisesTypes}
+          submitLabel="Save findings"
+          action={action}
+          close={close}
+          onSubmit={async (findings) => {
+            if (
+              await action.run(
+                () =>
+                  postJson(`/api/site-visits/${visit.id}/findings`, findings),
+                "Findings recorded",
               )
-                close();
-            }}
-          />
-        )}
-      </Dialog>
+            )
+              close();
+          }}
+        />
+      )}
+    </Dialog>
+  );
+}
+
+// the same, from its own button, on the visit's What it found before it's
+// been (a visit done early is recorded early)
+export function RecordFindings({
+  visit,
+  premisesTypes,
+}: {
+  visit: OfficeSiteVisit;
+  premisesTypes: PremisesTypeChoice[];
+}) {
+  return (
+    <DialogTrigger>
+      <Button variant="secondary">
+        <ClipboardCheck aria-hidden size={18} />
+        {RECORD_FINDINGS}
+      </Button>
+      <RecordFindingsDialog visit={visit} premisesTypes={premisesTypes} />
     </DialogTrigger>
   );
 }

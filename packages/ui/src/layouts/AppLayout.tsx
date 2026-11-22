@@ -166,7 +166,7 @@ export function AppLayout({
       <main
         id="main"
         tabIndex={-1}
-        className="mx-auto w-full max-w-5xl min-w-0 flex-1 px-4 pt-4 pb-28 outline-none md:px-8 md:py-8 print:max-w-none print:p-0"
+        className="page-column min-w-0 flex-1 pt-4 pb-28 outline-none md:py-8 print:max-w-none print:p-0"
       >
         {/* the page on show, until the next one is ready; the navigation
             stays live, so another section can still be pressed. Out of

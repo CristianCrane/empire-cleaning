@@ -379,7 +379,7 @@ test("a Sent Quote can't be Turned down", async ({ page }) => {
   await signInAsOffice(page);
   await page.goto("/office/quotes");
   await page.getByText(casey.name).click();
-  await page.getByRole("button", { name: "Actions", exact: true }).click();
+  await page.getByRole("button", { name: "More actions" }).click();
   await expect(page.getByRole("menuitem", { name: "Turn down" })).toBeVisible();
   await page.keyboard.press("Escape");
   await draftTheQuote(page);

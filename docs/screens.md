@@ -42,8 +42,15 @@ row in `docs/ux-log.md`, where one exists), then its parts top to bottom:
 - **Header**: breadcrumbs, the title (h1), its status badge, the subtitle
   under it, and anything else on the title's row.
 - **Actions**: where what you can do sits. The kinds:
-  - _Menu_: an outlined `Actions ▾` `MenuButton` on the title's row.
-  - _Header Buttons_: loose Buttons on the title's row.
+  - _Split button_: the page's next step, filled, on the title's row, the
+    rest behind its arrow ("More actions"); from md it sticks at the top
+    once the window's top reaches it, and on a phone a Record's is pinned
+    at the foot.
+  - _Menu_: a quiet ⋯ ("More actions") on the title's row, when nothing is
+    next and there are two or more; it sticks from md as the split button
+    does.
+  - _Header Buttons_: loose Buttons on the title's row (a lone action, red
+    outlined when it destroys).
   - _Section actions_: text Buttons on a Section's title line.
   - _Action cards_: a Section around a Card holding an `ActionRow` (its text,
     its Button).
@@ -143,7 +150,7 @@ Keeps: Table + Tabs (#146). Renders through `ListPage` (#433).
 
 #### Office > Job
 
-Keeps: Actions ▾ (#406). Renders through `RecordPage` (#432).
+Keeps: its actions in one place on the title row (#406; a ⋯ since #493). Renders through `RecordPage` (#432).
 
 - Header: Jobs › Job; "Service at street" and its status.
 - Actions: Menu (Move job, Ask for a new time, Mark not done once done;
@@ -252,10 +259,14 @@ Keeps: the Record. Renders through `RecordPage` (#432).
 Keeps: the Record; findings are part of the visit (#156). Renders through `RecordPage` (#432).
 
 - Header: Clients › client › home › Site visit; "Site visit" and its status.
-- Actions: Menu while booked (Move or change; Cancel visit in red).
-- Alerts: they've been, add what they found (warning); cancelled.
-- Body: Visit details (`DetailsCard`: `DateTile`, icon facts); What it found
-  (an `ActionRow` to record it while booked, its facts once done).
+- Actions: once it's been, a Split button (Record findings; behind its arrow
+  Move or change, Cancel visit in red); booked before then, Menu (Move or
+  change; Cancel visit in red).
+- Alerts: they've been, a quote waits on what they found (warning);
+  cancelled.
+- Body: Visit details (`DetailsCard`: `DateTile`, icon facts, the quote
+  it's for); What it found (an `ActionRow` to record it before it's been,
+  absent once it's been until it's recorded, its facts once done).
 
 #### Office > Bill
 

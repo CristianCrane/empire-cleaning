@@ -19,7 +19,7 @@ How each package's tests work, and how to run them, is in its README (`packages/
 
 **Show that something didn't happen by what the page shows instead** (the `testing` skill, "Every check can fail"): the real card form's declined-card case waits for Payments' empty state, "Nothing paid yet", before it checks that no "Deposit" shows (#331, `packages/web/e2e/card-form.sandbox.ts`).
 
-**Show that an action isn't on offer by opening what holds it** (the `testing` skill, "Every check can fail"): `expectNoPageAction` in `packages/web/e2e/harness.ts` opens a Record's Actions menu, or finds its one Button (#406, #432), and each helper that does an action has a twin that rules it out.
+**Show that an action isn't on offer by opening what holds it** (the `testing` skill, "Every check can fail"): `expectNoPageAction` in `packages/web/e2e/harness.ts` rules out the page's buttons of that name (its next step, or its one action) and opens what holds the rest, More actions (the split button's arrow, its menu or a phone's sheet, or the ⋯ when nothing is next; #406, #432, #493), and each helper that does an action has a twin that rules it out.
 
 **The real card form's spec** (`*.sandbox.ts`, run nightly; the rule: the `testing` skill, "A test no PR runs") finds each form it types a card into through `payAndBook`, `payThisBill` and `saveACard` in `packages/web/e2e/harness.ts`, and a quick spec checks the fake's form sits in each part where the sandbox types its card. What only the sandbox shows (Stripe's own frames, the Spanish form, the empty Payments it waits on after a declined card) is its alone. To see the sandbox itself on a branch, dispatch it there: `gh workflow run stripe-sandbox.yml --ref <branch>`.
 

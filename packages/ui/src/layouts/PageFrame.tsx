@@ -1,6 +1,16 @@
-import { useContext, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { Logo } from "../Logo.tsx";
 import { InAppLayout } from "./AppLayout.tsx";
+
+// in an area, the frame's column inside the content's: the header that
+// sticks (PageHeader) keeps it too, so its actions stay over the title
+// row's when a page is narrower than the content
+const frameColumn = {
+  narrow: "mx-auto max-w-md",
+  form: "max-w-form",
+  wide: "",
+};
+export const FrameColumn = createContext("");
 
 // A page's frame. In an area it sits in AppLayout's frame, nav and all;
 // anywhere else it's a page of its own, the logo above it (UX pass, #96;
@@ -20,12 +30,11 @@ export function PageFrame({
   children: ReactNode;
 }) {
   if (useContext(InAppLayout)) {
+    const column = frameColumn[width];
     return (
-      <div
-        className={`flex flex-col gap-6 ${{ narrow: "mx-auto max-w-md", form: "max-w-form", wide: "" }[width]}`}
-      >
-        {children}
-      </div>
+      <FrameColumn value={column}>
+        <div className={`flex flex-col gap-6 ${column}`}>{children}</div>
+      </FrameColumn>
     );
   }
   if (width !== "narrow") {

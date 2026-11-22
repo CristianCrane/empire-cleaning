@@ -37,7 +37,6 @@ import { NoAccessRecorded, RecordNoAccess } from "./NoAccess.tsx";
 
 const words = catalog({
   en: {
-    whatToDo: "What to do",
     dropOutOfJob: "Drop out of this job",
     nothingWritten:
       "Nothing's written down. Call the client when you get there.",
@@ -57,7 +56,6 @@ const words = catalog({
     dropOut: "Drop out",
   },
   es: {
-    whatToDo: "Qué hacer",
     dropOutOfJob: "Dejar este trabajo",
     nothingWritten: "No hay nada escrito. Llama al cliente cuando llegues.",
     showsOnTheDay: "Aparece ese día",
@@ -97,7 +95,7 @@ export function CleanerJobScreen() {
           ? { label: c.offers, href: linkTo({ to: "/cleaner/offers" }) }
           : { label: c.yourJobs, href: linkTo({ to: "/cleaner" }) },
         {
-          label: `${t.formatDay(dayOfInstant(job.startsAt))}, ${t.formatTime(job.startsAt)}`,
+          label: t.formatDateTime(job.startsAt),
         },
       ]}
       title={job.serviceName}
@@ -130,7 +128,7 @@ export function CleanerJobScreen() {
       details={<JobDetails job={job} />}
       footer={
         open && !offered && job.canComplete
-          ? { label: w.whatToDo, children: <CompleteJob job={job} /> }
+          ? { children: <CompleteJob job={job} /> }
           : undefined
       }
     >

@@ -19,7 +19,8 @@ import { Cell, Column, Row, Table, TableBody, TableHeader } from "../Table.tsx";
 import { Tab, TabList, TabPanel, Tabs } from "../Tabs.tsx";
 import { TextField } from "../TextField.tsx";
 import { useWide } from "../wide.ts";
-import { ActionButton, PageHeader, type PageAction } from "./PageHeader.tsx";
+import { ActionButton, type PageAction } from "./PageActions.tsx";
+import { PageHeader } from "./PageHeader.tsx";
 
 // a page of a list, and how many more Show more adds
 export const LIST_PAGE = 50;

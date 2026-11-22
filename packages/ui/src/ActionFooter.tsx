@@ -3,7 +3,9 @@ import { useLayoutEffect, useRef, type ReactNode } from "react";
 // A page's actions, fixed at the foot of the screen so they stay in reach
 // while the page scrolls: above the phone's tab bar, beside the rail or the
 // sidebar on a wider screen (`--spacing-side`). The app's one bar at a
-// page's foot (docs/ux.md, Buttons and actions): a Cleaner's Job on site, a Quote Draft's prices and Send.
+// page's foot (docs/ux.md, Buttons and actions): a Record's next step on a
+// phone (`phone`: a wider screen keeps it in the header), a Cleaner's Job
+// on site, a Quote Draft's prices and Send.
 // What it sums up goes first (`summary`, then `status`, a line that's
 // read out as it changes: a save's state), the main action last. While shown, its
 // height (taller when its actions wrap) is `--action-footer-height` on the
@@ -22,13 +24,17 @@ export function ActionFooter({
   "aria-label": label,
   summary,
   status,
+  phone = false,
   children,
 }: {
   "aria-label": string;
   summary?: ReactNode;
   status?: ReactNode;
+  // drawn on a phone alone
+  phone?: boolean;
   children: ReactNode;
 }) {
+  const only = phone ? "md:hidden" : "";
   const footer = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const element = footer.current;
@@ -47,17 +53,15 @@ export function ActionFooter({
     <>
       <div
         aria-hidden
-        className="h-(--action-footer-height,4rem) print:hidden"
+        className={`h-(--action-footer-height,4rem) print:hidden ${only}`}
       />
       <div
         ref={footer}
         role="group"
         aria-label={label}
-        className="fixed inset-x-0 bottom-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] z-30 border-t border-border bg-surface px-4 py-3 shadow-raised left-side md:bottom-0 md:px-0 print:hidden"
+        className={`fixed inset-x-0 bottom-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] z-30 border-t border-border bg-surface py-3 shadow-raised left-side md:bottom-0 print:hidden ${only}`}
       >
-        {/* the page's content column: as wide, and as far in, as AppLayout's
-            main */}
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-end gap-2 md:px-8">
+        <div className="page-column flex flex-wrap items-center justify-end gap-2">
           {(summary || status) && (
             <div className="flex min-w-0 flex-1 flex-col">
               {summary && (

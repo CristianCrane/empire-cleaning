@@ -1,48 +1,30 @@
-import { Fragment, useState, type ReactNode } from "react";
-import type { LinkProps } from "react-aria-components";
-import type { LucideIcon } from "lucide-react";
+import { useContext, useEffect, useState, type ReactNode } from "react";
 import { Breadcrumbs, type Crumb } from "../Breadcrumbs.tsx";
-import { Button } from "../Button.tsx";
 import { Heading } from "../Heading.tsx";
-import { useUiWords } from "../language.ts";
-import { ButtonLink } from "../Link.tsx";
-import { MenuButton, MenuItem, MenuSeparator } from "../Menu.tsx";
-
-// what opens a dialog from code: whether it's open, and told when it closes
-export type DialogState = {
-  isOpen: boolean;
-  onOpenChange: (isOpen: boolean) => void;
-};
-
-// Something done to the whole page's subject: a dialog it opens (given its
-// open state), another page, or a thing done straight away. `danger` loses
-// what can't be got back (the `ui` skill): red, and last; alone, outlined
-// in red. `isPending` while one done straight
-// away still runs (starting a Draft): the Button, or the Actions menu, shows
-// it, so the press is seen to be heard
-export type PageAction = {
-  label: string;
-  icon: LucideIcon;
-  danger?: boolean;
-  isPending?: boolean;
-} & (
-  | { dialog: (state: DialogState) => ReactNode }
-  | { href: NonNullable<LinkProps["href"]> }
-  | { onAction: () => void }
-);
-
-// a page's actions as given: those that apply now, the rest false, null
-// or undefined
-export type PageActions = (PageAction | false | null | undefined)[];
+import { useWide } from "../wide.ts";
+import { FrameColumn } from "./PageFrame.tsx";
+import {
+  ActionButton,
+  RareActions,
+  SplitButton,
+  type PageAction,
+  type PageActions,
+} from "./PageActions.tsx";
 
 // The page header every screen type that has one shares (docs/ux.md,
 // Screen types): the breadcrumbs from the area's nav section down to this
 // page, every step, or none on a nav section's own page (a List); the
 // title and its status; a subtitle only when it says what nothing else on
-// the page does, never the title or a crumb again; and the page's actions
-// in one place at the end of the title row, or a List's one primary there
-// (New …). Printed, it's the title alone. A layout places it, never a
-// screen (ADR-0031)
+// the page does, never the title or a crumb again; and at the end of the
+// title row, on the title's line, the page's actions: its next step as a
+// split button, the rest behind its arrow; with nothing next, the rest as
+// RareActions; or a List's one primary (New …). Short of room, the badge
+// drops under the title before the button moves. From md, once the window's
+// top reaches the title row's actions, a slim header sticks at the top with
+// the title, the badge and the same actions (docs/ux.md, Page structure);
+// on a phone the layout pins the next step at the foot (RecordPage), so the
+// title row's is hidden there. Printed, it's the title alone. A layout
+// places it, never a screen (ADR-0031)
 export function PageHeader({
   trail,
   title,
@@ -50,6 +32,7 @@ export function PageHeader({
   status,
   subtitle,
   actions = [],
+  next,
   primary,
   tools,
 }: {
@@ -63,13 +46,38 @@ export function PageHeader({
   // its StatusBadge, or two
   status?: ReactNode;
   subtitle?: ReactNode;
-  actions?: PageActions;
-  // a List's one primary, filled: making a new one
-  primary?: PageAction;
   // what else the layout keeps on the title row, before the actions (a
   // phone's search icon)
   tools?: ReactNode;
-}) {
+} & (
+  | {
+      // what the page can do besides its next step
+      actions?: PageActions;
+      // the page's next step, its primary
+      next?: PageAction;
+      primary?: never;
+    }
+  | {
+      actions?: never;
+      next?: never;
+      // a List's one primary, filled: making a new one
+      primary?: PageAction;
+    }
+)) {
+  const [row, scrolledAway] = useScrolledAway();
+  // the header that sticks is a wider screen's: on a phone the title row's
+  // stays where it is, the next step at the foot
+  const wide = useWide();
+  const away = scrolledAway && wide;
+  const more = actions.filter((a) => !!a);
+  // the page's action control: its next step and the rest, or the rest
+  // alone; drawn on the title row, and in the header that sticks once the
+  // window's top reaches that (a List's primary stays on its row)
+  const control = next ? (
+    <SplitButton next={next} more={more} opens="menu" />
+  ) : !primary && more.length > 0 ? (
+    <RareActions actions={more} />
+  ) : null;
   // a phone's bar already says the title, and it's all there is: the header
   // is hidden there with it, so it takes no room of its own, not even the
   // gap its layout leaves between parts (the Schedule, Offers, Your details)
@@ -80,7 +88,8 @@ export function PageHeader({
     !subtitle &&
     !tools &&
     !primary &&
-    !actions.some((a) => !!a);
+    !next &&
+    more.length === 0;
   return (
     <header
       className={`flex flex-col gap-4 ${titleAlone ? "max-md:sr-only" : ""}`}
@@ -93,7 +102,13 @@ export function PageHeader({
       <div className="flex items-start gap-3">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <Heading level={1} inBar={inBar}>
+            {/* the title's line as tall as the button at its end, so the
+                button sits on it */}
+            <Heading
+              level={1}
+              inBar={inBar}
+              className="flex min-h-touch items-center"
+            >
               {title}
             </Heading>
             {status}
@@ -101,110 +116,116 @@ export function PageHeader({
           {subtitle && <p className="text-lg text-fg-muted">{subtitle}</p>}
         </div>
         {tools && <div className="shrink-0 print:hidden">{tools}</div>}
-        {primary ? (
+        {primary && (
           <div className="shrink-0 print:hidden">
             <ActionButton action={primary} variant="primary" />
           </div>
-        ) : (
-          <HeaderActions actions={actions.filter((a) => !!a)} />
+        )}
+        {control && (
+          // once the window's top reaches it, the header that sticks holds
+          // it, and on a phone the layout's foot holds a next step: one
+          // copy at a time is there to press
+          <div
+            ref={row}
+            inert={away}
+            aria-hidden={away}
+            className={`shrink-0 print:hidden ${next ? "max-md:hidden" : ""}`}
+          >
+            {control}
+          </div>
         )}
       </div>
+      {control && (
+        <StickyHeader shown={away} title={title} status={status}>
+          {control}
+        </StickyHeader>
+      )}
     </header>
   );
 }
 
-// One action as a Button, or a ButtonLink when it opens another page; a
-// dialog it opens is its own. A Record's one action where the menu would
-// be (WEB-9), outlined in red when it's `danger` (the page has no primary
-// then), a List's primary, and an empty List's way to fill it
-export function ActionButton({
-  action,
-  variant,
+// From md, the slim header that slides in at the top once the window's top
+// reaches the title row's actions, lined up with the page's column: the
+// title, its badge, and at its end what's given (the same actions).
+// Out of sight it's out of reach too, so one copy of the button is there to
+// press at a time; and its title and badge go once it has slid out, so the
+// page says them once (its actions stay, as a dialog they opened is theirs)
+function StickyHeader({
+  shown,
+  title,
+  status,
+  children,
 }: {
-  action: PageAction;
-  variant: "primary" | "secondary";
+  shown: boolean;
+  title: string;
+  status?: ReactNode;
+  children: ReactNode;
 }) {
-  const [isOpen, setOpen] = useState(false);
-  const look = action.danger ? "danger-outline" : variant;
-  const content = (
-    <>
-      <action.icon aria-hidden size={18} />
-      {action.label}
-    </>
-  );
-  if ("href" in action)
-    return (
-      <ButtonLink variant={look} href={action.href} className="shrink-0">
-        {content}
-      </ButtonLink>
-    );
+  const [leaving, setLeaving] = useState(false);
+  const [wasShown, setWasShown] = useState(shown);
+  if (wasShown !== shown) {
+    setWasShown(shown);
+    setLeaving(!shown);
+  }
+  // the page's frame's column, when it's narrower than the content's
+  const column = useContext(FrameColumn);
+  const named = shown || leaving;
   return (
-    <>
-      <Button
-        variant={look}
-        className="shrink-0"
-        isPending={action.isPending}
-        onPress={() => ("dialog" in action ? setOpen(true) : action.onAction())}
-      >
-        {content}
-      </Button>
-      {"dialog" in action && action.dialog({ isOpen, onOpenChange: setOpen })}
-    </>
+    <div
+      inert={!shown}
+      aria-hidden={!shown}
+      // its own slide, not a button's colour inside it
+      onTransitionEnd={(event) =>
+        event.target === event.currentTarget && setLeaving(false)
+      }
+      className={`pointer-events-none fixed inset-x-0 top-0 z-30 hidden transition-[translate,opacity,visibility] duration-200 left-side md:block print:hidden ${
+        shown
+          ? "translate-y-0 opacity-100"
+          : "invisible -translate-y-full opacity-0"
+      }`}
+    >
+      <div className="page-column">
+        <div
+          className={`pointer-events-auto flex items-center gap-3 rounded-b-lg border-x border-b border-border bg-surface px-4 py-2 shadow-raised ${column}`}
+        >
+          {named && (
+            <>
+              <p className="min-w-0 truncate font-display text-xl font-bold tracking-wide uppercase">
+                {title}
+              </p>
+              {status}
+            </>
+          )}
+          <div className="ml-auto flex shrink-0 items-center gap-4">
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
-// One action: a Button, where the menu would be (WEB-9). More: the Actions
-// menu, the destructive ones last after a rule. Each dialog is the header's
-// to open, so the menu that opened it has closed, and focus comes back to it
-function HeaderActions({ actions }: { actions: PageAction[] }) {
-  const words = useUiWords();
-  const [open, setOpen] = useState<string | null>(null);
-  if (actions.length === 0) return null;
-  if (actions.length === 1)
-    return (
-      <div className="shrink-0 print:hidden">
-        <ActionButton action={actions[0]!} variant="secondary" />
-      </div>
+// whether the element has scrolled up past the window's top, even in part
+// (so the reader never meets half a button), and not merely hidden, as a
+// next step on the title row is on a phone. Given by its ref, so it watches
+// the element from whenever it's drawn
+function useScrolledAway() {
+  const [element, setElement] = useState<HTMLElement | null>(null);
+  const [away, setAway] = useState(false);
+  useEffect(() => {
+    if (!element) return setAway(false);
+    const watch = new IntersectionObserver(
+      ([entry]) =>
+        setAway(
+          !!entry &&
+            entry.intersectionRatio < 1 &&
+            entry.boundingClientRect.height > 0 &&
+            entry.boundingClientRect.top < 0,
+        ),
+      { threshold: 1 },
     );
-  const press = (action: PageAction) => () => {
-    if ("dialog" in action) setOpen(action.label);
-    else if ("onAction" in action) action.onAction();
-  };
-  const plain = actions.filter((a) => !a.danger);
-  const danger = actions.filter((a) => a.danger);
-  const item = (action: PageAction) => (
-    <MenuItem
-      key={action.label}
-      icon={action.icon}
-      danger={action.danger}
-      {...("href" in action
-        ? { href: action.href }
-        : { onAction: press(action) })}
-    >
-      {action.label}
-    </MenuItem>
-  );
-  return (
-    <div className="shrink-0 print:hidden">
-      <MenuButton
-        label={words.actions}
-        isPending={actions.some((a) => a.isPending)}
-      >
-        {plain.map(item)}
-        {plain.length > 0 && danger.length > 0 && <MenuSeparator />}
-        {danger.map(item)}
-      </MenuButton>
-      {actions.map(
-        (action) =>
-          "dialog" in action && (
-            <Fragment key={action.label}>
-              {action.dialog({
-                isOpen: open === action.label,
-                onOpenChange: (isOpen) => setOpen(isOpen ? action.label : null),
-              })}
-            </Fragment>
-          ),
-      )}
-    </div>
-  );
+    watch.observe(element);
+    return () => watch.disconnect();
+  }, [element]);
+  return [setElement, away] as const;
 }

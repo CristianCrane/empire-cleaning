@@ -11,6 +11,7 @@ import {
   TextField,
   Fact,
   Facts,
+  type DialogState,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { ChooseNewTime, costForOffice } from "../RescheduleParts.tsx";
@@ -33,11 +34,7 @@ export function AskForNewTime({
   job,
   isOpen,
   onOpenChange,
-}: {
-  job: OfficeJob;
-  isOpen: boolean;
-  onOpenChange: (isOpen: boolean) => void;
-}) {
+}: { job: OfficeJob } & DialogState) {
   const terms = job.rescheduleTerms;
   if (!terms) return null;
   return (

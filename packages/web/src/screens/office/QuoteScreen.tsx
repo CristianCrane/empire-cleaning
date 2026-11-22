@@ -91,6 +91,7 @@ import {
   Fact,
   staleFade,
   FieldRow,
+  type DialogState,
 } from "@empire-cleaning/ui";
 import { ApiError, deleteJson, patchJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
@@ -498,12 +499,7 @@ function DeleteDraft({
   quote,
   isOpen,
   onOpenChange,
-}: {
-  quote: OfficeQuote;
-  // whether it's open, and told when it closes
-  isOpen: boolean;
-  onOpenChange: (isOpen: boolean) => void;
-}) {
+}: { quote: OfficeQuote } & DialogState) {
   const navigate = useNavigate();
   const action = useLeavingAction(
     "The draft wasn't deleted. Please try again.",
