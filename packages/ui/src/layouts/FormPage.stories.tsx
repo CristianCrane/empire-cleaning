@@ -315,15 +315,18 @@ export const PricedOnALaptop: Story = {
     await expect(
       within(header).getByRole("button", { name: "Send" }),
     ).toBeVisible();
-    await expect(canvas.getByRole("status")).toHaveTextContent("Saved");
+    // the one "Saved" read out (AppLayout keeps a status of its own)
+    await expect(
+      canvas.getAllByRole("status").filter((s) => s.textContent === "Saved"),
+    ).toHaveLength(1);
     await userEvent.click(
       within(header).getByRole("button", { name: "More actions" }),
     );
-    await expect(
-      await within(document.body).findByRole("menuitem", {
-        name: "Delete draft",
-      }),
-    ).toBeVisible();
+    const item = await within(document.body).findByRole("menuitem", {
+      name: "Delete draft",
+    });
+    // it fades in: visible once its animation has begun
+    await waitFor(() => expect(item).toBeVisible());
     await userEvent.keyboard("{Escape}");
   },
 };
