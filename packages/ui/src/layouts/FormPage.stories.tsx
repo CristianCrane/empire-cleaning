@@ -300,8 +300,10 @@ export const PricedWithAFooter: Story = {
     // the page's only action loses what can't be got back: outlined in
     // red, not filled, nor red words alone
     const remove = canvas.getByRole("button", { name: "Delete draft" });
-    await expect(remove).toHaveClass(/\bborder-danger\b/);
-    await expect(remove).toHaveClass(/\btext-danger\b/);
-    await expect(remove).toHaveClass(/(^|\s)bg-surface(\s|$)/);
+    await expect(remove).toHaveClass(
+      "border-danger",
+      "text-danger",
+      "bg-surface",
+    );
   },
 };
