@@ -245,13 +245,10 @@ export function PlanDayCard({
   option,
   day,
   discountPercent,
-  children,
 }: {
   option: QuoteOption;
   day: PlanDayTerms;
   discountPercent: number;
-  // anything more, e.g. the Office's override
-  children?: ReactNode;
 }) {
   return (
     <Card
@@ -264,7 +261,6 @@ export function PlanDayCard({
         day={day}
         discountPercent={discountPercent}
       />
-      {children}
     </Card>
   );
 }
