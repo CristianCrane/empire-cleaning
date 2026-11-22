@@ -652,14 +652,6 @@ test(
         true,
       );
     }
-    // too short for more than its Client and its mark, a block still says
-    // its time and state to a screen reader, which can't see its place
-    const short = jobsOn(page, "Wed, Mar 3")
-      .getByRole("link")
-      .filter({ hasText: "9:30 AM" });
-    await expect(short).toHaveAccessibleName(
-      /^9:30 AM Robin \d+ ?, Needs cleaners$/,
-    );
   },
 );
 

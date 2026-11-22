@@ -118,33 +118,57 @@ const toneOf = (job: Pick<ScheduledJob, "status" | "assignment">) => {
   return { label, tone, icon, block: blockOf[tone], mark: markOf[tone] };
 };
 
-// a Job's state, drawn as its block is: its colours and its mark, then its
-// name, for the Schedule's key
-export function BlockKey({
+// a Job's state as its mark: its icon in its tone's strong colour, on its
+// block and in the key alike. A Staffed Job, the usual case, has none
+function StateMark({
+  tone,
+  className = "",
+}: {
+  tone: ReturnType<typeof toneOf>;
+  className?: string;
+}) {
+  const Icon = tone.icon;
+  return Icon ? (
+    <Icon aria-hidden className={`size-3 shrink-0 ${tone.mark} ${className}`} />
+  ) : null;
+}
+
+// an entry in the Schedule's key, drawn as a block is: its colours and
+// edge, then its mark and name
+function KeyEntry({
+  colours,
+  children,
+}: {
+  colours: string;
+  children: ReactNode;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-md border-s-4 px-1.5 py-0.5 text-xs font-semibold ${colours}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+// a Job's state in the key
+export function JobKey({
   job,
 }: {
   job: Pick<ScheduledJob, "status" | "assignment">;
 }) {
-  const { label, icon: Mark, block, mark } = toneOf(job);
+  const tone = toneOf(job);
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-md border-s-4 px-1.5 py-0.5 text-xs font-semibold ${block}`}
-    >
-      {Mark && <Mark aria-hidden className={`size-3 shrink-0 ${mark}`} />}
-      {label}
-    </span>
+    <KeyEntry colours={tone.block}>
+      <StateMark tone={tone} />
+      {tone.label}
+    </KeyEntry>
   );
 }
 
 // a Site Visit's block in the key: its neutral colours, its name
 export function VisitKey() {
-  return (
-    <span
-      className={`inline-flex items-center rounded-md border-s-4 px-1.5 py-0.5 text-xs font-semibold ${blockOf.neutral}`}
-    >
-      Site visit
-    </span>
-  );
+  return <KeyEntry colours={blockOf.neutral}>Site visit</KeyEntry>;
 }
 
 // a Site Visit's place on the time axis
@@ -723,7 +747,6 @@ function DayJobs({
       {jobs.map(({ job, block }) => {
         const style = place(block);
         const tone = toneOf(job);
-        const Mark = tone.icon;
         // too short for more than a line: the Client's name and the state's
         // mark, the rest unseen but still read out
         const compact = style.height < COMPACT_PX;
@@ -747,12 +770,7 @@ function DayJobs({
             <span
               className={`flex gap-1 font-semibold ${compact ? "items-center" : "items-start"}`}
             >
-              {Mark && (
-                <Mark
-                  aria-hidden
-                  className={`size-3 shrink-0 ${compact ? "" : "mt-px"} ${tone.mark}`}
-                />
-              )}
+              <StateMark tone={tone} className={compact ? "" : "mt-px"} />
               <BlockName compact={compact}>
                 <span className="sr-only">{formatTime(job.startsAt)} </span>
                 {shortClientName(job.client)}
@@ -793,13 +811,13 @@ function DayJobs({
               <span className="sr-only">{formatTime(visit.startsAt)} </span>
               {shortClientName(visit.client)}
             </BlockName>
+            <BlockTime compact={compact}>
+              {formatTime(visit.startsAt)}
+            </BlockTime>
             <span className={compact ? "sr-only" : "truncate"}>
               <span className="sr-only">, </span>
               Site visit · {formatMinutes(visit.minutes)}
             </span>
-            <BlockTime compact={compact}>
-              {formatTime(visit.startsAt)}
-            </BlockTime>
             {visit.visitor && (
               <span className={compact ? "sr-only" : "truncate text-fg-muted"}>
                 <span className="sr-only">, </span>

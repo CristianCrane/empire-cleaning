@@ -6,7 +6,7 @@ import { ConfirmMove } from "./JobMove.tsx";
 import { ConfirmVisitMove } from "./SiteVisitParts.tsx";
 import { RangeBar } from "../CalendarGrid.tsx";
 import {
-  BlockKey,
+  JobKey,
   ScheduleCalendar,
   VisitKey,
   type Moving,
@@ -40,10 +40,10 @@ export function ScheduleScreen() {
     <CalendarPage title="Schedule">
       <RangeBar from={from} to={to} onShow={show} />
       <div className="flex flex-wrap items-center gap-2">
-        <BlockKey job={{ status: "booked", assignment: "unassigned" }} />
-        <BlockKey job={{ status: "booked", assignment: "assigned" }} />
-        <BlockKey job={{ status: "completed", assignment: "assigned" }} />
-        <BlockKey job={{ status: "no_access", assignment: "assigned" }} />
+        <JobKey job={{ status: "booked", assignment: "unassigned" }} />
+        <JobKey job={{ status: "booked", assignment: "assigned" }} />
+        <JobKey job={{ status: "completed", assignment: "assigned" }} />
+        <JobKey job={{ status: "no_access", assignment: "assigned" }} />
         <VisitKey />
       </div>
       <ScheduleCalendar
