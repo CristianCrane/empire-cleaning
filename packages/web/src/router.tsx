@@ -4,7 +4,6 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
-  notFound,
   redirect,
   useRouter,
   useRouterState,
@@ -54,7 +53,7 @@ import {
   TestSiteBanner,
   ToastRegion,
 } from "@empire-cleaning/ui";
-import { getJson } from "./api.ts";
+import { ApiError, getJson } from "./api.ts";
 import {
   setAppLanguage,
   signedOutLanguage,
@@ -341,7 +340,9 @@ const areaLanguage: Record<AreaId, (account: Me) => Language> = {
 // an area is only for Accounts holding its role: anyone signed out goes to
 // sign-in (and comes back afterwards), anyone else to their own area. The
 // Account is the one remembered (session.ts), so switching to one asks
-// nothing new
+// nothing new. An address in an area that no page has is the area's to
+// answer too: Not found in its frame and its reader's language, after the
+// same checks (the root's own Not found is for addresses outside an area)
 const areaRoute = <Id extends AreaId>(id: Id) =>
   createRoute({
     getParentRoute: () => rootRoute,
@@ -360,6 +361,7 @@ const areaRoute = <Id extends AreaId>(id: Id) =>
       return { account };
     },
     component: () => <AreaLayout area={id} />,
+    notFoundComponent: NotFound,
   });
 
 // the signed-in Client with their homes and Quotes
@@ -876,7 +878,8 @@ const portalPropertyRoute = createRoute({
     const property = data.client.properties.find(
       (p) => p.id === params.propertyId,
     );
-    if (!property) throw notFound();
+    // a home not theirs reads as any record not found, inside the portal
+    if (!property) throw new ApiError(404, "Not found");
     return { ...data, property };
   },
   component: PortalProperty,
