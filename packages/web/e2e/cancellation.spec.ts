@@ -134,7 +134,7 @@ test(
     await page.goto(`/cleaner/jobs/${job.id}`);
 
     await pageAction(page, "Couldn't get in");
-    const dialog = page.getByRole("alertdialog", { name: "Couldn't get in?" });
+    const dialog = page.getByRole("alertdialog", { name: "Couldn't get in" });
     await expectAccessible(page);
     await dialog
       .getByRole("textbox", { name: "What happened?" })
@@ -143,9 +143,11 @@ test(
 
     await expect(page.getByText("Sent", { exact: true })).toBeVisible();
     const recorded = page.getByRole("region", { name: "Couldn't get in" });
-    await expect(recorded).toContainText(
-      '"Nobody answered and the doorman had no key"',
+    // their words, as they sent them, and who sent them
+    await expect(recorded.getByRole("blockquote")).toHaveText(
+      "Nobody answered and the doorman had no key",
     );
+    await expect(recorded).toContainText("You sent this at");
     await expect(page.getByRole("button", { name: "Mark done" })).toHaveCount(
       0,
     );

@@ -35,7 +35,7 @@ export const privacy: LegalWords = {
       title: "Quién lo ve",
       text: [
         "Nunca vendemos sus datos. Nuestra oficina los ve, para atender sus limpiezas.",
-        "Los limpiadores a quienes ofrecemos una limpieza ven su nombre de pila, su dirección y lo que hay que hacer. Ven cómo entramos y su número de teléfono el día de la limpieza.",
+        "Los limpiadores a quienes ofrecemos una limpieza ven su nombre de pila, su dirección y lo que hay que hacer. Una vez que la aceptan, ven cómo entramos y su número de teléfono el día de la limpieza.",
         "Quien vaya a ver su lugar antes de una cotización ve su nombre, su número de teléfono, su dirección y cómo entramos desde que se reserva la visita.",
         "Estas empresas manejan partes de nuestro sitio web y de la aplicación por nosotros, y cada una recibe solo lo que su parte necesita:",
       ],

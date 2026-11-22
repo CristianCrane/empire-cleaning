@@ -11,12 +11,12 @@ import {
   Phone,
 } from "lucide-react";
 import type { CleanerJob, CleanerSiteVisit } from "@empire-cleaning/models";
-import { catalog, HOUR_MS } from "@empire-cleaning/models";
+import { catalog, MINUTE_MS } from "@empire-cleaning/models";
 import {
   AnswerCard,
   Button,
   ButtonLink,
-  buttonStyles,
+  ExternalButtonLink,
   DateTile,
   HomePage,
   IconTile,
@@ -29,11 +29,11 @@ import {
   addressOf,
   clientName,
   dayOfInstant,
+  endOf,
   formatHours,
   formatMinutes,
   jobStatusTone,
 } from "../format.ts";
-import { AssignmentStateBadge } from "../JobBadges.tsx";
 import { type Said, useSaid, useShared } from "../words.ts";
 
 const words = catalog({
@@ -74,10 +74,12 @@ const words = catalog({
   },
 });
 
-// whether the Cleaner has Confirmed it yet, or once done, how it went: a
-// trabajo, so its Spanish isn't a clean's (Terminado, not Terminada)
+// where the Job stands for its Cleaner, when it isn't the usual (theirs,
+// before the day: no badge): Available while it's theirs to take, Today,
+// On site once it's started, then how it went: a trabajo, so its Spanish
+// isn't a clean's (Terminado, not Terminada)
 export function CleanerJobBadge({ job }: { job: CleanerJob }) {
-  const { c, jobStatusLabel } = useShared();
+  const { c, jobStatusLabel, today, onSite } = useShared();
   if (job.outcome) {
     return (
       <StatusBadge tone={jobStatusTone[job.outcome]}>
@@ -85,24 +87,24 @@ export function CleanerJobBadge({ job }: { job: CleanerJob }) {
       </StatusBadge>
     );
   }
-  return (
-    <AssignmentStateBadge
-      state={job.assignment.status === "confirmed" ? "confirmed" : "offered"}
-    />
-  );
+  if (job.assignment.status === "offered") return <AvailableBadge />;
+  if (job.started) return <StatusBadge tone="success">{onSite}</StatusBadge>;
+  if (job.onTheDay) return <StatusBadge tone="info">{today}</StatusBadge>;
+  return null;
+}
+
+// a Job theirs to take: offered to them, or a Cleaner Needed open to them
+export function AvailableBadge() {
+  const { c } = useShared();
+  return <StatusBadge tone="info">{c.available}</StatusBadge>;
 }
 
 // a map app's directions to an address
 export const directionsTo = (address: string) =>
   `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
 
-// "until about 12:00 PM": the start plus its time on site
-export const untilAbout = (t: Said, startsAt: string, hours: number) =>
-  t.c.untilAbout(
-    t.formatTime(
-      new Date(Date.parse(startsAt) + hours * HOUR_MS).toISOString(),
-    ),
-  );
+// "until about 12:00 PM": when it should be over
+const untilAbout = (t: Said, end: string) => t.c.untilAbout(t.formatTime(end));
 
 // what's theirs, in time order: a Job they hold, or a Site Visit they're
 // making
@@ -240,7 +242,6 @@ function NextUp({
   const job = item.kind === "job" ? item.job : null;
   const visit = item.kind === "visit" ? item.visit : null;
   const property = job?.property ?? visit!.property;
-  const others = job?.crew.filter((m) => m.status === "confirmed").length ?? 0;
   const address = addressOf(property);
   const t = useSaid(words);
   const { w } = t;
@@ -255,39 +256,38 @@ function NextUp({
       lines={[
         `${item.today ? t.today : t.formatDay(dayOfInstant(item.startsAt))}, ${
           job
-            ? untilAbout(t, job.startsAt, job.hoursOnSite)
-            : untilAbout(t, visit!.startsAt, visit!.minutes / 60)
+            ? // to the quarter hour, as the Job's own page ends its times
+              untilAbout(t, endOf(job.startsAt, job.hoursOnSite))
+            : untilAbout(
+                t,
+                new Date(
+                  Date.parse(visit!.startsAt) + visit!.minutes * MINUTE_MS,
+                ).toISOString(),
+              )
         }`,
         address,
         job
           ? [
               job.serviceName,
               t.c.hoursOnSite(formatHours(job.hoursOnSite)),
-              ...(others > 1 ? [w.crewOf(others)] : []),
+              // the Job's crew size, not who's confirmed so far
+              ...(job.crewSize > 1 ? [w.crewOf(job.crewSize)] : []),
             ].join(" · ")
           : `${w.siteVisitFor(clientName(visit!.client))} · ${w.toSeeIt(formatMinutes(visit!.minutes))}`,
       ]}
       actions={
         <>
-          <a
-            className={buttonStyles({ variant: "secondary" })}
-            href={directionsTo(address)}
-            target="_blank"
-            rel="noreferrer"
-          >
+          <ExternalButtonLink variant="secondary" href={directionsTo(address)}>
             <Navigation aria-hidden size={18} />
             {t.c.directions}
-          </a>
+          </ExternalButtonLink>
           {job ? (
             <Button onPress={() => openJob(job.id)}>{t.c.openJob}</Button>
           ) : (
-            <a
-              className={buttonStyles({ variant: "primary" })}
-              href={`tel:${visit!.client.phone}`}
-            >
+            <ExternalButtonLink href={`tel:${visit!.client.phone}`}>
               <Phone aria-hidden size={18} />
               {w.call(clientName(visit!.client))}
-            </a>
+            </ExternalButtonLink>
           )}
         </>
       }

@@ -414,15 +414,11 @@ The `ui` skill's rules hold here too; these are this product's.
 - **A bar at the foot of a page is an `ActionFooter`**, which the page's
   layout places, never a sticky bar of the page's own, which pins under the phone's tab bar (#425); a sheet's pinned Buttons are the sheet's, over the tab bar (Dialogs and rows). It holds,
   above the tab bar, a Record's next step on a phone, which a wider screen
-  keeps in the header instead (`phone`; the `ui` skill), a Cleaner's
-  Complete on site at every width (until #493 makes it the Cleaner's next
-  step), and on a phone a form's price and its button (the Quote Draft's
-  Send, New quote's Draft a quote), which a wider screen keeps in the
-  header too (#493 D1: Forms). Where it's at every width, it runs
-  beside the rail or the sidebar, its row the content's ("A wide screen
-  keeps a readable column"). What it sums up
-  (prices, whether it's saved) on its left, the main action last, on the
-  right. The layout test fails a button or link under a fixed bar. ("A
+  keeps in the header instead (`phone`; the `ui` skill), and on a phone a
+  form's price and its button (the Quote Draft's Send, New quote's Draft a
+  quote), which a wider screen keeps in the header too (#493 D1: Forms).
+  What it sums up (prices, whether it's saved) on its left, the main action
+  last, on the right. The layout test fails a button or link under a fixed bar. ("A
   bar at the foot is an ActionFooter")
 - **Buttons are ranked by fill**: primary filled, secondary outlined,
   `text` for a Section's actions, `danger-text` beside them, a page's
@@ -574,7 +570,7 @@ stays as it is (#336).
   card**: nothing may shift the page's layout. One to three steps, each
   popover beside what it points at (`startTour`), shown once per screen,
   the first time it matters: its tour runs only when every step's target is
-  on the screen. ("First-time help points, never pushes")
+  on the screen and not greyed. ("First-time help points, never pushes")
 - **Steps find their targets by the screen's own words** (what's pressed,
   a link or Button, by its text; a part, a Section or labelled group, by its
   name), never `data-tour` attributes; the tours spec fails when one can't

@@ -317,26 +317,24 @@ test("a Cleaner reading in Spanish takes an open job and marks it done, in tú",
   // the Service by its Spanish name
   await expect(open).toContainText("Limpieza profunda");
   await open.click();
+  await expect(page.getByText("Disponible", { exact: true })).toBeVisible();
   await expect(
-    page.getByRole("region", { name: "¿Puedes tomarlo?" }),
-  ).toBeVisible();
+    page.getByRole("region", { name: "Detalles del trabajo" }),
+  ).toContainText("Código postal");
   await expectAccessible(page);
-  await page.getByRole("button", { name: "Confirmar" }).click();
+  await pageAction(page, "Confirmar");
 
   await expect(page).toHaveURL(`/cleaner/jobs/${job.id}`);
-  await expect(page.getByText("Confirmado", { exact: true })).toBeVisible();
+  await expect(page.getByText("Trabajo confirmado")).toBeVisible();
 
   // on the day, once it's started
   await setClock("2026-01-09T16:00:00Z");
   await page.reload();
-  await page
-    .getByRole("group", { name: "Qué hacer" })
-    .getByRole("button", { name: "Marcar como terminado" })
-    .click();
+  await pageAction(page, "Marcar como terminado");
   const form = page.getByRole("dialog", {
     name: "Marcar este trabajo como terminado",
   });
-  await expect(form).toContainText("Cuéntanos cómo te fue.");
+  await expect(form).toContainText("¿Cómo estaba la casa?");
   await expectAccessible(page);
   await form.getByText("Ligera", { exact: true }).click();
   await form.getByRole("button", { name: "Marcar como terminado" }).click();
@@ -344,6 +342,7 @@ test("a Cleaner reading in Spanish takes an open job and marks it done, in tú",
   await expect(page.getByText("Trabajo marcado como terminado")).toBeVisible();
   const done = page.getByRole("region", { name: "Terminado" });
   await expect(done).toContainText("Ligera");
-  await expect(done).toContainText("Nada distinto de la cotización");
+  await expect(done).toContainText("Nada que informar");
+  await expect(done).toContainText("Lo marcaste como terminado");
   await expectAccessible(page);
 });

@@ -6,13 +6,19 @@
 //   pnpm --filter @empire-cleaning/server stripe:record
 //
 // It makes test Customers and payments in the sandbox, and waits for a
-// refund to fail, which takes Stripe about two minutes. Recordings go to
-// tests/stripe-recordings/, one JSON file each.
+// refund to fail, which takes Stripe a few minutes, at times half an hour
+// (REFUND_FAILS_WITHIN). Recordings go to tests/stripe-recordings/, one JSON
+// file each.
 import { mkdirSync, writeFileSync } from "node:fs";
 import Stripe from "stripe";
 import env from "../../src/env.ts";
 // before stripe.ts, as the gateway's index makes the app's adapter on loading
-import { eventFor, fillCardForm, sandboxStripe } from "./stripe-sandbox.ts";
+import {
+  eventFor,
+  fillCardForm,
+  refundFailedEvent,
+  sandboxStripe,
+} from "./stripe-sandbox.ts";
 import { StripePaymentGateway } from "../../src/services/payment-gateway/stripe.ts";
 
 const OUT = new URL("../stripe-recordings/", import.meta.url);
@@ -229,7 +235,8 @@ save(
   "event-customer-created",
   (await stripe.events.list({ type: "customer.created", limit: 1 })).data[0],
 );
-// these two take Stripe a couple of minutes
+// these two take Stripe a few minutes: about two for the pending one, and
+// two to half an hour for the failing one (#528)
 save(
   "event-refund-went-through",
   await eventFor(
@@ -239,10 +246,7 @@ save(
     (refund) => refund.status === "succeeded",
   ),
 );
-save(
-  "event-refund-failed",
-  await eventFor(stripe, "refund.failed", failing.id),
-);
+save("event-refund-failed", await refundFailedEvent(stripe, failing.id));
 
 // every refund kind: ours and the dashboard's gone through, one on its way
 // as it was made, and the failing one now it's failed

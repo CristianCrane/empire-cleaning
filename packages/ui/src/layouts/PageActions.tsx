@@ -10,23 +10,28 @@ import { ActionSheet } from "../ActionSheet.tsx";
 import { Button } from "../Button.tsx";
 import type { DialogState } from "../Dialog.tsx";
 import { useUiWords } from "../language.ts";
-import { ButtonLink } from "../Link.tsx";
+import { ButtonLink, ExternalButtonLink, opensATab } from "../Link.tsx";
 import { Menu, MenuItem, MenuSeparator } from "../Menu.tsx";
 
 // Something done to the whole page's subject: a dialog it opens (given its
-// open state), another page, or a thing done straight away. `danger` loses
-// what can't be got back (the `ui` skill): red, and last; alone, outlined
-// in red. `isPending` while one done straight away still runs (starting a
-// Draft): its Button, or what holds it (the split button's arrow, the ⋯),
-// shows it, so the press is seen to be heard
+// open state), another page, somewhere outside the app (`externalHref`: a
+// phone number to call, a map's directions, opened in a new tab), or a thing
+// done straight away. `danger` loses what can't be got back (the `ui`
+// skill): red, and last; alone, outlined in red. `isPending` while one done
+// straight away still runs (starting a Draft): its Button, or what holds it
+// (the split button's arrow, the ⋯), shows it, so the press is seen to be
+// heard. `isDisabled` while the page's goal needs it but it can't be done
+// yet: greyed, with why in the page's alert (the `ui` skill)
 export type PageAction = {
   label: string;
   icon: LucideIcon;
   danger?: boolean;
   isPending?: boolean;
+  isDisabled?: boolean;
 } & (
   | { dialog: (state: DialogState) => ReactNode }
   | { href: NonNullable<LinkProps["href"]> }
+  | { externalHref: string }
   | { onAction: () => void }
 );
 
@@ -36,14 +41,16 @@ export type PageActions = (PageAction | false | null | undefined)[];
 
 // A page's next step, its primary, which may be more than an action behind
 // an arrow can be: a form's submit button (New quote's Draft a quote, sent
-// by the form, so its required fields are checked and Enter sends it);
-// greyed while it can't be done yet, its reason on the page (Send with no
-// email); and named more fully to a screen reader where its label leans on
-// the page (Send, to whom)
+// by the form, so its required fields are checked and Enter sends it); and
+// named more fully to a screen reader where its label leans on the page
+// (Send, to whom). Greyed while it can't be done yet as any action is
+// (`isDisabled`: Send with no email)
 export type NextAction = (
   | PageAction
-  | (Omit<PageAction, "dialog" | "href" | "onAction"> & { submit: true })
-) & { isDisabled?: boolean; srLabel?: string };
+  | (Omit<PageAction, "dialog" | "href" | "externalHref" | "onAction"> & {
+      submit: true;
+    })
+) & { srLabel?: string };
 
 // the dialogs of the actions one control holds, one open at a time, each
 // drawn here rather than in the menu or sheet: so they outlive it as it
@@ -53,6 +60,14 @@ function useDialogs(actions: PageAction[]) {
   const press = (action: PageAction) => () => {
     if ("dialog" in action) setOpen(action.label);
     else if ("onAction" in action) action.onAction();
+    // a menu's item, which can't be a plain link: the app's router reads
+    // every link a menu holds
+    else if ("externalHref" in action)
+      window.open(
+        action.externalHref,
+        opensATab(action.externalHref) ? "_blank" : "_self",
+        "noopener",
+      );
   };
   const dialogs = actions.map(
     (action) =>
@@ -100,13 +115,23 @@ export function ActionButton({
         {content}
       </ButtonLink>
     );
+  if ("externalHref" in action)
+    return (
+      <ExternalButtonLink
+        variant={look}
+        href={action.externalHref}
+        className={className}
+      >
+        {content}
+      </ExternalButtonLink>
+    );
   return (
     <>
       <Button
         variant={look}
         className={className}
         isPending={action.isPending}
-        isDisabled={"isDisabled" in action && action.isDisabled}
+        isDisabled={action.isDisabled}
         {...("submit" in action
           ? { type: "submit" as const }
           : { onPress: press(action) })}
@@ -133,6 +158,7 @@ function items(
       icon={action.icon}
       danger={action.danger}
       large={large}
+      isDisabled={action.isDisabled}
       {...("href" in action
         ? { href: action.href }
         : { onAction: press(action) })}

@@ -3,6 +3,8 @@ import {
   firstNameOf,
   formats,
   oneStop,
+  quarterHours,
+  quarterHoursText,
   stopAfter,
   theTimeEs,
 } from "./format.ts";
@@ -106,4 +108,21 @@ test("a person's first name is what's before the first space", () => {
   expect(firstNameOf("Casey Client")).toBe("Casey");
   expect(firstNameOf("Jen")).toBe("Jen");
   expect(firstNameOf("María José Pérez")).toBe("María");
+});
+
+test("a time range gives both ends in New York's time", () => {
+  const threePm = "2026-01-12T20:00:00Z";
+  expect(en.formatTimeRange(MORNING, threePm)).toBe("9:00 AM – 3:00 PM");
+  expect(es.formatTimeRange(MORNING, threePm)).toBe("9:00 a.m. – 3:00 p.m.");
+});
+
+test("hours round to the quarter hour, written with their fraction", () => {
+  expect(quarterHours(3.3)).toBe(3.25);
+  expect(quarterHours(3.4)).toBe(3.5);
+  expect(quarterHours(6)).toBe(6);
+  expect(quarterHoursText(3.25)).toBe("3¼");
+  expect(quarterHoursText(2.5)).toBe("2½");
+  expect(quarterHoursText(4.75)).toBe("4¾");
+  expect(quarterHoursText(0.5)).toBe("½");
+  expect(quarterHoursText(6)).toBe("6");
 });

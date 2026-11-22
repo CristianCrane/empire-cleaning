@@ -5,7 +5,11 @@ import { startTour, useLanguage } from "@empire-cleaning/ui";
 import { seeTour, type AreaId } from "../session.ts";
 import { toursFor, type Target } from "./tours.ts";
 
-const shown = (el: Element) => el.getClientRects().length > 0;
+// there to be seen, and to be pressed: a greyed button (Mark done while
+// the crew hasn't all confirmed) waits, so its tour does too
+const shown = (el: Element) =>
+  el.getClientRects().length > 0 &&
+  !el.matches(':disabled, [aria-disabled="true"]');
 
 // the first of these that's there to be seen and whose words start so
 const first = (

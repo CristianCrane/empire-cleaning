@@ -2,11 +2,10 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
   Banknote,
   Calendar,
-  CalendarX,
   CircleCheck,
+  DoorClosed,
   Clock,
   FilePen,
-  Mail,
   MapPin,
   Phone,
   Printer,
@@ -262,25 +261,34 @@ export const Alerts: Story = {
   },
 };
 
-// on site: the main action kept in reach at the foot
+// on site, its next step waiting on the crew: greyed, why in the alert,
+// the rest behind its arrow
 export const OnSite: Story = {
   globals: { viewport: { value: "phone" } },
   args: {
     trail: [{ label: "Jobs", href: "#" }, { label: "Deep Clean" }],
-    status: <StatusBadge tone="info">Confirmed</StatusBadge>,
+    status: <StatusBadge tone="success">On site</StatusBadge>,
     history: undefined,
-    actions: [
-      { label: "Call the office", icon: Phone, onAction: () => {} },
-      { label: "Email the office", icon: Mail, onAction: () => {} },
-      { label: "Drop out", icon: CalendarX, danger: true, onAction: () => {} },
+    alerts: [
+      {
+        key: "waiting",
+        tone: "warning",
+        children: "Dee hasn't confirmed yet. Call the office.",
+      },
     ],
-    footer: {
-      children: (
-        <Button>
-          <CircleCheck aria-hidden size={18} />
-          Complete
-        </Button>
-      ),
+    next: {
+      label: "Mark done",
+      icon: CircleCheck,
+      isDisabled: true,
+      onAction: () => {},
     },
+    actions: [
+      { label: "Couldn't get in", icon: DoorClosed, onAction: () => {} },
+      {
+        label: "Call the office",
+        icon: Phone,
+        externalHref: "tel:+16463209076",
+      },
+    ],
   },
 };
