@@ -9,12 +9,17 @@
 // (packages/web/e2e/card-form.sandbox.ts): here ConfirmationTokens come from
 // Stripe's test helper, and forms are confirmed as the browser would.
 // Webhooks are the real events, fetched from the Events API and signed here.
+// Most nights it takes about 5 minutes; when Stripe is slow to fail the
+// failing refund, up to 40 (REFUND_FAILS_WITHIN, #528).
+import { MINUTE_MS } from "@empire-cleaning/models";
 import env from "../../src/env.ts";
 // before stripe.ts, as the gateway's index makes the app's adapter on loading
 import {
   eventFor,
   fillCardForm,
   PAYMENT_METHOD,
+  REFUND_FAILS_WITHIN,
+  refundFailedEvent,
   sandboxStripe,
 } from "./stripe-sandbox.ts";
 import { paymentGatewayContract } from "./payment-gateway.ts";
@@ -38,67 +43,75 @@ const signed = (payload: string) => ({
   },
 });
 
-paymentGatewayContract("StripePaymentGateway in a sandbox", () => ({
-  gateway,
-  enterCard: async (card) =>
-    (
-      await stripe.testHelpers.confirmationTokens.create({
-        payment_method: PAYMENT_METHOD[card],
-        setup_future_usage: "off_session",
-      })
-    ).id,
-  fillCardForm: (secret, card) =>
-    fillCardForm(stripe, secret, PAYMENT_METHOD[card]),
-  abandonCardForm: async (secret) => secret.split("_secret_")[0]!,
-  // what confirmPayment does in the browser, by a test bank account
-  payByBankDebit: async (ref) => {
-    await stripe.paymentIntents.confirm(ref, {
-      payment_method: "pm_usBankAccount_processing",
-      mandate_data: {
-        customer_acceptance: {
-          type: "online",
-          online: { ip_address: "127.0.0.1", user_agent: "contract tests" },
-        },
-      },
-    });
-  },
-  paymentAttempts: async (payerId) =>
-    (await stripe.paymentIntents.list({ customer: payerId, limit: 100 })).data
-      .length,
-  // no mark of ours, as in the dashboard
-  refundInDashboard: async (chargeId, amount) =>
-    (await stripe.refunds.create({ payment_intent: chargeId, amount })).id,
-  refundWebhook: async (refundId, became) => {
-    const event =
-      became === "failed"
-        ? await eventFor(stripe, "refund.failed", refundId)
-        : await eventFor(
-            stripe,
-            "refund.updated",
-            refundId,
-            (refund) => refund.status === "succeeded",
-          );
-    return signed(JSON.stringify(event));
-  },
-  depositWebhook: (ref) =>
-    signed(
-      JSON.stringify({
-        id: `evt_contract_${Date.now()}`,
-        object: "event",
-        type: "payment_intent.succeeded",
-        data: {
-          object: {
-            id: ref,
-            object: "payment_intent",
-            metadata: { purpose: "deposit" },
+paymentGatewayContract(
+  "StripePaymentGateway in a sandbox",
+  () => ({
+    gateway,
+    enterCard: async (card) =>
+      (
+        await stripe.testHelpers.confirmationTokens.create({
+          payment_method: PAYMENT_METHOD[card],
+          setup_future_usage: "off_session",
+        })
+      ).id,
+    fillCardForm: (secret, card) =>
+      fillCardForm(stripe, secret, PAYMENT_METHOD[card]),
+    abandonCardForm: async (secret) => secret.split("_secret_")[0]!,
+    // what confirmPayment does in the browser, by a test bank account
+    payByBankDebit: async (ref) => {
+      await stripe.paymentIntents.confirm(ref, {
+        payment_method: "pm_usBankAccount_processing",
+        mandate_data: {
+          customer_acceptance: {
+            type: "online",
+            online: { ip_address: "127.0.0.1", user_agent: "contract tests" },
           },
         },
-      }),
-    ),
-  forgedWebhook: () => ({
-    body: Buffer.from(
-      JSON.stringify({ id: "evt_forged", type: "payment_intent.succeeded" }),
-    ),
-    headers: { "stripe-signature": "t=1,v1=forged" },
+      });
+    },
+    paymentAttempts: async (payerId) =>
+      (await stripe.paymentIntents.list({ customer: payerId, limit: 100 })).data
+        .length,
+    // no mark of ours, as in the dashboard
+    refundInDashboard: async (chargeId, amount) =>
+      (await stripe.refunds.create({ payment_intent: chargeId, amount })).id,
+    refundWebhook: async (refundId, became) => {
+      const event =
+        became === "failed"
+          ? await refundFailedEvent(stripe, refundId)
+          : await eventFor(
+              stripe,
+              "refund.updated",
+              refundId,
+              (refund) => refund.status === "succeeded",
+            );
+      return signed(JSON.stringify(event));
+    },
+    depositWebhook: (ref) =>
+      signed(
+        JSON.stringify({
+          id: `evt_contract_${Date.now()}`,
+          object: "event",
+          type: "payment_intent.succeeded",
+          data: {
+            object: {
+              id: ref,
+              object: "payment_intent",
+              metadata: { purpose: "deposit" },
+            },
+          },
+        }),
+      ),
+    forgedWebhook: () => ({
+      body: Buffer.from(
+        JSON.stringify({ id: "evt_forged", type: "payment_intent.succeeded" }),
+      ),
+      headers: { "stripe-signature": "t=1,v1=forged" },
+    }),
   }),
-}));
+  {
+    // past the sandbox's 6-minute budget: its wait, and a minute to charge
+    // the card and refund it
+    refundFailsTimeout: REFUND_FAILS_WITHIN + MINUTE_MS,
+  },
+);
