@@ -159,7 +159,7 @@ function RecordPayment({ bill, ...state }: { bill: BillView } & DialogState) {
 function VoidBill({ bill, ...state }: { bill: BillView } & DialogState) {
   const action = useBillAction(bill, "void", "Bill cancelled");
   return (
-    <Dialog title={`Cancel bill ${bill.number}?`} {...state}>
+    <Dialog title={`Cancel bill ${bill.number}?`} role="alertdialog" {...state}>
       {({ close }) => (
         <Form
           validationErrors={action.fieldErrors}

@@ -59,9 +59,7 @@ const parts = (
 // at the card's foot
 export const OneCard: Story = {
   args: {
-    actions: [
-      { label: "Retire", icon: Archive, danger: true, onAction: () => {} },
-    ],
+    actions: [{ label: "Retire", icon: Archive, onAction: () => {} }],
     aside: {
       title: "Example quote",
       children: <p className="font-display text-3xl font-bold">$568.87</p>,
@@ -299,5 +297,13 @@ export const PricedWithAFooter: Story = {
     await expect(
       canvas.getByRole("button", { name: "Add a weekday" }),
     ).toBeVisible();
+    // the page's only action loses what can't be got back: outlined in
+    // red, not filled, nor red words alone
+    const remove = canvas.getByRole("button", { name: "Delete draft" });
+    await expect(remove).toHaveClass(
+      "border-danger",
+      "text-danger",
+      "bg-surface",
+    );
   },
 };

@@ -299,11 +299,12 @@ The `ui` skill's rules hold here too; these are this product's.
   is next, sticking in a header once scrolled past, a Record's there on a
   wider screen only and at the foot on a phone (#493 builds it); a page
   whose only action destroys has no primary, that action in the same
-  place, outlined in red, not in a ⋯ menu, which would hide the page's
-  only action (the `ui` skill; #493 builds it); the
+  place, outlined in red (`danger-outline`), not in a ⋯ menu, which would
+  hide the page's only action (the `ui` skill); the
   destructive last in red after a rule. Printed,
   it's the title alone.
-  ("Layout / RecordPage / Actions In The Header", "One Action")
+  ("Layout / RecordPage / Actions In The Header", "One Action";
+  "Layout / FormPage / Priced With A Footer" for a lone destructive action)
 - **A wide screen keeps a readable column**: the content's, AppLayout's
   `max-w-5xl` (960 px inside its margins), the width every page in an
   area reads at (a page outside one keeps `PageFrame`'s). A page with nothing beside it (a Record, a Form page
@@ -376,9 +377,9 @@ The `ui` skill's rules hold here too; these are this product's.
   right. The layout test fails a button or link under a fixed bar. ("A
   bar at the foot is an ActionFooter")
 - **Buttons are ranked by fill**: primary filled, secondary outlined,
-  `text` for a Section's actions, `danger-text` beside them, `danger`
-  alone in a dialog, a page's lone destructive action outlined in red
-  (#493 builds it), `quiet` only to back out. What's pressable looks it, and the
+  `text` for a Section's actions, `danger-text` beside them, a page's
+  lone destructive action outlined in red (`danger-outline`), `danger`
+  filled only in the dialog that confirms it, `quiet` only to back out. What's pressable looks it, and the
   reverse (the `ui` skill).
   ("Clickable catches the eye")
 - **A Section's actions are text Buttons** on the title's line, no taller
@@ -386,8 +387,14 @@ The `ui` skill's rules hold here too; these are this product's.
 - **A red button is for what can't be got back** (the `ui` skill): End
   plan, Cancel bill, Deactivate (the places it frees on Jobs don't come
   back). Declining a quote is `quiet`, as it backs out of the quote, not
-  red, as the Client can ask again, and its confirm isn't red either
-  (#493 builds it).
+  red, as the Client can ask again, and its confirm is the dialog's
+  primary; so is the Office's Turn down of a Client's move. A Service's
+  Retire isn't red (Offer again brings it back), nor a Draft's Remove
+  <weekday> (nothing sent or booked is lost, and Add a weekday gives a day
+  again in a tap). The Office's Turn down of a quote stays red: it closes
+  the Client's quote for good on the Office's word (a move turned down
+  leaves the Job as booked), where a Client's Decline is their own word on
+  their own quote.
 - **Continue with Google is Google's own button** (the `ui` skill: a
   third-party sign-in keeps its owner's look): their colours in light and
   dark, their logo, Roboto. Only the 44px touch height is ours.

@@ -182,11 +182,8 @@ function TurnDown({
         <Button variant="quiet" onPress={back}>
           Back
         </Button>
-        <Button
-          variant="danger"
-          isPending={action.isPending}
-          onPress={() => void turnDown()}
-        >
+        {/* not red: the client can ask again */}
+        <Button isPending={action.isPending} onPress={() => void turnDown()}>
           Turn down
         </Button>
       </Actions>
