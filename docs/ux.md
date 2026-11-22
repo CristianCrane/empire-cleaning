@@ -313,7 +313,8 @@ The `ui` skill's rules hold here too; these are this product's.
   under the title before the button moves. From md, once the window's top
   reaches the title row's actions, a slim header sticks at the top with
   the title, the badge and the same actions (the split button, or the ⋯ or
-  lone Button when nothing is next), lined up with the column, with room
+  lone Button when nothing is next), lined up with the page's column (a
+  form's width on a Form page with no aside), with room
   beside the button for what the step rests on (a Draft's price, which
   #493 builds); a List's New stays on its row. A Record's next step is
   there on a wider screen only, and at

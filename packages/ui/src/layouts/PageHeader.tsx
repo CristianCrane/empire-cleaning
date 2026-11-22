@@ -1,7 +1,8 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useContext, useEffect, useState, type ReactNode } from "react";
 import { Breadcrumbs, type Crumb } from "../Breadcrumbs.tsx";
 import { Heading } from "../Heading.tsx";
 import { useWide } from "../wide.ts";
+import { FrameColumn } from "./PageFrame.tsx";
 import {
   ActionButton,
   RareActions,
@@ -166,6 +167,8 @@ function StickyHeader({
     setWasShown(shown);
     setLeaving(!shown);
   }
+  // the page's frame's column, when it's narrower than the content's
+  const column = useContext(FrameColumn);
   const named = shown || leaving;
   return (
     <div
@@ -182,7 +185,9 @@ function StickyHeader({
       }`}
     >
       <div className="page-column">
-        <div className="pointer-events-auto flex items-center gap-3 rounded-b-lg border-x border-b border-border bg-surface px-4 py-2 shadow-raised">
+        <div
+          className={`pointer-events-auto flex items-center gap-3 rounded-b-lg border-x border-b border-border bg-surface px-4 py-2 shadow-raised ${column}`}
+        >
           {named && (
             <>
               <p className="min-w-0 truncate font-display text-xl font-bold tracking-wide uppercase">

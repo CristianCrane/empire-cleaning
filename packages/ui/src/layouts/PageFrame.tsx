@@ -1,4 +1,4 @@
-import { useContext, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { Logo } from "../Logo.tsx";
 import { InAppLayout } from "./AppLayout.tsx";
 
@@ -10,6 +10,16 @@ import { InAppLayout } from "./AppLayout.tsx";
 // the logo above it, who's signed in (`account`) under the logo on a phone
 // and beside it from sm); or `wide`, a Form page with its aside, the
 // content's width
+// in an area, the frame's column inside the content's: the header that
+// sticks (PageHeader) keeps it too, so its actions stay over the title
+// row's when a page is narrower than the content
+const frameColumn = {
+  narrow: "mx-auto max-w-md",
+  form: "max-w-form",
+  wide: "",
+};
+export const FrameColumn = createContext("");
+
 export function PageFrame({
   width = "narrow",
   account,
@@ -20,12 +30,11 @@ export function PageFrame({
   children: ReactNode;
 }) {
   if (useContext(InAppLayout)) {
+    const column = frameColumn[width];
     return (
-      <div
-        className={`flex flex-col gap-6 ${{ narrow: "mx-auto max-w-md", form: "max-w-form", wide: "" }[width]}`}
-      >
-        {children}
-      </div>
+      <FrameColumn value={column}>
+        <div className={`flex flex-col gap-6 ${column}`}>{children}</div>
+      </FrameColumn>
     );
   }
   if (width !== "narrow") {
