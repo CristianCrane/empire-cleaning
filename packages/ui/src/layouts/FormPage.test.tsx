@@ -75,7 +75,7 @@ test("a Form page at a form's width keeps it in the header that sticks", async (
 
 // a form with a price and a Send (the Draft): its price beside the card
 // from xl, first below it
-const priced = (
+const pricedNoting = (note: string) => (
   <AppLayout
     area="Office"
     nav={[
@@ -95,13 +95,14 @@ const priced = (
       ]}
       next={{ label: "Send", icon: Send, onAction: () => {} }}
       price={{ line: "Deep Clean $568.87", short: "$568.87" }}
-      note="Saved"
+      note={note}
       aside={{ title: "Prices", leads: true, children: <p>$568.87</p> }}
     >
       <p className="h-[200rem]">The form</p>
     </FormPage>
   </AppLayout>
 );
+const priced = pricedNoting("Saved");
 const whatToDo = () => page.getByRole("group", { name: "What to do" });
 // the save's state, read out as it changes (the frame keeps a status of its
 // own, for a page loading)
@@ -159,6 +160,64 @@ test("a priced Form page's header that sticks leaves the price to the aside besi
   expect(box(aside).top).toBeGreaterThanOrEqual(box(send.element()).bottom);
 });
 
+// a save's longest state wraps beside the button, at md, the narrowest
+// width the header holds it, rather than squeezing the title to a word a line
+test("a Form page's note wraps beside its button, leaving the title its room", async () => {
+  await page.viewport(768, 1024);
+  await render(
+    pricedNoting("Your changes didn't save. We'll try again as you edit."),
+  );
+  const title = page.getByRole("heading", { level: 1 }).element();
+  const note = page
+    .getByRole("status")
+    .filter({ hasText: "didn't save" })
+    .element();
+  expect(box(title).width).toBeGreaterThanOrEqual(box(note).width);
+  window.scrollTo(0, 600);
+  const send = whatToDo().getByRole("button", { name: "Send" });
+  await expect.poll(() => box(send.element()).top).toBeGreaterThan(0);
+  const sticky = send.element().closest(".fixed")!;
+  const named = sticky.querySelector("p")!;
+  expect(box(named).width).toBeGreaterThan(100);
+});
+
+// a Form page whose header sticks for its rare action alone (a Service's
+// Retire) keeps its aside clear of that header too
+test("a Form page's aside sticks under the header that sticks for a rare action", async () => {
+  await page.viewport(1440, 900);
+  await render(
+    <AppLayout
+      area="Office"
+      nav={[
+        {
+          href: "#",
+          label: "Services",
+          icon: LayoutDashboard,
+          isCurrent: true,
+        },
+      ]}
+      foot={() => null}
+    >
+      <FormPage
+        title="Deep Clean"
+        actions={[
+          { label: "Retire", icon: Archive, danger: true, onAction: () => {} },
+        ]}
+        buttons={<button type="submit">Save</button>}
+        aside={{ title: "Example quote", children: <p>$568.87</p> }}
+      >
+        <p className="h-[200rem]">The form</p>
+      </FormPage>
+    </AppLayout>,
+  );
+  window.scrollTo(0, 1200);
+  // the one copy to press, once the title row's has scrolled away
+  const retire = page.getByRole("button", { name: "Retire" });
+  await expect.poll(() => box(retire.element()).top).toBeGreaterThan(0);
+  const aside = page.getByRole("region", { name: "Example quote" }).element();
+  expect(box(aside).top).toBeGreaterThanOrEqual(box(retire.element()).bottom);
+});
+
 // a phone keeps its bar: the price, Saved and the button pinned at the
 // foot, the rest on the title row
 test("a priced Form page on a phone pins its price, Saved and button at the foot", async () => {
@@ -210,13 +269,21 @@ test("a priced Form page's submit sends its form from the header that sticks, an
     </form>,
   );
   const draft = whatToDo().getByRole("button", { name: "Draft a quote" });
+  const toNotes = async () => {
+    page.getByRole("textbox", { name: "Notes" }).element().scrollIntoView();
+    await expect.poll(() => box(draft.element()).top).toBeGreaterThan(0);
+    expect(box(draft.element()).bottom).toBeLessThan(80);
+  };
+  await draft.click();
+  expect(sent).toBe(0);
+  // the header that sticks is the form's too: its button stops at a field
+  // left empty, as the title row's does
+  await toNotes();
   await draft.click();
   expect(sent).toBe(0);
 
   await page.getByRole("textbox", { name: "Street" }).fill("9 Main St");
-  page.getByRole("textbox", { name: "Notes" }).element().scrollIntoView();
-  await expect.poll(() => box(draft.element()).top).toBeGreaterThan(0);
-  expect(box(draft.element()).bottom).toBeLessThan(80);
+  await toNotes();
   await draft.click();
   expect(sent).toBe(1);
   await page.getByRole("textbox", { name: "Notes" }).click();

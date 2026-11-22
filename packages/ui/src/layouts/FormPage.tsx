@@ -110,8 +110,6 @@ export function FormPage({
   const words = useUiWords();
   const wide = useWide();
   const missing = price && "missing" in price ? price.missing : undefined;
-  // the header that sticks from md, under which the aside sticks
-  const sticks = !!next || (actions ?? []).some(Boolean);
   const card = (
     <Card>
       <div className="flex flex-col gap-5">{children}</div>
@@ -134,7 +132,8 @@ export function FormPage({
     );
   const side = aside && (
     <div
-      className={`xl:sticky ${sticks ? "xl:top-20" : "xl:top-6"} ${aside.leads ? "xl:col-start-2 xl:row-start-1" : ""}`}
+      // under the header that sticks, when the page has one
+      className={`xl:sticky xl:top-[calc(var(--sticky-header-height,0px)+1.5rem)] ${aside.leads ? "xl:col-start-2 xl:row-start-1" : ""}`}
     >
       <Section title={aside.title}>
         <Card>{aside.children}</Card>

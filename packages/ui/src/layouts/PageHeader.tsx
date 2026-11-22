@@ -1,4 +1,11 @@
-import { useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Breadcrumbs, type Crumb } from "../Breadcrumbs.tsx";
 import { Heading } from "../Heading.tsx";
 import { useWide } from "../wide.ts";
@@ -164,10 +171,11 @@ export function PageHeader({
   );
 }
 
-// a line read out as it changes, beside a page's actions
+// a line read out as it changes, beside a page's actions: a save's longest
+// state wraps to a few short lines there, rather than squeezing the title
 function Note({ children }: { children: ReactNode }) {
   return (
-    <span role="status" className="text-sm text-fg-muted">
+    <span role="status" className="max-w-48 text-right text-sm text-fg-muted">
       {children}
     </span>
   );
@@ -200,8 +208,26 @@ function StickyHeader({
   // the page's frame's column, when it's narrower than the content's
   const column = useContext(FrameColumn);
   const named = shown || leaving;
+  // its height (none below md, where it isn't drawn) is
+  // `--sticky-header-height` on the page, for what sticks under it (a Form
+  // page's aside), as ActionFooter's is for what floats above it
+  const bar = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const element = bar.current;
+    if (!element) return;
+    const { style } = document.documentElement;
+    const observer = new ResizeObserver(() =>
+      style.setProperty("--sticky-header-height", `${element.offsetHeight}px`),
+    );
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      style.removeProperty("--sticky-header-height");
+    };
+  }, []);
   return (
     <div
+      ref={bar}
       inert={!shown}
       aria-hidden={!shown}
       // its own slide, not a button's colour inside it
