@@ -136,8 +136,8 @@ test("Office Staff take someone off a Job, leaving a Cleaner Needed", async ({
   );
 });
 
-// #406: what can be done to the Job in an Actions menu, Cancel last after a
-// rule; each fact with its label; the Crew drawn as the Staff list, the
+// #406: what can be done to the Job in its menu (a ⋯ since #493), Cancel
+// last after a rule; each fact with its label; the Crew drawn as the Staff list, the
 // picture the Staff list shows, a badge only when it isn't Confirmed
 test(
   "the Office's Job page names its actions, its details and its crew",

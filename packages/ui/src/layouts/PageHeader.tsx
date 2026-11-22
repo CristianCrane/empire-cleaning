@@ -31,7 +31,6 @@ export function PageHeader({
   subtitle,
   actions = [],
   next,
-  summary,
   primary,
   tools,
 }: {
@@ -54,15 +53,11 @@ export function PageHeader({
       actions?: PageActions;
       // the page's next step, its primary
       next?: PageAction;
-      // what the header that sticks keeps beside the next step, as it's
-      // what the step rests on (a Draft's price)
-      summary?: ReactNode;
       primary?: never;
     }
   | {
       actions?: never;
       next?: never;
-      summary?: never;
       // a List's one primary, filled: making a new one
       primary?: PageAction;
     }
@@ -132,7 +127,6 @@ export function PageHeader({
       </div>
       {next && (
         <StickyHeader shown={away} title={title} status={status}>
-          {summary}
           <SplitButton next={next} more={more} opens="menu" />
         </StickyHeader>
       )}

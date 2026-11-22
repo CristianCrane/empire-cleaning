@@ -309,8 +309,8 @@ The `ui` skill's rules hold here too; these are this product's.
   under the title before the button moves. From md, once the title row's
   split button scrolls away, a slim header sticks at the top with the
   title, the badge and the same split button, lined up with the column
-  (and what the step rests on beside it, a Draft's price: PageHeader's
-  `summary`); a Record's next step is there on a wider screen only, and at
+  (with room beside the button for what the step rests on, a Draft's
+  price, which #493 builds); a Record's next step is there on a wider screen only, and at
   the foot on a phone. Printed, it's the title alone.
   ("Layout / RecordPage / Next Step In The Header", "Nothing Next", "One Action";
   "Layout / FormPage / Priced With A Footer" for a lone destructive action)

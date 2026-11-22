@@ -8,8 +8,9 @@ import {
 } from "lucide-react";
 import { afterEach, expect, test } from "vitest";
 import { render } from "vitest-browser-react";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { Card } from "../Card.tsx";
+import { Dialog } from "../Dialog.tsx";
 import { Section } from "../Section.tsx";
 import { Timeline, TimelineItem } from "../Timeline.tsx";
 import { AppLayout } from "./AppLayout.tsx";
@@ -95,7 +96,15 @@ const visit = (
       title="Site visit"
       next={{ label: "Record findings", icon: ClipboardCheck, onAction() {} }}
       actions={[
-        { label: "Move or change", icon: CalendarSync, onAction() {} },
+        {
+          label: "Move or change",
+          icon: CalendarSync,
+          dialog: (state) => (
+            <Dialog title="Move this visit" {...state}>
+              When it's for
+            </Dialog>
+          ),
+        },
         { label: "Cancel visit", icon: CalendarX, danger: true, onAction() {} },
       ]}
       details={<DetailsCard label="Details" title="Mon, Nov 9, 9:00 AM" />}
@@ -152,4 +161,15 @@ test("a Record's next step on a phone is pinned at the foot, the rest in a sheet
     .element(sheet.getByRole("menuitem").last())
     .toHaveTextContent("Cancel visit");
   await expect.poll(() => box(sheet.element()).bottom).toBe(window.innerHeight);
+
+  // a choice's dialog outlives the sheet it closed, and gives focus back
+  // to the arrow that opened it
+  await sheet.getByRole("menuitem", { name: "Move or change" }).click();
+  const move = page.getByRole("dialog", { name: "Move this visit" });
+  await expect.element(move).toBeVisible();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(move).not.toBeInTheDocument();
+  await expect
+    .element(foot.getByRole("button", { name: "More actions" }))
+    .toHaveFocus();
 });

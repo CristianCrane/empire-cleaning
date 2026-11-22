@@ -34,46 +34,6 @@ export type PageAction = {
 // or undefined
 export type PageActions = (PageAction | false | null | undefined)[];
 
-// One action as a Button, or a ButtonLink when it opens another page; a
-// dialog it opens is its own. A page's one action when nothing is next
-// (WEB-9), outlined in red when it's `danger` (the page has no primary
-// then), a List's primary, and an empty List's way to fill it
-export function ActionButton({
-  action,
-  variant,
-}: {
-  action: PageAction;
-  variant: "primary" | "secondary";
-}) {
-  const [isOpen, setOpen] = useState(false);
-  const look = action.danger ? "danger-outline" : variant;
-  const content = (
-    <>
-      <action.icon aria-hidden size={18} />
-      {action.label}
-    </>
-  );
-  if ("href" in action)
-    return (
-      <ButtonLink variant={look} href={action.href} className="shrink-0">
-        {content}
-      </ButtonLink>
-    );
-  return (
-    <>
-      <Button
-        variant={look}
-        className="shrink-0"
-        isPending={action.isPending}
-        onPress={() => ("dialog" in action ? setOpen(true) : action.onAction())}
-      >
-        {content}
-      </Button>
-      {"dialog" in action && action.dialog({ isOpen, onOpenChange: setOpen })}
-    </>
-  );
-}
-
 // the dialogs of the actions one control holds, one open at a time, each
 // drawn here rather than in the menu or sheet: so they outlive it as it
 // closes, and focus comes back to the control as they close
@@ -95,6 +55,49 @@ function useDialogs(actions: PageAction[]) {
       ),
   );
   return { press, dialogs };
+}
+
+// One action as a Button, or a ButtonLink when it opens another page; a
+// dialog it opens is its own. A page's one action when nothing is next
+// (WEB-9), outlined in red when it's `danger` (the page has no primary
+// then), a List's primary, an empty List's way to fill it, and the split
+// button's main half
+export function ActionButton({
+  action,
+  variant,
+  className = "shrink-0",
+}: {
+  action: PageAction;
+  variant: "primary" | "secondary";
+  className?: string;
+}) {
+  const { press, dialogs } = useDialogs([action]);
+  const look = action.danger ? "danger-outline" : variant;
+  const content = (
+    <>
+      <action.icon aria-hidden size={18} />
+      {action.label}
+    </>
+  );
+  if ("href" in action)
+    return (
+      <ButtonLink variant={look} href={action.href} className={className}>
+        {content}
+      </ButtonLink>
+    );
+  return (
+    <>
+      <Button
+        variant={look}
+        className={className}
+        isPending={action.isPending}
+        onPress={press(action)}
+      >
+        {content}
+      </Button>
+      {dialogs}
+    </>
+  );
 }
 
 // the actions as a menu's items, the destructive last after a rule; large
@@ -145,14 +148,8 @@ export function SplitButton({
   opens: "menu" | "sheet";
 }) {
   const words = useUiWords();
-  const { press, dialogs } = useDialogs([next, ...more]);
+  const { press, dialogs } = useDialogs(more);
   const joined = more.length > 0 ? "rounded-r-none" : "";
-  const content = (
-    <>
-      <next.icon aria-hidden size={18} />
-      {next.label}
-    </>
-  );
   const Chevron = opens === "menu" ? ChevronDown : ChevronUp;
   const arrow = (
     <Button
@@ -165,19 +162,11 @@ export function SplitButton({
   );
   return (
     <div className="flex w-full md:w-auto">
-      {"href" in next ? (
-        <ButtonLink href={next.href} className={`flex-1 ${joined}`}>
-          {content}
-        </ButtonLink>
-      ) : (
-        <Button
-          isPending={next.isPending}
-          onPress={press(next)}
-          className={`flex-1 ${joined}`}
-        >
-          {content}
-        </Button>
-      )}
+      <ActionButton
+        action={next}
+        variant="primary"
+        className={`flex-1 ${joined}`}
+      />
       {more.length > 0 &&
         (opens === "sheet" ? (
           <DialogTrigger>

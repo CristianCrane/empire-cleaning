@@ -507,24 +507,23 @@ export const showInMenu = async (page: Page, wanted: Locator) => {
 const moreActions = (page: Page) =>
   page.getByRole("button", { name: /^(More actions|Más acciones)$/ });
 
-// a page's action pressed straight away: its next step, or its one action
-// when nothing is next
-const pageButton = (page: Page, name: string) =>
-  page
+// a page's action pressed straight away: its next step, its one action
+// when nothing is next, or a part's own Button. On the page (AppLayout's main), so a dialog's own
+// Button of the same name, still closing over it, isn't taken for it
+const pageButton = (page: Page, name: string) => {
+  const main = page.locator("#main");
+  return main
     .getByRole("button", { name, exact: true })
-    .or(page.getByRole("link", { name, exact: true }));
+    .or(main.getByRole("link", { name, exact: true }));
+};
 
 // does one of a page's actions: its next step, pressed straight away, or
 // one of the rest from behind More actions, or its one action when nothing
-// is next (#432, #493)
+// is next, or a part's own Button (#432, #493)
 export const pageAction = async (page: Page, name: string) => {
   const more = moreActions(page);
   const button = pageButton(page, name);
-  // on the page itself, a dialog closed (its own button of the name gone
-  // too), and whichever the page shows, once it's the page wanted
-  await expect(
-    page.getByRole("dialog").or(page.getByRole("alertdialog")),
-  ).toHaveCount(0);
+  // whichever the page shows, once it's the page wanted
   await expect(more.or(button).first()).toBeVisible();
   if ((await button.count()) > 0) {
     await button.click();

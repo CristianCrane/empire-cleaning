@@ -230,10 +230,7 @@ const expectDialogFitsEveryWidth = async (
 ) => {
   await page.goto(path);
   // on a part of the page, or one of its actions
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  const onPart = page.getByRole("button", { name: button, exact: true });
-  if ((await onPart.count()) > 0) await onPart.click();
-  else await pageAction(page, button);
+  await pageAction(page, button);
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   const problems: string[] = [];
