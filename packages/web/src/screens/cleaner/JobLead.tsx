@@ -37,7 +37,7 @@ export function JobLead({
   );
 }
 
-// the client's number, on the Job's day once it's theirs: on the page, and
+// the client's number, on the Job's day (#230): on the page, and
 // in Couldn't get in's sheet, where it's one of the two things to try
 export function ClientNumberFact({ phone }: { phone: string }) {
   const t = useShared();
@@ -54,7 +54,7 @@ export function ClientNumberFact({ phone }: { phone: string }) {
   );
 }
 
-// how we get in, on the Job's day once it's theirs; what's said when
+// how we get in, on the Job's day (#230); what's said when
 // nothing's written down
 export function AccessFact({
   note,

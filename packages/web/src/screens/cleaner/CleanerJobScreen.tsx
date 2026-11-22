@@ -97,7 +97,7 @@ export const directionsAction = (t: Said, address: string): PageAction => ({
 
 // One Job as its Cleaner sees it, a Record (docs/ux.md), never with prices
 // (UX pass, #96), at each stage of it (#493's layout D): while it's offered,
-// what they'd take on; once it's theirs, where too, and on the day the
+// what they'd take on; once it's theirs, where too; on the day the
 // client's number and how we get in (#230, D3); once it's over, how it went
 // first, the Job folded under it. One split button at every stage: Confirm
 // while offered, Directions till it starts, then Mark done; the rest
