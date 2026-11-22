@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { MINUTE_MS } from "@empire-cleaning/models";
 import {
+  addCleaner,
   bookJob,
   createClient,
   createStaff,
@@ -14,6 +15,7 @@ import {
   recordLanguages,
   searchList,
   setLanguage,
+  offerJob,
   signedInAs,
   test,
 } from "./harness.ts";
@@ -152,8 +154,9 @@ test(
     expect((await rail.boundingBox())!.width).toBeLessThanOrEqual(64);
     expect((await page.getByRole("main").boundingBox())!.x).toBe(64);
     // each name beside its icon on hover, from a pointer that has moved
-    // over the page, as a person's has: react-aria lets the first hover
-    // after a page loads with the pointer still go unseen
+    // over the page, as a person's has: a hover as the first pointer move
+    // since the page loaded opened no tooltip (docs/testing-log.md,
+    // 2026-11-22)
     await page.mouse.move(400, 400);
     await rail.getByRole("link", { name: "Quotes" }).hover();
     await expect(page.getByRole("tooltip")).toHaveText("Quotes");
@@ -204,6 +207,36 @@ test(
     await expect(account.getByRole("button", { name: "Español" })).toHaveCount(
       0,
     );
+  },
+);
+
+// the Cleaner's Offers says how many wait on their answer, in the
+// sidebar's name and as a mark on the rail's icon
+test(
+  "a Cleaner's Offers counts what waits on them, in the sidebar and on the rail",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    test.skip(
+      isMobile,
+      "the phone's tab bar is navigation.spec's other tests'",
+    );
+    const cory = await addCleaner("Cory Cleaner");
+    const job = (await bookJob({
+      startsAt: "2026-01-08T14:00:00Z",
+      labourHours: 3,
+    })) as { id: string };
+    await offerJob(job.id, cory.id);
+    await signedInAs(page, "cory@example.com");
+    const sidebar = page.getByRole("complementary");
+    await expect(
+      sidebar.getByRole("link", { name: "Offers (1)" }),
+    ).toBeVisible();
+
+    await page.setViewportSize({ width: 900, height: 900 });
+    const rail = page.getByRole("complementary");
+    const offers = rail.getByRole("link", { name: "Offers (1)" });
+    await expect(offers).toBeVisible();
+    await expect(offers.getByText("1", { exact: true })).toBeVisible();
   },
 );
 

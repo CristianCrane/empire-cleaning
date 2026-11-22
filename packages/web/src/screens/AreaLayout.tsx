@@ -81,8 +81,12 @@ const words = catalog({
 });
 
 // an item is current on its own page, and on the pages that belong to its
-// section (alsoCurrentFor: URL prefixes), e.g. a Quote reached from Quotes
-type AreaNavItem = NavItem & { alsoCurrentFor?: string[] };
+// section (alsoCurrentFor: URL prefixes), e.g. a Quote reached from Quotes;
+// the Cleaner's Offers carries how many wait on their answer (countsOffers)
+type AreaNavItem = NavItem & {
+  alsoCurrentFor?: string[];
+  countsOffers?: boolean;
+};
 
 // each area's navigation; feature tickets add their screens here. A phone's
 // tab bar holds five at most: the Office keeps the two it checks all day
@@ -161,6 +165,7 @@ const navFor = (lang: Language): Record<AreaId, AreaNavItem[]> => ({
       label: cleanerWords[lang].offers,
       icon: Inbox,
       alsoCurrentFor: ["/cleaner/open/"],
+      countsOffers: true,
     },
   ],
   portal: [
@@ -217,11 +222,8 @@ export function AreaLayout({ area }: { area: AreaId }) {
   useTours(area, account);
   const lang = useLanguage();
   const nav: NavItem[] = navFor(lang)[area].map(
-    ({ alsoCurrentFor = [], ...item }) => {
-      const count =
-        item.href === linkTo({ to: "/cleaner/offers" }) && offers > 0
-          ? offers
-          : undefined;
+    ({ alsoCurrentFor = [], countsOffers, ...item }) => {
+      const count = countsOffers && offers > 0 ? offers : undefined;
       return {
         ...item,
         label: count ? cleanerWords[lang].offersCount(count) : item.label,
