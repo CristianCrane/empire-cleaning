@@ -113,7 +113,11 @@ type T = Said & { w: (typeof words)["en"] };
 // Weekly Bills (ADR-0016), as the Office and the Client both see them
 
 // where a Bill stands: what's left to do about it, or how it ended
-export function BillStatusBadge({ bill }: { bill: BillSummary }) {
+export function BillStatusBadge({
+  bill,
+}: {
+  bill: Pick<BillSummary, "status" | "unpaid" | "totalCents">;
+}) {
   const { w, unpaid, clearing } = useSaid(words);
   if (bill.status === "void") return <StatusBadge>{w.cancelled}</StatusBadge>;
   if (bill.status === "processing")

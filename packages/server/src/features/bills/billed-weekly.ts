@@ -1,4 +1,4 @@
-import { and, eq, ne } from "drizzle-orm";
+import { and, asc, eq, ne } from "drizzle-orm";
 import { startOfDay } from "@empire-cleaning/models";
 import type { db, Tx } from "../../db/index.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
@@ -26,7 +26,8 @@ export const billLinesOf = (jobId: string, tx: Tx | typeof db) =>
     .select({ line: billLines, bill: bills })
     .from(billLines)
     .innerJoin(bills, eq(bills.id, billLines.billId))
-    .where(and(eq(billLines.jobId, jobId), ne(bills.status, "void")));
+    .where(and(eq(billLines.jobId, jobId), ne(bills.status, "void")))
+    .orderBy(asc(bills.number));
 
 // what those lines come to, and whether it has any
 export const billedOf = (lines: Awaited<ReturnType<typeof billLinesOf>>) => ({

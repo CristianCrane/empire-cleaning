@@ -12,6 +12,7 @@ import {
   CircleAlert,
   CircleCheck,
   CircleDollarSign,
+  ClipboardCheck,
   House,
   ClipboardPenLine,
   FileClock,
@@ -1134,9 +1135,10 @@ function DetailsPage() {
         </p>
         <p>
           What needs an answer goes next, as a Notice each, the most pressing
-          first, two at most and the rest behind "Show N more". A Notice holds
-          one text Button; what it does goes wrong in a Toast, never a Notice
-          inside it.
+          first, two at most and the rest behind "Show N more". A Notice says
+          why, and the page's next step does it; it may hold one text Button for
+          an action that isn't the next step, and what that does goes wrong in a
+          Toast, never a Notice inside it.
         </p>
         <p>
           Then one details card: what it is, large, led by its tile; then its
@@ -1150,28 +1152,29 @@ function DetailsPage() {
       <Example verdict="Do">
         <RecordPage
           trail={[{ label: "Cleans", href: "#" }, { label: "Mon, Jan 12" }]}
-          title="Mon, Jan 12"
-          status={<StatusBadge tone="info">Booked</StatusBadge>}
-          actions={[
-            { label: "Pick a new time", icon: CalendarClock, onAction() {} },
-          ]}
+          title="Deep Clean"
+          status={<StatusBadge tone="warning">Needs your OK</StatusBadge>}
+          next={{
+            label: "Review the price change",
+            icon: ClipboardCheck,
+            onAction() {},
+          }}
           alerts={[
             {
               key: "change",
               tone: "warning",
               children: (
                 <p>
-                  <strong>Please approve a price change.</strong> 1 more hour,
-                  $59.88.
+                  The crew did more than was quoted: 1 more hour, $59.88. Please
+                  answer by Jan 19, 2026.
                 </p>
               ),
-              action: <Button variant="text">Review</Button>,
             },
           ]}
           details={
             <DetailsCard
               label="Details"
-              tile={<IconTile icon={CalendarClock} size="lg" />}
+              tile={<DateTile date="2026-01-12T14:00:00Z" />}
               kicker="One-off clean"
               title="Mon, Jan 12, 9:00 AM"
             >

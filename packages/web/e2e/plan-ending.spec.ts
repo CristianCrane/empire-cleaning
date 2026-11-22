@@ -11,6 +11,7 @@ import {
   signUp,
   startedServicePlan,
   test,
+  expectNextStep,
   expectNoPageAction,
   pageAction,
   openTile,
@@ -155,12 +156,10 @@ test("a Client's plan is On Hold while a fee is Unpaid, and back on once they pa
 
   await failCharges(null);
   await onHold.getByRole("link", { name: "Pay for that clean" }).click();
-  // saving a card tries the charge again
-  await page
-    .getByRole("alert")
-    .filter({ hasText: "Payment needed" })
-    .getByRole("link", { name: "Update your card" })
-    .click();
+  // on the clean, putting it right is the next step: saving a card tries
+  // the charge again
+  await expectNextStep(page, "Update your card");
+  await pageAction(page, "Update your card");
   await saveACard(page).save.click();
   await expect(page.getByText("Card saved")).toBeVisible();
 

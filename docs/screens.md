@@ -404,7 +404,7 @@ Keeps: what's next, date tile, shortcut tiles (ux-portal). Renders through
 Keeps: Tabs, by month, date tiles (ux-portal). Renders through `ListPage`
 (#433).
 
-- Header: "Your cleans" in the bar.
+- Header: "Cleans" in the bar.
 - Body: Tabs Upcoming · Past; by month, dated rows led by the kind of clean
   (the home too, for a Client with more than one); with nothing in either,
   one quiet line; Show more (N left).
@@ -452,15 +452,22 @@ Keeps: steps, quiet choices (#114). Renders through `FormPage` (#434).
 
 Keeps: the Record (ux-portal). Renders through `RecordPage` (#432).
 
-- Header: Your cleans › date and time; the Service and its status.
-- Actions: while booked, Menu (Pick a new time; Skip or Cancel in red, its
-  dialog saying what it costs); once cancelled, a Button to the plan or to
-  request a quote.
-- Alerts: Unpaid (pay), price change to review, a move asked for (withdraw)
-  or turned down.
-- Body: Details (`DetailsCard`: the time large, the address, icon facts, and
-  while it's still free, until when it's free to move or cancel);
-  cancelled, no access or the receipt.
+- Header: Cleans › date and time; the Service and its status.
+- Actions: the next step the primary, the first that asks something: Update
+  your card (Unpaid, unless we try again ourselves), Review the price change
+  (the one that lapses first, its dialog titled by what it's for), Check how
+  we get in (after the crew couldn't), Pick a new time (booked); the rest
+  behind its arrow (Skip or Cancel last, in red, its dialog saying what it
+  costs; the plan or Request a quote after a No Access). Nothing next while
+  a move is asked (Cancel or Skip its one action, outlined in red) or once
+  cancelled (a Button to the plan or to request a quote).
+- Alerts: each only why: Unpaid, a price change (a second one keeping its
+  own Review), a move asked for (Withdraw request, its one action) or
+  turned down.
+- Body: Details (`DetailsCard`: a date tile, the time large, the address,
+  icon facts, a row only with something in it, and while it's still free,
+  until when it's free to move or cancel); cancelled, no access or the
+  receipt (a weekly Bill it went on by its number, linked, with its badge).
 
 #### Client portal > Your quote
 

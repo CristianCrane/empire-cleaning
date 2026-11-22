@@ -13,6 +13,7 @@ import { monitoring } from "../../services/monitoring/index.ts";
 import {
   billedOf,
   billLinesOf,
+  billNumber,
   isBilledWeekly,
 } from "../bills/billed-weekly.ts";
 import type { Bill } from "../bills/bills.schema.ts";
@@ -74,8 +75,8 @@ type Ledger = {
   billCharges: Charge[];
   // whether any has
   billedLines: number;
-  // those Bills, each once
-  bills: Bill[];
+  // those Bills, each once, with what each billed for it
+  bills: { bill: Bill; cents: number }[];
   owedCents: number;
 };
 
@@ -118,10 +119,16 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
     .orderBy(desc(charges.chargedAt), desc(charges.createdAt));
   const lines = await billLinesOf(job.id, tx);
   const billed = billedOf(lines);
-  const onBills = [
-    ...new Map(lines.map(({ bill }) => [bill.id, bill])).values(),
-  ];
-  const billCharges = await billChargesOf(onBills, tx);
+  const onBills = new Map<string, { bill: Bill; cents: number }>();
+  for (const { bill, line } of lines)
+    onBills.set(bill.id, {
+      bill,
+      cents: (onBills.get(bill.id)?.cents ?? 0) + line.amountCents,
+    });
+  const billCharges = await billChargesOf(
+    [...onBills.values()].map((b) => b.bill),
+    tx,
+  );
   const [fromBills] = await tx
     .select({ cents: sum(refunds.amountCents).mapWith(Number) })
     .from(refunds)
@@ -179,7 +186,7 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
     billedCents,
     billCharges,
     billedLines: billed.lines,
-    bills: onBills,
+    bills: [...onBills.values()],
     owedCents:
       Math.max(owes - refundedAtProviderCents, 0) - paidCents - billedCents,
   };
@@ -193,7 +200,7 @@ export const paidUp = async (job: Job, tx: Tx | typeof db = db) => {
   const ledger = await ledgerOf(job, tx);
   return (
     ledger.owedCents <= 0 &&
-    ledger.bills.every((bill) => bill.status === "paid")
+    ledger.bills.every(({ bill }) => bill.status === "paid")
   );
 };
 
@@ -224,6 +231,14 @@ export const paymentOf = async (job: Job): Promise<JobPayment> => {
     })),
     paidCents: ledger.paidCents,
     billedCents: ledger.billedCents,
+    bills: ledger.bills.map(({ bill, cents }) => ({
+      id: bill.id,
+      number: billNumber(bill.number),
+      status: bill.status,
+      unpaid: unpaidOf(currentLanguage(), bill.unpaidSince, bill.unpaidReason),
+      totalCents: bill.totalCents,
+      cents,
+    })),
     owedCents: ledger.owedCents,
     // in the reply's language
     paymentMethod: owner?.method

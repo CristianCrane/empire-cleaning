@@ -124,7 +124,7 @@ export function PortalCleans() {
 
   return (
     <ListPage<ListRow>
-      title={t.p.yourCleans}
+      title={t.p.cleans}
       tabs={[
         {
           id: "upcoming",

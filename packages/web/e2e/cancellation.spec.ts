@@ -10,6 +10,7 @@ import {
   signUp,
   test,
   addCleaner,
+  expectNextStep,
   expectNoPageAction,
   pageAction,
 } from "./harness.ts";
@@ -76,7 +77,7 @@ test(
     await page.goto("/portal");
     await expect(page.getByText("Want us back?")).toBeVisible();
 
-    // and Your cleans lists it as Cancelled, under Past
+    // and Cleans lists it as Cancelled, under Past
     await page
       .getByRole("link", { name: "Cleans", exact: true })
       .first()
@@ -168,6 +169,8 @@ test(
     ).toContainText(
       'The crew came on Mon, Jan 12 at 9:30 AM, but couldn\'t get in: "Nobody answered and the doorman had no key".',
     );
+    // putting how we get in right is the page's next step
+    await expectNextStep(client, "Check how we get in");
   },
 );
 

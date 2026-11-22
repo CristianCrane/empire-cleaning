@@ -6,6 +6,8 @@ import {
   emailsTo,
   expect,
   expectAccessible,
+  expectNextStep,
+  expectNothingNext,
   offerJob,
   requestReschedule,
   setClock,
@@ -60,7 +62,9 @@ test(
       page.getByRole("region", { name: "Clean details" }),
     ).toContainText("Free to move or cancelUntil Sun, Jan 11, 9:00 AM");
 
-    // what it costs, said in its dialog
+    // moving it is the next step, cancelling it behind the arrow; what it
+    // costs, said in its dialog
+    await expectNextStep(page, "Pick a new time");
     await pageAction(page, "Pick a new time");
     const dialog = page.getByRole("dialog", { name: "Pick a new time" });
     await expect(dialog).toContainText("There's no charge for moving it.");
@@ -87,6 +91,8 @@ test(
     expect((await emailsTo(olive.email)).at(-1)!.subject).toBe(
       "Casey Client asked to move a job",
     );
+    // it waits on us now: nothing next, Withdraw the alert's own action
+    await expectNothingNext(page);
 
     await pending.getByRole("button", { name: "Withdraw request" }).click();
     await expect(page.getByText("Request withdrawn")).toBeVisible();

@@ -354,3 +354,21 @@ test(
     await expect(page.getByRole("button", { name: "Print" })).toBeHidden();
   },
 );
+
+// a clean's receipt says where the rest of its money went: the Bill, by its
+// number and where it stands, a link to it, and no "Paid" total that is
+// only the Deposit (#493 PR 4's UX review, U2 and U15)
+test("a weekly-billed clean's receipt names its Bill and where it stands", async ({
+  page,
+}) => {
+  const { jobId, billId } = await billed();
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/jobs/${jobId}`);
+
+  const receipt = page.getByRole("region", { name: "Your receipt" });
+  const bill = receipt.getByRole("link", { name: "Bill EC-000001" });
+  await expect(bill.locator("..")).toHaveText("Bill EC-000001Paid");
+  await expect(receipt.getByText("Paid", { exact: true })).toHaveCount(1);
+  await bill.click();
+  await expect(page).toHaveURL(`/portal/bills/${billId}`);
+});

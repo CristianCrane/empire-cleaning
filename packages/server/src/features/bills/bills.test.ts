@@ -239,6 +239,30 @@ describe("making Bills", () => {
     expect(testPayments().charges).toHaveLength(2);
   });
 
+  test("a Job's payment names the Bills that billed it, and where each stands", async () => {
+    const { office, clientId, jobId, priceCents, depositCents } =
+      await billedJob();
+    const payment = async () => {
+      const [row] = await db.select().from(jobs).where(eq(jobs.id, jobId));
+      return paymentOf(row!);
+    };
+    expect((await payment()).bills).toEqual([]);
+
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const [summary] = await billsOf(office, clientId);
+    expect((await payment()).bills).toEqual([
+      {
+        id: summary!.id,
+        number: "EC-000001",
+        status: "paid",
+        unpaid: null,
+        totalCents: priceCents - depositCents,
+        cents: priceCents - depositCents,
+      },
+    ]);
+  });
+
   test("goes to the Client's own email with no billing email", async () => {
     await billedJob({ billingEmail: null });
     testClock().set(NEXT_MONDAY);
