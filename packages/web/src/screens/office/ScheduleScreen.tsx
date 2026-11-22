@@ -17,8 +17,8 @@ import { CrewBadge, JobStatusBadge } from "../JobBadges.tsx";
 /**
  * The Schedule as a calendar: days as columns over a time axis, each Job a
  * block placed at its start and sized by its time on site. A day, three days
- * or a week at a time: the span chosen last, kept for the next visit (three
- * days at first). Clicking a Job or Site Visit opens it; on a desktop,
+ * or a week at a time: the span chosen last, kept for the next visit (a day
+ * at first on a phone, three days on anything wider). Clicking a Job or Site Visit opens it; on a desktop,
  * Office Staff drag one to move it, confirming first.
  */
 export function ScheduleScreen() {

@@ -146,45 +146,50 @@ test(
   },
 );
 
-// three days read at any width; a span chosen is kept for the next visit
-test("the Schedule opens on three days from today, then on the span last chosen", async ({
-  page,
-}) => {
-  await signInAsOffice(page);
-  const nav = page.getByRole("navigation", { name: "Office" });
+// a day on a phone, so its blocks have room to name their client, three days
+// on anything wider; a span chosen is kept for the next visit
+test(
+  "the Schedule opens on a day from today on a phone and three days wider, then on the span last chosen",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    await signInAsOffice(page);
+    const nav = page.getByRole("navigation", { name: "Office" });
 
-  await nav.getByRole("link", { name: "Schedule" }).click();
-  await expect(page.getByRole("region")).toHaveCount(3);
-  await expect(page.getByRole("button", { name: "Today" })).toBeVisible();
+    await nav.getByRole("link", { name: "Schedule" }).click();
+    await expect(page.getByRole("region")).toHaveCount(isMobile ? 1 : 3);
+    await expect(page.getByRole("button", { name: "Today" })).toBeVisible();
 
-  await page.getByRole("button", { name: /Show$/ }).click();
-  await page.getByRole("option", { name: "Day", exact: true }).click();
-  await expect(page.getByRole("region")).toHaveCount(1);
+    // the other span from the one it opened on
+    const [chosen, count] = isMobile ? ["Week", 7] : ["Day", 1];
+    await page.getByRole("button", { name: /Show$/ }).click();
+    await page.getByRole("option", { name: chosen, exact: true }).click();
+    await expect(page.getByRole("region")).toHaveCount(count);
 
-  // away and back, or a reload: still a day
-  await nav.getByRole("link", { name: "Today" }).click();
-  await expect(page).toHaveURL("/office");
-  await nav.getByRole("link", { name: "Schedule" }).click();
-  await expect(page.getByRole("region")).toHaveCount(1);
-  await page.goto("/office/schedule");
-  await expect(page.getByRole("region")).toHaveCount(1);
+    // away and back, or a reload: still that span
+    await nav.getByRole("link", { name: "Today" }).click();
+    await expect(page).toHaveURL("/office");
+    await nav.getByRole("link", { name: "Schedule" }).click();
+    await expect(page.getByRole("region")).toHaveCount(count);
+    await page.goto("/office/schedule");
+    await expect(page.getByRole("region")).toHaveCount(count);
 
-  // it pages by the span shown
-  await page.goto("/office/schedule?from=2027-03-01&to=2027-03-01");
-  await page.getByRole("button", { name: /Show$/ }).click();
-  await page.getByRole("option", { name: "3 days" }).click();
-  await expect(page).toHaveURL(/from=2027-03-01&to=2027-03-03/);
-  await expect(page.getByRole("region")).toHaveCount(3);
-  await page.getByRole("button", { name: "Next 3 days" }).click();
-  await expect(page).toHaveURL(/from=2027-03-04&to=2027-03-06/);
-  await expect(day(page, "Thu, Mar 4")).toBeVisible();
+    // it pages by the span shown
+    await page.goto("/office/schedule?from=2027-03-01&to=2027-03-01");
+    await page.getByRole("button", { name: /Show$/ }).click();
+    await page.getByRole("option", { name: "3 days" }).click();
+    await expect(page).toHaveURL(/from=2027-03-01&to=2027-03-03/);
+    await expect(page.getByRole("region")).toHaveCount(3);
+    await page.getByRole("button", { name: "Next 3 days" }).click();
+    await expect(page).toHaveURL(/from=2027-03-04&to=2027-03-06/);
+    await expect(day(page, "Thu, Mar 4")).toBeVisible();
 
-  await page.getByRole("button", { name: /Show$/ }).click();
-  await page.getByRole("option", { name: "Day", exact: true }).click();
-  await expect(page).toHaveURL(/from=2027-03-04&to=2027-03-04/);
-  await page.getByRole("button", { name: "Previous day" }).click();
-  await expect(page).toHaveURL(/from=2027-03-03&to=2027-03-03/);
-});
+    await page.getByRole("button", { name: /Show$/ }).click();
+    await page.getByRole("option", { name: "Day", exact: true }).click();
+    await expect(page).toHaveURL(/from=2027-03-04&to=2027-03-04/);
+    await page.getByRole("button", { name: "Previous day" }).click();
+    await expect(page).toHaveURL(/from=2027-03-03&to=2027-03-03/);
+  },
+);
 
 // where a dragged block would land, drawn while it's dragged, by its
 // Client's name: a box of its own, not the words on a block (a short Site
