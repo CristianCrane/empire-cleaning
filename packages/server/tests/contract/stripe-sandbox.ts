@@ -3,6 +3,7 @@
 // the e2e API's sandbox run (tests/harness.ts). Each refuses any key but a
 // test-mode one, before its first call to Stripe.
 import Stripe from "stripe";
+import { MINUTE_MS } from "@empire-cleaning/models";
 // before stripe.ts: the gateway's index makes the app's adapter on loading,
 // so it has to load first
 import "../../src/services/payment-gateway/index.ts";
@@ -50,15 +51,16 @@ export const fillCardForm = async (
 };
 
 // Stripe's event of `type` about `objectId` (the object's own id, or its
-// PaymentIntent's), once it's been sent. A test card's refund fails about
-// two minutes after it's made
+// PaymentIntent's), once it's been sent, waiting up to `within`
 export const eventFor = async (
   stripe: Stripe,
   type: string,
   objectId: string,
   matches: (object: Record<string, unknown>) => boolean = () => true,
+  within = 5 * MINUTE_MS,
 ) => {
-  for (let tries = 0; tries < 60; tries += 1) {
+  const deadline = Date.now() + within;
+  for (;;) {
     const { data } = await stripe.events.list({ type, limit: 50 });
     const event = data.find((e) => {
       const object = e.data.object as unknown as Record<string, unknown>;
@@ -68,7 +70,20 @@ export const eventFor = async (
       );
     });
     if (event) return event;
+    if (Date.now() >= deadline) break;
     await new Promise((resolve) => setTimeout(resolve, 5000));
   }
-  throw new Error(`no ${type} event for ${objectId} within five minutes`);
+  throw new Error(
+    `no ${type} event for ${objectId} within ${within / MINUTE_MS} minutes`,
+  );
 };
+
+// How long the sandbox can take to fail a refund of pm_card_refundFail.
+// Stripe says only "after a few minutes" (docs.stripe.com/testing, Refunds):
+// it took 124 to 155 s in 33 runs, then 1030 s and 1792 s on 11-21 and
+// 11-22, every event for those refunds late with it (#528)
+export const REFUND_FAILS_WITHIN = 35 * MINUTE_MS;
+
+// Stripe's refund.failed event for refund `refundId`, once it's been sent
+export const refundFailedEvent = (stripe: Stripe, refundId: string) =>
+  eventFor(stripe, "refund.failed", refundId, undefined, REFUND_FAILS_WITHIN);
