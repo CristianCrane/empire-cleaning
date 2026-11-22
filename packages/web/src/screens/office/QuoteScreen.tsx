@@ -1009,8 +1009,9 @@ function EmailCardLink({ quote }: { quote: OfficeQuote }) {
 // Records the Client's yes, charging the Deposit to the card they saved (a
 // plan change charges nothing): it asks which Service they chose and
 // confirms. While a new Revision is `drafting`, it's the offer standing
-// that's accepted, and accepting it discards the Draft. The Record's
-// next step while it's acceptable
+// that's accepted, and accepting it discards the Draft. Offered once a yes
+// can be recorded (a card saved, or a plan change): the page's next step,
+// or behind the arrow while a change is drafted
 function RecordAcceptanceDialog({
   quote,
   drafting,

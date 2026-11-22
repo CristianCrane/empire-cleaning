@@ -20,6 +20,7 @@ import {
   openTile,
   searchList,
   expectNextStep,
+  expectNothingNext,
 } from "./harness.ts";
 
 const olive = {
@@ -259,6 +260,7 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
   await expect(
     page.getByText(`Casey has no card saved`, { exact: false }),
   ).toBeVisible();
+  await expectNothingNext(page);
   await pageAction(page, "Change quote");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     `Draft quote for ${casey.name}`,

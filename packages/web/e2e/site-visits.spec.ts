@@ -17,6 +17,7 @@ import {
   pageAction,
   expectNoPageAction,
   expectNextStep,
+  expectNothingNext,
 } from "./harness.ts";
 
 // The API's clock starts at 4am on Monday 5 January 2026 in New York.
@@ -137,7 +138,7 @@ test("a Site Visit that has been is badged To record, on its page and its home's
   await expect(
     page.getByText("When it's done, add what was found."),
   ).toBeVisible();
-  await expect(page.getByRole("group", { name: "What to do" })).toHaveCount(0);
+  await expectNothingNext(page);
 
   // the next day: it's been, with nothing recorded. Recording is the page's
   // next step, pinned at a phone's foot after the facts; the alert says
@@ -149,11 +150,7 @@ test("a Site Visit that has been is badged To record, on its page and its home's
       exact: true,
     }),
   ).toBeVisible();
-  await expect(
-    page
-      .getByRole("group", { name: "What to do" })
-      .getByRole("button", { name: "Record findings" }),
-  ).toBeVisible();
+  await expectNextStep(page, "Record findings");
   await expect(
     page.getByRole("button", { name: "Record findings" }),
   ).toHaveCount(1);
