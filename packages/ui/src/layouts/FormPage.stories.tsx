@@ -299,5 +299,28 @@ export const PricedWithAFooter: Story = {
     await expect(
       canvas.getByRole("button", { name: "Add a weekday" }),
     ).toBeVisible();
+    // the page's only action loses what can't be got back: outlined in
+    // red, not filled, nor red words alone
+    const remove = canvas.getByRole("button", { name: "Delete draft" });
+    const red = getComputedStyle(remove).color;
+    await expect(red).toBe(colourOf("text-danger"));
+    await expect(remove).toHaveStyle({
+      borderTopWidth: "1px",
+      borderTopColor: red,
+      backgroundColor: colourOf("bg-surface", "backgroundColor"),
+    });
   },
 };
+
+// what a design system class draws, as the page has it
+function colourOf(
+  className: string,
+  property: "color" | "backgroundColor" = "color",
+) {
+  const probe = document.createElement("span");
+  probe.className = className;
+  document.body.append(probe);
+  const colour = getComputedStyle(probe)[property];
+  probe.remove();
+  return colour;
+}
