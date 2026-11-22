@@ -59,9 +59,7 @@ const parts = (
 // at the card's foot
 export const OneCard: Story = {
   args: {
-    actions: [
-      { label: "Retire", icon: Archive, danger: true, onAction: () => {} },
-    ],
+    actions: [{ label: "Retire", icon: Archive, onAction: () => {} }],
     aside: {
       title: "Example quote",
       children: <p className="font-display text-3xl font-bold">$568.87</p>,

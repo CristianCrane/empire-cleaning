@@ -2049,7 +2049,8 @@ function PlanDayFields({
       title={title}
       actions={
         onRemove && (
-          <Button variant="danger-text" size="sm" onPress={onRemove}>
+          // not red: Add a weekday brings it back
+          <Button variant="text" size="sm" onPress={onRemove}>
             <Trash2 aria-hidden size={16} />
             Remove {title}
           </Button>
