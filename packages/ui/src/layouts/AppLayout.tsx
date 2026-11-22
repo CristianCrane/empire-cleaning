@@ -5,7 +5,7 @@ import {
   TooltipTrigger,
   type LinkProps,
 } from "react-aria-components";
-import { Menu, UserRound, type LucideIcon } from "lucide-react";
+import { Menu, CircleUserRound, type LucideIcon } from "lucide-react";
 import {
   createContext,
   Fragment,
@@ -200,7 +200,7 @@ function Head({ area, className }: { area: string; className: string }) {
 }
 
 // the account's parts and the theme, at the foot of the sidebar or the ☰
-// menu
+// menu, and in the rail's Account
 function Foot({ children }: { children: ReactNode }) {
   return (
     <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
@@ -288,7 +288,7 @@ function RailAccount({
     <DialogTrigger>
       <RailTip label={words.account}>
         <Button variant="quiet" size="icon" aria-label={words.account}>
-          <UserRound aria-hidden size={20} />
+          <CircleUserRound aria-hidden size={20} />
         </Button>
       </RailTip>
       <Popover

@@ -31,13 +31,15 @@ const meta = {
     area: "Office",
     nav: officeNav,
     // the app puts the account's parts here: the sidebar's foot, the rail's
-    // Account, and on a phone the ☰ menu's
-    foot: () => (
-      <Button variant="quiet" className="justify-start">
-        <LogOut aria-hidden size={20} />
-        Sign out
-      </Button>
-    ),
+    // Account, and on a phone the ☰ menu's. The rail itself keeps only the
+    // other language, which the Office has none of
+    foot: ({ place }) =>
+      place !== "rail" && (
+        <Button variant="quiet" className="justify-start">
+          <LogOut aria-hidden size={20} />
+          Sign out
+        </Button>
+      ),
     children: (
       <div className="flex flex-col gap-4">
         <Heading level={1} inBar>
@@ -95,6 +97,12 @@ export const Rail: Story = {
     await expect(
       within(rail).getByRole("link", { name: "Today" }),
     ).toHaveAttribute("aria-current", "page");
+    // the account's parts behind Account, not on the rail itself
+    await expect(
+      within(canvas.getByRole("complementary")).queryByRole("button", {
+        name: "Sign out",
+      }),
+    ).toBeNull();
     await userEvent.click(canvas.getByRole("button", { name: "Account" }));
     const account = within(document.body).getByRole("dialog", {
       name: "Account",

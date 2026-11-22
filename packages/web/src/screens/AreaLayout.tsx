@@ -443,16 +443,23 @@ function OtherLanguage({
     <>
       <Button
         variant="quiet"
-        className={
-          onRail
-            ? "h-auto w-14 flex-col gap-0.5 px-0 py-1 text-xs"
-            : "justify-start"
-        }
+        className={onRail ? "h-auto w-14 px-0 py-1 text-xs" : "justify-start"}
         isPending={action.isPending}
         onPress={() => void change()}
       >
-        <Languages aria-hidden size={20} />
-        <LanguageName language={other} />
+        {onRail ? (
+          // the name under its icon, so it fits the rail's width (Button
+          // lays its children out in a row of its own)
+          <span className="flex flex-col items-center gap-0.5">
+            <Languages aria-hidden size={20} />
+            <LanguageName language={other} />
+          </span>
+        ) : (
+          <>
+            <Languages aria-hidden size={20} />
+            <LanguageName language={other} />
+          </>
+        )}
       </Button>
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
     </>
