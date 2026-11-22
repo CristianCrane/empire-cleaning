@@ -1,5 +1,5 @@
 import { addDays, daysIn, mondayOf } from "@empire-cleaning/models";
-import { readStored, store } from "@empire-cleaning/ui";
+import { isWide, readStored, store } from "@empire-cleaning/ui";
 import { today } from "./format.ts";
 
 // the dates asked for; without valid ones, the Schedule shows today on the
@@ -22,14 +22,15 @@ export const rangeShowing = (span: Span, day: string) => {
 };
 
 // the span the Schedule opens on: the one last chosen in this browser, or
-// three days, which read at any width. Storage can be blocked (private
-// windows), so it's only a convenience
+// a day on a phone, so its blocks have room to name their client, and three
+// days on anything wider. Storage can be blocked (private windows), so it's
+// only a convenience
 const SPAN_KEY = "ec-schedule-span";
-const DEFAULT_SPAN: Span = 3;
+const defaultSpan = (): Span => (isWide() ? 3 : 1);
 
 const chosenSpan = (): Span => {
   const stored = Number(readStored("localStorage", SPAN_KEY));
-  return SPANS.includes(stored as Span) ? (stored as Span) : DEFAULT_SPAN;
+  return SPANS.includes(stored as Span) ? (stored as Span) : defaultSpan();
 };
 
 // not remembered if storage is blocked: the Schedule opens on the default

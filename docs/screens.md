@@ -125,11 +125,12 @@ Keeps: action first, count tiles (#94, ux-office-today). Renders through
 
 #### Office > Schedule
 
-Keeps: schedules are calendars; three days at first, then the span last
-chosen (ux-office-today). Renders through `CalendarPage` (#437).
+Keeps: schedules are calendars; a day at first on a phone, three days
+wider, then the span last chosen; a block leads with its client's name,
+its state a mark (#493 G4.1). Renders through `CalendarPage` (#437).
 
 - Header: "Schedule" in the bar.
-- Body: the range bar; a legend of badges; the calendar.
+- Body: the range bar; a key, each state drawn as a block; the calendar.
 
 #### Office > Jobs
 

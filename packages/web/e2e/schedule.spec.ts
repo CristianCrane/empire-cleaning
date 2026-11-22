@@ -11,6 +11,7 @@ import {
   requestReschedule,
   setClock,
   signedInAs,
+  recordNoAccess,
   signUp,
   test,
   addCleaner,
@@ -146,45 +147,50 @@ test(
   },
 );
 
-// three days read at any width; a span chosen is kept for the next visit
-test("the Schedule opens on three days from today, then on the span last chosen", async ({
-  page,
-}) => {
-  await signInAsOffice(page);
-  const nav = page.getByRole("navigation", { name: "Office" });
+// a day on a phone, so its blocks have room to name their client, three days
+// on anything wider; a span chosen is kept for the next visit
+test(
+  "the Schedule opens on a day from today on a phone and three days wider, then on the span last chosen",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    await signInAsOffice(page);
+    const nav = page.getByRole("navigation", { name: "Office" });
 
-  await nav.getByRole("link", { name: "Schedule" }).click();
-  await expect(page.getByRole("region")).toHaveCount(3);
-  await expect(page.getByRole("button", { name: "Today" })).toBeVisible();
+    await nav.getByRole("link", { name: "Schedule" }).click();
+    await expect(page.getByRole("region")).toHaveCount(isMobile ? 1 : 3);
+    await expect(page.getByRole("button", { name: "Today" })).toBeVisible();
 
-  await page.getByRole("button", { name: /Show$/ }).click();
-  await page.getByRole("option", { name: "Day", exact: true }).click();
-  await expect(page.getByRole("region")).toHaveCount(1);
+    // the other span from the one it opened on
+    const [chosen, count] = isMobile ? ["Week", 7] : ["Day", 1];
+    await page.getByRole("button", { name: /Show$/ }).click();
+    await page.getByRole("option", { name: chosen, exact: true }).click();
+    await expect(page.getByRole("region")).toHaveCount(count);
 
-  // away and back, or a reload: still a day
-  await nav.getByRole("link", { name: "Today" }).click();
-  await expect(page).toHaveURL("/office");
-  await nav.getByRole("link", { name: "Schedule" }).click();
-  await expect(page.getByRole("region")).toHaveCount(1);
-  await page.goto("/office/schedule");
-  await expect(page.getByRole("region")).toHaveCount(1);
+    // away and back, or a reload: still that span
+    await nav.getByRole("link", { name: "Today" }).click();
+    await expect(page).toHaveURL("/office");
+    await nav.getByRole("link", { name: "Schedule" }).click();
+    await expect(page.getByRole("region")).toHaveCount(count);
+    await page.goto("/office/schedule");
+    await expect(page.getByRole("region")).toHaveCount(count);
 
-  // it pages by the span shown
-  await page.goto("/office/schedule?from=2027-03-01&to=2027-03-01");
-  await page.getByRole("button", { name: /Show$/ }).click();
-  await page.getByRole("option", { name: "3 days" }).click();
-  await expect(page).toHaveURL(/from=2027-03-01&to=2027-03-03/);
-  await expect(page.getByRole("region")).toHaveCount(3);
-  await page.getByRole("button", { name: "Next 3 days" }).click();
-  await expect(page).toHaveURL(/from=2027-03-04&to=2027-03-06/);
-  await expect(day(page, "Thu, Mar 4")).toBeVisible();
+    // it pages by the span shown
+    await page.goto("/office/schedule?from=2027-03-01&to=2027-03-01");
+    await page.getByRole("button", { name: /Show$/ }).click();
+    await page.getByRole("option", { name: "3 days" }).click();
+    await expect(page).toHaveURL(/from=2027-03-01&to=2027-03-03/);
+    await expect(page.getByRole("region")).toHaveCount(3);
+    await page.getByRole("button", { name: "Next 3 days" }).click();
+    await expect(page).toHaveURL(/from=2027-03-04&to=2027-03-06/);
+    await expect(day(page, "Thu, Mar 4")).toBeVisible();
 
-  await page.getByRole("button", { name: /Show$/ }).click();
-  await page.getByRole("option", { name: "Day", exact: true }).click();
-  await expect(page).toHaveURL(/from=2027-03-04&to=2027-03-04/);
-  await page.getByRole("button", { name: "Previous day" }).click();
-  await expect(page).toHaveURL(/from=2027-03-03&to=2027-03-03/);
-});
+    await page.getByRole("button", { name: /Show$/ }).click();
+    await page.getByRole("option", { name: "Day", exact: true }).click();
+    await expect(page).toHaveURL(/from=2027-03-04&to=2027-03-04/);
+    await page.getByRole("button", { name: "Previous day" }).click();
+    await expect(page).toHaveURL(/from=2027-03-03&to=2027-03-03/);
+  },
+);
 
 // where a dragged block would land, drawn while it's dragged, by its
 // Client's name: a box of its own, not the words on a block (a short Site
@@ -646,14 +652,126 @@ test(
         true,
       );
     }
-    // too short for every line, a block still says them all to a screen
-    // reader
-    const short = jobsOn(page, "Wed, Mar 3")
-      .getByRole("link")
-      .filter({ hasText: "9:30 AM" });
-    await expect(short).toHaveAccessibleName(
-      /9:30 AM Robin \d+ ?, Needs cleaners, No cleaners yet/,
+  },
+);
+
+// a block too small to wrap keeps its Client's name: its time is its place on
+// the grid, its state a mark beside the name, both read out (#493 G4.1)
+test(
+  "a day's blocks lead with their Client, each state a mark",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    await requestQuoteForPremises(casey, "Acme Dental");
+    const cory = await addCleaner("Cory Cleaner");
+    await addCleaner("Dee Cleaner");
+    // Tuesday: one staffed and one short of cleaners at 9, side by side,
+    // one Cory couldn't get into at 11:30, a short one at 1, a site visit at 3
+    const staffed = (await bookJob({
+      startsAt: TUESDAY_9AM,
+      labourHours: 2,
+      crewSize: 1,
+    })) as { id: string };
+    await offerJob(staffed.id, cory.id, { confirmed: true });
+    await bookJob({ startsAt: TUESDAY_9AM, labourHours: 4 });
+    await bookJob({ startsAt: "2027-03-02T18:00:00Z", labourHours: 1 });
+    await bookSiteVisit({
+      street: "200 Park Ave S",
+      staffEmail: cory.email,
+      date: "2027-03-02",
+      time: "15:00",
+    });
+    const missed = (await bookJob({
+      startsAt: "2027-03-02T16:30:00Z",
+      labourHours: 1,
+      crewSize: 1,
+    })) as { id: string };
+    await offerJob(missed.id, cory.id, { confirmed: true });
+    await setClock("2027-03-02T17:00:00Z");
+    await recordNoAccess(missed.id, cory.id, "Nobody answered");
+    await signInAsOffice(page);
+
+    // a phone opens on a day; a wider screen shows the week
+    await page.goto(
+      isMobile ? "/office/schedule?from=2027-03-02&to=2027-03-02" : week,
     );
+
+    const blocks = jobsOn(page, "Tue, Mar 2").getByRole("link");
+    await expect(blocks).toHaveCount(5);
+    // the name leads what's seen, the time first in what's read out; a
+    // crew line only where someone's on it
+    await expect(
+      blocks.filter({ hasText: "9:00 AM" }).filter({ hasText: "Cory Cleaner" }),
+    ).toHaveAccessibleName(/^9:00 AM Robin \d+ ?, Staffed ?, Cory Cleaner$/);
+    await expect(
+      blocks
+        .filter({ hasText: "9:00 AM" })
+        .filter({ hasNotText: "Cory Cleaner" }),
+    ).toHaveAccessibleName(/^9:00 AM Robin \d+ ?, Needs cleaners$/);
+    await expect(blocks.filter({ hasText: "Site visit" })).toHaveAccessibleName(
+      /^3:00 PM Acme Dental ?, Site visit · 30 min ?, Cory Cleaner$/,
+    );
+    // a Site Visit is told from a Staffed Job by its mark, not its colour
+    // alone
+    await expect(
+      blocks.filter({ hasText: "Site visit" }).locator("svg"),
+    ).toBeVisible();
+    await expect(
+      blocks
+        .filter({ hasText: "9:00 AM" })
+        .filter({ hasText: "Cory Cleaner" })
+        .locator("svg"),
+    ).toHaveCount(0);
+    // the day's hours keep each figure whole on its line
+    const free = day(page, "Tue, Mar 2").getByText(/^[\d.]+ h free$/);
+    expect((await free.boundingBox())!.height).toBeLessThan(20);
+    const short = blocks.filter({ hasText: "1:00 PM" });
+    await expect(short).toHaveAccessibleName(
+      /^1:00 PM Robin \d+ ?, Needs cleaners$/,
+    );
+    // its state a mark, not words; its time not shown, as it hasn't room
+    await expect(short.locator("svg")).toBeVisible();
+    // read out only: drawn 1px wide, as a screen reader's words are
+    for (const words of ["Needs cleaners", "1:00 PM"]) {
+      const box = (await short.getByText(words).boundingBox())!;
+      expect(box.width, words).toBeLessThanOrEqual(1);
+    }
+    await expect(blocks.filter({ hasText: "11:30 AM" })).toHaveAccessibleName(
+      /^11:30 AM Robin \d+ ?, Couldn't get in ?, Cory Cleaner$/,
+    );
+    // a line that doesn't fit isn't drawn cut in half: each line of words
+    // keeps its height, and ends above the edge that clips it or starts
+    // past it, not drawn
+    const cut = await blocks.evaluateAll((links) =>
+      links.flatMap((link) =>
+        [...link.querySelectorAll("span")]
+          .filter((span) => !span.closest(".sr-only"))
+          .filter((span) =>
+            [...span.childNodes].some(
+              (node) => node.nodeType === 3 && node.textContent!.trim(),
+            ),
+          )
+          .filter((span) => {
+            // the nearest edge clipping it: a box around it, up to the block
+            let edge = Infinity;
+            for (
+              let box = span.parentElement;
+              box && box !== link.parentElement!.parentElement;
+              box = box.parentElement
+            ) {
+              if (getComputedStyle(box).overflow === "hidden") {
+                edge = Math.min(edge, box.getBoundingClientRect().bottom);
+              }
+            }
+            const line = span.getBoundingClientRect();
+            const squeezed = span.scrollHeight > span.clientHeight + 1;
+            return (
+              squeezed || (line.top < edge - 0.5 && line.bottom > edge + 0.5)
+            );
+          })
+          .map((span) => span.textContent),
+      ),
+    );
+    expect(cut).toEqual([]);
   },
 );
 
