@@ -70,8 +70,8 @@ export function PageHeader({
   const away = scrolledAway && wide;
   const more = actions.filter((a) => !!a);
   // the page's action control: its next step and the rest, or the rest
-  // alone; drawn on the title row, and in the header that sticks once that
-  // has scrolled away (a List's primary stays on its row)
+  // alone; drawn on the title row, and in the header that sticks once the
+  // window's top reaches that (a List's primary stays on its row)
   const control = next ? (
     <SplitButton next={next} more={more} opens="menu" />
   ) : !primary && more.length > 0 ? (
@@ -121,9 +121,9 @@ export function PageHeader({
           </div>
         )}
         {control && (
-          // scrolled away, the header that sticks holds it, and on a phone
-          // the layout's foot holds a next step: one copy at a time is
-          // there to press
+          // once the window's top reaches it, the header that sticks holds
+          // it, and on a phone the layout's foot holds a next step: one
+          // copy at a time is there to press
           <div
             ref={row}
             inert={away}
