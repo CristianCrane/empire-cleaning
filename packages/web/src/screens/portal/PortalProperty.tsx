@@ -1,8 +1,8 @@
 import { catalog } from "@empire-cleaning/models";
 import type { Key } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import { CalendarClock, FileText, KeyRound } from "lucide-react";
-import { homeIcon } from "../icons.ts";
+import { CalendarClock, KeyRound } from "lucide-react";
+import { homeIcon, QuoteIcon } from "../icons.ts";
 import type { PropertyView } from "@empire-cleaning/models";
 import {
   ActionRow,
@@ -196,7 +196,7 @@ export function PortalProperty() {
               <ListItem
                 key={q.id}
                 id={q.id}
-                start={<IconTile icon={FileText} />}
+                start={<IconTile icon={QuoteIcon} />}
                 title={quoteTitle(t.lang, q)}
                 description={
                   q.sentAt

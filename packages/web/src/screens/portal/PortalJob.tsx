@@ -452,8 +452,6 @@ function JobDetails({
         icon={Clock}
         label={t.howLong}
         value={howLong(t, job.hoursOnSite)}
-        // without the crew count (#493's body, "Client, a Job")
-        line={t.howLong}
       />
     ),
     happens && job.addOns.length > 0 && (

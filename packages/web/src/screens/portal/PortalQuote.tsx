@@ -445,7 +445,12 @@ function OfferedQuote({
         },
       ]}
       details={
-        <QuoteDetails quote={quote} chosen={chosen} onChoose={setServiceKey} />
+        <QuoteDetails
+          quote={quote}
+          chosen={chosen}
+          bookedUp={bookedUp}
+          onChoose={setServiceKey}
+        />
       }
     >
       {open &&
@@ -464,10 +469,13 @@ function OfferedQuote({
 function QuoteDetails({
   quote,
   chosen,
+  bookedUp = false,
   onChoose,
 }: {
   quote: QuoteView;
   chosen: QuoteOption;
+  // no option fits its day any more: the page's alert says so
+  bookedUp?: boolean;
   onChoose: (serviceKey: string) => void;
 }) {
   const t = useSaid(words);
@@ -520,7 +528,6 @@ function QuoteDetails({
           icon={Clock}
           label={t.howLong}
           value={howLong(t, chosen.hoursOnSite)}
-          line={t.howLong}
         />
       </Facts>
 
@@ -552,9 +559,7 @@ function QuoteDetails({
                   {t.formatMoney(option.totalCents)}
                 </span>
                 <span className="text-sm text-fg-muted">
-                  {/* the alert says when none fits */}
-                  {quote.bookable.includes(option.serviceKey) ||
-                  quote.bookable.length === 0
+                  {quote.bookable.includes(option.serviceKey) || bookedUp
                     ? t.w.hoursDeposit(
                         howLong(t, option.hoursOnSite),
                         t.formatMoney(option.depositCents),
