@@ -28,7 +28,8 @@ export function Optional({
       <Button
         variant="quiet"
         size="sm"
-        className="-mx-3 self-start text-primary"
+        flush="both"
+        className="self-start text-primary"
         onPress={() => setOpened(true)}
       >
         + {add}

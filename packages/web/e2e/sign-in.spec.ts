@@ -86,7 +86,8 @@ test.describe("signing up and in with an emailed link", () => {
 
   test(
     "a new email signs up and is welcomed, with a way to a Quote",
-    { tag: "@smoke" },
+    // desktop too: from sm its account lines sit beside the logo
+    { tag: ["@smoke", "@desktop"] },
     async ({ page }) => {
       await page.goto("/sign-in");
       await signInWithLink(page, "new@example.com");
@@ -105,6 +106,30 @@ test.describe("signing up and in with an emailed link", () => {
       await expect(
         page.getByRole("status").filter({ hasText: "another email" }),
       ).toHaveCount(0);
+      // it reads like the line above it: the same size, and from sm, where
+      // the two sit right of the logo, its words end where Sign out's do
+      const ends = await page.evaluate(() => {
+        const textOf = (el: Element) => {
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          return range.getBoundingClientRect();
+        };
+        const line = [...document.querySelectorAll("p")].find((p) =>
+          p.textContent?.startsWith("Asked for a quote"),
+        )!;
+        const signOut = [...document.querySelectorAll("button")].find(
+          (b) => b.textContent === "Sign out",
+        )!;
+        return {
+          sizes: [signOut.parentElement!, line].map(
+            (el) => getComputedStyle(el).fontSize,
+          ),
+          rights: [signOut, line].map((el) => Math.round(textOf(el).right)),
+          wide: innerWidth >= 640,
+        };
+      });
+      expect(ends.sizes[1]).toBe(ends.sizes[0]);
+      if (ends.wide) expect(ends.rights[1]).toBe(ends.rights[0]);
       // what happens next is the line under the title, said once: no
       // steps beside the form, once its first step shows
       await expect(
