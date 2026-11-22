@@ -70,8 +70,7 @@ export const quotes = catalog({
 // the Office's, in English (ADR-0025)
 
 // what needs a site visit before it's quoted: a Service seen first
-// ("Painting", ADR-0018, for a home too), or a business on its page; the
-// Office adds how to see it
+// ("Painting", ADR-0018, for a home too); the Office adds how to see it
 export const needsVisit = (what: string) =>
   `${what} needs a site visit before it's quoted.`;
 
