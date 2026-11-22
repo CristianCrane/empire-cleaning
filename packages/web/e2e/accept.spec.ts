@@ -178,7 +178,7 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
   // and holds the way to ask for one
   const noCard = page
     .getByRole("status")
-    .filter({ hasText: "Casey Client has no card saved" });
+    .filter({ hasText: "Casey has no card saved" });
   await expect(noCard).toContainText("so a yes by phone can't be recorded yet");
   await expectNoPageAction(page, "Record acceptance");
   await noCard

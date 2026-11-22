@@ -260,7 +260,7 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
   // Sent and waiting, with no card to record a yes by phone: nothing is
   // next, and Change quote is the page's one action
   await expect(
-    page.getByText(`${casey.name} has no card saved`, { exact: false }),
+    page.getByText(`Casey has no card saved`, { exact: false }),
   ).toBeVisible();
   await expectNothingNext(page);
   await pageAction(page, "Change quote");

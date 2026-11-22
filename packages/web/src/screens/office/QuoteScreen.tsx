@@ -296,7 +296,8 @@ function useNow(quote: OfficeQuote): Now {
       action: <EmailCardLink quote={quote} />,
       children: (
         <p>
-          {name} has no card saved, so a yes by phone can't be recorded yet.
+          {firstNameOf(name)} has no card saved, so a yes by phone can't be
+          recorded yet.
         </p>
       ),
     };
@@ -806,7 +807,10 @@ function Offer({ quote }: { quote: ShownQuote }) {
             }
           />
         </Facts>
-        <div className="grid gap-6 border-t border-border pt-4 lg:grid-cols-2">
+        {/* two side by side from lg; one alone takes the card's width */}
+        <div
+          className={`grid gap-6 border-t border-border pt-4 ${options.length > 1 ? "lg:grid-cols-2" : ""}`}
+        >
           {options.map((option, i) => {
             const day = plan?.days[i];
             return (
