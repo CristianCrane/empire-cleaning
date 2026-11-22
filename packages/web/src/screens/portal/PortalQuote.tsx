@@ -527,7 +527,13 @@ function QuoteDetails({
         <Fact
           icon={Clock}
           label={t.howLong}
-          value={howLong(t, chosen.hoursOnSite)}
+          value={
+            plan
+              ? plan.days
+                  .map((_, i) => howLong(t, quote.options[i]!.hoursOnSite))
+                  .join(" + ")
+              : howLong(t, chosen.hoursOnSite)
+          }
         />
       </Facts>
 
