@@ -67,6 +67,10 @@ export type GatewayUnderTest = {
 export const paymentGatewayContract = (
   name: string,
   setup: () => GatewayUnderTest | Promise<GatewayUnderTest>,
+  // how long the case whose refund fails later may take, where the provider
+  // takes longer to fail it than the runner's budget allows; the runner's
+  // budget when not given
+  { refundFailsTimeout }: { refundFailsTimeout?: number } = {},
 ) =>
   describe(`${name} as a Payment Gateway`, () => {
     const run = `${Date.now()}`;
@@ -526,29 +530,33 @@ export const paymentGatewayContract = (
         ]);
       });
 
-      test("one that fails after it's made is told by a refund_failed event", async () => {
-        const t = await setup();
-        const chargeId = await charged(t, "refundFails");
+      test(
+        "one that fails after it's made is told by a refund_failed event",
+        { timeout: refundFailsTimeout },
+        async () => {
+          const t = await setup();
+          const chargeId = await charged(t, "refundFails");
 
-        const refund = await t.gateway.refund({
-          chargeId,
-          amount: 2000,
-          idempotencyKey: `refund:${run}:${chargeId}`,
-        });
+          const refund = await t.gateway.refund({
+            chargeId,
+            amount: 2000,
+            idempotencyKey: `refund:${run}:${chargeId}`,
+          });
 
-        // made, as far as anyone can tell yet
-        expect(refund).toEqual({ ok: true, refundId: expect.any(String) });
-        if (!refund.ok) return;
-        const { body, headers } = await t.refundWebhook(
-          refund.refundId,
-          "failed",
-        );
-        expect(t.gateway.parseEvent(body, headers)).toEqual({
-          kind: "refund_failed",
-          chargeId,
-          refundId: refund.refundId,
-        });
-      });
+          // made, as far as anyone can tell yet
+          expect(refund).toEqual({ ok: true, refundId: expect.any(String) });
+          if (!refund.ok) return;
+          const { body, headers } = await t.refundWebhook(
+            refund.refundId,
+            "failed",
+          );
+          expect(t.gateway.parseEvent(body, headers)).toEqual({
+            kind: "refund_failed",
+            chargeId,
+            refundId: refund.refundId,
+          });
+        },
+      );
 
       test("one that's pending, then goes through, is told by a charge_refunded event", async () => {
         const t = await setup();
