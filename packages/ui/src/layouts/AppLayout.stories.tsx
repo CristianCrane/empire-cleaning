@@ -99,9 +99,13 @@ export const Rail: Story = {
     const account = within(document.body).getByRole("dialog", {
       name: "Account",
     });
-    await expect(
-      within(account).getByRole("button", { name: "Sign out" }),
-    ).toBeVisible();
+    // the popover fades in, so wait for it to be seen (docs/testing-log.md,
+    // 2026-11-13)
+    await waitFor(() =>
+      expect(
+        within(account).getByRole("button", { name: "Sign out" }),
+      ).toBeVisible(),
+    );
     await expect(
       within(account).getByRole("img", { name: /Empire Cleaning/ }),
     ).toBeVisible();
