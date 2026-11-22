@@ -57,7 +57,7 @@ export function RecordPage({
   | {
       next?: never;
       // the on-site main action, kept in reach at every width
-      footer?: Omit<Footer, "label">;
+      footer?: Footer;
     }
 )) {
   const words = useUiWords();

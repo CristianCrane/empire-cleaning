@@ -1,7 +1,7 @@
-import { Archive, LayoutDashboard } from "lucide-react";
+import { Archive, LayoutDashboard, Send, Trash2 } from "lucide-react";
 import { afterEach, expect, test } from "vitest";
 import { render } from "vitest-browser-react";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { AppLayout } from "./AppLayout.tsx";
 import { FormPage } from "./FormPage.tsx";
 
@@ -71,4 +71,155 @@ test("a Form page at a form's width keeps it in the header that sticks", async (
   expect(box(retire.element()).bottom).toBeLessThan(80);
   expect(box(retire.element()).right).toBeGreaterThan(box(card).right - 24);
   expect(box(retire.element()).right).toBeLessThan(box(card).right);
+});
+
+// a form with a price and a Send (the Draft): its price beside the card
+// from xl, first below it
+const priced = (
+  <AppLayout
+    area="Office"
+    nav={[
+      { href: "#", label: "Quotes", icon: LayoutDashboard, isCurrent: true },
+    ]}
+    foot={() => null}
+  >
+    <FormPage
+      title="Draft quote for Grace Murphy"
+      actions={[
+        {
+          label: "Delete draft",
+          icon: Trash2,
+          danger: true,
+          onAction: () => {},
+        },
+      ]}
+      next={{ label: "Send", icon: Send, onAction: () => {} }}
+      price={{ line: "Deep Clean $568.87", short: "$568.87" }}
+      note="Saved"
+      aside={{ title: "Prices", leads: true, children: <p>$568.87</p> }}
+    >
+      <p className="h-[200rem]">The form</p>
+    </FormPage>
+  </AppLayout>
+);
+const whatToDo = () => page.getByRole("group", { name: "What to do" });
+// the save's state, read out as it changes (the frame keeps a status of its
+// own, for a page loading)
+const saved = () => page.getByRole("status").filter({ hasText: "Saved" });
+
+// from md no bar at the foot, a phone's habit (#493 D1): the button is the
+// header's primary, the rest behind its arrow, "Saved" beside it from the
+// start; once the window's top reaches it, the header that sticks holds
+// the price too, below xl, where the aside isn't beside the form. One
+// "Saved" is read out at a time
+test("a priced Form page's button is the header's primary from md, the price and Saved in the header that sticks", async () => {
+  await page.viewport(1024, 768);
+  await render(priced);
+  const send = whatToDo().getByRole("button", { name: "Send" });
+
+  await expect.element(send).toBeVisible();
+  expect(whatToDo().all()).toHaveLength(1);
+  expect(saved().all()).toHaveLength(1);
+  await expect.element(saved()).toBeVisible();
+  // nothing fixed at the foot
+  const fixed = [...document.querySelectorAll('[role="group"]')].filter(
+    (g) =>
+      getComputedStyle(g).position === "fixed" && g.getClientRects().length,
+  );
+  expect(fixed.filter((g) => box(g).bottom > 700)).toHaveLength(0);
+  await whatToDo().getByRole("button", { name: "More actions" }).click();
+  await expect
+    .element(page.getByRole("menuitem", { name: "Delete draft" }))
+    .toBeVisible();
+  await page.getByRole("menuitem", { name: "Delete draft" }).click();
+
+  window.scrollTo(0, 600);
+  await expect.poll(() => box(send.element()).top).toBeGreaterThan(0);
+  expect(box(send.element()).bottom).toBeLessThan(80);
+  const sticky = send.element().closest(".fixed")!;
+  expect(sticky.textContent).toContain("$568.87");
+  expect(saved().all()).toHaveLength(1);
+  await expect.element(saved()).toBeVisible();
+});
+
+// from xl the aside is beside the form, sticky too: the header that sticks
+// leaves the price to it, said once
+test("a priced Form page's header that sticks leaves the price to the aside beside it from xl", async () => {
+  await page.viewport(1440, 900);
+  await render(priced);
+  const send = whatToDo().getByRole("button", { name: "Send" });
+  window.scrollTo(0, 600);
+  await expect.poll(() => box(send.element()).top).toBeGreaterThan(0);
+  const price = [...send.element().closest(".fixed")!.querySelectorAll("*")]
+    .filter((e) => e.textContent === "$568.87")
+    .at(-1)!;
+  expect(price.getClientRects()).toHaveLength(0);
+  // the aside clears the header that sticks
+  const aside = page.getByRole("region", { name: "Prices" }).element();
+  expect(box(aside).top).toBeGreaterThanOrEqual(box(send.element()).bottom);
+});
+
+// a phone keeps its bar: the price, Saved and the button pinned at the
+// foot, the rest on the title row
+test("a priced Form page on a phone pins its price, Saved and button at the foot", async () => {
+  await page.viewport(390, 844);
+  await render(priced);
+  const foot = whatToDo();
+
+  await expect
+    .element(foot.getByRole("button", { name: "Send" }))
+    .toBeVisible();
+  await expect.element(foot).toHaveTextContent("Deep Clean $568.87");
+  expect(page.getByRole("button", { name: "Send" }).all()).toHaveLength(1);
+  expect(saved().all()).toHaveLength(1);
+  await expect
+    .element(page.getByRole("button", { name: "Delete draft" }))
+    .toBeVisible();
+  expect(box(foot.element()).bottom).toBeGreaterThan(700);
+});
+
+// a form's own submit as the next step (New quote's Draft a quote): Enter
+// in a field and the button send it, with the header scrolled away too,
+// and a required field left empty stops it, as a form's submit does
+test("a priced Form page's submit sends its form from the header that sticks, and Enter does", async () => {
+  await page.viewport(1024, 768);
+  let sent = 0;
+  await render(
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        sent += 1;
+      }}
+    >
+      <FormPage
+        title="New quote"
+        next={{ label: "Draft a quote", icon: Send, submit: true }}
+        price={{ missing: "No price until the floor area is known." }}
+        aside={{ title: "What it comes to", children: <p>No price</p> }}
+      >
+        <label>
+          Street
+          <input name="street" required />
+        </label>
+        <p className="h-[200rem]">The form</p>
+        <label>
+          Notes
+          <input name="notes" />
+        </label>
+      </FormPage>
+    </form>,
+  );
+  const draft = whatToDo().getByRole("button", { name: "Draft a quote" });
+  await draft.click();
+  expect(sent).toBe(0);
+
+  await page.getByRole("textbox", { name: "Street" }).fill("9 Main St");
+  page.getByRole("textbox", { name: "Notes" }).element().scrollIntoView();
+  await expect.poll(() => box(draft.element()).top).toBeGreaterThan(0);
+  expect(box(draft.element()).bottom).toBeLessThan(80);
+  await draft.click();
+  expect(sent).toBe(1);
+  await page.getByRole("textbox", { name: "Notes" }).click();
+  await userEvent.keyboard("{Enter}");
+  await expect.poll(() => sent).toBe(2);
 });

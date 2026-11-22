@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Archive, LayoutDashboard } from "lucide-react";
+import { Archive, LayoutDashboard, Send } from "lucide-react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import { Button } from "../Button.tsx";
 import { Checkbox } from "../Checkbox.tsx";
@@ -219,10 +219,12 @@ export const InAnArea: Story = {
   },
 };
 
-// a form with a price or a Send: the price first below xl, beside the card
-// from it; the button in the page's footer, the total and the save's state
-// on its left; a part's own text Buttons on its title line
-export const PricedWithAFooter: Story = {
+// a form with a price or a Send, on a phone: the price first below xl,
+// beside the card from it; the button pinned at the foot, the price and the
+// save's state on its left, the rest on the title row; a part's own text
+// Buttons on its title line. From md the button is the header's primary,
+// the rest behind its arrow ("Priced On A Laptop")
+export const PricedOnAPhone: Story = {
   parameters: { layout: "fullscreen" },
   globals: { viewport: { value: "phone" } },
   args: {
@@ -243,12 +245,9 @@ export const PricedWithAFooter: Story = {
       children: <p className="font-display text-3xl font-bold">$568.87</p>,
     },
     end: <Notice tone="warning">Grace has no email yet.</Notice>,
-    footer: {
-      label: "Send the quote",
-      summary: "Deep Clean $568.87",
-      status: "Saved",
-      children: <Button>Send</Button>,
-    },
+    next: { label: "Send", icon: Send, onAction: () => {} },
+    price: { line: "Deep Clean $568.87", short: "$568.87" },
+    note: "Saved",
     children: (
       <>
         <FormPart
@@ -286,9 +285,12 @@ export const PricedWithAFooter: Story = {
       prices.compareDocumentPosition(service) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    const footer = canvas.getByRole("group", { name: "Send the quote" });
+    const footer = canvas.getByRole("group", { name: "What to do" });
     await expect(footer).toHaveTextContent("Deep Clean $568.87");
     await expect(within(footer).getByRole("status")).toHaveTextContent("Saved");
+    await expect(
+      within(footer).getByRole("button", { name: "Send" }),
+    ).toBeVisible();
     await expect(
       canvas.getByRole("button", { name: "Add a weekday" }),
     ).toBeVisible();
@@ -300,5 +302,28 @@ export const PricedWithAFooter: Story = {
       "text-danger",
       "bg-surface",
     );
+  },
+};
+
+// the same from md: no bar at the foot; the button the header's primary,
+// Delete draft behind its arrow, "Saved" beside it, read out from there
+export const PricedOnALaptop: Story = {
+  ...PricedOnAPhone,
+  globals: { viewport: { value: "laptop" } },
+  play: async ({ canvas }) => {
+    const header = canvas.getByRole("group", { name: "What to do" });
+    await expect(
+      within(header).getByRole("button", { name: "Send" }),
+    ).toBeVisible();
+    await expect(canvas.getByRole("status")).toHaveTextContent("Saved");
+    await userEvent.click(
+      within(header).getByRole("button", { name: "More actions" }),
+    );
+    await expect(
+      await within(document.body).findByRole("menuitem", {
+        name: "Delete draft",
+      }),
+    ).toBeVisible();
+    await userEvent.keyboard("{Escape}");
   },
 };

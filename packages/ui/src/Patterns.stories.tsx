@@ -1318,20 +1318,22 @@ function BarAtTheFoot() {
       <div className="flex flex-col gap-6">
         <Rule title="A bar at the foot is an ActionFooter">
           <p>
-            What must stay in reach while a long page scrolls (a Cleaner's Job
-            on site, a Quote Draft's Send) goes in an <code>ActionFooter</code>,
-            which the page's layout places: above the tab bar on a phone, full
-            width beside the rail or the sidebar on a wider screen. Never a
-            sticky bar of the page's own: it pins under the tab bar. What it
-            sums up on its left, the main action last, on the right. (On a phone
-            a dialog's sheet pins its own Buttons: it sits over the tab bar.)
+            What must stay in reach while a long page scrolls on a phone (a
+            Cleaner's Job on site, a Quote Draft's Send) goes in an{" "}
+            <code>ActionFooter</code>, which the page's layout places: above the
+            tab bar. A wider screen keeps a page's next step in the header that
+            sticks instead; what's there at every width (a Cleaner's Complete)
+            runs beside the rail or the sidebar. Never a sticky bar of the
+            page's own: it pins under the tab bar. What it sums up on its left,
+            the main action last, on the right. (On a phone a dialog's sheet
+            pins its own Buttons: it sits over the tab bar.)
           </p>
         </Rule>
         <div className="h-[120vh] rounded-lg bg-bg" />
         <p>The end of the page</p>
       </div>
       <ActionFooter
-        aria-label="Send the quote"
+        aria-label="What to do"
         summary="Deep Clean $385.00 · Standard Clean $210.00"
         status="Saved"
       >
