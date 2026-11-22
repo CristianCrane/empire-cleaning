@@ -471,7 +471,7 @@ function NoticesHoldOneAction() {
           Notice: two things to say or do are two Notices, and an action that
           doesn't fit one belongs where it acts: the page's next step is its
           primary (Carry on with the draft, Record acceptance), the rest behind
-          its arrow or ⋯ (Delete the draft).
+          its arrow (Turn down, behind Draft the quote).
         </p>
         <p>
           A page has at most one primary Button: once there are two, neither is
