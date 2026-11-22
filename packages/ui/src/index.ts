@@ -27,6 +27,7 @@ export { DatePicker, TimeField } from "./DateField.tsx";
 export { Dialog, DialogTrigger, type DialogState } from "./Dialog.tsx";
 export { Drawer } from "./Drawer.tsx";
 export { Fact, Facts } from "./Facts.tsx";
+export { FieldRow } from "./Field.tsx";
 export { Fold } from "./Fold.tsx";
 export { EmbeddedField } from "./EmbeddedField.tsx";
 export { Form } from "./Form.tsx";

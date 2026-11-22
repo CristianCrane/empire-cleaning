@@ -53,9 +53,10 @@ export function ChoiceTiles({
 }
 
 // `count` tiles in rows, each tile's share of a full row less its share of
-// the gaps (gap-2); a short last row's tiles grow to fill it
+// the gaps (gap-2); a short last row's tiles grow to fill it; no wider than
+// a form, as a field's box (Field.tsx)
 const tileRows = (count: number) =>
-  `flex flex-wrap gap-2 [&>*]:grow ${
+  `flex max-w-form flex-wrap gap-2 [&>*]:grow ${
     count === 3
       ? "[&>*]:basis-[calc((100%_-_1rem)/3)]"
       : count === 4

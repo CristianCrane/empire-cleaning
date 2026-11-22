@@ -19,6 +19,9 @@ import { PageFrame } from "./PageFrame.tsx";
 import type { PageActions } from "./PageActions.tsx";
 import { PageHeader } from "./PageHeader.tsx";
 
+// what the fields come to, beside them from xl
+type Aside = { title: string; leads?: boolean; children: ReactNode };
+
 // The Form page type's layout (docs/ux.md, Screen types, Form page; #434): a
 // form with a page of its own. Its PageHeader, a single page action at the
 // end of the title row; its alerts; what the page needs explained, folded
@@ -29,8 +32,9 @@ import { PageHeader } from "./PageHeader.tsx";
 // `footer`, an ActionFooter, what's said before them after the card. What
 // the fields come to (a price, a worked example) is an aside, sticky beside
 // the card from `xl`; below that after the card, or before it when it
-// `leads` (a price the form is written to reach). Outside an area it's a
-// page of its own, the logo above (Welcome)
+// `leads` (a price the form is written to reach). With no aside, the page
+// is a form's width, its header with it (docs/ux.md, Forms). Outside an
+// area it's a page of its own, the logo above (Welcome)
 export function FormPage({
   trail,
   title,
@@ -56,8 +60,6 @@ export function FormPage({
   alerts?: (Alert | false | null | undefined)[];
   // what the page needs explained, folded under `label`
   about?: { label: string; children: ReactNode };
-  // what the fields come to, beside them from xl
-  aside?: { title: string; leads?: boolean; children: ReactNode };
   // what's said before the buttons: a card's consent, a save's problem
   end?: ReactNode;
   // outside an area: who's signed in, under the logo on a phone and beside
@@ -70,8 +72,13 @@ export function FormPage({
       // the form's buttons at the card's foot, the main one last
       buttons?: ReactNode;
       footer?: never;
+      // what the fields come to, beside them from xl
+      aside?: Aside;
     }
-  | { buttons?: never; footer: Footer }
+  // a footer spans the content's width, so it comes with an aside, the
+  // page then that wide too; a form's width alone keeps its buttons in
+  // its card (docs/ux.md, Form page)
+  | { buttons?: never; footer: Footer; aside: Aside }
 )) {
   const card = (
     <Card>
@@ -103,7 +110,7 @@ export function FormPage({
     </div>
   );
   return (
-    <PageFrame wide account={account}>
+    <PageFrame width={aside ? "wide" : "form"} account={account}>
       <PageHeader
         trail={trail}
         title={title}
@@ -121,7 +128,7 @@ export function FormPage({
           xl, sticky as the form scrolls past; below xl after the form, or
           first when it leads: first in the page too, so a phone reads and
           tabs through it in the order it's seen. With nothing beside it,
-          one column, the content's width, lined up with the header */}
+          one column, a form's width, lined up with the header */}
       <div
         className={`grid grid-cols-[minmax(0,1fr)] items-start gap-6 ${side ? "xl:grid-cols-[minmax(0,1fr)_22rem]" : ""}`}
       >

@@ -13,6 +13,7 @@ import {
   type TextAreaProps,
   type TextProps,
 } from "react-aria-components";
+import type { ReactNode } from "react";
 import { composeTailwindRenderProps, tv, twMerge } from "./utils.ts";
 
 // the building blocks every form control shares: a visible label, optional
@@ -49,11 +50,41 @@ export function FieldError(props: FieldErrorProps) {
   );
 }
 
+// How wide a field's box is: what it holds (docs/ux.md, Forms). Never more
+// than a form's width, wherever it sits (a wide dialog, a wide card), as its
+// label then sits far from where its answer goes; and from sm, a short
+// answer's own width, by its longest answer, which also says what length is
+// wanted: `short` (9rem) to about 8 characters, a ZIP code or a time;
+// `medium` (13rem) to about 14, a phone, a day, a unit, a number or an
+// amount; `long` (20rem) a few words, a Select's default. On a phone every
+// field is full width, a thumb's target. Only the box: its label and
+// description keep the row's width
+export type FieldWidth = "form" | "short" | "medium" | "long";
+const width = {
+  form: "",
+  short: "sm:max-w-36",
+  medium: "sm:max-w-52",
+  long: "sm:max-w-xs",
+} satisfies Record<FieldWidth, string>;
+
+// fields side by side, the row no wider than a form, so a short field's
+// neighbour sits near it, not across a wide dialog (docs/ux.md, Forms):
+// columns of 13rem or more, two to a row in a form's card, three in a
+// wider one (a wide dialog), one on a phone. 13rem holds a number's − and + with its number
+export function FieldRow({ children }: { children: ReactNode }) {
+  return (
+    <div className="grid max-w-form grid-cols-[repeat(auto-fill,minmax(min(13rem,100%),1fr))] gap-4">
+      {children}
+    </div>
+  );
+}
+
 // a text box: a tinted box with a line along its bottom, quieter than a full
 // outline (#96); 16px text keeps phones from zooming in on focus
 export const fieldStyles = tv({
-  base: "min-h-touch w-full rounded-md rounded-b-none border bg-surface-sunken px-3 text-base text-fg outline-none transition-colors placeholder:text-fg-muted",
+  base: "min-h-touch w-full max-w-form rounded-md rounded-b-none border bg-surface-sunken px-3 text-base text-fg outline-none transition-colors placeholder:text-fg-muted",
   variants: {
+    width,
     isFocused: { true: "outline-2 -outline-offset-1 outline-focus" },
     isInvalid: {
       true: "border-danger",
@@ -63,12 +94,15 @@ export const fieldStyles = tv({
   },
 });
 
-export function Input(props: InputProps) {
+export function Input({
+  width,
+  ...props
+}: InputProps & { width?: FieldWidth }) {
   return (
     <AriaInput
       {...props}
       className={composeRenderProps(props.className, (className, renderProps) =>
-        fieldStyles({ ...renderProps, className }),
+        fieldStyles({ ...renderProps, width, className }),
       )}
     />
   );
@@ -89,8 +123,9 @@ export function TextArea(props: TextAreaProps) {
 // box; parts stretch to its height rather than setting their own, so it
 // matches a plain text box
 const fieldGroupStyles = tv({
-  base: "flex min-h-touch w-full items-center overflow-hidden rounded-md rounded-b-none border bg-surface-sunken text-base text-fg",
+  base: "flex min-h-touch w-full max-w-form items-center overflow-hidden rounded-md rounded-b-none border bg-surface-sunken text-base text-fg",
   variants: {
+    width,
     isFocusWithin: { true: "outline-2 -outline-offset-1 outline-focus" },
     isInvalid: {
       true: "border-danger",
@@ -100,12 +135,15 @@ const fieldGroupStyles = tv({
   },
 });
 
-export function FieldGroup(props: GroupProps) {
+export function FieldGroup({
+  width,
+  ...props
+}: GroupProps & { width: FieldWidth }) {
   return (
     <AriaGroup
       {...props}
       className={composeRenderProps(props.className, (className, renderProps) =>
-        fieldGroupStyles({ ...renderProps, className }),
+        fieldGroupStyles({ ...renderProps, width, className }),
       )}
     />
   );

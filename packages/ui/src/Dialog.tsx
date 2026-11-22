@@ -28,8 +28,9 @@ export type DialogProps = Omit<AriaDialogProps, "children"> & {
   // dropped: whether it's open, and told when it closes
   isOpen?: ModalOverlayProps["isOpen"];
   onOpenChange?: ModalOverlayProps["onOpenChange"];
-  // lg for a form with rows of choices, e.g. what a Site Visit found; wide
-  // for something that needs the room, e.g. a week's calendar
+  // lg, a form's width, for a form with rows of choices, e.g. what a Site
+  // Visit found; wide for something that needs the room, e.g. a week's
+  // calendar
   size?: "md" | "lg" | "wide";
 };
 
@@ -66,7 +67,7 @@ export function Dialog({
       <Modal
         // on a phone, room for the pinned Actions under a field brought into
         // view: two Buttons stacked, the most a dialog has, and the safe area
-        className={`max-h-[90dvh] w-full overflow-auto max-sm:scroll-pb-[calc(8.5rem+env(safe-area-inset-bottom))] rounded-t-xl bg-overlay text-fg shadow-overlay entering:animate-in entering:slide-in-from-bottom-8 exiting:animate-out exiting:slide-out-to-bottom-8 sm:rounded-lg ${{ md: "sm:max-w-md", lg: "sm:max-w-2xl", wide: "sm:max-w-6xl" }[size]}`}
+        className={`max-h-[90dvh] w-full overflow-auto max-sm:scroll-pb-[calc(8.5rem+env(safe-area-inset-bottom))] rounded-t-xl bg-overlay text-fg shadow-overlay entering:animate-in entering:slide-in-from-bottom-8 exiting:animate-out exiting:slide-out-to-bottom-8 sm:rounded-lg ${{ md: "sm:max-w-md", lg: "sm:max-w-form", wide: "sm:max-w-6xl" }[size]}`}
       >
         <AriaDialog
           {...props}

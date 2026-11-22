@@ -90,6 +90,7 @@ import {
   Facts,
   Fact,
   staleFade,
+  FieldRow,
   type DialogState,
 } from "@empire-cleaning/ui";
 import { ApiError, deleteJson, patchJson, postJson } from "../../api.ts";
@@ -1325,7 +1326,6 @@ function PlanTerms({
       <Select
         label="Service"
         name="plan.serviceKey"
-        className="sm:max-w-xs"
         description="Every clean on the plan is of it."
         selectedKey={plan.serviceKey}
         onSelectionChange={(key) => onChange({ serviceKey: String(key) })}
@@ -1353,7 +1353,7 @@ function PlanTerms({
           </Radio>
         ))}
       </RadioGroup>
-      <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]">
+      <FieldRow>
         <NumberField
           label="Plan discount (%)"
           name="plan.discountPercent"
@@ -1364,6 +1364,7 @@ function PlanTerms({
         />
         <Select
           label="Priced for condition"
+          width="medium"
           selectedKey={plan.condition}
           onSelectionChange={(key) => onChange({ condition: key as Condition })}
         >
@@ -1373,7 +1374,7 @@ function PlanTerms({
             </SelectItem>
           ))}
         </Select>
-      </div>
+      </FieldRow>
     </>
   );
 }
@@ -1479,7 +1480,6 @@ function AreaField({
     <NumberField
       label="Area in sq ft"
       name="area"
-      className="sm:max-w-xs"
       minValue={1}
       maxValue={1_000_000}
       value={area ?? Number.NaN}
@@ -1844,7 +1844,6 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
             <Select
               label="Service"
               name="serviceKey"
-              className="sm:max-w-xs"
               description={
                 quote.options.length > 1
                   ? `With a ${quote.options[0]!.serviceName} recommended for a first visit`
@@ -1914,7 +1913,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
             .filter(Boolean)
             .join(" · ")}
         >
-          <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]">
+          <FieldRow>
             {!plan && (
               <NumberField
                 label="Cleaners"
@@ -1941,14 +1940,14 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
               value={fields.validityDays}
               onChange={(validityDays) => set({ validityDays })}
             />
-          </div>
+          </FieldRow>
         </FormPart>
 
         {/* a plan's weekdays each have their own, above; a time too soon
             is the date's error when it's sent, the server's (WEB-D) */}
         {!plan && (
           <FormPart title="Proposed time">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <FieldRow>
               <DatePicker
                 label="Date"
                 name="proposedStart"
@@ -1960,7 +1959,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
                 value={fields.time}
                 onChange={(time) => set({ time })}
               />
-            </div>
+            </FieldRow>
             <PickFromSchedule
               date={fields.date?.toString()}
               time={timeOfField(fields.time)}
@@ -2054,7 +2053,7 @@ function PlanDayFields({
         )
       }
     >
-      <div className="grid gap-4 sm:grid-cols-2">
+      <FieldRow>
         <DatePicker
           label="Date"
           name={`${name}.start`}
@@ -2066,7 +2065,7 @@ function PlanDayFields({
           value={day.time}
           onChange={(time) => onChange({ time })}
         />
-      </div>
+      </FieldRow>
       <PickFromSchedule
         date={day.date?.toString()}
         time={time}
@@ -2092,7 +2091,7 @@ function PlanDayFields({
           stale={stale}
         />
       )}
-      <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]">
+      <FieldRow>
         <NumberField
           label="Cleaners"
           name={`${name}.crewSize`}
@@ -2101,7 +2100,7 @@ function PlanDayFields({
           value={day.crewSize}
           onChange={(crewSize) => onChange({ crewSize })}
         />
-      </div>
+      </FieldRow>
       {/* its price is beside the form, with the rest */}
       {option && (
         <OverrideFields
