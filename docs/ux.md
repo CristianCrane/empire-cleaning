@@ -78,15 +78,16 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   part: its facts, the price changes in it, "How it's worked out" folded
   (`Fold`).
 - **Its History**, a `Timeline` in a Card, newest first: last, at every
-  width: one column, as a side column competed with the page (#493 builds
-  it). What happened (a drop-out, a Cleaner taken off) is told there, not
+  width: one column, as a side column competed with the page (#493). Each
+  entry says what happened on one line and when on the line under it, every
+  entry alike (`TimelineItem`, a Quote's story too). What happened (a drop-out, a Cleaner taken off) is told there, not
   kept as a row elsewhere. A Quote's story is its
   body, **Now** on top holding it as it stands; its Draft is a Form page.
 - **On a phone, the page's actions pinned at the foot**, above the tab
   bar, after the facts (#493 builds it).
 
 ("Layout / RecordPage"; "A Record: its header, two alerts, its details, its
-parts"; "A record's History beside it, from xl"; "Records as stories")
+parts"; "A record's History last, one column"; "Records as stories")
 
 ### List
 
@@ -191,8 +192,8 @@ for a dialog. It renders through `FormPage`
   wrong. A stepped form (Request a quote, Welcome) keeps its own steps,
   Back and Next.
 - **What the fields come to** (a worked example, a price) in an aside,
-  sticky beside the card from `xl`, its right column a Record's
-  History's (`Beside`), and after the card below that. A price the form
+  sticky beside the card in a 22rem column from `xl`, and after the
+  card below that; with no aside, the card is the content's width. A price the form
   is written to reach (the Draft's, New quote's) leads instead: first
   below `xl`, so a phone reads what it comes to before the parts that
   change it. Until what sets it is known (a business's floor area), it
@@ -302,6 +303,14 @@ The `ui` skill's rules hold here too; these are this product's.
   destructive last in red after a rule. Printed,
   it's the title alone.
   ("Layout / RecordPage / Actions In The Header", "One Action")
+- **A wide screen keeps a readable column**: the content's, AppLayout's
+  `max-w-5xl` (960 px inside its margins), the one width every screen
+  type reads at. A page with nothing beside it (a Record, a Form page
+  without an aside) fills it, its header's buttons on its right edge, and
+  a bar at the page's foot lines up with it too (`ActionFooter`); a Form
+  page's aside is the one side column (#493 G4.4: a card stopped 380 px
+  short of its button). No second, narrower cap: the user's pick on the
+  Office's Job drew one column at this width.
 - **What loads holds its room** (the `ui` skill): choices from the API draw
   blank tiles at their size first (`ChoiceTilesLoading`). ("ChoiceTiles /
   Loading")
@@ -360,7 +369,8 @@ The `ui` skill's rules hold here too; these are this product's.
   site), which a wider screen keeps in the header instead (the `ui` skill;
   #493 builds it), and a form's price and its button (the Quote Draft's
   Send, New quote's Draft a quote), full width beside the sidebar on a
-  wider screen until #493 settles it with a prototype. What it sums up
+  wider screen until #493 settles it with a prototype, its row the
+  content's width. What it sums up
   (prices, whether it's saved) on its left, the main action last, on the
   right. The layout test fails a button or link under a fixed bar. ("A
   bar at the foot is an ActionFooter")

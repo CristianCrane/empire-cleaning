@@ -118,8 +118,11 @@ export function FormPage({
       {/* the form, and what it comes to beside it in a 22rem column from
           xl, sticky as the form scrolls past; below xl after the form, or
           first when it leads: first in the page too, so a phone reads and
-          tabs through it in the order it's seen */}
-      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+          tabs through it in the order it's seen. With nothing beside it,
+          one column, the content's width, lined up with the header */}
+      <div
+        className={`grid grid-cols-[minmax(0,1fr)] items-start gap-6 ${side ? "xl:grid-cols-[minmax(0,1fr)_22rem]" : ""}`}
+      >
         {aside?.leads && side}
         {aside?.leads ? (
           <div className="min-w-0 xl:col-start-1 xl:row-start-1">{form}</div>

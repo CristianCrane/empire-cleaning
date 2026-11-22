@@ -38,7 +38,8 @@ export function TimelineItem({
   // its own page, if it has one: the title opens it, reading as a title
   // until it's hovered
   href?: LinkProps["href"];
-  // when it happened, e.g. "Oct 8, 2026"; none on what's happening now
+  // when it happened, e.g. "Oct 8, 2026", on the line under the title;
+  // none on what's happening now
   when?: string;
   description?: ReactNode;
   // what's happening now: the first item
@@ -63,21 +64,20 @@ export function TimelineItem({
       </div>
       <div className="flex min-w-0 flex-col gap-3 pt-1 pb-8 sm:pt-2">
         <div className="flex flex-col gap-0.5">
-          <p className="flex flex-wrap items-baseline gap-x-2">
-            <span className="font-semibold">
-              {href ? (
-                <Link
-                  href={href}
-                  className="font-semibold text-fg no-underline hover:underline"
-                >
-                  {title}
-                </Link>
-              ) : (
-                title
-              )}
-            </span>
-            {when && <span className="text-sm text-fg-muted">{when}</span>}
+          <p className="font-semibold">
+            {href ? (
+              <Link
+                href={href}
+                className="font-semibold text-fg no-underline hover:underline"
+              >
+                {title}
+              </Link>
+            ) : (
+              title
+            )}
           </p>
+          {/* on the line under what happened, every entry alike (#493) */}
+          {when && <p className="text-sm text-fg-muted">{when}</p>}
           {description && (
             <div className="text-sm text-fg-muted">{description}</div>
           )}
