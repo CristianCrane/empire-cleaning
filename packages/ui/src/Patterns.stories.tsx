@@ -247,15 +247,16 @@ function SchedulesAreCalendars() {
           calendar, which it may one day sync with.
         </p>
         <p>
-          The Schedule shows a day, three days or a week. It opens on three
-          days, which read at any width, and after that on the span chosen last
-          in that browser, so it isn't picked again each visit. Today doesn't
-          repeat the day's Jobs; it says what's waiting.
+          The Schedule shows a day, three days or a week. It opens on a day on a
+          phone, so its blocks have room to name their client, and on three days
+          on anything wider; after that on the span chosen last in that browser,
+          so it isn't picked again each visit. Today doesn't repeat the day's
+          Jobs; it says what's waiting.
         </p>
       </Rule>
       <Example verdict="Do">
         <p className="rounded-lg border border-dashed border-border-strong p-6 text-center text-fg-muted">
-          ScheduleCalendar, three days from today
+          ScheduleCalendar, a day from today on a phone, three days wider
         </p>
       </Example>
     </div>

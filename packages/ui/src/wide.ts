@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from "react";
 
-// from md (48rem, a tablet), where an Office list's rows become a Table
-// and the Schedule has room for a week: Tailwind's `md`, written once for
+// from md (48rem, a tablet), where an Office list's rows become a Table,
+// the Schedule has room for a week (its picker) and opens on three days
+// rather than one (schedule-range.ts): Tailwind's `md`, written once for
 // what reads it in code
 const WIDE = "(min-width: 48rem)";
 
