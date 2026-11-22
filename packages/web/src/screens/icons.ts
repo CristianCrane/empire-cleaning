@@ -1,10 +1,10 @@
 import {
   Ban,
-  ClipboardCheck,
   Building2,
   CircleCheck,
   DoorClosed,
   House,
+  MapPinHouse,
   UserX,
   type LucideIcon,
 } from "lucide-react";
@@ -22,8 +22,10 @@ export const homeIcon = (kind: PropertyKind) =>
   kind === "commercial" ? Building2 : House;
 
 // the one icon for a Site Visit, wherever it shows: its page's tile before
-// it has a time, its block on the Schedule and its key
-export const SiteVisitIcon = ClipboardCheck;
+// it has a time, a home's visits and history, the portal's next step, its
+// block on the Schedule and its key. A pin, as a visit is someone coming to
+// the place, with a house so it isn't the plain pin of a "where" fact
+export const SiteVisitIcon = MapPinHouse;
 
 // the one icon for a booked Job still short of cleaners, wherever it shows:
 // Today's to-do row, the Schedule's block and its key

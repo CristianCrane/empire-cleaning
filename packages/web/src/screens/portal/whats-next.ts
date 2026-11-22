@@ -6,7 +6,6 @@ import {
   ClipboardCheck,
   Hourglass,
   KeyRound,
-  MapPin,
   PauseCircle,
   Receipt,
   Phone,
@@ -31,7 +30,7 @@ import {
 } from "@empire-cleaning/models";
 import type { HomeTile } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
-import { QuoteIcon } from "../icons.ts";
+import { QuoteIcon, SiteVisitIcon } from "../icons.ts";
 import { addressOf, formatHours, formatMinutes } from "../format.ts";
 import { saidWith } from "../words.ts";
 import type { Hero } from "./HeroCard.tsx";
@@ -353,7 +352,7 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Hero {
     const { visit } = next;
     return {
       label: w.siteVisit,
-      icon: MapPin,
+      icon: SiteVisitIcon,
       tone: "info",
       startsAt: visit.startsAt,
       headline: formatDateTime(visit.startsAt),
@@ -412,7 +411,7 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Hero {
     if (asked.siteVisit === "needed") {
       return {
         label: w.beforeWeQuote,
-        icon: MapPin,
+        icon: SiteVisitIcon,
         tone: "info",
         headline: w.callToArrange,
         lines: [w.weSee(addressOf(asked.property)), w.callWithinDay],

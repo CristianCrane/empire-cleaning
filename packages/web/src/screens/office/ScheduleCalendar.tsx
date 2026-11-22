@@ -9,6 +9,7 @@ import {
   type RefObject,
 } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import type { LucideIcon } from "lucide-react";
 import {
   asClean,
   atTime,
@@ -121,18 +122,19 @@ const toneOf = (job: Pick<ScheduledJob, "status" | "assignment">) => {
 
 // a Job's state as its mark: its icon in its tone's strong colour, on its
 // block and in the key alike. A Staffed Job, the usual case, has none
+type Mark = { icon: LucideIcon | undefined; mark: string };
 function StateMark({
-  tone,
+  icon: Icon,
+  mark,
   className = "",
-}: {
-  tone: ReturnType<typeof toneOf>;
-  className?: string;
-}) {
-  const Icon = tone.icon;
+}: Mark & { className?: string }) {
   return Icon ? (
-    <Icon aria-hidden className={`size-3 shrink-0 ${tone.mark} ${className}`} />
+    <Icon aria-hidden className={`size-3 shrink-0 ${mark} ${className}`} />
   ) : null;
 }
+
+// a Site Visit's mark: its own icon, in the neutral colour of its block
+const visitMark: Mark = { icon: SiteVisitIcon, mark: markOf.neutral };
 
 // an entry in the Schedule's key, drawn as a block is: its colours and
 // edge, then its mark and name
@@ -161,7 +163,7 @@ export function JobKey({
   const tone = toneOf(job);
   return (
     <KeyEntry colours={tone.block}>
-      <StateMark tone={tone} />
+      <StateMark {...tone} />
       {tone.label}
     </KeyEntry>
   );
@@ -171,10 +173,7 @@ export function JobKey({
 export function VisitKey() {
   return (
     <KeyEntry colours={blockOf.neutral}>
-      <SiteVisitIcon
-        aria-hidden
-        className={`size-3 shrink-0 ${markOf.neutral}`}
-      />
+      <StateMark {...visitMark} />
       Site visit
     </KeyEntry>
   );
@@ -782,15 +781,10 @@ function DayJobs({
             onDragStart={startDrag}
             onDragEnd={onDragEnd}
           >
-            <span
-              className={`flex gap-1 font-semibold ${compact ? "items-center" : "items-start"}`}
-            >
-              <StateMark tone={tone} className={compact ? "" : "mt-px"} />
-              <BlockName compact={compact}>
-                <span className="sr-only">{formatTime(job.startsAt)} </span>
-                {shortClientName(job.client)}
-              </BlockName>
-            </span>
+            <BlockName compact={compact} mark={tone}>
+              <span className="sr-only">{formatTime(job.startsAt)} </span>
+              {shortClientName(job.client)}
+            </BlockName>
             <BlockTime compact={compact}>{formatTime(job.startsAt)}</BlockTime>
             <span className="sr-only">, {tone.label}</span>
             {job.crew.length > 0 && (
@@ -822,18 +816,10 @@ function DayJobs({
             onDragStart={startDrag}
             onDragEnd={onDragEnd}
           >
-            <span
-              className={`flex gap-1 font-semibold ${compact ? "items-center" : "items-start"}`}
-            >
-              <SiteVisitIcon
-                aria-hidden
-                className={`size-3 shrink-0 ${compact ? "" : "mt-px"} ${markOf.neutral}`}
-              />
-              <BlockName compact={compact}>
-                <span className="sr-only">{formatTime(visit.startsAt)} </span>
-                {shortClientName(visit.client)}
-              </BlockName>
-            </span>
+            <BlockName compact={compact} mark={visitMark}>
+              <span className="sr-only">{formatTime(visit.startsAt)} </span>
+              {shortClientName(visit.client)}
+            </BlockName>
             <BlockTime compact={compact}>
               {formatTime(visit.startsAt)}
             </BlockTime>
@@ -923,20 +909,28 @@ function ScheduleBlock({
   );
 }
 
-// a block's Client: where it has the height, the name wraps rather than
-// being cut, as it's what tells the block apart; on one line, cut
+// a block's Client, its mark beside it: where it has the height, the name
+// wraps rather than being cut, as it's what tells the block apart; on one
+// line, cut
 function BlockName({
   compact,
+  mark,
   children,
 }: {
   compact: boolean;
+  mark: Mark;
   children: ReactNode;
 }) {
   return (
     <span
-      className={`min-w-0 font-semibold ${compact ? "truncate" : "[overflow-wrap:anywhere]"}`}
+      className={`flex gap-1 font-semibold ${compact ? "items-center" : "items-start"}`}
     >
-      {children}
+      <StateMark {...mark} className={compact ? "" : "mt-px"} />
+      <span
+        className={`min-w-0 ${compact ? "truncate" : "[overflow-wrap:anywhere]"}`}
+      >
+        {children}
+      </span>
     </span>
   );
 }
