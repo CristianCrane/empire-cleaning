@@ -5,7 +5,7 @@ import {
   type DialogProps as AriaDialogProps,
   type ModalOverlayProps,
 } from "react-aria-components";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { useUiWords } from "./language.ts";
 import { Button } from "./Button.tsx";
@@ -42,9 +42,11 @@ export type DialogProps = Omit<AriaDialogProps, "children"> & {
 // ✕ in its corner closes it without doing anything. Never open a dialog on a
 // dialog: a second look is a step in the same one. For a confirmation asked
 // once more, pass role="alertdialog" (not dismissable by tapping outside).
-// On a phone its Actions row stays pinned at the sheet's foot while what's
-// above it scrolls, read after the facts and always in reach (docs/ux.md,
-// Dialogs and rows); larger screens keep it at the end of the dialog's body.
+// At every width its title row and its Actions row stay in view while what's
+// between them scrolls: the facts read before the decision, the decision
+// always in reach, and the reader never loses which dialog this is (docs/ux.md,
+// Dialogs and rows). Each row draws its line only while something lies under
+// it.
 export function Dialog({
   title,
   children,
@@ -55,8 +57,9 @@ export function Dialog({
   ...props
 }: DialogProps) {
   const isAlert = props.role === "alertdialog";
-
   const words = useUiWords();
+  const { body, top, end, more } = useMoreOutOfView();
+
   return (
     <Overlay
       isDismissable={isDismissable ?? !isAlert}
@@ -65,21 +68,16 @@ export function Dialog({
       className="flex items-end justify-center sm:items-center sm:p-4"
     >
       <Modal
-        // on a phone, room for the pinned Actions under a field brought into
-        // view: two Buttons stacked, the most a dialog has, and the safe area
-        className={`max-h-[90dvh] w-full overflow-auto max-sm:scroll-pb-[calc(8.5rem+env(safe-area-inset-bottom))] rounded-t-xl bg-overlay text-fg shadow-overlay entering:animate-in entering:slide-in-from-bottom-8 exiting:animate-out exiting:slide-out-to-bottom-8 sm:rounded-lg ${{ md: "sm:max-w-md", lg: "sm:max-w-form", wide: "sm:max-w-6xl" }[size]}`}
+        className={`flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-xl bg-overlay text-fg shadow-overlay entering:animate-in entering:slide-in-from-bottom-8 exiting:animate-out exiting:slide-out-to-bottom-8 sm:rounded-lg ${{ md: "sm:max-w-md", lg: "sm:max-w-form", wide: "sm:max-w-6xl" }[size]}`}
       >
-        <AriaDialog
-          {...props}
-          // its padding, and on a phone its Actions row (data-actions) pinned
-          // at the sheet's foot, as the page's ActionFooter looks: as wide as
-          // the sheet, raised over what scrolls under it, taking the padding
-          // at the foot (the safe area's) as its own
-          className="flex flex-col gap-4 p-5 pb-(--foot) outline-none [--foot:max(1.25rem,env(safe-area-inset-bottom))] max-sm:[&_[data-actions]]:sticky max-sm:[&_[data-actions]]:bottom-0 max-sm:[&_[data-actions]]:z-10 max-sm:[&_[data-actions]]:-mx-5 max-sm:[&_[data-actions]]:-mb-(--foot) max-sm:[&_[data-actions]]:border-t max-sm:[&_[data-actions]]:border-border max-sm:[&_[data-actions]]:shadow-raised max-sm:[&_[data-actions]]:bg-overlay max-sm:[&_[data-actions]]:px-5 max-sm:[&_[data-actions]]:pt-3 max-sm:[&_[data-actions]]:pb-(--foot)"
-        >
+        <AriaDialog {...props} className="flex min-h-0 flex-col outline-none">
           {({ close }) => (
             <>
-              <div className="flex items-start gap-3">
+              {/* the title row, outside what scrolls; its line, the slim
+                  header's (PageHeader), while the body runs on above it */}
+              <div
+                className={`relative z-10 flex items-start gap-3 border-b px-5 pt-5 pb-3 ${more.above ? "border-border shadow-raised" : "border-transparent"}`}
+              >
                 <Heading
                   slot="title"
                   className="flex-1 font-display text-2xl font-bold tracking-wide uppercase"
@@ -96,11 +94,69 @@ export function Dialog({
                   <X aria-hidden size={20} />
                 </Button>
               </div>
-              {typeof children === "function" ? children({ close }) : children}
+              {/* the body, which scrolls: room at its foot for the Actions
+                  row under a field brought into view (two Buttons stacked
+                  on a phone, the most a dialog has, and the safe area; one
+                  line from sm) */}
+              <div
+                ref={body}
+                className="min-h-0 overflow-auto scroll-pb-[calc(8.5rem+env(safe-area-inset-bottom))] sm:scroll-pb-[calc(5.25rem+env(safe-area-inset-bottom))]"
+              >
+                {/* its padding, and its Actions row (data-actions) sticky at
+                    its foot, as the page's ActionFooter looks: as wide as the
+                    dialog, raised over what scrolls under it, taking the
+                    padding at the foot (the safe area's) as its own */}
+                <div
+                  className={`relative flex flex-col gap-4 px-5 pt-1 pb-(--foot) [--foot:max(1.25rem,env(safe-area-inset-bottom))] [&_[data-actions]]:sticky [&_[data-actions]]:bottom-0 [&_[data-actions]]:z-10 [&_[data-actions]]:-mx-5 [&_[data-actions]]:-mb-(--foot) [&_[data-actions]]:border-t [&_[data-actions]]:bg-overlay [&_[data-actions]]:px-5 [&_[data-actions]]:pt-3 [&_[data-actions]]:pb-(--foot) ${more.below ? "[&_[data-actions]]:border-border [&_[data-actions]]:shadow-raised" : "[&_[data-actions]]:border-transparent"}`}
+                >
+                  <span
+                    ref={top}
+                    aria-hidden
+                    className="pointer-events-none absolute inset-x-0 top-0 h-px"
+                  />
+                  {typeof children === "function"
+                    ? children({ close })
+                    : children}
+                  <span
+                    ref={end}
+                    aria-hidden
+                    className="pointer-events-none absolute inset-x-0 bottom-0 h-px"
+                  />
+                </div>
+              </div>
             </>
           )}
         </AriaDialog>
       </Modal>
     </Overlay>
   );
+}
+
+// whether the dialog's body runs on above or below what's in view, from a
+// marker at each end of it (an IntersectionObserver, so content that grows
+// or loads without a scroll counts too)
+function useMoreOutOfView() {
+  const [body, setBody] = useState<HTMLElement | null>(null);
+  const [top, setTop] = useState<HTMLElement | null>(null);
+  const [end, setEnd] = useState<HTMLElement | null>(null);
+  const [more, setMore] = useState({ above: false, below: false });
+  useEffect(() => {
+    if (!body || !top || !end) return;
+    const watch = new IntersectionObserver(
+      (entries) =>
+        setMore((was) => {
+          const now = { ...was };
+          for (const entry of entries) {
+            now[entry.target === top ? "above" : "below"] =
+              !entry.isIntersecting;
+          }
+          return now;
+        }),
+      { root: body },
+    );
+    watch.observe(top);
+    watch.observe(end);
+    return () => watch.disconnect();
+  }, [body, top, end]);
+  return { body: setBody, top: setTop, end: setEnd, more };
 }

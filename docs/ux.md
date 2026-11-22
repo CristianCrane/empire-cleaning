@@ -574,11 +574,12 @@ stays as it is (#336).
   takes someone off). ("Rows open one dialog, two Buttons")
 - **A dialog has at most two Buttons**, one filled (primary, or danger) and
   one quiet (Cancel, or an alternative like Dismiss), plus the ✕.
-- **On a phone a dialog is a sheet, its Buttons pinned at its foot** while
-  what's above them scrolls: read after the facts, as a page's, and in
-  reach however long the sheet (#493). From `sm` it's centred, its Buttons
-  at the end of its body. The sheet places its `Actions` row itself, with
-  the ActionFooter's look.
+- **A dialog keeps its title and its Buttons in view** while what's between
+  them scrolls, a sheet on a phone and centred from `sm`: its Buttons read
+  after the facts, as a page's, and in reach however long the dialog, and
+  its title says which dialog this is (#493). The dialog places its
+  `Actions` row itself, with the ActionFooter's look, and each row draws
+  its line only while something lies under it.
   ("Components/Dialog: Long Sheet")
 - **Never a dialog on a dialog.** A second look (Remove, Turn down) is a
   step inside the same dialog; a picker sits in the dialog itself, the

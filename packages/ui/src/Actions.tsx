@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 // the row of buttons at the foot of a form or dialog. Put the main action
 // last: on a phone the buttons stack full width with it at the bottom,
 // nearest the thumb; on larger screens they sit right-aligned with it on the
-// right. In a Dialog on a phone, a sheet, they stay pinned at its foot as
-// its body scrolls (Dialog.tsx places the row it marks: data-actions)
+// right. In a Dialog, the Dialog places the row it marks (data-actions:
+// Dialog.tsx)
 export function Actions({ children }: { children: ReactNode }) {
   return (
     <div
