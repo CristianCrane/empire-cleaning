@@ -95,12 +95,25 @@ test.describe("signing up and in with an emailed link", () => {
       await expect(
         page.getByText("Signed in as new@example.com"),
       ).toBeVisible();
+      // a different email's way out, once, as the page's alert
       await expect(
-        page.getByText("Asked us for a Quote with a different email?"),
+        page.getByRole("status").filter({
+          hasText:
+            "Asked us for a quote with a different email? Sign out and sign in with that one.",
+        }),
+      ).toHaveCount(1);
+      // what happens next is the line under the title, said once: no
+      // steps beside the form, once its first step shows
+      await expect(
+        page.getByText(
+          "Tell us what you'd like cleaned, and we'll email you a quote, usually within a working day.",
+          { exact: true },
+        ),
       ).toBeVisible();
       await expect(
-        page.getByRole("heading", { name: "What happens next" }),
+        page.getByRole("button", { name: "Next", exact: true }),
       ).toBeVisible();
+      await expect(page.getByText("What happens next")).toHaveCount(0);
 
       // and can leave, to sign in with another email
       await page.getByRole("button", { name: "Sign out" }).click();

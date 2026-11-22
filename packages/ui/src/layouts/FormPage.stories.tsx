@@ -177,15 +177,12 @@ export const OnItsOwn: Story = {
         </Button>
       </span>
     ),
-    aside: {
-      title: "What happens next",
-      children: (
-        <>
-          <p>We email you a quote.</p>
-          <Notice>Asked with a different email? Sign in with that one.</Notice>
-        </>
-      ),
-    },
+    alerts: [
+      {
+        key: "other-email",
+        children: "Asked with a different email? Sign in with that one.",
+      },
+    ],
     children: (
       // a stepped form keeps its own steps, Back and Next
       <FormPart title="Where's the clean?">
