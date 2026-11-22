@@ -297,7 +297,7 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   await expect(page).toHaveURL(`/office/bills/${billId}`);
   await expect(
     page.getByText(
-      /^Its payment didn't go through on .+\. We've emailed the client to update their card/,
+      /^Its payment didn't go through( \(.+\))?\. We've emailed the client to update their card/,
     ),
   ).toBeVisible();
   // recording one made another way is the Office's next step; and the

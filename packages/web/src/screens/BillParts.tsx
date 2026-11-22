@@ -1,4 +1,4 @@
-import { catalog, type Language } from "@empire-cleaning/models";
+import { asksTheClient, catalog, type Language } from "@empire-cleaning/models";
 import {
   Ban,
   CalendarDays,
@@ -103,7 +103,13 @@ export function BillStatusBadge({ bill }: { bill: BillSummary }) {
   if (bill.status === "void") return <StatusBadge>{w.cancelled}</StatusBadge>;
   if (bill.status === "processing")
     return <StatusBadge tone="info">{clearing}</StatusBadge>;
-  if (bill.unpaid) return <StatusBadge tone="danger">{unpaid}</StatusBadge>;
+  // one we try again ourselves waits on us (ADR-0022)
+  if (bill.unpaid)
+    return (
+      <StatusBadge tone={asksTheClient(bill.unpaid.kind) ? "danger" : "info"}>
+        {unpaid}
+      </StatusBadge>
+    );
   if (bill.status === "due")
     return <StatusBadge tone="warning">{w.due}</StatusBadge>;
   if (bill.totalCents < 0) return <StatusBadge>{w.credit}</StatusBadge>;

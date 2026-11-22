@@ -301,7 +301,7 @@ const aboutBill = (
     case "unpaid":
     case "made":
       // we try again ourselves, so they're only told the Bill
-      if (bill.unpaid === "waiting") {
+      if (bill.unpaid && !asksTheClient(bill.unpaid)) {
         return [w.yourBill(number), w.waiting(total, card)];
       }
       if (bill.unpaid) {

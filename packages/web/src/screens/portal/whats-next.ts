@@ -222,9 +222,6 @@ export type HomeData = {
   paymentMethod: PaymentMethodView | null;
 };
 
-// why the card says what it does, when it needs a reason (money late, a
-// price change, a crew who couldn't get in, a plan paused): its first
-// sentence bold, as a page's alerts read
 export type WhatsNext = {
   // what they're waiting on us for
   news: string[];

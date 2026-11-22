@@ -420,7 +420,7 @@ Keeps: Tabs, by month, date tiles (ux-portal). Renders through `ListPage`
 Keeps: what you owe first, fixed header Button (ux-portal). Renders through
 `HomePage` (#435).
 
-- Header: "Payments" in the bar; Your card (secondary).
+- Header: "Payments" in the bar; Your card (secondary), standing aside while the card asks something of them (its tile stays).
 - Body: what you owe (`AnswerCard`: `IconTile`, the primary) or all paid;
   Notices of payments clearing; tiles All payments (`?open=history`, the
   Statement by month in place) and Your card (a link).

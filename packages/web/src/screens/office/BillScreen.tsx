@@ -29,7 +29,7 @@ import {
 import { useAction } from "../action.ts";
 import { clientTrail } from "./trails.ts";
 
-const { formatDate, formatDay, formatMoney } = formats.en;
+const { formatMoney } = formats.en;
 
 // one weekly Bill for the Office (ADR-0016), a Record (docs/ux.md): the
 // whole Bill as the Client sees it, where it stands, and while it's due,
@@ -92,13 +92,16 @@ function standing(bill: BillView): Alert | null {
   if (bill.status !== "due") return null;
   if (bill.unpaid) {
     const { kind, why } = bill.unpaid;
+    // when is the line under its total's (UX review U5)
     return {
       key: "unpaid",
-      tone: "danger",
+      tone: asksTheClient(kind) ? "danger" : "info",
       children: `${
         kind === "late"
-          ? `It wasn't paid by its due date, ${formatDay(bill.dueOn)}.`
-          : `Its payment didn't go through on ${formatDate(bill.unpaid.since)}${why ? ` (${why})` : ""}.`
+          ? `It wasn't paid by its due date.`
+          : asksTheClient(kind)
+            ? `Its payment didn't go through${why ? ` (${why})` : ""}.`
+            : `Its payment hasn't gone through yet${why ? ` (${why})` : ""}.`
       } ${officeFix[kind]} Until it's paid, the client's cleaning plans with jobs on this bill are paused.`,
     };
   }

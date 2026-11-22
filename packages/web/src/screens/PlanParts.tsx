@@ -38,7 +38,7 @@ import {
   DialogTrigger,
 } from "@empire-cleaning/ui";
 import { postJson } from "../api.ts";
-import { linkTo, type AppHref } from "../links.ts";
+import { linkTo, sameHref, type AppHref } from "../links.ts";
 import { useAction } from "./action.ts";
 import { formatHours } from "./format.ts";
 import { type Said, useSaid } from "./words.ts";
@@ -198,22 +198,23 @@ export function useOnHold(
   ];
   const asks = (u: { kind: UnpaidKind }) => asksTheClient(u.kind);
   const first = unpaid.find(asks);
-  // an AppHref is options, made afresh: the same place says so by value
-  const goesWhereFirstDoes = (u: (typeof unpaid)[number]) =>
-    !!first && JSON.stringify(u.way.href) === JSON.stringify(first.way.href);
+
   const alerts = unpaid.map((u, i): Alert => ({
     key: u.key,
     tone: asks(u) ? "warning" : "info",
-    action: (asks(u) || !forClient) && !goesWhereFirstDoes(u) && (
-      <ButtonLink variant="text" href={u.way.href}>
-        {u.way.label}
-      </ButtonLink>
-    ),
+    action: (asks(u) || !forClient) &&
+      !sameHref(u.way.href, first?.way.href) && (
+        <ButtonLink variant="text" href={u.way.href}>
+          {u.way.label}
+        </ButtonLink>
+      ),
     children: (
       <p>
         {i === 0 && (
           <>
-            <strong>{forClient ? t.p.planPaused : "Paused."}</strong>{" "}
+            <strong>
+              {forClient ? t.p.planPaused : "Cleaning plan paused."}
+            </strong>{" "}
           </>
         )}
         {asks(u)

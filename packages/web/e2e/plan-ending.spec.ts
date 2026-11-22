@@ -182,11 +182,13 @@ const skipLate = async (page: Page, jobId: string) => {
 };
 
 test(
-  "a plan On Hold for two payments leads with putting the first right, and the Office reaches each",
+  "a plan On Hold for two payments leads with the first that asks something, and the Office reaches each",
   { tag: "@desktop" },
   async ({ page, browser }) => {
     const { planId, firstJob } = await planStarted();
-    await failCharges();
+    // the first fee's bank payment still clearing, which we see to
+    // ourselves (ADR-0022); the second's card declined
+    await failCharges("processing");
     await signedInAs(page, casey.email);
     await setClock(SUNDAY_10AM);
     await skipLate(page, firstJob.id);
@@ -200,23 +202,33 @@ test(
     await expect(page).toHaveURL(/\/portal\/jobs\//);
     const secondJob = page.url().split("/").pop()!;
     await setClock("2026-01-25T15:00:00Z");
+    await failCharges();
     await skipLate(page, secondJob);
 
-    // one next step for both: a card that works tries each again
+    // the declined one is the next step, though the waiting one came first;
+    // neither alert offers a link of its own
     await page.goto(`/portal/plans/${planId}`);
     const held = page.getByRole("status").filter({ hasText: "the clean on" });
     await expect(held).toHaveCount(2);
     await expectNextStep(page, "Update your card");
     await expect(held.getByRole("link")).toHaveCount(0);
 
-    // the Office: the first job its next step, the second its alert's link
+    // the Office: the declined job its next step, the waiting one its
+    // alert's link
     const office = await (await browser.newContext()).newPage();
     await signedInAs(office, olive.email);
     await office.goto(`/office/service-plans/${planId}`);
     await expectNextStep(office, "See the job");
     await office
       .getByRole("status")
-      .filter({ hasText: "Mon, Jan 26" })
+      .filter({ hasText: "hasn't gone through yet" })
+      .getByRole("link", { name: "See the job" })
+      .click();
+    await expect(office).toHaveURL(`/office/jobs/${firstJob.id}`);
+    await office.goBack();
+    // the alert's link has the same name, so the next step by its place
+    await office
+      .getByRole("group", { name: "What to do" })
       .getByRole("link", { name: "See the job" })
       .click();
     await expect(office).toHaveURL(`/office/jobs/${secondJob}`);
@@ -278,7 +290,7 @@ test(
     await expect(
       page.getByRole("status").filter({ hasText: "Paused." }),
     ).toContainText(
-      "Paused. The client's payment didn't go through for the clean on Mon, Jan 19, 9:00 AM ($50.46).",
+      "Cleaning plan paused. The client's payment didn't go through for the clean on Mon, Jan 19, 9:00 AM ($50.46).",
     );
 
     // on the plan, its own action (WEB-J)

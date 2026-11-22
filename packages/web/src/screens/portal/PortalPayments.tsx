@@ -73,7 +73,9 @@ export function PortalPayments() {
     <HomePage
       title={t.p.payments}
       actions={[
-        {
+        // stands aside while the card asks something of them, as Home's
+        // does (docs/ux.md; UX review U18); Your card's tile stays below
+        !owed?.asks && {
           label: t.p.yourCard,
           icon: CreditCard,
           href: linkTo({ to: "/portal/payment-method" }),
