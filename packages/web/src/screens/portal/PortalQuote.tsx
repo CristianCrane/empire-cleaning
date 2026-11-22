@@ -529,9 +529,10 @@ function QuoteDetails({
           label={t.howLong}
           value={
             plan
-              ? plan.days
-                  .map((_, i) => howLong(t, quote.options[i]!.hoursOnSite))
-                  .join(" + ")
+              ? howLong(
+                  t,
+                  ...plan.days.map((_, i) => quote.options[i]!.hoursOnSite),
+                )
               : howLong(t, chosen.hoursOnSite)
           }
         />
