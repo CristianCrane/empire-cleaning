@@ -536,6 +536,20 @@ export const pageAction = async (page: Page, name: string) => {
   await expect(page.getByRole("menu")).toHaveCount(0);
 };
 
+// a page's next step, its primary: in its header from md, pinned at a
+// phone's foot (docs/ux.md, Page structure); not a button in an alert or
+// a part, nor behind More actions
+export const expectNextStep = async (page: Page, name: string) => {
+  const where = page
+    .locator("#main header")
+    .or(page.getByRole("group", { name: "What to do" }));
+  await expect(
+    where
+      .getByRole("button", { name, exact: true })
+      .or(where.getByRole("link", { name, exact: true })),
+  ).toBeVisible();
+};
+
 // one of a page's actions isn't on offer on it: not pressed straight away,
 // nor behind More actions
 export const expectNoPageAction = async (page: Page, name: string) => {
@@ -942,7 +956,7 @@ export const draftTheQuote = async (
   page: Page,
   kind?: "one-off" | "cleaning plan",
 ) => {
-  await page.getByRole("button", { name: "Draft the quote" }).click();
+  await pageAction(page, "Draft the quote");
   if (kind) {
     await page
       .getByRole("dialog")

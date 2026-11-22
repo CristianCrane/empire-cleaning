@@ -58,12 +58,10 @@ import {
 import {
   Actions,
   Button,
-  ButtonLink,
   Card,
   Checkbox,
   DatePicker,
   Dialog,
-  DialogTrigger,
   Form,
   FormPage,
   FormPart,
@@ -92,6 +90,8 @@ import {
   staleFade,
   FieldRow,
   type DialogState,
+  type PageAction,
+  type PageActions,
 } from "@empire-cleaning/ui";
 import { ApiError, deleteJson, patchJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
@@ -121,8 +121,8 @@ import {
   AskedFacts,
   askedSummary,
   FoldedPrice,
-  DraftQuote,
   seeThePremises,
+  WhichKindDialog,
   TurnDownQuote,
   turnDownLabel,
 } from "./QuoteAsked.tsx";
@@ -191,6 +191,7 @@ export function QuoteScreen() {
 
   const kind = quoteKindName(quote.kind);
   const revising = quote.draft !== null && quote.offer !== null;
+  const now = useNow(quote);
 
   return (
     <RecordPage
@@ -206,27 +207,10 @@ export function QuoteScreen() {
           {revising && <DraftChangesBadge />}
         </>
       }
-      actions={[
-        // optional, unless its Service is seen first: then an alert asks
-        // for it
-        unsent(quote) &&
-          !quote.needsSiteVisit &&
-          !quote.bookedSiteVisit && {
-            label: BOOK_A_SITE_VISIT,
-            icon: CalendarPlus,
-            dialog: (state) => (
-              <BookSiteVisitDialog quoteId={quote.id} {...state} />
-            ),
-          },
-        unsent(quote) && {
-          label: "Turn down",
-          icon: CircleX,
-          danger: true,
-          dialog: (state) => <TurnDownQuote quote={quote} {...state} />,
-        },
-      ]}
+      next={now.next}
+      actions={now.actions}
       alerts={[
-        ...alertsFor(quote),
+        ...now.alerts,
         quote.status !== "turned_down" &&
           shown?.changesPlan && {
             key: "plan change",
@@ -240,16 +224,7 @@ export function QuoteScreen() {
       <Timeline aria-label="This quote's story, newest first">
         {offer && (
           <TimelineItem icon={FileClock} title="Now" current>
-            <Offer
-              quote={offer}
-              // a new Revision replaces it, unless one's being written
-              actions={
-                !quote.draft &&
-                ["sent", "expired", "declined"].includes(quote.status) && (
-                  <NewRevision quote={quote} />
-                )
-              }
-            />
+            <Offer quote={offer} />
           </TimelineItem>
         )}
         {moments.map((moment) => (
@@ -281,156 +256,211 @@ const draftLink = (quote: OfficeQuote) =>
     params: { quoteId: quote.id },
   });
 
-// What there is to do with the Quote, above its story: one alert per
-// thing, each with at most one action (a text button: an alert is passing
-// news, never the page's main action); or what it came to, once settled
-const alertsFor = (quote: OfficeQuote): (Alert | false | null)[] => {
-  const shown = shownFor(quote);
+// What there is to do with the Quote, worked out once from its state
+// (docs/ux.md, Page structure and Notices): its next step, the page's
+// primary; the rest behind its arrow; and alerts above its story saying
+// why, or what it came to, where its badge, its facts and its story don't
+// say it already. An alert's one action is never the next step
+type Now = {
+  next?: PageAction;
+  actions: PageActions;
+  alerts: (Alert | false | null)[];
+};
+
+function useNow(quote: OfficeQuote): Now {
+  const { start, starting } = useStartDraft();
   const name = quote.client.name;
-  const firstName = firstNameOf(name);
   const offer = quote.offer ? shownOf({ ...quote, draft: null }) : null;
   // the offer can still be accepted: by phone, the Office records it, which
   // needs a card saved, unless it only changes a plan (charging nothing)
   const acceptable =
     offer !== null && quote.status === "sent" && quote.bookable.length > 0;
-  const needsCard = acceptable && !offer.changesPlan && !quote.paymentMethod;
+  const recordable =
+    acceptable && (offer.changesPlan !== null || quote.paymentMethod !== null);
 
-  const acceptance = acceptable && {
-    key: "accept",
-    action: needsCard ? (
-      <EmailCardLink quote={quote} />
-    ) : (
-      <RecordAcceptance quote={offer} drafting={quote.draft?.number} />
-    ),
-    children: (
-      <p>
-        <strong>
-          Waiting for {firstName} to accept
-          {quote.draft ? " the quote you sent" : ""}, until{" "}
-          {formatDateTime(offer.expiresAt!)}.
-        </strong>{" "}
-        {needsCard
-          ? "To accept by phone, they need to save a card first. We never take card details for them."
-          : offer.changesPlan
-            ? "If they accept by phone, record it here. It changes their plan and charges nothing."
-            : `If they accept by phone, record it here. The deposit is charged to their ${quote.paymentMethod!.label}.`}
-      </p>
+  const recordAcceptance: PageAction | false = recordable && {
+    label: "Record acceptance",
+    icon: CircleCheck,
+    dialog: (state) => (
+      <RecordAcceptanceDialog
+        quote={offer!}
+        drafting={quote.draft?.number}
+        {...state}
+      />
     ),
   };
+  const noCard: Alert | false = acceptable &&
+    !recordable && {
+      key: "card",
+      action: <EmailCardLink quote={quote} />,
+      children: (
+        <p>
+          {firstNameOf(name)} has no card saved, so an acceptance by phone can't
+          be recorded yet. We never take card details for them.
+        </p>
+      ),
+    };
+  // a new Revision replaces the offer, from its terms
+  const changeQuote: PageAction = {
+    label: "Change quote",
+    icon: Pencil,
+    onAction: () => void start({ quoteId: quote.id, kind: quote.kind! }),
+    isPending: starting !== undefined,
+  };
+  // nothing of it Sent yet, so it may still be Turned Down
+  const turnDown: PageAction = {
+    label: "Turn down",
+    icon: CircleX,
+    danger: true,
+    dialog: (state) => <TurnDownQuote quote={quote} {...state} />,
+  };
+  const bookVisit: PageAction = {
+    label: BOOK_A_SITE_VISIT,
+    icon: CalendarPlus,
+    dialog: (state) => <BookSiteVisitDialog quoteId={quote.id} {...state} />,
+  };
+  // optional, unless its Service is seen first: then it's the next step
+  const mayBookVisit = !quote.needsSiteVisit && !quote.bookedSiteVisit;
 
   // a Revision being written
   if (quote.draft) {
-    return [
-      {
-        key: "draft",
-        tone: "warning",
-        action: (
-          <ButtonLink variant="text" size="sm" href={draftLink(quote)}>
-            <FilePenLine aria-hidden size={16} />
-            Carry on with the draft
-          </ButtonLink>
-        ),
-        children: (
-          <p>
-            <strong>This draft isn't sent yet.</strong>{" "}
-            {quote.offer
-              ? stillSees(name)
-              : `Nothing reaches ${name} until you send it.`}
-          </p>
-        ),
+    return {
+      next: {
+        label: "Carry on with the draft",
+        icon: FilePenLine,
+        href: draftLink(quote),
       },
-      acceptance,
-    ];
+      actions: quote.offer
+        ? [recordAcceptance]
+        : [mayBookVisit && bookVisit, turnDown],
+      alerts: [
+        {
+          key: "draft",
+          tone: "warning",
+          children: (
+            <p>
+              {quote.offer
+                ? stillSees(name)
+                : `Nothing reaches ${name} until you send it.`}
+            </p>
+          ),
+        },
+        noCard,
+      ],
+    };
   }
 
   switch (quote.status) {
     case "requested":
     case "draft":
-      return toQuote(quote);
+      return toQuote(quote, {
+        draft: draftTheQuote(quote, start, starting),
+        bookVisit,
+        turnDown,
+      });
     case "sent":
       return acceptable
-        ? [acceptance]
-        : [
-            {
-              key: "full",
-              tone: "danger",
-              children: (
-                <p>
-                  {offer!.plan && offer!.plan.days.length > 1
-                    ? "One of its first days has"
-                    : `${formatDateTime(offer!.proposedStartsAt!)} has`}{" "}
-                  filled up since this quote was sent, so {name} can't accept
-                  it. Change the quote to another time.
-                </p>
-              ),
-            },
-          ];
+        ? {
+            next: recordAcceptance || undefined,
+            actions: [changeQuote],
+            alerts: [noCard],
+          }
+        : {
+            next: changeQuote,
+            actions: [],
+            alerts: [
+              {
+                key: "full",
+                tone: "danger",
+                children: (
+                  <p>
+                    {offer!.plan && offer!.plan.days.length > 1
+                      ? "One of its first days has"
+                      : `${formatDateTime(offer!.proposedStartsAt!)} has`}{" "}
+                    filled up since this quote was sent, so {name} can't accept
+                    it.
+                  </p>
+                ),
+              },
+            ],
+          };
+    // the badge, the Expired fact and the story's moment say what happened
     case "expired":
-      return [
-        {
-          key: "expired",
-          children: (
-            <p>
-              <strong>Expired {formatDateTime(shown!.expiresAt!)}</strong> with
-              no answer. To offer it again, change the quote.
-            </p>
-          ),
-        },
-      ];
     case "declined":
-      return [
-        {
-          key: "declined",
-          children: (
-            <p>
-              <strong>
-                {name} declined it {formatDateTime(quote.declinedAt!)}.
-              </strong>{" "}
-              To offer something different, change the quote.
-            </p>
-          ),
-        },
-      ];
+      return { actions: [changeQuote], alerts: [] };
     case "accepted":
-      return [
-        {
-          key: "accepted",
-          tone: "success",
-          children: (
-            <p>
-              Accepted {formatDateTime(quote.acceptedAt!)}:{" "}
-              {quote.servicePlanId ? (
-                <Link
-                  href={linkTo({
-                    to: "/office/service-plans/$planId",
-                    params: { planId: quote.servicePlanId },
-                  })}
-                >
-                  {quote.changedPlan
-                    ? "its cleaning plan has changed"
-                    : "its cleaning plan has started"}
-                </Link>
-              ) : (
-                `${shown!.options.find((o) => o.serviceKey === quote.acceptedServiceKey)?.serviceName}, booked`
-              )}
-              .
-            </p>
-          ),
-        },
-      ];
+      return {
+        actions: [],
+        alerts: [
+          {
+            key: "accepted",
+            tone: "success",
+            children: (
+              <p>
+                Accepted {formatDateTime(quote.acceptedAt!)}:{" "}
+                {quote.servicePlanId ? (
+                  <Link
+                    href={linkTo({
+                      to: "/office/service-plans/$planId",
+                      params: { planId: quote.servicePlanId },
+                    })}
+                  >
+                    {quote.changedPlan
+                      ? "its cleaning plan has changed"
+                      : "its cleaning plan has started"}
+                  </Link>
+                ) : (
+                  `${offer!.options.find((o) => o.serviceKey === quote.acceptedServiceKey)?.serviceName}, booked`
+                )}
+                .
+              </p>
+            ),
+          },
+        ],
+      };
+    // the badge and the story's moment say when, and why
     case "turned_down":
-      return [
-        {
-          key: "turned-down",
-          children: `Turned down ${formatDate(quote.turnedDownAt!)}: ${turnDownLabel[quote.turnDownReason!].toLowerCase()}. The client can ask for a new quote.`,
-        },
-      ];
+      return { actions: [], alerts: [] };
   }
+}
+
+// A Requested Quote's first Revision, which sets its kind: asked which
+// first where either kind is possible (the home's First Clean is
+// Completed, or for business premises at any time, ADR-0014)
+const draftTheQuote = (
+  quote: OfficeQuote,
+  start: ReturnType<typeof useStartDraft>["start"],
+  starting: ReturnType<typeof useStartDraft>["starting"],
+): PageAction => {
+  const eitherKind =
+    quote.firstCleanCompleted || quote.property.kind === "commercial";
+  return {
+    label: "Draft the quote",
+    icon: FilePenLine,
+    ...(eitherKind
+      ? {
+          dialog: (state: DialogState) => (
+            <WhichKindDialog quote={quote} {...state} />
+          ),
+        }
+      : {
+          onAction: () => void start({ quoteId: quote.id, kind: "one_off" }),
+          isPending: starting !== undefined,
+        }),
+  };
 };
 
-// a Quote asked for, nothing drafted yet: see the premises first if they're
-// a business not yet seen (ADR-0014), else draft it
-const toQuote = (quote: OfficeQuote): (Alert | false | null)[] => {
+// a Quote asked for, nothing drafted yet: see the premises first if its
+// Service is seen before it's quoted (ADR-0018), with nothing to do while
+// the visit's to come but Turn it down, else draft it
+const toQuote = (
+  quote: OfficeQuote,
+  {
+    draft,
+    bookVisit,
+    turnDown,
+  }: { draft: PageAction; bookVisit: PageAction; turnDown: PageAction },
+): Now => {
   const visit = quote.bookedSiteVisit;
   const visitLink = visit && (
     <Link
@@ -443,55 +473,59 @@ const toQuote = (quote: OfficeQuote): (Alert | false | null)[] => {
     </Link>
   );
   if (quote.needsSiteVisit && !visit) {
-    return [seeThePremises(quote)];
+    return {
+      next: bookVisit,
+      actions: [turnDown],
+      alerts: [seeThePremises(quote)],
+    };
   }
   if (quote.needsSiteVisit) {
-    return [
-      {
+    return {
+      actions: [turnDown],
+      alerts: [
+        {
+          key: "visit",
+          children: (
+            <p>
+              <strong>Site visit booked:</strong> {visitLink}. Draft the quote
+              once it's done and what it found is recorded.
+            </p>
+          ),
+        },
+      ],
+    };
+  }
+  return {
+    next: draft,
+    actions: [!visit && bookVisit, turnDown],
+    alerts: [
+      visit && {
         key: "visit",
         children: (
           <p>
-            <strong>Site visit booked:</strong> {visitLink}. Draft the quote
-            once it's done and what it found is recorded.
+            <strong>Site visit booked:</strong> {visitLink}.
           </p>
         ),
       },
-    ];
-  }
-  return [
-    {
-      key: "draft",
-      tone: "warning",
-      action: <DraftQuote quote={quote} />,
-      children: (
-        <p>
-          <strong>
-            {quote.client.name} asked for a{" "}
-            {quote.asked?.service.name ?? "quote"}.
-          </strong>{" "}
-          Draft the quote to send them a price.
-          {visit && <> Site visit booked: {visitLink}.</>}
-        </p>
-      ),
-    },
-    !!quote.homePlanId && {
-      key: "plan",
-      children: (
-        <p>
-          This home has a{" "}
-          <Link
-            href={linkTo({
-              to: "/office/service-plans/$planId",
-              params: { planId: quote.homePlanId },
-            })}
-          >
-            cleaning plan
-          </Link>
-          . A cleaning plan quote changes it once the client accepts.
-        </p>
-      ),
-    },
-  ];
+      !!quote.homePlanId && {
+        key: "plan",
+        children: (
+          <p>
+            This home has a{" "}
+            <Link
+              href={linkTo({
+                to: "/office/service-plans/$planId",
+                params: { planId: quote.homePlanId },
+              })}
+            >
+              cleaning plan
+            </Link>
+            . A cleaning plan quote changes it once the client accepts.
+          </p>
+        ),
+      },
+    ],
+  };
 };
 
 // throws the Draft away, once Office Staff are sure: see discardDraft
@@ -671,7 +705,7 @@ function WhatWasAsked({ quote }: { quote: OfficeQuote }) {
   );
 }
 
-// nothing of it Sent yet, so it may still be Turned Down
+// nothing of it Sent yet
 const unsent = (quote: OfficeQuote) =>
   quote.status === "requested" || quote.status === "draft";
 
@@ -718,13 +752,12 @@ function PlanChangeText({
 
 // The offer, read-only, as one card: its terms, each Service's price (or
 // each weekday's, on a plan) and the Deposit. A Sent Revision never changes
-function Offer({ quote, actions }: { quote: ShownQuote; actions?: ReactNode }) {
+function Offer({ quote }: { quote: ShownQuote }) {
   const { plan } = quote;
   return (
     <Section
       title="Current quote"
       description={`Sent ${formatDateTime(quote.sentAt!)} to ${quote.client.email}`}
-      actions={actions}
     >
       <Card>
         <Facts>
@@ -747,11 +780,14 @@ function Offer({ quote, actions }: { quote: ShownQuote; actions?: ReactNode }) {
               line={`Then, priced for ${conditionLabel[plan.condition].toLowerCase()} condition`}
             />
           )}
-          <Fact
-            icon={Hourglass}
-            label={quote.status === "expired" ? "Expired" : "Expires"}
-            value={formatDateTime(quote.expiresAt!)}
-          />
+          {/* once answered, when it would have expired is no one's concern */}
+          {(quote.status === "sent" || quote.status === "expired") && (
+            <Fact
+              icon={Hourglass}
+              label={quote.status === "expired" ? "Expired" : "Expires"}
+              value={formatDateTime(quote.expiresAt!)}
+            />
+          )}
           <Fact
             icon={CirclePlus}
             label="Extras"
@@ -941,23 +977,6 @@ function OfferPrice({
   );
 }
 
-// starts a new Revision of a Sent or Expired Quote, from the offer's terms,
-// and opens it; primary only when it's the one thing to do
-function NewRevision({ quote }: { quote: OfficeQuote }) {
-  const { start, starting } = useStartDraft();
-  return (
-    <Button
-      variant="text"
-      size="sm"
-      isPending={starting !== undefined}
-      onPress={() => void start({ quoteId: quote.id, kind: quote.kind! })}
-    >
-      <Pencil aria-hidden size={16} />
-      Change quote
-    </Button>
-  );
-}
-
 // Office Staff never take card details: the Client adds a card from a link
 // emailed to them, before an acceptance by phone can be recorded
 function EmailCardLink({ quote }: { quote: OfficeQuote }) {
@@ -986,32 +1005,11 @@ function EmailCardLink({ quote }: { quote: OfficeQuote }) {
   );
 }
 
-// The Client said yes another way, e.g. by phone: the Office records it.
-// Without a card only a plan change, which charges nothing, can go ahead
-function RecordAcceptance({
-  quote,
-  drafting,
-}: {
-  quote: ShownQuote;
-  drafting?: number;
-}) {
-  if (!quote.changesPlan && !quote.paymentMethod) return null;
-  return (
-    <DialogTrigger>
-      <Button variant="text" size="sm">
-        <CircleCheck aria-hidden size={16} />
-        Record acceptance
-      </Button>
-      <RecordAcceptanceDialog quote={quote} drafting={drafting} />
-    </DialogTrigger>
-  );
-}
-
 // Records the Client's yes, charging the Deposit to the card they saved (a
 // plan change charges nothing): it asks which Service they chose and
 // confirms. While a new Revision is `drafting`, it's the offer standing
-// that's accepted, and accepting it discards the Draft. A page action's
-// dialog, or RecordAcceptance's
+// that's accepted, and accepting it discards the Draft. The Record's
+// next step while it's acceptable
 function RecordAcceptanceDialog({
   quote,
   drafting,

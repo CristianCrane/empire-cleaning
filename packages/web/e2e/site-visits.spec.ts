@@ -14,6 +14,9 @@ import {
   recordFindingsWithoutVisit,
   addCleaner,
   serviceKey,
+  pageAction,
+  expectNoPageAction,
+  expectNextStep,
 } from "./harness.ts";
 
 // The API's clock starts at 4am on Monday 5 January 2026 in New York.
@@ -56,7 +59,8 @@ test(
       page.getByText("This business needs a site visit before it's quoted"),
     ).toBeVisible();
 
-    await page.getByRole("button", { name: "Book a site visit" }).click();
+    await expectNextStep(page, "Book a site visit");
+    await pageAction(page, "Book a site visit");
     const dialog = page.getByRole("dialog", { name: "Book a site visit" });
     await choose(dialog, /Who visits/, "Olive Owner");
     await dialog
@@ -183,9 +187,8 @@ test("a Quote for business premises can't be drafted until their findings are re
   await expect(
     page.getByText("This business needs a site visit before it's quoted."),
   ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Draft the quote" }),
-  ).toHaveCount(0);
+  await expectNextStep(page, "Book a site visit");
+  await expectNoPageAction(page, "Draft the quote");
 
   // premises the Office knows already
   await recordFindingsWithoutVisit(page);
@@ -264,7 +267,8 @@ test("a home's Quote for a Service seen first asks for a site visit as a home's"
 
   await expect(page.getByText(/^This home needs a site visit/)).toBeVisible();
   await expect(page.getByText(/business premises/i)).toHaveCount(0);
-  // the notice's Book button, not another in the header
+  // the page's next step, and only there
+  await expectNextStep(page, "Book a site visit");
   await expect(
     page.getByRole("button", { name: /^Book a site visit$/i }),
   ).toHaveCount(1);

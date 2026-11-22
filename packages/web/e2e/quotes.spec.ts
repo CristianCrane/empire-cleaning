@@ -19,6 +19,7 @@ import {
   expectNoPageAction,
   openTile,
   searchList,
+  expectNextStep,
 } from "./harness.ts";
 
 const olive = {
@@ -253,7 +254,12 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
   await expect(sent).toHaveText(["Quote sent"]);
   await expect(offer).toContainText("Sent ");
 
-  await page.getByRole("button", { name: "Change quote" }).click();
+  // Sent and waiting, with no card to record a yes by phone: nothing is
+  // next, and Change quote is the page's one action
+  await expect(
+    page.getByText(`Casey has no card saved`, { exact: false }),
+  ).toBeVisible();
+  await pageAction(page, "Change quote");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     `Draft quote for ${casey.name}`,
   );
@@ -268,16 +274,23 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
   await expect(page.getByText("Sent", { exact: true })).toBeVisible();
   await expect(
     page.getByText(
-      `This draft isn't sent yet. ${casey.name} still sees the quote as you sent it until you send your changes.`,
+      `${casey.name} still sees the quote as you sent it until you send your changes.`,
+      { exact: true },
     ),
   ).toBeVisible();
+  // carrying on is the next step, Change quote gone from Current quote's
+  // title line
+  await expectNextStep(page, "Carry on with the draft");
+  await expect(offer.getByRole("button", { name: "Change quote" })).toHaveCount(
+    0,
+  );
   await page.goto("/office/quotes");
   await expect(
     page.getByRole("row", { name: new RegExp(casey.name) }),
   ).toContainText("Being updated");
 
   await page.goto(quote);
-  await page.getByRole("link", { name: "Carry on with the draft" }).click();
+  await pageAction(page, "Carry on with the draft");
   await send(page);
   await expect(page.getByText("Being updated")).toBeHidden();
   await expect(sent).toHaveText(["Quote sent", "Quote sent"]);
@@ -302,7 +315,7 @@ test("the Client sees only the latest Revision, from any of its emails", async (
   ).toContainText("Deep Clean");
   await expect(client.getByText(/Updated/)).toBeHidden();
 
-  await page.getByRole("button", { name: "Change quote" }).click();
+  await pageAction(page, "Change quote");
   const deep = page.getByRole("group", { name: "Deep Clean" });
   await deep.getByText("Set the Deep Clean price yourself").click();
   await deep
@@ -338,6 +351,9 @@ test("Office Staff Turn down a Quote asked for, and the Client is told why", asy
   await page.goto("/office/quotes");
   await page.getByText(casey.name).click();
 
+  // asked for: drafting it is the next step, turning it down behind the
+  // arrow
+  await expectNextStep(page, "Draft the quote");
   await pageAction(page, "Turn down");
   const dialog = page.getByRole("alertdialog", {
     name: "Turn down this quote?",
@@ -346,13 +362,13 @@ test("Office Staff Turn down a Quote asked for, and the Client is told why", asy
   await dialog.getByRole("button", { name: "Turn down" }).click();
 
   await expect(page.getByText("Quote turned down")).toBeVisible();
+  // the story says when and why
+  const story = page.getByRole("list", { name: /This quote's story/ });
   await expect(
-    page.getByText(/Turned down .*: outside the area we clean\./),
-  ).toBeVisible();
+    story.getByRole("listitem").filter({ hasText: "Turned down" }),
+  ).toContainText("Outside the area we clean");
   await expectNoPageAction(page, "Turn down");
-  await expect(
-    page.getByRole("button", { name: "Draft the quote" }),
-  ).toBeHidden();
+  await expectNoPageAction(page, "Draft the quote");
   const told = (await emailsTo(casey.email)).find(
     (e) => e.subject === "About your quote from Empire Cleaning",
   );
@@ -382,6 +398,7 @@ test("a Sent Quote can't be Turned down", async ({ page }) => {
   await page.getByRole("button", { name: "More actions" }).click();
   await expect(page.getByRole("menuitem", { name: "Turn down" })).toBeVisible();
   await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu")).toHaveCount(0);
   await draftTheQuote(page);
   await proposeNextMonday(page);
   await send(page);

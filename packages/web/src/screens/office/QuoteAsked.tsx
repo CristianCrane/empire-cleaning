@@ -1,6 +1,5 @@
 import { useState, type ReactNode } from "react";
 import {
-  FilePenLine,
   CalendarDays,
   Globe,
   ClipboardList,
@@ -20,7 +19,6 @@ import {
   Actions,
   Button,
   Dialog,
-  DialogTrigger,
   Link,
   Notice,
   Radio,
@@ -34,7 +32,6 @@ import {
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { BookSiteVisit } from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
 import { addressOf, formatHours, roomsText, screenWords } from "../format.ts";
 import { homeIcon } from "../icons.ts";
@@ -148,46 +145,8 @@ export function AskedFacts({ quote }: { quote: OfficeQuote }) {
   );
 }
 
-// A Requested Quote's way on: drafting its first Revision, which sets its
-// kind. Where either kind is possible (the home's First Clean is Completed,
-// or for business premises at any time, ADR-0014), it asks which first
-export function DraftQuote({ quote }: { quote: OfficeQuote }) {
-  const { start, starting } = useStartDraft();
-  const eitherKind =
-    quote.firstCleanCompleted || quote.property.kind === "commercial";
-  const draft = (kind: QuoteKind) => void start({ quoteId: quote.id, kind });
-  const label = (
-    <>
-      <FilePenLine aria-hidden size={16} />
-      Draft the quote
-    </>
-  );
-
-  return (
-    <>
-      {eitherKind ? (
-        <DialogTrigger>
-          <Button variant="text" size="sm">
-            {label}
-          </Button>
-          <WhichKindDialog quote={quote} />
-        </DialogTrigger>
-      ) : (
-        <Button
-          variant="text"
-          size="sm"
-          isPending={starting !== undefined}
-          onPress={() => draft("one_off")}
-        >
-          {label}
-        </Button>
-      )}
-    </>
-  );
-}
-
 // Asks which kind a Requested Quote's first Revision is, where either can
-// be, and drafts it: a page action's dialog, or DraftQuote's
+// be, and drafts it: the Quote's Draft the quote
 export function WhichKindDialog({
   quote,
   ...state
@@ -221,17 +180,16 @@ export function WhichKindDialog({
 }
 
 // A Service seen first is seen before it's quoted (ADR-0018), for a home
-// too: the Office books a Site Visit, or records findings it knows already
-// on the Property
+// too: why the Quote's next step is Book a site visit, and the other way,
+// recording findings the Office knows already on the Property
 export const seeThePremises = (quote: OfficeQuote): Alert => ({
   key: "see",
   tone: "warning",
-  action: <BookSiteVisit quoteId={quote.id} />,
   children: (
     <p>
-      <strong>{needsVisit(quote.property.kind)}</strong> Book one, or if you
-      know it already, record what you know on the{" "}
-      <Link href={propertyLink(quote)}>property page</Link>.
+      <strong>{needsVisit(quote.property.kind)}</strong> If you know what it
+      would find already, record it on the{" "}
+      <Link href={propertyLink(quote)}>property page</Link> instead.
     </p>
   ),
 });
