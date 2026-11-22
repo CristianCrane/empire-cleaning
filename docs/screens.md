@@ -490,9 +490,6 @@ Keeps: a message page; centred, home a link (#168); one Button that does it
 - `MessagePage`: a narrow centred card, a large `IconTile`, the title,
   one line, at most one Button, home a text link. Not found; Something went
   wrong (Try again); Sign-in link (Sign in); Confirm email (three states).
-  Not found and Something went wrong in an area keep its frame and its
-  reader's language, an address no page has as much as a record that isn't
-  there (#493 G6.4).
 
 #### Welcome
 
