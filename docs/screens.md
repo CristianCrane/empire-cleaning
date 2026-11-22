@@ -29,7 +29,7 @@ what later screens are checked against. The landing site isn't here.
 
 The Office, Client portal and Cleaner area share one frame
 (`packages/ui/src/layouts/AppLayout.tsx`): a sidebar
-from `lg`, folded to a rail of icons from `md`; under `md`, a top bar with ☰
+from `lg`, folded to a rail of named icons from `md`; under `md`, a top bar with ☰
 and a drawer, and a tab bar at the foot. While the next page takes a moment to load, a bar runs across the top
 and the page on show fades (`docs/ux.md`, Navigation). How sign-in and the areas' guards behave is in `packages/web/README.md`,
 Areas and sign-in.

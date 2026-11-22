@@ -1,16 +1,14 @@
 import {
-  Dialog as AriaDialog,
   Link,
-  Tooltip,
-  TooltipTrigger,
+  OverlayTriggerStateContext,
   type LinkProps,
 } from "react-aria-components";
 import { Menu, CircleUserRound, type LucideIcon } from "lucide-react";
 import {
   createContext,
   Fragment,
+  useContext,
   useId,
-  type ReactElement,
   type ReactNode,
 } from "react";
 import { Button } from "../Button.tsx";
@@ -42,9 +40,6 @@ export type NavItem = {
   // sidebar and the ☰ menu show it, the rail draws a rule between groups;
   // the tab bar doesn't
   group?: string;
-  // how many wait there (the Cleaner's Offers), which the label says too:
-  // the rail, with no room for the label, marks it on the icon
-  count?: number;
 };
 
 // where the account's parts are drawn: "list", every part, at the foot of
@@ -81,14 +76,15 @@ export type AppLayoutProps = {
 // the full menu: every section as the sidebar lists them, then the
 // account's parts and the theme at its foot (#200, #305). From lg (1024)
 // a sidebar, with the same foot. Between them, from md (768), the sidebar
-// folds to a rail of icons, so a narrow laptop window keeps a laptop's
-// ways and its room for the page: each section's name its tooltip, the
-// current one highlighted, and at its foot the other language, named in its
-// own words, and an Account holding the rest of the foot (#493).
+// folds to a rail, each section's icon with its name small under it, so a
+// narrow laptop window keeps a laptop's ways and its room for the page,
+// and a touch tablet, which never hovers, still reads each name: the
+// current one highlighted, and at its foot the other language, named in
+// its own words, and an Account holding the rest of the foot (#493).
 //
 // The logo is never shrunk to fit: the phone's top bar is too short for it,
 // so the bar names the section you're in and the logo heads the ☰ menu
-// instead, and the rail's Account; the sidebar has room for it (UX pass,
+// instead; the sidebar has room for it, and the rail has none (UX pass,
 // #96)
 export function AppLayout({
   area,
@@ -116,14 +112,17 @@ export function AppLayout({
         Skip to content
       </a>
 
-      <aside className="hidden w-side print:hidden shrink-0 flex-col items-center gap-4 overflow-y-auto border-r border-border bg-surface py-4 md:sticky md:top-0 md:flex md:h-dvh lg:hidden">
-        <nav aria-label={area} className="flex flex-col items-center gap-2">
+      <aside className="hidden w-side print:hidden shrink-0 flex-col items-center gap-4 overflow-y-auto border-r border-border bg-surface px-1 py-4 md:sticky md:top-0 md:flex md:h-dvh lg:hidden">
+        <nav
+          aria-label={area}
+          className="flex w-full flex-col items-center gap-1"
+        >
           <RailGroups items={nav} />
         </nav>
-        <div className="mt-auto flex flex-col items-center gap-2">
+        <div className="mt-auto flex w-full flex-col items-center gap-1">
           <RailRule className="mb-2" />
           {foot({ close: () => {}, place: "rail" })}
-          <RailAccount area={area} foot={foot} isBusy={menuBusy} />
+          <RailAccount foot={foot} isBusy={menuBusy} />
         </div>
       </aside>
 
@@ -189,8 +188,7 @@ export function AppLayout({
   );
 }
 
-// the logo and the area, at the head of the sidebar, the ☰ menu or the
-// rail's Account
+// the logo and the area, at the head of the sidebar or the ☰ menu
 function Head({ area, className }: { area: string; className: string }) {
   return (
     <div className={`flex flex-col items-center gap-3 px-2 ${className}`}>
@@ -202,9 +200,19 @@ function Head({ area, className }: { area: string; className: string }) {
 
 // the account's parts and the theme, at the foot of the sidebar or the ☰
 // menu, and in the rail's Account
-function Foot({ children }: { children: ReactNode }) {
+function Foot({
+  children,
+  ruled = true,
+}: {
+  children: ReactNode;
+  // under a rule at the foot of a list; the rail's Account holds nothing
+  // else
+  ruled?: boolean;
+}) {
   return (
-    <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
+    <div
+      className={`flex flex-col gap-3 ${ruled ? "mt-auto border-t border-border pt-4" : ""}`}
+    >
       {children}
       <ThemeToggle />
     </div>
@@ -232,7 +240,7 @@ function RailGroups({ items }: { items: NavItem[] }) {
       <div
         role={group.name ? "group" : undefined}
         aria-label={group.name}
-        className="flex flex-col items-center gap-2"
+        className="flex w-full flex-col items-center gap-1"
       >
         {group.items.map((item) => (
           <RailLink key={item.label} item={item} />
@@ -247,98 +255,74 @@ function RailRule({ className = "" }: { className?: string }) {
   return <hr aria-hidden className={`w-8 border-border ${className}`} />;
 }
 
-// a section on the rail: its icon, its name the tooltip, and its text for a
-// screen reader (and the tours, which find a link by its text); a count,
-// such as the Offers waiting, marked on the icon
+// a section on the rail: its icon, its name small under it, always shown,
+// as a touch tablet never hovers and an icon alone doesn't say what it is
+// (#493)
 function RailLink({ item }: { item: NavItem }) {
   const Icon = item.icon;
   return (
-    <RailTip label={item.label}>
-      <Link
-        href={item.href}
-        aria-current={item.isCurrent ? "page" : undefined}
-        className={(renderProps) =>
-          `${focusRing(renderProps)} relative flex size-touch items-center justify-center rounded-md text-fg-muted no-underline hover:bg-surface-sunken hover:text-fg current:bg-success-subtle current:text-success-strong`
-        }
-      >
-        <Icon aria-hidden size={20} />
-        <span className="sr-only">{item.label}</span>
-        {item.count !== undefined && item.count > 0 && (
-          <span
-            aria-hidden
-            className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-semibold text-primary-fg tabular-nums"
-          >
-            {item.count}
-          </span>
-        )}
-      </Link>
-    </RailTip>
+    <Link
+      href={item.href}
+      aria-current={item.isCurrent ? "page" : undefined}
+      className={(renderProps) =>
+        `${focusRing(renderProps)} ${railItem} rounded-md text-fg-muted no-underline hover:bg-surface-sunken hover:text-fg current:bg-success-subtle current:text-success-strong`
+      }
+    >
+      <Icon aria-hidden size={20} />
+      {item.label}
+    </Link>
   );
 }
 
+// a rail item's shape, its name under its icon: a section's, and the
+// Account's at the foot
+const railItem =
+  "flex w-full min-h-touch flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 text-center text-xs leading-tight font-semibold";
+
 // the account's parts the rail has no room for, behind one Account at its
-// foot: the logo and the area at their head, as the ☰ menu's, then the
-// sidebar's foot. It opens beside the rail, toward the page, and stays
-// open while a switch of area is under way
+// foot, as they're seldom used (signing out, tips, the theme): the person,
+// then the sidebar's foot. No logo: the account isn't where the brand
+// lives. It opens beside the rail, toward the page, and stays open while
+// a switch of area is under way. The popover is the dialog itself, named
+// by Account: a Dialog inside it leaves the popover named, outside every
+// landmark (axe's region rule)
 function RailAccount({
-  area,
   foot,
   isBusy,
 }: {
-  area: string;
   foot: AppLayoutProps["foot"];
   isBusy: boolean;
 }) {
   const words = useUiWords();
   return (
     <DialogTrigger>
-      <RailTip label={words.account}>
-        <Button variant="quiet" size="icon" aria-label={words.account}>
+      <Button variant="quiet" className={`${railItem} h-auto`}>
+        <span className="flex flex-col items-center gap-0.5">
           <CircleUserRound aria-hidden size={20} />
-        </Button>
-      </RailTip>
+          {words.account}
+        </span>
+      </Button>
       <Popover
         placement="end bottom"
         offset={8}
         isKeyboardDismissDisabled={isBusy}
         shouldCloseOnInteractOutside={() => !isBusy}
-        className="w-72 max-w-[calc(100vw-6rem)]"
+        className="w-72 max-w-[calc(100vw-6rem)] p-4"
       >
-        <AriaDialog
-          aria-label={words.account}
-          className="flex flex-col gap-6 p-4 outline-none"
-        >
-          {({ close }) => (
-            <>
-              <Head area={area} className="" />
-              <Foot>{foot({ close, place: "popover" })}</Foot>
-            </>
-          )}
-        </AriaDialog>
+        <RailAccountParts foot={foot} />
       </Popover>
     </DialogTrigger>
   );
 }
 
-// a rail item's name, beside it on hover or keyboard focus
-function RailTip({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactElement;
-}) {
+// the account's parts in the rail's Account, which closes it once one is
+// done
+function RailAccountParts({ foot }: { foot: AppLayoutProps["foot"] }) {
+  const state = useContext(OverlayTriggerStateContext);
   return (
-    <TooltipTrigger delay={300}>
-      {children}
-      <Tooltip
-        placement="end"
-        offset={8}
-        className="rounded-md bg-fg px-2 py-1 text-sm font-semibold text-bg shadow-overlay"
-      >
-        {label}
-      </Tooltip>
-    </TooltipTrigger>
+    <Foot ruled={false}>
+      {foot({ close: () => state?.close(), place: "popover" })}
+    </Foot>
   );
 }
 

@@ -223,11 +223,12 @@ export function AreaLayout({ area }: { area: AreaId }) {
   const lang = useLanguage();
   const nav: NavItem[] = navFor(lang)[area].map(
     ({ alsoCurrentFor = [], countsOffers, ...item }) => {
-      const count = countsOffers && offers > 0 ? offers : undefined;
       return {
         ...item,
-        label: count ? cleanerWords[lang].offersCount(count) : item.label,
-        count,
+        label:
+          countsOffers && offers > 0
+            ? cleanerWords[lang].offersCount(offers)
+            : item.label,
         isCurrent:
           Boolean(matchRoute(item.href)) ||
           alsoCurrentFor.some((prefix) => pathname.startsWith(prefix)),
@@ -445,7 +446,11 @@ function OtherLanguage({
     <>
       <Button
         variant="quiet"
-        className={onRail ? "h-auto w-14 px-0 py-1 text-xs" : "justify-start"}
+        className={
+          onRail
+            ? "h-auto min-h-touch w-full px-0.5 py-1.5 text-xs leading-tight"
+            : "justify-start"
+        }
         isPending={action.isPending}
         onPress={() => void change()}
       >

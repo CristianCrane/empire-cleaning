@@ -86,14 +86,17 @@ export const Phone: Story = {
   },
 };
 
-// from md to lg the sidebar folds to a rail of icons, each name its
-// tooltip; the account's parts behind Account at its foot, under the logo
-// and the area (#493)
+// from md to lg the sidebar folds to a rail, each icon's name small under
+// it; the account's parts behind Account at its foot: the person and what
+// they can do, no logo (#493)
 export const Rail: Story = {
   globals: { viewport: { value: "tablet" } },
   play: async ({ canvas, userEvent }) => {
     const rail = canvas.getByRole("navigation", { name: "Office" });
-    await expect(rail.getBoundingClientRect().width).toBeLessThanOrEqual(64);
+    await expect(
+      canvas.getByRole("complementary").getBoundingClientRect().width,
+    ).toBeLessThanOrEqual(80);
+    await expect(within(rail).getByText("Today")).toBeVisible();
     await expect(
       within(rail).getByRole("link", { name: "Today" }),
     ).toHaveAttribute("aria-current", "page");
@@ -115,8 +118,8 @@ export const Rail: Story = {
       ).toBeVisible(),
     );
     await expect(
-      within(account).getByRole("img", { name: /Empire Cleaning/ }),
-    ).toBeVisible();
+      within(account).queryByRole("img", { name: /Empire Cleaning/ }),
+    ).toBeNull();
   },
 };
 

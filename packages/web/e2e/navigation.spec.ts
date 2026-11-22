@@ -123,7 +123,7 @@ test(
 // a laptop window under 1024 keeps a laptop's ways, its room for the page
 // made by the sidebar folding to icons, not by the phone's frame (#493)
 test(
-  "from 768 to 1024 the sidebar folds to a rail of icons, each named, the account behind one press",
+  "from 768 to 1024 the sidebar folds to a rail, each icon named under it, the account behind one press",
   { tag: "@desktop" },
   async ({ page, isMobile }) => {
     test.skip(isMobile, "a phone has no rail");
@@ -150,27 +150,26 @@ test(
       "aria-current",
       "page",
     );
-    // icons alone: the page has the rest of the window
-    expect((await rail.boundingBox())!.width).toBeLessThanOrEqual(64);
-    expect((await page.getByRole("main").boundingBox())!.x).toBe(64);
-    // each name beside its icon on hover, from a pointer that has moved
-    // over the page, as a person's has: a hover as the first pointer move
-    // since the page loaded opened no tooltip (docs/testing-log.md,
-    // 2026-11-22)
-    await page.mouse.move(400, 400);
-    await rail.getByRole("link", { name: "Quotes" }).hover();
-    await expect(page.getByRole("tooltip")).toHaveText("Quotes");
+    // each name shown under its icon, as a touch tablet never hovers, and
+    // whole: the page has the rest of the window
+    await expect(rail.getByText("Quotes", { exact: true })).toBeVisible();
+    for (const link of await rail.getByRole("link").all()) {
+      expect(
+        await link.evaluate((el) => el.scrollWidth <= el.clientWidth),
+      ).toBe(true);
+    }
+    expect((await rail.boundingBox())!.width).toBeLessThanOrEqual(80);
+    expect((await page.getByRole("main").boundingBox())!.x).toBe(80);
     // no phone's frame, and no logo squeezed into the rail
     await expect(page.getByRole("button", { name: "Menu" })).toBeHidden();
     await expect(page.getByRole("img", logo)).toBeHidden();
 
-    // the account's parts behind the rail's Account, headed by the logo and
-    // the area, as the ☰ menu is
+    // the account's parts behind the rail's Account: the person and what
+    // they can do, no logo, as the account isn't where the brand lives
     await page.getByRole("button", { name: "Account" }).click();
     const account = page.getByRole("dialog", { name: "Account" });
-    await expect(account.getByRole("img", logo)).toBeVisible();
-    await expect(account.getByText("Office", { exact: true })).toBeVisible();
     await expect(account.getByText(olive.name)).toBeVisible();
+    await expect(account.getByRole("img", logo)).toHaveCount(0);
     await expect(
       account.getByRole("button", { name: "Sign out" }),
     ).toBeVisible();
@@ -210,8 +209,8 @@ test(
   },
 );
 
-// the Cleaner's Offers says how many wait on their answer, in the
-// sidebar's name and as a mark on the rail's icon
+// the Cleaner's Offers says how many wait on their answer, in its name on
+// the sidebar and the rail
 test(
   "a Cleaner's Offers counts what waits on them, in the sidebar and on the rail",
   { tag: "@desktop" },
@@ -231,9 +230,9 @@ test(
 
     await page.setViewportSize({ width: 900, height: 900 });
     const rail = page.getByRole("complementary");
-    const offers = rail.getByRole("link", { name: "Offers (1)" });
-    await expect(offers).toBeVisible();
-    await expect(offers.getByText("1", { exact: true })).toBeVisible();
+    await expect(rail.getByRole("link", { name: "Offers (1)" })).toHaveText(
+      "Offers (1)",
+    );
   },
 );
 
