@@ -51,9 +51,24 @@ const pastJob = (over: Partial<ClientPastJob> = {}): ClientPastJob => ({
   feeCents: 0,
   unpaid: null,
   owedCents: 0,
-  awaitingAnswer: 0,
+  waiting: [],
+  noAccess: null,
   ...over,
 });
+// a price change proposed to them: 1 more hour, answered by Wednesday the
+// 4th, 10am
+type Change = ClientPastJob["waiting"][number];
+const change = (over: Partial<Change> = {}): Change => ({
+  id: "change",
+  kind: "extra_time",
+  addOnName: null,
+  hours: 1,
+  totalCents: 5988,
+  lapsesAt: "2026-11-04T15:00:00.000Z",
+  ...over,
+});
+const changes = (n: number) =>
+  Array.from({ length: n }, (_, i) => change({ id: `change-${i}` }));
 const plan = (over: Partial<ServicePlanSummary> = {}): ServicePlanSummary => ({
   id: "plan",
   status: "active",
@@ -263,12 +278,15 @@ describe("Home's hero, with nothing booked", () => {
       label: "To pay",
       tone: "danger",
       headline: "$184.50",
-      lines: [
-        expect.stringContaining("Oct 20"),
-        "Once it's paid, your plan carries on from its next date.",
-      ],
+      lines: ["Once it's paid, your plan carries on from its next date."],
       action: { label: "Update your card" },
     });
+    // why, above it, once
+    expect(paused.why).toEqual({
+      tone: "danger",
+      lead: "We couldn't take payment for your Oct 20 clean.",
+    });
+    expect(paused.asks).toBe(true);
     // the card's Button, so not a tile too
     expect(paused.tiles.map((s) => s.label)).toEqual([
       "Past cleans",
@@ -276,17 +294,27 @@ describe("Home's hero, with nothing booked", () => {
     ]);
   });
 
-  test("says a Service Plan is paused on a payment the service is trying again", () => {
-    expect(
-      next({
-        plans: [plan({ status: "on_hold", nextStartsAt: null })],
-        pastJobs: [pastJob({ unpaid: "waiting", owedCents: 18450 })],
-      }).hero,
-    ).toMatchObject({
-      label: "Your cleaning plan is paused",
-      headline: "A payment is due",
+  test("says a Service Plan is paused on a payment the service is trying again, calmly, as there's nothing to do", () => {
+    const { hero, why, asks } = next({
+      plans: [plan({ status: "on_hold", nextStartsAt: null })],
+      pastJobs: [pastJob({ unpaid: "waiting", owedCents: 18450 })],
+    });
+    expect(hero).toMatchObject({
+      label: "Your cleaning plan",
+      tone: "info",
+      headline: "Standard Clean, every 2 weeks",
+      lines: [
+        "Nothing's booked until it goes through. Then your plan carries on from its next date.",
+      ],
       action: { label: "See your plan" },
     });
+    expect(why).toEqual({
+      tone: "info",
+      lead: "Your cleaning plan is paused.",
+      more: "A payment on it hasn't gone through yet. We'll try again by ourselves, so there's nothing you need to do.",
+    });
+    // nothing asked of them: Request a quote stays
+    expect(asks).toBe(false);
   });
 });
 
@@ -344,62 +372,221 @@ describe("Home's hero, with something booked", () => {
     ]);
   });
 
-  test("tells a Client a move they asked for is waiting on us", () => {
+  test("tells a Client a move they asked for is waiting on us, once", () => {
     const { news, tiles } = next({
       jobs: [job({ movingTo: "2026-11-04T19:00:00.000Z" })],
     });
     expect(news).toEqual([
       "You asked to move your Tue, Nov 3 clean to Wed, Nov 4, 2:00 PM. We'll confirm, usually within a working day.",
     ]);
-    expect(tiles[0]).toMatchObject({
-      label: "Your move request",
-      hint: "To Wed, Nov 4, 2:00 PM",
-    });
+    // the news says it: no tile says it again, nor offers another move
+    expect(tiles.map((t) => t.label)).toEqual([
+      "How we get in",
+      "Your card",
+      "Call us",
+    ]);
   });
 });
 
-describe("Home's tiles: what's waiting on the Client comes first", () => {
-  test("a Quote ready while something's booked", () => {
-    const { tiles } = next({ jobs: [job()], quotes: [sentQuote] });
-    expect(tiles[0]).toMatchObject({
-      label: "See your quote",
-      hint: "Deep Clean $391.04",
+describe("Home's card: what waits on the Client leads (#493)", () => {
+  test("a price change to answer, nothing booked or a clean booked: the card does it, an alert says why", () => {
+    for (const jobs of [[], [job()]]) {
+      const { hero, why, asks, tiles } = next({
+        jobs,
+        pastJobs: [pastJob({ waiting: changes(1) })],
+      });
+      expect(hero).toMatchObject({
+        label: "A price change to answer",
+        tone: "warning",
+        headline: "$59.88 more",
+        lines: [],
+        action: {
+          label: "Review the price change",
+          href: { to: "/portal/jobs/$jobId", params: { jobId: "past" } },
+        },
+      });
+      expect(why).toEqual({
+        tone: "warning",
+        lead: "The crew needed 1 more hour on your Tue, Oct 20 clean.",
+        more: "Please answer by Wed, Nov 4.",
+      });
+      // Request a quote stands aside, and no tile says it again
+      expect(asks).toBe(true);
+      expect(tiles.map((s) => s.id)).not.toContain("review");
+    }
+  });
+
+  test("an Add-on done on the day, and several price changes at once", () => {
+    expect(
+      next({
+        pastJobs: [
+          pastJob({
+            waiting: [
+              change({
+                kind: "add_on_done",
+                addOnName: "Inside the oven",
+                hours: null,
+                totalCents: 2178,
+              }),
+            ],
+          }),
+        ],
+      }).why?.lead,
+    ).toBe("The crew also did Inside the oven on your Tue, Oct 20 clean.");
+    const several = next({
+      pastJobs: [
+        pastJob({ waiting: changes(1) }),
+        pastJob({
+          id: "past-2",
+          waiting: [change({ lapsesAt: "2026-11-03T15:00:00.000Z" })],
+        }),
+      ],
     });
-    // never cut: a shortcut gives way, four in all
+    expect(several.hero).toMatchObject({
+      label: "2 price changes to answer",
+      headline: "$119.76 more",
+      action: {
+        label: "Review the price changes",
+        href: { to: "/portal/cleans", search: { tab: "past" } },
+      },
+    });
+    // the earliest answer wanted
+    expect(several.why).toEqual({
+      tone: "warning",
+      lead: "2 price changes on your cleans need your answer.",
+      more: "Please answer the first by Tue, Nov 3.",
+    });
+  });
+
+  test("what's owed comes first, the price change a tile with what it adds and by when", () => {
+    const { hero, tiles } = next({
+      jobs: [job()],
+      pastJobs: [
+        pastJob({ unpaid: "declined", owedCents: 18450, waiting: changes(1) }),
+      ],
+    });
+    expect(hero).toMatchObject({ label: "To pay", headline: "$184.50" });
+    expect(tiles[0]).toMatchObject({
+      label: "Review a price change",
+      hint: "$59.88 more, answer by Wed, Nov 4",
+    });
+  });
+
+  test("the morning a crew couldn't get in: how we get in, with what happened above it", () => {
+    const lockedOut = (recordedAt: string) =>
+      pastJob({
+        status: "no_access",
+        startsAt: "2026-11-01T14:00:00.000Z",
+        completedAt: null,
+        totalCents: 0,
+        feeCents: 6806,
+        noAccess: {
+          recordedAt,
+          reason: "The code didn't open the door",
+          feeCents: 6806,
+        },
+      });
+    const { hero, why, asks, tiles } = next({
+      plans: [plan()],
+      pastJobs: [lockedOut("2026-11-01T14:20:00.000Z")],
+    });
+    expect(hero).toMatchObject({
+      label: "How we get in",
+      tone: "warning",
+      headline: "Key under the mat",
+      action: {
+        label: "Check how we get in",
+        href: {
+          to: "/portal/properties/$propertyId",
+          params: { propertyId: "home" },
+        },
+      },
+    });
+    expect(why).toEqual({
+      tone: "warning",
+      lead: "The crew came at 9:20 AM today, but couldn't get in: \"The code didn't open the door\".",
+      more: "As with a late cancellation, your $68.06 deposit is kept as the fee.",
+    });
+    expect(asks).toBe(true);
+    expect(tiles.map((s) => s.id)).not.toContain("getIn");
+    // with a clean booked there, the card says how we get in: no tile
+    // says it again; with the next clean at another home, its tile stays
+    const other = {
+      ...home,
+      id: "other",
+      street: "3 Oak Ave",
+      accessInstructions: "Ring 2",
+    };
+    const twoHomes = (property: typeof at) =>
+      next({
+        client: { properties: [home, other] } as unknown as ClientView,
+        jobs: [job({ property })],
+        pastJobs: [lockedOut("2026-11-01T14:20:00.000Z")],
+      }).tiles.find((s) => s.id === "getIn");
+    expect(twoHomes(at)).toBeUndefined();
+    expect(twoHomes({ ...at, id: "other", street: "3 Oak Ave" })).toMatchObject(
+      { label: "How we get in", hint: "Ring 2" },
+    );
+    expect(
+      whatsNext(
+        data({
+          plans: [plan()],
+          pastJobs: [lockedOut("2026-11-01T18:20:00.000Z")],
+        }),
+        "es",
+        // at 1 o'clock, so "a la"; now after it, as the server stamps it
+        new Date("2026-11-01T19:00:00Z"),
+      ).why?.lead,
+    ).toBe(
+      'El equipo llegó hoy a la 1:20 p.m., pero no pudo entrar: "The code didn\'t open the door".',
+    );
+    // the day after, the clean's page says it
+    expect(
+      next({
+        plans: [plan()],
+        pastJobs: [lockedOut("2026-10-31T14:20:00.000Z")],
+      }).hero.label,
+    ).toBe("Your cleaning plan");
+  });
+
+  test("a Quote ready leads, even with a clean booked", () => {
+    const { hero, asks, tiles } = next({
+      jobs: [job()],
+      quotes: [sentQuote],
+    });
+    expect(hero).toMatchObject({
+      label: "Your quote is ready",
+      action: { label: "See your quote" },
+    });
+    // a usual step: Request a quote stays
+    expect(asks).toBe(false);
     expect(tiles.map((s) => s.label)).toEqual([
-      "See your quote",
       "Move or cancel",
       "How we get in",
       "Your card",
+      "Call us",
     ]);
   });
+});
 
-  test("a price change to agree to", () => {
-    expect(
-      next({ jobs: [job()], pastJobs: [pastJob({ awaitingAnswer: 1 })] })
-        .tiles[0],
-    ).toMatchObject({
-      label: "Review a price change",
-      hint: "Your Tue, Oct 20 clean",
-    });
-  });
-
+describe("Home's tiles: what else waits on the Client comes first", () => {
   test("a tile a kind, however many wait: the booked shortcuts keep their places", () => {
     const { tiles } = next({
       jobs: [job()],
+      bills: [bill()],
       quotes: [
         sentQuote,
         { ...sentQuote, id: "quote-2" },
         { ...sentQuote, id: "quote-3" },
       ],
       pastJobs: [
-        pastJob({ awaitingAnswer: 2 }),
-        pastJob({ id: "past-2", awaitingAnswer: 1 }),
+        pastJob({ waiting: changes(2) }),
+        pastJob({ id: "past-2", waiting: changes(1) }),
       ],
     });
     expect(tiles.map((s) => [s.label, s.hint])).toEqual([
       ["See your 3 quotes", "Deep Clean $391.04 · 2 more"],
-      ["Review 3 price changes", "Your Tue, Oct 20 clean · 1 more"],
+      ["Review 3 price changes", "$179.64 more, answer by Wed, Nov 4"],
       ["Move or cancel", expect.any(String)],
       ["How we get in", "Key under the mat"],
     ]);
@@ -408,10 +595,11 @@ describe("Home's tiles: what's waiting on the Client comes first", () => {
   test("several of a kind lead to where they all are", () => {
     const { tiles } = next({
       jobs: [job()],
+      bills: [bill()],
       quotes: [sentQuote, { ...sentQuote, id: "quote-2" }],
       pastJobs: [
-        pastJob({ awaitingAnswer: 1 }),
-        pastJob({ id: "past-2", awaitingAnswer: 1 }),
+        pastJob({ waiting: changes(1) }),
+        pastJob({ id: "past-2", waiting: changes(1) }),
       ],
     });
     // both Quotes for one home: its page lists them
@@ -429,6 +617,7 @@ describe("Home's tiles: what's waiting on the Client comes first", () => {
     expect(
       next({
         jobs: [job()],
+        bills: [bill()],
         quotes: [
           sentQuote,
           {
@@ -452,7 +641,6 @@ describe("Home's card: what's owed first, when it asks anything of them", () => 
     expect(hero).toMatchObject({
       label: "To pay",
       lines: [
-        expect.stringContaining("Oct 20"),
         "Cleans already booked still go ahead, but we won't book any more.",
       ],
       action: { label: "Update your card" },
@@ -472,12 +660,15 @@ describe("Home's card: what's owed first, when it asks anything of them", () => 
   });
 
   test("a Bill due on its page, or Unpaid", () => {
-    expect(next({ jobs: [job()], bills: [bill()] }).hero).toMatchObject({
+    // simply due, the usual: its line says when, with no alert
+    const due = next({ jobs: [job()], bills: [bill()] });
+    expect(due.hero).toMatchObject({
       label: "To pay",
       headline: "$214.50",
       lines: ["Bill EC-000041 is due by Nov 14"],
       action: { label: "Pay bill EC-000041" },
     });
+    expect(due.why).toBeUndefined();
     expect(
       next({
         bills: [bill({ unpaid: { since: "", kind: "declined", why: null } })],

@@ -37,7 +37,7 @@ export const TwoButtons: Story = {
     children: (
       <>
         <p>
-          Our team did more than was quoted: <strong>Inside oven</strong>.
+          The crew did more than was quoted: <strong>Inside oven</strong>.
         </p>
         <p>
           It comes to <strong>$45.00</strong>, tax included, and you only pay it
