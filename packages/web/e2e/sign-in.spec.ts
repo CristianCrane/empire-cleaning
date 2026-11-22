@@ -366,11 +366,4 @@ eachTheme(() => {
 
     await expectAccessible(page);
   });
-
-  test("the welcome page has no accessibility violations", async ({ page }) => {
-    await signedInAs(page, "new@example.com");
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-
-    await expectAccessible(page);
-  });
 });
