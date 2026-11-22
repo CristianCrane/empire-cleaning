@@ -361,13 +361,15 @@ const cleanerJobs = async (
         postcode: property.postcode,
       },
       client: { firstName: firstNameOf(client.name) },
-      // Offered or Confirmed, never before the day (#230)
-      onTheDay: isToday(job.startsAt)
-        ? {
-            phone: client.phone,
-            accessInstructions: property.accessInstructions,
-          }
-        : null,
+      // only once Confirmed, and then only on the day: an Offered Cleaner,
+      // who may still say no, gets neither (#230)
+      onTheDay:
+        status === "confirmed" && isToday(job.startsAt)
+          ? {
+              phone: client.phone,
+              accessInstructions: property.accessInstructions,
+            }
+          : null,
       crewSize: job.crewSize,
       crew: crews
         .filter((c) => c.jobId === job.id)

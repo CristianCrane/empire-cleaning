@@ -37,7 +37,7 @@ export const clients = pgTable("clients", {
   // the Office entered without one, who can't sign in or be sent a Quote
   // until it's added (#34)
   email: text("email").unique(),
-  // shown to the Cleaners assigned to a Job, on the day
+  // shown to a Job's Confirmed Cleaners, on the day
   phone: text("phone").notNull(),
   // the language their screens and messages are in: a Guest's first Quote
   // sets it from the page they asked on, the Office for a caller it enters,

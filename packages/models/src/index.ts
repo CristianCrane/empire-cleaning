@@ -1487,8 +1487,8 @@ export type CleanerJob = {
   addOns: string[];
   property: Pick<PropertyView, "street" | "unit" | "postcode">;
   client: { firstName: string };
-  // what's held back until the Job's day (in New York, by the Clock), then
-  // given here; null before it
+  // what's held back until this Cleaner has Confirmed and it's the Job's
+  // day (in New York, by the Clock), then given here; null till both hold
   onTheDay: {
     phone: string;
     accessInstructions: PropertyView["accessInstructions"];
