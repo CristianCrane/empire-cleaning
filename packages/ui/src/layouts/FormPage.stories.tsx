@@ -162,7 +162,7 @@ export const Explained: Story = {
 };
 
 // outside an area: a page of its own, the logo above, who's signed in
-// beside it, with a line under it
+// under it on a phone and beside it from sm, with a line under that
 export const OnItsOwn: Story = {
   parameters: { layout: "fullscreen" },
   args: {
