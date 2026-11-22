@@ -437,9 +437,20 @@ export const cancellationOf = async (
   };
 };
 
+// when a No Access Job's crew couldn't get in, and why; null otherwise.
+// What each reader sees of it adds to these (its fee, who recorded it)
+export const noAccessFactsOf = (job: Job) =>
+  job.status === "no_access"
+    ? {
+        recordedAt: job.noAccessAt!.toISOString(),
+        reason: job.noAccessReason ?? "",
+      }
+    : null;
+
 // a No Access Job's record of it; null otherwise
 export const noAccessOf = async (job: Job): Promise<JobNoAccess | null> => {
-  if (job.status !== "no_access") return null;
+  const facts = noAccessFactsOf(job);
+  if (!facts) return null;
   const [payment, [by]] = await Promise.all([
     paymentOf(job),
     job.noAccessBy
@@ -450,9 +461,8 @@ export const noAccessOf = async (job: Job): Promise<JobNoAccess | null> => {
       : [],
   ]);
   return {
-    recordedAt: job.noAccessAt!.toISOString(),
+    ...facts,
     recordedBy: by ?? null,
-    reason: job.noAccessReason ?? "",
     feeCents: job.feeCents ?? 0,
     payment,
   };

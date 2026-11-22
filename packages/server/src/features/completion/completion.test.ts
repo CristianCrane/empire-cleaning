@@ -549,7 +549,23 @@ describe("Adjustments", () => {
         status: "completed",
         skipped: false,
         feeCents: 0,
-        awaitingAnswer: 2,
+        // what each is, what it adds and by when, for their Home to say
+        waiting: [
+          expect.objectContaining({
+            id: fridge!.id,
+            kind: "add_on_done",
+            addOnName: "Inside the fridge",
+            totalCents: 2178,
+            lapsesAt: "2026-01-19T16:00:00.000Z",
+          }),
+          expect.objectContaining({
+            id: time!.id,
+            kind: "extra_time",
+            hours: 1,
+            totalCents: 5988,
+          }),
+        ],
+        noAccess: null,
         unpaid: null,
       }),
     ]);
@@ -1145,7 +1161,7 @@ describe("a Client's past Jobs", () => {
         completedAt: MONDAY_11AM.toISOString(),
         totalCents: deepOf(quote).totalCents,
         unpaid: null,
-        awaitingAnswer: 0,
+        waiting: [],
       }),
     ]);
     const detail = await clientJob(client, jobId);

@@ -83,7 +83,7 @@ const words = catalog({
       reminderSubject: "Reminder: please approve a price change on your clean",
       // the Cleaner's reason as they wrote it
       did: (label: string, reason: string) =>
-        `At your clean, our team did more than was quoted: ${label} (${reason}).`,
+        `At your clean, the crew did more than was quoted: ${label} (${reason}).`,
       approveBy: (amount: string, by: string) =>
         `It comes to ${amount}, tax included, and you only pay it if you approve it. Please approve or decline it by ${by}. If we don't hear from you by then, you won't pay it.`,
       ANSWER: "Approve or decline",
@@ -147,7 +147,7 @@ const words = catalog({
       reminderSubject:
         "Recordatorio: por favor, apruebe un cambio de precio en su limpieza",
       did: (label: string, reason: string) =>
-        `En su limpieza, nuestro equipo hizo más de lo cotizado: ${label} (${reason}).`,
+        `En su limpieza, el equipo hizo más de lo cotizado: ${label} (${reason}).`,
       approveBy: (amount: string, by: string) =>
         oneStop(
           `Son ${amount}, impuestos incluidos, y solo lo paga si lo aprueba. Por favor, apruébelo o recházelo antes del ${by}. Si no sabemos de usted para entonces, no lo pagará.`,
