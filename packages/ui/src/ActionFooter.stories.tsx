@@ -10,12 +10,9 @@ const meta = {
   component: ActionFooter,
   args: {
     "aria-label": "What to do",
-    children: (
-      <>
-        <span className="text-fg-muted">$240.00 · Saved</span>
-        <Button>Send</Button>
-      </>
-    ),
+    summary: "$240.00",
+    status: "Saved",
+    children: <Button>Send</Button>,
   },
 } satisfies Meta<typeof ActionFooter>;
 
@@ -30,10 +27,9 @@ export const Wrapped: Story = {
   globals: { viewport: { value: "phone" } },
   parameters: { layout: "fullscreen" },
   args: {
+    summary: "$240.00 a clean, $221.00 a clean on the plan",
+    status: "Saved",
     children: [
-      <span key="sums" className="text-fg-muted">
-        $240.00 a clean, $221.00 a clean on the plan · Saved
-      </span>,
       <Button key="preview" variant="secondary">
         See what the client sees
       </Button>,

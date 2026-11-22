@@ -360,7 +360,7 @@ Keeps: the Record, layout D (#493). Renders through `RecordPage` (#432).
   Call the office.
 - Alerts: not everyone has confirmed (warning, calling the office).
 - Body: Job details (`DetailsCard`: a `DateTile`, the times large, the
-  address; How long, Client, on the Job's day once theirs the client's
+  address; How long, Client, on the Job's day the client's
   number, Extras as a count, How we get in last and full width); Extras
   (`ExtrasSection`); Crew (`CrewSection`). Once over, Completed or
   Couldn't get in first, the Job folded under it.

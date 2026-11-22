@@ -253,8 +253,9 @@ const crewOf = (t: Said, job: CleanerJob) =>
 function JobDetails({ job }: { job: CleanerJob }) {
   const t = useSaid(words);
   const { w } = t;
-  // what's held back until the day, and from an offer
-  const onTheDay = job.assignment.status === "confirmed" && job.onTheDay;
+  // what the server holds back until the day (#230, D3): drawn as it
+  // comes, the server's rule, never a copy of it here
+  const { onTheDay } = job;
   return (
     <JobLead job={job} where={addressOf(job.property)}>
       <Facts>

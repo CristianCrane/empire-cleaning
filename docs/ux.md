@@ -555,7 +555,7 @@ stays as it is (#336).
   card**: nothing may shift the page's layout. One to three steps, each
   popover beside what it points at (`startTour`), shown once per screen,
   the first time it matters: its tour runs only when every step's target is
-  on the screen. ("First-time help points, never pushes")
+  on the screen and not greyed. ("First-time help points, never pushes")
 - **Steps find their targets by the screen's own words** (what's pressed,
   a link or Button, by its text; a part, a Section or labelled group, by its
   name), never `data-tour` attributes; the tours spec fails when one can't
