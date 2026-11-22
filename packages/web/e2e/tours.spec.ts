@@ -101,6 +101,20 @@ test("every area's tours are walked through", () => {
   expect(Object.keys(toursFor)).toEqual(["portal", "office", "cleaner"]);
 });
 
+// from 768 to 1024 the navigation is a rail of icons: the tour finds the
+// Schedule on it by its name, as on the sidebar and the tab bar
+test(
+  "a laptop window under 1024 still meets the Office's first tour, on the rail",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    test.skip(isMobile, "a phone has no rail");
+    await createStaff({ ...olive, roles: ["office_staff"] });
+    await page.setViewportSize({ width: 900, height: 900 });
+    await signedInAs(page, olive.email);
+    await walkTour(page, officeTours, "office-today", { first: true });
+  },
+);
+
 eachTheme(() => {
   test("a new Client meets each of the portal's tours once, as each screen first matters", async ({
     page,

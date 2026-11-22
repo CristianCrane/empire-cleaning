@@ -33,6 +33,7 @@ import type {
 import {
   AppLayout,
   Button,
+  type FootPlace,
   Notice,
   type NavItem,
   useLanguage,
@@ -58,7 +59,7 @@ import { portalWords } from "./portal/words.ts";
 import { offersCount } from "./cleaner/CleanerOffers.tsx";
 import { said } from "./words.ts";
 
-// the account's words, at the foot of the sidebar and the ☰ menu, in every
+// the account's words, among the account's parts (AccountFoot), in every
 // area's language (ADR-0025): said to Clients and Cleaners alike, so their
 // Spanish addresses no one, neither usted nor tú (docs/ux.md, Language)
 const words = catalog({
@@ -216,34 +217,40 @@ export function AreaLayout({ area }: { area: AreaId }) {
   useTours(area, account);
   const lang = useLanguage();
   const nav: NavItem[] = navFor(lang)[area].map(
-    ({ alsoCurrentFor = [], ...item }) => ({
-      ...item,
-      label:
+    ({ alsoCurrentFor = [], ...item }) => {
+      const count =
         item.href === linkTo({ to: "/cleaner/offers" }) && offers > 0
-          ? cleanerWords[lang].offersCount(offers)
-          : item.label,
-      isCurrent:
-        Boolean(matchRoute(item.href)) ||
-        alsoCurrentFor.some((prefix) => pathname.startsWith(prefix)),
-    }),
+          ? offers
+          : undefined;
+      return {
+        ...item,
+        label: count ? cleanerWords[lang].offersCount(count) : item.label,
+        count,
+        isCurrent:
+          Boolean(matchRoute(item.href)) ||
+          alsoCurrentFor.some((prefix) => pathname.startsWith(prefix)),
+      };
+    },
   );
 
-  // every area's account parts are at the foot of the sidebar, and of the
-  // ☰ menu on a phone (#305). The areas that follow the person's language
+  // every area's account parts are at the foot of the sidebar, of the ☰
+  // menu on a phone (#305), and of the rail between them (#493). The areas that follow the person's language
   // offer the other one among them; the Office is English for good
   const own = area !== "office";
-  // here, so the ☰ menu stays open while an area switches
+  // here, so the ☰ menu or the rail's Account stays open while an area
+  // switches
   const footActions = useAccountActions(account, area);
 
   return (
     <AppLayout
       area={areaLabels[lang][area]}
       nav={nav}
-      foot={({ close }) => (
+      foot={({ close, place }) => (
         <AccountFoot
           account={account}
           actions={footActions}
           close={close}
+          place={place}
           withLanguage={own}
         />
       )}
@@ -272,8 +279,8 @@ function useOffersCount(on: boolean, pathname: string) {
   return value ?? 0;
 }
 
-// what the person can do with their Account, at the foot of the sidebar or
-// a phone's ☰ menu: switch to their other area (Staff
+// what the person can do with their Account, among the account's parts
+// (AccountFoot): switch to their other area (Staff
 // holding both roles, or a Cleaner who's a Client too), bring back
 // first-time help's tours, and sign out
 function useAccountActions(account: SignedInAccount, area: AreaId) {
@@ -285,7 +292,8 @@ function useAccountActions(account: SignedInAccount, area: AreaId) {
   // the area being switched to, until it's on screen
   const [switching, setSwitching] = useState<AreaId>();
 
-  // pressed before the area is ready, a ☰ menu stays open with the item
+  // pressed before the area is ready, a ☰ menu or the rail's Account stays
+  // open with the item
   // pending, and goes with this area as the new one shows. Still here once
   // the switch is over, it went nowhere new (a redirect back to this area,
   // or Back pressed meanwhile), so the menu closes itself
@@ -328,16 +336,20 @@ function useAccountActions(account: SignedInAccount, area: AreaId) {
 
 // who's signed in, and what they can do with their Account, one plain item
 // each, at the foot of the sidebar and of a phone's ☰ menu, the other
-// language among them where the area follows it (#305)
+// language among them where the area follows it (#305). On the rail, from
+// md to lg, the other language stays on the rail, one press away, and the
+// rest is behind its Account (#493)
 function AccountFoot({
   account,
   actions: a,
   close,
+  place,
   withLanguage,
 }: {
   account: SignedInAccount;
   actions: ReturnType<typeof useAccountActions>;
   close: () => void;
+  place: FootPlace;
   // the other language, in an area that follows the person's
   withLanguage: boolean;
 }) {
@@ -345,6 +357,7 @@ function AccountFoot({
   // shows on returning to the tab (main.tsx)
   const { w, switching } = a;
 
+  if (place === "rail") return withLanguage && <OtherLanguage onRail />;
   return (
     <>
       <div className="flex items-center gap-3 px-3">
@@ -357,7 +370,9 @@ function AccountFoot({
         </div>
       </div>
       <div className="flex flex-col gap-1">
-        {withLanguage && <OtherLanguage onChanged={close} />}
+        {withLanguage && place === "list" && (
+          <OtherLanguage onChanged={close} />
+        )}
         {a.otherAreas.map((id) => (
           <Button
             key={id}
@@ -400,12 +415,20 @@ function AccountFoot({
 // English on a Spanish one), one press away, so someone who can't read the
 // screen's language still finds it (#305). It's the person's own choice,
 // written on every Client and Staff member they are (ADR-0025); the area
-// turns to it once the Account is asked for again
-function OtherLanguage({ onChanged }: { onChanged?: () => void }) {
+// turns to it once the Account is asked for again. On the rail, its name
+// under its icon, as the rail has no room beside it, and a failure said in
+// a toast, as the rail has none for a notice
+function OtherLanguage({
+  onChanged,
+  onRail = false,
+}: {
+  onChanged?: () => void;
+  onRail?: boolean;
+}) {
   const router = useRouter();
   const lang = useLanguage();
   const other = LANGUAGES.find((l) => l !== lang)!;
-  const action = useAction(words[lang].languageFailed);
+  const action = useAction(words[lang].languageFailed, { toast: onRail });
 
   const change = async () => {
     const ok = await action.run(async () => {
@@ -420,7 +443,11 @@ function OtherLanguage({ onChanged }: { onChanged?: () => void }) {
     <>
       <Button
         variant="quiet"
-        className="justify-start"
+        className={
+          onRail
+            ? "h-auto w-14 flex-col gap-0.5 px-0 py-1 text-xs"
+            : "justify-start"
+        }
         isPending={action.isPending}
         onPress={() => void change()}
       >

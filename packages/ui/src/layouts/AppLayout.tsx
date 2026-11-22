@@ -1,10 +1,23 @@
-import { Link, type LinkProps } from "react-aria-components";
-import { Menu, type LucideIcon } from "lucide-react";
-import { createContext, useId, type ReactNode } from "react";
+import {
+  Dialog as AriaDialog,
+  Link,
+  Tooltip,
+  TooltipTrigger,
+  type LinkProps,
+} from "react-aria-components";
+import { Menu, UserRound, type LucideIcon } from "lucide-react";
+import {
+  createContext,
+  Fragment,
+  useId,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { Button } from "../Button.tsx";
 import { DialogTrigger } from "../Dialog.tsx";
 import { Drawer } from "../Drawer.tsx";
 import { Logo } from "../Logo.tsx";
+import { Popover } from "../Popover.tsx";
 import { staleFade } from "../stale.ts";
 import { ThemeToggle } from "../theme.tsx";
 import { useUiWords } from "../language.ts";
@@ -26,9 +39,19 @@ export type NavItem = {
   inMenu?: boolean;
   // the heading over related sections, e.g. "People" over Clients and Staff:
   // items next to each other with the same group sit under one heading. The
-  // sidebar and the ☰ menu show it; the tab bar doesn't
+  // sidebar and the ☰ menu show it, the rail draws a rule between groups;
+  // the tab bar doesn't
   group?: string;
+  // how many wait there (the Cleaner's Offers), which the label says too:
+  // the rail, with no room for the label, marks it on the icon
+  count?: number;
 };
+
+// where the account's parts are drawn: "list", every part, at the foot of
+// the sidebar and of the ☰ menu; from md to lg, "rail", only what must stay
+// one press away (the other language), on the rail itself, and "popover",
+// the rest, behind the rail's Account
+export type FootPlace = "list" | "rail" | "popover";
 
 export type AppLayoutProps = {
   // which part of the app this is, e.g. "Office" or "Cleaner"
@@ -36,10 +59,12 @@ export type AppLayoutProps = {
   nav: NavItem[];
   // who is signed in and what they can do (switch area, sign out), one
   // plain item each, at the foot of the sidebar and of a phone's ☰ menu,
-  // under a divider, the theme after it. Given `close` to close the ☰
-  // menu it's in (the sidebar's does nothing)
-  foot: (opts: { close: () => void }) => ReactNode;
-  // something pressed in the ☰ menu's foot is under way: it stays open
+  // under a divider, the theme after it; on the rail, by `place`. Given
+  // `close` to close the ☰ menu or the rail's Account it's in (the
+  // sidebar's does nothing)
+  foot: (opts: { close: () => void; place: FootPlace }) => ReactNode;
+  // something pressed in the account's parts is under way (switching area):
+  // the ☰ menu or the rail's Account holding it stays open
   menuBusy?: boolean;
   // the next page is loading, after a press that leaves this one: this page
   // can't be pressed from then until the next one shows, so a press meant
@@ -54,12 +79,17 @@ export type AppLayoutProps = {
 // and the section's name, a bottom tab bar within thumb reach of five
 // shortcuts at most (the items not inMenu), and the drawer the ☰ opens,
 // the full menu: every section as the sidebar lists them, then the
-// account's parts and the theme at its foot (#200, #305). From tablet width
-// up: a sidebar, with the same foot.
+// account's parts and the theme at its foot (#200, #305). From lg (1024)
+// a sidebar, with the same foot. Between them, from md (768), the sidebar
+// folds to a rail of icons, so a narrow laptop window keeps a laptop's
+// ways and its room for the page: each section's name its tooltip, the
+// current one highlighted, and at its foot the other language, named in its
+// own words, and an Account holding the rest of the foot (#493).
 //
 // The logo is never shrunk to fit: the phone's top bar is too short for it,
 // so the bar names the section you're in and the logo heads the ☰ menu
-// instead; the sidebar has room for it (UX pass, #96)
+// instead, and the rail's Account; the sidebar has room for it (UX pass,
+// #96)
 export function AppLayout({
   area,
   nav,
@@ -86,12 +116,22 @@ export function AppLayout({
         Skip to content
       </a>
 
-      <aside className="hidden w-side print:hidden shrink-0 flex-col gap-6 overflow-y-auto border-r border-border bg-surface p-4 md:sticky md:top-0 md:flex md:h-dvh">
+      <aside className="hidden w-side print:hidden shrink-0 flex-col items-center gap-4 overflow-y-auto border-r border-border bg-surface py-4 md:sticky md:top-0 md:flex md:h-dvh lg:hidden">
+        <nav aria-label={area} className="flex flex-col items-center gap-2">
+          <RailGroups items={nav} />
+        </nav>
+        <div className="mt-auto flex flex-col items-center gap-2 border-t border-border pt-4">
+          {foot({ close: () => {}, place: "rail" })}
+          <RailAccount area={area} foot={foot} isBusy={menuBusy} />
+        </div>
+      </aside>
+
+      <aside className="hidden w-side print:hidden shrink-0 flex-col gap-6 overflow-y-auto border-r border-border bg-surface p-4 lg:sticky lg:top-0 lg:flex lg:h-dvh">
         <Head area={area} className="pt-2" />
         <nav aria-label={area} className="flex flex-1 flex-col gap-4">
           <NavGroups items={nav} />
         </nav>
-        <Foot>{foot({ close: () => {} })}</Foot>
+        <Foot>{foot({ close: () => {}, place: "list" })}</Foot>
       </aside>
 
       <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2 md:hidden print:hidden">
@@ -112,7 +152,7 @@ export function AppLayout({
                   <nav aria-label={area} className="flex flex-col gap-4">
                     <NavGroups items={nav} onPress={close} />
                   </nav>
-                  <Foot>{foot({ close })}</Foot>
+                  <Foot>{foot({ close, place: "list" })}</Foot>
                 </>
               )}
             </Drawer>
@@ -148,7 +188,8 @@ export function AppLayout({
   );
 }
 
-// the logo and the area, at the head of the sidebar or the ☰ menu
+// the logo and the area, at the head of the sidebar, the ☰ menu or the
+// rail's Account
 function Head({ area, className }: { area: string; className: string }) {
   return (
     <div className={`flex flex-col items-center gap-3 px-2 ${className}`}>
@@ -180,6 +221,120 @@ const runs = (items: NavItem[]) => {
   }
   return groups;
 };
+
+// the rail's links, a rule between runs of groups, each named run a group
+// for a screen reader, as the sidebar's are
+function RailGroups({ items }: { items: NavItem[] }) {
+  return runs(items).map((group, i) => (
+    <Fragment key={group.items[0]!.label}>
+      {i > 0 && <hr aria-hidden className="w-8 border-border" />}
+      <div
+        role={group.name ? "group" : undefined}
+        aria-label={group.name}
+        className="flex flex-col items-center gap-2"
+      >
+        {group.items.map((item) => (
+          <RailLink key={item.label} item={item} />
+        ))}
+      </div>
+    </Fragment>
+  ));
+}
+
+// a section on the rail: its icon, its name the tooltip, and its text for a
+// screen reader (and the tours, which find a link by its text); a count,
+// such as the Offers waiting, marked on the icon
+function RailLink({ item }: { item: NavItem }) {
+  const Icon = item.icon;
+  return (
+    <RailTip label={item.label}>
+      <Link
+        href={item.href}
+        aria-current={item.isCurrent ? "page" : undefined}
+        className={(renderProps) =>
+          `${focusRing(renderProps)} relative flex size-touch items-center justify-center rounded-md text-fg-muted no-underline hover:bg-surface-sunken hover:text-fg current:bg-success-subtle current:text-success-strong`
+        }
+      >
+        <Icon aria-hidden size={20} />
+        <span className="sr-only">{item.label}</span>
+        {item.count !== undefined && item.count > 0 && (
+          <span
+            aria-hidden
+            className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-semibold text-primary-fg tabular-nums"
+          >
+            {item.count}
+          </span>
+        )}
+      </Link>
+    </RailTip>
+  );
+}
+
+// the account's parts the rail has no room for, behind one Account at its
+// foot: the logo and the area at their head, as the ☰ menu's, then the
+// sidebar's foot. It opens beside the rail, toward the page, and stays
+// open while a switch of area is under way
+function RailAccount({
+  area,
+  foot,
+  isBusy,
+}: {
+  area: string;
+  foot: AppLayoutProps["foot"];
+  isBusy: boolean;
+}) {
+  const words = useUiWords();
+  return (
+    <DialogTrigger>
+      <RailTip label={words.account}>
+        <Button variant="quiet" size="icon" aria-label={words.account}>
+          <UserRound aria-hidden size={20} />
+        </Button>
+      </RailTip>
+      <Popover
+        placement="end bottom"
+        offset={8}
+        isKeyboardDismissDisabled={isBusy}
+        shouldCloseOnInteractOutside={() => !isBusy}
+        className="w-72 max-w-[calc(100vw-6rem)]"
+      >
+        <AriaDialog
+          aria-label={words.account}
+          className="flex flex-col gap-6 p-4 outline-none"
+        >
+          {({ close }) => (
+            <>
+              <Head area={area} className="" />
+              <Foot>{foot({ close, place: "popover" })}</Foot>
+            </>
+          )}
+        </AriaDialog>
+      </Popover>
+    </DialogTrigger>
+  );
+}
+
+// a rail item's name, beside it on hover or keyboard focus
+function RailTip({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactElement;
+}) {
+  return (
+    <TooltipTrigger delay={300}>
+      {children}
+      <Tooltip
+        placement="end"
+        offset={8}
+        className="rounded-md bg-fg px-2 py-1 text-sm font-semibold text-bg shadow-overlay"
+      >
+        {label}
+      </Tooltip>
+    </TooltipTrigger>
+  );
+}
 
 // the sidebar's or the menu's links, each run of items with the same group
 // under its heading; items with none sit under the logo without one

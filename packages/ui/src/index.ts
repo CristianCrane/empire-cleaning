@@ -6,7 +6,11 @@ import "./tokens.css";
 export { ActionFooter } from "./ActionFooter.tsx";
 export { ActionRow } from "./ActionRow.tsx";
 export { Actions } from "./Actions.tsx";
-export { AppLayout, type NavItem } from "./layouts/AppLayout.tsx";
+export {
+  AppLayout,
+  type FootPlace,
+  type NavItem,
+} from "./layouts/AppLayout.tsx";
 export { Avatar } from "./Avatar.tsx";
 export { Breadcrumbs, type Crumb } from "./Breadcrumbs.tsx";
 export { Button, buttonStyles, type ButtonProps } from "./Button.tsx";

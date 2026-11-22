@@ -30,8 +30,8 @@ const meta = {
   args: {
     area: "Office",
     nav: officeNav,
-    // the app puts the account's parts here: the sidebar's foot, and on a
-    // phone the ☰ menu's
+    // the app puts the account's parts here: the sidebar's foot, the rail's
+    // Account, and on a phone the ☰ menu's
     foot: () => (
       <Button variant="quiet" className="justify-start">
         <LogOut aria-hidden size={20} />
@@ -84,8 +84,42 @@ export const Phone: Story = {
   },
 };
 
-export const Desktop: Story = {
+// from md to lg the sidebar folds to a rail of icons, each name its
+// tooltip; the account's parts behind Account at its foot, under the logo
+// and the area (#493)
+export const Rail: Story = {
   globals: { viewport: { value: "tablet" } },
+  play: async ({ canvas, userEvent }) => {
+    const rail = canvas.getByRole("navigation", { name: "Office" });
+    await expect(rail.getBoundingClientRect().width).toBeLessThanOrEqual(64);
+    await expect(
+      within(rail).getByRole("link", { name: "Today" }),
+    ).toHaveAttribute("aria-current", "page");
+    await userEvent.click(canvas.getByRole("button", { name: "Account" }));
+    const account = within(document.body).getByRole("dialog", {
+      name: "Account",
+    });
+    await expect(
+      within(account).getByRole("button", { name: "Sign out" }),
+    ).toBeVisible();
+    await expect(
+      within(account).getByRole("img", { name: /Empire Cleaning/ }),
+    ).toBeVisible();
+  },
+};
+
+// from lg the full sidebar: the logo, every section named, the account's
+// parts at its foot
+export const Sidebar: Story = {
+  globals: { viewport: { value: "laptop" } },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByRole("button", { name: "Sign out" }),
+    ).toBeVisible();
+    await expect(
+      canvas.getByRole("img", { name: /Empire Cleaning/ }),
+    ).toBeVisible();
+  },
 };
 
 export const Cleaner: Story = {
@@ -145,10 +179,10 @@ export const PhoneMenu: Story = {
   },
 };
 
-// related sections under a heading, in the sidebar and the ☰ menu; the
-// busiest come first, without one
+// related sections under a heading, in the sidebar and the ☰ menu (on the
+// rail, a rule between them); the busiest come first, without one
 export const Groups: Story = {
-  globals: { viewport: { value: "tablet" } },
+  globals: { viewport: { value: "laptop" } },
   args: {
     nav: [
       {

@@ -133,9 +133,12 @@
   --shadow-overlay: 0 8px 32px rgb(16 25 35 / 0.24);
 }
 
-/* the sidebar, from md */
+/* the rail of icons from md, the sidebar from lg (AppLayout) */
 :root {
   @variant md {
+    --spacing-side: 4rem;
+  }
+  @variant lg {
     --spacing-side: 16rem;
   }
 }

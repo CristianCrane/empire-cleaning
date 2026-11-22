@@ -118,6 +118,95 @@ test(
   },
 );
 
+// a laptop window under 1024 keeps a laptop's ways, its room for the page
+// made by the sidebar folding to icons, not by the phone's frame (#493)
+test(
+  "from 768 to 1024 the sidebar folds to a rail of icons, each named, the account behind one press",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    test.skip(isMobile, "a phone has no rail");
+    await createStaff(olive);
+    await page.setViewportSize({ width: 900, height: 900 });
+    await signedInAs(page, olive.email);
+    await expect(page).toHaveURL("/office");
+
+    const rail = page.getByRole("navigation", { name: "Office" });
+    await expect(rail.getByRole("link")).toHaveText([
+      "Today",
+      "Schedule",
+      "Jobs",
+      "Quotes",
+      "Clients",
+      "Staff",
+      "Services",
+      "Prices",
+    ]);
+    await expect(
+      rail.getByRole("group", { name: "People" }).getByRole("link"),
+    ).toHaveText(["Clients", "Staff"]);
+    await expect(rail.getByRole("link", { name: "Today" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    // icons alone: the page has the rest of the window
+    expect((await rail.boundingBox())!.width).toBeLessThanOrEqual(64);
+    expect((await page.getByRole("main").boundingBox())!.x).toBe(64);
+    // each name beside its icon on hover, from a pointer that has moved
+    // over the page, as a person's has: react-aria lets the first hover
+    // after a page loads with the pointer still go unseen
+    await page.mouse.move(400, 400);
+    await rail.getByRole("link", { name: "Quotes" }).hover();
+    await expect(page.getByRole("tooltip")).toHaveText("Quotes");
+    // no phone's frame, and no logo squeezed into the rail
+    await expect(page.getByRole("button", { name: "Menu" })).toBeHidden();
+    await expect(page.getByRole("img", logo)).toBeHidden();
+
+    // the account's parts behind the rail's Account, headed by the logo and
+    // the area, as the ☰ menu is
+    await page.getByRole("button", { name: "Account" }).click();
+    const account = page.getByRole("dialog", { name: "Account" });
+    await expect(account.getByRole("img", logo)).toBeVisible();
+    await expect(account.getByText("Office", { exact: true })).toBeVisible();
+    await expect(account.getByText(olive.name)).toBeVisible();
+    await expect(
+      account.getByRole("button", { name: "Sign out" }),
+    ).toBeVisible();
+    await expect(
+      account.getByRole("button", { name: "Dark theme" }),
+    ).toBeVisible();
+    await expectAccessible(page);
+    await page.keyboard.press("Escape");
+    await expect(account).toBeHidden();
+  },
+);
+
+// the other language stays one press away on the rail, named in its own
+// words, so someone who can't read the screen's language still finds it
+// (#305); only the rest of the account's parts are behind Account
+test(
+  "from 768 to 1024 a Client's other language is on the rail itself",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    test.skip(isMobile, "a phone has no rail");
+    await createClient(casey);
+    await page.setViewportSize({ width: 900, height: 900 });
+    await signedInAs(page, casey.email);
+    await expect(page).toHaveURL("/portal");
+
+    const rail = page.getByRole("complementary");
+    await expect(rail.getByRole("button", { name: "Español" })).toBeVisible();
+    await page.getByRole("button", { name: "Account" }).click();
+    const account = page.getByRole("dialog", { name: "Account" });
+    await expect(account.getByText(casey.name)).toBeVisible();
+    await expect(
+      account.getByRole("button", { name: "Sign out" }),
+    ).toBeVisible();
+    await expect(account.getByRole("button", { name: "Español" })).toHaveCount(
+      0,
+    );
+  },
+);
+
 const casey = { name: "Casey Client", email: "casey@example.com" };
 
 const aJob = /\/api\/jobs\/[0-9a-f-]{36}$/;

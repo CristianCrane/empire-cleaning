@@ -1271,9 +1271,9 @@ function BarAtTheFoot() {
             What must stay in reach while a long page scrolls (a Cleaner's Job
             on site, a Quote Draft's Send) goes in an <code>ActionFooter</code>,
             which the page's layout places: above the tab bar on a phone, full
-            width beside the sidebar on a wider screen. Never a sticky bar of
-            the page's own: it pins under the tab bar. What it sums up on its
-            left, the main action last, on the right.
+            width beside the rail or the sidebar on a wider screen. Never a
+            sticky bar of the page's own: it pins under the tab bar. What it
+            sums up on its left, the main action last, on the right.
           </p>
         </Rule>
         <div className="h-[120vh] rounded-lg bg-bg" />
