@@ -210,12 +210,19 @@ for a dialog. It renders through `FormPage`
   stays in the part it prices.
 - **Its button at the card's foot**, after what saving agrees to (a
   card's consent), in view. A form with a price or a Send (the Draft, New
-  quote) has the page's `ActionFooter` instead (FormPage's `footer`),
-  its total and whether it's saved on the left, the button on the right;
-  what's said before the button (a refusal, a warning) comes after the
-  card. That bar spans the content's width, so such a form has an aside
-  and the page is that wide too; a form alone keeps a form's width and
-  its button in its card (FormPage's type holds it).
+  quote) makes its button the page's next step instead (FormPage's
+  `next`, #493 D1): from md the header's primary, a Draft's Delete draft
+  behind its arrow, whether it's saved beside it (shown from the start,
+  "Saved"), and once scrolled the header that sticks carries the title,
+  the total (below `xl`, where the prices beside the form don't stay in
+  view) and the button; on a phone the page's `ActionFooter`, its total
+  and whether it's saved on the left, the button on the right, Delete
+  draft alone on the title row. The price is said once at each width: in
+  the sticky header only once the aside has scrolled away. What's said
+  before the button (a refusal, a warning) comes after the card. Such a
+  form has an aside, its price, and the page is the content's width; a
+  form alone keeps a form's width and its button in its card (FormPage's
+  type holds it).
 - **Outside an area** (Welcome), a page of its own, the logo above and
   who's signed in under it on a phone, beside it from `sm` (`PageFrame`),
   centred at a form's width with no aside.
@@ -315,19 +322,20 @@ The `ui` skill's rules hold here too; these are this product's.
   the title, the badge and the same actions (the split button, or the ⋯ or
   lone Button when nothing is next), lined up with the page's column (a
   form's width on a Form page with no aside), with room
-  beside the button for what the step rests on (a Draft's price, which
-  #493 builds); a List's New stays on its row. A Record's next step is
+  beside the button for what the step rests on (a Form page's price and
+  whether it's saved, below `xl`; #493 D1); a List's New stays on its row. A Record's next step is
   there on a wider screen only, and at
   the foot on a phone. Printed, it's the title alone.
   ("Layout / RecordPage / Next Step In The Header", "Nothing Next", "One Action";
-  "Layout / FormPage / Priced With A Footer" for a lone destructive action)
+  "Layout / FormPage / Priced On A Phone" for a lone destructive action,
+  "Priced On A Laptop" for a Form page's next step)
 - **A wide screen keeps a readable column**: the content's, AppLayout's
   `max-w-5xl` (960 px inside its margins), the width every page in an
   area reads at (a page outside one keeps `PageFrame`'s). A Record fills
   it, its header's buttons on its right edge, and a bar at the page's
-  foot lines up with it too (`ActionFooter`), as does a Form page with
-  an aside, the one side column (#493 G4.4: a card stopped 376 px short
-  of its button). No second, narrower cap for a Record: the user's pick
+  foot lines up with it too (`ActionFooter`), and so does a Form page
+  with an aside, the one side column (#493 G4.4: a card stopped 376 px
+  short of its button). No second, narrower cap for a Record: the user's pick
   on the Office's Job drew one column at this width. A form is narrower,
   a form's width (Forms), and a Form page with no aside is narrowed with
   it, header and all, so its buttons still line up with its card.
@@ -399,10 +407,11 @@ The `ui` skill's rules hold here too; these are this product's.
   above the tab bar, a Record's next step on a phone, which a wider screen
   keeps in the header instead (`phone`; the `ui` skill), a Cleaner's
   Complete on site at every width (until #493 makes it the Cleaner's next
-  step), and a form's price and its button (the Quote Draft's
-  Send, New quote's Draft a quote), full width beside the rail or the
-  sidebar on a wider screen until #493 settles it with a prototype, its row the
-  content's ("A wide screen keeps a readable column"). What it sums up
+  step), and on a phone a form's price and its button (the Quote Draft's
+  Send, New quote's Draft a quote), which a wider screen keeps in the
+  header too (#493 D1: Forms). Where it's at every width, it runs
+  beside the rail or the sidebar, its row the content's ("A wide screen
+  keeps a readable column"). What it sums up
   (prices, whether it's saved) on its left, the main action last, on the
   right. The layout test fails a button or link under a fixed bar. ("A
   bar at the foot is an ActionFooter")
