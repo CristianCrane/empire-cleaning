@@ -380,7 +380,9 @@ The `ui` skill's rules hold here too; these are this product's.
   primary; so is the Office's Turn down of a Client's move. A Service's
   Retire isn't red (Offer again brings it back), nor a Draft's Remove
   <weekday> (nothing sent or booked is lost, and Add a weekday gives a day
-  again in a tap).
+  again in a tap). The Office's Turn down of a quote stays red: it emails
+  the Client a no that can't be unsent, where a Client's Decline is their
+  own word on their own quote.
 - **Continue with Google is Google's own button** (the `ui` skill: a
   third-party sign-in keeps its owner's look): their colours in light and
   dark, their logo, Roboto. Only the 44px touch height is ours.
