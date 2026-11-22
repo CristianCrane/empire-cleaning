@@ -17,6 +17,11 @@ export function linkTo<TOptions>(
   return options as unknown as AppHref;
 }
 
+// two links to the same place: linkTo() makes a new one each time, so two
+// built apart are never the same object
+export const sameHref = (a: AppHref | undefined, b: AppHref | undefined) =>
+  a !== undefined && b !== undefined && JSON.stringify(a) === JSON.stringify(b);
+
 declare module "@empire-cleaning/ui" {
   interface RouterConfig {
     href: AppHref;

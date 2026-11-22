@@ -43,6 +43,8 @@ export const portalWords = catalog({
     // a clean's badges (cleanBadge), on the Cleans list and its page
     moveAsked: "Move asked",
     needsOk: "Needs your OK",
+    // by when a price change proposed to them wants their answer
+    answerBy: (day: string) => `Please answer by ${day}.`,
   },
   es: {
     home: "Inicio",
@@ -77,5 +79,6 @@ export const portalWords = catalog({
     decline: "Rechazar",
     moveAsked: "Reprogramación pedida",
     needsOk: "Necesita su aprobación",
+    answerBy: (day: string) => `Responda antes del ${day}.`,
   },
 });

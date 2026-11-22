@@ -1381,13 +1381,14 @@ export type ClientJob = {
   // Labour Hours divided by Crew Size
   hoursOnSite: number;
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
+  // the Service Plan it was generated for, which cancelling it skips; null
+  // for a one-off Job
+  servicePlanId: string | null;
 };
 
-// one still to come: the Service Plan it was generated for (null for a
-// one-off Job), and the time the Client asked to move it to while Office
+// one still to come: the time the Client asked to move it to while Office
 // Staff haven't answered (null with no Reschedule Request pending)
 export type ClientUpcomingJob = ClientJob & {
-  servicePlanId: string | null;
   movingTo: string | null;
 };
 
@@ -1699,7 +1700,12 @@ export type ClientPastJob = ClientJob & {
   // what an Unpaid one still owes; 0 otherwise
   owedCents: number;
   // increases proposed to them, waiting on their answer
-  awaitingAnswer: number;
+  waiting: Pick<
+    AdjustmentView,
+    "id" | "kind" | "addOnName" | "hours" | "totalCents" | "lapsesAt"
+  >[];
+  // a No Access one's: when, why and what it cost
+  noAccess: Pick<JobNoAccess, "recordedAt" | "reason" | "feeCents"> | null;
 };
 
 // one of the Client's Jobs, with its receipt once Completed. They see only
@@ -1725,9 +1731,6 @@ export type ClientJobDetail = ClientJob & {
   weeklyBill: BillPayment | null;
   // its latest Reschedule Request, pending or answered; null if none
   rescheduleRequest: RescheduleRequestView | null;
-  // the Service Plan it was generated for, which cancelling it skips; null
-  // for a one-off Job
-  servicePlanId: string | null;
   // that plan's Plan Discount, which its price has had taken off; null for
   // a one-off Job
   planDiscountPercent: number | null;
