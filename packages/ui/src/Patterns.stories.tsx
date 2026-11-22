@@ -1250,8 +1250,8 @@ export const MessagePagesStory: Story = {
 
 // what stays in reach as a long page scrolls, in the app's one bar at a
 // page's foot: never a sticky bar of the page's own, which the phone's tab
-// bar covers (#425). A dialog pins its own Actions (Dialog.tsx): it sits
-// over the tab bar
+// bar covers (#425). On a phone a dialog's sheet pins its own Actions
+// (Dialog.tsx): it sits over the tab bar
 function BarAtTheFoot() {
   return (
     <AppLayout
@@ -1275,8 +1275,8 @@ function BarAtTheFoot() {
             which the page's layout places: above the tab bar on a phone, full
             width beside the sidebar on a wider screen. Never a sticky bar of
             the page's own: it pins under the tab bar. What it sums up on its
-            left, the main action last, on the right. (A dialog pins its own
-            Buttons: it sits over the tab bar.)
+            left, the main action last, on the right. (On a phone a dialog's
+            sheet pins its own Buttons: it sits over the tab bar.)
           </p>
         </Rule>
         <div className="h-[120vh] rounded-lg bg-bg" />

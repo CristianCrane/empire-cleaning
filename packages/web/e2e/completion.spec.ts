@@ -118,7 +118,7 @@ test(
   },
 );
 
-test("on a short phone, Mark done's buttons stay at the sheet's foot while what's above them scrolls", async ({
+test("on a short phone, Mark done's sheet opens with its buttons in view, its last question below them", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 667 });

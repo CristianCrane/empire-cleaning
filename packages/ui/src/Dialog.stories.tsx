@@ -165,8 +165,8 @@ export const Wide: Story = {
   ),
 };
 
-// longer than the screen: its Buttons stay pinned at its foot while what's
-// above them scrolls, a phone's sheet and a centred dialog alike
+// longer than a phone's screen: the sheet's Buttons stay pinned at its foot
+// while what's above them scrolls (from sm, centred, they end its body)
 export const LongSheet: Story = {
   globals: { viewport: { value: "phone" } },
   args: { title: "Mark this job done" },
