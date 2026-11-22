@@ -207,7 +207,8 @@ test("a Client reading in Spanish sees what a second late move costs", async ({
 });
 
 // the other language, named in its own words, one press away: in the
-// sidebar on a larger screen, at the foot of the ☰ menu on a phone (#305)
+// sidebar on a larger screen, on the rail from 768 to 1024 (#493), at the
+// foot of the ☰ menu on a phone (#305)
 const pressLanguage = async (page: Page, name: string) => {
   const { item } = await showInMenu(
     page,

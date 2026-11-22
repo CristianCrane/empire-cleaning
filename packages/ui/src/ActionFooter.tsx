@@ -1,9 +1,9 @@
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 
 // A page's actions, fixed at the foot of the screen so they stay in reach
-// while the page scrolls: above the phone's tab bar, beside the sidebar on
-// a wider screen. The app's one bar at a page's foot (docs/ux.md, Buttons
-// and actions): a Cleaner's Job on site, a Quote Draft's prices and Send.
+// while the page scrolls: above the phone's tab bar, beside the rail or the
+// sidebar on a wider screen (`--spacing-side`). The app's one bar at a
+// page's foot (docs/ux.md, Buttons and actions): a Cleaner's Job on site, a Quote Draft's prices and Send.
 // What it sums up goes first (`summary`, then `status`, a line that's
 // read out as it changes: a save's state), the main action last. While shown, its
 // height (taller when its actions wrap) is `--action-footer-height` on the
@@ -53,7 +53,7 @@ export function ActionFooter({
         ref={footer}
         role="group"
         aria-label={label}
-        className="fixed inset-x-0 bottom-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] z-30 border-t border-border bg-surface px-4 py-3 shadow-raised md:bottom-0 md:left-64 md:px-0 print:hidden"
+        className="fixed inset-x-0 bottom-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] z-30 border-t border-border bg-surface px-4 py-3 shadow-raised left-side md:bottom-0 md:px-0 print:hidden"
       >
         {/* the page's content column: as wide, and as far in, as AppLayout's
             main */}

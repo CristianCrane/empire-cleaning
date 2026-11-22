@@ -242,10 +242,7 @@ test(
       page.getByRole("button", { name: /^Coming up/ }),
     ).toBeDisabled();
 
-    await page
-      .getByRole("link", { name: /^Offers/ })
-      .first()
-      .click();
+    await page.getByRole("link", { name: "Offers (1)" }).first().click();
     await expect(
       page.getByRole("tab", { name: /Offered to you/ }),
     ).toHaveAttribute("aria-selected", "true");

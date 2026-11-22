@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { MINUTE_MS } from "@empire-cleaning/models";
 import {
+  addCleaner,
   bookJob,
   createClient,
   createStaff,
@@ -14,6 +15,7 @@ import {
   recordLanguages,
   searchList,
   setLanguage,
+  offerJob,
   signedInAs,
   test,
 } from "./harness.ts";
@@ -115,6 +117,122 @@ test(
     ]);
     await expect(page.getByRole("img", logo)).toBeVisible();
     await expect(page.getByRole("button", { name: "Menu" })).toBeHidden();
+  },
+);
+
+// a laptop window under 1024 keeps a laptop's ways, its room for the page
+// made by the sidebar folding to icons, not by the phone's frame (#493)
+test(
+  "from 768 to 1024 the sidebar folds to a rail, each icon named under it, the account behind one press",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    test.skip(isMobile, "a phone has no rail");
+    await createStaff(olive);
+    await page.setViewportSize({ width: 900, height: 900 });
+    await signedInAs(page, olive.email);
+    await expect(page).toHaveURL("/office");
+
+    const rail = page.getByRole("navigation", { name: "Office" });
+    await expect(rail.getByRole("link")).toHaveText([
+      "Today",
+      "Schedule",
+      "Jobs",
+      "Quotes",
+      "Clients",
+      "Staff",
+      "Services",
+      "Prices",
+    ]);
+    await expect(
+      rail.getByRole("group", { name: "People" }).getByRole("link"),
+    ).toHaveText(["Clients", "Staff"]);
+    await expect(rail.getByRole("link", { name: "Today" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    // each name shown under its icon, as a touch tablet never hovers, and
+    // whole: the page has the rest of the window
+    await expect(rail.getByText("Quotes", { exact: true })).toBeVisible();
+    for (const link of await rail.getByRole("link").all()) {
+      expect(
+        await link.evaluate((el) => el.scrollWidth <= el.clientWidth),
+      ).toBe(true);
+    }
+    expect((await rail.boundingBox())!.width).toBeLessThanOrEqual(80);
+    expect((await page.getByRole("main").boundingBox())!.x).toBe(80);
+    // no phone's frame, and no logo squeezed into the rail
+    await expect(page.getByRole("button", { name: "Menu" })).toBeHidden();
+    await expect(page.getByRole("img", logo)).toBeHidden();
+
+    // the account's parts behind the rail's Account: the person and what
+    // they can do, no logo, as the account isn't where the brand lives
+    await page.getByRole("button", { name: "Account" }).click();
+    const account = page.getByRole("dialog", { name: "Account" });
+    await expect(account.getByText(olive.name)).toBeVisible();
+    await expect(account.getByRole("img", logo)).toHaveCount(0);
+    await expect(
+      account.getByRole("button", { name: "Sign out" }),
+    ).toBeVisible();
+    await expect(
+      account.getByRole("button", { name: "Dark theme" }),
+    ).toBeVisible();
+    await expectAccessible(page);
+    await page.keyboard.press("Escape");
+    await expect(account).toBeHidden();
+  },
+);
+
+// the other language stays one press away on the rail, named in its own
+// words, so someone who can't read the screen's language still finds it
+// (#305); only the rest of the account's parts are behind Account
+test(
+  "from 768 to 1024 a Client's other language is on the rail itself",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    test.skip(isMobile, "a phone has no rail");
+    await createClient(casey);
+    await page.setViewportSize({ width: 900, height: 900 });
+    await signedInAs(page, casey.email);
+    await expect(page).toHaveURL("/portal");
+
+    const rail = page.getByRole("complementary");
+    await expect(rail.getByRole("button", { name: "Español" })).toBeVisible();
+    await page.getByRole("button", { name: "Account" }).click();
+    const account = page.getByRole("dialog", { name: "Account" });
+    await expect(account.getByText(casey.name)).toBeVisible();
+    await expect(
+      account.getByRole("button", { name: "Sign out" }),
+    ).toBeVisible();
+    await expect(account.getByRole("button", { name: "Español" })).toHaveCount(
+      0,
+    );
+  },
+);
+
+// the Cleaner's Offers says how many wait on their answer, in its name on
+// the sidebar and the rail
+test(
+  "a Cleaner's Offers counts what waits on them, in the sidebar and on the rail",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    test.skip(isMobile, "the phone's tab bar: assignments.spec's smoke test");
+    const cory = await addCleaner("Cory Cleaner");
+    const job = (await bookJob({
+      startsAt: "2026-01-08T14:00:00Z",
+      labourHours: 3,
+    })) as { id: string };
+    await offerJob(job.id, cory.id);
+    await signedInAs(page, "cory@example.com");
+    const sidebar = page.getByRole("complementary");
+    await expect(
+      sidebar.getByRole("link", { name: "Offers (1)" }),
+    ).toBeVisible();
+
+    await page.setViewportSize({ width: 900, height: 900 });
+    const rail = page.getByRole("complementary");
+    await expect(rail.getByRole("link", { name: "Offers (1)" })).toHaveText(
+      "Offers (1)",
+    );
   },
 );
 
