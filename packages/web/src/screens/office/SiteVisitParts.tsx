@@ -196,7 +196,6 @@ function BookingForm({
         <TimeField
           label="Start time"
           name="time"
-          description="New York time."
           value={time}
           onChange={setTime}
         />

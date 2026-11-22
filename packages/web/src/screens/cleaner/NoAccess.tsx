@@ -24,7 +24,7 @@ const words = catalog({
       "Check how we get in, and try calling the client first. The job won't be marked done, and the client and the office are told what happened.",
     whatHappened: "What happened?",
     example:
-      "For example: nobody answered, and the key wasn't where the instructions say.",
+      "The client reads it as you write it. For example: nobody answered, and the key wasn't where we were told.",
     sentAt: (time: string, by: string) =>
       `Sent at ${time}${by}. The client and the office have been told.`,
   },
@@ -35,7 +35,7 @@ const words = catalog({
       "Primero revisa cómo entramos y prueba a llamar al cliente. El trabajo no se marcará como terminado, y se les avisa al cliente y a la oficina lo que pasó.",
     whatHappened: "¿Qué pasó?",
     example:
-      "Por ejemplo: nadie contestó, y la llave no estaba donde dicen las instrucciones.",
+      "El cliente lo lee tal como lo escribes. Por ejemplo: nadie contestó, y la llave no estaba donde nos dijeron.",
     sentAt: (time: string, by: string) =>
       oneStop(
         `Enviado a ${theTimeEs(time)}${by}. Ya se les avisó al cliente y a la oficina.`,

@@ -85,11 +85,9 @@ test(
       .getByRole("textbox", { name: /Why\? .* \(Inside the fridge\)/ })
       .fill("Casey asked on the day");
     await form
-      .getByRole("textbox", { name: "More hours, all of you together" })
+      .getByRole("textbox", { name: "More hours", exact: true })
       .fill("1");
-    await form
-      .getByRole("textbox", { name: "More hours, all of you together" })
-      .blur();
+    await form.getByRole("textbox", { name: "More hours", exact: true }).blur();
     await form
       .getByRole("textbox", { name: "What took longer?" })
       .fill("Heavy grease in the kitchen");
@@ -117,6 +115,37 @@ test(
     expect(receipt.text).toContain("Inside the oven, not done: -$30.49");
   },
 );
+
+test("on a short phone, Mark done's sheet opens with its buttons in view, its last question below them", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 667 });
+  // the sheet lists every extra: the Job's, to say one wasn't done, and the
+  // rest, to say one was done on the day
+  await jobUnderway();
+  await signedInAs(page, "cory@example.com");
+  await page
+    .getByRole("region", { name: "Now" })
+    .getByRole("button", { name: "Open job" })
+    .click();
+  await page
+    .getByRole("group", { name: "What to do" })
+    .getByRole("button", { name: "Mark done" })
+    .click();
+  const form = page.getByRole("dialog", { name: "Mark this job done" });
+  await expect(form).toBeVisible();
+
+  // the sheet runs past the screen: its last question is below it
+  await expect(
+    form.getByRole("textbox", { name: "More hours", exact: true }),
+  ).not.toBeInViewport();
+  await expect(form.getByRole("button", { name: "Go back" })).toBeInViewport({
+    ratio: 1,
+  });
+  await expect(form.getByRole("button", { name: "Mark done" })).toBeInViewport({
+    ratio: 1,
+  });
+});
 
 test(
   "the Office proposes a price change the Cleaner reported, and the Client approves it in the portal",
