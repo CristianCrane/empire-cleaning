@@ -40,6 +40,7 @@ import {
   Users,
   WandSparkles,
   Warehouse,
+  ClipboardPenLine,
   type LucideIcon,
 } from "lucide-react";
 import { formats } from "@empire-cleaning/models";
@@ -358,7 +359,7 @@ const newHome: FormCase = {
   summary: `Deep Clean ${formatMoney(59119)}`,
   total: formatMoney(59119),
   status: "",
-  action: { label: "Draft a quote", icon: WandSparkles },
+  action: { label: "Draft a quote", icon: ClipboardPenLine },
   form: () => <NewQuoteForm business={false} />,
 };
 
@@ -373,7 +374,7 @@ const newBusiness: FormCase = {
   missing: "No price until the floor area is known.",
   total: "No price until the floor area is known.",
   status: "No price until the floor area is known.",
-  action: { label: "Draft a quote", icon: WandSparkles },
+  action: { label: "Draft a quote", icon: ClipboardPenLine },
   form: () => <NewQuoteForm business />,
 };
 
@@ -646,6 +647,15 @@ function Prices({ c }: { c: FormCase }) {
   if (c.missing) return <p className="text-sm text-fg-muted">{c.missing}</p>;
   return (
     <div className="flex flex-col gap-5 [&>section+section]:border-t [&>section+section]:border-border [&>section+section]:pt-5">
+      {c.week && (
+        <section className="flex items-baseline justify-between gap-3">
+          <Heading level={3}>{c.week.label}</Heading>
+          <span className="font-display text-2xl font-bold tracking-wide tabular-nums">
+            {formatMoney(c.week.cents)}
+            <span className="text-base font-normal text-fg-muted"> a week</span>
+          </span>
+        </section>
+      )}
       {c.prices.map((p) => (
         <section key={p.title} className="flex flex-col gap-3">
           <div className="flex flex-wrap items-start justify-between gap-2">
@@ -669,15 +679,6 @@ function Prices({ c }: { c: FormCase }) {
           </Fold>
         </section>
       ))}
-      {c.week && (
-        <section className="flex items-baseline justify-between gap-3">
-          <Heading level={3}>{c.week.label}</Heading>
-          <span className="font-display text-2xl font-bold tracking-wide tabular-nums">
-            {formatMoney(c.week.cents)}
-            <span className="text-base font-normal text-fg-muted"> a week</span>
-          </span>
-        </section>
-      )}
     </div>
   );
 }
@@ -745,7 +746,8 @@ function ColumnBar({ c }: { c: FormCase }) {
                 role="status"
                 className="min-w-0 flex-1 text-sm text-fg-muted"
               >
-                {c.status}
+                {/* the price's own line is the aside's: said once */}
+                {c.status !== c.total && c.status}
               </span>
               <MainButton c={c} />
             </div>
@@ -783,7 +785,9 @@ function StickyHead({
           </p>
           <div className="flex shrink-0 flex-col items-end">
             {c.total && (
-              <span className="font-semibold tabular-nums xl:hidden">
+              <span
+                className={`tabular-nums xl:hidden ${c.missing ? "text-sm text-fg-muted" : "font-semibold"}`}
+              >
                 {c.total}
               </span>
             )}
@@ -844,8 +848,15 @@ function Page({ c, layout }: { c: FormCase; layout: Layout }) {
             </div>
             <span
               ref={headRef}
-              className="flex h-11 shrink-0 items-center max-md:hidden"
+              className="flex h-11 shrink-0 items-center gap-4 max-md:hidden"
             >
+              {/* whether it's saved, beside the button it's sent by, as the
+                  sticky header has it */}
+              {c.status && c.status !== c.total && (
+                <span role="status" className="text-sm text-fg-muted">
+                  {c.status}
+                </span>
+              )}
               <SplitButton main={main} more={more} />
             </span>
             {/* a phone keeps today's: Delete draft here, Send at the foot */}
