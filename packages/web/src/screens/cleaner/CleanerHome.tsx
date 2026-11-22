@@ -241,7 +241,6 @@ function NextUp({
   const job = item.kind === "job" ? item.job : null;
   const visit = item.kind === "visit" ? item.visit : null;
   const property = job?.property ?? visit!.property;
-  const others = job?.crew.filter((m) => m.status === "confirmed").length ?? 0;
   const address = addressOf(property);
   const t = useSaid(words);
   const { w } = t;
@@ -264,7 +263,8 @@ function NextUp({
           ? [
               job.serviceName,
               t.c.hoursOnSite(formatHours(job.hoursOnSite)),
-              ...(others > 1 ? [w.crewOf(others)] : []),
+              // the Job's crew size, not who's confirmed so far
+              ...(job.crewSize > 1 ? [w.crewOf(job.crewSize)] : []),
             ].join(" · ")
           : `${w.siteVisitFor(clientName(visit!.client))} · ${w.toSeeIt(formatMinutes(visit!.minutes))}`,
       ]}
