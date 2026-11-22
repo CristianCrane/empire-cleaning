@@ -398,7 +398,7 @@ describe("No Access", () => {
       completion: null,
       noAccess: {
         recordedAt: MONDAY_9_30AM.toISOString(),
-        recordedBy: "Cory Cleaner",
+        recordedBy: { name: "Cory Cleaner", you: true },
         reason: "Nobody home and the gate was locked",
       },
     });

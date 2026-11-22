@@ -1488,14 +1488,16 @@ export type CleanerJob = {
   addOns: string[];
   property: Pick<PropertyView, "street" | "unit" | "postcode">;
   client: { firstName: string };
-  // what's held back until the Job's day (in New York, by the Clock), then
-  // given here; null before it
+  // what's held back until this Cleaner has Confirmed and it's the Job's
+  // day (in New York, by the Clock), then given here; null till both hold
   onTheDay: {
     phone: string;
     accessInstructions: PropertyView["accessInstructions"];
   } | null;
-  // everyone on the crew, this Cleaner included
-  crew: { name: string; status: CrewState }[];
+  // how many Cleaners the Job takes, and who's on its crew so far, this
+  // Cleaner (`you`) included: the rest of its places are open
+  crewSize: number;
+  crew: { name: string; status: CrewState; you: boolean }[];
   // this Cleaner's own Assignment
   assignment: {
     id: string;
@@ -1515,17 +1517,18 @@ export type CleanerJob = {
   // what can be reported at completion, by name: the Quote's Add-ons (as
   // not done) and the Price List's others (as done)
   reportable: { quoted: AddOnChoice[]; others: AddOnChoice[] };
-  // once Completed: what was reported, without prices
+  // once Completed: what was reported, without prices; who, marked as the
+  // reader when it was them, as the crew is
   completion: {
     completedAt: string;
-    completedBy: string | null;
+    completedBy: { name: string; you: boolean } | null;
     condition: Condition;
     reports: CleanerReport[];
   } | null;
   // once No Access is recorded: when, by whom, and what happened
   noAccess: {
     recordedAt: string;
-    recordedBy: string | null;
+    recordedBy: { name: string; you: boolean } | null;
     reason: string;
   } | null;
 };

@@ -4,8 +4,8 @@ import { useLayoutEffect, useRef, type ReactNode } from "react";
 // while the page scrolls: above the phone's tab bar, beside the rail or the
 // sidebar on a wider screen (`--spacing-side`). The app's one bar at a
 // page's foot (docs/ux.md, Buttons and actions): a Record's next step on a
-// phone (`phone`: a wider screen keeps it in the header), a Cleaner's Job
-// on site, a Quote Draft's prices and Send.
+// phone (`phone`: a wider screen keeps it in the header), a Quote Draft's
+// prices and Send.
 // What it sums up goes first (`summary`, then `status`, a line that's
 // read out as it changes: a save's state), the main action last. While shown, its
 // height (taller when its actions wrap) is `--action-footer-height` on the

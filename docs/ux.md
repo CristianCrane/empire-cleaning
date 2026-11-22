@@ -406,9 +406,8 @@ The `ui` skill's rules hold here too; these are this product's.
 - **A bar at the foot of a page is an `ActionFooter`**, which the page's
   layout places, never a sticky bar of the page's own, which pins under the phone's tab bar (#425); a sheet's pinned Buttons are the sheet's, over the tab bar (Dialogs and rows). It holds,
   above the tab bar, a Record's next step on a phone, which a wider screen
-  keeps in the header instead (`phone`; the `ui` skill), a Cleaner's
-  Complete on site at every width (until #493 makes it the Cleaner's next
-  step), and a form's price and its button (the Quote Draft's
+  keeps in the header instead (`phone`; the `ui` skill), and a form's
+  price and its button (the Quote Draft's
   Send, New quote's Draft a quote), full width beside the rail or the
   sidebar on a wider screen until #493 settles it with a prototype, its row the
   content's ("A wide screen keeps a readable column"). What it sums up
@@ -565,7 +564,7 @@ stays as it is (#336).
   card**: nothing may shift the page's layout. One to three steps, each
   popover beside what it points at (`startTour`), shown once per screen,
   the first time it matters: its tour runs only when every step's target is
-  on the screen. ("First-time help points, never pushes")
+  on the screen and not greyed. ("First-time help points, never pushes")
 - **Steps find their targets by the screen's own words** (what's pressed,
   a link or Button, by its text; a part, a Section or labelled group, by its
   name), never `data-tour` attributes; the tours spec fails when one can't

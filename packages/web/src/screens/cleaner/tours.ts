@@ -1,4 +1,5 @@
 import { catalog } from "@empire-cleaning/models";
+import { uiWords } from "@empire-cleaning/ui/language";
 import { labels } from "../labels.ts";
 import type { AreaTours } from "../tours.ts";
 import { cleanerWords } from "./words.ts";
@@ -10,6 +11,7 @@ import { cleanerWords } from "./words.ts";
 const toursIn = (
   w: (typeof cleanerWords)["en"] & (typeof labels)["en"],
   t: (typeof words)["en"],
+  ui: (typeof uiWords)["en"],
 ): AreaTours => ({
   welcomeTitle: w.welcome,
   welcome: t.welcome,
@@ -32,14 +34,15 @@ const toursIn = (
         },
       ],
     },
-    // taking a Job, on the page each Offer opens: the Offers list has
-    // nothing to press, and its Open to you is there even when empty
+    // taking a Job, on the page each Offer opens, at its Confirm: the
+    // Offers list has nothing to press, and its Open to you is there even
+    // when empty
     {
       id: "cleaner-open",
       route: "/cleaner/open/$jobId",
       steps: [
         {
-          target: { named: w.canYouTakeIt },
+          target: { press: w.confirm },
           title: t.takeTitle,
           text: t.takeText,
         },
@@ -52,7 +55,7 @@ const toursIn = (
       route: "/cleaner/jobs/$jobId",
       steps: [
         {
-          target: { named: w.offeredToYou },
+          target: { press: w.confirm },
           title: w.offeredToYou,
           text: t.offeredText,
         },
@@ -61,8 +64,8 @@ const toursIn = (
     {
       id: "cleaner-job",
       route: "/cleaner/jobs/$jobId",
-      // once it's started: Couldn't get in from then, Mark done once its
-      // whole crew has confirmed too
+      // once it's started: Mark done, the page's next step, and Couldn't
+      // get in behind its arrow
       steps: [
         {
           target: { press: w.markDone },
@@ -70,8 +73,8 @@ const toursIn = (
           text: t.doneText,
         },
         {
-          target: { press: w.jobStatus.no_access },
-          title: w.couldntGetIn,
+          target: { named: ui.moreActions },
+          title: w.jobStatus.no_access,
           text: t.getInText,
         },
       ],
@@ -93,7 +96,8 @@ const words = catalog({
     offeredText: "Confirm it, or say Not for me and it goes to someone else.",
     doneTitle: "When you're done",
     doneText: "Mark it done and say how the home was.",
-    getInText: "Say so here. We tell the client and the office.",
+    getInText:
+      "It's here, behind the arrow. Say what happened, and we tell the client and the office.",
   },
   es: {
     welcome: "Toma trabajos y encuentra todo sobre cada uno en un solo lugar.",
@@ -108,11 +112,12 @@ const words = catalog({
     offeredText: "Confírmalo, o di No es para mí y pasa a otra persona.",
     doneTitle: "Cuando termines",
     doneText: "Márcalo como terminado y di cómo estaba la casa.",
-    getInText: "Dilo aquí. Les avisamos al cliente y a la oficina.",
+    getInText:
+      "Está aquí, detrás de la flecha. Di lo que pasó, y les avisamos al cliente y a la oficina.",
   },
 });
 
 export const cleanerTours = {
-  en: toursIn({ ...cleanerWords.en, ...labels.en }, words.en),
-  es: toursIn({ ...cleanerWords.es, ...labels.es }, words.es),
+  en: toursIn({ ...cleanerWords.en, ...labels.en }, words.en, uiWords.en),
+  es: toursIn({ ...cleanerWords.es, ...labels.es }, words.es, uiWords.es),
 };
