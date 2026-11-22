@@ -1,6 +1,6 @@
 # A refund that fails after it's made counts for nothing, and the Office gives it back another way
 
-Stripe reports some refunds as succeeded, then fails them, as when the card has since been closed: `pm_card_refundFail` is refunded at once, and about two minutes later the refund turns failed and `refund.failed` is sent. The app recorded a refund once it was made and never heard otherwise, so the ledger showed money given back that wasn't (#241).
+Stripe reports some refunds as succeeded, then fails them, as when the card has since been closed: `pm_card_refundFail` is refunded at once, and a few minutes later (about two in a sandbox, at times half an hour: #528) the refund turns failed and `refund.failed` is sent. The app recorded a refund once it was made and never heard otherwise, so the ledger showed money given back that wasn't (#241).
 
 Now a refund the provider fails is marked failed, and counts for nothing from then on. One made in the provider's dashboard was a discount (ADR-0021), so the discount is undone. One of ours leaves the money owed back again: on the Job's ledger, or as a Bill's credit not yet refunded. The urgent `refund_failed` signal tells the Office, who give it back another way. Settling never refunds from that Charge again, as the same card would only fail again.
 
