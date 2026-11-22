@@ -138,6 +138,13 @@ test(
     await expect(
       page.getByRole("heading", { level: 1, name: "No se encontró la página" }),
     ).toBeVisible();
+    // the line under it says what the title doesn't
+    await expect(
+      page.getByText(
+        "Puede que el enlace sea antiguo o que la dirección esté mal escrita.",
+        { exact: true },
+      ),
+    ).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("lang", "es");
     await expect(page.getByRole("link", { name: "Limpiezas" })).toBeVisible();
   },
