@@ -377,7 +377,7 @@ function useRowFor() {
           tone: "info",
           client: clientName(job.client),
           description: `${addressOf(job.property)} · First clean done ${formatDate(item.since)}, wants regular visits`,
-          // the home's page: its Service Plan, its history beside it
+          // the home's page: its Service Plan, its history under it
           open: () =>
             navigate({
               to: "/office/properties/$propertyId",

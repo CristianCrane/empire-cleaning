@@ -75,7 +75,7 @@ const booked = (job: OfficeJob) => job.status === "booked";
 /**
  * A Job for the Office, a Record (docs/ux.md): what there is to do in
  * alerts on top; when, who for and where; how it went, who's on it and its
- * money; its story beside them from xl. Office Staff Offer it to Cleaners
+ * money; its story last. Office Staff Offer it to Cleaners
  * and take people off, move or cancel it, and once it's Completed, review
  * and correct the completion.
  */
