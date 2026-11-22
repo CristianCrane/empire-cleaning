@@ -41,7 +41,7 @@ const noViolations = async (page: Page) => {
 test(
   "Office Staff offer a plan on several weekdays, each its own visit, and the Client accepts it whole",
   { tag: ["@smoke", "@desktop"] },
-  async ({ page, browser }) => {
+  async ({ page, browser, isMobile }) => {
     await createStaff(olive);
     await signedInAs(page, olive.email);
     const { job } = await completedFirstClean(olive.email);
@@ -75,9 +75,13 @@ test(
     await expect(
       terms.getByRole("radio", { name: "Every 2 weeks" }),
     ).toBeDisabled();
-    await expect(
-      page.getByText(/^2 cleans a week: \$[\d,.]+ a week$/),
-    ).toBeVisible();
+    // a phone's bar at the foot sums the week up; a wider screen's prices
+    // lead with it (#493 D1)
+    if (isMobile) {
+      await expect(
+        page.getByText(/^2 cleans a week: \$[\d,.]+ a week$/),
+      ).toBeVisible();
+    }
     await expect(page.getByRole("region", { name: "Each week" })).toContainText(
       "A week, with a clean on each day",
     );

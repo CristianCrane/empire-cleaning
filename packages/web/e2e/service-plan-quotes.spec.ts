@@ -98,7 +98,7 @@ const askAgain = async () => {
 test(
   "Office Staff offer a Service Plan once the First Clean is done, and the Client sees the saving",
   { tag: ["@smoke", "@desktop"] },
-  async ({ page, browser }) => {
+  async ({ page, browser, isMobile }) => {
     await firstCleanDone(page);
     // the dashboard nudges: Casey wanted regular visits
     await page.goto("/office");
@@ -153,9 +153,13 @@ test(
       "$231.36",
     );
     await saved(page);
-    await expect(
-      page.getByText(/^Standard Clean, every week: \$231\.36 a clean$/),
-    ).toBeVisible();
+    // a phone's bar at the foot says it too; a wider screen's header says
+    // it once scrolled past the prices (#493 D1)
+    if (isMobile) {
+      await expect(
+        page.getByText(/^Standard Clean, every week: \$231\.36 a clean$/),
+      ).toBeVisible();
+    }
     await startOn19th(page);
     await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
     await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
