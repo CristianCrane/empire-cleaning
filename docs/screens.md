@@ -43,10 +43,12 @@ row in `docs/ux-log.md`, where one exists), then its parts top to bottom:
   under it, and anything else on the title's row.
 - **Actions**: where what you can do sits. The kinds:
   - _Split button_: the page's next step, filled, on the title's row, the
-    rest behind its arrow ("More actions"); it sticks at the top once
-    scrolled past, and on a phone a Record's is pinned at the foot.
+    rest behind its arrow ("More actions"); from md it sticks at the top
+    once the window's top reaches it, and on a phone a Record's is pinned
+    at the foot.
   - _Menu_: a quiet ⋯ ("More actions") on the title's row, when nothing is
-    next and there are two or more.
+    next and there are two or more; it sticks from md as the split button
+    does.
   - _Header Buttons_: loose Buttons on the title's row (a lone action, red
     outlined when it destroys).
   - _Section actions_: text Buttons on a Section's title line.

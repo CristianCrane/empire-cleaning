@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Breadcrumbs, type Crumb } from "../Breadcrumbs.tsx";
 import { Heading } from "../Heading.tsx";
+import { useWide } from "../wide.ts";
 import {
   ActionButton,
   RareActions,
@@ -17,9 +18,9 @@ import {
 // title row, on the title's line, the page's actions: its next step as a
 // split button, the rest behind its arrow; with nothing next, the rest as
 // RareActions; or a List's one primary (New …). Short of room, the badge
-// drops under the title before the button moves. From md, once the title
-// row's split button scrolls away, a slim header sticks at the top with the
-// title, the badge and the same split button (docs/ux.md, Page structure);
+// drops under the title before the button moves. From md, once the window's
+// top reaches the title row's actions, a slim header sticks at the top with
+// the title, the badge and the same actions (docs/ux.md, Page structure);
 // on a phone the layout pins the next step at the foot (RecordPage), so the
 // title row's is hidden there. Printed, it's the title alone. A layout
 // places it, never a screen (ADR-0031)
@@ -62,8 +63,20 @@ export function PageHeader({
       primary?: PageAction;
     }
 )) {
-  const [row, away] = useScrolledAway();
+  const [row, scrolledAway] = useScrolledAway();
+  // the header that sticks is a wider screen's: on a phone the title row's
+  // stays where it is, the next step at the foot
+  const wide = useWide();
+  const away = scrolledAway && wide;
   const more = actions.filter((a) => !!a);
+  // the page's action control: its next step and the rest, or the rest
+  // alone; drawn on the title row, and in the header that sticks once that
+  // has scrolled away (a List's primary stays on its row)
+  const control = next ? (
+    <SplitButton next={next} more={more} opens="menu" />
+  ) : !primary && more.length > 0 ? (
+    <RareActions actions={more} />
+  ) : null;
   // a phone's bar already says the title, and it's all there is: the header
   // is hidden there with it, so it takes no room of its own, not even the
   // gap its layout leaves between parts (the Schedule, Offers, Your details)
@@ -107,38 +120,35 @@ export function PageHeader({
             <ActionButton action={primary} variant="primary" />
           </div>
         )}
-        {next && (
-          // on a phone the layout's foot holds it; scrolled away, the
-          // header that sticks does: one copy at a time is there to press
+        {control && (
+          // scrolled away, the header that sticks holds it, and on a phone
+          // the layout's foot holds a next step: one copy at a time is
+          // there to press
           <div
             ref={row}
             inert={away}
             aria-hidden={away}
-            className="shrink-0 max-md:hidden print:hidden"
+            className={`shrink-0 print:hidden ${next ? "max-md:hidden" : ""}`}
           >
-            <SplitButton next={next} more={more} opens="menu" />
-          </div>
-        )}
-        {!primary && !next && more.length > 0 && (
-          <div className="shrink-0 print:hidden">
-            <RareActions actions={more} />
+            {control}
           </div>
         )}
       </div>
-      {next && (
+      {control && (
         <StickyHeader shown={away} title={title} status={status}>
-          <SplitButton next={next} more={more} opens="menu" />
+          {control}
         </StickyHeader>
       )}
     </header>
   );
 }
 
-// From md, the slim header that slides in at the top once the title row's
-// split button has scrolled away, lined up with the page's column: the
-// title, its badge, and at its end what's given (the same split button).
+// From md, the slim header that slides in at the top once the window's top
+// reaches the title row's actions, lined up with the page's column: the
+// title, its badge, and at its end what's given (the same actions).
 // Out of sight it's out of reach too, so one copy of the button is there to
-// press at a time
+// press at a time; and its title and badge go once it has slid out, so the
+// page says them once (its actions stay, as a dialog they opened is theirs)
 function StickyHeader({
   shown,
   title,
@@ -150,10 +160,21 @@ function StickyHeader({
   status?: ReactNode;
   children: ReactNode;
 }) {
+  const [leaving, setLeaving] = useState(false);
+  const [wasShown, setWasShown] = useState(shown);
+  if (wasShown !== shown) {
+    setWasShown(shown);
+    setLeaving(!shown);
+  }
+  const named = shown || leaving;
   return (
     <div
       inert={!shown}
       aria-hidden={!shown}
+      // its own slide, not a button's colour inside it
+      onTransitionEnd={(event) =>
+        event.target === event.currentTarget && setLeaving(false)
+      }
       className={`pointer-events-none fixed inset-x-0 top-0 z-30 hidden transition-[translate,opacity,visibility] duration-200 left-side md:block print:hidden ${
         shown
           ? "translate-y-0 opacity-100"
@@ -162,10 +183,14 @@ function StickyHeader({
     >
       <div className="page-column">
         <div className="pointer-events-auto flex items-center gap-3 rounded-b-lg border-x border-b border-border bg-surface px-4 py-2 shadow-raised">
-          <p className="min-w-0 truncate font-display text-xl font-bold tracking-wide uppercase">
-            {title}
-          </p>
-          {status}
+          {named && (
+            <>
+              <p className="min-w-0 truncate font-display text-xl font-bold tracking-wide uppercase">
+                {title}
+              </p>
+              {status}
+            </>
+          )}
           <div className="ml-auto flex shrink-0 items-center gap-4">
             {children}
           </div>
@@ -176,8 +201,8 @@ function StickyHeader({
 }
 
 // whether the element has scrolled up past the window's top, even in part
-// (so the reader never meets half a button), and not merely hidden, as the
-// title row's split button is on a phone. Given by its ref, so it watches
+// (so the reader never meets half a button), and not merely hidden, as a
+// next step on the title row is on a phone. Given by its ref, so it watches
 // the element from whenever it's drawn
 function useScrolledAway() {
   const [element, setElement] = useState<HTMLElement | null>(null);

@@ -14,6 +14,7 @@ import { Dialog } from "../Dialog.tsx";
 import { Section } from "../Section.tsx";
 import { Timeline, TimelineItem } from "../Timeline.tsx";
 import { AppLayout } from "./AppLayout.tsx";
+import type { PageAction } from "./PageActions.tsx";
 import { DetailsCard, RecordPage } from "./RecordPage.tsx";
 
 const box = (element: Element) => element.getBoundingClientRect();
@@ -83,7 +84,7 @@ test("a Record's bar at the foot lines up with its content on a wide screen", as
   expect(box(button("Complete")).right).toBe(box(region("Details")).right);
 });
 
-const visit = (
+const visitWith = (next?: PageAction) => (
   <AppLayout
     area="Office area"
     nav={[
@@ -94,7 +95,7 @@ const visit = (
     <RecordPage
       trail={[{ label: "Schedule", href: "#" }, { label: "Site visit" }]}
       title="Site visit"
-      next={{ label: "Record findings", icon: ClipboardCheck, onAction() {} }}
+      next={next}
       actions={[
         {
           label: "Move or change",
@@ -117,9 +118,14 @@ const visit = (
     </RecordPage>
   </AppLayout>
 );
+const visit = visitWith({
+  label: "Record findings",
+  icon: ClipboardCheck,
+  onAction() {},
+});
 
 // the one copy of the next step there to press: the title row's, at its
-// end and lined up with the content; scrolled past, the header that sticks
+// end and lined up with the content; once the window's top reaches it, the header that sticks
 // at the top, lined up with it too (#493)
 test("a Record's next step on a wide screen is at the title row's end, then sticks at the top", async () => {
   await page.viewport(1024, 768);
@@ -145,6 +151,31 @@ test("a Record's next step on a wide screen is at the title row's end, then stic
   window.scrollTo(0, 600);
   await expect.element(press).toBeVisible();
   expect(box(press.element()).bottom).toBeLessThan(80);
+});
+
+// with nothing next, the ⋯ sticks the same way from md; on a phone it
+// stays on the title row, scrolled with it, and still there to press
+test("a Record's ⋯ sticks at the top on a wide screen, and stays on its row on a phone", async () => {
+  await page.viewport(1024, 768);
+  const { unmount } = await render(visitWith());
+  const more = page.getByRole("button", { name: "More actions" });
+  await expect.element(more).toBeVisible();
+  window.scrollTo(0, 600);
+  await expect.poll(() => box(more.element()).top).toBeGreaterThan(0);
+  expect(box(more.element()).bottom).toBeLessThan(80);
+  await unmount();
+
+  window.scrollTo(0, 0);
+  await page.viewport(390, 844);
+  await render(visitWith());
+  window.scrollTo(0, 600);
+  await expect.poll(() => box(more.element()).top).toBeLessThan(0);
+  // once the scroll has been watched (two frames), the row's ⋯ is still
+  // one to press, not taken out of reach for a header a phone doesn't have
+  await new Promise((done) =>
+    requestAnimationFrame(() => requestAnimationFrame(done)),
+  );
+  expect(more.all()).toHaveLength(1);
 });
 
 // on a phone, read after the facts: pinned at the foot, above the tab bar;
