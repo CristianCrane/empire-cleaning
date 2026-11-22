@@ -274,8 +274,8 @@ function RailLink({ item }: { item: NavItem }) {
   );
 }
 
-// a rail item's shape, its name under its icon: a section's, and the
-// Account's at the foot
+// a rail item's shape, its name under its icon: a section's, and a
+// RailButton's at the foot (the Account, the other language)
 const railItem =
   "flex w-full min-h-touch flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 text-center text-xs leading-tight font-semibold";
 
