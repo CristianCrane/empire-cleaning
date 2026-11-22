@@ -210,7 +210,7 @@ for a dialog. It renders through `FormPage`
   what's said before the button (a refusal, a warning) comes after the
   card.
 - **Outside an area** (Welcome), a page of its own, the logo above and
-  who's signed in beside it (`PageFrame`).
+  who's signed in under it on a phone, beside it from `sm` (`PageFrame`).
 
 It also keeps "Forms ask quietly, a few questions at a time". ("Layout /
 FormPage")

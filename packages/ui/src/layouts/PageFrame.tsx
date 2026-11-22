@@ -5,7 +5,8 @@ import { InAppLayout } from "./AppLayout.tsx";
 // A page's frame. In an area it sits in AppLayout's frame, nav and all;
 // anywhere else it's a page of its own, the logo above it (UX pass, #96;
 // #168): narrow and centred, as a message or signing in, or `wide`, as a
-// Form page, who's signed in (`account`) beside the logo
+// Form page, who's signed in (`account`) under the logo on a phone and beside
+// it from sm
 export function PageFrame({
   wide = false,
   account,
@@ -25,7 +26,9 @@ export function PageFrame({
   if (wide) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-6 p-4 py-10">
-        <header className="flex flex-wrap items-center justify-between gap-4">
+        {/* who's signed in goes under the logo on a phone and beside it from
+            sm, one breakpoint, so what's in it can line up by the same one */}
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <Logo className="w-32" />
           {account}
         </header>

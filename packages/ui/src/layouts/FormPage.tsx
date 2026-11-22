@@ -59,7 +59,8 @@ export function FormPage({
   aside?: { title: string; leads?: boolean; children: ReactNode };
   // what's said before the buttons: a card's consent, a save's problem
   end?: ReactNode;
-  // outside an area: who's signed in, beside the logo
+  // outside an area: who's signed in, under the logo on a phone and beside
+  // it from sm
   account?: ReactNode;
   // its parts, each a FormPart, or a stepped form of its own
   children: ReactNode;
