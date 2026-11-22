@@ -50,6 +50,8 @@ import { Segment, SegmentedControl } from "./SegmentedControl.tsx";
 import { StatusBadge, type StatusTone } from "./StatusBadge.tsx";
 import { Cell, Column, Row, Table, TableBody, TableHeader } from "./Table.tsx";
 import { TextField } from "./TextField.tsx";
+import { NumberField } from "./NumberField.tsx";
+import { DatePicker, TimeField } from "./DateField.tsx";
 import { Timeline, TimelineItem } from "./Timeline.tsx";
 import { startTour } from "./Tour.ts";
 
@@ -259,6 +261,43 @@ function SchedulesAreCalendars() {
         <p className="rounded-lg border border-dashed border-border-strong p-6 text-center text-fg-muted">
           ScheduleCalendar, a day from today on a phone, three days wider
         </p>
+      </Example>
+    </div>
+  );
+}
+
+function AFormsWidth() {
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="A form keeps a form's width, and a field its answer's">
+        <p>
+          A form reads at a form's width (<code>max-w-form</code>, 42rem) at
+          every screen width, its header and buttons with it, not the screen's:
+          the eye runs from a label to the end of its answer. A field's box is
+          never wider, and from <code>sm</code> one with a short answer is sized
+          to it, which also says what length is wanted: a phone (by its{" "}
+          <code>type="tel"</code>), an amount, a count and a day at{" "}
+          <code>medium</code>, a ZIP code and a time at <code>short</code>, a
+          choice of a few words at <code>long</code>. On a phone every field is
+          full width.
+        </p>
+      </Rule>
+      <Example verdict="Do">
+        <Card className="max-w-form">
+          <div className="flex flex-col gap-4">
+            <TextField label="Full name" />
+            <TextField label="Phone" type="tel" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TextField label="Apartment or unit" width="medium" />
+              <TextField label="ZIP code" width="short" />
+            </div>
+            <NumberField label="Bedrooms" defaultValue={2} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <DatePicker label="Day" />
+              <TimeField label="Start time" />
+            </div>
+          </div>
+        </Card>
       </Example>
     </div>
   );
@@ -1171,6 +1210,11 @@ export const SchedulesAsCalendars: Story = {
 
 export const QuietFormsInSteps: Story = {
   render: () => <QuietForms />,
+};
+
+export const AFormKeepsAFormsWidthStory: Story = {
+  name: "A form keeps a form's width",
+  render: () => <AFormsWidth />,
 };
 
 export const EmptyStatesOfferTheActionStory: Story = {

@@ -204,6 +204,7 @@ function NewTimeForm({
     <>
       <Select
         label={day}
+        width="long"
         description={w.onlyDays}
         placeholder={w.pickDay}
         selectedKey={date}
@@ -217,6 +218,7 @@ function NewTimeForm({
       </Select>
       <Select
         label={w.startTime}
+        width="medium"
         description={date ? w.onlyTimes : w.dayFirst}
         placeholder={w.pickTime}
         isDisabled={!date}

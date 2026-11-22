@@ -1329,7 +1329,7 @@ function PlanTerms({
       <Select
         label="Service"
         name="plan.serviceKey"
-        className="sm:max-w-xs"
+        width="long"
         description="Every clean on the plan is of it."
         selectedKey={plan.serviceKey}
         onSelectionChange={(key) => onChange({ serviceKey: String(key) })}
@@ -1368,6 +1368,7 @@ function PlanTerms({
         />
         <Select
           label="Priced for condition"
+          width="medium"
           selectedKey={plan.condition}
           onSelectionChange={(key) => onChange({ condition: key as Condition })}
         >
@@ -1483,7 +1484,7 @@ function AreaField({
     <NumberField
       label="Area in sq ft"
       name="area"
-      className="sm:max-w-xs"
+      width="long"
       minValue={1}
       maxValue={1_000_000}
       value={area ?? Number.NaN}
@@ -1848,7 +1849,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
             <Select
               label="Service"
               name="serviceKey"
-              className="sm:max-w-xs"
+              width="long"
               description={
                 quote.options.length > 1
                   ? `With a ${quote.options[0]!.serviceName} recommended for a first visit`

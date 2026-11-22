@@ -3,7 +3,14 @@ import {
   type TextFieldProps as AriaTextFieldProps,
   type ValidationResult,
 } from "react-aria-components";
-import { Description, FieldError, Input, Label, TextArea } from "./Field.tsx";
+import {
+  Description,
+  FieldError,
+  Input,
+  Label,
+  TextArea,
+  type FieldWidth,
+} from "./Field.tsx";
 import { Search } from "lucide-react";
 import type { FormEvent } from "react";
 import { composeTailwindRenderProps } from "./utils.ts";
@@ -27,6 +34,9 @@ export type TextFieldProps = AriaTextFieldProps & {
   placeholder?: string;
   // a multi-line box, e.g. for Access Instructions
   multiline?: boolean;
+  // its box's width, by what it holds (Field.tsx): a form's, or a phone
+  // number's for type="tel"
+  width?: FieldWidth;
 };
 
 export function TextField({
@@ -35,6 +45,7 @@ export function TextField({
   errorMessage,
   placeholder,
   multiline,
+  width,
   ...props
 }: TextFieldProps) {
   return (
@@ -67,7 +78,11 @@ export function TextField({
           />
         </div>
       ) : (
-        <Input placeholder={placeholder} onInput={recheckWhileInvalid} />
+        <Input
+          placeholder={placeholder}
+          onInput={recheckWhileInvalid}
+          width={width ?? (props.type === "tel" ? "medium" : "form")}
+        />
       )}
       {description && <Description>{description}</Description>}
       <FieldError>{errorMessage}</FieldError>

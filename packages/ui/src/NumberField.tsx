@@ -6,24 +6,36 @@ import {
 } from "react-aria-components";
 import { Minus, Plus } from "lucide-react";
 import type { ReactNode } from "react";
-import { Description, FieldError, FieldGroup, Input, Label } from "./Field.tsx";
+import {
+  Description,
+  FieldError,
+  FieldGroup,
+  Input,
+  Label,
+  type FieldWidth,
+} from "./Field.tsx";
 import { composeTailwindRenderProps, focusRing } from "./utils.ts";
 
 export type NumberFieldProps = AriaNumberFieldProps & {
   label: string;
   description?: string;
   errorMessage?: string | ((validation: ValidationResult) => string);
+  // its box's width (Field.tsx): a count's or an amount's, or `long` for
+  // one that runs to seven figures
+  width?: FieldWidth;
 };
 
 // for amounts and counts (prices, Labour Hours, Crew Size); pass formatOptions
 // for currency, e.g. { style: "currency", currency: "USD" }. The − and +
-// buttons take 88px, so give it at least 10rem: in a grid, let fields wrap
+// buttons take 88px, so it needs at least 10rem: in a grid, let fields wrap
 // (grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]) rather than fixing a
-// column count, which squeezes the number out of sight on some widths
+// column count, which squeezes the number out of sight on some widths. Its
+// box is an amount's width from sm (13rem, $100,000.00 whole), not the row's
 export function NumberField({
   label,
   description,
   errorMessage,
+  width = "medium",
   ...props
 }: NumberFieldProps) {
   return (
@@ -35,7 +47,7 @@ export function NumberField({
       )}
     >
       <Label>{label}</Label>
-      <FieldGroup>
+      <FieldGroup width={width}>
         <StepButton slot="decrement">
           <Minus aria-hidden size={18} />
         </StepButton>

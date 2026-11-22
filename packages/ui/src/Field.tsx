@@ -49,11 +49,27 @@ export function FieldError(props: FieldErrorProps) {
   );
 }
 
+// How wide a field's box is: what it holds (docs/ux.md, Forms). Never more
+// than a form's width, wherever it sits (a wide dialog, a wide card), as its
+// label then sits far from where its answer goes; and from sm, a short
+// answer's own width, which also says what length is wanted: `short` a ZIP
+// code or a time, `medium` a phone, a day, a count or an amount, `long` a
+// choice of a few words. On a phone every field is full width, a thumb's
+// target. Only the box: its label and description keep the row's width
+export type FieldWidth = "form" | "short" | "medium" | "long";
+const width = {
+  form: "",
+  short: "sm:max-w-36",
+  medium: "sm:max-w-52",
+  long: "sm:max-w-xs",
+} satisfies Record<FieldWidth, string>;
+
 // a text box: a tinted box with a line along its bottom, quieter than a full
 // outline (#96); 16px text keeps phones from zooming in on focus
 export const fieldStyles = tv({
-  base: "min-h-touch w-full rounded-md rounded-b-none border bg-surface-sunken px-3 text-base text-fg outline-none transition-colors placeholder:text-fg-muted",
+  base: "min-h-touch w-full max-w-form rounded-md rounded-b-none border bg-surface-sunken px-3 text-base text-fg outline-none transition-colors placeholder:text-fg-muted",
   variants: {
+    width,
     isFocused: { true: "outline-2 -outline-offset-1 outline-focus" },
     isInvalid: {
       true: "border-danger",
@@ -63,12 +79,15 @@ export const fieldStyles = tv({
   },
 });
 
-export function Input(props: InputProps) {
+export function Input({
+  width,
+  ...props
+}: InputProps & { width?: FieldWidth }) {
   return (
     <AriaInput
       {...props}
       className={composeRenderProps(props.className, (className, renderProps) =>
-        fieldStyles({ ...renderProps, className }),
+        fieldStyles({ ...renderProps, width, className }),
       )}
     />
   );
@@ -89,8 +108,9 @@ export function TextArea(props: TextAreaProps) {
 // box; parts stretch to its height rather than setting their own, so it
 // matches a plain text box
 const fieldGroupStyles = tv({
-  base: "flex min-h-touch w-full items-center overflow-hidden rounded-md rounded-b-none border bg-surface-sunken text-base text-fg",
+  base: "flex min-h-touch w-full max-w-form items-center overflow-hidden rounded-md rounded-b-none border bg-surface-sunken text-base text-fg",
   variants: {
+    width,
     isFocusWithin: { true: "outline-2 -outline-offset-1 outline-focus" },
     isInvalid: {
       true: "border-danger",
@@ -100,12 +120,15 @@ const fieldGroupStyles = tv({
   },
 });
 
-export function FieldGroup(props: GroupProps) {
+export function FieldGroup({
+  width,
+  ...props
+}: GroupProps & { width: FieldWidth }) {
   return (
     <AriaGroup
       {...props}
       className={composeRenderProps(props.className, (className, renderProps) =>
-        fieldGroupStyles({ ...renderProps, className }),
+        fieldGroupStyles({ ...renderProps, width, className }),
       )}
     />
   );

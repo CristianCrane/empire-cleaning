@@ -831,6 +831,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
           <Select
             label={t.startTime}
             name="preferredTime"
+            width="medium"
             placeholder={t.chooseTime}
             selectedKey={preferredTime}
             onSelectionChange={(key) => setPreferredTime(String(key))}
@@ -1188,6 +1189,7 @@ function AddressFields({
         <TextField
           label={unitLabel}
           name={field("unit")}
+          width="medium"
           autoComplete="address-line2"
           value={place.unit ?? ""}
           onChange={(unit) => update({ unit })}
@@ -1196,6 +1198,7 @@ function AddressFields({
         <TextField
           label={t.zip}
           name={field("postcode")}
+          width="short"
           autoComplete="postal-code"
           inputMode="numeric"
           maxLength={5}

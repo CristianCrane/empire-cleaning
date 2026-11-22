@@ -296,7 +296,6 @@ function EditBilling({ client }: { client: OfficeClientView }) {
                       onChange={(days) =>
                         setTermsDays(Number.isNaN(days) ? 14 : days)
                       }
-                      className="max-w-xs"
                     />
                   )}
                 </>
