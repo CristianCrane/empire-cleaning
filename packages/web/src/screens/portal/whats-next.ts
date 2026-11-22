@@ -112,8 +112,6 @@ const words = catalog({
     pastCleans: "Past cleans",
     receipts: "And their receipts",
     nameEmailPhone: "Name, email, phone",
-    moveRequest: "Your move request",
-    to: (when: string) => `To ${when}`,
   },
   es: {
     reviewPrices: (n: number) =>
@@ -191,8 +189,6 @@ const words = catalog({
     pastCleans: "Limpiezas pasadas",
     receipts: "Y sus recibos",
     nameEmailPhone: "Nombre, correo, teléfono",
-    moveRequest: "Su solicitud para reprogramar",
-    to: (when: string) => `Para el ${when}`,
   },
 });
 
@@ -673,7 +669,7 @@ function shortcutsOf(
   ctx: Context & { card: HomeTile },
 ): HomeTile[] {
   const { next, paused, now, card } = ctx;
-  const { w, p, dayOf, formatDateTime } = t;
+  const { w, p, dayOf } = t;
   const callUs: HomeTile = {
     icon: Phone,
     id: "call",
@@ -720,22 +716,20 @@ function shortcutsOf(
   if (next?.kind === "job") {
     const { job } = next;
     if (sameDay(new Date(job.startsAt), now)) return [callUs, ...getIn, card];
-    const move: HomeTile = job.movingTo
-      ? {
-          icon: CalendarClock,
-          id: "move",
-          label: w.moveRequest,
-          hint: w.to(formatDateTime(job.movingTo)),
-          href: jobLink(job.id),
-        }
-      : {
-          icon: CalendarClock,
-          id: "move",
-          label: job.servicePlanId ? p.moveOrSkip : p.moveOrCancel,
-          hint: p.yourClean(dayOf(job.startsAt)),
-          href: jobLink(job.id),
-        };
-    return [move, ...getIn, card, callUs];
+    // a move already asked is the news's, once, and the card leads to
+    // the clean
+    const move: HomeTile[] = job.movingTo
+      ? []
+      : [
+          {
+            icon: CalendarClock,
+            id: "move",
+            label: job.servicePlanId ? p.moveOrSkip : p.moveOrCancel,
+            hint: p.yourClean(dayOf(job.startsAt)),
+            href: jobLink(job.id),
+          },
+        ];
+    return [...move, ...getIn, card, callUs];
   }
   if (paused) return [card, pastCleans, callUs];
   if (next || data.quotes.some(open) || data.quotes[0]?.status === "sent") {

@@ -372,17 +372,19 @@ describe("Home's hero, with something booked", () => {
     ]);
   });
 
-  test("tells a Client a move they asked for is waiting on us", () => {
+  test("tells a Client a move they asked for is waiting on us, once", () => {
     const { news, tiles } = next({
       jobs: [job({ movingTo: "2026-11-04T19:00:00.000Z" })],
     });
     expect(news).toEqual([
       "You asked to move your Tue, Nov 3 clean to Wed, Nov 4, 2:00 PM. We'll confirm, usually within a working day.",
     ]);
-    expect(tiles[0]).toMatchObject({
-      label: "Your move request",
-      hint: "To Wed, Nov 4, 2:00 PM",
-    });
+    // the news says it: no tile says it again, nor offers another move
+    expect(tiles.map((t) => t.label)).toEqual([
+      "How we get in",
+      "Your card",
+      "Call us",
+    ]);
   });
 });
 
