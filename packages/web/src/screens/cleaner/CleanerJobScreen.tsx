@@ -4,7 +4,6 @@ import {
   CircleCheck,
   CirclePlus,
   Clock,
-  KeyRound,
   Navigation,
   Phone,
   UserMinus,
@@ -22,13 +21,13 @@ import {
   Button,
   CrewSection,
   Dialog,
+  ExternalButtonLink,
   ExtrasSection,
   Fact,
   Facts,
   Fold,
   Notice,
   RecordPage,
-  linkStyles,
   type DialogState,
   type PageAction,
 } from "@empire-cleaning/ui";
@@ -39,7 +38,7 @@ import { addressOf, howLong } from "../format.ts";
 import { jobStatusIcon } from "../icons.ts";
 import { type Said, useSaid } from "../words.ts";
 import { CleanerJobBadge, directionsTo } from "./CleanerHome.tsx";
-import { JobLead } from "./JobLead.tsx";
+import { AccessFact, ClientNumberFact, JobLead } from "./JobLead.tsx";
 import { CompleteJob, Completed, useNotYet } from "./CompleteJob.tsx";
 import { NoAccessRecorded, RecordNoAccess } from "./NoAccess.tsx";
 
@@ -213,9 +212,9 @@ export function CleanerJobScreen() {
         notYet && {
           ...notYet,
           action: (
-            <a href={business.phone.href} className={linkStyles()}>
+            <ExternalButtonLink variant="text" href={business.phone.href}>
               {c.callOffice}
-            </a>
+            </ExternalButtonLink>
           ),
         },
       ]}
@@ -236,8 +235,8 @@ export function CleanerJobScreen() {
 }
 
 // the crew as this Cleaner sees it: themselves first, as "You", once
-// they've confirmed (till then the place they'd take is open, like any
-// other), the rest by their first names
+// they've confirmed (till then they're one of those still needed, like
+// any other), the rest by their first names
 const crewOf = (t: Said, job: CleanerJob) =>
   job.crew
     .filter((m) => !(m.you && m.status === "offered"))
@@ -265,20 +264,7 @@ function JobDetails({ job }: { job: CleanerJob }) {
           value={howLong(t, job.hoursOnSite)}
         />
         <Fact icon={UserRound} label={w.client} value={job.client.firstName} />
-        {onTheDay && (
-          <Fact
-            icon={Phone}
-            label={t.c.clientsNumber}
-            value={
-              <a
-                className={`${linkStyles()} tabular-nums`}
-                href={`tel:${onTheDay.phone}`}
-              >
-                {onTheDay.phone}
-              </a>
-            }
-          />
-        )}
+        {onTheDay && <ClientNumberFact phone={onTheDay.phone} />}
         {job.addOns.length > 0 && (
           <Fact
             icon={CirclePlus}
@@ -287,15 +273,9 @@ function JobDetails({ job }: { job: CleanerJob }) {
           />
         )}
         {onTheDay && (
-          <Fact
-            icon={KeyRound}
-            label={t.howWeGetIn}
+          <AccessFact
+            note={onTheDay.accessInstructions}
             className="col-span-full"
-            value={
-              <span className="whitespace-pre-line">
-                {onTheDay.accessInstructions ?? t.c.nothingWritten}
-              </span>
-            }
           />
         )}
       </Facts>

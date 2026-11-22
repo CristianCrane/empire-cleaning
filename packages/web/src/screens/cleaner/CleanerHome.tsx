@@ -11,7 +11,7 @@ import {
   Phone,
 } from "lucide-react";
 import type { CleanerJob, CleanerSiteVisit } from "@empire-cleaning/models";
-import { catalog, HOUR_MS } from "@empire-cleaning/models";
+import { catalog, MINUTE_MS } from "@empire-cleaning/models";
 import {
   AnswerCard,
   Button,
@@ -29,6 +29,7 @@ import {
   addressOf,
   clientName,
   dayOfInstant,
+  endOf,
   formatHours,
   formatMinutes,
   jobStatusTone,
@@ -86,24 +87,24 @@ export function CleanerJobBadge({ job }: { job: CleanerJob }) {
       </StatusBadge>
     );
   }
-  if (job.assignment.status === "offered")
-    return <StatusBadge tone="info">{c.available}</StatusBadge>;
+  if (job.assignment.status === "offered") return <AvailableBadge />;
   if (job.started) return <StatusBadge tone="success">{onSite}</StatusBadge>;
   if (job.onTheDay) return <StatusBadge tone="info">{today}</StatusBadge>;
   return null;
+}
+
+// a Job theirs to take: offered to them, or a Cleaner Needed open to them
+export function AvailableBadge() {
+  const { c } = useShared();
+  return <StatusBadge tone="info">{c.available}</StatusBadge>;
 }
 
 // a map app's directions to an address
 export const directionsTo = (address: string) =>
   `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
 
-// "until about 12:00 PM": the start plus its time on site
-export const untilAbout = (t: Said, startsAt: string, hours: number) =>
-  t.c.untilAbout(
-    t.formatTime(
-      new Date(Date.parse(startsAt) + hours * HOUR_MS).toISOString(),
-    ),
-  );
+// "until about 12:00 PM": when it should be over
+const untilAbout = (t: Said, end: string) => t.c.untilAbout(t.formatTime(end));
 
 // what's theirs, in time order: a Job they hold, or a Site Visit they're
 // making
@@ -255,8 +256,14 @@ function NextUp({
       lines={[
         `${item.today ? t.today : t.formatDay(dayOfInstant(item.startsAt))}, ${
           job
-            ? untilAbout(t, job.startsAt, job.hoursOnSite)
-            : untilAbout(t, visit!.startsAt, visit!.minutes / 60)
+            ? // to the quarter hour, as the Job's own page ends its times
+              untilAbout(t, endOf(job.startsAt, job.hoursOnSite))
+            : untilAbout(
+                t,
+                new Date(
+                  Date.parse(visit!.startsAt) + visit!.minutes * MINUTE_MS,
+                ).toISOString(),
+              )
         }`,
         address,
         job

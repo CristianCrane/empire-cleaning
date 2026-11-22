@@ -269,14 +269,14 @@ test(
       ).toBeVisible();
     await expect(details).not.toContainText("Ring 4B");
     // #497: a crew of two, offered to Cory and Dee: Dee's face, not yet
-    // confirmed, and the place Cory would take open, never "Just you" or
+    // confirmed, and the one Cory would be still needed, never "Just you" or
     // Cory named as not confirmed
     const crew = page.getByRole("region", { name: "Crew" });
     await expect(crew.getByRole("listitem")).toHaveText([
       "Dee, not confirmed yet",
-      "Open, a place still open",
+      "Needed, a cleaner still needed",
     ]);
-    await expect(crew).toContainText("1 place open");
+    await expect(crew).toContainText("1 needed");
     // never any prices
     await expect(page.locator("main")).not.toContainText("$");
 
@@ -341,8 +341,8 @@ test("a Cleaner can't take a Cleaner Needed at a time they weren't shown", async
 });
 
 // #497: offered alone a Job for two, the reader isn't "Just you", nor
-// named as not confirmed: both places are open until they confirm
-test("a Job for two offered to one Cleaner shows both places open", async ({
+// named as not confirmed: both are still needed until they confirm
+test("a Job for two offered to one Cleaner shows both cleaners still needed", async ({
   page,
 }) => {
   const cory = await addCleaner("Cory Cleaner");
@@ -355,10 +355,10 @@ test("a Job for two offered to one Cleaner shows both places open", async ({
   await expect(page.getByText("Just you")).toHaveCount(0);
   await expect(page.locator("main")).not.toContainText("Cory");
   const crew = page.getByRole("region", { name: "Crew" });
-  await expect(crew).toContainText("2 places open");
+  await expect(crew).toContainText("2 needed");
   await expect(crew.getByRole("listitem")).toHaveText([
-    "Open, a place still open",
-    "Open, a place still open",
+    "Needed, a cleaner still needed",
+    "Needed, a cleaner still needed",
   ]);
 });
 

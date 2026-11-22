@@ -399,6 +399,8 @@ type CleanerExtras = Pick<
 // once No Access, what happened
 export const cleanerCompletionsOf = async (
   list: Job[],
+  // the reader, so who did it is marked as them when it was
+  staffId: string,
 ): Promise<Map<string, CleanerExtras>> => {
   const ids = list.map((j) => j.id);
   if (ids.length === 0) return new Map();
@@ -420,6 +422,10 @@ export const cleanerCompletionsOf = async (
     quotedJobs(booked),
   ]);
   const nameOf = new Map(names.map((n) => [n.id, n.name]));
+  const whoOf = (id: string | null) => {
+    const name = id ? nameOf.get(id) : undefined;
+    return name === undefined ? null : { name, you: id === staffId };
+  };
   const [addOns, addOnName] = await Promise.all([
     addOnsOfVersions([
       ...new Set([...quoted.values()].map((q) => q.priceListId)),
@@ -441,9 +447,7 @@ export const cleanerCompletionsOf = async (
         completion: completed
           ? {
               completedAt: job.completedAt!.toISOString(),
-              completedBy: job.completedBy
-                ? (nameOf.get(job.completedBy) ?? null)
-                : null,
+              completedBy: whoOf(job.completedBy),
               condition: job.reportedCondition!,
               reports: rows
                 .filter((r) => r.jobId === job.id)
@@ -458,9 +462,7 @@ export const cleanerCompletionsOf = async (
         noAccess: noAccess
           ? {
               recordedAt: job.noAccessAt!.toISOString(),
-              recordedBy: job.noAccessBy
-                ? (nameOf.get(job.noAccessBy) ?? null)
-                : null,
+              recordedBy: whoOf(job.noAccessBy),
               reason: job.noAccessReason ?? "",
             }
           : null,

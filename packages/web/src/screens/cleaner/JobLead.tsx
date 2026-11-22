@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { DateTile, DetailsCard } from "@empire-cleaning/ui";
+import { KeyRound, Phone } from "lucide-react";
+import { DateTile, DetailsCard, Fact, linkStyles } from "@empire-cleaning/ui";
 import { endOf } from "../format.ts";
 import { useShared } from "../words.ts";
 
@@ -33,5 +34,46 @@ export function JobLead({
     >
       {children}
     </DetailsCard>
+  );
+}
+
+// the client's number, on the Job's day once it's theirs: on the page, and
+// in Couldn't get in's sheet, where it's one of the two things to try
+export function ClientNumberFact({ phone }: { phone: string }) {
+  const t = useShared();
+  return (
+    <Fact
+      icon={Phone}
+      label={t.c.clientsNumber}
+      value={
+        <a className={`${linkStyles()} tabular-nums`} href={`tel:${phone}`}>
+          {phone}
+        </a>
+      }
+    />
+  );
+}
+
+// how we get in, on the Job's day once it's theirs; what's said when
+// nothing's written down
+export function AccessFact({
+  note,
+  className,
+}: {
+  note: string | null;
+  className?: string;
+}) {
+  const t = useShared();
+  return (
+    <Fact
+      icon={KeyRound}
+      label={t.howWeGetIn}
+      className={className}
+      value={
+        <span className="whitespace-pre-line">
+          {note ?? t.c.nothingWritten}
+        </span>
+      }
+    />
   );
 }

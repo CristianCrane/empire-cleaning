@@ -233,7 +233,7 @@ describe("completing a Job", () => {
       canComplete: false,
       completion: {
         completedAt: MONDAY_11AM.toISOString(),
-        completedBy: "Cory Cleaner",
+        completedBy: { name: "Cory Cleaner", you: true },
         condition: "heavy",
         reports: [],
       },

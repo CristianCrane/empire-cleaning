@@ -15,21 +15,21 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-// one confirmed, one place still open: a tick on the face, a ghost for the
-// place, and the line counting both
-export const OnePlaceOpen: Story = {
+// one confirmed, one still needed: a tick on the face, a ghost for the
+// one needed, and the line counting both
+export const OneNeeded: Story = {
   play: async ({ canvasElement }) => {
     const crew = within(canvasElement).getByRole("region", { name: "Crew" });
-    await expect(crew).toHaveTextContent("1 of 2 confirmed, 1 open");
+    await expect(crew).toHaveTextContent("1 of 2 confirmed, 1 needed");
     await expect(within(crew).getAllByRole("listitem")).toHaveLength(2);
   },
 };
 
-// an offer: nobody in yet, every place open
-export const AllOpen: Story = {
+// an offer: nobody in yet, every one needed
+export const AllNeeded: Story = {
   args: { members: [], size: 3 },
   play: async ({ canvasElement }) => {
-    await expect(canvasElement).toHaveTextContent("3 places open");
+    await expect(canvasElement).toHaveTextContent("3 needed");
   },
 };
 
@@ -45,7 +45,7 @@ export const OneNotYet: Story = {
   },
   play: async ({ canvasElement }) => {
     await expect(canvasElement).toHaveTextContent("2 of 3 confirmed");
-    await expect(canvasElement).not.toHaveTextContent("open");
+    await expect(canvasElement).not.toHaveTextContent("needed");
   },
 };
 

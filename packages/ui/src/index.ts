@@ -24,7 +24,7 @@ export {
   CrewFace,
   CrewSection,
   ExtrasSection,
-  OpenMark,
+  NeededMark,
   type CrewMember,
 } from "./Crew.tsx";
 export { DateTile } from "./DateTile.tsx";

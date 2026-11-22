@@ -15,11 +15,11 @@ export type CrewMember = {
   action?: ReactNode;
 };
 
-// An open place on a crew: a ghost of a face, its person faint and thin in
+// A Cleaner Needed on a crew: a ghost of a face, its person faint and thin in
 // a dashed ring with no fill, so it reads as someone still needed, not an
 // empty circle (the `ui` skill, "A picture, not a paragraph"); the face's
-// size, so a row of places lines up
-export function OpenMark() {
+// size, so a row of them lines up
+export function NeededMark() {
   const words = useUiWords();
   return (
     <span className="inline-flex items-center gap-2">
@@ -30,8 +30,8 @@ export function OpenMark() {
         <UserRound size={22} strokeWidth={1.5} className="opacity-60" />
       </span>
       <span className="text-fg-muted">
-        {words.open}
-        <span className="sr-only">, {words.placeOpen}</span>
+        {words.needed}
+        <span className="sr-only">, {words.cleanerNeeded}</span>
       </span>
     </span>
   );
@@ -67,8 +67,8 @@ export function CrewFace({ member }: { member: CrewMember }) {
 }
 
 // A Job's crew, a part of its own (a Section titled `title`, "Crew"): a
-// line saying where it stands ("1 of 2 confirmed, 1 open"), then a face
-// for each member and a ghost for each place still open, in a card. `size`
+// line saying where it stands ("1 of 2 confirmed, 1 needed"), then a face
+// for each member and a ghost for each Cleaner Needed, in a card. `size`
 // is how many the Job takes; `actions` sit on its title's line
 export function CrewSection({
   title,
@@ -82,12 +82,12 @@ export function CrewSection({
   actions?: ReactNode;
 }) {
   const words = useUiWords();
-  const open = Math.max(0, size - members.length);
+  const needed = Math.max(0, size - members.length);
   const confirmed = members.filter((m) => m.confirmed).length;
   return (
     <Section
       title={title}
-      description={words.crewLine(confirmed, members.length + open, open)}
+      description={words.crewLine(confirmed, members.length + needed, needed)}
       actions={actions}
     >
       <Card>
@@ -97,9 +97,9 @@ export function CrewSection({
               <CrewFace member={m} />
             </li>
           ))}
-          {Array.from({ length: open }, (_, i) => (
-            <li key={`open-${i}`}>
-              <OpenMark />
+          {Array.from({ length: needed }, (_, i) => (
+            <li key={`needed-${i}`}>
+              <NeededMark />
             </li>
           ))}
         </ul>

@@ -1516,17 +1516,18 @@ export type CleanerJob = {
   // what can be reported at completion, by name: the Quote's Add-ons (as
   // not done) and the Price List's others (as done)
   reportable: { quoted: AddOnChoice[]; others: AddOnChoice[] };
-  // once Completed: what was reported, without prices
+  // once Completed: what was reported, without prices; who, marked as the
+  // reader when it was them, as the crew is
   completion: {
     completedAt: string;
-    completedBy: string | null;
+    completedBy: { name: string; you: boolean } | null;
     condition: Condition;
     reports: CleanerReport[];
   } | null;
   // once No Access is recorded: when, by whom, and what happened
   noAccess: {
     recordedAt: string;
-    recordedBy: string | null;
+    recordedBy: { name: string; you: boolean } | null;
     reason: string;
   } | null;
 };

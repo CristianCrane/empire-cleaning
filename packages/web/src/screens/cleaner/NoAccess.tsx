@@ -1,10 +1,4 @@
-import {
-  catalog,
-  firstNameOf,
-  oneStop,
-  theTimeEs,
-} from "@empire-cleaning/models";
-import { KeyRound, Phone } from "lucide-react";
+import { catalog, oneStop, theTimeEs } from "@empire-cleaning/models";
 import { useState } from "react";
 import type { CleanerJob } from "@empire-cleaning/models";
 import {
@@ -13,9 +7,7 @@ import {
   Card,
   Dialog,
   Form,
-  Fact,
   Facts,
-  linkStyles,
   Notice,
   TextField,
   type DialogState,
@@ -23,7 +15,8 @@ import {
 import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
 import { useSaid } from "../words.ts";
-import { readerOf } from "./CompleteJob.tsx";
+import { byWhom } from "./CompleteJob.tsx";
+import { AccessFact, ClientNumberFact } from "./JobLead.tsx";
 
 const words = catalog({
   en: {
@@ -96,27 +89,8 @@ export function RecordNoAccess({
         >
           {job.onTheDay && (
             <Facts>
-              <Fact
-                icon={KeyRound}
-                label={t.howWeGetIn}
-                value={
-                  <span className="whitespace-pre-line">
-                    {job.onTheDay.accessInstructions ?? c.nothingWritten}
-                  </span>
-                }
-              />
-              <Fact
-                icon={Phone}
-                label={c.clientsNumber}
-                value={
-                  <a
-                    className={`${linkStyles()} tabular-nums`}
-                    href={`tel:${job.onTheDay.phone}`}
-                  >
-                    {job.onTheDay.phone}
-                  </a>
-                }
-              />
+              <AccessFact note={job.onTheDay.accessInstructions} />
+              <ClientNumberFact phone={job.onTheDay.phone} />
             </Facts>
           )}
           <p>{w.told}</p>
@@ -151,15 +125,14 @@ export function NoAccessRecorded({ job }: { job: CleanerJob }) {
   const t = useSaid(words);
   const { w } = t;
   const at = t.formatTime(noAccess.recordedAt);
-  const by = noAccess.recordedBy;
   return (
     <Card hiddenTitle={t.jobStatusLabel.no_access}>
       <p className="text-lg">
-        {by === null
-          ? w.sentAt(at)
-          : by === readerOf(job)
-            ? w.youSent(at)
-            : w.theySent(firstNameOf(by), at)}
+        {byWhom(noAccess.recordedBy, {
+          anyone: w.sentAt(at),
+          you: w.youSent(at),
+          them: (name) => w.theySent(name, at),
+        })}
       </p>
       <blockquote className="border-l-4 border-border-strong pl-4 whitespace-pre-line text-fg-muted">
         {noAccess.reason}

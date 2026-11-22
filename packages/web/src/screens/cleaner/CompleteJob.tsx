@@ -38,9 +38,9 @@ const words = catalog({
     marked: "Job marked done",
     title: "Mark this job done",
     howWasHome: "How was the home?",
-    couldntDo: "Extras on the quote you couldn't do",
+    couldntDo: "Extras you couldn't do",
     whyNot: "Why not?",
-    didMore: "Extras you did that weren't on the quote",
+    didMore: "Extras you did that weren't asked for",
     whyMore: "Why? For example, the client asked",
     moreHours: "More hours, all of you together",
     moreHoursAlone: "More hours",
@@ -60,9 +60,9 @@ const words = catalog({
     marked: "Trabajo marcado como terminado",
     title: "Marcar este trabajo como terminado",
     howWasHome: "¿Cómo estaba la casa?",
-    couldntDo: "Adicionales de la cotización que no pudiste hacer",
+    couldntDo: "Adicionales que no pudiste hacer",
     whyNot: "¿Por qué no?",
-    didMore: "Adicionales que hiciste y no estaban en la cotización",
+    didMore: "Adicionales que hiciste sin que se pidieran",
     whyMore: "¿Por qué? Por ejemplo, lo pidió el cliente",
     moreHours: "Horas de más, entre todos",
     moreHoursAlone: "Horas de más",
@@ -278,15 +278,14 @@ export function Completed({ job }: { job: CleanerJob }) {
   const t = useSaid(words);
   const { c, w } = t;
   const at = t.formatTime(completion.completedAt);
-  const by = completion.completedBy;
   return (
     <Card hiddenTitle={c.done}>
       <p className="text-lg">
-        {by === null
-          ? w.markedAt(at)
-          : by === readerOf(job)
-            ? w.youMarked(at)
-            : w.theyMarked(firstNameOf(by), at)}
+        {byWhom(completion.completedBy, {
+          anyone: w.markedAt(at),
+          you: w.youMarked(at),
+          them: (name) => w.theyMarked(name, at),
+        })}
       </p>
       <Facts>
         <Fact
@@ -316,8 +315,17 @@ export function Completed({ job }: { job: CleanerJob }) {
   );
 }
 
-// the reader's own name, as the crew holds it
-export const readerOf = (job: CleanerJob) => job.crew.find((m) => m.you)?.name;
+// who did something, as the reader calls them: "You", a crewmate by first
+// name, or no one named (someone since gone)
+export const byWhom = <T,>(
+  by: { name: string; you: boolean } | null,
+  lines: { anyone: T; you: T; them: (firstName: string) => T },
+) =>
+  by === null
+    ? lines.anyone
+    : by.you
+      ? lines.you
+      : lines.them(firstNameOf(by.name));
 
 // why a Job can't be Completed yet, for a Confirmed Cleaner: an alert
 export function useNotYet(job: CleanerJob): Alert | null {

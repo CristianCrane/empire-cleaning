@@ -333,7 +333,10 @@ const cleanerJobs = async (
         ),
       ),
     addOnsOf(jobIds, currentLanguage()),
-    cleanerCompletionsOf(mine.map((m) => m.job)),
+    cleanerCompletionsOf(
+      mine.map((m) => m.job),
+      staffId,
+    ),
   ]);
   const versions = await serviceVersions(mine.map((m) => m.job.serviceId));
   const now = clock.now();

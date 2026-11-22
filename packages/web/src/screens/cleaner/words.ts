@@ -39,8 +39,6 @@ export const cleanerWords = catalog({
     done: "Done",
     // "until about 12:00 PM": when a Job or Site Visit should be over
     untilAbout: (time: string) => `until about ${time}`,
-    // " by Cory Cleaner", who marked it done or said they couldn't get in
-    by: (name: string | null) => (name ? ` by ${name}` : ""),
     // "3.5 h on site"
     hoursOnSite: (hours: string) => `${hours} on site`,
   },
@@ -68,7 +66,6 @@ export const cleanerWords = catalog({
     available: "Disponible",
     done: "Terminado",
     untilAbout: (time: string) => `hasta cerca de ${theTimeEs(time)}`,
-    by: (name: string | null) => (name ? ` por ${name}` : ""),
     hoursOnSite: (hours: string) => `${hours} en el lugar`,
   },
 });
