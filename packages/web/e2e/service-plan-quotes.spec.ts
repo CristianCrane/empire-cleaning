@@ -153,8 +153,9 @@ test(
       "$231.36",
     );
     await saved(page);
-    // a phone's bar at the foot says it too; a wider screen's header says
-    // it once scrolled past the prices (#493 D1)
+    // a phone's bar at the foot says it in a line; a wider screen has the
+    // prices beside the form, or below `xl` the short total in the header
+    // that sticks (#493 D1)
     if (isMobile) {
       await expect(
         page.getByText(/^Standard Clean, every week: \$231\.36 a clean$/),
