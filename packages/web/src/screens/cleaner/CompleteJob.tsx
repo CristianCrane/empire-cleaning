@@ -192,7 +192,6 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
                 onChange={(hours) =>
                   setExtraHours(Number.isNaN(hours) ? 0 : hours)
                 }
-                className="max-w-xs"
               />
               {extraHours > 0 && (
                 <TextField

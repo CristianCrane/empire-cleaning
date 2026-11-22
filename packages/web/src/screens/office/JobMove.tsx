@@ -21,6 +21,7 @@ import {
   TimeField,
   Fact,
   Facts,
+  FieldRow,
 } from "@empire-cleaning/ui";
 import { getJson, postJson } from "../../api.ts";
 import { useLoaded } from "../load.ts";
@@ -172,10 +173,10 @@ function ChooseTime({ job, close }: Omit<MoveProps, "to">) {
 
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <FieldRow>
         <DatePicker label="Day" value={date} onChange={setDate} />
         <TimeField label="Start time" value={time} onChange={setTime} />
-      </div>
+      </FieldRow>
       <PickFromSchedule
         date={date?.toString()}
         time={timeOfField(time)}

@@ -40,7 +40,8 @@ export function SegmentedControl({
       )}
     >
       <Label>{label}</Label>
-      <div className="flex gap-1 rounded-md bg-surface-sunken p-1">
+      {/* no wider than a form, as a field's box (Field.tsx) */}
+      <div className="flex max-w-form gap-1 rounded-md bg-surface-sunken p-1">
         {children}
       </div>
       {description && <Description>{description}</Description>}

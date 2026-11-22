@@ -193,8 +193,9 @@ for a dialog. It renders through `FormPage`
   Back and Next.
 - **What the fields come to** (a worked example, a price) in an aside,
   sticky beside the card in a 22rem column from `xl`, and after the
-  card below that; with no aside, the card is the content's width ("A
-  wide screen keeps a readable column", below). A price the form
+  card below that, the page then the content's width ("A wide screen
+  keeps a readable column", below); with no aside, the page is a form's
+  width, its header with it ("A form keeps a form's width", Forms). A price the form
   is written to reach (the Draft's, New quote's) leads instead: first
   below `xl`, so a phone reads what it comes to before the parts that
   change it. Until what sets it is known (a business's floor area), it
@@ -208,9 +209,12 @@ for a dialog. It renders through `FormPage`
   quote) has the page's `ActionFooter` instead (FormPage's `footer`),
   its total and whether it's saved on the left, the button on the right;
   what's said before the button (a refusal, a warning) comes after the
-  card.
+  card. That bar spans the content's width, so such a form has an aside
+  and the page is that wide too; a form alone keeps a form's width and
+  its button in its card (FormPage's type holds it).
 - **Outside an area** (Welcome), a page of its own, the logo above and
-  who's signed in under it on a phone, beside it from `sm` (`PageFrame`).
+  who's signed in under it on a phone, beside it from `sm` (`PageFrame`),
+  centred at a form's width with no aside.
 
 It also keeps "Forms ask quietly, a few questions at a time". ("Layout /
 FormPage")
@@ -307,12 +311,14 @@ The `ui` skill's rules hold here too; these are this product's.
   "Layout / FormPage / Priced With A Footer" for a lone destructive action)
 - **A wide screen keeps a readable column**: the content's, AppLayout's
   `max-w-5xl` (960 px inside its margins), the width every page in an
-  area reads at (a page outside one keeps `PageFrame`'s). A page with nothing beside it (a Record, a Form page
-  without an aside) fills it, its header's buttons on its right edge, and
-  a bar at the page's foot lines up with it too (`ActionFooter`); a Form
-  page's aside is the one side column (#493 G4.4: a card stopped 376 px
-  short of its button). No second, narrower cap: the user's pick on the
-  Office's Job drew one column at this width.
+  area reads at (a page outside one keeps `PageFrame`'s). A Record fills
+  it, its header's buttons on its right edge, and a bar at the page's
+  foot lines up with it too (`ActionFooter`), as does a Form page with
+  an aside, the one side column (#493 G4.4: a card stopped 376 px short
+  of its button). No second, narrower cap for a Record: the user's pick
+  on the Office's Job drew one column at this width. A form is narrower,
+  a form's width (Forms), and a Form page with no aside is narrowed with
+  it, header and all, so its buttons still line up with its card.
 - **What loads holds its room** (the `ui` skill): choices from the API draw
   blank tiles at their size first (`ChoiceTilesLoading`). ("ChoiceTiles /
   Loading")
@@ -600,6 +606,25 @@ stays as it is (#336).
   required one is asked before Next. A place on file starts at what's
   recorded, and a form one person fills again and again (the Office's)
   at their usual answers (#493 G2.3).
+- **A form keeps a form's width, and a field its answer's** (the user,
+  on #493's Welcome at 1440: "too wide for a form field to span"): a
+  field far wider than its answer puts its label far from where the
+  answer goes, and doesn't say what length it wants. So a form reads at
+  42rem (`max-w-form`) at every screen width: a Form page with no aside,
+  its header with it (in an area at the content's start, outside one
+  centred), a form's dialog (`lg`), and the landing site's Quote form,
+  whose band is that width. No field's box is wider, nor a
+  `SegmentedControl`'s track, wherever it sits (a wide dialog, a card beside an
+  aside), and from `sm` one with a short answer is sized to it by its
+  longest answer (`Field.tsx`'s `width`): to about 8 characters 9rem
+  (a ZIP code, a time), to about 14 13rem (a phone, by `type="tel"`; a
+  day, a unit, a number, an amount), a few words 20rem (a `Select`'s
+  default); each holding its longest answer whole ($100,000.00, 1,000,000
+  sq ft). Fields side by side go in a `FieldRow`, no wider than a
+  form, columns of 13rem or more (two to a row in a form's card, three in a
+  wider one, one on a phone), so a short field's neighbour sits near it, not across a wide
+  dialog; `ChoiceTiles` keep a form's width too. On a phone every field is full width, a thumb's target.
+  ("A form keeps a form's width")
 - **Every search field shows a magnifying glass.**
 
 ### Time and schedules

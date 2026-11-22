@@ -25,7 +25,8 @@ type FieldText = {
 
 // dates and times are typed segment by segment (keyboard and screen-reader
 // friendly) and formatted for the viewer's locale; values come from
-// @internationalized/date, e.g. parseDate("2026-11-02") or new Time(9, 30)
+// @internationalized/date, e.g. parseDate("2026-11-02") or new Time(9, 30).
+// Each box is its answer's width from sm (Field.tsx): a day's, a time's
 function Segments() {
   return (
     <DateInput className="flex flex-1 px-3 tabular-nums">
@@ -57,7 +58,7 @@ export function DatePicker<T extends DateValue>({
       )}
     >
       <Label>{label}</Label>
-      <FieldGroup>
+      <FieldGroup width="medium">
         <Segments />
         <Button
           variant="quiet"
@@ -96,7 +97,7 @@ export function TimeField<T extends TimeValue>({
       )}
     >
       <Label>{label}</Label>
-      <FieldGroup>
+      <FieldGroup width="short">
         <Segments />
       </FieldGroup>
       {description && <Description>{description}</Description>}

@@ -59,6 +59,7 @@ import {
   SelectItem,
   TextField,
   useLanguage,
+  FieldRow,
 } from "@empire-cleaning/ui";
 import { loadAddOns } from "./add-ons.ts";
 import { Optional } from "./Optional.tsx";
@@ -831,6 +832,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
           <Select
             label={t.startTime}
             name="preferredTime"
+            width="medium"
             placeholder={t.chooseTime}
             selectedKey={preferredTime}
             onSelectionChange={(key) => setPreferredTime(String(key))}
@@ -1184,10 +1186,11 @@ function AddressFields({
         onChange={(street) => update({ street })}
         errorMessage={error(field("street"))}
       />
-      <div className="grid gap-4 sm:grid-cols-2">
+      <FieldRow>
         <TextField
           label={unitLabel}
           name={field("unit")}
+          width="medium"
           autoComplete="address-line2"
           value={place.unit ?? ""}
           onChange={(unit) => update({ unit })}
@@ -1196,6 +1199,7 @@ function AddressFields({
         <TextField
           label={t.zip}
           name={field("postcode")}
+          width="short"
           autoComplete="postal-code"
           inputMode="numeric"
           maxLength={5}
@@ -1204,7 +1208,7 @@ function AddressFields({
           onChange={(postcode) => update({ postcode })}
           errorMessage={error(field("postcode"))}
         />
-      </div>
+      </FieldRow>
     </>
   );
 }
@@ -1227,7 +1231,7 @@ function RoomsFields({
   const field = (name: keyof HomeRooms) => `${at}.${name}`;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
+    <FieldRow>
       <NumberField
         label={t.bedrooms}
         name={field("bedrooms")}
@@ -1267,7 +1271,7 @@ function RoomsFields({
         }
         errorMessage={error(field("storeys"))}
       />
-    </div>
+    </FieldRow>
   );
 }
 

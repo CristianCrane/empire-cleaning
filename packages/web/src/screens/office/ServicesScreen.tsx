@@ -24,6 +24,7 @@ import {
   SelectItem,
   StatusBadge,
   TextField,
+  FieldRow,
 } from "@empire-cleaning/ui";
 import { postJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
@@ -417,7 +418,7 @@ function ServiceForm({
             <Segment value="area">{methodLabel.area}</Segment>
           </SegmentedControl>
           {draft.method === "rooms" ? (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <FieldRow>
               {roomFields.map(({ name, label, description }) => (
                 <NumberField
                   key={name}
@@ -433,7 +434,7 @@ function ServiceForm({
                   onChange={(value) => setRoomHours({ [name]: value })}
                 />
               ))}
-            </div>
+            </FieldRow>
           ) : (
             <NumberField
               label="Hours per 1,000 sq ft"
@@ -459,7 +460,7 @@ function ServiceForm({
         </FormPart>
 
         <FormPart title="Price">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <FieldRow>
             <NumberField
               label="Hourly rate"
               name="hourlyRateCents"
@@ -478,7 +479,7 @@ function ServiceForm({
               value={draft.minimumCharge}
               onChange={(minimumCharge) => set({ minimumCharge })}
             />
-          </div>
+          </FieldRow>
         </FormPart>
 
         <FormPart
@@ -531,7 +532,7 @@ function ServiceForm({
         </FormPart>
 
         <FormPart title="Sales tax">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <FieldRow>
             <NumberField
               label="One-off jobs (%)"
               name="taxOneOffPercent"
@@ -552,7 +553,7 @@ function ServiceForm({
                 onChange={(taxPlanPercent) => set({ taxPlanPercent })}
               />
             )}
-          </div>
+          </FieldRow>
         </FormPart>
       </FormPage>
     </Form>

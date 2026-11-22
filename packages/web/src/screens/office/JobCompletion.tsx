@@ -84,7 +84,7 @@ export function ConditionField({
           "Condition corrected",
         )
       }
-      className="max-w-xs"
+      width="medium"
     >
       {(["light", "moderate", "heavy"] as const).map((c) => (
         <SelectItem key={c} id={c}>

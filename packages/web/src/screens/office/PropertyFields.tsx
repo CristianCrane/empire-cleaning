@@ -14,6 +14,7 @@ import {
   SegmentedControl,
   Select,
   SelectItem,
+  FieldRow,
 } from "@empire-cleaning/ui";
 
 // the fields the Office corrects a place with, asked as the quote form asks
@@ -100,7 +101,7 @@ export function RoomFields({
   isRequired?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
+    <FieldRow>
       <NumberField
         label="Bedrooms"
         name="bedrooms"
@@ -129,7 +130,7 @@ export function RoomFields({
         value={rooms.storeys}
         onChange={(count) => onChange("storeys", count)}
       />
-    </div>
+    </FieldRow>
   );
 }
 

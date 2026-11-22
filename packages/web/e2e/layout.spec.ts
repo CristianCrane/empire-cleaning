@@ -78,6 +78,38 @@ const problemsAt = (page: Page) =>
         );
       }
     }
+    // a field's box no wider than a form (42rem, docs/ux.md, Forms): wider,
+    // its label sits far from where its answer goes, as Welcome's 1080px
+    // Full name did at 1440. Its text box, a box of parts (a number, a
+    // day), or a choice's button
+    const form = 42 * parseFloat(getComputedStyle(root).fontSize);
+    for (const field of document.querySelectorAll(
+      'input:not([type="hidden"], [type="checkbox"], [type="radio"]), textarea, [role="group"]:has(> input:not([type="hidden"]), > * > [role="spinbutton"]), button[aria-haspopup="listbox"]',
+    )) {
+      if (field.getClientRects().length === 0) continue;
+      // a number's text box is its box's, measured as the box
+      if (field.matches("input") && field.parentElement?.role === "group")
+        continue;
+      // a choice's button is named by its answer, then its label
+      const label = () =>
+        field.getAttribute("aria-label") ??
+        (field as HTMLInputElement).labels?.[0]?.textContent ??
+        document.getElementById(
+          field.getAttribute("aria-labelledby")?.split(" ").at(-1) ?? "",
+        )?.textContent;
+      const { width } = field.getBoundingClientRect();
+      if (width > form + 1)
+        problems.push(
+          `"${label()}" is ${Math.round(width)}px wide, past a form's ${form}px`,
+        );
+      // a choice sized to a few words holds its answer whole: its value
+      // ends in an ellipsis rather than scrolling, so it's measured
+      const choice = field.matches("button") && field.firstElementChild;
+      if (choice && choice.scrollWidth > choice.clientWidth + 1)
+        problems.push(
+          `"${label()}" cuts off its answer, "${choice.textContent}"`,
+        );
+    }
     // a field drawn as a box of parts (a date's segments and calendar
     // button, a number's stepper): squeezed, its parts crowd into its
     // padding and get cut off at the edge, though nothing scrolls

@@ -5,6 +5,7 @@ import { Button } from "../Button.tsx";
 import { Checkbox } from "../Checkbox.tsx";
 import { Form } from "../Form.tsx";
 import { NumberField } from "../NumberField.tsx";
+import { FieldRow } from "../Field.tsx";
 import { Notice } from "../Notice.tsx";
 import { TextField } from "../TextField.tsx";
 import { AppLayout } from "./AppLayout.tsx";
@@ -30,7 +31,7 @@ const parts = (
       <TextField label="Name" defaultValue="Deep Clean" isRequired />
     </FormPart>
     <FormPart title="Price">
-      <div className="grid gap-4 sm:grid-cols-2">
+      <FieldRow>
         <NumberField
           label="Hourly rate"
           description="Before tax"
@@ -42,7 +43,7 @@ const parts = (
           defaultValue={180}
           formatOptions={{ style: "currency", currency: "USD" }}
         />
-      </div>
+      </FieldRow>
     </FormPart>
     <FormPart
       title="Booking"

@@ -11,7 +11,13 @@ import {
 } from "react-aria-components";
 import { Check, ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
-import { Description, FieldError, Label, fieldStyles } from "./Field.tsx";
+import {
+  Description,
+  FieldError,
+  Label,
+  fieldStyles,
+  type FieldWidth,
+} from "./Field.tsx";
 import { Popover } from "./Popover.tsx";
 import { composeTailwindRenderProps } from "./utils.ts";
 
@@ -24,6 +30,9 @@ export type SelectProps<T extends object> = Omit<
   errorMessage?: string | ((validation: ValidationResult) => string);
   items?: Iterable<T>;
   children: ReactNode | ((item: T) => ReactNode);
+  // its box's width (Field.tsx): `long`, a few words, unless its choices
+  // are shorter (a time) or longer
+  width?: FieldWidth;
 };
 
 export function Select<T extends object>({
@@ -32,6 +41,7 @@ export function Select<T extends object>({
   errorMessage,
   items,
   children,
+  width = "long",
   ...props
 }: SelectProps<T>) {
   return (
@@ -51,6 +61,7 @@ export function Select<T extends object>({
                 isFocused: renderProps.isFocusVisible || renderProps.isPressed,
                 isInvalid,
                 isDisabled,
+                width,
                 className: "flex items-center gap-2 text-left",
               })
             }
