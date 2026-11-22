@@ -39,7 +39,8 @@ export function MenuButton({
 }
 
 // one thing in a MenuButton's menu: an icon and what it does. danger for
-// one that undoes something, like Cancel, last, after a MenuSeparator
+// one that loses what can't be got back, like Cancel, last, after a
+// MenuSeparator
 export function MenuItem({
   icon: Icon,
   danger = false,

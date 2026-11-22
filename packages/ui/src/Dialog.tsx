@@ -30,14 +30,14 @@ export type DialogProps = Omit<AriaDialogProps, "children"> & {
 // a modal dialog: a sheet rising from the bottom on a phone, centred on larger
 // screens. Use inside a DialogTrigger after the Button that opens it (or pass
 // isOpen and onOpenChange), and end it with an <Actions> row of at most two
-// Buttons: one filled (primary, or danger for something destructive) and one
-// quiet (Cancel, or an alternative such as Dismiss). The ✕ in its corner
-// closes it without doing anything. Never open a dialog on a dialog: a second
-// look is a step in the same one. For a destructive confirmation, pass
-// role="alertdialog" (not dismissable by tapping outside). On a phone its
-// Actions row stays pinned at the sheet's foot while what's above it
-// scrolls, read after the facts and always in reach (docs/ux.md, Dialogs
-// and rows); larger screens keep it at the end of the dialog's body.
+// Buttons: one filled (primary, or danger for what can't be got back: the
+// `ui` skill) and one quiet (Cancel, or an alternative such as Dismiss). The
+// ✕ in its corner closes it without doing anything. Never open a dialog on a
+// dialog: a second look is a step in the same one. For a confirmation asked
+// once more, pass role="alertdialog" (not dismissable by tapping outside).
+// On a phone its Actions row stays pinned at the sheet's foot while what's
+// above it scrolls, read after the facts and always in reach (docs/ux.md,
+// Dialogs and rows); larger screens keep it at the end of the dialog's body.
 export function Dialog({
   title,
   children,

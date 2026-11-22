@@ -184,7 +184,8 @@ Keeps: a record as its story (#145). Renders through `RecordPage` (#432).
 
 - Header: Quotes › client › home › kind; "kind for client", its status, and
   a second badge while a change is being drafted.
-- Actions: Menu while unsent (Book a site visit; Turn down in red).
+- Actions: Menu while unsent (Book a site visit; Turn down in red); Turn
+  down alone, outlined in red, while a site visit is needed or booked.
 - Alerts: what's next (`alertsFor`), the plan change.
 - Body: a Timeline, Now on top holding Current quote (Card), then each
   moment; What was asked folded (`Fold`), the home's facts in it.
@@ -195,8 +196,8 @@ Keeps: a record as its story (#145). Renders through `RecordPage` (#432).
 Keeps: a Draft page of its own (#145). Renders through `FormPage` (#434).
 
 - Header: … › Draft quote; "Draft quote for client" and "Not sent yet".
-- Actions: Header Button (Delete draft); an `ActionFooter` (the price, save
-  state, Send).
+- Actions: Header Button (Delete draft, outlined in red); an `ActionFooter`
+  (the price, save state, Send).
 - Alerts: the client still sees the quote as sent (once it's been sent);
   the plan change.
 - Body: one Card: What was asked and the first clean (folded); Service
@@ -308,7 +309,7 @@ Keeps: one form, its example a worked-out Quote (#163). Renders through
 `FormPage` (#434).
 
 - Header: Services › name; the name, Retired badge; "Version N, saved by …";
-  Retire (red) or Offer again.
+  Retire or Offer again.
 - Body: one Card: What it is (one line on a Service, open on a new one),
   How long it takes, Price, Booking (one line), Sales tax; the example
   Quote in a sticky aside from `xl`, after the card below it.
@@ -440,7 +441,8 @@ Keeps: read like a Quote, paying under it (#165). Renders through `RecordPage` (
 - Alerts: how it ended (accepted, declined, expired), what it does to the
   plan, booked up (decline).
 - Body: Quote details (`DetailsCard`: what it comes to, icon facts); Accept
-  (Decline beside it). While it's being prepared: what they asked for.
+  (Decline beside it, quiet; its confirm not red). While it's being
+  prepared: what they asked for.
 
 #### Client portal > Your plan
 

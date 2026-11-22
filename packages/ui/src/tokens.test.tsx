@@ -43,6 +43,9 @@ const pairs: [fg: string, bg: string, min: number][] = [
   ["primary", "surface", text],
   ["danger-fg", "danger", text],
   ["danger-fg", "danger-hover", text],
+  // danger-text and danger-outline
+  ["danger", "bg", text],
+  ["danger", "surface", text],
   ["danger-strong", "bg", text],
   ["danger-strong", "surface", text],
   ["success-strong", "success-subtle", text],

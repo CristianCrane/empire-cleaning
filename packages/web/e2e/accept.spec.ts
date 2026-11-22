@@ -316,3 +316,27 @@ test("a Quote whose day has filled up can't be paid for, and the Office is asked
     page.getByRole("region", { name: "Record acceptance" }),
   ).toHaveCount(0);
 });
+
+// declining is asked once more, and a Client who backs out has declined
+// nothing: the quote's still theirs to accept
+test("a Client who backs out of declining keeps the Quote open", async ({
+  page,
+  browser,
+}) => {
+  await quoteSent(await (await browser.newContext()).newPage(), olive, casey);
+  const link = await linkIn(casey.email, "Your quote from Empire Cleaning");
+  await page.goto(link);
+  await signInWithLink(page, casey.email);
+  await expect(page).toHaveURL(link);
+
+  await page.getByRole("button", { name: "Decline this quote" }).click();
+  const dialog = page.getByRole("alertdialog", { name: "Decline this quote?" });
+  await dialog.getByRole("button", { name: "Keep it" }).click();
+  await expect(dialog).toBeHidden();
+
+  await page.reload();
+  await expect(payAndBook(page).accept).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Decline this quote" }),
+  ).toBeVisible();
+});
