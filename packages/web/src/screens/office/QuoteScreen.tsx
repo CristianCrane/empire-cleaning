@@ -90,6 +90,7 @@ import {
   Facts,
   Fact,
   staleFade,
+  FieldRow,
 } from "@empire-cleaning/ui";
 import { ApiError, deleteJson, patchJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
@@ -1329,7 +1330,6 @@ function PlanTerms({
       <Select
         label="Service"
         name="plan.serviceKey"
-        width="long"
         description="Every clean on the plan is of it."
         selectedKey={plan.serviceKey}
         onSelectionChange={(key) => onChange({ serviceKey: String(key) })}
@@ -1484,7 +1484,6 @@ function AreaField({
     <NumberField
       label="Area in sq ft"
       name="area"
-      width="long"
       minValue={1}
       maxValue={1_000_000}
       value={area ?? Number.NaN}
@@ -1849,7 +1848,6 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
             <Select
               label="Service"
               name="serviceKey"
-              width="long"
               description={
                 quote.options.length > 1
                   ? `With a ${quote.options[0]!.serviceName} recommended for a first visit`
@@ -1953,7 +1951,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
             is the date's error when it's sent, the server's (WEB-D) */}
         {!plan && (
           <FormPart title="Proposed time">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <FieldRow>
               <DatePicker
                 label="Date"
                 name="proposedStart"
@@ -1965,7 +1963,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
                 value={fields.time}
                 onChange={(time) => set({ time })}
               />
-            </div>
+            </FieldRow>
             <PickFromSchedule
               date={fields.date?.toString()}
               time={timeOfField(fields.time)}
@@ -2059,7 +2057,7 @@ function PlanDayFields({
         )
       }
     >
-      <div className="grid gap-4 sm:grid-cols-2">
+      <FieldRow>
         <DatePicker
           label="Date"
           name={`${name}.start`}
@@ -2071,7 +2069,7 @@ function PlanDayFields({
           value={day.time}
           onChange={(time) => onChange({ time })}
         />
-      </div>
+      </FieldRow>
       <PickFromSchedule
         date={day.date?.toString()}
         time={time}

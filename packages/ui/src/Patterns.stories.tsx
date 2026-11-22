@@ -50,6 +50,7 @@ import { Segment, SegmentedControl } from "./SegmentedControl.tsx";
 import { StatusBadge, type StatusTone } from "./StatusBadge.tsx";
 import { Cell, Column, Row, Table, TableBody, TableHeader } from "./Table.tsx";
 import { TextField } from "./TextField.tsx";
+import { FieldRow } from "./Field.tsx";
 import { NumberField } from "./NumberField.tsx";
 import { DatePicker, TimeField } from "./DateField.tsx";
 import { Timeline, TimelineItem } from "./Timeline.tsx";
@@ -275,11 +276,12 @@ function AFormsWidth() {
           every screen width, its header and buttons with it, not the screen's:
           the eye runs from a label to the end of its answer. A field's box is
           never wider, and from <code>sm</code> one with a short answer is sized
-          to it, which also says what length is wanted: a phone (by its{" "}
-          <code>type="tel"</code>), an amount, a count and a day at{" "}
-          <code>medium</code>, a ZIP code and a time at <code>short</code>, a
-          choice of a few words at <code>long</code>. On a phone every field is
-          full width.
+          to its longest answer, which also says what length is wanted:{" "}
+          <code>short</code> to about 8 characters (a ZIP code, a time),{" "}
+          <code>medium</code> to about 14 (a phone, a day, a number),{" "}
+          <code>long</code> a few words (a <code>Select</code>'s default).
+          Fields side by side go two to a row in a <code>FieldRow</code>, no
+          wider than a form. On a phone every field is full width.
         </p>
       </Rule>
       <Example verdict="Do">
@@ -287,15 +289,15 @@ function AFormsWidth() {
           <div className="flex flex-col gap-4">
             <TextField label="Full name" />
             <TextField label="Phone" type="tel" />
-            <div className="grid gap-4 sm:grid-cols-2">
+            <FieldRow>
               <TextField label="Apartment or unit" width="medium" />
               <TextField label="ZIP code" width="short" />
-            </div>
+            </FieldRow>
             <NumberField label="Bedrooms" defaultValue={2} />
-            <div className="grid gap-4 sm:grid-cols-2">
+            <FieldRow>
               <DatePicker label="Day" />
               <TimeField label="Start time" />
-            </div>
+            </FieldRow>
           </div>
         </Card>
       </Example>

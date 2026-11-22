@@ -42,7 +42,8 @@ export function EmbeddedField({
           <div className="w-full">{children}</div>
         </div>
       ) : (
-        <div className="w-full py-1">{children}</div>
+        // no wider than a form, as a field's box (Field.tsx)
+        <div className="w-full max-w-form py-1">{children}</div>
       )}
       {errorMessage && (
         <span className="text-sm font-medium text-danger-strong">

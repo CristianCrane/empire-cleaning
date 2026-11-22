@@ -31,6 +31,8 @@ import { PageHeader, type PageActions } from "./PageHeader.tsx";
 // `leads` (a price the form is written to reach). With no aside, the page
 // is a form's width, its header with it (docs/ux.md, Forms). Outside an
 // area it's a page of its own, the logo above (Welcome)
+type Aside = { title: string; leads?: boolean; children: ReactNode };
+
 export function FormPage({
   trail,
   title,
@@ -56,8 +58,6 @@ export function FormPage({
   alerts?: (Alert | false | null | undefined)[];
   // what the page needs explained, folded under `label`
   about?: { label: string; children: ReactNode };
-  // what the fields come to, beside them from xl
-  aside?: { title: string; leads?: boolean; children: ReactNode };
   // what's said before the buttons: a card's consent, a save's problem
   end?: ReactNode;
   // outside an area: who's signed in, beside the logo
@@ -69,8 +69,13 @@ export function FormPage({
       // the form's buttons at the card's foot, the main one last
       buttons?: ReactNode;
       footer?: never;
+      // what the fields come to, beside them from xl
+      aside?: Aside;
     }
-  | { buttons?: never; footer: Footer }
+  // a footer spans the content's width, so it comes with an aside, the
+  // page then that wide too; a form's width alone keeps its buttons in
+  // its card (docs/ux.md, Forms)
+  | { buttons?: never; footer: Footer; aside: Aside }
 )) {
   const card = (
     <Card>

@@ -204,7 +204,6 @@ function NewTimeForm({
     <>
       <Select
         label={day}
-        width="long"
         description={w.onlyDays}
         placeholder={w.pickDay}
         selectedKey={date}

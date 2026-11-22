@@ -611,14 +611,17 @@ stays as it is (#336).
   42rem (`max-w-form`) at every screen width: a Form page with no aside,
   its header with it (in an area at the content's start, outside one
   centred), a form's dialog (`lg`), and the landing site's Quote form,
-  whose band is that width. No field's box is wider, wherever it sits (a
-  wide dialog, a card beside an aside), and from `sm` one with a short
-  answer is sized to it (`Field.tsx`'s `width`): a phone (by
-  `type="tel"`), an amount, a count and a day 13rem; a ZIP code and a time
-  9rem; a choice of a few words 20rem; each holding its widest answer
-  ($100,000.00), with fields side by side each at its cell's start. On a
-  phone every field is full width, a thumb's target. ("A form keeps a
-  form's width")
+  whose band is that width. No field's box is wider, nor a
+  `SegmentedControl`, wherever it sits (a wide dialog, a card beside an
+  aside), and from `sm` one with a short answer is sized to it by its
+  longest answer (`Field.tsx`'s `width`): to about 8 characters 9rem
+  (a ZIP code, a time), to about 14 13rem (a phone, by `type="tel"`; a
+  day, a unit, a number, an amount), a few words 20rem (a `Select`'s
+  default); each holding its longest answer whole ($100,000.00, 1,000,000
+  sq ft). Fields side by side go two to a row in a `FieldRow`, no wider
+  than a form, so a short field's neighbour sits near it, not across a
+  wide dialog. On a phone every field is full width, a thumb's target.
+  ("A form keeps a form's width")
 - **Every search field shows a magnifying glass.**
 
 ### Time and schedules

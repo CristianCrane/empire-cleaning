@@ -30,7 +30,8 @@ export type SelectProps<T extends object> = Omit<
   errorMessage?: string | ((validation: ValidationResult) => string);
   items?: Iterable<T>;
   children: ReactNode | ((item: T) => ReactNode);
-  // its box's width, by its longest choice (Field.tsx)
+  // its box's width (Field.tsx): `long`, a few words, unless its choices
+  // are shorter (a time) or longer
   width?: FieldWidth;
 };
 
@@ -40,7 +41,7 @@ export function Select<T extends object>({
   errorMessage,
   items,
   children,
-  width = "form",
+  width = "long",
   ...props
 }: SelectProps<T>) {
   return (

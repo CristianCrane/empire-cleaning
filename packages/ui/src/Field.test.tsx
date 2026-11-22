@@ -54,11 +54,11 @@ test("a field is as wide as what it holds, and its widest answer fits", async ()
         defaultValue={100_000}
         formatOptions={{ style: "currency", currency: "USD" }}
       />
-      <NumberField label="Area" width="long" defaultValue={1_000_000} />
+      <NumberField label="Area in sq ft" defaultValue={1_000_000} />
       <DatePicker label="Day" defaultValue={parseDate("2026-12-31")} />
       <TimeField label="Start" defaultValue={new Time(22, 30)} />
-      <Select label="Service" width="long" defaultSelectedKey="deep">
-        <SelectItem id="deep">Move-in/out Clean</SelectItem>
+      <Select label="Service" defaultSelectedKey="plan">
+        <SelectItem id="plan">Commercial cleaning, every weekday</SelectItem>
       </Select>
     </div>,
   );
@@ -72,15 +72,25 @@ test("a field is as wide as what it holds, and its widest answer fits", async ()
   expect(width("Phone")).toBe(13 * rem);
   expect(width("ZIP code")).toBe(9 * rem);
   expect(width("Price")).toBe(13 * rem);
-  expect(width("Area")).toBe(20 * rem);
+  expect(width("Area in sq ft")).toBe(13 * rem);
   expect(width("Day")).toBe(13 * rem);
   expect(width("Start")).toBe(9 * rem);
   expect(width("Service")).toBe(20 * rem);
   // nothing typed or picked runs past its box: its parts (a day's
   // segments) past the box, or its text past the input that holds it
-  for (const label of ["Phone", "ZIP code", "Price", "Area", "Day", "Start"]) {
+  for (const label of [
+    "Phone",
+    "ZIP code",
+    "Price",
+    "Area in sq ft",
+    "Day",
+    "Start",
+  ]) {
     const input = box(label).querySelector("input:not([type=hidden])");
     for (const holder of [box(label), input ?? box(label)])
       expect(holder.scrollWidth, label).toBeLessThanOrEqual(holder.clientWidth);
   }
+  // nor a choice of a few words, its value cut off at the end
+  const choice = box("Service").firstElementChild!;
+  expect(choice.scrollWidth).toBeLessThanOrEqual(choice.clientWidth);
 });

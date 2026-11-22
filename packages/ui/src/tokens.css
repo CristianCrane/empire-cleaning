@@ -128,8 +128,8 @@
      what sits beside it starts: none on a phone, which has the tab bar */
   --spacing-side: 0px;
   /* a form's width (max-w-form), past which a field's label sits far from
-     where its answer goes (docs/ux.md, Forms): the landing site's Quote
-     form keeps it too */
+     where its answer goes (docs/ux.md, Forms); the landing site's Quote
+     band is as wide, its own max-w-2xl */
   --container-form: 42rem;
 
   --shadow-raised:

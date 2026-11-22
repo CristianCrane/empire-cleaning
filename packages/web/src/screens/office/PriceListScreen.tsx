@@ -24,6 +24,7 @@ import {
   TextField,
   type ListRow,
   type SettingsPart,
+  FieldRow,
 } from "@empire-cleaning/ui";
 import { putJson } from "../../api.ts";
 import { useAction } from "../action.ts";
@@ -627,7 +628,7 @@ const quoteDefaults = (list: PriceList) =>
     fields: (figures, set) => {
       const field = figure(figures, set);
       return (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <FieldRow>
           {field("Deposit (%)", "depositPercent", { min: 0, max: 100 })}
           {field("Plan discount (%)", "planDiscountPercent", {
             min: 0,
@@ -638,7 +639,7 @@ const quoteDefaults = (list: PriceList) =>
             max: 90,
           })}
           {field("Cleaners", "defaultCrewSize", { min: 1, max: 10 })}
-        </div>
+        </FieldRow>
       );
     },
   });

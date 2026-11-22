@@ -59,6 +59,7 @@ import {
   SelectItem,
   TextField,
   useLanguage,
+  FieldRow,
 } from "@empire-cleaning/ui";
 import { loadAddOns } from "./add-ons.ts";
 import { Optional } from "./Optional.tsx";
@@ -1185,7 +1186,7 @@ function AddressFields({
         onChange={(street) => update({ street })}
         errorMessage={error(field("street"))}
       />
-      <div className="grid gap-4 sm:grid-cols-2">
+      <FieldRow>
         <TextField
           label={unitLabel}
           name={field("unit")}
@@ -1207,7 +1208,7 @@ function AddressFields({
           onChange={(postcode) => update({ postcode })}
           errorMessage={error(field("postcode"))}
         />
-      </div>
+      </FieldRow>
     </>
   );
 }

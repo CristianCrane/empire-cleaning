@@ -26,6 +26,7 @@ import {
   Section,
   TimeField,
   RecordPage,
+  FieldRow,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
@@ -268,10 +269,10 @@ function BookOrSkip({
 
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <FieldRow>
         <DatePicker label="Day" value={date} onChange={setDate} />
         <TimeField label="Start time" value={time} onChange={setTime} />
-      </div>
+      </FieldRow>
       <PickFromSchedule
         date={date?.toString()}
         time={timeOfField(time)}
