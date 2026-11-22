@@ -288,7 +288,7 @@ Keeps: the Record; findings are part of the visit (#156). Renders through `Recor
 Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432).
 
 - Header: the letterhead (print only, before the layout); Clients › client ›
-  Bill N; "Bill N" and its status; the week.
+  Bill N; "Bill N" and its status (its week is a fact).
 - Actions: once its payment didn't go through or it's late, Record a payment
   the primary, Print and Cancel bill in red behind its arrow; otherwise Menu
   (Record a payment, Print; Cancel bill in red).
@@ -505,7 +505,7 @@ Keeps: a list of homes, each with its own page (ux-portal). Renders through `Rec
 
 Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432).
 
-- Header: letterhead; Payments › Bill N; "Bill N" and its status; the week.
+- Header: letterhead; Payments › Bill N; "Bill N" and its status (its week is a fact).
 - Actions: while due, Pay this bill the primary (its form in a dialog),
   Print behind its arrow; both behind a ⋯ while it's a payment we try again
   ourselves; otherwise one Button (Print).
