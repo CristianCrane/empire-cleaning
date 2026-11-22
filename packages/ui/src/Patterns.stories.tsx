@@ -346,8 +346,8 @@ function RecordsAsStories() {
       <Rule title="A record that moves through steps is its story, Now on top">
         <p>
           A Record with a lifecycle, like a Quote, is a <code>RecordPage</code>{" "}
-          whose body is a <code>Timeline</code>, newest first, and no History
-          beside it: the story is the page. On top of it, <strong>Now</strong>{" "}
+          whose body is a <code>Timeline</code>, newest first, and no History of
+          its own: the story is the page. On top of it, <strong>Now</strong>{" "}
           holds the record as it stands, in one Card (the Current quote). Below,
           each thing that happened to it, dated, with its details folded away
           until they're wanted. Work in progress isn't part of the story: a
@@ -566,18 +566,19 @@ function RowsOpenOneDialog() {
   );
 }
 
-function AllAtOnceInTwoColumns() {
+function HistoryLast() {
   return (
     <div className="flex flex-col gap-6">
-      <Rule title="A record's History beside it, in two columns from xl">
+      <Rule title="A record's History last, one column">
         <p>
           A Record read as a whole (a Job: what it is, who's on it, its money
-          and what happened) shows its parts on the left and its History on the
-          right, in a Card, from <code>xl</code>; below that, one column, the
-          History at the foot. A details card's facts follow the card's width,
-          not the screen's (a container query), so they fit the narrower column.
-          Someone who drops out or is taken off leaves the crew: the History
-          says so.
+          and what happened) is one column at every width, its History last, in
+          a Card: beside the parts it competed with them (#493). Each entry says
+          what happened, and on the line under it when. On a wide screen the
+          column is the content's width, its header's buttons on its right edge.
+          A details card's facts follow the card's width, not the screen's (a
+          container query). Someone who drops out or is taken off leaves the
+          crew: the History says so.
         </p>
         <p>
           Where figures make a price (a Service, New Quote on the phone), the
@@ -1204,9 +1205,9 @@ export const OwedFirstStory: Story = {
   render: () => <OwedFirst />,
 };
 
-export const AllAtOnceInTwoColumnsStory: Story = {
-  name: "A record's History beside it, from xl",
-  render: () => <AllAtOnceInTwoColumns />,
+export const HistoryLastStory: Story = {
+  name: "A record's History last, one column",
+  render: () => <HistoryLast />,
 };
 
 // a page that only says something (not found, something went wrong): a
