@@ -260,8 +260,6 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     !!services &&
     !!serviceKey &&
     isHeld(services, open, propertyId, serviceKey);
-  const firstFree = (kind: PropertyKind) =>
-    ownPlaces.find((p) => p.kind === kind && !held(p.id));
   const [contact, setContact] = useState({ name: "", email: "", phone: "" });
   // a new caller's Preferred Language, which the Office sets (ADR-0025)
   const [callerLanguage, setCallerLanguage] = useState<Language>("en");
@@ -278,12 +276,17 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   const conditionAt = (p: PropertyView | undefined) =>
     (p?.kind === "residential" ? p.condition : null) ??
     (usual ? "moderate" : null);
+  // the form starts at a new place (place), so at a new place's; choosing
+  // a Service goes to a place on file that's free for it (startAt)
   const [condition, setCondition] = useState<Condition | null>(() =>
-    conditionAt(firstFree("residential")),
+    conditionAt(undefined),
   );
-  // a place chosen, and the Condition it starts at
+  // a place chosen, and the Condition it starts at when it's another: an
+  // answer given for this one stays while the Service or kind changes
   const goTo = (p: PropertyView | undefined) => {
-    setPlace(p?.id ?? NEW_PLACE);
+    const next = p?.id ?? NEW_PLACE;
+    if (next === place) return;
+    setPlace(next);
     setCondition(conditionAt(p));
   };
   // the Add-ons loaded, with the Service they're for; asked for again after

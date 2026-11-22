@@ -107,6 +107,23 @@ test("the form starts blank for someone new, and asks each answer before going o
   );
 });
 
+test("a Condition given stays when the Service asked for changes", async ({
+  page,
+}) => {
+  await signInAs(page, "new@example.com");
+  await chooseService(page);
+  await describeNewHome(page);
+  await nextStep(page);
+  await page.getByText("Heavy", { exact: true }).click();
+
+  const back = page.getByRole("button", { name: "Back" });
+  await back.click();
+  await back.click();
+  await chooseService(page, "Deep Clean");
+  await nextStep(page);
+  await expect(page.getByRole("radio", { name: "Heavy" })).toBeChecked();
+});
+
 test("a home with a Quote open can't be asked about again, and points to it", async ({
   page,
 }) => {
