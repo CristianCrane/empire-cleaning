@@ -79,7 +79,7 @@ export type Asker =
   // the landing page: everything, including contact details
   | { kind: "guest" }
   // signed up but not yet a Client: their proven email is used
-  | { kind: "account"; email: string }
+  | { kind: "account" }
   // a Client: a new home or one of theirs; their details are already known.
   // A home with a Quote open that the Service asked for would overlap is
   // listed but not selectable. A business Client's name isn't asked again.

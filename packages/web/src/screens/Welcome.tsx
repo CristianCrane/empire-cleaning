@@ -56,7 +56,7 @@ export function Welcome() {
         headingLevel={2}
         // signed up but not yet a Client, so no Preferred Language: the
         // app's, the signed-out language
-        asker={{ kind: "account", email: account.email }}
+        asker={{ kind: "account" }}
         onSubmitted={async (receipt) => {
           // now a Client: the API connected this Account straight away
           forgetAccount();
