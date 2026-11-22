@@ -13,6 +13,12 @@ import { Button } from "./Button.tsx";
 
 export { DialogTrigger } from "react-aria-components";
 
+// what opens a dialog from code: whether it's open, and told when it closes
+export type DialogState = {
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+};
+
 export type DialogProps = Omit<AriaDialogProps, "children"> & {
   title: string;
   children: ReactNode | ((opts: { close: () => void }) => ReactNode);

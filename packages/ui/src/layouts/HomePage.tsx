@@ -9,7 +9,8 @@ import { useUiWords } from "../language.ts";
 import { List } from "../List.tsx";
 import { ShortcutTile } from "../ShortcutTile.tsx";
 import { listRowItem, type ListRow } from "./ListPage.tsx";
-import { PageHeader, type PageActions } from "./PageHeader.tsx";
+import type { PageActions } from "./PageActions.tsx";
+import { PageHeader } from "./PageHeader.tsx";
 
 // The Home type's layout (docs/ux.md, Screen types, Home; #435): where an
 // area starts. The person greeted, one card answering what's next or

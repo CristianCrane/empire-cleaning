@@ -16,7 +16,8 @@ import { Fold } from "../Fold.tsx";
 import { Section } from "../Section.tsx";
 import { Alerts, type Alert } from "./Alerts.tsx";
 import { PageFrame } from "./PageFrame.tsx";
-import { PageHeader, type PageActions } from "./PageHeader.tsx";
+import type { PageActions } from "./PageActions.tsx";
+import { PageHeader } from "./PageHeader.tsx";
 
 // The Form page type's layout (docs/ux.md, Screen types, Form page; #434): a
 // form with a page of its own. Its PageHeader, a single page action at the

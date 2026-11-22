@@ -5,7 +5,8 @@ import { Card } from "../Card.tsx";
 import { useUiWords } from "../language.ts";
 import { Section } from "../Section.tsx";
 import { Alerts, type Alert } from "./Alerts.tsx";
-import { PageHeader, type PageActions } from "./PageHeader.tsx";
+import type { PageActions } from "./PageActions.tsx";
+import { PageHeader } from "./PageHeader.tsx";
 
 // The Record type's layout (docs/ux.md, Screen types, Record; #432): a page
 // about one thing. Its PageHeader; its alerts, most pressing first, two of

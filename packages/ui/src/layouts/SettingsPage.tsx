@@ -5,7 +5,8 @@ import { List, ListItem } from "../List.tsx";
 import { Section } from "../Section.tsx";
 import { Alerts, type Alert } from "./Alerts.tsx";
 import { listRowItem, type ListRow } from "./ListPage.tsx";
-import { PageHeader, type DialogState } from "./PageHeader.tsx";
+import type { DialogState } from "../Dialog.tsx";
+import { PageHeader } from "./PageHeader.tsx";
 
 // One part of a Settings page read as one row: what it's set to, in a line
 // ("Light 0.85× · Average 1× · Heavy 1.4×"); a tap opens its dialog, where
