@@ -383,8 +383,7 @@ test("a Bill we try again ourselves reads as not paid yet, not failed", async ({
   page,
   browser,
 }) => {
-  await failCharges("processing");
-  const { billId } = await billed();
+  const { billId } = await billed({ failing: "processing" });
   await signedInAs(page, olive.email);
   await page.goto(`/office/bills/${billId}`);
   await expect(badge(page, "Not paid yet")).toBeVisible();
@@ -395,7 +394,10 @@ test("a Bill we try again ourselves reads as not paid yet, not failed", async ({
   await client.goto(`/portal/bills/${billId}`);
   await expect(badge(client, "Not paid yet")).toBeVisible();
   await expect(client.getByRole("main").getByRole("alert")).toHaveCount(0);
-  await expect(client.getByRole("main").getByRole("status")).toContainText(
-    "We'll try again by ourselves",
-  );
+  await expect(
+    client
+      .getByRole("main")
+      .getByRole("status")
+      .filter({ hasText: "We'll try again by ourselves" }),
+  ).toBeVisible();
 });
