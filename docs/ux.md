@@ -605,12 +605,20 @@ stays as it is (#336).
 ### Time and schedules
 
 - **Schedules are calendars**: a day, three days or a week on the Schedule
-  (a day on a phone, so its blocks have room to name their client;
-  elsewhere three at first, then the span last chosen in that browser;
-  #493 builds it), a month on a
+  (a day at first on a phone, so its blocks have room to name their client;
+  three at first on anything wider; then the span last chosen in that
+  browser), a month on a
   Cleaner's availability. Jobs are timed events (start and
-  duration), ready for a Google Calendar sync. A Job or a Site Visit
-  dragged on the Schedule carries a picture of its block, and an outline
+  duration), ready for a Google Calendar sync. A block leads with its
+  client's name, wrapping where it has the height, as its place on the grid
+  gives its time: the time shows under the name where there's room, and is
+  read out first, as a screen reader can't see the grid. A Job's state is a
+  mark beside the name (its icon from `screens/icons.ts`, in its colour; a
+  Staffed Job, the usual case, has none), its words read out; a Site
+  Visit's is its own icon, so it isn't told from a Staffed Job by colour
+  alone; the crew's names show only when someone's on it, and a block
+  draws only the lines that fit whole. The key draws each state as a block
+  (#493 G4.1). A Job or a Site Visit dragged on the Schedule carries a picture of its block, and an outline
   its size shows where it would land, snapped as the drop is: its own
   colours, a see-through fill inside a dashed edge, red where it can't go
   (the server's rules: for a Job, hours and a crew free; for a Site Visit,

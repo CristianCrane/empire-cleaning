@@ -6,7 +6,6 @@ import {
   KeyRound,
   Phone,
   Users,
-  DoorClosed,
   UserMinus,
 } from "lucide-react";
 import { catalog, type CleanerJob } from "@empire-cleaning/models";
@@ -30,6 +29,7 @@ import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction, useLeavingAction } from "../action.ts";
 import { addressOf, dayOfInstant, formatHours } from "../format.ts";
+import { jobStatusIcon } from "../icons.ts";
 import { useSaid } from "../words.ts";
 import { CleanerJobBadge, directionsTo, untilAbout } from "./CleanerHome.tsx";
 import { CompleteJob, Completed, useNotYet } from "./CompleteJob.tsx";
@@ -107,7 +107,7 @@ export function CleanerJobScreen() {
           !offered &&
           job.canRecordNoAccess && {
             label: t.jobStatusLabel.no_access,
-            icon: DoorClosed,
+            icon: jobStatusIcon.no_access,
             dialog: (state) => <RecordNoAccess job={job} {...state} />,
           },
         canRelease && {

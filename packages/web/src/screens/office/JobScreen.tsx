@@ -11,7 +11,6 @@ import {
   UserPlus,
   Users,
   X,
-  CircleCheck,
   Undo2,
 } from "lucide-react";
 import {
@@ -47,6 +46,7 @@ import { deleteJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { addressOf, clientName, formatHours, screenWords } from "../format.ts";
+import { jobStatusIcon } from "../icons.ts";
 import { costForOffice } from "../RescheduleParts.tsx";
 import { CancelJob, howItEnded } from "./JobCancellation.tsx";
 import {
@@ -314,7 +314,7 @@ function HowItWent({
       <Card>
         <Facts>
           <Fact
-            icon={CircleCheck}
+            icon={jobStatusIcon.completed}
             label="Done"
             value={formatDateTime(completion.completedAt)}
             line={

@@ -1,13 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import {
-  CalendarCheck,
-  MapPin,
-  NotebookPen,
-  Sparkles,
-  SquarePen,
-  type LucideIcon,
-} from "lucide-react";
+import { NotebookPen, SquarePen, type LucideIcon } from "lucide-react";
 import type {
   HomeView,
   OfficePropertyView,
@@ -45,7 +38,7 @@ import { linkTo, type AppHref } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { addressOf, formatMinutes, screenWords } from "../format.ts";
 import { AccessFact, ConditionFact, FloorAreaFact } from "../Fact.tsx";
-import { homeIcon, QuoteIcon } from "../icons.ts";
+import { homeIcon, JobIcon, QuoteIcon, SiteVisitIcon } from "../icons.ts";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
 import {
   BookSiteVisit,
@@ -338,7 +331,7 @@ function VisitPart({
       >
         <ListItem
           id={visit.id}
-          start={<IconTile icon={visit.startsAt ? MapPin : CalendarCheck} />}
+          start={<IconTile icon={SiteVisitIcon} />}
           title={
             visit.startsAt
               ? formatDateTime(visit.startsAt)
@@ -386,7 +379,7 @@ const historyOf = (home: OfficePropertyView): HistoryEvent[] =>
     ...home.jobs.map((job) => ({
       id: `job ${job.id}`,
       on: job.startsAt,
-      icon: Sparkles,
+      icon: JobIcon,
       kind: "Job",
       what: job.serviceName,
       status: <JobStatusBadge status={job.status} />,
@@ -395,7 +388,7 @@ const historyOf = (home: OfficePropertyView): HistoryEvent[] =>
     ...home.siteVisits.map((visit) => ({
       id: `visit ${visit.id}`,
       on: visit.startsAt ?? visit.doneAt ?? visit.bookedAt,
-      icon: visit.startsAt ? MapPin : CalendarCheck,
+      icon: SiteVisitIcon,
       kind: "Site visit",
       what: visit.startsAt
         ? [visit.visitor?.name, formatMinutes(visit.minutes)]
