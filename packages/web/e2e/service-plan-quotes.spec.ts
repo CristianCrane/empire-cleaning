@@ -261,7 +261,7 @@ test("the Client screen lists each home, whose own page holds its history and of
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "41-12 Austin St, 4B, 11375",
   );
-  // its details, and its Quotes and Jobs in its History beside them
+  // its details, and its Quotes and Jobs in its History under them
   await expect(
     page.getByRole("region", { name: "Home details" }),
   ).toBeVisible();

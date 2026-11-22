@@ -234,7 +234,7 @@ export function QuoteScreen() {
           },
       ]}
     >
-      {/* its story is its body: no History beside it (#145) */}
+      {/* its story is its body: no History of its own (#145) */}
       <Timeline aria-label="This quote's story, newest first">
         {offer && (
           <TimelineItem icon={FileClock} title="Now" current>

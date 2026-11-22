@@ -113,7 +113,7 @@ test(
     await expect(page.getByText("Mondays at 9:00 AM")).toBeVisible();
     await noViolations(page);
 
-    // and its Jobs in the home's History beside it, newest first
+    // and its Jobs in the home's History, newest first
     const jobs = page
       .getByRole("list", { name: /^History/ })
       .getByRole("listitem")

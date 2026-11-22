@@ -74,7 +74,7 @@ const { formatDate, formatDateTime } = formats.en;
 
 // A home for the Office (ADR-0011), a Record (docs/ux.md): what to know
 // first as alerts; then its details, its Service Plan and its Site Visit,
-// and its whole history beside them from xl, newest first
+// and its whole history last, newest first
 export function PropertyScreen() {
   const { home, premisesTypes, plan, visit } = useLoaderData({
     from: "/office/properties/$propertyId",
