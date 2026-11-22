@@ -59,6 +59,10 @@ const words = catalog({
     answerByHint: (amount: string, day: string) =>
       `${amount}, answer by ${day}`,
     checkGetIn: "Check how we get in",
+    // only on that day, so its time and "today", where the clean's page
+    // (portal words' teamCame) says the date it keeps it after
+    cameToday: (time: string, reason: string) =>
+      `The crew came at ${time} today, but couldn't get in: "${reason}".`,
     // a waiting tile's hint, when there are several
     andMore: (first: string, more: number) => `${first} · ${more} more`,
     seeQuotes: (n: number) => `See your ${n} quotes`,
@@ -135,6 +139,8 @@ const words = catalog({
     answerByHint: (amount: string, day: string) =>
       `${amount}, responda antes del ${day}`,
     checkGetIn: "Revisar cómo entramos",
+    cameToday: (time: string, reason: string) =>
+      `El equipo llegó hoy a las ${time}, pero no pudo entrar: "${reason}".`,
     andMore: (first: string, more: number) => `${first} · ${more} más`,
     seeQuotes: (n: number) => `Ver sus ${n} cotizaciones`,
     quoteReadyLabel: "Su cotización está lista",
@@ -380,10 +386,7 @@ export function whatsNext(
         },
         why: {
           tone: "warning",
-          lead: t.p.teamCame(
-            formatDateTime(noAccess.recordedAt),
-            noAccess.reason,
-          ),
+          lead: w.cameToday(t.formatTime(noAccess.recordedAt), noAccess.reason),
           more:
             noAccess.feeCents > 0
               ? t.noAccessFee({

@@ -504,7 +504,7 @@ describe("Home's card: what waits on the Client leads (#493)", () => {
     });
     expect(why).toEqual({
       tone: "warning",
-      lead: "The crew came at Sun, Nov 1, 9:20 AM, but couldn't get in: \"The code didn't open the door\".",
+      lead: "The crew came at 9:20 AM today, but couldn't get in: \"The code didn't open the door\".",
       more: "As with a late cancellation, your $68.06 deposit is kept as the fee.",
     });
     expect(asks).toBe(true);
@@ -526,6 +526,18 @@ describe("Home's card: what waits on the Client leads (#493)", () => {
     expect(twoHomes(at)).toBeUndefined();
     expect(twoHomes({ ...at, id: "other", street: "3 Oak Ave" })).toMatchObject(
       { label: "How we get in", hint: "Ring 2" },
+    );
+    expect(
+      whatsNext(
+        data({
+          plans: [plan()],
+          pastJobs: [lockedOut("2026-11-01T14:20:00.000Z")],
+        }),
+        "es",
+        NOW,
+      ).why?.lead,
+    ).toBe(
+      'El equipo llegó hoy a las 9:20 a.m., pero no pudo entrar: "The code didn\'t open the door".',
     );
     // the day after, the clean's page says it
     expect(

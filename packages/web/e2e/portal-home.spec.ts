@@ -214,7 +214,7 @@ test("the morning a crew couldn't get in, Home says what happened and leads with
   await page.clock.install({ time: new Date("2026-01-12T15:00:00Z") });
   await home(page);
   await expect(why(page)).toContainText(
-    "The crew came at Mon, Jan 12, 9:30 AM, but couldn't get in: \"The code didn't open the door\".",
+    "The crew came at 9:30 AM today, but couldn't get in: \"The code didn't open the door\".",
   );
   await expect(why(page)).toContainText(
     /As with a late cancellation, your \$[\d.]+ deposit is kept as the fee\./,
