@@ -16,6 +16,8 @@ export const uiWords = catalog({
     close: "Close",
     dismiss: "Dismiss",
     menu: "Menu",
+    // the rail's way to the account's parts (AppLayout)
+    account: "Account",
     next: "Next",
     back: "Back",
     gotIt: "Got it",
@@ -46,6 +48,7 @@ export const uiWords = catalog({
     close: "Cerrar",
     dismiss: "Descartar",
     menu: "Menú",
+    account: "Cuenta",
     next: "Siguiente",
     back: "Atrás",
     gotIt: "Entendido",

@@ -86,8 +86,8 @@ test("Office Staff see what's waiting counted by kind, and open one to see those
 
   const today = page.getByRole("button", { name: /^On today/ });
   const jobs = page.getByRole("button", { name: /^Jobs/ });
-  await expect(today).toHaveText(/On today\s*1\s*1 need cleaners/);
-  await expect(jobs).toHaveText(/Jobs\s*1\s*1 need cleaners/);
+  await expect(today).toHaveText(/On today\s*1\s*1 needs cleaners/);
+  await expect(jobs).toHaveText(/Jobs\s*1\s*1 needs cleaners/);
   await expect(page.getByRole("button", { name: /^Quotes/ })).toHaveText(
     /Quotes\s*1\s*1 asked for/,
   );
