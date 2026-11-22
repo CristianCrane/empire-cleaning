@@ -122,12 +122,23 @@ test("a Site Visit that has been is badged To record, on its page and its home's
     date: "2026-01-06",
     time: "10:00",
   });
-  // the next day: it's been, with nothing recorded
-  await page.clock.setFixedTime("2026-01-07T15:00:00Z");
+  // the day before, its findings card says when to add them
+  await page.clock.setFixedTime("2026-01-05T15:00:00Z");
   await signInAsOffice(page);
-
   await page.goto(`/office/site-visits/${visit.id}`);
+  await expect(
+    page.getByText("When it's done, add what was found."),
+  ).toBeVisible();
+
+  // the next day: it's been, with nothing recorded; the alert says why to
+  // record, so the card keeps only its button, not a line about later
+  await page.clock.setFixedTime("2026-01-07T15:00:00Z");
+  await page.reload();
   await expect(page.getByText("Cory Cleaner has been.")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Record findings" }),
+  ).toBeVisible();
+  await expect(page.getByText("When it's done")).toHaveCount(0);
   await expect(
     page.getByRole("heading", { level: 1 }).locator("xpath=.."),
   ).toHaveText(/To record$/);

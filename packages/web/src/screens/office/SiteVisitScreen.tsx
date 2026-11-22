@@ -178,11 +178,15 @@ function Found({
               />
             }
           >
-            <p>
-              When it's done, add what was found. It updates the{" "}
-              {visit.property.kind === "commercial" ? "business's" : "home's"}{" "}
-              details so you can send a quote.
-            </p>
+            {/* once it's been, the page's alert says why to record, and a
+                line about when it's done would be untrue (#507) */}
+            {!been && (
+              <p>
+                When it's done, add what was found. It updates the{" "}
+                {visit.property.kind === "commercial" ? "business's" : "home's"}{" "}
+                details so you can send a quote.
+              </p>
+            )}
           </ActionRow>
         ) : (
           <Facts>
