@@ -60,20 +60,77 @@ type MoveProps = {
   close: () => void;
 };
 
+// what moving a Job to a time can do: whether a time is chosen, whether it's
+// where the Job is now, and whether its day has room (undefined while it's
+// checked). One per dialog, so its room is asked for once
+const useMove = (job: ScheduledJob, to: Partial<LocalDateTime>) => {
+  const room = useRoom(job, to);
+  const unchanged =
+    to.date === dayOfInstant(job.startsAt) &&
+    to.time === timeOfDay(job.startsAt);
+  const chosen = !!(to.date && to.time);
+  return {
+    room,
+    unchanged,
+    chosen,
+    canMove: chosen && !unchanged && room?.hasRoom === true,
+  };
+};
+
+type Move = ReturnType<typeof useMove>;
+
 /**
  * The confirm step before a Job moves, so emails never go out by accident:
  * the new time, whether its day has room, and what moving does.
  */
 export function ConfirmMove({ job, to, close }: MoveProps) {
-  const action = useAction("The job wasn't moved. Please try again.");
-  const room = useRoom(job, to);
-  const unchanged =
-    to.date === dayOfInstant(job.startsAt) &&
-    to.time === timeOfDay(job.startsAt);
-  const chosen = to.date && to.time;
-  const fits = room?.hasRoom === true;
+  const move = useMove(job, to);
+  return (
+    <>
+      <MoveFacts job={job} to={to} />
+      <MoveCheck job={job} move={move} />
+      <MoveActions job={job} to={to} move={move} close={close} />
+    </>
+  );
+}
 
-  const move = async () => {
+// the Job, and the time it moves from and to
+function MoveFacts({ job, to }: Pick<MoveProps, "job" | "to">) {
+  return (
+    <Facts>
+      <Fact icon={ContactRound} label="Job" value={clientName(job.client)} />
+      <Fact
+        icon={CalendarClock}
+        label="From"
+        value={formatDateTime(job.startsAt)}
+      />
+      <Fact
+        icon={CalendarCheck}
+        label="To"
+        value={
+          to.date && to.time
+            ? `${formatDay(to.date)}, ${formatClock(to.time)}`
+            : "—"
+        }
+      />
+    </Facts>
+  );
+}
+
+// whether the time chosen is where the Job is now, or has room for it
+function MoveCheck({ job, move }: { job: ScheduledJob; move: Move }) {
+  if (move.chosen && move.unchanged) {
+    return <p className="text-sm text-fg-muted">{SAME_TIME}</p>;
+  }
+  return move.room && !move.unchanged ? (
+    <RoomAt room={move.room} job={job} />
+  ) : null;
+}
+
+// what moving does, and the Buttons: Move job only once it can
+function MoveActions({ job, to, move, close }: MoveProps & { move: Move }) {
+  const action = useAction("The job wasn't moved. Please try again.");
+  const moveJob = async () => {
     if (
       await action.run(
         () => postJson(`/api/jobs/${job.id}/move`, to),
@@ -85,25 +142,6 @@ export function ConfirmMove({ job, to, close }: MoveProps) {
 
   return (
     <>
-      <Facts>
-        <Fact icon={ContactRound} label="Job" value={clientName(job.client)} />
-        <Fact
-          icon={CalendarClock}
-          label="From"
-          value={formatDateTime(job.startsAt)}
-        />
-        <Fact
-          icon={CalendarCheck}
-          label="To"
-          value={
-            chosen ? `${formatDay(to.date!)}, ${formatClock(to.time!)}` : "—"
-          }
-        />
-      </Facts>
-      {chosen && unchanged && (
-        <p className="text-sm text-fg-muted">{SAME_TIME}</p>
-      )}
-      {room && !unchanged && <RoomAt room={room} job={job} />}
       <p className="text-sm text-fg-muted">
         Its cleaners are asked to confirm the new time, and we'll email them and
         the client. It's free for the client.
@@ -115,8 +153,8 @@ export function ConfirmMove({ job, to, close }: MoveProps) {
         </Button>
         <Button
           isPending={action.isPending}
-          isDisabled={!chosen || unchanged || !fits}
-          onPress={() => void move()}
+          isDisabled={!move.canMove}
+          onPress={() => void moveJob()}
         >
           Move job
         </Button>
