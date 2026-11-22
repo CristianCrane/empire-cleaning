@@ -120,9 +120,8 @@ export function AppLayout({
         <nav aria-label={area} className="flex flex-col items-center gap-2">
           <RailGroups items={nav} />
         </nav>
-        {/* the same rule as between the groups, whatever the foot holds */}
         <div className="mt-auto flex flex-col items-center gap-2">
-          <hr aria-hidden className="mb-2 w-8 border-border" />
+          <RailRule className="mb-2" />
           {foot({ close: () => {}, place: "rail" })}
           <RailAccount area={area} foot={foot} isBusy={menuBusy} />
         </div>
@@ -229,7 +228,7 @@ const runs = (items: NavItem[]) => {
 function RailGroups({ items }: { items: NavItem[] }) {
   return runs(items).map((group, i) => (
     <Fragment key={group.items[0]!.label}>
-      {i > 0 && <hr aria-hidden className="w-8 border-border" />}
+      {i > 0 && <RailRule />}
       <div
         role={group.name ? "group" : undefined}
         aria-label={group.name}
@@ -246,6 +245,11 @@ function RailGroups({ items }: { items: NavItem[] }) {
 // a section on the rail: its icon, its name the tooltip, and its text for a
 // screen reader (and the tours, which find a link by its text); a count,
 // such as the Offers waiting, marked on the icon
+// the rail's one rule: between its groups, and over its foot
+function RailRule({ className = "" }: { className?: string }) {
+  return <hr aria-hidden className={`w-8 border-border ${className}`} />;
+}
+
 function RailLink({ item }: { item: NavItem }) {
   const Icon = item.icon;
   return (
