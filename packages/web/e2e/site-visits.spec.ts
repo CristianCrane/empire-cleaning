@@ -56,7 +56,9 @@ test(
     await expect(page.getByText("Needs a site visit")).toBeVisible();
     await page.getByText("Acme Dental").click();
     await expect(
-      page.getByText("This business needs a site visit before it's quoted"),
+      page.getByText(
+        "Commercial cleaning needs a site visit before it's quoted",
+      ),
     ).toBeVisible();
 
     await expectNextStep(page, "Book a site visit");
@@ -185,7 +187,9 @@ test("a Quote for business premises can't be drafted until their findings are re
 
   // not seen yet: seeing them is the only thing to do
   await expect(
-    page.getByText("This business needs a site visit before it's quoted."),
+    page.getByText(
+      "Commercial cleaning needs a site visit before it's quoted.",
+    ),
   ).toBeVisible();
   await expectNextStep(page, "Book a site visit");
   await expectNoPageAction(page, "Draft the quote");
@@ -265,7 +269,10 @@ test("a home's Quote for a Service seen first asks for a site visit as a home's"
   await page.goto("/office/quotes");
   await page.getByText("41-12 Austin St").click();
 
-  await expect(page.getByText(/^This home needs a site visit/)).toBeVisible();
+  // it's the Service that needs seeing, not the home
+  await expect(
+    page.getByText("Painting needs a site visit before it's quoted."),
+  ).toBeVisible();
   await expect(page.getByText(/business premises/i)).toHaveCount(0);
   // the page's next step, and only there
   await expectNextStep(page, "Book a site visit");

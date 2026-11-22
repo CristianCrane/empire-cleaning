@@ -14,7 +14,7 @@ import type {
   QuoteSource,
   TurnDownReason,
 } from "@empire-cleaning/models";
-import { needsVisit, formats } from "@empire-cleaning/models";
+import { needsVisit, placeOwner, formats } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -187,9 +187,12 @@ export const seeThePremises = (quote: OfficeQuote): Alert => ({
   tone: "warning",
   children: (
     <p>
-      <strong>{needsVisit(quote.property.kind)}</strong> If you know what it
-      would find already, record it on the{" "}
-      <Link href={propertyLink(quote)}>property page</Link> instead.
+      <strong>{needsVisit(quote.service.name)}</strong> If you know what it
+      would find already, record it on{" "}
+      <Link href={propertyLink(quote)}>
+        {placeOwner(quote.property.kind)} page
+      </Link>{" "}
+      instead.
     </p>
   ),
 });

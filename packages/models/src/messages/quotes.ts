@@ -69,10 +69,16 @@ export const quotes = catalog({
 
 // the Office's, in English (ADR-0025)
 
-// a Property not seen yet, for a Service that's seen before it's quoted
-// (ADR-0018), for a home too; the Office adds how to see it
-export const needsVisit = (kind: PropertyKind) =>
-  `${startOf(kind)} needs a site visit before it's quoted.`;
+// what needs a site visit before it's quoted: a Service seen first
+// ("Painting", ADR-0018, for a home too), or a business on its page; the
+// Office adds how to see it
+export const needsVisit = (what: string) =>
+  `${what} needs a site visit before it's quoted.`;
+
+// a Property's, as the Office's words name its page or its details ("the
+// home's page"), and never "the property page", which no one calls it
+export const placeOwner = (kind: PropertyKind) =>
+  kind === "commercial" ? "the business's" : "the home's";
 
 // why a Quote can't be sent yet; each side adds where to fix it
 export const noEmailYet = (name: string) =>

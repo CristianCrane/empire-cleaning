@@ -49,6 +49,7 @@ import {
   firstNameOf,
   noEmailYet,
   notSeenYet,
+  placeOwner,
   recurrenceDays,
   weekdayOf,
   whyNoRoom,
@@ -1711,7 +1712,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
               params: { propertyId: quote.property.id },
             })}
           >
-            the property page
+            {placeOwner(quote.property.kind)} page
           </Link>
           , then send it.
         </p>

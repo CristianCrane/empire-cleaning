@@ -991,7 +991,9 @@ export const quoteSent = async (
 // premises as the Office knows them, with no visit, and comes back
 export const recordFindingsWithoutVisit = async (page: Page) => {
   const quote = page.url();
-  await page.getByRole("link", { name: "property page", exact: true }).click();
+  await page
+    .getByRole("link", { name: /^the (home|business)'s page$/ })
+    .click();
   await page
     .getByRole("button", { name: "Record findings without a visit" })
     .click();
