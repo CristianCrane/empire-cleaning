@@ -82,14 +82,14 @@ export const jobSection = (job: Pick<CleanerJob, "assignment">): JobSection =>
   job.assignment.status === "offered" ? "offers" : "yourJobs";
 
 // the office's phone, for what only the office can sort out
-export const callOffice = (t: Said): PageAction => ({
+const callOffice = (t: Said): PageAction => ({
   label: t.c.callOffice,
   icon: Phone,
   externalHref: business.phone.href,
 });
 
 // directions to where a Job is
-export const directionsAction = (t: Said, address: string): PageAction => ({
+const directionsAction = (t: Said, address: string): PageAction => ({
   label: t.c.directions,
   icon: Navigation,
   externalHref: directionsTo(address),
