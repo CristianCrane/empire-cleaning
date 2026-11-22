@@ -499,47 +499,58 @@ export const showInMenu = async (page: Page, wanted: Locator) => {
   return { item, opened: true };
 };
 
-// a Record's Actions menu, at the end of its title row (docs/ux.md, Page
-// structure), in either language
-const actionsMenu = (page: Page) =>
-  page.getByRole("button", { name: /^(Actions|Acciones)$/ });
+// what holds a page's actions besides its next step (docs/ux.md, Page
+// structure), in either language: its split button's arrow, a menu under
+// it from md and a sheet from a phone's foot, or a quiet ⋯ when nothing is
+// next. One copy is there to press at a time (the title row's, the header
+// that sticks once scrolled, or a phone's foot)
+const moreActions = (page: Page) =>
+  page.getByRole("button", { name: /^(More actions|Más acciones)$/ });
 
-// does one of a Record's actions on its page: from its Actions menu, or the
-// Button in the menu's place when it's the only one (#432)
-export const pageAction = async (page: Page, name: string) => {
-  const menu = actionsMenu(page);
-  const only = page
+// a page's action pressed straight away: its next step, or its one action
+// when nothing is next
+const pageButton = (page: Page, name: string) =>
+  page
     .getByRole("button", { name, exact: true })
     .or(page.getByRole("link", { name, exact: true }));
-  // whichever the page shows, once it's the page wanted
-  await expect(menu.or(only).first()).toBeVisible();
-  if ((await menu.count()) === 0) {
-    await only.click();
+
+// does one of a page's actions: its next step, pressed straight away, or
+// one of the rest from behind More actions, or its one action when nothing
+// is next (#432, #493)
+export const pageAction = async (page: Page, name: string) => {
+  const more = moreActions(page);
+  const button = pageButton(page, name);
+  // on the page itself, a dialog closed (its own button of the name gone
+  // too), and whichever the page shows, once it's the page wanted
+  await expect(
+    page.getByRole("dialog").or(page.getByRole("alertdialog")),
+  ).toHaveCount(0);
+  await expect(more.or(button).first()).toBeVisible();
+  if ((await button.count()) > 0) {
+    await button.click();
     return;
   }
-  await menu.click();
+  await more.click();
   await page.getByRole("menuitem", { name, exact: true }).click();
-  // gone, its popover too, so the dialog it opens is the only one
+  // gone, the menu's popover or the phone's sheet too, so the dialog it
+  // opens is the only one
   await expect(page.getByRole("menu")).toHaveCount(0);
 };
 
-// one of a Record's actions isn't on offer on its page: not in its Actions
-// menu, nor the one Button in its place
+// one of a page's actions isn't on offer on it: not pressed straight away,
+// nor behind More actions
 export const expectNoPageAction = async (page: Page, name: string) => {
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  const menu = actionsMenu(page);
-  if ((await menu.count()) === 0) {
-    await expect(page.getByRole("button", { name, exact: true })).toHaveCount(
-      0,
-    );
-    return;
-  }
-  await menu.click();
+  await expect(pageButton(page, name)).toHaveCount(0);
+  const more = moreActions(page);
+  if ((await more.count()) === 0) return;
+  await more.click();
   await expect(page.getByRole("menu")).toBeVisible();
   await expect(page.getByRole("menuitem", { name, exact: true })).toHaveCount(
     0,
   );
   await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu")).toHaveCount(0);
 };
 
 // The forms that take a payment, each found here and only here, by these

@@ -2,6 +2,7 @@ import { formats } from "@empire-cleaning/models";
 import { useLoaderData } from "@tanstack/react-router";
 import {
   CalendarCheck,
+  ClipboardCheck,
   Clock,
   NotebookPen,
   UserRound,
@@ -37,7 +38,9 @@ import { homeTrail } from "./trails.ts";
 import {
   CancelSiteVisit,
   MoveSiteVisit,
+  RECORD_FINDINGS,
   RecordFindings,
+  RecordFindingsDialog,
   hasBeen,
   SiteVisitBadge,
 } from "./SiteVisitParts.tsx";
@@ -48,7 +51,8 @@ const { formatDateTime, formatDay, formatTime } = formats.en;
 
 // One Site Visit for the Office (ADR-0015), a Record (docs/ux.md): when,
 // large, behind a date tile; who, how long, how to get in and the Quote
-// it's for; then what it found, or the way to record it. A booked one is
+// it's for; then what it found. Once it's been, recording that is the
+// page's next step; before, it waits on What it found. A booked one is
 // moved or cancelled from the page's actions. It's free, so there's nothing
 // to charge; the Client calls to change it. A home's page shows its current
 // one as a row opening it
@@ -68,6 +72,21 @@ export function SiteVisitScreen() {
       ]}
       title="Site visit"
       status={<SiteVisitBadge visit={visit} />}
+      next={
+        booked && been
+          ? {
+              label: RECORD_FINDINGS,
+              icon: ClipboardCheck,
+              dialog: (state) => (
+                <RecordFindingsDialog
+                  visit={visit}
+                  premisesTypes={premisesTypes}
+                  {...state}
+                />
+              ),
+            }
+          : undefined
+      }
       actions={[
         booked && {
           label: "Move or change",
@@ -85,7 +104,7 @@ export function SiteVisitScreen() {
         been && {
           key: "been",
           tone: "warning",
-          children: `${visit.visitor?.name ?? "The visitor"} has been. Add what they found so you can send a quote.`,
+          children: `${visit.visitor?.name ?? "The visitor"} has been. A quote waits on what they found.`,
         },
         visit.status === "cancelled" && {
           key: "cancelled",
@@ -152,8 +171,9 @@ export function SiteVisitScreen() {
   );
 }
 
-// what it found; or, while it's booked, the way to record it, an empty
-// part offering its action
+// what it found; or, booked and not been yet, the way to record it, an
+// empty part offering its action. Once it's been, recording is the page's
+// next step, so the part waits until there's something found
 function Found({
   visit,
   premisesTypes,
@@ -164,28 +184,21 @@ function Found({
   been: boolean;
 }) {
   if (visit.status === "cancelled") return null;
+  if (visit.status === "booked" && been) return null;
   return (
     <Section title="What it found">
       <Card>
         {visit.status === "booked" ? (
           <ActionRow
             actions={
-              <RecordFindings
-                visit={visit}
-                premisesTypes={premisesTypes}
-                primary={been}
-              />
+              <RecordFindings visit={visit} premisesTypes={premisesTypes} />
             }
           >
-            {/* once it's been, the page's alert says why to record, and a
-                line about when it's done would be untrue (#507) */}
-            {!been && (
-              <p>
-                When it's done, add what was found. It updates the{" "}
-                {visit.property.kind === "commercial" ? "business's" : "home's"}{" "}
-                details so you can send a quote.
-              </p>
-            )}
+            <p>
+              When it's done, add what was found. It updates the{" "}
+              {visit.property.kind === "commercial" ? "business's" : "home's"}{" "}
+              details so you can send a quote.
+            </p>
           </ActionRow>
         ) : (
           <Facts>

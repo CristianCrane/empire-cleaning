@@ -52,7 +52,7 @@ skill says how, and here:
 - **What each screen leads with:** a home screen, what's next; a money page,
   whether anything is owed; a Cleaner's list, where they're working.
 - **What waits behind a tap:** a "How it's worked out" link, a folded
-  section, the Actions menu.
+  section, a page's rarer actions behind its next step's arrow or a ⋯.
 - **Details belong on the detail page**, not its row.
 
 ### Record
@@ -74,7 +74,10 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   someone among them, not in a part of their own.
 - **Its parts**, each a Section. An action on one part stays on that part's
   title line (End plan, red, on the plan; Billing's Edit). A part
-  with nothing in it yet offers its action (`ActionRow`). Money is one
+  with nothing in it yet offers its action (`ActionRow`), unless that
+  action is the page's next step, in the header: then the part waits until
+  it has something (a Site Visit that has been, Record findings; each
+  action once). Money is one
   part: its facts, the price changes in it, "How it's worked out" folded
   (`Fold`).
 - **Its History**, a `Timeline` in a Card, newest first: last, at every
@@ -83,10 +86,11 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   entry alike (`TimelineItem`, a Quote's story too). What happened (a drop-out, a Cleaner taken off) is told there, not
   kept as a row elsewhere. A Quote's story is its
   body, **Now** on top holding it as it stands; its Draft is a Form page.
-- **On a phone, the page's actions pinned at the foot**, above the tab
-  bar, after the facts (#493 builds it).
+- **On a phone, the page's next step pinned at the foot**, above the tab
+  bar, after the facts, the rest behind its arrow in a sheet; a wider
+  screen keeps it in the header (`RecordPage`'s `next`).
 
-("Layout / RecordPage"; "A Record: its header, two alerts, its details, its
+("Layout / RecordPage", "Next Step At A Phones Foot"; "A Record: its header, two alerts, its details, its
 parts"; "A record's History last, one column"; "Records as stories")
 
 ### List
@@ -294,16 +298,21 @@ The `ui` skill's rules hold here too; these are this product's.
   audit's Site visit 1; #507); a subtitle only when it says what
   nothing else on the page does (a Bill's week), never the title, a crumb
   or the Client again (each fact once: the `ui` skill); and the page's
-  actions at the end of the title row: one split button, the page's next
-  step its primary and the rest behind its arrow, or a ⋯ menu when nothing
-  is next, sticking in a header once scrolled past, a Record's there on a
-  wider screen only and at the foot on a phone (#493 builds it); a page
+  actions at the end of the title row, on the title's line: one split
+  button, the page's next step its primary and the rest behind its arrow
+  ("More actions": a menu under it from md, a sheet from a phone's foot),
+  or a quiet ⋯ ("More actions") when nothing is next. One action with
+  nothing next stays a Button, as a menu of one would hide it; a page
   whose only action destroys has no primary, that action in the same
-  place, outlined in red (`danger-outline`), not in a ⋯ menu, which would
-  hide the page's only action (the `ui` skill); the
-  destructive last in red after a rule. Printed,
-  it's the title alone.
-  ("Layout / RecordPage / Actions In The Header", "One Action";
+  place, outlined in red (`danger-outline`) (the `ui` skill); the
+  destructive last in red after a rule. Short of room, the badge drops
+  under the title before the button moves. From md, once the title row's
+  split button scrolls away, a slim header sticks at the top with the
+  title, the badge and the same split button, lined up with the column
+  (and what the step rests on beside it, a Draft's price: PageHeader's
+  `summary`); a Record's next step is there on a wider screen only, and at
+  the foot on a phone. Printed, it's the title alone.
+  ("Layout / RecordPage / Next Step In The Header", "Nothing Next", "One Action";
   "Layout / FormPage / Priced With A Footer" for a lone destructive action)
 - **A wide screen keeps a readable column**: the content's, AppLayout's
   `max-w-5xl` (960 px inside its margins), the width every page in an
@@ -378,9 +387,10 @@ The `ui` skill's rules hold here too; these are this product's.
   secondary, text or quiet.
 - **A bar at the foot of a page is an `ActionFooter`**, which the page's
   layout places, never a sticky bar of the page's own, which pins under the phone's tab bar (#425); a sheet's pinned Buttons are the sheet's, over the tab bar (Dialogs and rows). It holds,
-  above the tab bar, a Record's actions on a phone (a Cleaner's Job on
-  site), which a wider screen keeps in the header instead (the `ui` skill;
-  #493 builds it), and a form's price and its button (the Quote Draft's
+  above the tab bar, a Record's next step on a phone, which a wider screen
+  keeps in the header instead (`phone`; the `ui` skill), a Cleaner's
+  Complete on site at every width (until #493 makes it the Cleaner's next
+  step), and a form's price and its button (the Quote Draft's
   Send, New quote's Draft a quote), full width beside the rail or the
   sidebar on a wider screen until #493 settles it with a prototype, its row the
   content's ("A wide screen keeps a readable column"). What it sums up

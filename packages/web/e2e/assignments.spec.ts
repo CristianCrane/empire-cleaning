@@ -157,7 +157,7 @@ test(
     await signInAsOffice(page);
     await page.goto(`/office/jobs/${job.id}`);
 
-    await page.getByRole("button", { name: "Actions", exact: true }).click();
+    await page.getByRole("button", { name: "More actions" }).click();
     const menu = page.getByRole("menu");
     await expect(menu.getByRole("menuitem")).toHaveText([
       "Move job",

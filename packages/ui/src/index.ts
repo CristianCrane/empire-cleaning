@@ -66,7 +66,7 @@ export {
   SettingsPage,
   type SettingsPart,
 } from "./layouts/SettingsPage.tsx";
-export { MenuButton, MenuItem, MenuSeparator } from "./Menu.tsx";
+export { Menu, MenuItem, MenuSeparator } from "./Menu.tsx";
 export { useLanguage, useUiWords } from "./language.ts";
 export { LanguageName, LanguagePicker } from "./LanguagePicker.tsx";
 export { LanguageProvider } from "./LanguageProvider.tsx";

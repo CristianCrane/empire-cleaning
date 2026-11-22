@@ -1,4 +1,11 @@
-import { CircleCheck, LayoutDashboard, Printer } from "lucide-react";
+import {
+  CalendarSync,
+  CalendarX,
+  CircleCheck,
+  ClipboardCheck,
+  LayoutDashboard,
+  Printer,
+} from "lucide-react";
 import { afterEach, expect, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { page } from "vitest/browser";
@@ -66,7 +73,6 @@ test("a Record's bar at the foot lines up with its content on a wide screen", as
         title="Deep Clean"
         details={<DetailsCard label="Details" title="9:00 AM" />}
         footer={{
-          label: "Job",
           children: <button type="button">Complete</button>,
         }}
       />
@@ -74,4 +80,76 @@ test("a Record's bar at the foot lines up with its content on a wide screen", as
   );
 
   expect(box(button("Complete")).right).toBe(box(region("Details")).right);
+});
+
+const visit = (
+  <AppLayout
+    area="Office area"
+    nav={[
+      { href: "#", label: "Schedule", icon: LayoutDashboard, isCurrent: true },
+    ]}
+    foot={() => null}
+  >
+    <RecordPage
+      trail={[{ label: "Schedule", href: "#" }, { label: "Site visit" }]}
+      title="Site visit"
+      next={{ label: "Record findings", icon: ClipboardCheck, onAction() {} }}
+      actions={[
+        { label: "Move or change", icon: CalendarSync, onAction() {} },
+        { label: "Cancel visit", icon: CalendarX, danger: true, onAction() {} },
+      ]}
+      details={<DetailsCard label="Details" title="Mon, Nov 9, 9:00 AM" />}
+    >
+      <Section title="Notes">
+        <Card>
+          <div className="h-[200vh]">Long notes</div>
+        </Card>
+      </Section>
+    </RecordPage>
+  </AppLayout>
+);
+
+// the one copy of the next step there to press: the title row's, at its
+// end and lined up with the content; scrolled past, the header that sticks
+// at the top, lined up with it too (#493)
+test("a Record's next step on a wide screen is at the title row's end, then sticks at the top", async () => {
+  await page.viewport(1024, 768);
+  await render(visit);
+  const press = page.getByRole("button", { name: "Record findings" });
+  const more = page.getByRole("button", { name: "More actions" });
+
+  await expect.element(press).toBeVisible();
+  expect(box(more.element()).right).toBe(box(region("Details")).right);
+  expect(page.getByRole("group", { name: "What to do" }).query()).toBeNull();
+
+  window.scrollTo(0, 600);
+  // the header that sticks: in view at the top, its bar's edge the
+  // content's, its button inside the bar's padding
+  await expect.poll(() => box(press.element()).top).toBeGreaterThan(0);
+  expect(box(press.element()).bottom).toBeLessThan(80);
+  expect(box(more.element()).right).toBeGreaterThan(
+    box(region("Details")).right - 24,
+  );
+  expect(box(more.element()).right).toBeLessThan(box(region("Details")).right);
+});
+
+// on a phone, read after the facts: pinned at the foot, above the tab bar;
+// the rest in a sheet rising from it, the destructive last
+test("a Record's next step on a phone is pinned at the foot, the rest in a sheet", async () => {
+  await page.viewport(390, 844);
+  await render(visit);
+  const foot = page.getByRole("group", { name: "What to do" });
+
+  await expect
+    .element(foot.getByRole("button", { name: "Record findings" }))
+    .toBeVisible();
+  expect(
+    page.getByRole("button", { name: "Record findings" }).all(),
+  ).toHaveLength(1);
+  await foot.getByRole("button", { name: "More actions" }).click();
+  const sheet = page.getByRole("dialog", { name: "More actions" });
+  await expect
+    .element(sheet.getByRole("menuitem").last())
+    .toHaveTextContent("Cancel visit");
+  await expect.poll(() => box(sheet.element()).bottom).toBe(window.innerHeight);
 });

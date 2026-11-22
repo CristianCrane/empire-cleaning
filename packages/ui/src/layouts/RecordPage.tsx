@@ -5,17 +5,23 @@ import { Card } from "../Card.tsx";
 import { useUiWords } from "../language.ts";
 import { Section } from "../Section.tsx";
 import { Alerts, type Alert } from "./Alerts.tsx";
-import type { PageActions } from "./PageActions.tsx";
+import {
+  SplitButton,
+  type PageAction,
+  type PageActions,
+} from "./PageActions.tsx";
 import { PageHeader } from "./PageHeader.tsx";
 
 // The Record type's layout (docs/ux.md, Screen types, Record; #432): a page
 // about one thing. Its PageHeader; its alerts, most pressing first, two of
 // them and the rest behind "Show N more"; its DetailsCard; each part of it,
 // a Section; and its History in a Card, last, at every width: one column,
-// the content's width, as a side column competed with the page (#493). A
-// bar at the foot holds only what must stay in reach on
-// site (a Cleaner's Complete): every other action is in the header, or on
-// the part it acts on
+// the content's width, as a side column competed with the page (#493).
+// Its next step is the header's primary, and on a phone it's pinned at the
+// foot, read after the facts, the rest behind its arrow; a bar at the foot
+// at every width holds only what must stay in reach on site (a Cleaner's
+// Complete, until it's the Cleaner's next step). Every other action is in
+// the header, or on the part it acts on
 export function RecordPage({
   trail,
   title,
@@ -25,6 +31,7 @@ export function RecordPage({
   alerts = [],
   details,
   history,
+  next,
   footer,
   children,
 }: {
@@ -39,11 +46,20 @@ export function RecordPage({
   details?: ReactNode;
   // its Timeline, newest first
   history?: ReactNode;
-  // the on-site main action, kept in reach in an ActionFooter named `label`
-  footer?: Footer;
   // its parts, each a Section
   children?: ReactNode;
-}) {
+} & (
+  | {
+      // its next step (PageHeader)
+      next?: PageAction;
+      footer?: never;
+    }
+  | {
+      next?: never;
+      // the on-site main action, kept in reach at every width
+      footer?: Omit<Footer, "label">;
+    }
+)) {
   const words = useUiWords();
   return (
     <div className="flex flex-col gap-6">
@@ -53,6 +69,7 @@ export function RecordPage({
         status={status}
         subtitle={subtitle}
         actions={actions}
+        next={next}
       />
       <Alerts alerts={alerts} />
       {details}
@@ -62,9 +79,18 @@ export function RecordPage({
           <Card>{history}</Card>
         </Section>
       )}
+      {next && (
+        <ActionFooter aria-label={words.whatToDo} phone>
+          <SplitButton
+            next={next}
+            more={(actions ?? []).filter((a) => !!a)}
+            opens="sheet"
+          />
+        </ActionFooter>
+      )}
       {footer && (
         <ActionFooter
-          aria-label={footer.label}
+          aria-label={words.whatToDo}
           summary={footer.summary}
           status={footer.status}
         >

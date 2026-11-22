@@ -122,23 +122,37 @@ test("a Site Visit that has been is badged To record, on its page and its home's
     date: "2026-01-06",
     time: "10:00",
   });
-  // the day before, its findings card says when to add them
+  // the day before, its findings card says when to add them, and nothing
+  // is next
   await page.clock.setFixedTime("2026-01-05T15:00:00Z");
   await signInAsOffice(page);
   await page.goto(`/office/site-visits/${visit.id}`);
   await expect(
     page.getByText("When it's done, add what was found."),
   ).toBeVisible();
+  await expect(page.getByRole("group", { name: "What to do" })).toHaveCount(0);
 
-  // the next day: it's been, with nothing recorded; the alert says why to
-  // record, so the card keeps only its button, not a line about later
+  // the next day: it's been, with nothing recorded. Recording is the page's
+  // next step, pinned at a phone's foot after the facts; the alert says
+  // only why, and What it found waits until something is
   await page.clock.setFixedTime("2026-01-07T15:00:00Z");
   await page.reload();
-  await expect(page.getByText("Cory Cleaner has been.")).toBeVisible();
+  await expect(
+    page.getByText("Cory Cleaner has been. A quote waits on what they found.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("group", { name: "What to do" })
+      .getByRole("button", { name: "Record findings" }),
+  ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Record findings" }),
-  ).toBeVisible();
-  await expect(page.getByText("When it's done")).toHaveCount(0);
+  ).toHaveCount(1);
+  await expect(page.getByRole("region", { name: "What it found" })).toHaveCount(
+    0,
+  );
   await expect(
     page.getByRole("heading", { level: 1 }).locator("xpath=.."),
   ).toHaveText(/To record$/);

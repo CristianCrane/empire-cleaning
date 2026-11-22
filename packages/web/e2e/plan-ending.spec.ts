@@ -10,6 +10,7 @@ import {
   signUp,
   startedServicePlan,
   test,
+  expectNoPageAction,
   pageAction,
   openTile,
   saveACard,
@@ -229,9 +230,8 @@ test(
     await expect(
       page.getByText("Ended", { exact: true }).first(),
     ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Actions", exact: true }),
-    ).toHaveCount(0);
+    await expectNoPageAction(page, "Change terms");
+    await expectNoPageAction(page, "End plan");
     await expectAccessible(page);
   },
 );

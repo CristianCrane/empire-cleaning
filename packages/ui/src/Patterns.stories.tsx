@@ -1094,9 +1094,11 @@ function DetailsPage() {
           Every page about one thing is a <code>RecordPage</code>. Its header
           has the breadcrumbs from the nav section down, every step, the title
           and status, and what can be done to the whole record at the end of the
-          title row: one <strong>Actions ▾</strong> menu, each item an icon and
-          its words, the destructive ones last in red; or, with one action, a
-          Button in that same place.
+          title row: its next step as a split button, the rest behind its arrow,
+          each an icon and its words, the destructive ones last in red; with
+          nothing next, a quiet ⋯ holding them, or one action as a Button in
+          that same place. On a phone the next step is pinned at the foot, after
+          the facts.
         </p>
         <p>
           What needs an answer goes next, as a Notice each, the most pressing
@@ -1108,8 +1110,9 @@ function DetailsPage() {
           Then one details card: what it is, large, led by its tile; then its
           facts in even columns across, each an icon, a value and a muted line
           saying what it is. Then each part, a Section; an action on one part
-          (End plan on the plan) is a text Button on its title line. Only a
-          Cleaner's on-site main action sits in a bar at the foot.
+          (End plan on the plan) is a text Button on its title line. Besides a
+          phone's next step, only a Cleaner's on-site main action sits in a bar
+          at the foot.
         </p>
       </Rule>
       <Example verdict="Do">

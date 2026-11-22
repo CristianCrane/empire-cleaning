@@ -28,8 +28,13 @@ export const uiWords = catalog({
     goHome: "Go to your home page",
     // a Home's greeting, by the person's first name
     hi: (name: string) => `Hi, ${name}`,
-    // a page's actions, in the menu at the end of its title row
-    actions: "Actions",
+    // what a page can do besides its next step, behind its split button's
+    // arrow, or behind a ⋯ when nothing is next (PageActions)
+    moreActions: "More actions",
+    // a phone's sheet of a page's actions, closed with nothing done
+    cancel: "Cancel",
+    // a Record's bar at a phone's foot, holding its next step
+    whatToDo: "What to do",
     history: "History",
     // the alerts a Record holds back, all at once
     showMore: (n: number) => `Show ${n} more`,
@@ -57,7 +62,9 @@ export const uiWords = catalog({
     testSite: "Sitio de prueba: sin pagos ni limpiezas reales",
     goHome: "Ir a la página de inicio",
     hi: (name: string) => `Hola, ${name}`,
-    actions: "Acciones",
+    moreActions: "Más acciones",
+    cancel: "Cancelar",
+    whatToDo: "Qué hacer",
     history: "Historial",
     showMore: (n: number) => `Ver ${n} más`,
     showMoreLeft: (n: string) => `Ver más (quedan ${n})`,
