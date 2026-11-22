@@ -162,11 +162,52 @@ export const completeJob = (
 
 // every price change reported on the Job proposed to its Client, at its
 // worked-out price, by the Office Staff member with `officeEmail`
-export const proposeReported = (jobId: string, officeEmail: string) =>
+const proposeReported = (jobId: string, officeEmail: string) =>
   control(`/jobs/${jobId}/propose`, {
     method: "POST",
     body: JSON.stringify({ officeEmail }),
   });
+
+// Casey's Deep Clean at 9am on Monday 12 January (acceptedJob), Quoted by
+// `office`, added as Office Staff and signed up here, with Cory, a Cleaner
+// added for it, Confirmed on it
+export const bookedClean = async (office: { email: string; name: string }) => {
+  await createStaff({ ...office, roles: ["office_staff"] });
+  await signUp(office.email);
+  const cory = await addCleaner("Cory Cleaner");
+  const job = await acceptedJob({
+    startsAt: "2026-01-12T14:00:00Z",
+    officeEmail: office.email,
+  });
+  await offerJob(job.id, cory.id, { confirmed: true });
+  return { job, cory };
+};
+
+// that clean done at 11am, the clock left there, with each of `hours` more
+// than Quoted reported (an hour, unless said), each proposed to Casey by
+// `office`. With `failing`, its Balance is declined, and Charges keep
+// failing until failCharges(null)
+export const priceChangeWaiting = async (
+  office: { email: string; name: string },
+  {
+    hours = [1],
+    failing = false,
+  }: { hours?: number[]; failing?: boolean } = {},
+) => {
+  const { job, cory } = await bookedClean(office);
+  await setClock("2026-01-12T16:00:00Z");
+  if (failing) await failCharges();
+  await completeJob(job.id, cory.id, {
+    condition: "moderate",
+    reports: hours.map((h) => ({
+      kind: "extra_time" as const,
+      hours: h,
+      reason: "Heavy grease",
+    })),
+  });
+  await proposeReported(job.id, office.email);
+  return job;
+};
 
 // No Access recorded by a Cleaner Confirmed on the Job
 export const recordNoAccess = (
