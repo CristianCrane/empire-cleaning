@@ -162,7 +162,7 @@ export function PortalProperty() {
                 ]
                   .filter(Boolean)
                   .join(" · ")}
-                end={<PlanStatusBadge status={plan.status} />}
+                end={<PlanStatusBadge plan={plan} />}
               />
             ))}
           </List>

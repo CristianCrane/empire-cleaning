@@ -107,7 +107,8 @@ export function PortalPlan() {
         { label: t.p.yourPlan },
       ]}
       title={t.p.yourPlan}
-      status={<PlanStatusBadge status={plan.status} />}
+      status={<PlanStatusBadge plan={plan} />}
+      next={onHold.next}
       actions={[
         plan.status !== "ended" && {
           label: t.w.askToChange,
@@ -116,7 +117,7 @@ export function PortalPlan() {
         },
         endPlan,
       ]}
-      alerts={onHold}
+      alerts={onHold.alerts}
       details={
         <PlanCard plan={plan} forClient label={t.w.details}>
           <p className="text-sm text-fg-muted">

@@ -11,7 +11,9 @@ import {
   signUp,
   startedServicePlan,
   test,
+  expectNextStep,
   expectNoPageAction,
+  expectNothingNext,
   pageAction,
   openTile,
   saveACard,
@@ -145,28 +147,54 @@ test("a Client's plan is On Hold while a fee is Unpaid, and back on once they pa
   await expect(page.getByText("Your clean is skipped")).toBeVisible();
 
   await page.goto(`/portal/plans/${planId}`);
-  const onHold = page
-    .getByRole("alert")
-    .filter({ hasText: "Your plan is paused" });
-  await expect(onHold).toContainText(
-    "Your plan is paused. We couldn't take payment for the clean on Mon, Jan 19, 9:00 AM ($50.46). Cleans already booked still go ahead, but we won't book any more.",
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "Your cleaning plan is paused" }),
+  ).toContainText(
+    "Your cleaning plan is paused. We couldn't take payment for the clean on Mon, Jan 19, 9:00 AM ($50.46). Cleans already booked still go ahead, but we won't book any more.",
   );
   await expectAccessible(page);
 
+  // putting it right is the page's next step: saving a card tries the
+  // charge again
   await failCharges(null);
-  await onHold.getByRole("link", { name: "Pay for that clean" }).click();
-  // saving a card tries the charge again
-  await page
-    .getByRole("alert")
-    .filter({ hasText: "Payment needed" })
-    .getByRole("link", { name: "Update your card" })
-    .click();
+  await expectNextStep(page, "Update your card");
+  await pageAction(page, "Update your card");
   await saveACard(page).save.click();
   await expect(page.getByText("Card saved")).toBeVisible();
 
   await page.goto(`/portal/plans/${planId}`);
-  await expect(page.getByText("Your plan is paused")).toHaveCount(0);
+  await expect(page.getByText("Your cleaning plan is paused")).toHaveCount(0);
   await expect(page.getByText("Active", { exact: true })).toBeVisible();
+});
+
+test("a plan On Hold for a payment we try again ourselves asks nothing of the Client", async ({
+  page,
+}) => {
+  const { planId, firstJob } = await planStarted();
+  await setClock(SUNDAY_10AM);
+  // the bank payment for the fee is still clearing (ADR-0022)
+  await failCharges("processing");
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/jobs/${firstJob.id}`);
+  await pageAction(page, "Skip this clean");
+  await page
+    .getByRole("alertdialog", { name: "Skip this clean?" })
+    .getByRole("button", { name: "Skip this clean" })
+    .click();
+  await expect(page.getByText("Your clean is skipped")).toBeVisible();
+
+  await page.goto(`/portal/plans/${planId}`);
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "Your cleaning plan is paused" }),
+  ).toContainText(
+    "We'll try again by ourselves, so there's nothing you need to do.",
+  );
+  await expectNothingNext(page);
+  await expectNoPageAction(page, "Update your card");
 });
 
 test(
@@ -194,7 +222,7 @@ test(
     // the plan is on its home's page
     await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
     await expect(
-      page.getByRole("alert").filter({ hasText: "Paused." }),
+      page.getByRole("status").filter({ hasText: "Paused." }),
     ).toContainText(
       "Paused. The client's payment didn't go through for the clean on Mon, Jan 19, 9:00 AM ($50.46).",
     );

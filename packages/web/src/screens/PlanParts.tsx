@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
 import {
+  BriefcaseBusiness,
   CalendarClock,
   CircleStop,
+  CreditCard,
+  FileText,
   CirclePlus,
   Clock,
   PiggyBank,
@@ -12,7 +15,9 @@ import {
   CANCELLATION_CUTOFF_HOURS,
   type EndPlanTerms,
   type ServicePlanView,
+  type UnpaidKind,
   catalog,
+  officeFix,
   oneStop,
 } from "@empire-cleaning/models";
 import {
@@ -32,7 +37,7 @@ import {
   DialogTrigger,
 } from "@empire-cleaning/ui";
 import { postJson } from "../api.ts";
-import type { AppHref } from "../links.ts";
+import { linkTo, type AppHref } from "../links.ts";
 import { useAction } from "./action.ts";
 import { formatHours } from "./format.ts";
 import { type Said, useSaid } from "./words.ts";
@@ -43,9 +48,8 @@ const words = catalog({
   en: {
     cleanOn: (when: string, amount: string) =>
       `the clean on ${when} (${amount})`,
-    payForClean: "Pay for that clean",
     billN: (n: string, amount: string) => `bill ${n} (${amount})`,
-    paused: "Your plan is paused.",
+    paused: "Your cleaning plan is paused.",
     couldntTake: "We couldn't take payment for ",
     cancels: (cleans: number, hours: number, when: string) =>
       `It cancels your ${cleans === 1 ? "clean" : `${cleans} cleans`} booked more than ${hours} hours away, free: ${when}.`,
@@ -77,9 +81,8 @@ const words = catalog({
   es: {
     cleanOn: (when: string, amount: string) =>
       `la limpieza del ${when} (${amount})`,
-    payForClean: "Pagar esa limpieza",
     billN: (n: string, amount: string) => `la factura ${n} (${amount})`,
-    paused: "Su plan está en pausa.",
+    paused: "Su plan de limpieza está en pausa.",
     couldntTake: "No pudimos cobrar ",
     cancels: (cleans: number, hours: number, when: string) =>
       oneStop(
@@ -115,15 +118,24 @@ const words = catalog({
 });
 type T = Said & { w: (typeof words)["en"] };
 
-// a Service Plan's status
+// an Unpaid Job or Bill asks something of the Client, unless it's a
+// payment we try again ourselves (ADR-0022)
+const asks = ({ kind }: { kind: UnpaidKind }) => kind !== "waiting";
+
+// a Service Plan's status. On Hold waits on the Client (warning), unless
+// all it holds for is a payment we try again ourselves (info, as its
+// alerts say: useOnHold), when its Unpaid items are at hand
 export function PlanStatusBadge({
-  status,
+  plan: { status, unpaid, unpaidBills },
 }: {
-  status: ServicePlanView["status"];
+  plan: Pick<ServicePlanView, "status"> &
+    Partial<Pick<ServicePlanView, "unpaid" | "unpaidBills">>;
 }) {
   const t = useSaid(words);
+  const items = [...(unpaid ?? []), ...(unpaidBills ?? [])];
+  const ours = status === "on_hold" && items.length > 0 && !items.some(asks);
   return (
-    <StatusBadge tone={t.planStatus[status].tone}>
+    <StatusBadge tone={ours ? "info" : t.planStatus[status].tone}>
       {t.planStatus[status].label}
     </StatusBadge>
   );
@@ -138,8 +150,14 @@ type Viewer = {
   endPath: string;
 };
 
-// why a plan is On Hold: a danger alert for each Unpaid Job or Bill, its
-// one action the way to it (UX pass, #96). The first says what the hold means
+// Why a plan is On Hold, and the way to put it right as the page's next
+// step (the `ui` skill: the next step is the primary, the alert says why).
+// An alert for each Unpaid Job or Bill, the first saying what the hold
+// means: warning, as the plan waits on the Client, with the plan's badge in
+// the same tone (PlanStatusBadge); info for a payment we try again
+// ourselves (ADR-0022), which asks nothing of anyone. The first that asks
+// something is the next step; any other keeps its way to it in its alert,
+// a text link, as it isn't the page's next step
 export function useOnHold(
   plan: Omit<ServicePlanView, "upcoming"> | null,
   {
@@ -147,33 +165,50 @@ export function useOnHold(
     jobHref,
     billHref,
   }: { billHref: (billId: string) => AppHref } & Omit<Viewer, "endPath">,
-): Alert[] {
+): { alerts: Alert[]; next?: PageAction } {
   const t = useSaid(words);
-  if (plan?.status !== "on_hold") return [];
+  if (plan?.status !== "on_hold") return { alerts: [] };
   const unpaid = [
     ...plan.unpaid.map((u) => ({
       key: u.jobId,
+      kind: u.kind,
       what: forClient
         ? t.w.cleanOn(t.formatDateTime(u.startsAt), t.formatMoney(u.owedCents))
         : `the clean on ${t.formatDateTime(u.startsAt)} (${t.formatMoney(u.owedCents)})`,
-      href: jobHref(u.jobId),
-      label: forClient ? t.w.payForClean : "See the job",
+      // a clean's payment is put right by a card that works, which tries
+      // it again
+      way: forClient
+        ? {
+            label: t.UPDATE_CARD,
+            icon: CreditCard,
+            href: linkTo({ to: "/portal/payment-method" }),
+          }
+        : {
+            label: "See the job",
+            icon: BriefcaseBusiness,
+            href: jobHref(u.jobId),
+          },
     })),
     ...plan.unpaidBills.map((b) => ({
       key: b.billId,
+      kind: b.kind,
       what: forClient
         ? t.w.billN(b.number, t.formatMoney(b.totalCents))
         : `bill ${b.number} (${t.formatMoney(b.totalCents)})`,
-      href: billHref(b.billId),
-      label: forClient ? t.payBill(b.number) : `See bill ${b.number}`,
+      way: {
+        label: forClient ? t.payBill(b.number) : `See bill ${b.number}`,
+        icon: FileText,
+        href: billHref(b.billId),
+      },
     })),
   ];
-  return unpaid.map((u, i) => ({
+  const first = unpaid.find(asks);
+  const alerts = unpaid.map((u, i): Alert => ({
     key: u.key,
-    tone: "danger",
-    action: (
-      <ButtonLink variant="danger-text" href={u.href}>
-        {u.label}
+    tone: asks(u) ? "warning" : "info",
+    action: asks(u) && u !== first && (
+      <ButtonLink variant="text" href={u.way.href}>
+        {u.way.label}
       </ButtonLink>
     ),
     children: (
@@ -187,6 +222,7 @@ export function useOnHold(
           ? t.w.couldntTake
           : "The client's payment didn't go through for "}
         {u.what}.
+        {!asks(u) && ` ${forClient ? t.clientFix.waiting : officeFix.waiting}`}
         {i === 0 &&
           (forClient
             ? ` ${t.BOOKED_GO_AHEAD}`
@@ -194,6 +230,7 @@ export function useOnHold(
       </p>
     ),
   }));
+  return { alerts, next: first?.way };
 }
 
 // what Ending a plan does, as sentences

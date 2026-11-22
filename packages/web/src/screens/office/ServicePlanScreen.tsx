@@ -63,6 +63,7 @@ const endPath = (plan: OfficeServicePlan) =>
 export function ServicePlanScreen() {
   const plan = useLoaderData({ from: "/office/service-plans/$planId" });
   const { start, starting } = useStartDraft();
+  const onHold = useOnHold(plan, officePlanLinks);
   const endPlan = useEndPlanAction(plan, {
     forClient: false,
     endPath: endPath(plan),
@@ -75,7 +76,8 @@ export function ServicePlanScreen() {
         { label: "Cleaning plan" },
       ]}
       title="Cleaning plan"
-      status={<PlanStatusBadge status={plan.status} />}
+      status={<PlanStatusBadge plan={plan} />}
+      next={onHold.next}
       actions={[
         plan.status !== "ended" && {
           label: "Change terms",
@@ -86,7 +88,7 @@ export function ServicePlanScreen() {
         },
         endPlan,
       ]}
-      alerts={useOnHold(plan, officePlanLinks)}
+      alerts={onHold.alerts}
       details={
         <PlanCard plan={plan} forClient={false} label="Plan details">
           <QuoteLink plan={plan} />
@@ -141,7 +143,7 @@ export function PlanDetails({
           plan={plan}
           forClient={false}
           label="Plan details"
-          badge={<PlanStatusBadge status={plan.status} />}
+          badge={<PlanStatusBadge plan={plan} />}
         >
           <QuoteLink plan={plan} />
         </PlanCard>
