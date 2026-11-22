@@ -271,7 +271,10 @@ test("a Quote whose day has filled up can't be paid for, and the Office is asked
     hasText:
       "Sorry, Mon, Jan 12, 9:00 AM has been fully booked since we sent this Quote",
   });
-  await expect(bookedUp).toBeVisible();
+  // we are the team: it says what we'll do
+  await expect(bookedUp).toHaveText(
+    "Sorry, Mon, Jan 12, 9:00 AM has been fully booked since we sent this quote, so it can't be accepted. We'll send you a new quote for another time.",
+  );
   // nothing to pay for and nothing waits on them, but they can still say
   // no: the page's one action, not the alert's
   await expect(payAndBook(client).form).toHaveCount(0);

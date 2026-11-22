@@ -70,7 +70,7 @@ const words = catalog({
     asked: "Asked",
     yourKind: (kind: string) => `Your ${kind.toLowerCase()}`,
     bookedUp: (planDays: boolean, when: string) =>
-      `Sorry, ${planDays ? "one of the days your plan starts on has" : `${when} has`} been fully booked since we sent this quote, so it can't be accepted. We've let our team know, and we'll send you a new quote for another time.`,
+      `Sorry, ${planDays ? "one of the days your plan starts on has" : `${when} has`} been fully booked since we sent this quote, so it can't be accepted. We'll send you a new quote for another time.`,
     details: "Quote details",
     aWeekTax: "A week, with a clean on each day, tax included",
     aCleanTax: (service: string) => `${service}, a clean, tax included`,
@@ -164,7 +164,7 @@ const words = catalog({
     asked: "Pedida",
     yourKind: (kind: string) => `Su ${kind.toLowerCase()}`,
     bookedUp: (planDays: boolean, when: string) =>
-      `Lo sentimos, ${planDays ? "uno de los días en que empieza su plan se llenó" : `el ${when} se llenó`} después de que le enviamos esta cotización, así que no se puede aceptar. Ya le avisamos a nuestro equipo, y le enviaremos una nueva cotización para otra hora.`,
+      `Lo sentimos, ${planDays ? "uno de los días en que empieza su plan se llenó" : `el ${when} se llenó`} después de que le enviamos esta cotización, así que no se puede aceptar. Le enviaremos una nueva cotización para otra hora.`,
     details: "Detalles de la cotización",
     aWeekTax: "Una semana, con una limpieza cada día, impuestos incluidos",
     aCleanTax: (service: string) =>
