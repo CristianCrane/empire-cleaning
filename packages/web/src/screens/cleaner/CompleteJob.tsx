@@ -6,6 +6,7 @@ import {
   type CompletionReport,
   type Condition,
   catalog,
+  firstNameOf,
   oneStop,
   theTimeEs,
 } from "@empire-cleaning/models";
@@ -15,18 +16,16 @@ import {
   Card,
   Checkbox,
   Dialog,
-  DialogTrigger,
   Form,
-  Heading,
   Notice,
   NumberField,
   Radio,
   RadioGroup,
-  Section,
   TextField,
   Fact,
   Facts,
   type Alert,
+  type DialogState,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
@@ -38,44 +37,47 @@ const words = catalog({
     fixDetails: "Some details need fixing.",
     marked: "Job marked done",
     title: "Mark this job done",
-    intro:
-      "Tell us how it went. If anything was different from the quote, the office sorts out the price with the client.",
     howWasHome: "How was the home?",
-    couldntDo: "Extras on the quote you couldn't do",
+    couldntDo: "Extras you couldn't do",
     whyNot: "Why not?",
-    didMore: "Extras you did that weren't on the quote",
+    didMore: "Extras you did that weren't asked for",
     whyMore: "Why? For example, the client asked",
-    moreTime: "More time",
     moreHours: "More hours, all of you together",
     moreHoursAlone: "More hours",
     leaveAt0: "Leave at 0 if the clean took about as long as planned.",
     whatTookLonger: "What took longer?",
-    markedAt: (time: string, by: string) =>
-      `Marked done at ${time}${by}. Thank you!`,
+    // who marked it done, as the reader calls them, and when
+    youMarked: (time: string) => `You marked it done at ${time}. Thanks!`,
+    theyMarked: (name: string, time: string) =>
+      `${name} marked it done at ${time}. Thanks!`,
+    markedAt: (time: string) => `Marked done at ${time}. Thanks!`,
     reported: "Reported",
-    nothingDifferent: "Nothing different from the quote",
+    nothingToReport: "Nothing to report",
   },
   es: {
     notMarked: "El trabajo no se marcó como terminado. Vuelve a intentarlo.",
     fixDetails: "Hay que corregir algunos datos.",
     marked: "Trabajo marcado como terminado",
     title: "Marcar este trabajo como terminado",
-    intro:
-      "Cuéntanos cómo te fue. Si algo fue distinto de la cotización, la oficina arregla el precio con el cliente.",
     howWasHome: "¿Cómo estaba la casa?",
-    couldntDo: "Adicionales de la cotización que no pudiste hacer",
+    couldntDo: "Adicionales que no pudiste hacer",
     whyNot: "¿Por qué no?",
-    didMore: "Adicionales que hiciste y no estaban en la cotización",
+    didMore: "Adicionales que hiciste sin que se pidieran",
     whyMore: "¿Por qué? Por ejemplo, lo pidió el cliente",
-    moreTime: "Más tiempo",
     moreHours: "Horas de más, entre todos",
     moreHoursAlone: "Horas de más",
     leaveAt0: "Déjalo en 0 si la limpieza tomó más o menos lo previsto.",
     whatTookLonger: "¿Qué tomó más tiempo?",
-    markedAt: (time: string, by: string) =>
-      oneStop(`Marcado como terminado a ${theTimeEs(time)}${by}. ¡Gracias!`),
-    reported: "Lo que informaste",
-    nothingDifferent: "Nada distinto de la cotización",
+    youMarked: (time: string) =>
+      oneStop(`Lo marcaste como terminado a ${theTimeEs(time)}. ¡Gracias!`),
+    theyMarked: (name: string, time: string) =>
+      oneStop(
+        `${name} lo marcó como terminado a ${theTimeEs(time)}. ¡Gracias!`,
+      ),
+    markedAt: (time: string) =>
+      oneStop(`Marcado como terminado a ${theTimeEs(time)}. ¡Gracias!`),
+    reported: "Lo que se informó",
+    nothingToReport: "Nada que informar",
   },
 });
 
@@ -83,10 +85,14 @@ const words = catalog({
 type Ticked = Record<string, string>;
 
 // The Cleaner marks the Job Completed on site, with the Condition they found
-// and anything different from the Quote. They never set prices: the Office
-// works those out from the Price List, and asks the Client before charging
+// and anything different from the Quote: the page's next step's dialog,
+// its three questions one rank. They never set prices: the Office works
+// those out from the Price List, and asks the Client before charging
 // anything extra (ADR-0009).
-export function CompleteJob({ job }: { job: CleanerJob }) {
+export function CompleteJob({
+  job,
+  ...state
+}: { job: CleanerJob } & DialogState) {
   const [condition, setCondition] = useState<Condition | null>(null);
   const [notDone, setNotDone] = useState<Ticked>({});
   const [done, setDone] = useState<Ticked>({});
@@ -135,87 +141,82 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
   };
 
   return (
-    <DialogTrigger>
-      <Button>{c.markDone}</Button>
-      <Dialog title={w.title}>
-        {({ close }) => (
-          <Form
-            validationErrors={action.fieldErrors}
-            onSubmit={(e) => {
-              e.preventDefault();
-              void complete(close);
-            }}
+    <Dialog title={w.title} {...state}>
+      {({ close }) => (
+        <Form
+          validationErrors={action.fieldErrors}
+          onSubmit={(e) => {
+            e.preventDefault();
+            void complete(close);
+          }}
+        >
+          <RadioGroup
+            label={w.howWasHome}
+            name="condition"
+            value={condition}
+            onChange={(value) => setCondition(value as Condition)}
+            isRequired
           >
-            <p className="text-fg-muted">{w.intro}</p>
-            <RadioGroup
-              label={w.howWasHome}
-              name="condition"
-              value={condition}
-              onChange={(value) => setCondition(value as Condition)}
-              isRequired
-            >
-              {(["light", "moderate", "heavy"] as const).map((c) => (
-                <Radio key={c} value={c}>
-                  {t.conditionLabel[c]}
-                </Radio>
-              ))}
-            </RadioGroup>
+            {(["light", "moderate", "heavy"] as const).map((c) => (
+              <Radio key={c} value={c}>
+                {t.conditionLabel[c]}
+              </Radio>
+            ))}
+          </RadioGroup>
 
-            {job.reportable.quoted.length > 0 && (
-              <AddOnReports
-                title={w.couldntDo}
-                addOns={job.reportable.quoted}
-                ticked={notDone}
-                onChange={setNotDone}
-                reasonLabel={w.whyNot}
+          {job.reportable.quoted.length > 0 && (
+            <AddOnReports
+              title={w.couldntDo}
+              addOns={job.reportable.quoted}
+              ticked={notDone}
+              onChange={setNotDone}
+              reasonLabel={w.whyNot}
+            />
+          )}
+          {job.reportable.others.length > 0 && (
+            <AddOnReports
+              title={w.didMore}
+              addOns={job.reportable.others}
+              ticked={done}
+              onChange={setDone}
+              reasonLabel={w.whyMore}
+            />
+          )}
+
+          <div className="flex flex-col gap-3">
+            <NumberField
+              label={job.crew.length > 1 ? w.moreHours : w.moreHoursAlone}
+              description={w.leaveAt0}
+              minValue={0}
+              maxValue={24}
+              step={0.25}
+              value={extraHours}
+              onChange={(hours) =>
+                setExtraHours(Number.isNaN(hours) ? 0 : hours)
+              }
+            />
+            {extraHours > 0 && (
+              <TextField
+                label={w.whatTookLonger}
+                value={extraReason}
+                onChange={setExtraReason}
+                isRequired
               />
             )}
-            {job.reportable.others.length > 0 && (
-              <AddOnReports
-                title={w.didMore}
-                addOns={job.reportable.others}
-                ticked={done}
-                onChange={setDone}
-                reasonLabel={w.whyMore}
-              />
-            )}
+          </div>
 
-            <fieldset className="flex flex-col gap-3">
-              <Heading level={3}>{w.moreTime}</Heading>
-              <NumberField
-                label={job.crew.length > 1 ? w.moreHours : w.moreHoursAlone}
-                description={w.leaveAt0}
-                minValue={0}
-                maxValue={24}
-                step={0.25}
-                value={extraHours}
-                onChange={(hours) =>
-                  setExtraHours(Number.isNaN(hours) ? 0 : hours)
-                }
-              />
-              {extraHours > 0 && (
-                <TextField
-                  label={w.whatTookLonger}
-                  value={extraReason}
-                  onChange={setExtraReason}
-                  isRequired
-                />
-              )}
-            </fieldset>
-
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <Button variant="quiet" onPress={close}>
-                {c.goBack}
-              </Button>
-              <Button type="submit" isPending={action.isPending}>
-                {c.markDone}
-              </Button>
-            </Actions>
-          </Form>
-        )}
-      </Dialog>
-    </DialogTrigger>
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              {c.goBack}
+            </Button>
+            <Button type="submit" isPending={action.isPending}>
+              {c.markDone}
+            </Button>
+          </Actions>
+        </Form>
+      )}
+    </Dialog>
   );
 }
 
@@ -240,8 +241,9 @@ function AddOnReports({
   };
 
   return (
+    // its question a field's label, as How was the home? is: one rank
     <fieldset className="flex flex-col gap-2">
-      <Heading level={3}>{title}</Heading>
+      <legend className="mb-1 text-sm font-semibold text-fg">{title}</legend>
       {addOns.map((addOn) => (
         <div key={addOn.key} className="flex flex-col gap-2">
           <Checkbox
@@ -268,48 +270,62 @@ function AddOnReports({
   );
 }
 
-// what the Cleaner reported once it's Completed, never with prices
+// what was reported once it's Completed, first on the page, never with
+// prices: who marked it done, as the reader calls them, then the home and
+// what was different. Its badge says Done, so no title says it again
 export function Completed({ job }: { job: CleanerJob }) {
   const completion = job.completion!;
   const t = useSaid(words);
   const { c, w } = t;
+  const at = t.formatTime(completion.completedAt);
   return (
-    <Section title={c.done}>
-      <Card>
-        <p>
-          {w.markedAt(
-            t.formatTime(completion.completedAt),
-            c.by(completion.completedBy),
-          )}
-        </p>
-        <Facts>
-          <Fact
-            icon={Sparkles}
-            label={t.condition}
-            value={t.conditionLabel[completion.condition]}
-          />
-          <Fact
-            icon={ClipboardList}
-            label={w.reported}
-            value={
-              completion.reports.length === 0 ? (
-                w.nothingDifferent
-              ) : (
-                <ul>
-                  {completion.reports.map((r, i) => (
-                    <li key={i}>
-                      {t.adjustmentLabel(r)}: {r.reason}
-                    </li>
-                  ))}
-                </ul>
-              )
-            }
-          />
-        </Facts>
-      </Card>
-    </Section>
+    <Card hiddenTitle={c.done}>
+      <p className="text-lg">
+        {byWhom(completion.completedBy, {
+          anyone: w.markedAt(at),
+          you: w.youMarked(at),
+          them: (name) => w.theyMarked(name, at),
+        })}
+      </p>
+      <Facts>
+        <Fact
+          icon={Sparkles}
+          label={t.condition}
+          value={t.conditionLabel[completion.condition]}
+        />
+        <Fact
+          icon={ClipboardList}
+          label={w.reported}
+          value={
+            completion.reports.length === 0 ? (
+              w.nothingToReport
+            ) : (
+              <ul>
+                {completion.reports.map((r, i) => (
+                  <li key={i}>
+                    {t.adjustmentLabel(r)}: {r.reason}
+                  </li>
+                ))}
+              </ul>
+            )
+          }
+        />
+      </Facts>
+    </Card>
   );
 }
+
+// who did something, as the reader calls them: "You", a crewmate by first
+// name, or no one named (someone since gone)
+export const byWhom = <T,>(
+  by: { name: string; you: boolean } | null,
+  lines: { anyone: T; you: T; them: (firstName: string) => T },
+) =>
+  by === null
+    ? lines.anyone
+    : by.you
+      ? lines.you
+      : lines.them(firstNameOf(by.name));
 
 // why a Job can't be Completed yet, for a Confirmed Cleaner: an alert
 export function useNotYet(job: CleanerJob): Alert | null {

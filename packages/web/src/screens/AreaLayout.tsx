@@ -40,7 +40,12 @@ import {
   useLanguage,
   LanguageName,
 } from "@empire-cleaning/ui";
-import { catalog, type Language, LANGUAGES } from "@empire-cleaning/models";
+import {
+  catalog,
+  type CleanerJob,
+  type Language,
+  LANGUAGES,
+} from "@empire-cleaning/models";
 import { deleteJson, getJson, putJson } from "../api.ts";
 import { useLoaded } from "./load.ts";
 import { linkTo } from "../links.ts";
@@ -58,6 +63,7 @@ import { useTours } from "./run-tours.ts";
 import { cleanerWords } from "./cleaner/words.ts";
 import { portalWords } from "./portal/words.ts";
 import { offersCount } from "./cleaner/CleanerOffers.tsx";
+import { jobSection, type JobSection } from "./cleaner/CleanerJobScreen.tsx";
 import { said } from "./words.ts";
 
 // the account's words, among the account's parts (AccountFoot), in every
@@ -83,9 +89,11 @@ const words = catalog({
 
 // an item is current on its own page, and on the pages that belong to its
 // section (alsoCurrentFor: URL prefixes), e.g. a Quote reached from Quotes;
+// a Cleaner's Job is under the section its crumbs start at (jobSection);
 // the Cleaner's Offers carries how many wait on their answer (countsOffers)
 type AreaNavItem = NavItem & {
   alsoCurrentFor?: string[];
+  jobSection?: JobSection;
   countsOffers?: boolean;
 };
 
@@ -162,13 +170,14 @@ const navFor = (lang: Language): Record<AreaId, AreaNavItem[]> => ({
       href: linkTo({ to: "/cleaner" }),
       label: cleanerWords[lang].yourJobs,
       icon: CalendarDays,
-      alsoCurrentFor: ["/cleaner/jobs/"],
+      jobSection: "yourJobs",
     },
     {
       href: linkTo({ to: "/cleaner/offers" }),
       label: cleanerWords[lang].offers,
       icon: Inbox,
       alsoCurrentFor: ["/cleaner/open/"],
+      jobSection: "offers",
       countsOffers: true,
     },
   ],
@@ -225,10 +234,16 @@ export function AreaLayout({ area }: { area: AreaId }) {
         trimPathRight(s.matches.at(-1)?.pathname ?? ""),
   });
   const offers = useOffersCount(area === "cleaner", pathname);
+  // the Cleaner's Job on screen, if it is, for the section it's under
+  const cleanerJob = useRouterState({
+    select: (s) =>
+      s.matches.find((m) => m.fullPath === "/cleaner/jobs/$jobId")
+        ?.loaderData as CleanerJob | undefined,
+  });
   useTours(area, account);
   const lang = useLanguage();
   const nav: NavItem[] = navFor(lang)[area].map(
-    ({ alsoCurrentFor = [], countsOffers, ...item }) => {
+    ({ alsoCurrentFor = [], jobSection: section, countsOffers, ...item }) => {
       return {
         ...item,
         label:
@@ -237,7 +252,8 @@ export function AreaLayout({ area }: { area: AreaId }) {
             : item.label,
         isCurrent:
           Boolean(matchRoute(item.href)) ||
-          alsoCurrentFor.some((prefix) => pathname.startsWith(prefix)),
+          alsoCurrentFor.some((prefix) => pathname.startsWith(prefix)) ||
+          (!!cleanerJob && !!section && jobSection(cleanerJob) === section),
       };
     },
   );

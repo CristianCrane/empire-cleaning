@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ActionFooter, type Footer } from "../ActionFooter.tsx";
+import { ActionFooter } from "../ActionFooter.tsx";
 import type { Crumb } from "../Breadcrumbs.tsx";
 import { Card } from "../Card.tsx";
 import { useUiWords } from "../language.ts";
@@ -18,10 +18,8 @@ import { PageHeader } from "./PageHeader.tsx";
 // a Section; and its History in a Card, last, at every width: one column,
 // the content's width, as a side column competed with the page (#493).
 // Its next step is the header's primary, and on a phone it's pinned at the
-// foot, read after the facts, the rest behind its arrow; a bar at the foot
-// at every width holds only what must stay in reach on site (a Cleaner's
-// Complete, until it's the Cleaner's next step). Every other action is in
-// the header, or on the part it acts on
+// foot, read after the facts, the rest behind its arrow. Every other
+// action is in the header, or on the part it acts on
 export function RecordPage({
   trail,
   title,
@@ -32,7 +30,6 @@ export function RecordPage({
   details,
   history,
   next,
-  footer,
   children,
 }: {
   trail: Crumb[];
@@ -46,20 +43,11 @@ export function RecordPage({
   details?: ReactNode;
   // its Timeline, newest first
   history?: ReactNode;
+  // its next step (PageHeader)
+  next?: PageAction;
   // its parts, each a Section
   children?: ReactNode;
-} & (
-  | {
-      // its next step (PageHeader)
-      next?: PageAction;
-      footer?: never;
-    }
-  | {
-      next?: never;
-      // the on-site main action, kept in reach at every width
-      footer?: Omit<Footer, "label">;
-    }
-)) {
+}) {
   const words = useUiWords();
   return (
     <div className="flex flex-col gap-6">
@@ -86,15 +74,6 @@ export function RecordPage({
             more={(actions ?? []).filter((a) => !!a)}
             opens="sheet"
           />
-        </ActionFooter>
-      )}
-      {footer && (
-        <ActionFooter
-          aria-label={words.whatToDo}
-          summary={footer.summary}
-          status={footer.status}
-        >
-          {footer.children}
         </ActionFooter>
       )}
     </div>

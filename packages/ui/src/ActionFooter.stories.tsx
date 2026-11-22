@@ -10,12 +10,9 @@ const meta = {
   component: ActionFooter,
   args: {
     "aria-label": "What to do",
-    children: (
-      <>
-        <Button variant="secondary">Couldn't get in</Button>
-        <Button>Mark done</Button>
-      </>
-    ),
+    summary: "$240.00",
+    status: "Saved",
+    children: <Button>Send</Button>,
   },
 } satisfies Meta<typeof ActionFooter>;
 
@@ -24,29 +21,29 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
 
-// more actions than a phone's row holds: the footer wraps to more rows, and
-// the page still scrolls clear of it
+// more than a phone's row holds (a Quote Draft's sums, long): the footer
+// wraps to more rows, and the page still scrolls clear of it
 export const Wrapped: Story = {
   globals: { viewport: { value: "phone" } },
   parameters: { layout: "fullscreen" },
   args: {
+    summary: "$240.00 a clean, $221.00 a clean on the plan",
+    status: "Saved",
     children: [
-      "Couldn't get in",
-      "Drop out of this job",
-      "Call the office",
-      "Directions",
-      "Add a photo",
-      "Mark done",
-    ].map((label) => <Button key={label}>{label}</Button>),
+      <Button key="preview" variant="secondary">
+        See what the client sees
+      </Button>,
+      <Button key="send">Send to the client</Button>,
+    ],
   },
   render: (args) => (
     <AppLayout
-      area="Cleaner"
+      area="Office"
       foot={() => null}
       nav={[
         {
-          href: "#today",
-          label: "Today",
+          href: "#quotes",
+          label: "Quotes",
           icon: LayoutDashboard,
           isCurrent: true,
         },

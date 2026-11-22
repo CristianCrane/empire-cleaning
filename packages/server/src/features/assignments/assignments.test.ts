@@ -315,7 +315,7 @@ describe("a Cleaner's Jobs", () => {
     expect(await ids(asCory)).toEqual({ today: [thursday.id], upcoming: [] });
   });
 
-  test("show only where, what, who with and the Client's first name; the phone and how we get in only on the day", async () => {
+  test("show only where, what, who with and the Client's first name; the phone and how we get in only once Confirmed, on the day", async () => {
     const cory = await staffMember("Cory Cleaner");
     const dee = await staffMember("Dee Cleaner");
     const office = await signInAsOffice();
@@ -341,9 +341,12 @@ describe("a Cleaner's Jobs", () => {
       client: { firstName: "Robin" },
       // Offered, before the day: no phone and no way in
       onTheDay: null,
+      // the places it takes, and who's in them so far, Cory marked as the
+      // one reading (#497)
+      crewSize: 2,
       crew: [
-        { name: "Cory Cleaner", status: "offered" },
-        { name: "Dee Cleaner", status: "offered" },
+        { name: "Cory Cleaner", status: "offered", you: true },
+        { name: "Dee Cleaner", status: "offered", you: false },
       ],
       assignment: { id: assignmentId, status: "offered", canRelease: true },
       outcome: null,
@@ -367,15 +370,18 @@ describe("a Cleaner's Jobs", () => {
     expect((await myJob(asDee, job.id)).onTheDay).toBeNull();
     expect((await myJobs(asDee)).upcoming[0]!.onTheDay).toBeNull();
 
-    // the morning of the Job, New York time, whether Offered or Confirmed
+    // the morning of the Job, New York time: the Confirmed Cleaner gets
+    // both, on its page and in their list; the Offered one, who may still
+    // say no, gets neither (#230)
     testClock().set(new Date("2026-01-08T05:30:00Z"));
     const onTheDay = {
       phone: casey.phone,
       accessInstructions: "Ring 4B; the doorman has a key.",
     };
-    expect((await myJob(asCory, job.id)).onTheDay).toEqual(onTheDay);
     expect((await myJob(asDee, job.id)).onTheDay).toEqual(onTheDay);
     expect((await myJobs(asDee)).today[0]!.onTheDay).toEqual(onTheDay);
+    expect((await myJob(asCory, job.id)).onTheDay).toBeNull();
+    expect((await myJobs(asCory)).today[0]!.onTheDay).toBeNull();
   });
 
   test("are hidden from Cleaners not on them", async () => {

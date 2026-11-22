@@ -1,46 +1,25 @@
 import { catalog } from "@empire-cleaning/models";
 import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
 import type { CleanerNeeded } from "@empire-cleaning/models";
-import { CalendarClock, Clock, MapPin, Users } from "lucide-react";
-import {
-  ActionRow,
-  Button,
-  Card,
-  IconTile,
-  Notice,
-  Section,
-  StatusBadge,
-  Fact,
-  RecordPage,
-  DetailsCard,
-  Facts,
-} from "@empire-cleaning/ui";
+import { Check, Clock, Users, X } from "lucide-react";
+import { Fact, Facts, RecordPage } from "@empire-cleaning/ui";
 import { getJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useLeavingAction } from "../action.ts";
-import { dayOfInstant, formatHours } from "../format.ts";
+import { howLong } from "../format.ts";
 import { reportUnexpected } from "../../monitoring.ts";
 import { type Said, useSaid } from "../words.ts";
-import { untilAbout } from "./CleanerHome.tsx";
+import { AvailableBadge } from "./CleanerHome.tsx";
+import { JobLead } from "./JobLead.tsx";
 
 const words = catalog({
   en: {
-    open: "Open",
-    area: "Area",
-    areaLine: "Area: the address shows once it's yours",
+    zip: (postcode: string) => `ZIP code ${postcode}`,
     didntWork: "That didn't work. Please try again.",
-    takenOff: "Taken off your list",
-    needsYou:
-      "It needs a cleaner, and you're free then. The first to confirm gets it, and then sees the address and the client. How we get in shows on the day.",
   },
   es: {
-    open: "Disponible",
-    area: "Zona",
-    areaLine: "Zona: la dirección aparece cuando sea tuyo",
+    zip: (postcode: string) => `Código postal ${postcode}`,
     didntWork: "No funcionó. Vuelve a intentarlo.",
-    takenOff: "Quitado de tu lista",
-    needsYou:
-      "Necesita un limpiador, y estás libre a esa hora. El primero que lo confirme se lo queda, y entonces ve la dirección y el cliente. Cómo entramos aparece ese día.",
   },
 });
 
@@ -49,62 +28,23 @@ export const crewSizeOf = (t: Said, job: Pick<CleanerNeeded, "crewSize">) =>
   job.crewSize === 1 ? t.c.justYou : t.cleaners(job.crewSize);
 
 // A Cleaner Needed as a Cleaner it's open to sees it (ADR-0019): what, when,
-// for how long and roughly where. They Confirm it, first come first served,
-// or say it's not for them. The address and Client come once they've taken
-// it, the Access Instructions on the Job's day (#230).
+// for how long and roughly where (its ZIP code), and how many it takes,
+// never who: its Client or its crew (GLOSSARY.md, Cleaner Needed). Confirm,
+// first come first served, or Not for me, as the page's split button
+// (#493's layout D). The address and the Client come once they've taken
+// it, how we get in on the Job's day (#230).
 export function CleanerNeededScreen() {
   const job = useLoaderData({ from: "/cleaner/open/$jobId" });
-  const t = useSaid(words);
-  const { c, w } = t;
-
-  return (
-    <RecordPage
-      trail={[
-        { label: c.offers, href: linkTo({ to: "/cleaner/offers" }) },
-        { label: t.formatDateTime(job.startsAt) },
-      ]}
-      title={job.serviceName}
-      status={<StatusBadge tone="info">{w.open}</StatusBadge>}
-      details={
-        <DetailsCard
-          label={c.jobDetails}
-          tile={<IconTile icon={CalendarClock} size="lg" />}
-          kicker={`${t.formatDay(dayOfInstant(job.startsAt))}, ${untilAbout(t, job.startsAt, job.hoursOnSite)}`}
-          title={
-            <span className="tabular-nums">{t.formatTime(job.startsAt)}</span>
-          }
-        >
-          <Facts>
-            <Fact
-              icon={Clock}
-              label={t.onSite}
-              value={t.about(formatHours(job.hoursOnSite))}
-            />
-            <Fact icon={Users} label={c.crew} value={crewSizeOf(t, job)} />
-            <Fact
-              icon={MapPin}
-              label={w.area}
-              value={job.postcode}
-              line={w.areaLine}
-            />
-          </Facts>
-        </DetailsCard>
-      }
-    >
-      <TakeIt job={job} />
-    </RecordPage>
-  );
-}
-
-function TakeIt({ job }: { job: CleanerNeeded }) {
   const navigate = useNavigate();
   const router = useRouter();
-  const { c, w } = useSaid(words);
-  // neither reloads this page: once taken or passed, it isn't open to them
-  const action = useLeavingAction(w.didntWork);
+  const t = useSaid(words);
+  const { c, w } = t;
+  // neither reloads this page: once taken or passed, it isn't open to
+  // them. A header's action, so why it failed is a toast
+  const action = useLeavingAction(w.didntWork, { toast: true });
 
   const answer = (which: "confirm" | "pass") =>
-    action.run(
+    void action.run(
       async () => {
         try {
           // Confirm sends the time they were shown, so a Job moved
@@ -115,7 +55,7 @@ function TakeIt({ job }: { job: CleanerNeeded }) {
           );
         } catch (e) {
           // shows the new time if the Job moved; if it's no longer open to
-          // them, the page stays, with why
+          // them, the page stays, the toast saying why
           const stillOpen = await getJson<CleanerNeeded>(
             `/api/assignments/open/${job.jobId}`,
           ).then(
@@ -135,39 +75,45 @@ function TakeIt({ job }: { job: CleanerNeeded }) {
             })
           : navigate({ to: "/cleaner/offers" }));
       },
-      which === "confirm" ? c.jobConfirmed : w.takenOff,
+      which === "confirm" ? c.jobConfirmed : c.takenOff,
       which,
     );
-  const { problem, pending } = action;
 
   return (
-    <Section title={c.canYouTakeIt}>
-      <Card>
-        {problem && <Notice tone="danger">{problem}</Notice>}
-        <ActionRow
-          actions={
-            <>
-              <Button
-                variant="secondary"
-                isPending={pending === "pass"}
-                isDisabled={pending === "confirm"}
-                onPress={() => void answer("pass")}
-              >
-                {c.notForMe}
-              </Button>
-              <Button
-                isPending={pending === "confirm"}
-                isDisabled={pending === "pass"}
-                onPress={() => void answer("confirm")}
-              >
-                {c.confirm}
-              </Button>
-            </>
-          }
-        >
-          <p>{w.needsYou}</p>
-        </ActionRow>
-      </Card>
-    </Section>
+    <RecordPage
+      trail={[
+        { label: c.offers, href: linkTo({ to: "/cleaner/offers" }) },
+        { label: t.formatDateTime(job.startsAt) },
+      ]}
+      title={job.serviceName}
+      status={<AvailableBadge />}
+      next={{
+        label: c.confirm,
+        icon: Check,
+        isPending: action.pending === "confirm",
+        isDisabled: action.pending === "pass",
+        onAction: () => answer("confirm"),
+      }}
+      actions={[
+        {
+          label: c.notForMe,
+          icon: X,
+          isPending: action.pending === "pass",
+          isDisabled: action.pending === "confirm",
+          onAction: () => answer("pass"),
+        },
+      ]}
+    >
+      <JobLead job={job} where={w.zip(job.postcode)}>
+        <Facts>
+          <Fact
+            icon={Clock}
+            label={t.howLong}
+            value={howLong(t, job.hoursOnSite)}
+          />
+          <Fact icon={Users} label={c.crew} value={crewSizeOf(t, job)} />
+        </Facts>
+      </JobLead>
+    </RecordPage>
   );
 }

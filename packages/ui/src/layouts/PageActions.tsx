@@ -10,23 +10,28 @@ import { ActionSheet } from "../ActionSheet.tsx";
 import { Button } from "../Button.tsx";
 import type { DialogState } from "../Dialog.tsx";
 import { useUiWords } from "../language.ts";
-import { ButtonLink } from "../Link.tsx";
+import { ButtonLink, ExternalButtonLink, opensATab } from "../Link.tsx";
 import { Menu, MenuItem, MenuSeparator } from "../Menu.tsx";
 
 // Something done to the whole page's subject: a dialog it opens (given its
-// open state), another page, or a thing done straight away. `danger` loses
-// what can't be got back (the `ui` skill): red, and last; alone, outlined
-// in red. `isPending` while one done straight away still runs (starting a
-// Draft): its Button, or what holds it (the split button's arrow, the ⋯),
-// shows it, so the press is seen to be heard
+// open state), another page, somewhere outside the app (`externalHref`: a
+// phone number to call, a map's directions, opened in a new tab), or a thing
+// done straight away. `danger` loses what can't be got back (the `ui`
+// skill): red, and last; alone, outlined in red. `isPending` while one done
+// straight away still runs (starting a Draft): its Button, or what holds it
+// (the split button's arrow, the ⋯), shows it, so the press is seen to be
+// heard. `isDisabled` while the page's goal needs it but it can't be done
+// yet: greyed, with why in the page's alert (the `ui` skill)
 export type PageAction = {
   label: string;
   icon: LucideIcon;
   danger?: boolean;
   isPending?: boolean;
+  isDisabled?: boolean;
 } & (
   | { dialog: (state: DialogState) => ReactNode }
   | { href: NonNullable<LinkProps["href"]> }
+  | { externalHref: string }
   | { onAction: () => void }
 );
 
@@ -42,6 +47,14 @@ function useDialogs(actions: PageAction[]) {
   const press = (action: PageAction) => () => {
     if ("dialog" in action) setOpen(action.label);
     else if ("onAction" in action) action.onAction();
+    // a menu's item, which can't be a plain link: the app's router reads
+    // every link a menu holds
+    else if ("externalHref" in action)
+      window.open(
+        action.externalHref,
+        opensATab(action.externalHref) ? "_blank" : "_self",
+        "noopener",
+      );
   };
   const dialogs = actions.map(
     (action) =>
@@ -87,12 +100,23 @@ export function ActionButton({
         {content}
       </ButtonLink>
     );
+  if ("externalHref" in action)
+    return (
+      <ExternalButtonLink
+        variant={look}
+        href={action.externalHref}
+        className={className}
+      >
+        {content}
+      </ExternalButtonLink>
+    );
   return (
     <>
       <Button
         variant={look}
         className={className}
         isPending={action.isPending}
+        isDisabled={action.isDisabled}
         onPress={press(action)}
       >
         {content}
@@ -117,6 +141,7 @@ function items(
       icon={action.icon}
       danger={action.danger}
       large={large}
+      isDisabled={action.isDisabled}
       {...("href" in action
         ? { href: action.href }
         : { onAction: press(action) })}

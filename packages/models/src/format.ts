@@ -94,6 +94,11 @@ const formatsIn = (lang: Language) => {
     formatMonth: (d: string) => month.format(noonOf(d)),
     // an instant -> "9:00 AM"
     formatTime: (at: string | Date) => time.format(instant(at)),
+    // two instants -> "9:00 AM – 3:00 PM", each end as formatTime writes
+    // it (Intl's formatRange spaces its ends apart differently from one
+    // engine to the next)
+    formatTimeRange: (from: string | Date, to: string | Date) =>
+      `${time.format(instant(from))} – ${time.format(instant(to))}`,
     // a time of day -> how a person reads it: "18:00" -> "6:00 PM"
     formatClock: (t: string) =>
       timeOfDay.format(new Date(`1970-01-01T${t}:00Z`)),
@@ -128,6 +133,17 @@ export type Formats = ReturnType<typeof formatsIn>;
 export const formats: Catalog<Formats> = {
   en: formatsIn("en"),
   es: formatsIn("es"),
+};
+
+// hours to the nearest quarter hour, as a person says how long something
+// runs: 3.3 -> 3.25
+export const quarterHours = (hours: number) => Math.round(hours * 4) / 4;
+
+// quarter hours as a person writes them: 3.25 -> "3¼", 0.5 -> "½", 2 -> "2"
+export const quarterHoursText = (hours: number) => {
+  const whole = Math.floor(hours);
+  const part = ["", "¼", "½", "¾"][Math.round((hours - whole) * 4)]!;
+  return whole === 0 && part ? part : `${whole}${part}`;
 };
 
 // a person's first name, as a greeting says it ("Hi, Casey")
