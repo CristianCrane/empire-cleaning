@@ -407,10 +407,10 @@ test("Payments says a Bill we try again ourselves needs nothing from them", asyn
   const card = page.getByRole("region", { name: "Payment pending" });
   for (const line of [
     "Bill EC-000001 · Nothing you need to do.",
-    "Until it's paid, your cleaning plan is paused.",
+    "Until it's paid, we won't book more cleans on your plan.",
   ])
     await expect(card.getByText(line, { exact: true })).toBeVisible();
-  await expect(card).not.toContainText("booked");
+  await expect(card).not.toContainText("paused");
   await expect(page.getByRole("region", { name: "To pay" })).toHaveCount(0);
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
   // nothing next: the link is outlined, and no Pay anywhere on the page

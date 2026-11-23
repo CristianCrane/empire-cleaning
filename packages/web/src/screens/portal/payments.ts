@@ -229,9 +229,8 @@ export function pausedLine(plans: PlanNow[], lang: Language): string[] {
 // asks nothing, a payment we try again ourselves, is calm: Payment
 // pending, one short line, what it's for and that there's nothing to do,
 // and a way to see it rather than a primary (#493, #536). A paused plan in
-// its fewest true words, as a clean's page doesn't say it (what's booked
-// is the plan's page's to say). One that asks says its plan's pause in
-// full (pausedLine)
+// its fewest true words, what it does (a clean's page doesn't say it).
+// One that asks says its plan's pause in full (pausedLine)
 export function owedAnswer(
   owed: Owed,
   lang: Language,
@@ -247,7 +246,7 @@ export function owedAnswer(
         headline: t.formatMoney(owed.cents),
         lines: [
           `${owed.text} · ${t.NOTHING_TO_DO}`,
-          ...(pausedPlans(plans).length > 0 ? [t.PAUSED_TILL_PAID] : []),
+          ...(pausedPlans(plans).length > 0 ? [t.PLAN_BOOKS_NO_MORE] : []),
         ],
         action: { ...owed.action, secondary: true },
       },
