@@ -401,6 +401,8 @@ export function ScheduleCalendar({
                   time: proposed.start.time,
                   hoursOnSite: proposed.hoursOnSite,
                   label: proposed.label,
+                  // PROTOTYPE: the server's answer, drawn on the clean
+                  noRoom: marksOpen && !hasCrew(day, proposed.start.time),
                 }
               : undefined,
             maxLanes,
@@ -419,6 +421,7 @@ export function ScheduleCalendar({
             header: (
               <DayHeader
                 day={day}
+                bare={marksOpen}
                 more={
                   layout.hidden.length > 0 && (
                     <MoreJobs
@@ -665,10 +668,13 @@ function DayHeader({
   day,
   marker,
   more,
+  bare = false,
 }: {
   day: ScheduleDay;
   marker?: string;
   more?: ReactNode;
+  // PROTOTYPE: the day's name only, in a picker
+  bare?: boolean;
 }) {
   const total = Math.max(day.staffHours, day.bookedHours + day.heldHours, 1);
   const width = (hours: number) => `${Math.min((hours / total) * 100, 100)}%`;
@@ -683,40 +689,44 @@ function DayHeader({
         <Heading level={2} size={4} className="text-sm">
           {formatDay(day.date)}
         </Heading>
-        {marker && <StatusBadge tone="info">{marker}</StatusBadge>}
+        {marker && !bare && <StatusBadge tone="info">{marker}</StatusBadge>}
       </div>
-      <div
-        aria-hidden
-        className="flex h-2 w-full overflow-hidden rounded-full bg-surface-sunken"
-      >
-        <div
-          className={day.freeHours < 0 ? "bg-danger" : "bg-primary"}
-          style={{ width: width(day.bookedHours) }}
-        />
-        <div
-          className="bg-warning-strong"
-          style={{ width: width(day.heldHours) }}
-        />
-      </div>
-      <p className="text-xs text-fg-muted">
-        {nobody && day.bookedHours === 0
-          ? "Nobody working"
-          : // each figure kept whole on its line, not "7.5 h" over "free"
-            [
-              `${formatHours(day.bookedHours)} booked`,
-              ...(day.heldHours > 0
-                ? [`${formatHours(day.heldHours)} held`]
-                : []),
-              day.freeHours < 0
-                ? `${formatHours(-day.freeHours)} over`
-                : `${formatHours(day.freeHours)} free`,
-            ].map((part, i) => (
-              <Fragment key={part}>
-                {i > 0 && " · "}
-                <span className="whitespace-nowrap">{part}</span>
-              </Fragment>
-            ))}
-      </p>
+      {!bare && (
+        <>
+          <div
+            aria-hidden
+            className="flex h-2 w-full overflow-hidden rounded-full bg-surface-sunken"
+          >
+            <div
+              className={day.freeHours < 0 ? "bg-danger" : "bg-primary"}
+              style={{ width: width(day.bookedHours) }}
+            />
+            <div
+              className="bg-warning-strong"
+              style={{ width: width(day.heldHours) }}
+            />
+          </div>
+          <p className="text-xs text-fg-muted">
+            {nobody && day.bookedHours === 0
+              ? "Nobody working"
+              : // each figure kept whole on its line, not "7.5 h" over "free"
+                [
+                  `${formatHours(day.bookedHours)} booked`,
+                  ...(day.heldHours > 0
+                    ? [`${formatHours(day.heldHours)} held`]
+                    : []),
+                  day.freeHours < 0
+                    ? `${formatHours(-day.freeHours)} over`
+                    : `${formatHours(day.freeHours)} free`,
+                ].map((part, i) => (
+                  <Fragment key={part}>
+                    {i > 0 && " · "}
+                    <span className="whitespace-nowrap">{part}</span>
+                  </Fragment>
+                ))}
+          </p>
+        </>
+      )}
       {more}
     </header>
   );
@@ -732,7 +742,12 @@ const drawn = (id: string, start: number, hoursOnSite: number): Block => ({
 
 const PROPOSED = "proposed";
 
-type ProposedOnDay = { time: string; hoursOnSite: number; label: string };
+type ProposedOnDay = {
+  time: string;
+  hoursOnSite: number;
+  label: string;
+  noRoom?: boolean;
+};
 
 /**
  * A day's blocks: each Job's, each Site Visit's, and the proposed clean's;
@@ -917,10 +932,11 @@ function DayJobs({
       })}
       {proposed && (
         <div
-          className="pointer-events-none absolute overflow-hidden rounded-md border-2 border-dashed border-primary bg-primary/15 px-1.5 py-0.5 text-xs leading-tight font-semibold"
+          className={`pointer-events-none absolute overflow-hidden rounded-md border-2 border-dashed px-1.5 py-0.5 text-xs leading-tight font-semibold ${proposed.noRoom ? "border-danger-strong bg-danger-subtle text-danger-strong" : "border-primary bg-primary/15"}`}
           style={place(proposed.block)}
         >
           {formatClock(proposed.time)} {proposed.label}
+          {proposed.noRoom && <span className="block">No room</span>}
         </div>
       )}
     </>

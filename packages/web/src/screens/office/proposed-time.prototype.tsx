@@ -28,14 +28,17 @@ import {
   CalendarPlus,
   ChevronLeft,
   ChevronRight,
+  CircleAlert,
   CircleCheck,
   Keyboard,
   Send,
   Trash2,
 } from "lucide-react";
 import {
+  ADD_HOURS,
   addDays,
   daysIn,
+  NO_CREW,
   formats,
   PICK_TIMES,
   type DayTimes,
@@ -55,8 +58,6 @@ import {
   type NavItem,
   Notice,
   NumberField,
-  Segment,
-  SegmentedControl,
   Select,
   SelectItem,
   showToast,
@@ -228,7 +229,9 @@ const scheduleDay = (date: string): ScheduleDay => {
 
 // the server's answer, made up: a start has room when enough cleaners work
 // the whole clean and have no Job overlapping it
-const freeCrewAt = (date: string, start: number, hoursOnSite: number) => {
+const freeCrewAt = (date: string, start: number, hoursOnSite: number) =>
+  whoIsFreeAt(date, start, hoursOnSite).length;
+const whoIsFreeAt = (date: string, start: number, hoursOnSite: number) => {
   const i = weekdayIndex(date);
   const end = start + hoursOnSite;
   return CLEANERS.filter((name) => {
@@ -237,7 +240,7 @@ const freeCrewAt = (date: string, start: number, hoursOnSite: number) => {
     return !JOBS[i]!.some(
       ([s, len, crew]) => crew.includes(name) && s < end && s + len > start,
     );
-  }).length;
+  });
 };
 const hasRoom = (at: LocalDateTime, crewSize: number, hoursOnSite: number) =>
   freeCrewAt(at.date, hoursOf(at.time), hoursOnSite) >= crewSize;
@@ -326,8 +329,8 @@ function RoomLine({ at, title }: { at: LocalDateTime; title?: string }) {
     );
   return (
     <Notice tone="danger">
-      {title ? `${title}: ` : ""}Not enough cleaners are free then. Pick another
-      time, or give a cleaner more working hours that day.
+      {title ? `${title}, ` : ""}
+      {formatDay(at.date)}, {formatClock(at.time)}: {NO_CREW} {ADD_HOURS}
     </Notice>
   );
 }
@@ -375,33 +378,47 @@ function DayStrip({
   day,
   chosen: chosenDay,
   onDay,
+  weekly = false,
 }: {
   day: string;
   // the day of the time picked, if there is one
   chosen?: string;
   onDay: (day: string) => void;
+  // a plan's weekday: only that weekday's dates, seven weeks of them
+  weekly?: boolean;
 }) {
-  const monday = mondayOf(day);
-  const dates = datesFrom(monday, addDays(monday, 6));
+  const step = weekly ? 7 : 1;
+  const firstSame = addDays(
+    FIRST,
+    (weekdayIndex(day) - weekdayIndex(FIRST) + 7) % 7,
+  );
+  const from = weekly
+    ? addDays(
+        firstSame,
+        49 * Math.floor(Math.max(daysIn(firstSame, day) - 1, 0) / 49),
+      )
+    : mondayOf(day);
+  const dates = Array.from({ length: 7 }, (_, i) => addDays(from, i * step));
+  const monday = from;
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
         <Button
           variant="quiet"
           size="icon"
-          aria-label="Previous week"
-          onPress={() => onDay(addDays(day, -7))}
+          aria-label={weekly ? "Earlier weeks" : "Previous week"}
+          onPress={() => onDay(addDays(day, -7 * step))}
         >
           <ChevronLeft aria-hidden size={20} />
         </Button>
         <p className="font-semibold" aria-live="polite">
-          {formatDay(monday)} – {formatDay(addDays(monday, 6))}
+          {formatDay(monday)} – {formatDay(dates[6]!)}
         </p>
         <Button
           variant="quiet"
           size="icon"
-          aria-label="Next week"
-          onPress={() => onDay(addDays(day, 7))}
+          aria-label={weekly ? "Later weeks" : "Next week"}
+          onPress={() => onDay(addDays(day, 7 * step))}
         >
           <ChevronRight aria-hidden size={20} />
         </Button>
@@ -424,9 +441,15 @@ function DayStrip({
                   : room
                     ? "hover:bg-surface-sunken"
                     : "text-fg-muted"
-              } ${viewed && !chosen ? "ring-2 ring-primary ring-inset" : ""}`}
+              } ${viewed && !chosen ? "bg-surface-sunken font-semibold" : ""}`}
             >
-              <span className="text-xs">{weekdayName(date).slice(0, 3)}</span>
+              <span className="text-xs">
+                {weekly
+                  ? formatDay(date)
+                      .replace(/^\w+, /, "")
+                      .split(" ")[0]
+                  : weekdayName(date).slice(0, 3)}
+              </span>
               <span className="text-lg leading-none font-semibold">
                 {Number(date.slice(8))}
               </span>
@@ -449,7 +472,9 @@ function OnTheSchedule({
   active,
   onPick,
   phone,
+  weekly = false,
 }: {
+  weekly?: boolean;
   // how many days from md: 3 in the card, 7 under the form from xl
   span: 1 | 3 | 7;
   // what's placed, a plan's weekdays each
@@ -495,8 +520,8 @@ function OnTheSchedule({
         day={range.from}
         chosen={placing.start?.date}
         onDay={(day) => setRange(rangeShowing(1, day))}
+        weekly={weekly}
       />
-      <p className="text-sm text-fg-muted">Marked times have room for it.</p>
       {calendar}
     </div>
   );
@@ -525,6 +550,11 @@ function WhoIsFree({ day, start }: { day: string; start?: LocalDateTime }) {
     width: `${((b - a) / (to - from)) * 100}%`,
   });
   const band = start?.date === day ? hoursOf(start.time) : undefined;
+  const free = band === undefined ? [] : whoIsFreeAt(day, band, ON_SITE);
+  const fits = free.length >= CREW;
+  const tone = fits
+    ? "border-primary bg-primary/15 text-primary"
+    : "border-danger-strong bg-danger-subtle text-danger-strong";
   return (
     <div
       role="group"
@@ -545,6 +575,22 @@ function WhoIsFree({ day, start }: { day: string; start?: LocalDateTime }) {
           ))}
         </div>
       </div>
+      <div className="grid grid-cols-[3.5rem_1fr]">
+        <span />
+        <div className="relative h-5">
+          {band !== undefined && (
+            <span
+              className={`absolute inset-y-0 flex items-center justify-center rounded-sm border-2 border-dashed font-semibold whitespace-nowrap ${tone}`}
+              style={span(band, band + ON_SITE)}
+            >
+              {!fits && (
+                <CircleAlert aria-hidden size={12} className="me-0.5" />
+              )}
+              {formatClock(start!.time)}
+            </span>
+          )}
+        </div>
+      </div>
       <div className="relative grid grid-cols-[3.5rem_1fr] gap-y-1">
         {working.map((name) => {
           const [a, b] = hours[name]!;
@@ -553,7 +599,7 @@ function WhoIsFree({ day, start }: { day: string; start?: LocalDateTime }) {
               <span className="self-center truncate font-semibold">
                 {name.split(" ")[0]}
               </span>
-              <div className="relative h-7 rounded-sm bg-surface-sunken">
+              <div className="relative h-7 rounded-sm bg-border">
                 <div
                   className="absolute inset-y-0 bg-surface ring-1 ring-border ring-inset"
                   style={span(a, b)}
@@ -562,27 +608,24 @@ function WhoIsFree({ day, start }: { day: string; start?: LocalDateTime }) {
                   ([s0, len, , client]) => (
                     <div
                       key={client}
-                      className="absolute inset-y-0.5 overflow-hidden rounded-sm border-s-2 border-info-strong bg-info-subtle px-1 leading-6 whitespace-nowrap"
+                      className="absolute inset-y-0.5 overflow-hidden rounded-sm border-s-2 border-info-strong bg-info-subtle px-1 leading-6 text-ellipsis whitespace-nowrap"
                       style={span(s0, s0 + len)}
                     >
                       {client}
                     </div>
                   ),
                 )}
+                {band !== undefined && free.includes(name) && (
+                  <div
+                    aria-label={`${name.split(" ")[0]} is free then`}
+                    className={`absolute inset-y-0.5 rounded-sm border-2 border-dashed ${tone}`}
+                    style={span(band, band + ON_SITE)}
+                  />
+                )}
               </div>
             </div>
           );
         })}
-        {band !== undefined && (
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-y-0 rounded-md border-2 border-dashed border-primary bg-primary/10"
-            style={{
-              left: `calc(3.5rem + (100% - 3.5rem) * ${(band - from) / (to - from)})`,
-              width: `calc((100% - 3.5rem) * ${ON_SITE / (to - from)})`,
-            }}
-          />
-        )}
       </div>
     </div>
   );
@@ -593,7 +636,9 @@ function OpenTimes({
   onPick,
   title,
   withCrew = false,
+  weekly = false,
 }: {
+  weekly?: boolean;
   start?: LocalDateTime;
   onPick: (at: LocalDateTime) => void;
   title?: string;
@@ -601,14 +646,20 @@ function OpenTimes({
   withCrew?: boolean;
 }) {
   const [day, setDay] = useState(start?.date ?? firstOpen());
-  const times = openTimes(day, CREW, ON_SITE);
+  const open = openTimes(day, CREW, ON_SITE);
+  const refused =
+    start?.date === day && !open.includes(start.time) ? start.time : undefined;
+  const times = refused
+    ? [...open, refused].sort((a, b) => hoursOf(a) - hoursOf(b))
+    : open;
   const groups = [
     { name: "Morning", times: times.filter((t) => hoursOf(t) < 12) },
     { name: "Afternoon", times: times.filter((t) => hoursOf(t) >= 12) },
   ].filter((g) => g.times.length > 0);
   return (
     <div className="flex flex-col gap-4">
-      <DayStrip day={day} chosen={start?.date} onDay={setDay} />
+      {!start && <p className="text-sm text-fg-muted">No time picked yet.</p>}
+      <DayStrip day={day} chosen={start?.date} onDay={setDay} weekly={weekly} />
       {withCrew && <WhoIsFree day={day} start={start} />}
       {groups.length === 0 ? (
         <p className="text-sm text-fg-muted">
@@ -627,6 +678,19 @@ function OpenTimes({
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {group.times.map((t) => {
                 const chosen = start?.date === day && start.time === t;
+                if (t === refused)
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      aria-pressed
+                      aria-label={`${formatClock(t)}, picked, no room`}
+                      className="flex min-h-touch items-center justify-center gap-1 rounded-md border-2 border-dashed border-danger-strong bg-danger-subtle font-semibold text-danger-strong tabular-nums"
+                    >
+                      <CircleAlert aria-hidden size={16} />
+                      {formatClock(t)}
+                    </button>
+                  );
                 return (
                   <button
                     key={t}
@@ -706,7 +770,6 @@ function Draft({ layout, c }: { layout: string; c: Case }) {
   const phone = !wide;
   const [start, setStart] = useState(c.start);
   const [days, setDays] = useState(c.days ?? []);
-  const [active, setActive] = useState(0);
   const plan = !!c.plan;
 
   const placeDay = (i: number) => (at: LocalDateTime) =>
@@ -716,56 +779,24 @@ function Draft({ layout, c }: { layout: string; c: Case }) {
       ),
     );
 
-  // A's and C's: one calendar for the whole quote, a plan's weekdays on it
-  // together, a segmented control saying which one a press places
-  const scheduleFor = (span: 1 | 3 | 7) =>
-    plan ? (
-      <div className="flex flex-col gap-4">
-        <SegmentedControl
-          label="Placing"
-          value={String(active)}
-          onChange={(v) => setActive(Number(v))}
-        >
-          {days.map((d, i) => (
-            <Segment key={i} value={String(i)}>
-              {d.title}
-            </Segment>
-          ))}
-        </SegmentedControl>
-        <OnTheSchedule
-          span={span}
-          phone={phone}
-          picks={days.map((d) => ({ ...d, everyDays: 7 }))}
-          active={active}
-          onPick={placeDay(active)}
-        />
-        {days.map((d) => (
-          <RoomLine key={d.title} at={d.start} title={d.title} />
-        ))}
-        <TypedTime
-          at={days[active]?.start}
-          onPick={placeDay(active)}
-          label={`Type a date and time for ${days[active]?.title}`}
-        />
-      </div>
-    ) : (
-      <div className="flex flex-col gap-4">
-        <OnTheSchedule
-          span={span}
-          phone={phone}
-          picks={[{ title: "This clean", start }]}
-          active={0}
-          onPick={setStart}
-        />
-        {start && <RoomLine at={start} />}
-        <TypedTime at={start} onPick={setStart} />
-      </div>
-    );
+  // A's: the day's schedule, under the week's strip
+  const scheduleFor = (span: 1 | 3 | 7) => (
+    <div className="flex flex-col gap-4">
+      {!start && <p className="text-sm text-fg-muted">No time picked yet.</p>}
+      <OnTheSchedule
+        span={span}
+        phone={phone}
+        picks={[{ title: "This clean", start }]}
+        active={0}
+        onPick={setStart}
+      />
+      {start && <RoomLine at={start} />}
+      <TypedTime at={start} onPick={setStart} />
+    </div>
+  );
 
   const proposedPart = (span: 1 | 3 | 7) => (
-    <FormPart title={plan ? "First cleans" : "Proposed time"}>
-      {scheduleFor(span)}
-    </FormPart>
+    <FormPart title="Proposed time">{scheduleFor(span)}</FormPart>
   );
 
   const weekdayParts = days.map((d, i) => (
@@ -779,21 +810,35 @@ function Draft({ layout, c }: { layout: string; c: Case }) {
         </Button>
       }
     >
-      {layout !== "A" && (
+      <FieldRow>
+        <NumberField label="Cleaners" minValue={1} maxValue={10} value={CREW} />
+      </FieldRow>
+      <span className="font-semibold">Starts</span>
+      {layout === "A" ? (
+        <>
+          <OnTheSchedule
+            span={1}
+            phone={phone}
+            weekly
+            picks={[{ ...d, everyDays: 7 }]}
+            active={0}
+            onPick={placeDay(i)}
+          />
+          <RoomLine at={d.start} />
+        </>
+      ) : (
         <>
           <OpenTimes
             start={d.start}
             onPick={placeDay(i)}
             title={d.title}
+            weekly
             withCrew={layout === "C"}
           />
           {!hasRoom(d.start, CREW, ON_SITE) && <RoomLine at={d.start} />}
-          <TypedTime at={d.start} onPick={placeDay(i)} label="Another time" />
         </>
       )}
-      <FieldRow>
-        <NumberField label="Cleaners" minValue={1} maxValue={10} value={CREW} />
-      </FieldRow>
+      <TypedTime at={d.start} onPick={placeDay(i)} />
       <Checkbox>Set the one-off price yourself</Checkbox>
     </FormPart>
   ));
@@ -866,7 +911,6 @@ function Draft({ layout, c }: { layout: string; c: Case }) {
               </Select>
             </FormPart>
             {weekdayParts}
-            {layout === "A" && proposedPart(1)}
           </>
         ) : (
           <ServicePart />
@@ -893,7 +937,7 @@ function Draft({ layout, c }: { layout: string; c: Case }) {
               withCrew={layout === "C"}
             />
             {start && !hasRoom(start, CREW, ON_SITE) && <RoomLine at={start} />}
-            <TypedTime at={start} onPick={setStart} label="Another time" />
+            <TypedTime at={start} onPick={setStart} />
           </FormPart>
         )}
       </FormPage>
