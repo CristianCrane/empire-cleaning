@@ -50,6 +50,7 @@ export function BillScreen() {
     label: "Record a payment",
     icon: Banknote,
     isDisabled: held,
+    why: cardNotDone.item,
     dialog: (state) => <RecordPayment bill={bill} {...state} />,
   };
   const next = !!bill.unpaid && asksTheClient(bill.unpaid.kind);
@@ -70,6 +71,7 @@ export function BillScreen() {
             icon: Ban,
             danger: true,
             isDisabled: held,
+            why: cardNotDone.item,
             dialog: (state) => <VoidBill bill={bill} {...state} />,
           },
         ]}

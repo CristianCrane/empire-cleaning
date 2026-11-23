@@ -460,7 +460,11 @@ test("a Bill we try again ourselves reads as payment pending, not failed, says i
       { exact: true },
     ),
   ).toBeVisible();
-  await expectGreyedPageActions(office, ["Record a payment", "Cancel bill"]);
+  await expectGreyedPageActions(
+    office,
+    ["Record a payment", "Cancel bill"],
+    cardNotDone.item,
+  );
 
   await signedInAs(page, casey.email);
   await page.goto(`/portal/bills/${billId}`);

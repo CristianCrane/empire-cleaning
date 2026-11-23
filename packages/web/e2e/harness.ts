@@ -648,15 +648,20 @@ export const expectNoPageAction = async (page: Page, name: string) => {
 };
 
 // a page's actions behind More actions that it shows greyed, as its goal
-// needs them but they can't be done yet (its alert says why)
-export const expectGreyedPageActions = async (page: Page, names: string[]) => {
+// needs them but they can't be done yet, each saying `why` under it (its
+// alert says it too, which the open menu may cover)
+export const expectGreyedPageActions = async (
+  page: Page,
+  names: string[],
+  why: string,
+) => {
   await moreActions(page).click();
   const menu = page.getByRole("menu");
   await expect(menu).toBeVisible();
   for (const name of names) {
-    await expect(
-      menu.getByRole("menuitem", { name, exact: true }),
-    ).toBeDisabled();
+    const item = menu.getByRole("menuitem", { name, exact: true });
+    await expect(item).toBeDisabled();
+    await expect(item).toHaveAccessibleDescription(why);
   }
   await page.keyboard.press("Escape");
   await expect(menu).toHaveCount(0);
