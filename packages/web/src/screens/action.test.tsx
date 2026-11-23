@@ -147,14 +147,28 @@ describe("a change that fails", () => {
     expect(result.current.fieldErrors).toEqual({});
   });
 
-  test("reloads too, when what it does may have changed", async () => {
-    const { reload, run } = await setup({ reloadOnFailure: true });
-
-    await run(async () => {
-      throw new ApiError(409, "The fee has changed.");
+  test("reloads too, when what it does may have changed, and shows why once the page has", async () => {
+    const { reload, result, act } = await setup({ reloadOnFailure: true });
+    let reloaded = () => {};
+    reload.mockImplementation(
+      () => new Promise<void>((resolve) => (reloaded = resolve)),
+    );
+    let running: Promise<boolean> = Promise.resolve(true);
+    await act(() => {
+      running = result.current.run(async () => {
+        throw new ApiError(409, "The fee has changed.");
+      });
     });
 
-    expect(reload).toHaveBeenCalledOnce();
+    // the page still shows what it showed when the action was asked, so
+    // the message waits for it (#534: a Bill's refusal, then its page)
+    await expect.poll(() => reload.mock.calls.length).toBe(1);
+    expect(result.current.problem).toBeUndefined();
+    await act(async () => {
+      reloaded();
+      await running;
+    });
+    expect(result.current.problem).toBe("The fee has changed.");
   });
 
   test("is cleared by the next try", async () => {

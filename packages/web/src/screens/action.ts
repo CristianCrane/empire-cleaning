@@ -6,8 +6,8 @@ import { reportUnexpected } from "../monitoring.ts";
 import { CardProblem } from "./portal/CardForm.tsx";
 
 export type ActionOptions = {
-  // reload after a failure too, as what it would do may have changed since
-  // the page loaded (a fee, the days with room)
+  // reload after a failure too, before saying why, as what it would do may
+  // have changed since the page loaded (a fee, the days with room)
   reloadOnFailure?: boolean;
   // shown beside the API's field errors, when it returns some
   fieldsProblem?: string;
@@ -71,6 +71,10 @@ export const useActionWith = (
       return true;
     } catch (e) {
       reportUnexpected(e);
+      // first, so why shows with the page it speaks of, never over the
+      // page as it was (#534: a Bill's dialog said a refusal in red, then
+      // greyed itself once its page caught up)
+      if (reloadOnFailure) await reload();
       const fields = e instanceof ApiError && Object.keys(e.fieldErrors).length;
       const said =
         e instanceof CardProblem || (e instanceof ApiError && e.status === 409)
@@ -84,7 +88,6 @@ export const useActionWith = (
       } else {
         setProblem(said);
       }
-      if (reloadOnFailure) await reload();
       return false;
     } finally {
       setPending(undefined);
