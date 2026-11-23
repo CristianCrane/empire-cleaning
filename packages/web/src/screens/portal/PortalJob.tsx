@@ -863,6 +863,8 @@ function Receipt({ job }: { job: ClientJobDetail }) {
   const notCharged = adjustments.filter(
     (a) => a.status === "declined" || a.status === "lapsed",
   );
+  // still to take from them; a weekly Bill's share says so itself
+  const owed = !job.weeklyBill && payment.owedCents > 0;
 
   return (
     <PartCard
@@ -944,6 +946,20 @@ function Receipt({ job }: { job: ClientJobDetail }) {
             </dd>
           </>
         )}
+        {/* what's still to come, in the badge's word for it: Paid and it
+            make up the total (the merge's UX review U4, U11) */}
+        {owed && (
+          <>
+            <dt className="font-semibold">
+              {payment.unpaid && asksTheClient(payment.unpaid.kind)
+                ? t.unpaid
+                : t.notPaidYet}
+            </dt>
+            <dd className="text-end font-semibold">
+              {t.formatMoney(payment.owedCents)}
+            </dd>
+          </>
+        )}
       </dl>
       {notCharged.length > 0 && (
         <p className="text-sm text-fg-muted">
@@ -957,7 +973,9 @@ function Receipt({ job }: { job: ClientJobDetail }) {
           .
         </p>
       )}
-      {payment.paymentMethod && payment.charges.length > 0 && (
+      {/* how what's paid was paid, once nothing is still to come: beside
+          what's owed it read as the whole clean paid */}
+      {payment.paymentMethod && payment.charges.length > 0 && !owed && (
         <p className="text-sm text-fg-muted">
           {t.w.chargedTo(payment.paymentMethod)}
         </p>

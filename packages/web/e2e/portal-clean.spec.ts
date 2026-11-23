@@ -75,6 +75,10 @@ test("a payment that didn't go through leads the clean with Update your card, a 
   await clean(page, job.id);
   await expectNextStep(page, "Update your card");
   await expect(page.getByRole("alert")).toContainText("Payment needed.");
+  // the receipt says what's still to come, in the badge's word
+  await expect(
+    page.getByRole("region", { name: "Your receipt" }),
+  ).toContainText(/Unpaid\$[\d.,]+/);
   await expect(
     page
       .getByRole("main")
@@ -94,7 +98,13 @@ test("a payment we try again ourselves asks nothing of the clean's reader", asyn
   await completeJob(job.id, cory.id, { condition: "moderate", reports: [] });
   await clean(page, job.id);
   // waiting on us, not failed
-  await expect(page.getByText("Not paid yet")).toBeVisible();
+  // its badge, beside the title
+  await expect(
+    page
+      .getByRole("heading", { level: 1 })
+      .locator("..")
+      .getByText("Not paid yet", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(
     page.getByRole("main").getByRole("status").filter({
@@ -110,6 +120,10 @@ test("a payment we try again ourselves asks nothing of the clean's reader", asyn
   await expect(receipt).not.toContainText("Quoted price");
   await expect(receipt).toContainText("Deposit");
   await expect(receipt.getByText("Paid", { exact: true })).toHaveCount(1);
+  // and what's still to come, in the badge's words, not "Charged to your
+  // card" as if the whole clean were paid (the merge's UX review U4, U11)
+  await expect(receipt).toContainText("Not paid yet$269.47");
+  await expect(receipt).not.toContainText("Charged to your");
 });
 
 test("a move asked for waits on us: nothing next, Withdraw in its alert", async ({

@@ -485,7 +485,9 @@ Keeps: the Record (ux-portal). Renders through `RecordPage` (#432).
   and while it's still free,
   until when it's free to move or cancel); cancelled, or the receipt (the
   quoted price only when a change makes the total differ, the rest by that
-  name, a weekly Bill it went on by its number, linked, with its badge).
+  name, a weekly Bill it went on by its number, linked, with its badge;
+  what's still to come by the badge's word, Unpaid or Not paid yet, and the
+  card it was charged to only once nothing is).
 
 #### Client portal > Your quote
 
