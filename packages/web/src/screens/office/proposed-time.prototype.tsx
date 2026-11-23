@@ -440,7 +440,7 @@ function DayStrip({
               onClick={() => onDay(date)}
               className={`flex min-h-touch flex-col items-center gap-0.5 rounded-md px-0.5 py-1.5 ${
                 chosen
-                  ? "bg-primary text-primary-fg"
+                  ? "bg-primary/10 font-semibold text-primary ring-2 ring-primary ring-inset"
                   : room
                     ? "hover:bg-surface-sunken"
                     : "text-fg-muted"
@@ -663,6 +663,9 @@ function OpenTimes({
   return (
     <div className="flex flex-col gap-4">
       <DayStrip day={day} chosen={start?.date} onDay={setDay} weekly={weekly} />
+      {start?.date === day && !hasRoom(start, CREW, ON_SITE) && (
+        <RoomLine at={start} />
+      )}
       {withCrew && <WhoIsFree day={day} start={start} />}
       {groups.length === 0 ? (
         <p className="text-sm text-fg-muted">
@@ -858,7 +861,6 @@ function Draft({ layout, c }: { layout: string; c: Case }) {
             weekly
             withCrew={layout === "C"}
           />
-          {!hasRoom(d.start, CREW, ON_SITE) && <RoomLine at={d.start} />}
         </>
       )}
       {!(layout === "B" && hasRoom(d.start, CREW, ON_SITE)) && (
@@ -971,7 +973,6 @@ function Draft({ layout, c }: { layout: string; c: Case }) {
               onPick={setStart}
               withCrew={layout === "C"}
             />
-            {start && !hasRoom(start, CREW, ON_SITE) && <RoomLine at={start} />}
             <TypedTime at={start} onPick={setStart} />
           </FormPart>
         )}
