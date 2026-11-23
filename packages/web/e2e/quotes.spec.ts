@@ -63,6 +63,13 @@ const send = async (page: Page) => {
   await expect(page.getByText("Sent", { exact: true }).first()).toBeVisible();
 };
 
+// the Deep Clean recommended for a first visit: its price set behind its
+// fold in the Service part
+const deepCleanOverride = async (page: Page) => {
+  await page.getByText("Deep Clean, also offered for a first visit").click();
+  return page.getByRole("group", { name: "Deep Clean" });
+};
+
 const quoteLink = () => linkIn(casey.email, "Your quote from Empire Cleaning");
 
 test(
@@ -73,11 +80,22 @@ test(
     await signInAsOffice(page);
     await startDraft(page);
 
+    // the Standard Clean asked for is the Draft's price; the Deep Clean
+    // recommended for a first visit, offered too, an aside under it (the
+    // user, on #527)
+    const prices = page.getByRole("region", { name: "Quote" });
+    await expect(prices.getByRole("heading", { level: 3 })).toHaveText([
+      "Standard Clean",
+    ]);
+    await expect(
+      prices.getByText(/^Also offered: Deep Clean \$[\d,.]+$/),
+    ).toBeVisible();
     await expect(
       page.getByRole("region", { name: "Deep Clean" }),
-    ).toContainText("Recommended");
-    // its price set in the Service part, the price itself beside it
-    const deep = page.getByRole("group", { name: "Deep Clean" });
+    ).toContainText("Shown to the client as recommended");
+    // its price set in the Service part, behind its fold, the price itself
+    // beside it
+    const deep = await deepCleanOverride(page);
     await deep.getByText("Set the Deep Clean price yourself").click();
     await deep
       .getByRole("textbox", { name: "Deep Clean price before tax" })
@@ -156,6 +174,72 @@ test("a Quote can't be sent without a proposed time", async ({ page }) => {
 
   await expect(page.getByText("Pick a time")).toBeVisible();
 });
+
+// a bar at the foot is a phone's (#493 D1): there it holds the price,
+// whether it's saved and Send, Delete draft on the title row; from md Send
+// is the header's next step, Delete draft behind its arrow, "Saved" beside
+// it, and once scrolled the header that sticks keeps the price in view. The
+// price is the one asked for, named; the Deep Clean recommended for a first
+// visit is an aside, in neither (the user's word on #527's U1)
+test(
+  "a Draft's Send is its next step, its price kept in view as it scrolls",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    await requestQuoteAsGuest(casey);
+    await signInAsOffice(page);
+    await startDraft(page);
+    await saved(page);
+    await expectNextStep(page, `Send to ${casey.name}`);
+    const next = page.getByRole("group", { name: "What to do" });
+    if (isMobile) {
+      await expect(next).toContainText(/^Standard Clean \$[\d,.]+Saved/);
+      await expect(
+        page.getByRole("button", { name: "Delete draft" }),
+      ).toBeVisible();
+      return;
+    }
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await expect(
+      next.getByRole("button", { name: "More actions" }),
+    ).toBeVisible();
+    await page
+      .getByRole("region", { name: "Proposed time" })
+      .scrollIntoViewIfNeeded();
+    // the header that sticks: the price asked for, named, as the prices
+    // beside the form aren't in view, and Saved
+    await expect(
+      page.getByText(/^Standard Clean \$[\d,.]+$/).filter({ visible: true }),
+    ).toBeVisible();
+    await saved(page);
+    await pageAction(page, "Delete draft");
+    await page
+      .getByRole("alertdialog")
+      .getByRole("button", { name: "Keep it" })
+      .click();
+    await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  },
+);
+
+// the date, its start time and the way to pick both from the Schedule on
+// one left edge, the button not centred under them (the user, on #527:
+// "breaking symmetry and balance"); on a phone each is full width
+test(
+  "a Draft's proposed time lines up on one left edge",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    await requestQuoteAsGuest(casey);
+    await signInAsOffice(page);
+    await startDraft(page);
+    if (!isMobile) await page.setViewportSize({ width: 1440, height: 900 });
+    const part = page.getByRole("region", { name: "Proposed time" });
+    const date = await part.getByRole("group", { name: "Date" }).boundingBox();
+    const pick = await part
+      .getByRole("button", { name: "Pick from the schedule" })
+      .boundingBox();
+    expect(pick!.x).toBe(date!.x);
+    if (isMobile) expect(pick!.width).toBe(date!.width);
+  },
+);
 
 test("a Draft whose prices changed since it was saved shows them before it's sent", async ({
   page,
@@ -321,7 +405,7 @@ test("the Client sees only the latest Revision, from any of its emails", async (
   await expect(client.getByText(/Updated/)).toBeHidden();
 
   await pageAction(page, "Change quote");
-  const deep = page.getByRole("group", { name: "Deep Clean" });
+  const deep = await deepCleanOverride(page);
   await deep.getByText("Set the Deep Clean price yourself").click();
   await deep
     .getByRole("textbox", { name: "Deep Clean price before tax" })
@@ -491,15 +575,13 @@ test("the draft says whether the proposed day has room for each clean", async ({
   );
   await expect(proposed).not.toContainText("has room");
 
-  // and at 10am, room for both
+  // and at 10am, room for both, said of the quote
   await page
     .getByRole("group", { name: "Start time" })
     .getByRole("spinbutton", { name: /hour/i })
     .click();
   await page.keyboard.type("10");
-  await expect(proposed).toContainText(
-    "Tue, Jan 13 has room for either clean.",
-  );
+  await expect(proposed).toContainText("Tue, Jan 13 has room for it.");
   await expect(proposed).not.toContainText("Not enough cleaners");
 
   // from 10pm the Deep Clean, 2.5 hours on site, would run past midnight
@@ -599,10 +681,10 @@ test("Office Staff change what a Draft is for, and what was asked stays", async 
   // a Standard Clean was asked for, with a Deep Clean recommended for a
   // first visit
   await expect(page.getByRole("region", { name: "Deep Clean" })).toContainText(
-    "Recommended",
+    "Shown to the client as recommended",
   );
 
-  await page.getByRole("button", { name: "Standard Clean Service" }).click();
+  await page.getByRole("button", { name: "Standard Clean Type" }).click();
   await page.getByRole("option", { name: "Move-in/out Clean" }).click();
   await saved(page);
 
@@ -613,7 +695,7 @@ test("Office Staff change what a Draft is for, and what was asked stays", async 
   // as it was asked
   await page.reload();
   await expect(
-    page.getByRole("button", { name: "Move-in/out Clean Service" }),
+    page.getByRole("button", { name: "Move-in/out Clean Type" }),
   ).toBeVisible();
   await page.getByRole("button", { name: /^What was asked/ }).click();
   await expect(
@@ -627,7 +709,7 @@ test("deleting a first Draft whose Service was asked for again since leaves the 
   await requestQuoteAsGuest(casey);
   await signInAsOffice(page);
   await startDraft(page);
-  await page.getByRole("button", { name: "Standard Clean Service" }).click();
+  await page.getByRole("button", { name: "Standard Clean Type" }).click();
   await page.getByRole("option", { name: "Move-in/out Clean" }).click();
   await saved(page);
   // the Standard Clean is free again, and Casey asks for it
@@ -651,7 +733,7 @@ test("a Draft for a Service priced by area is priced on the area Office Staff ty
   await signInAsOffice(page);
   await startDraft(page);
 
-  await page.getByRole("button", { name: "Standard Clean Service" }).click();
+  await page.getByRole("button", { name: "Standard Clean Type" }).click();
   await page.getByRole("option", { name: "Painting" }).click();
   const area = page.getByRole("textbox", { name: "Area in sq ft" });
   await expect(area).toBeVisible();

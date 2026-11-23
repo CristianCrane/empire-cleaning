@@ -123,6 +123,7 @@ import {
   AskedFacts,
   askedSummary,
   FoldedPrice,
+  PriceWorking,
   seeThePremises,
   WhichKindDialog,
   TurnDownQuote,
@@ -870,10 +871,12 @@ function Offer({ quote }: { quote: ShownQuote }) {
   );
 }
 
-// What the Draft comes to as last saved, beside it (#434): each option's or
-// plan weekday's price, read-only, its working folded under it, then a
-// plan's week. Faded and busy while a change is saved; each price is set
-// in the part it prices
+// What the Draft comes to as last saved, beside it (#434): a one-off
+// Quote's own price, the one asked for, and the Service recommended for a
+// first visit quiet under it (the user, on #527); or each plan weekday's
+// price, then the plan's week. Read-only, each working folded under its
+// price. Faded and busy while a change is saved; each price is set in the
+// part it prices
 function DraftPrices({
   quote,
   dayTitles,
@@ -885,75 +888,101 @@ function DraftPrices({
   stale: boolean;
 }) {
   const { plan } = quote;
+  // a plan's week, what it comes to, first: below xl the prices lead the
+  // page, and three weekdays' pushed it off a laptop's screen
+  const week = plan && plan.days.length > 1 && (
+    <OfferPrice title="Each week">
+      <PlanTotals
+        plan={plan}
+        depositPercent={quote.depositPercent}
+        change={quote.changesPlan}
+      />
+    </OfferPrice>
+  );
+  const busy = `flex flex-col gap-5 [&>section+section]:border-t [&>section+section]:border-border [&>section+section]:pt-5 ${staleFade(stale)}`;
+  const version = (
+    <p className="text-sm text-fg-muted">
+      From your prices, version {quote.priceListVersion}.
+    </p>
+  );
+  if (!plan) {
+    const own = ownOption(quote);
+    const recommended = recommendedOption(quote);
+    return (
+      <div aria-busy={stale} className={busy}>
+        <OfferPrice title={own.serviceName}>
+          <FoldedPrice
+            price={own}
+            working={own.suggested}
+            under={own.overrideCents !== null && <PricedFrom option={own} />}
+          >
+            <OptionRows
+              option={own}
+              crewSize={quote.crewSize}
+              depositPercent={quote.depositPercent}
+            />
+            {version}
+          </FoldedPrice>
+        </OfferPrice>
+        {recommended && (
+          <AlsoOffered option={recommended}>
+            <OptionRows
+              option={recommended}
+              crewSize={quote.crewSize}
+              depositPercent={quote.depositPercent}
+            />
+            {version}
+          </AlsoOffered>
+        )}
+      </div>
+    );
+  }
   return (
-    <div
-      aria-busy={stale}
-      className={`flex flex-col gap-5 [&>section+section]:border-t [&>section+section]:border-border [&>section+section]:pt-5 ${staleFade(stale)}`}
-    >
-      {/* as the sent Quote's Offer draws them: a plan's weekday or an option */}
+    <div aria-busy={stale} className={busy}>
+      {week}
+      {/* as the sent Quote's Offer draws them, a weekday each */}
       {quote.options.map((option, i) => {
-        const day = plan?.days[i];
-        if (plan && !day) return null;
+        const day = plan.days[i];
+        if (!day) return null;
         return (
           <OfferPrice
             key={option.serviceKey + String(i)}
             title={
-              !plan
-                ? option.serviceName
-                : plan.days.length === 1
-                  ? `${option.serviceName}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`
-                  : `${dayTitles[i] ?? `Weekday ${i + 1}`}: ${option.serviceName}`
+              plan.days.length === 1
+                ? `${option.serviceName}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`
+                : `${dayTitles[i] ?? `Weekday ${i + 1}`}: ${option.serviceName}`
             }
             badge={
-              day ? (
-                <PlanSaving day={day} discountPercent={plan!.discountPercent} />
-              ) : (
-                option.recommended && (
-                  <StatusBadge tone="success">Recommended</StatusBadge>
-                )
-              )
+              <PlanSaving day={day} discountPercent={plan.discountPercent} />
             }
           >
             <FoldedPrice
               price={option}
               working={option.suggested}
-              perClean={!!day}
+              perClean
               under={
                 option.overrideCents !== null && <PricedFrom option={option} />
               }
             >
-              {day && plan ? (
-                <>
-                  <PlanRows
-                    option={option}
-                    day={day}
-                    discountPercent={plan.discountPercent}
-                  >
-                    <HoursRows option={option} crewSize={day.crewSize} />
-                  </PlanRows>
-                  {plan.discountPercent > 0 && (
-                    <p className="text-sm text-fg-muted">
-                      The plan discount comes off the one-off price, whoever set
-                      it.
-                    </p>
-                  )}
-                </>
-              ) : (
-                <OptionRows
-                  option={option}
-                  crewSize={quote.crewSize}
-                  depositPercent={quote.depositPercent}
-                />
+              <PlanRows
+                option={option}
+                day={day}
+                discountPercent={plan.discountPercent}
+              >
+                <HoursRows option={option} crewSize={day.crewSize} />
+              </PlanRows>
+              {plan.discountPercent > 0 && (
+                <p className="text-sm text-fg-muted">
+                  The plan discount comes off the one-off price, whoever set it.
+                </p>
               )}
-              <p className="text-sm text-fg-muted">
-                From your prices, version {quote.priceListVersion}.
-              </p>
+              {version}
             </FoldedPrice>
           </OfferPrice>
         );
       })}
-      {plan && (
-        <OfferPrice title={plan.days.length > 1 ? "Each week" : "Deposit"}>
+      {!week && (
+        <OfferPrice title="Deposit">
           <PlanTotals
             plan={plan}
             depositPercent={quote.depositPercent}
@@ -991,6 +1020,36 @@ function OfferPrice({
         {badge}
       </div>
       {children}
+    </section>
+  );
+}
+
+// The Service recommended for a first visit, which the sent Quote offers
+// beside the one asked for (ADR-0018): an aside to the Draft's price, one
+// quiet line under it, its price and working folded behind it (the user, on
+// #527: "The recommendation is an aside")
+function AlsoOffered({
+  option,
+  children,
+}: {
+  option: OfficeQuoteOption;
+  children: ReactNode;
+}) {
+  return (
+    <section aria-label={option.serviceName} className="flex flex-col text-sm">
+      <Fold
+        label={`Also offered: ${option.serviceName} ${formatMoney(option.totalCents)}`}
+      >
+        <div className="flex flex-col gap-3">
+          <p className="flex flex-col gap-1 text-fg-muted">
+            <span>Shown to the client as recommended; they pick one.</span>
+            <span>Includes {formatMoney(option.taxCents)} tax</span>
+          </p>
+          {option.overrideCents !== null && <PricedFrom option={option} />}
+          <PriceWorking breakdown={option.suggested} />
+          {children}
+        </div>
+      </Fold>
     </section>
   );
 }
@@ -1289,8 +1348,10 @@ function RoomOnDay({
       {problems.length === 0 ? (
         <p className="flex items-center gap-2 text-sm text-success-strong">
           <CircleCheck aria-hidden size={16} className="shrink-0" />
-          {formatDay(day)} has room for{" "}
-          {options.length === 1 ? "it" : "either clean"}.
+          {/* "it", the quote, as the recommended Service is an aside (the
+          user, on #527); named below only when it alone doesn't fit, as
+          that changes what the client can pick */}
+          {formatDay(day)} has room for it.
         </p>
       ) : (
         problems.map((problem) => (
@@ -1357,7 +1418,6 @@ function PlanTerms({
       <Select
         label="Service"
         name="plan.serviceKey"
-        description="Every clean on the plan is of it."
         selectedKey={plan.serviceKey}
         onSelectionChange={(key) => onChange({ serviceKey: String(key) })}
       >
@@ -1478,17 +1538,37 @@ const saveStateLabel: Record<SaveState, string> = {
 // how long after the last change the Draft is saved and priced again
 const SAVE_DELAY_MS = 500;
 
-// the prices as last worked out, in a line: what the bar at the bottom shows
-const priceSummary = (quote: ShownQuote) => {
+// a one-off Quote's own option: its Service, the one asked for unless the
+// Office changed it, after any recommended for a first visit (ADR-0018)
+const ownOption = (quote: ShownQuote) =>
+  quote.options.find((o) => !o.recommended)!;
+// and the Service it recommends in its place for a first visit, if any
+const recommendedOption = (quote: ShownQuote) =>
+  quote.options.find((o) => o.recommended);
+
+// the price as last worked out: in a line, as a phone's foot shows it, and
+// in the fewest words, for the header that sticks on a wider screen. A
+// one-off Quote's is its own Service's, the one asked for unless the Office
+// changed it: the Service recommended for a first visit is an aside, in
+// neither (the user, on #527's U1)
+const priceOf = (quote: ShownQuote) => {
   const { plan } = quote;
   if (plan) {
+    const clean = formatMoney(quote.options[0]!.totalCents);
+    const week = formatMoney(plan.roundTotalCents);
     return plan.days.length === 1
-      ? `${planName(plan)}: ${formatMoney(quote.options[0]!.totalCents)} a clean`
-      : `${plan.days.length} cleans a week: ${formatMoney(plan.roundTotalCents)} a week`;
+      ? {
+          line: `${planName(plan)}: ${clean} a clean`,
+          short: `${clean} a clean`,
+        }
+      : {
+          line: `${plan.days.length} cleans a week: ${week} a week`,
+          short: `${week} a week`,
+        };
   }
-  return quote.options
-    .map((o) => `${o.serviceName} ${formatMoney(o.totalCents)}`)
-    .join(" · ");
+  const own = ownOption(quote);
+  const named = `${own.serviceName} ${formatMoney(own.totalCents)}`;
+  return { line: named, short: named };
 };
 
 // The area a Service priced by area is priced on: typed, or left empty to
@@ -1522,8 +1602,9 @@ function AreaField({
 
 /**
  * A Draft, saved and priced again by the server a moment after each change,
- * so the prices always follow what's on screen; the bar at the foot keeps
- * them in view wherever the change was made. On a Service Plan Quote, the
+ * so the prices always follow what's on screen; a phone's bar at the foot,
+ * or a wider screen's header that sticks, keeps them in view wherever the
+ * change was made. On a Service Plan Quote, the
  * plan's Service is chosen from its price cards.
  */
 function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
@@ -1564,6 +1645,22 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
   // an option new since the Service changed has none yet
   const overrideFor = (option: OfficeQuoteOption) =>
     fields.overrides[option.serviceKey] ?? overrideOf(option);
+  // each option's own, so its "Why this price" is told apart from the other's
+  const overrideGroup = (option: OfficeQuoteOption) => (
+    <div
+      role="group"
+      aria-label={option.serviceName}
+      className="flex flex-col gap-4"
+    >
+      <OverrideFields
+        override={overrideFor(option)}
+        label={option.serviceName}
+        name={`overrides.${option.serviceKey}`}
+        onChange={(change) => setOverride(option, change)}
+      />
+    </div>
+  );
+  const recommended = recommendedOption(quote);
   const setOverride = (option: OfficeQuoteOption, change: Partial<Override>) =>
     update(({ overrides }) => ({
       overrides: {
@@ -1759,8 +1856,8 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
           },
           { label: "Draft quote" },
         ]}
+        // the title says it's a draft, not sent: no badge to say it again
         title={`Draft quote for ${clientName(draft.client)}`}
-        status={<StatusBadge tone="neutral">Not sent yet</StatusBadge>}
         actions={[
           {
             label: "Delete draft",
@@ -1784,32 +1881,30 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
           },
         ]}
         aside={{
-          title: "Prices",
+          // the quote the client will see (the user, on #527)
+          title: "Quote",
           leads: true,
           children: (
             <DraftPrices quote={quote} dayTitles={dayTitles} stale={stale} />
           ),
         }}
         end={problems.length > 0 && problems}
-        // the prices stay in view wherever the change was made, in the
-        // app's one bar at a page's foot, clear of a phone's tab bar (#425)
-        footer={{
-          label: "Send the quote",
-          summary: priceSummary(quote),
-          status: saveStateLabel[saveState],
-          children: (
-            <Button
-              isPending={isSending}
-              isDisabled={!quote.client.email || quote.needsSiteVisit}
-              onPress={() => void onSend()}
-            >
-              {/* just Send, so a long name doesn't squeeze the prices; the
-                  heading names who it goes to, and so does this for a
-                  screen reader */}
-              Send<span className="sr-only"> to {quote.client.name}</span>
-            </Button>
-          ),
+        // the page's next step; the prices and whether they're saved stay
+        // in view wherever the change was made: a phone's bar at the foot,
+        // a wider screen's header that sticks (#425, #493 D1)
+        next={{
+          // just Send, so a long name doesn't squeeze the prices; the
+          // heading names who it goes to, and so does this for a screen
+          // reader
+          label: "Send",
+          srLabel: `to ${quote.client.name}`,
+          icon: Send,
+          isPending: isSending,
+          isDisabled: !quote.client.email || quote.needsSiteVisit,
+          onAction: () => void onSend(),
         }}
+        price={priceOf(quote)}
+        note={saveStateLabel[saveState]}
       >
         {draft.asked && (
           <FormPart title="What was asked" summary={askedSummary(draft)}>
@@ -1872,14 +1967,11 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
           </>
         ) : (
           <FormPart title="Service">
+            {/* "Type", as the part already says Service (the user, on
+                #527); its region names it Service to a screen reader */}
             <Select
-              label="Service"
+              label="Type"
               name="serviceKey"
-              description={
-                quote.options.length > 1
-                  ? `With a ${quote.options[0]!.serviceName} recommended for a first visit`
-                  : undefined
-              }
               selectedKey={fields.serviceKey}
               onSelectionChange={(key) => set({ serviceKey: String(key) })}
             >
@@ -1890,23 +1982,17 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
               ))}
             </Select>
             {areaField}
-            {quote.options.map((option) => (
-              // each option's own, so its "Why this price" is told apart
-              // from the other's
-              <div
-                key={option.serviceKey}
-                role="group"
-                aria-label={option.serviceName}
-                className="flex flex-col gap-4"
+            {overrideGroup(ownOption(quote))}
+            {recommended && (
+              // an aside, as beside the form (the user, on #527): its own
+              // price set behind a fold, open while it's set
+              <Fold
+                label={`${recommended.serviceName}, also offered for a first visit`}
+                defaultOpen={overrideFor(recommended).on}
               >
-                <OverrideFields
-                  override={overrideFor(option)}
-                  label={option.serviceName}
-                  name={`overrides.${option.serviceKey}`}
-                  onChange={(change) => setOverride(option, change)}
-                />
-              </div>
-            ))}
+                {overrideGroup(recommended)}
+              </Fold>
+            )}
           </FormPart>
         )}
 
@@ -1978,7 +2064,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
             is the date's error when it's sent, the server's (WEB-D) */}
         {!plan && (
           <FormPart title="Proposed time">
-            <FieldRow>
+            <FieldRow packed>
               <DatePicker
                 label="Date"
                 name="proposedStart"
@@ -2084,7 +2170,7 @@ function PlanDayFields({
         )
       }
     >
-      <FieldRow>
+      <FieldRow packed>
         <DatePicker
           label="Date"
           name={`${name}.start`}

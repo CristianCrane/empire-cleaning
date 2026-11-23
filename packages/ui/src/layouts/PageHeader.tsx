@@ -1,4 +1,11 @@
-import { useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Breadcrumbs, type Crumb } from "../Breadcrumbs.tsx";
 import { Heading } from "../Heading.tsx";
 import { useWide } from "../wide.ts";
@@ -7,6 +14,7 @@ import {
   ActionButton,
   RareActions,
   SplitButton,
+  type NextAction,
   type PageAction,
   type PageActions,
 } from "./PageActions.tsx";
@@ -19,12 +27,14 @@ import {
 // title row, on the title's line, the page's actions: its next step as a
 // split button, the rest behind its arrow; with nothing next, the rest as
 // RareActions; or a List's one primary (New …). Short of room, the badge
-// drops under the title before the button moves. From md, once the window's
-// top reaches the title row's actions, a slim header sticks at the top with
-// the title, the badge and the same actions (docs/ux.md, Page structure);
-// on a phone the layout pins the next step at the foot (RecordPage), so the
-// title row's is hidden there. Printed, it's the title alone. A layout
-// places it, never a screen (ADR-0031)
+// drops under the title before the button moves. Beside the actions, a
+// line read out as it changes (`note`: whether a Draft's saved). From md,
+// once the window's top reaches the title row's actions, a slim header
+// sticks at the top with the title, the badge, what the next step rests on
+// (`summary`: a Draft's price), the note and the same actions (docs/ux.md,
+// Page structure); on a phone the layout pins the next step at the foot
+// (RecordPage, FormPage), so the title row's is hidden there. Printed, it's
+// the title alone. A layout places it, never a screen (ADR-0031)
 export function PageHeader({
   trail,
   title,
@@ -35,6 +45,8 @@ export function PageHeader({
   next,
   primary,
   tools,
+  summary,
+  note,
 }: {
   // from the area's nav section to this page, which is last; none on the
   // section's own page
@@ -49,12 +61,20 @@ export function PageHeader({
   // what else the layout keeps on the title row, before the actions (a
   // phone's search icon)
   tools?: ReactNode;
+  // what the next step rests on (a Draft's price), in the header that
+  // sticks, beside its actions: a picture of what the page says, so it's
+  // not read out again
+  summary?: ReactNode;
+  // a line beside the actions, read out as it changes (whether a Draft's
+  // saved): with them on the title row and in the header that sticks, so
+  // one copy is there at a time
+  note?: ReactNode;
 } & (
   | {
       // what the page can do besides its next step
       actions?: PageActions;
       // the page's next step, its primary
-      next?: PageAction;
+      next?: NextAction;
       primary?: never;
     }
   | {
@@ -124,19 +144,26 @@ export function PageHeader({
         {control && (
           // once the window's top reaches it, the header that sticks holds
           // it, and on a phone the layout's foot holds a next step: one
-          // copy at a time is there to press
+          // copy at a time is there to press, and of its note to read out
           <div
             ref={row}
             inert={away}
             aria-hidden={away}
-            className={`shrink-0 print:hidden ${next ? "max-md:hidden" : ""}`}
+            className={`flex shrink-0 items-center gap-4 print:hidden ${next ? "max-md:hidden" : ""}`}
           >
+            {note && <Note>{note}</Note>}
             {control}
           </div>
         )}
       </div>
       {control && (
         <StickyHeader shown={away} title={title} status={status}>
+          {(summary || note) && (
+            <div className="flex flex-col items-end">
+              {summary && <div aria-hidden>{summary}</div>}
+              {note && <Note>{note}</Note>}
+            </div>
+          )}
           {control}
         </StickyHeader>
       )}
@@ -144,9 +171,20 @@ export function PageHeader({
   );
 }
 
+// a line read out as it changes, beside a page's actions: a save's longest
+// state wraps to a few short lines there, rather than squeezing the title
+function Note({ children }: { children: ReactNode }) {
+  return (
+    <span role="status" className="max-w-48 text-right text-sm text-fg-muted">
+      {children}
+    </span>
+  );
+}
+
 // From md, the slim header that slides in at the top once the window's top
 // reaches the title row's actions, lined up with the page's column: the
-// title, its badge, and at its end what's given (the same actions).
+// title, its badge, and at its end what's given (the same actions, and what
+// they rest on).
 // Out of sight it's out of reach too, so one copy of the button is there to
 // press at a time; and its title and badge go once it has slid out, so the
 // page says them once (its actions stay, as a dialog they opened is theirs)
@@ -170,8 +208,26 @@ function StickyHeader({
   // the page's frame's column, when it's narrower than the content's
   const column = useContext(FrameColumn);
   const named = shown || leaving;
+  // its height (none below md, where it isn't drawn) is
+  // `--sticky-header-height` on the page, for what sticks under it (a Form
+  // page's aside), as ActionFooter's is for what floats above it
+  const bar = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const element = bar.current;
+    if (!element) return;
+    const { style } = document.documentElement;
+    const observer = new ResizeObserver(() =>
+      style.setProperty("--sticky-header-height", `${element.offsetHeight}px`),
+    );
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      style.removeProperty("--sticky-header-height");
+    };
+  }, []);
   return (
     <div
+      ref={bar}
       inert={!shown}
       aria-hidden={!shown}
       // its own slide, not a button's colour inside it

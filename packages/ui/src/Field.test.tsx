@@ -3,6 +3,7 @@ import { afterEach, expect, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { page } from "vitest/browser";
 import { DatePicker, TimeField } from "./DateField.tsx";
+import { FieldRow } from "./Field.tsx";
 import { NumberField } from "./NumberField.tsx";
 import { Select, SelectItem } from "./Select.tsx";
 import { TextField } from "./TextField.tsx";
@@ -93,4 +94,32 @@ test("a field is as wide as what it holds, and its widest answer fits", async ()
   // nor a choice of a few words, its value cut off at the end
   const choice = box("Service").firstElementChild!;
   expect(choice.scrollWidth).toBeLessThanOrEqual(choice.clientWidth);
+});
+
+// a date and its start time in a form's card beside an aside (34rem at
+// 1440): side by side from the row's start, a gap apart, not spread across
+// the card's two columns (the user, on #527: "breaking symmetry and
+// balance"); one above the other, full width, on a phone
+test("a packed row keeps its fields at their own widths, side by side", async () => {
+  await page.viewport(1440, 900);
+  const screen = await render(
+    <div className="w-[34rem]">
+      <FieldRow packed>
+        <DatePicker label="Date" defaultValue={parseDate("2026-01-12")} />
+        <TimeField label="Start time" defaultValue={new Time(9)} />
+      </FieldRow>
+    </div>,
+  );
+  const box = (label: string) =>
+    screen
+      .getByText(label, { exact: true })
+      .element()
+      .nextElementSibling!.getBoundingClientRect();
+  const rem = 16;
+  expect(box("Date").left).toBe(box("Start time").left - 14 * rem);
+  expect(box("Start time").width).toBe(9 * rem);
+
+  await page.viewport(390, 844);
+  expect(box("Start time").left).toBe(box("Date").left);
+  expect(box("Start time").width).toBe(box("Date").width);
 });

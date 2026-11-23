@@ -8,19 +8,30 @@ import {
 } from "react";
 import { FormValidationContext } from "react-aria-components";
 import { ChevronDown } from "lucide-react";
-import { ActionFooter, type Footer } from "../ActionFooter.tsx";
+import { ActionFooter } from "../ActionFooter.tsx";
 import { Actions } from "../Actions.tsx";
 import type { Crumb } from "../Breadcrumbs.tsx";
 import { Card } from "../Card.tsx";
 import { Fold } from "../Fold.tsx";
+import { useUiWords } from "../language.ts";
 import { Section } from "../Section.tsx";
+import { useWide } from "../wide.ts";
 import { Alerts, type Alert } from "./Alerts.tsx";
 import { PageFrame } from "./PageFrame.tsx";
-import type { PageActions } from "./PageActions.tsx";
+import {
+  ActionButton,
+  type NextAction,
+  type PageActions,
+} from "./PageActions.tsx";
 import { PageHeader } from "./PageHeader.tsx";
 
 // what the fields come to, beside them from xl
 type Aside = { title: string; leads?: boolean; children: ReactNode };
+
+// a priced form's price: in a line (`line`, at a phone's foot) and in the
+// fewest words (`short`, in the header that sticks); or, until it can be
+// worked out, what's missing, said in its place
+type FormPrice = { line: string; short: string } | { missing: string };
 
 // The Form page type's layout (docs/ux.md, Screen types, Form page; #434): a
 // form with a page of its own. Its PageHeader, a single page action at the
@@ -28,8 +39,13 @@ type Aside = { title: string; leads?: boolean; children: ReactNode };
 // (`about`); then the whole form in one Card, its parts open where they're
 // what the person came for and folded to a line where they aren't
 // (FormPart), the card ending with what's said before its buttons and the
-// buttons; or, for a form with a price or a Send, those in the page's
-// `footer`, an ActionFooter, what's said before them after the card. What
+// buttons. A form with a price or a Send (the Draft, New quote) has its
+// button as the page's `next` instead, what's said before it after the
+// card: from md the header's primary, the rest behind its arrow, its
+// `note` (whether it's saved) beside it, and the header that sticks
+// carrying the price too while the aside isn't beside the form; on a phone
+// an ActionFooter with the price in a line, the note and the button, the
+// rest on the title row (#493 D1: a bar at the foot is a phone's). What
 // the fields come to (a price, a worked example) is an aside, sticky beside
 // the card from `xl`; below that after the card, or before it when it
 // `leads` (a price the form is written to reach). With no aside, the page
@@ -46,7 +62,9 @@ export function FormPage({
   aside,
   end,
   buttons,
-  footer,
+  next,
+  price,
+  note,
   account,
   children,
 }: {
@@ -54,7 +72,8 @@ export function FormPage({
   title: string;
   status?: ReactNode;
   subtitle?: ReactNode;
-  // a single one, at the end of the title row (Retire, Delete draft)
+  // a single one, at the end of the title row (Retire); with a `next`,
+  // the rest behind its arrow (Delete draft)
   actions?: PageActions;
   // those that apply now, the rest false, null or undefined
   alerts?: (Alert | false | null | undefined)[];
@@ -71,19 +90,30 @@ export function FormPage({
   | {
       // the form's buttons at the card's foot, the main one last
       buttons?: ReactNode;
-      footer?: never;
+      next?: never;
+      price?: never;
+      note?: never;
       // what the fields come to, beside them from xl
       aside?: Aside;
     }
-  // a footer spans the content's width, so it comes with an aside, the
-  // page then that wide too; a form's width alone keeps its buttons in
-  // its card (docs/ux.md, Form page)
-  | { buttons?: never; footer: Footer; aside: Aside }
+  // a form with a price or a Send: its button the page's next step, its
+  // price in the aside, which the page is wide enough to hold
+  | {
+      buttons?: never;
+      next: NextAction;
+      price?: FormPrice;
+      // whether it's saved, read out as it changes
+      note?: string;
+      aside: Aside;
+    }
 )) {
+  const words = useUiWords();
+  const wide = useWide();
+  const missing = price && "missing" in price ? price.missing : undefined;
   const card = (
     <Card>
       <div className="flex flex-col gap-5">{children}</div>
-      {!footer && (end || buttons) && (
+      {!next && (end || buttons) && (
         <div className="flex flex-col gap-3 border-t border-border pt-4">
           {end}
           {buttons && <Actions>{buttons}</Actions>}
@@ -92,7 +122,7 @@ export function FormPage({
     </Card>
   );
   const form =
-    footer && end ? (
+    next && end ? (
       <div className="flex flex-col gap-4">
         {card}
         {end}
@@ -102,7 +132,8 @@ export function FormPage({
     );
   const side = aside && (
     <div
-      className={`xl:sticky xl:top-6 ${aside.leads ? "xl:col-start-2 xl:row-start-1" : ""}`}
+      // under the header that sticks, when the page has one
+      className={`xl:sticky xl:top-[calc(var(--sticky-header-height,0px)+1.5rem)] ${aside.leads ? "xl:col-start-2 xl:row-start-1" : ""}`}
     >
       <Section title={aside.title}>
         <Card>{aside.children}</Card>
@@ -111,12 +142,36 @@ export function FormPage({
   );
   return (
     <PageFrame width={aside ? "wide" : "form"} account={account}>
+      {/* the next step the header's from md; on a phone the foot's, the
+          rest left on the title row */}
       <PageHeader
         trail={trail}
         title={title}
         status={status}
         subtitle={subtitle}
         actions={actions}
+        next={wide ? next : undefined}
+        note={
+          wide &&
+          (note ??
+            // read out from here as it changes; the aside shows it
+            (missing && <span className="sr-only">{missing}</span>))
+        }
+        summary={
+          wide &&
+          price && (
+            // the aside's, said again only while it isn't beside the form
+            <span className="xl:hidden">
+              {"short" in price ? (
+                <span className="font-semibold tabular-nums">
+                  {price.short}
+                </span>
+              ) : (
+                <span className="text-sm text-fg-muted">{price.missing}</span>
+              )}
+            </span>
+          )
+        }
       />
       <Alerts alerts={alerts} />
       {about && (
@@ -140,13 +195,14 @@ export function FormPage({
         )}
         {!aside?.leads && side}
       </div>
-      {footer && (
+      {next && (
         <ActionFooter
-          aria-label={footer.label}
-          summary={footer.summary}
-          status={footer.status}
+          aria-label={words.whatToDo}
+          summary={price && "line" in price ? price.line : undefined}
+          status={note ?? missing}
+          phone
         >
-          {footer.children}
+          <ActionButton action={next} variant="primary" />
         </ActionFooter>
       )}
     </PageFrame>

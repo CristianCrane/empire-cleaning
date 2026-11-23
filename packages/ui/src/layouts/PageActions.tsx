@@ -39,6 +39,19 @@ export type PageAction = {
 // or undefined
 export type PageActions = (PageAction | false | null | undefined)[];
 
+// A page's next step, its primary, which may be more than an action behind
+// an arrow can be: a form's submit button (New quote's Draft a quote, sent
+// by the form, so its required fields are checked and Enter sends it); and
+// named more fully to a screen reader where its label leans on the page
+// (Send, to whom). Greyed while it can't be done yet as any action is
+// (`isDisabled`: Send with no email)
+export type NextAction = (
+  | PageAction
+  | (Omit<PageAction, "dialog" | "href" | "externalHref" | "onAction"> & {
+      submit: true;
+    })
+) & { srLabel?: string };
+
 // the dialogs of the actions one control holds, one open at a time, each
 // drawn here rather than in the menu or sheet: so they outlive it as it
 // closes, and focus comes back to the control as they close
@@ -82,16 +95,18 @@ export function ActionButton({
   variant,
   className = "shrink-0",
 }: {
-  action: PageAction;
+  action: PageAction | NextAction;
   variant: "primary" | "secondary";
   className?: string;
 }) {
-  const { press, dialogs } = useDialogs([action]);
+  const { press, dialogs } = useDialogs("submit" in action ? [] : [action]);
   const look = action.danger ? "danger-outline" : variant;
+  const srLabel = "srLabel" in action && action.srLabel;
   const content = (
     <>
       <action.icon aria-hidden size={18} />
       {action.label}
+      {srLabel && <span className="sr-only"> {srLabel}</span>}
     </>
   );
   if ("href" in action)
@@ -117,7 +132,9 @@ export function ActionButton({
         className={className}
         isPending={action.isPending}
         isDisabled={action.isDisabled}
-        onPress={press(action)}
+        {...("submit" in action
+          ? { type: "submit" as const }
+          : { onPress: press(action) })}
       >
         {content}
       </Button>
@@ -172,7 +189,7 @@ export function SplitButton({
   more,
   opens,
 }: {
-  next: PageAction;
+  next: NextAction;
   more: PageAction[];
   opens: "menu" | "sheet";
 }) {

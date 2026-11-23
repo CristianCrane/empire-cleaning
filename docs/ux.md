@@ -215,15 +215,29 @@ for a dialog. It renders through `FormPage`
   be untrue (the `ui` skill). It
   shows only totals, each one's working folded under "How
   it's worked out"; what sets a price (a price of your own, its reason)
-  stays in the part it prices.
+  stays in the part it prices. A one-off Draft's price is the one asked
+  for, its own Service's; the Service recommended for a first visit,
+  which the sent Quote offers too (ADR-0018), is an aside: one quiet
+  line under it ("Also offered: Deep Clean $299.41"), its price and
+  working folded behind it, and in the Service part its own price behind
+  a fold (the user, on #527: "The recommendation is an aside").
 - **Its button at the card's foot**, after what saving agrees to (a
   card's consent), in view. A form with a price or a Send (the Draft, New
-  quote) has the page's `ActionFooter` instead (FormPage's `footer`),
-  its total and whether it's saved on the left, the button on the right;
-  what's said before the button (a refusal, a warning) comes after the
-  card. That bar spans the content's width, so such a form has an aside
-  and the page is that wide too; a form alone keeps a form's width and
-  its button in its card (FormPage's type holds it).
+  quote) makes its button the page's next step instead (FormPage's
+  `next`, #493 D1): from md the header's primary, a Draft's Delete draft
+  behind its arrow, whether it's saved beside it (shown from the start,
+  "Saved"), and once scrolled the header that sticks carries the title,
+  the total (below `xl`, where the prices beside the form don't stay in
+  view; a one-off Draft's named, "Standard Clean $194.89", the
+  recommendation in neither) and the button; on a phone the page's `ActionFooter`, its total
+  and whether it's saved on the left, the button on the right, Delete
+  draft alone on the title row. The sticky header's total slides in with
+  it, once the title row's button has scrolled away, and never from `xl`,
+  where the prices beside the form stick too. What's said
+  before the button (a refusal, a warning) comes after the card. Such a
+  form has an aside, its price, and the page is the content's width; a
+  form alone keeps a form's width and its button in its card (FormPage's
+  type holds it).
 - **Outside an area** (Welcome), a page of its own, the logo above and
   who's signed in under it on a phone, beside it from `sm` (`PageFrame`),
   centred at a form's width with no aside.
@@ -324,19 +338,20 @@ The `ui` skill's rules hold here too; these are this product's.
   the title, the badge and the same actions (the split button, or the ⋯ or
   lone Button when nothing is next), lined up with the page's column (a
   form's width on a Form page with no aside), with room
-  beside the button for what the step rests on (a Draft's price, which
-  #493 builds); a List's New stays on its row. A Record's next step is
+  beside the button for what the step rests on (a Form page's price,
+  below `xl`, and whether it's saved; #493 D1); a List's New stays on its row. A Record's next step is
   there on a wider screen only, and at
   the foot on a phone. Printed, it's the title alone.
   ("Layout / RecordPage / Next Step In The Header", "Nothing Next", "One Action";
-  "Layout / FormPage / Priced With A Footer" for a lone destructive action)
+  "Layout / FormPage / Priced On A Phone" for a lone destructive action,
+  "Priced On A Laptop" for a Form page's next step)
 - **A wide screen keeps a readable column**: the content's, AppLayout's
   `max-w-5xl` (960 px inside its margins), the width every page in an
   area reads at (a page outside one keeps `PageFrame`'s). A Record fills
   it, its header's buttons on its right edge, and a bar at the page's
-  foot lines up with it too (`ActionFooter`), as does a Form page with
-  an aside, the one side column (#493 G4.4: a card stopped 376 px short
-  of its button). No second, narrower cap for a Record: the user's pick
+  foot lines up with it too (`ActionFooter`), and so does a Form page
+  with an aside, the one side column (#493 G4.4: a card stopped 376 px
+  short of its button). No second, narrower cap for a Record: the user's pick
   on the Office's Job drew one column at this width. A form is narrower,
   a form's width (Forms), and a Form page with no aside is narrowed with
   it, header and all, so its buttons still line up with its card.
@@ -406,13 +421,11 @@ The `ui` skill's rules hold here too; these are this product's.
 - **A bar at the foot of a page is an `ActionFooter`**, which the page's
   layout places, never a sticky bar of the page's own, which pins under the phone's tab bar (#425); a sheet's pinned Buttons are the sheet's, over the tab bar (Dialogs and rows). It holds,
   above the tab bar, a Record's next step on a phone, which a wider screen
-  keeps in the header instead (`phone`; the `ui` skill), and a form's
-  price and its button (the Quote Draft's
-  Send, New quote's Draft a quote), full width beside the rail or the
-  sidebar on a wider screen until #493 settles it with a prototype, its row the
-  content's ("A wide screen keeps a readable column"). What it sums up
-  (prices, whether it's saved) on its left, the main action last, on the
-  right. The layout test fails a button or link under a fixed bar. ("A
+  keeps in the header instead (`phone`; the `ui` skill), and on a phone a
+  form's price and its button (the Quote Draft's Send, New quote's Draft a
+  quote), which a wider screen keeps in the header too (#493 D1: Forms).
+  What it sums up (prices, whether it's saved) on its left, the main action
+  last, on the right. The layout test fails a button or link under a fixed bar. ("A
   bar at the foot is an ActionFooter")
 - **Buttons are ranked by fill**: primary filled, secondary outlined,
   `text` for a Section's actions, `danger-text` beside them, a page's
@@ -645,7 +658,12 @@ stays as it is (#336).
   sq ft). Fields side by side go in a `FieldRow`, no wider than a
   form, columns of 13rem or more (two to a row in a form's card, three in a
   wider one, one on a phone), so a short field's neighbour sits near it, not across a wide
-  dialog; `ChoiceTiles` keep a form's width too. On a phone every field is full width, a thumb's target.
+  dialog; `ChoiceTiles` keep a form's width too. A date and its start time go in a
+  `packed` `FieldRow`, each at its answer's width from the row's start, and
+  Pick from the schedule, which fills both, under them on the same left
+  edge: spread across a card's two columns, with the button centred under
+  them, they broke the form's one edge (the user, on #527: "breaking
+  symmetry and balance"). On a phone every field is full width, a thumb's target.
   ("A form keeps a form's width")
 - **Every search field shows a magnifying glass.**
 
