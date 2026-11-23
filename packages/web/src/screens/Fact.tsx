@@ -8,9 +8,12 @@ import { useSaid } from "./words.ts";
 const words = catalog({
   en: {
     floorArea: "Floor area",
+    // the condition a cleaner found on a Job, as its pages say it
+    howDirty: "How dirty the home was",
   },
   es: {
     floorArea: "Superficie",
+    howDirty: "Qué tan sucia estaba la casa",
   },
 });
 
@@ -36,12 +39,15 @@ export function FloorAreaFact({
   );
 }
 
+// a home's condition; `found`, as a cleaner found it on a Job
 export function ConditionFact({
   property,
   line,
+  found = false,
 }: {
   property: Pick<PropertyView, "condition">;
   line?: string;
+  found?: boolean;
 }) {
   const t = useSaid(words);
   return (
@@ -49,7 +55,7 @@ export function ConditionFact({
       icon={Sparkles}
       label={t.condition}
       value={t.conditionText(property.condition)}
-      line={line}
+      line={found ? t.w.howDirty : line}
     />
   );
 }

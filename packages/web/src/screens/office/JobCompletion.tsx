@@ -65,6 +65,17 @@ const statusBadge: Record<AdjustmentStatus, ReactNode> = {
   lapsed: <StatusBadge>Not answered</StatusBadge>,
 };
 
+// a Job that won't happen: cancelled, or the crew couldn't get in
+export const wontHappen = (job: {
+  status: OfficeJob["status"];
+}): job is { status: "cancelled" | "no_access" } =>
+  job.status === "cancelled" || job.status === "no_access";
+
+// a Job's fee by what it's for, "Late cancellation fee": only a Job that
+// won't happen has one (balance.ts)
+export const feeNameOf = (job: { status: OfficeJob["status"] }) =>
+  wontHappen(job) ? feeName[job.status] : "Fee";
+
 // the price changes the Cleaner reported that the Office hasn't reviewed
 export const toReviewOf = (job: OfficeJob) =>
   job.completion?.adjustments.filter((a) => a.status === "reported") ?? [];
@@ -594,19 +605,19 @@ export function JobMoney({ job }: { job: OfficeJob }) {
   const due = job.completion
     ? payment.totalCents
     : ((job.cancellation ?? job.noAccess)?.feeCents ?? 0);
-  // a fee by what it's for: "Couldn't-get-in fee"
-  const fee =
-    job.status === "cancelled" || job.status === "no_access"
-      ? feeName[job.status]
-      : "Fee";
+  const fee = feeNameOf(job);
   // a fee with no Charge of its own was kept from the Deposit
   const kept = !payment.charges.some((c) => c.kind === "fee");
   // a price change still waiting isn't in the total yet: it says so, so a
-  // paid total doesn't read as the last word
-  const waiting = job.completion?.adjustments.some(
-    (a) => a.status === "reported" || a.status === "proposed",
-  );
-  const total = waiting ? "Total before price changes" : "Total";
+  // paid total doesn't read as the last word (those that count are in it)
+  const waiting =
+    job.completion?.adjustments.filter(
+      (a) => a.status === "reported" || a.status === "proposed",
+    ).length ?? 0;
+  const total =
+    waiting === 0
+      ? "Total"
+      : `Total before the price change${waiting > 1 ? "s" : ""} waiting`;
   const dueFact = (line?: string) =>
     job.completion ? (
       <Fact

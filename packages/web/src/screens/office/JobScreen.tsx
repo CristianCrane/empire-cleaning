@@ -74,6 +74,7 @@ import {
   UndoCompletion,
   toReviewOf,
   useRetryCharge,
+  wontHappen,
 } from "./JobCompletion.tsx";
 import { JobHistory } from "./JobHistory.tsx";
 import { AnswerRequest, AskForNewTime } from "./JobReschedule.tsx";
@@ -88,8 +89,6 @@ const { formatDateTime } = formats.en;
 const booked = (job: OfficeJob) => job.status === "booked";
 
 // a Job that won't happen: cancelled, or the crew couldn't get in
-const wontHappen = (job: OfficeJob) =>
-  job.status === "cancelled" || job.status === "no_access";
 
 /**
  * A Job for the Office, a Record (docs/ux.md), as settled on #493: titled
@@ -340,7 +339,7 @@ const alertsFor = (job: OfficeJob, next?: PageAction): Alert[] => {
       children: (
         <p>
           <strong>{firstNameOf(job.client.name)} wants regular visits.</strong>{" "}
-          This was their first clean, and they have no cleaning plan.
+          This was their first clean, and this home has no cleaning plan.
         </p>
       ),
     });
@@ -447,12 +446,7 @@ function HowItWent({ job }: { job: OfficeJob }) {
     <Section title="How it went">
       <Card>
         <Facts>
-          {completion && (
-            <ConditionFact
-              property={completion}
-              line="How dirty the home was"
-            />
-          )}
+          {completion && <ConditionFact property={completion} found />}
           {noAccess && (
             <Fact
               icon={MessageSquareText}

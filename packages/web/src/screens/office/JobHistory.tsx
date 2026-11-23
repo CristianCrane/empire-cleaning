@@ -20,12 +20,13 @@ import type {
 import { Timeline, TimelineItem } from "@empire-cleaning/ui";
 import { wasSkipped, screenWords } from "../format.ts";
 import { jobStatusIcon } from "../icons.ts";
+import { feeNameOf, wontHappen } from "./JobCompletion.tsx";
 
 const { assignmentStateLabel, cancelledLabel } = screenWords.en;
 
 const { formatDateTime, formatMoney } = formats.en;
 
-const { planCancelled, feeName, LATE_MOVE_FEE } = messages.en;
+const { planCancelled } = messages.en;
 
 type Moment = {
   key: string;
@@ -71,11 +72,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
   const charges = job.payment?.charges ?? [];
   // a fee by what it's for, as Money names it: "Late cancellation fee"
   const chargeName = (c: (typeof charges)[number]) =>
-    c.kind !== "fee"
-      ? chargeLabel[c.kind]
-      : job.status === "cancelled" || job.status === "no_access"
-        ? feeName[job.status]
-        : LATE_MOVE_FEE;
+    c.kind === "fee" ? feeNameOf(job) : chargeLabel[c.kind];
   const charged = (c: (typeof charges)[number], i: number) =>
     moments.push({
       key: `charge-${i}`,
@@ -189,8 +186,8 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       title: `${
         job.status === "completed"
           ? chargeLabel.balance
-          : job.status === "cancelled" || job.status === "no_access"
-            ? feeName[job.status]
+          : wontHappen(job)
+            ? feeNameOf(job)
             : "Payment"
       } of ${formatMoney(job.payment!.owedCents)} didn't go through`,
     });
