@@ -487,7 +487,8 @@ Keeps: the Record (ux-portal). Renders through `RecordPage` (#432).
   quoted price only when a change makes the total differ, the rest by that
   name, a weekly Bill it went on by its number, linked, with its badge;
   what's still to come by the badge's word, Unpaid or Not paid yet, and the
-  card it was charged to only once nothing is).
+  card it was charged to only once nothing is, or the rest goes on a weekly
+  Bill).
 
 #### Client portal > Your quote
 
