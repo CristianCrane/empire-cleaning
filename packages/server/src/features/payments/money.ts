@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNull, lte, notExists, or, sql } from "drizzle-orm";
-import { DAY_MS } from "@empire-cleaning/models";
+import { DAY_MS, MINUTE_MS } from "@empire-cleaning/models";
 import { apart, db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
@@ -58,6 +58,9 @@ export const NO_CARD = "no Payment Method is saved";
 // replays it, or else looks the payment up; and records what was taken
 // rather than taking it again. A declined attempt is over, so the next try
 // asks the card afresh.
+
+// long enough after asking that a try still waiting on its reply has had it
+export const SETTLED_AFTER_MS = 15 * MINUTE_MS;
 
 // the provider call an attempt makes, as asked but for its key
 type Asked =
