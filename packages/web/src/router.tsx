@@ -62,6 +62,7 @@ import {
 } from "./language.ts";
 import { linkTo } from "./links.ts";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
+import { ProposedTimePrototype } from "./screens/office/proposed-time.prototype.tsx";
 import { CleanerHome, yourJobsTiles } from "./screens/cleaner/CleanerHome.tsx";
 import { ConfirmEmail } from "./screens/ConfirmEmail.tsx";
 import { SignInLink, type SignInLinkSearch } from "./screens/SignInLink.tsx";
@@ -887,8 +888,24 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: the Draft's Proposed time with the Schedule in it, on made-up data, signed out
+const proposedTimePrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/proposed-time",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string; shot?: string } => ({
+    // ?case=1 arrives as a number
+    case: search.case === undefined ? undefined : String(search.case),
+    layout: search.layout === undefined ? undefined : String(search.layout),
+    shot: search.shot === undefined ? undefined : String(search.shot),
+  }),
+  component: ProposedTimePrototype,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  proposedTimePrototypeRoute,
   signInRoute,
   signInLinkRoute,
   confirmEmailRoute,

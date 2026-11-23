@@ -276,8 +276,10 @@ export function ScheduleCalendar({
   onDrop,
   onPick,
   limits,
-  proposed,
+  proposed: proposedIn,
   noCrew,
+  ghostHours,
+  marksOpen = false,
   opensJobs = false,
 }: {
   days: ScheduleDay[];
@@ -285,24 +287,31 @@ export function ScheduleCalendar({
   opensJobs?: boolean;
   onPick?: (at: LocalDateTime) => void;
   limits?: TimePickerProps["limits"];
-  proposed?: Proposed;
+  // PROTOTYPE: a plan's weekdays, each its own
+  proposed?: Proposed | Proposed[];
   noCrew?: DayTimes[];
+  // PROTOTYPE: a free time pointed at shows the clean's outline, this long
+  ghostHours?: number;
+  // PROTOTYPE: the times with room marked, as open times read elsewhere,
+  // rather than those without striped
+  marksOpen?: boolean;
 }) {
+  const proposals =
+    proposedIn === undefined
+      ? []
+      : Array.isArray(proposedIn)
+        ? proposedIn
+        : [proposedIn];
   // whether blocks open on click, and whether they can be dragged to move
   const opens = onDrop !== undefined || opensJobs;
-  const proposedStart = proposed && hoursOf(proposed.start.time);
   const axis = axisFor(
     days.flatMap((d) => d.jobs),
     [
       ...days.flatMap((d) => d.siteVisits.map(visitSpanOf)),
-      ...(proposedStart === undefined
-        ? []
-        : [
-            {
-              start: proposedStart,
-              end: proposedStart + proposed!.hoursOnSite,
-            },
-          ]),
+      ...proposals.map((p) => ({
+        start: hoursOf(p.start.time),
+        end: hoursOf(p.start.time) + p.hoursOnSite,
+      })),
     ],
   );
   // the times to pick from on a day, on the axis: those on offer there, or
@@ -383,6 +392,7 @@ export function ScheduleCalendar({
       <TimeGrid
         axis={axis}
         columns={days.map((day) => {
+          const proposed = proposals.find((p) => p.start.date === day.date);
           const layout = layoutDay(
             day.jobs,
             day.siteVisits,
@@ -419,9 +429,9 @@ export function ScheduleCalendar({
                   )
                 }
                 marker={
-                  proposed?.start.date === day.date
+                  proposed
                     ? "Starts"
-                    : repeatsOn(proposed, day.date)
+                    : proposals.some((p) => repeatsOn(p, day.date))
                       ? "Repeats"
                       : undefined
                 }
@@ -453,13 +463,23 @@ export function ScheduleCalendar({
                   isOpen(day.date) &&
                   timesOn(day.date).map((time) => {
                     const crewFree = hasCrew(day, time);
+                    // PROTOTYPE: open times are their own marks, in a gutter
+                    if (marksOpen && crewFree) return null;
                     return (
                       <PickSlot
                         key={time}
                         at={{ date: day.date, time }}
                         axisStart={axis.start}
                         hours={PICK_HOURS}
-                        className={crewFree ? "" : NO_CREW}
+                        className={
+                          marksOpen
+                            ? crewFree
+                              ? "border border-surface bg-primary/10 text-primary hover:bg-primary/20"
+                              : ""
+                            : crewFree
+                              ? ""
+                              : NO_CREW
+                        }
                         label={
                           crewFree ? undefined : "not enough cleaners free"
                         }
@@ -468,30 +488,87 @@ export function ScheduleCalendar({
                         {/* every half hour shows its time when pointed at; only
                         some on offer, they always do */}
                         <span
-                          className={`text-fg-muted ${limits ? "" : "opacity-0 group-hover:opacity-100"}`}
+                          className={
+                            marksOpen && crewFree
+                              ? "font-semibold text-primary"
+                              : `text-fg-muted ${limits ? "" : "opacity-0 group-hover:opacity-100"}`
+                          }
                         >
                           {formatClock(time)}
                           {!crewFree && " · not enough cleaners free"}
                         </span>
+                        {ghostHours !== undefined && crewFree && (
+                          <span
+                            aria-hidden
+                            className="pointer-events-none absolute inset-x-0 top-0 hidden rounded-md border-2 border-dashed border-primary bg-primary/10 group-hover:block"
+                            style={{ height: ghostHours * HOUR_PX - 2 }}
+                          />
+                        )}
                       </PickSlot>
                     );
                   })}
-                <DayJobs
-                  layout={layout}
-                  axisStart={axis.start}
-                  narrow={maxLanes !== Infinity}
-                  interactive={opens}
-                  movable={onDrop !== undefined}
-                  onDragStart={(grabbed) => {
-                    dragging.current = grabbed;
-                    setDragged(grabbed.moving);
-                  }}
-                  onDragEnd={() => {
-                    dragging.current = undefined;
-                    setDragged(undefined);
-                    landAt(undefined);
-                  }}
-                />
+                {/* PROTOTYPE: a gutter on the right for the open times, so no
+                    Job covers one */}
+                <div
+                  className={
+                    marksOpen
+                      ? "absolute inset-y-0 left-0 right-[3.75rem]"
+                      : "contents"
+                  }
+                >
+                  <DayJobs
+                    layout={layout}
+                    axisStart={axis.start}
+                    narrow={maxLanes !== Infinity}
+                    interactive={opens}
+                    movable={onDrop !== undefined}
+                    onDragStart={(grabbed) => {
+                      dragging.current = grabbed;
+                      setDragged(grabbed.moving);
+                    }}
+                    onDragEnd={() => {
+                      dragging.current = undefined;
+                      setDragged(undefined);
+                      landAt(undefined);
+                    }}
+                  />
+                </div>
+                {marksOpen &&
+                  onPick &&
+                  timesOn(day.date)
+                    .filter((time) => hasCrew(day, time))
+                    .filter(
+                      (time) =>
+                        !(
+                          proposed?.start.date === day.date &&
+                          hoursOf(time) >= hoursOf(proposed.start.time) &&
+                          hoursOf(time) <
+                            hoursOf(proposed.start.time) + proposed.hoursOnSite
+                        ),
+                    )
+                    .map((time) => (
+                      <button
+                        key={time}
+                        type="button"
+                        tabIndex={-1}
+                        aria-label={`${formatDay(day.date)}, ${formatClock(time)}, has room`}
+                        onClick={() => onPick({ date: day.date, time })}
+                        className="group absolute right-0.5 w-14 rounded-md border border-surface bg-primary/10 text-xs font-semibold text-primary tabular-nums hover:bg-primary/20"
+                        style={{
+                          top: (hoursOf(time) - axis.start) * HOUR_PX + 1,
+                          height: PICK_HOURS * HOUR_PX - 2,
+                        }}
+                      >
+                        {formatClock(time)}
+                        {ghostHours !== undefined && (
+                          <span
+                            aria-hidden
+                            className="pointer-events-none absolute inset-x-0 top-0 hidden rounded-md border-2 border-dashed border-primary group-hover:block"
+                            style={{ height: ghostHours * HOUR_PX - 2 }}
+                          />
+                        )}
+                      </button>
+                    ))}
                 {dragged && landing?.date === day.date && (
                   <Landing
                     moving={dragged}
