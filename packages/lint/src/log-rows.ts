@@ -48,10 +48,13 @@ export function doubled(text: string, key: string[]): Doubled[] {
     if (!line.trim().startsWith("|")) return;
     const row = cells(line);
     if (!columns) {
-      columns = key.map((name) => row.indexOf(name));
-      const missing = key.filter((_, k) => columns![k] < 0);
+      const named = key.map((name) => ({ name, column: row.indexOf(name) }));
+      const missing = named.filter(({ column }) => column < 0);
       if (missing.length)
-        throw new Error(`the table has no ${missing.join(" or ")} column`);
+        throw new Error(
+          `the table has no ${missing.map(({ name }) => name).join(" or ")} column`,
+        );
+      columns = named.map(({ column }) => column);
       return;
     }
     if (separator(row)) return;
