@@ -97,7 +97,13 @@ const address = {
     .string()
     .trim()
     .regex(/^\d{5}$/, say(words, "zip")),
-  accessInstructions: z.string().trim().max(2000, keepUnder(2000)).nullish(),
+  // none written is null, as a home's edit saves it (properties.routes.ts)
+  accessInstructions: z
+    .string()
+    .trim()
+    .max(2000, keepUnder(2000))
+    .nullish()
+    .transform((note) => note || null),
 };
 
 // an area in sq ft: a place's floor area, an ask's rough idea of the area
