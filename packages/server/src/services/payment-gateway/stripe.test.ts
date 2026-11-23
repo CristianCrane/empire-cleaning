@@ -109,6 +109,21 @@ describe("Stripe's refusals", () => {
       stripe.refund({ chargeId: "pi_1", amount: 1000, idempotencyKey: "r" }),
     ).rejects.toBe(error);
   });
+
+  // #534, F9: Stripe didn't process it (https://docs.stripe.com/rate-limits),
+  // and the SDK retries a 429 only when Stripe-Should-Retry says so; read
+  // as a refusal, the Client's card reads declined and nothing tries again
+  test("when Stripe limits our rate, it throws", async () => {
+    const { stripe, client } = gateway();
+    const error = new Stripe.errors.StripeRateLimitError({
+      type: "rate_limit_error" as never,
+      message: "Too many requests hit the API too quickly.",
+      code: "rate_limit",
+    });
+    vi.spyOn(client.paymentIntents, "create").mockRejectedValue(error);
+
+    await expect(charge(stripe)).rejects.toBe(error);
+  });
 });
 
 // #241, finding 3: no test card does this off-session, so a bank debit's

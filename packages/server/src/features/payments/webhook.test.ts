@@ -226,4 +226,30 @@ describe("a refund that fails after it's made", () => {
     await failed(refund!.refundId);
     expect(testMonitoring().signalled("refund_failed")).toHaveLength(1);
   });
+
+  // #534, F8: within a day a retry asks again with the same key, and the
+  // provider replays its first reply, the refund made
+  test("of ours whose reply was lost counts as not given back once it's found", async () => {
+    const me = await officeAccount();
+    const job = await bookedJob(me.id);
+    const deposit = testPayments().charges[0]!;
+    testPayments().loseNextReply();
+    await cancelJob(job.id, {
+      by: "client",
+      feeCents: 0,
+      reason: null,
+      byAccountId: me.id,
+      byClient: false,
+    });
+    const [refund] = testPayments().refunds;
+
+    await failed(refund!.refundId);
+    // the retry finds the refund the lost reply was for
+    await settleJob(job.id);
+
+    expect(testPayments().refunds).toHaveLength(1);
+    expect(await ledgerOf(job.id)).toMatchObject({
+      owedCents: -deposit.amount,
+    });
+  });
 });

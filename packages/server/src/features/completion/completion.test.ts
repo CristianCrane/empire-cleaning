@@ -1060,6 +1060,54 @@ describe("Office Staff correcting a completion", () => {
     expect(amounts().at(-1)).toBe(deep.totalCents - deep.depositCents);
   });
 
+  // #534, F1: owing nothing now, the Job is never settled through
+  // chargeSaved, so what the lost reply took is never found or given back
+  test("undo one whose Balance reply was lost, and what it took is given back", async () => {
+    const { office, cory, jobId, quote } = await bookedJob();
+    const deep = deepOf(quote);
+    testPayments().loseNextReply();
+    await complete(cory.agent, jobId).expect(200);
+    await office.delete(`/api/jobs/${jobId}/completion`).expect(200);
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    await settleOpenPayments();
+    expect(amounts()).toEqual([
+      deep.depositCents,
+      deep.totalCents - deep.depositCents,
+    ]);
+    expect(refunded()).toEqual([deep.totalCents - deep.depositCents]);
+  });
+
+  // #534, F3: the retry finds the lost top-up, counts it as covering the
+  // smaller price, and keeps the difference
+  test("lower an approved increase whose charge reply was lost, refunding the difference", async () => {
+    const { office, cory, client, jobId } = await bookedJob();
+    await complete(cory.agent, jobId, {
+      reports: [{ kind: "extra_time", hours: 1, reason: "Ran over" }],
+    }).expect(200);
+    const [time] = (await officeJob(office, jobId)).completion!.adjustments;
+    await office
+      .post(`/api/jobs/${jobId}/adjustments/${time!.id}/propose`)
+      .send({})
+      .expect(200);
+    testPayments().loseNextReply();
+    await client
+      .post(`/api/jobs/mine/${jobId}/adjustments/${time!.id}/approve`)
+      .expect(200);
+
+    await office
+      .patch(`/api/jobs/${jobId}/adjustments/${time!.id}`)
+      .send({ priceCents: 2750, reason: "Half was our fault" })
+      .expect(200);
+
+    expect(amounts().at(-1)).toBe(EXTRA_HOUR);
+    expect(refunded()).toEqual([EXTRA_HOUR - HALF_HOUR_ADD_ON]);
+    expect((await officeJob(office, jobId)).completion!.payment.owedCents).toBe(
+      0,
+    );
+  });
+
   test("is only for Office Staff", async () => {
     const { cory, client, jobId } = await bookedJob();
     await complete(cory.agent, jobId).expect(200);

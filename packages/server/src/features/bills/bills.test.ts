@@ -880,6 +880,88 @@ describe("Unpaid Bills", () => {
     });
   });
 
+  // #534, F4: voided, its Jobs are charged per clean at once, while the
+  // Bill's own Charge can still go through
+  test("one whose Charge is still processing, voided once the Client is charged per clean, isn't taken twice", async () => {
+    const { office, clientId, priceCents } = await billedJob();
+    testPayments().failCharges("processing");
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    testPayments().failCharges(null);
+    const [{ id }] = (await billsOf(office, clientId)) as [BillSummary];
+    await setBilling(office, clientId, { weekly: false }).expect(200);
+
+    await office
+      .post(`/api/bills/${id}/void`)
+      .send({ reason: "Sent in error" })
+      .expect(200);
+    // the Bill's Charge goes through
+    testPayments().clearCharges();
+
+    const taken = testPayments().charges.reduce((s, c) => s + c.amount, 0);
+    const given = testPayments().refunds.reduce((s, r) => s + r.amount, 0);
+    expect(taken - given).toBeLessThanOrEqual(priceCents);
+  });
+
+  // #534, F5: the page's payment is a PaymentIntent of its own, which
+  // charging the Bill doesn't cancel, so it can still be paid
+  test("one the Client started paying on its page, then charged on their new card, isn't taken twice", async () => {
+    const { office, clientId } = await billedJob();
+    testPayments().failCharges();
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    testPayments().failCharges(null);
+    const [{ id, totalCents }] = (await billsOf(office, clientId)) as [
+      BillSummary,
+    ];
+    const client = await signIn(casey.email);
+    const form = (
+      await client.post(`/api/bills/mine/${id}/payment-form`).expect(200)
+    ).body as BillPaymentForm;
+
+    const card = (
+      await client.post("/api/payment-methods/mine/card-form").expect(200)
+    ).body as { secret: string };
+    await client
+      .put("/api/payment-methods/mine")
+      .send({ token: card.secret })
+      .expect(200);
+    expect((await billOf(office, id)).status).toBe("paid");
+    // the form they'd opened before is still there to finish
+    testPayments().payBill(form.ref, "card");
+    await client.post(`/api/bills/mine/${id}/payment`).send({ ref: form.ref });
+
+    expect(
+      testPayments().charges.filter((c) => c.amount === totalCents),
+    ).toHaveLength(1);
+  });
+
+  // #534, F6: each opening of the page makes a new PaymentIntent, and none
+  // is cancelled when another pays
+  test("one opened twice to pay, as in two tabs, is taken once", async () => {
+    const { office, clientId } = await billedJob({ payment: "on_page" });
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const [{ id, totalCents }] = (await billsOf(office, clientId)) as [
+      BillSummary,
+    ];
+    const client = await signIn(casey.email);
+    const open = async () =>
+      (await client.post(`/api/bills/mine/${id}/payment-form`).expect(200))
+        .body as BillPaymentForm;
+    const [first, second] = [await open(), await open()];
+
+    testPayments().payBill(first.ref, "card");
+    testPayments().payBill(second.ref, "card");
+    for (const { ref } of [first, second]) {
+      await client.post(`/api/bills/mine/${id}/payment`).send({ ref });
+    }
+
+    expect(
+      testPayments().charges.filter((c) => c.amount === totalCents),
+    ).toHaveLength(1);
+  });
+
   test("Office Staff can record a payment made another way, which settles it", async () => {
     const { office, clientId } = await billedJob();
     testPayments().failCharges();
