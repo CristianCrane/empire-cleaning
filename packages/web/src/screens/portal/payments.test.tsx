@@ -6,6 +6,7 @@ import type {
 } from "@empire-cleaning/models";
 import {
   moneyNow as moneyNowIn,
+  owedAnswer as owedAnswerIn,
   pausedLine as pausedLineIn,
   paymentRow as paymentRowIn,
   type PaymentsData,
@@ -17,6 +18,8 @@ const paymentRow = (p: Parameters<typeof paymentRowIn>[0]) =>
   paymentRowIn(p, "en");
 const pausedLine = (plans: Parameters<typeof pausedLineIn>[0]) =>
   pausedLineIn(plans, "en");
+const owedAnswer = (data: PaymentsData) =>
+  owedAnswerIn(moneyNow(data).owed!, "en", data.plans);
 
 // Tuesday 20 October 2026, 9am in New York
 const CLEAN = "2026-10-20T13:00:00.000Z";
@@ -82,7 +85,7 @@ describe("what a Client owes now", () => {
     );
 
     expect(owed).toMatchObject({
-      text: "Your payment for your Oct 20 clean hasn't gone through yet",
+      text: "Your Oct 20 clean",
       // so their Home leads with what's next, not this, and Payments
       // says it calmly
       asks: false,
@@ -101,7 +104,11 @@ describe("what a Client owes now", () => {
     expect(moneyNow(data({ bills: [waiting] })).owed).toMatchObject({
       asks: false,
       late: false,
-      text: "Your payment for bill EC-000041 hasn't gone through yet",
+      text: "Bill EC-000041",
+      action: {
+        label: "See the bill",
+        href: href("/portal/bills/$billId", { billId: "bill" }),
+      },
     });
     // the declined one leads, though the waiting one came first
     expect(
@@ -181,6 +188,34 @@ describe("what a Client owes now", () => {
     expect(moneyNow(data({ paymentMethod: null })).paying).toBe(
       "No card saved yet",
     );
+  });
+});
+
+describe("the owed card", () => {
+  const waiting = bill({ unpaid: { since: "", kind: "waiting", why: null } });
+
+  test("one we try again ourselves is calm: not paid yet, nothing to do, a way to see it", () => {
+    expect(owedAnswer(data({ bills: [waiting] }))).toEqual({
+      hero: expect.objectContaining({
+        label: "Not paid yet",
+        tone: "info",
+        headline: "$1,253.50",
+        lines: [
+          "Bill EC-000041",
+          "We'll try again by ourselves, so there's nothing you need to do.",
+        ],
+        action: expect.objectContaining({
+          label: "See the bill",
+          secondary: true,
+        }),
+      }),
+    });
+  });
+
+  test("one that asks is to pay, its Button the page's primary", () => {
+    const { hero } = owedAnswer(data({ bills: [bill()] }));
+    expect(hero).toMatchObject({ label: "To pay", tone: "warning" });
+    expect(hero.action?.secondary).toBeUndefined();
   });
 });
 

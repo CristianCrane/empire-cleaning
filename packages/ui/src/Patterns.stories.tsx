@@ -1035,9 +1035,11 @@ function OwedFirst() {
           Lead with a home screen's card: what's owed and why, with the one
           Button that pays it, or that nothing is. Its tone is its state:
           warning while something is waiting on them, danger once it failed or
-          is late, success with nothing owed. Ways in that are always there,
-          like changing a card, sit in the header as a secondary Button, never
-          inside a card whose Buttons change with its state.
+          is late, info while it waits on us (a payment we try again ourselves,
+          its link outlined, as nothing is theirs to do), success with nothing
+          owed. Ways in that are always there, like changing a card, sit in the
+          header as a secondary Button, never inside a card whose Buttons change
+          with its state.
         </p>
         <p>
           Then a home screen's tiles: every payment behind one, opened in place,

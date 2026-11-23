@@ -36,7 +36,7 @@ const tileGrid = (count: number) =>
 // A Home's one answer, read left to right: its tile (a DateTile for when,
 // an IconTile for what), the kind of answer it is (muted, above), the
 // answer large, a line or two, and its Buttons, the page's one primary
-// last. With a label it's a region by that name. All clear, it's a green
+// last (or none, when the answer asks nothing of the reader). With a label it's a region by that name. All clear, it's a green
 // IconTile and the headline alone
 export function AnswerCard({
   tile,
