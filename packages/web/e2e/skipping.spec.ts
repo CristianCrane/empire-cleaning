@@ -3,6 +3,7 @@ import {
   createStaff,
   emailsTo,
   expect,
+  expectNextStep,
   expectAccessible,
   failCharges,
   setClock,
@@ -97,9 +98,11 @@ test("a Client skipping late is charged the fee, and pays it once their card wor
   const payment = page.getByRole("alert").filter({ hasText: "Payment needed" });
   await expect(payment).toContainText("We couldn't take $50.46");
 
-  // the same card, tried again once the money is there
+  // the same card, tried again once the money is there: putting it right
+  // is the page's next step
   await failCharges(null);
-  await payment.getByRole("link", { name: "Update your card" }).click();
+  await expectNextStep(page, "Update your card");
+  await pageAction(page, "Update your card");
   const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
   await expect(needed).toContainText(
     /We couldn't take \$50\.46 for your .+ clean from your Test card ending 4242\./,

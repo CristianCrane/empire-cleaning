@@ -101,18 +101,19 @@ type T = Said & { w: (typeof words)["en"] };
 // Weekly Bills (ADR-0016), as the Office and the Client both see them
 
 // where a Bill stands: what's left to do about it, or how it ended
-export function BillStatusBadge({ bill }: { bill: BillSummary }) {
-  const { w, unpaid, clearing } = useSaid(words);
+export function BillStatusBadge({
+  bill,
+}: {
+  bill: Pick<BillSummary, "status" | "unpaid" | "totalCents">;
+}) {
+  const { w, unpaid, clearing, notPaidYet } = useSaid(words);
   if (bill.status === "void") return <StatusBadge>{w.cancelled}</StatusBadge>;
   if (bill.status === "processing")
     return <StatusBadge tone="info">{clearing}</StatusBadge>;
-  // one we try again ourselves waits on us (ADR-0022)
-  if (bill.unpaid)
-    return (
-      <StatusBadge tone={asksTheClient(bill.unpaid.kind) ? "danger" : "info"}>
-        {unpaid}
-      </StatusBadge>
-    );
+  // one we try again ourselves waits on us (ADR-0022), as a clean's does
+  if (bill.unpaid && !asksTheClient(bill.unpaid.kind))
+    return <StatusBadge tone="info">{notPaidYet}</StatusBadge>;
+  if (bill.unpaid) return <StatusBadge tone="danger">{unpaid}</StatusBadge>;
   if (bill.status === "due")
     return <StatusBadge tone="warning">{w.due}</StatusBadge>;
   if (bill.totalCents < 0) return <StatusBadge>{w.credit}</StatusBadge>;

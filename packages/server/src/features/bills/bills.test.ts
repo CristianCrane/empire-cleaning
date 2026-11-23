@@ -239,6 +239,31 @@ describe("making Bills", () => {
     expect(testPayments().charges).toHaveLength(2);
   });
 
+  test("a Job's payment names the Bills that billed it, and where each stands", async () => {
+    const { office, clientId, jobId, priceCents, depositCents } =
+      await billedJob();
+    const payment = async () => {
+      const [row] = await db.select().from(jobs).where(eq(jobs.id, jobId));
+      return paymentOf(row!);
+    };
+    expect((await payment()).bills).toEqual([]);
+
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const [summary] = await billsOf(office, clientId);
+    expect((await payment()).bills).toEqual([
+      {
+        id: summary!.id,
+        number: "EC-000001",
+        status: "paid",
+        unpaid: null,
+        totalCents: priceCents - depositCents,
+        cents: priceCents - depositCents,
+        refundedCents: 0,
+      },
+    ]);
+  });
+
   test("goes to the Client's own email with no billing email", async () => {
     await billedJob({ billingEmail: null });
     testClock().set(NEXT_MONDAY);
@@ -1409,7 +1434,15 @@ describe("switching weekly billing off", () => {
         }),
       ]);
       const [row] = await db.select().from(jobs).where(eq(jobs.id, jobId));
-      expect((await paymentOf(row!)).owedCents).toBe(0);
+      const payment = await paymentOf(row!);
+      expect(payment.owedCents).toBe(0);
+      // the Bill it went on says what it gave back
+      expect(payment.bills).toEqual([
+        expect.objectContaining({
+          number: "EC-000001",
+          refundedCents: extra!.totalCents,
+        }),
+      ]);
       // settling again gives nothing more back
       await settleJob(jobId);
       expect(testPayments().refunds).toHaveLength(1);

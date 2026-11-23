@@ -1,17 +1,14 @@
 import type { Page } from "@playwright/test";
 import {
-  acceptedJob,
-  addCleaner,
-  completeJob,
+  bookedClean,
   completedFirstClean,
   createStaff,
   expect,
   expectAccessible,
   expectNoPageAction,
   failCharges,
-  offerJob,
   pageAction,
-  proposeReported,
+  priceChangeWaiting,
   recordNoAccess,
   requestReschedule,
   sentServicePlanQuote,
@@ -28,9 +25,7 @@ import {
 // aside meanwhile. Each test ends on Home, for its picture (pr:shots).
 // The API's clock is at 4am on Monday 5 January 2026 in New York; Casey's
 // Deep Clean is at 9am on Monday the 12th.
-const MONDAY_9AM = "2026-01-12T14:00:00Z";
 const MONDAY_9_30AM = "2026-01-12T14:30:00Z";
-const MONDAY_11AM = "2026-01-12T16:00:00Z";
 
 const olive = {
   email: "olive@example.com",
@@ -39,31 +34,7 @@ const olive = {
 };
 const casey = { email: "casey@example.com" };
 
-// Casey's Deep Clean, Quoted by Olive, with Cory Confirmed on it
-const booked = async () => {
-  await createStaff(olive);
-  await signUp(olive.email);
-  const cory = await addCleaner("Cory Cleaner");
-  const job = await acceptedJob({
-    startsAt: MONDAY_9AM,
-    officeEmail: olive.email,
-  });
-  await offerJob(job.id, cory.id, { confirmed: true });
-  return { job, cory };
-};
-
-// done, with an hour more than Quoted, which Olive asks Casey to approve
-const priceChangeWaiting = async () => {
-  const { job, cory } = await booked();
-  await setClock(MONDAY_11AM);
-  await completeJob(job.id, cory.id, {
-    condition: "moderate",
-    reports: [{ kind: "extra_time", hours: 1, reason: "Heavy grease" }],
-  });
-  await proposeReported(job.id, olive.email);
-  return job;
-};
-
+const booked = () => bookedClean(olive);
 const home = async (page: Page) => {
   await signedInAs(page, casey.email);
   await page.goto("/portal");
@@ -95,7 +66,7 @@ test(
   "a price change to answer leads Home, its why above the card, Request a quote aside",
   { tag: ["@desktop"] },
   async ({ page }) => {
-    const job = await priceChangeWaiting();
+    const job = await priceChangeWaiting(olive);
     await home(page);
     await expect(why(page)).toHaveText(
       "The crew needed 1 more hour on your Mon, Jan 12 clean. Please answer by Mon, Jan 19.",
@@ -115,7 +86,7 @@ test(
 test("a price change leads Home over a clean booked and a move asked for", async ({
   page,
 }) => {
-  await priceChangeWaiting();
+  await priceChangeWaiting(olive);
   // a plan at the home from the Monday after, its first clean asked moved
   await signedInAs(page, casey.email);
   const [done] = (await (
@@ -143,14 +114,7 @@ test("a price change leads Home over a clean booked and a move asked for", async
 test("what's owed leads Home, a price change waiting a tile with what it adds and by when", async ({
   page,
 }) => {
-  const { job, cory } = await booked();
-  await setClock(MONDAY_11AM);
-  await failCharges();
-  await completeJob(job.id, cory.id, {
-    condition: "moderate",
-    reports: [{ kind: "extra_time", hours: 1, reason: "Heavy grease" }],
-  });
-  await proposeReported(job.id, olive.email);
+  await priceChangeWaiting(olive, { failing: true });
   await home(page);
   await expect(page.getByRole("main").getByRole("alert")).toHaveText(
     "We couldn't take payment for your Jan 12 clean.",
@@ -260,7 +224,7 @@ test(
 );
 
 test("a price change to answer leads Home in Spanish", async ({ page }) => {
-  await priceChangeWaiting();
+  await priceChangeWaiting(olive);
   await signedInAs(page, casey.email);
   await setLanguage(page, "es");
   await page.goto("/portal");

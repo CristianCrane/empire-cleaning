@@ -68,14 +68,17 @@ export const shortClientName = (c: Pick<ClientName, "name" | "businessName">) =>
 export const formatHours = (hours: number) => `${hours} h`;
 
 // how long a Job runs, as a person says it: to the quarter hour, and
-// "About" only when that rounded it: 6 -> "6 h", 3.3 -> "About 3¼ h"
+// "About" only when that rounded it: 6 -> "6 h", 3.3 -> "About 3¼ h";
+// several, a plan's weekdays, joined, "About" said once: 1.9, 3.75 ->
+// "About 2 h + 3¾ h"; the same on each, once, so it isn't read as a sum:
+// 3.75, 3.75 -> "3¾ h"
 export const howLong = (
   t: { about: (hours: string) => string },
-  hours: number,
+  ...hours: number[]
 ) => {
-  const rounded = quarterHours(hours);
-  const text = `${quarterHoursText(rounded)} h`;
-  return rounded === hours ? text : t.about(text);
+  const each = hours.map((h) => `${quarterHoursText(quarterHours(h))} h`);
+  const text = each.every((e) => e === each[0]) ? each[0]! : each.join(" + ");
+  return hours.every((h) => quarterHours(h) === h) ? text : t.about(text);
 };
 
 // when a Job is over: its start and its hours, to the quarter hour as
@@ -227,7 +230,7 @@ const words = catalog({
     clientQuoteStatus: {
       requested: "Asked for",
       draft: "Asked for",
-      sent: "To answer",
+      sent: "Ready",
       accepted: "Accepted",
       declined: "Declined",
       expired: "Expired",
@@ -272,7 +275,7 @@ const words = catalog({
     clientQuoteStatus: {
       requested: "Solicitada",
       draft: "Solicitada",
-      sent: "Por responder",
+      sent: "Lista",
       accepted: "Aceptada",
       declined: "Rechazada",
       expired: "Vencida",

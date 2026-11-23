@@ -431,10 +431,10 @@ export const billWeekly = async (
  * automatically, or paid on its page, as `payment` says, and emailed to
  * `billingEmail` if given. With `plan`, Casey also has a weekly plan at the
  * home from Friday the 9th, whose first Job, done that day, is on the Bill
- * too. With `failing`, its automatic Charge is declined, or fails with the
- * reason given ("processing", a payment we try again ourselves), so it's
- * Unpaid (and the plan On Hold), and Charges keep failing until
- * failCharges(null). The
+ * too. With `failing`, its automatic Charge is declined, so it's Unpaid (and
+ * the plan On Hold), and Charges keep failing until failCharges(null); a
+ * reason in place of true is the decline's, as "processing" for one we try
+ * again ourselves. The
  * clock is left at 10am on Monday the 12th; with `unbilled`, it stops before
  * then, at noon on the day the last Job was done, and no Bill is made yet.
  */
@@ -488,9 +488,8 @@ export const billedWeek = async ({
     return { clientId: client.id, billId: null, jobId: job.id, planId };
   }
   testClock().set(new Date("2026-01-12T15:00:00Z"));
-  if (failing) {
+  if (failing)
     testPayments().failCharges(failing === true ? undefined : failing);
-  }
   await makeDueBills();
   const [bill] = await db
     .select({ id: bills.id })

@@ -6,6 +6,7 @@ import {
   emailsTo,
   expect,
   expectAccessible,
+  expectNextStep,
   failCharges,
   offerJob,
   setClock,
@@ -17,6 +18,7 @@ import {
   pageAction,
   openTile,
   saveACard,
+  titleBadge,
 } from "./harness.ts";
 
 // the API's clock is at 4am on Monday 5 January 2026 in New York. The Jobs
@@ -175,20 +177,22 @@ test(
     await client.goto(
       await linkIn(casey.email, "Please approve a price change on your clean"),
     );
-    // an alert above the clean, answered in a dialog
+    // an alert above the clean says why; answering it is the page's next
+    // step, in a dialog titled by what it's for
     const proposal = client
       .getByRole("status")
-      .filter({ hasText: "Please approve a price change" });
-    await expect(proposal).toContainText("1 more hour, $59.88");
+      .filter({ hasText: "The crew did more than was quoted" });
+    await expect(proposal).toHaveText(
+      "The crew did more than was quoted: 1 more hour, $59.88. Please answer by Jan 19, 2026.",
+    );
     // the badge says what waits on them, in the Cleans list's words, not Done
-    const titleLine = client
-      .getByRole("heading", { level: 1 })
-      .locator("xpath=..");
-    await expect(titleLine).toHaveText(/Needs your OK$/);
+    await expect(titleBadge(client, "Needs your OK")).toBeVisible();
     await expectAccessible(client);
-    await proposal.getByRole("button", { name: "Review" }).click();
+    await expectNextStep(client, "Review the price change");
+    await expect(proposal.getByRole("button")).toHaveCount(0);
+    await pageAction(client, "Review the price change");
     const dialog = client.getByRole("dialog", {
-      name: "Please approve a price change",
+      name: "Price change: 1 more hour",
     });
     await expect(dialog).toContainText('"Heavy grease"');
     await expectAccessible(client);
@@ -196,7 +200,7 @@ test(
 
     await expect(client.getByText("Approved")).toBeVisible();
     await expect(proposal).toBeHidden();
-    await expect(titleLine).toHaveText(/Done$/);
+    await expect(titleBadge(client, "Done")).toBeVisible();
     const receipt = client.getByRole("region", { name: "Your receipt" });
     await expect(receipt).toContainText("1 more hour");
     await expect(receipt).toContainText("$59.88");
@@ -239,10 +243,14 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   await expect(client.getByRole("heading", { level: 1 })).toHaveText(
     "Deep Clean",
   );
-  await expect(
-    client.getByRole("alert").filter({ hasText: "Payment needed" }),
-  ).toBeVisible();
-  await client.getByRole("link", { name: "Update your card" }).click();
+  // the alert says why; putting it right is the page's next step
+  const needed = client
+    .getByRole("alert")
+    .filter({ hasText: "Payment needed" });
+  await expect(needed).toBeVisible();
+  await expect(needed.getByRole("link")).toHaveCount(0);
+  await expectNextStep(client, "Update your card");
+  await pageAction(client, "Update your card");
   await saveACard(client).save.click();
   await expect(client.getByText("Card saved")).toBeVisible();
 

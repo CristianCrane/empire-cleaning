@@ -10,6 +10,7 @@ import {
   signUp,
   test,
   addCleaner,
+  expectNextStep,
   expectNoPageAction,
   pageAction,
 } from "./harness.ts";
@@ -68,6 +69,11 @@ test(
     await expect(cancelled).toContainText("There's no charge for cancelling.");
     await expect(cancelled).toContainText(/We've refunded \$[\d.]+ to your/);
     await expectNoPageAction(page, "Cancel clean");
+    // what it would cost and how long it would take go with the booking
+    const details = page.getByRole("region", { name: "Details" });
+    await expect(details).not.toContainText("Price");
+    await expect(details).not.toContainText("Deposit");
+    await expect(page.getByText(/reminder/)).toHaveCount(0);
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
       "Your clean is cancelled",
     );
@@ -76,7 +82,7 @@ test(
     await page.goto("/portal");
     await expect(page.getByText("Want us back?")).toBeVisible();
 
-    // and Your cleans lists it as Cancelled, under Past
+    // and Cleans lists it as Cancelled, under Past
     await page
       .getByRole("link", { name: "Cleans", exact: true })
       .first()
@@ -165,11 +171,15 @@ test(
     const client = await (await browser.newContext()).newPage();
     await signedInAs(client, casey.email);
     await client.goto(`/portal/jobs/${job.id}`);
-    await expect(
-      client.getByRole("region", { name: "We couldn't get in" }),
-    ).toContainText(
+    await expect(client.getByRole("main").getByRole("alert")).toContainText(
       'The crew came on Mon, Jan 12 at 9:30 AM, but couldn\'t get in: "Nobody answered and the doorman had no key".',
     );
+    // putting how we get in right is the page's next step
+    await expectNextStep(client, "Check how we get in");
+    // a clean that didn't happen says no price or how long
+    await expect(
+      client.getByRole("region", { name: "Details" }),
+    ).not.toContainText(/Price|How long/);
   },
 );
 

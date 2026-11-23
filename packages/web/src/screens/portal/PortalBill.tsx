@@ -35,9 +35,6 @@ const words = catalog({
     late: "This bill wasn't paid by its due date.",
     forBill: (amount: string) => `${amount} for this bill`,
     payOr: (fix: string) => `Please pay it, or ${fix}.`,
-    // a payment we try again ourselves, still on its way
-    notYet: (amount: string) =>
-      `Your payment of ${amount} for this bill hasn't gone through yet.`,
     bankOnWay: "Your bank payment is on its way",
     paid: "Thank you, your bill is paid",
     payThis: "Pay this bill",
@@ -52,8 +49,6 @@ const words = catalog({
     late: "Esta factura no se pagó antes de su fecha de vencimiento.",
     forBill: (amount: string) => `${amount} de esta factura`,
     payOr: (fix: string) => `Páguela, o ${fix}.`,
-    notYet: (amount: string) =>
-      `Su pago de ${amount} de esta factura aún no ha pasado.`,
     bankOnWay: "Su pago bancario está en camino",
     paid: "Gracias, su factura está pagada",
     payThis: "Pagar esta factura",
@@ -130,7 +125,7 @@ function useStanding(bill: BillView): Alert | null {
     return {
       key: "unpaid",
       tone: "info",
-      children: `${t.w.notYet(t.formatMoney(bill.totalCents))} ${t.clientFix.waiting}${paused}`,
+      children: `${t.notThrough(t.w.forBill(t.formatMoney(bill.totalCents)))} ${t.clientFix.waiting}${paused}`,
     };
   }
   if (bill.unpaid) {
