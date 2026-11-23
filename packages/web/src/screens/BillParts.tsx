@@ -44,7 +44,8 @@ const words = catalog({
     notPaidBy: (day: string) => `Not paid by ${day}`,
     didntGo: (day: string) => `Payment didn't go through ${day}`,
     // one the payment service is trying again, which we see to
-    notYet: (day: string) => `Payment tried ${day}, not through yet`,
+    // the badge says it's pending; "started", as "tried" reads as failed
+    notYet: (day: string) => `Payment started ${day}`,
     toPayBy: (day: string) => `To pay by ${day}`,
     toBeCharged: "To be charged to your card",
     offYourNext: "Comes off your next bill",
@@ -79,7 +80,7 @@ const words = catalog({
     bankOnWay: "Hay un pago bancario en camino",
     notPaidBy: (day: string) => `No se pagó antes del ${day}`,
     didntGo: (day: string) => `El pago no pasó el ${day}`,
-    notYet: (day: string) => `Pago intentado el ${day}, aún no ha pasado`,
+    notYet: (day: string) => `Pago iniciado el ${day}`,
     toPayBy: (day: string) => `A pagar antes del ${day}`,
     toBeCharged: "Se cobrará a su tarjeta",
     offYourNext: "Se descuenta de su próxima factura",
@@ -91,7 +92,7 @@ const words = catalog({
     made: "Emitida",
     howPaid: "Cómo se paga",
     onItsPage: "En su página, con tarjeta o banco",
-    whatFor: "Por qué es",
+    whatFor: "Para qué es",
     taxIncluded: "Impuestos incluidos",
     print: "Imprimir",
   },
@@ -106,13 +107,13 @@ export function BillStatusBadge({
 }: {
   bill: Pick<BillSummary, "status" | "unpaid" | "totalCents">;
 }) {
-  const { w, unpaid, clearing, notPaidYet } = useSaid(words);
+  const { w, unpaid, clearing, paymentPending } = useSaid(words);
   if (bill.status === "void") return <StatusBadge>{w.cancelled}</StatusBadge>;
   if (bill.status === "processing")
     return <StatusBadge tone="info">{clearing}</StatusBadge>;
   // one we try again ourselves waits on us (ADR-0022), as a clean's does
   if (bill.unpaid && !asksTheClient(bill.unpaid.kind))
-    return <StatusBadge tone="info">{notPaidYet}</StatusBadge>;
+    return <StatusBadge tone="info">{paymentPending}</StatusBadge>;
   if (bill.unpaid) return <StatusBadge tone="danger">{unpaid}</StatusBadge>;
   if (bill.status === "due")
     return <StatusBadge tone="warning">{w.due}</StatusBadge>;

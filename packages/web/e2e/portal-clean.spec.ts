@@ -100,15 +100,13 @@ test("a payment we try again ourselves asks nothing of the clean's reader", asyn
   await clean(page, job.id);
   // waiting on us, not failed
   // its badge, beside the title
-  await expect(titleBadge(page, "Not paid yet")).toBeVisible();
+  await expect(titleBadge(page, "Payment pending")).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(
     page.getByRole("main").getByRole("status").filter({
-      hasText: "hasn't gone through yet",
+      hasText: "Nothing you need to do.",
     }),
-  ).toContainText(
-    "We'll try again by ourselves, so there's nothing you need to do.",
-  );
+  ).toHaveText("Nothing you need to do.");
   await expect(page.getByText("Payment needed.")).toHaveCount(0);
   await expectNothingNext(page);
   // nothing changed the price: the total alone, and the rest by its name
@@ -118,7 +116,7 @@ test("a payment we try again ourselves asks nothing of the clean's reader", asyn
   await expect(receipt.getByText("Paid", { exact: true })).toHaveCount(1);
   // and what's still to come, in the badge's words, not "Charged to your
   // card" as if the whole clean were paid (the merge's UX review U4, U11)
-  await expect(receipt).toContainText("Not paid yet$269.47");
+  await expect(receipt).toContainText("Payment pending$269.47");
   await expect(receipt).not.toContainText("Charged to your");
 });
 

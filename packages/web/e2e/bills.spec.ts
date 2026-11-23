@@ -318,7 +318,7 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   await signedInAs(client, casey.email);
   await client.goto("/portal/payments");
   await expect(client.getByRole("region", { name: "To pay" })).toContainText(
-    "Until it's paid, your cleaning plan is paused. Cleans already booked still go ahead, but we won't book any more.",
+    "Until it's paid, we won't book more cleans on your plan.",
   );
 
   // and they pay it from their plan's page
@@ -332,7 +332,7 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   // which says the plan is paused till it's paid
   await expect(
     client.getByText(
-      /^We couldn't take \$[\d.,]+ for this bill.* Until it's paid, your cleaning plan is paused\. Cleans already booked still go ahead, but we won't book any more\.$/,
+      /^We couldn't take \$[\d.,]+ for this bill.* Until it's paid, we won't book more cleans on your plan\.$/,
     ),
   ).toBeVisible();
   // it was never charged to their card, as it would have been (#499)
@@ -357,8 +357,9 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
 // a Bill's payment we try again ourselves waits on us: its badge and its
 // alert say so alike, the Office's and the Client's (#493 PR 14), and that
 // its plan is paused, the Office's naming the plan's home and why; and the
-// Client is offered no second payment, as ours may still take it (#533)
-test("a Bill we try again ourselves reads as not paid yet, not failed, says its plan is paused, and offers no Pay", async ({
+// Client is offered no second payment, as ours may still take it (#533).
+// Their Payments say it calmly: the next test
+test("a Bill we try again ourselves reads as payment pending, not failed, says its plan is paused, and offers no Pay", async ({
   page,
   browser,
 }) => {
@@ -368,7 +369,7 @@ test("a Bill we try again ourselves reads as not paid yet, not failed, says its 
   const office = await (await browser.newContext()).newPage();
   await signedInAs(office, olive.email);
   await office.goto(`/office/bills/${billId}`);
-  await expect(titleBadge(office, "Not paid yet")).toBeVisible();
+  await expect(titleBadge(office, "Payment pending")).toBeVisible();
   await expect(office.getByRole("main").getByRole("alert")).toHaveCount(0);
   await expect(
     office.getByText(
@@ -377,26 +378,47 @@ test("a Bill we try again ourselves reads as not paid yet, not failed, says its 
     ),
   ).toBeVisible();
 
-  // their Payments lead to it to see, not to pay
   await signedInAs(page, casey.email);
-  await page.goto("/portal/payments");
-  const see = page.getByRole("link", { name: "See bill EC-000001" });
-  await expect(see).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Pay bill EC-000001" }),
-  ).toHaveCount(0);
-  await see.click();
-  await expect(titleBadge(page, "Not paid yet")).toBeVisible();
+  await page.goto(`/portal/bills/${billId}`);
+  await expect(titleBadge(page, "Payment pending")).toBeVisible();
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
   await expect(
     page
       .getByRole("main")
       .getByRole("status")
-      .filter({ hasText: "hasn't gone through yet" }),
+      .filter({ hasText: "Nothing you need to do." }),
   ).toHaveText(
-    /^Your payment of \$[\d.,]+ for this bill hasn't gone through yet\. We'll try again by ourselves, so there's nothing you need to do\. Until it's paid, your cleaning plan is paused\. Cleans already booked still go ahead, but we won't book any more\.$/,
+    "Nothing you need to do. Until it goes through, we won't book more cleans on your plan.",
   );
   await expectNoPageAction(page, "Pay this bill");
+});
+
+// nothing to pay while it's ours, so their Payments' card asks nothing:
+// not "To pay" but Payment pending, info as the Bill is, one short line,
+// the Bill a link to see, not the page's primary (#493); its plan's pause
+// in its fewest words, what's booked left to its Bill, the test above (#536)
+test("Payments says a Bill we try again ourselves needs nothing from them", async ({
+  page,
+}) => {
+  const { billId } = await billed({ plan: true, failing: "processing" });
+  await signedInAs(page, casey.email);
+  await page.goto("/portal/payments");
+
+  const card = page.getByRole("region", { name: "Payment pending" });
+  for (const line of [
+    "Bill EC-000001 · Nothing you need to do.",
+    "Until it goes through, we won't book more cleans on your plan.",
+  ])
+    await expect(card.getByText(line, { exact: true })).toBeVisible();
+  await expect(card).not.toContainText("paused");
+  await expect(page.getByRole("region", { name: "To pay" })).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  // nothing next: the link is outlined, and no Pay anywhere on the page
+  const see = card.getByRole("link", { name: "See the bill" });
+  await expect(see).toHaveAttribute("href", `/portal/bills/${billId}`);
+  await expect(see).toHaveClass(/(^|\s)border-primary(\s|$)/);
+  await expect(see).not.toHaveClass(/(^|\s)bg-primary(\s|$)/);
+  await expect(page.getByRole("link", { name: /^Pay bill/ })).toHaveCount(0);
 });
 
 test("a late Bill with no cleaning plan on it says no plan is paused, to the Client or the Office", async ({

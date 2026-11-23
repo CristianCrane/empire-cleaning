@@ -35,10 +35,10 @@ export const labels = catalog({
     seeBill: (n: string) => `See bill ${n}`,
     // a bank payment, or a Bill paid by one, on its way
     clearing: "Clearing",
-    // a payment we try again ourselves (Unpaid, waiting): not failed for
-    // the Client, and not paid. Its alerts say what happened, "hasn't gone
-    // through yet", which beside a clean would read as the clean not done
-    notPaidYet: "Not paid yet",
+    // a payment we try again ourselves (Unpaid, waiting): started by us and
+    // pending, not failed, with nothing for the Client to do. "Payment",
+    // so beside a clean it doesn't read as the clean not done
+    paymentPending: "Payment pending",
     howWeGetIn: "How we get in",
     jobStatus: {
       booked: "Booked",
@@ -75,7 +75,7 @@ export const labels = catalog({
     payBill: (n: string) => `Pagar la factura ${n}`,
     seeBill: (n: string) => `Ver la factura ${n}`,
     clearing: "En proceso",
-    notPaidYet: "Aún sin pagar",
+    paymentPending: "Pago pendiente",
     howWeGetIn: "Cómo entramos",
     jobStatus: {
       booked: "Reservada",

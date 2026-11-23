@@ -76,8 +76,8 @@ const words = catalog({
       `${visitor} comes to see ${address} for about ${length}`,
     visitFree: (phone: string) =>
       `Free: we look before we quote. To change the time, call ${phone}.`,
-    weTryAgain:
-      "A payment on it hasn't gone through yet. We'll try again by ourselves, so there's nothing you need to do.",
+    // then that there's nothing to do (NOTHING_TO_DO)
+    planPending: "A payment on it is pending.",
     untilPaid:
       "Nothing's booked until it goes through. Then your plan carries on from its next date.",
     forWhen: (when: string) => `For ${when}`,
@@ -148,8 +148,7 @@ const words = catalog({
       `${visitor} va a ver ${address} durante cerca de ${length}`,
     visitFree: (phone: string) =>
       `Gratis: vemos el lugar antes de cotizar. Para cambiar la hora, llame al ${phone}.`,
-    weTryAgain:
-      "Un pago del plan aún no ha pasado. Lo volveremos a intentar por nuestra cuenta, así que no tiene que hacer nada.",
+    planPending: "Un pago del plan está pendiente.",
     untilPaid:
       "No hay nada reservado hasta que el pago pase. Después, su plan continúa desde su próxima fecha.",
     forWhen: (when: string) => `Para el ${when}`,
@@ -541,9 +540,19 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Answer {
         tone: "info",
         headline: t.planName(paused),
         lines: [w.untilPaid],
-        action: { label: t.p.seeYourPlan, href: planLink(paused.id) },
+        // nothing to do, so not the page's primary, as the owed card's
+        // See the bill (#536)
+        action: {
+          label: t.p.seeYourPlan,
+          href: planLink(paused.id),
+          secondary: true,
+        },
       },
-      why: { tone: "info", lead: t.p.planPaused, more: w.weTryAgain },
+      why: {
+        tone: "info",
+        lead: t.p.planPaused,
+        more: `${w.planPending} ${t.NOTHING_TO_DO}`,
+      },
     };
   }
 
