@@ -60,10 +60,12 @@ export const AllConfirmed: Story = {
 
 // what this reader needs to know too, after where it stands
 export const WithLine: Story = {
-  args: { line: "Free cleaners can take it from Mon, Jan 5, 9:00 AM." },
+  args: {
+    line: "Cleaners free that day can take it from Mon, Jan 5, 9:00 AM.",
+  },
   play: async ({ canvasElement }) => {
     await expect(canvasElement).toHaveTextContent(
-      "1 of 2 confirmed, 1 needed. Free cleaners can take it from Mon, Jan 5, 9:00 AM.",
+      "1 of 2 confirmed, 1 needed. Cleaners free that day can take it from Mon, Jan 5, 9:00 AM.",
     );
   },
 };

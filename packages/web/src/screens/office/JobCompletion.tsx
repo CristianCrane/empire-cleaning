@@ -601,6 +601,16 @@ export function JobMoney({ job }: { job: OfficeJob }) {
       : "Fee";
   // a fee with no Charge of its own was kept from the Deposit
   const kept = !payment.charges.some((c) => c.kind === "fee");
+  // a price change still open isn't in the total yet: it says so, so a
+  // paid total doesn't read as the last word
+  const open =
+    job.completion?.adjustments.filter(
+      (a) => a.status === "reported" || a.status === "proposed",
+    ).length ?? 0;
+  const total =
+    open === 0
+      ? "Total"
+      : `Total without the price change${open > 1 ? "s" : ""} still open`;
   const dueFact = (line?: string) =>
     job.completion ? (
       <Fact
@@ -608,7 +618,7 @@ export function JobMoney({ job }: { job: OfficeJob }) {
         icon={Receipt}
         label="Total"
         value={formatMoney(due)}
-        line={line ?? "Total, tax included"}
+        line={line ?? `${total}, tax included`}
       />
     ) : (
       <Fact
@@ -645,7 +655,7 @@ export function JobMoney({ job }: { job: OfficeJob }) {
           due > 0 && due === paid
             ? dueFact(
                 job.completion
-                  ? `Total, paid${by}`
+                  ? `${total}, paid${by}`
                   : kept
                     ? `${fee}, kept from the deposit`
                     : `${fee}, paid${by}`,

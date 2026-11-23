@@ -1,4 +1,4 @@
-import { ClipboardList } from "lucide-react";
+import { MessageSquareText } from "lucide-react";
 import { useState } from "react";
 import {
   type AddOnChoice,
@@ -54,6 +54,8 @@ const words = catalog({
     markedAt: (time: string) => `Marked done at ${time}. Thanks!`,
     reported: "Reported",
     nothingToReport: "Nothing to report",
+    // the condition they found, as the Office's Job says it
+    howDirty: "How dirty the home was",
   },
   es: {
     notMarked: "El trabajo no se marcó como terminado. Vuelve a intentarlo.",
@@ -79,6 +81,7 @@ const words = catalog({
       oneStop(`Marcado como terminado a ${theTimeEs(time)}. ¡Gracias!`),
     reported: "Lo que se informó",
     nothingToReport: "Nada que informar",
+    howDirty: "Qué tan sucia estaba la casa",
   },
 });
 
@@ -289,9 +292,9 @@ export function Completed({ job }: { job: CleanerJob }) {
         })}
       </p>
       <Facts>
-        <ConditionFact property={completion} />
+        <ConditionFact property={completion} line={w.howDirty} />
         <Fact
-          icon={ClipboardList}
+          icon={MessageSquareText}
           label={w.reported}
           value={
             completion.reports.length === 0 ? (

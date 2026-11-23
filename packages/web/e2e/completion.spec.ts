@@ -168,6 +168,10 @@ test(
     // the review is the step: a plan to offer waits, unsaid, behind it
     await expectNextStep(page, "Review");
     await expect(page.getByText("Casey wants regular visits.")).toHaveCount(0);
+    // paid in full, but not the last word while the change is open (#493)
+    await expect(
+      page.getByRole("region", { name: "Money" }).getByRole("definition"),
+    ).toContainText([/Total without the price change still open, paid by/]);
     await extraTime.click();
     const review = page.getByRole("dialog", { name: "More time" });
     await expect(review).toContainText('"Heavy grease"');
