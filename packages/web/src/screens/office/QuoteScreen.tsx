@@ -1418,7 +1418,6 @@ function PlanTerms({
       <Select
         label="Service"
         name="plan.serviceKey"
-        description="Every clean on the plan is of it."
         selectedKey={plan.serviceKey}
         onSelectionChange={(key) => onChange({ serviceKey: String(key) })}
       >

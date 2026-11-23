@@ -282,7 +282,9 @@ function AFormsWidth() {
           <code>medium</code> to about 14 (a phone, a day, a number),{" "}
           <code>long</code> a few words (a <code>Select</code>'s default).
           Fields side by side go in a <code>FieldRow</code>, no wider than a
-          form. On a phone every field is full width.
+          form; a day and its start time in a <code>packed</code> one, each at
+          its own width from the row's start, not spread across the card. On a
+          phone every field is full width.
         </p>
       </Rule>
       <Example verdict="Do">
@@ -295,7 +297,7 @@ function AFormsWidth() {
               <TextField label="ZIP code" width="short" />
             </FieldRow>
             <NumberField label="Bedrooms" defaultValue={2} />
-            <FieldRow>
+            <FieldRow packed>
               <DatePicker label="Day" />
               <TimeField label="Start time" />
             </FieldRow>
