@@ -68,7 +68,8 @@ type Asked =
   | { call: "deposit"; input: Omit<DepositInput, "idempotencyKey"> };
 
 // what the caller would ask now, which an earlier attempt is sent again
-// only if it asks too: the saved card, or null for a card typed in now
+// only if it asks too: the saved card, or null for a card typed in now,
+// which is no saved card an earlier attempt named
 type AskingNow = { card: string | null };
 
 // the saved card a request names; a card typed in is a token, used once,
@@ -181,7 +182,7 @@ const outcomeOf = async (
   const fresh = clock.now().getTime() - attempt.askedAt.getTime() < DAY_MS;
   if (attempt.status === "pending" && fresh) {
     const card = savedCardOf(attempt.request as Asked);
-    if (!now?.card || !card || card === now.card) {
+    if (!now || !card || card === now.card) {
       return ask(await update(attempt, { sentAt: clock.now() }));
     }
     // asked on a card the Client has since replaced (#534, F13). A changed

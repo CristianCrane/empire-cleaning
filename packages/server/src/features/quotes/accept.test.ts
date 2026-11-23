@@ -1018,6 +1018,29 @@ describe("trying again after the Deposit's reply was lost", () => {
     ]);
   });
 
+  // and so for a card typed in: it's never the saved card asked before
+  test("the Client's second try with a card typed in, after one on their saved card, takes the Deposit from the card typed in", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+    const saved = testPayments().paymentMethods.at(-1)!;
+    testPayments().goDown();
+    await accept(client, quote).expect(409);
+    testPayments().goDown(false);
+
+    await payNow(client, quote).expect(409);
+    testClock().advance({ minutes: 15 });
+    await payNow(client, quote).expect(200);
+
+    const typedIn = testPayments().paymentMethods.at(-1)!;
+    expect(typedIn.paymentMethodId).not.toBe(saved.paymentMethodId);
+    expect(depositsAtProvider()).toEqual([
+      expect.objectContaining({ paymentMethodId: typedIn.paymentMethodId }),
+    ]);
+  });
+
   test("the Client's second try with their saved card takes no second Deposit", async () => {
     await cleaners();
     const office = await signInAsOffice();
