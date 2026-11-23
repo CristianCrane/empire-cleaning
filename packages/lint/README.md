@@ -1,6 +1,6 @@
 # Lint rules
 
-The repo's own lint rules, `empire/…`, as one oxlint JS plugin (`src/index.ts`, `.oxlintrc.json`'s `jsPlugins`, run by `pnpm lint`): each rule is a file of its own, registered there. JS plugins are in alpha in oxlint and not bound by semver, so each rule is tested through oxlint's own `RuleTester` (`pnpm --filter @empire-cleaning/lint test`, in CI's Checks job), and an oxlint update that changes the plugin API fails there. oxlint reads only an `.astro` file's frontmatter and `<script>`s, so `pnpm lint` and the pre-commit hook also run `src/astro-markup.ts` on the `.astro` files, which runs `words-from-catalog` over their markup (below), and `src/catalog-copies.ts` over the screens' catalogs, as a copy spans files (below); their own tests are plain vitest.
+The repo's own lint rules, `empire/…`, as one oxlint JS plugin (`src/index.ts`, `.oxlintrc.json`'s `jsPlugins`, run by `pnpm lint`): each rule is a file of its own, registered there. JS plugins are in alpha in oxlint and not bound by semver, so each rule is tested through oxlint's own `RuleTester` (`pnpm --filter @empire-cleaning/lint test`, in CI's Checks job), and an oxlint update that changes the plugin API fails there. oxlint reads only an `.astro` file's frontmatter and `<script>`s, so `pnpm lint` and the pre-commit hook also run `src/astro-markup.ts` on the `.astro` files, which runs `words-from-catalog` over their markup (below), and `src/catalog-copies.ts` over the screens' catalogs, as a copy spans files (below). `pnpm lint` alone, so CI's Checks, runs `src/log-rows.ts` on the UX and test findings logs, which the pre-commit hook's staged code doesn't reach (below). Their own tests are plain vitest.
 
 ## `empire/report-unexpected`
 
@@ -59,3 +59,9 @@ The same English in two of the screens' catalogs is a second Spanish to keep in 
 - the same words twice in one catalog (two states of a Quote, both "Asked for") are one place to keep in step, so aren't a copy
 
 Words whose Spanish differs in two places, as they agree with a different noun (a Bill is Pagada, a charge Pagado) or speak to a Client (usted) in one and a Cleaner (tú) in the other, go on its `allowed` list, with every file it's in and why; a third file still fails, and an entry that's no longer a copy fails until it's taken out.
+
+## `log-rows`
+
+`docs/ux-log.md` and `docs/testing-log.md` merge with git's union driver (`.gitattributes`, the process log's L181), so a local merge keeps both sides' new rows with no hand edit. It also keeps a row one side edited in place beside its old text, as when a later pick narrows an older one, and the old text reads as a decision still standing. `src/log-rows.ts` fails on two rows with one key, a UX decision's Screen and Question, or a finding's Date and its Finding's first 80 characters, naming each row's line: keep the newer one.
+
+What it can't see: an edit lost, where both sides edited one row and the merge kept one side's text alone; and a finding rewritten from its first words, kept beside its old text. Of the 17 merges since 2026-11-20 that conflicted on a log, replayed with the union driver, 4 came out other than the hand resolution: this check flags 2 of them (a0861855 and 665b618a, 4 doubled UX rows) and misses the other 2, a rewritten finding and two lost edits (9d8a66f9, aa2b54d7).
