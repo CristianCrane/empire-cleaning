@@ -82,8 +82,9 @@ type Owed = {
   cents: number;
   // something failed or is past its due date, not just waiting on them
   late: boolean;
-  // whether it asks anything of them: not only a clean the payment service
-  // is trying again, which we see to ourselves
+  // whether it asks anything of them: false for a payment we try again
+  // ourselves (a Bill's or a clean's), which waits on us, and the card
+  // says so calmly (owedAnswer)
   asks: boolean;
   // why, the most pressing first; for one that asks nothing, what it's
   // for (the card's label says it isn't paid yet)
