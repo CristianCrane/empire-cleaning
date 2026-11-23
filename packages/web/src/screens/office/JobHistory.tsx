@@ -68,6 +68,16 @@ const momentsOf = (job: OfficeJob): Moment[] => {
   const moments: Moment[] = [
     { key: "booked", at: job.bookedAt, icon: CalendarPlus, title: "Booked" },
   ];
+  const charges = job.payment?.charges ?? [];
+  const charged = (c: (typeof charges)[number], i: number) =>
+    moments.push({
+      key: `charge-${i}`,
+      at: c.chargedAt,
+      icon: CreditCard,
+      title: `${chargeLabel[c.kind]} of ${formatMoney(c.amountCents)} charged`,
+    });
+  // a Deposit follows its booking
+  charges.forEach((c, i) => c.kind === "deposit" && charged(c, i));
   for (const a of job.assignments) {
     moments.push({
       key: `offered-${a.id}`,
@@ -144,14 +154,10 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       title: `${noAccess.recordedBy?.name ?? "The crew"} couldn't get in`,
     });
   }
-  // each charge and refund last, as each follows what it's for
-  job.payment?.charges.forEach((c, i) => {
-    moments.push({
-      key: `charge-${i}`,
-      at: c.chargedAt,
-      icon: CreditCard,
-      title: `${chargeLabel[c.kind]} of ${formatMoney(c.amountCents)} charged`,
-    });
+  // the rest of the money last, as each follows what it's for: a Balance
+  // or fee its ending, a refund its cancelling
+  charges.forEach((c, i) => {
+    if (c.kind !== "deposit") charged(c, i);
     if (c.refundedAt) {
       moments.push({
         key: `refund-${i}`,
@@ -171,7 +177,8 @@ const momentsOf = (job: OfficeJob): Moment[] => {
     });
   }
   // newest first; of two at the same moment, the later told first: a
-  // Deposit charged over the offer made at its booking, a Balance over Done
+  // Deposit just over its booking, under what followed; a Balance over
+  // Done; a refund over its cancelling
   return moments
     .map((m, i) => ({ m, i }))
     .sort((a, b) => b.m.at.localeCompare(a.m.at) || b.i - a.i)
