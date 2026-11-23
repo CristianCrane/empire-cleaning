@@ -66,7 +66,7 @@ export function PortalPayments() {
   const home = useHomeUrl();
   const money = moneyNow(data, t.lang);
   const { owed, clearing } = money;
-  const owing = owed && owedAnswer(owed, t.lang);
+  const owing = owed && owedAnswer(owed, t.lang, data.plans);
   const { history } = data;
 
   return (

@@ -15,6 +15,7 @@ import {
 import { ApiError, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
+import { pausedPlans } from "../format.ts";
 import {
   BillDetail,
   BillLetterhead,
@@ -30,8 +31,8 @@ const words = catalog({
     onItsWay: (amount: string) =>
       `Your bank payment of ${amount} is on its way.`,
     emailOnce: "We'll email you once it has.",
-    wasDue: (day: string) =>
-      `This bill was due by ${day} and hasn't been paid.`,
+    // its due date is in the line under its total
+    late: "This bill wasn't paid by its due date.",
     forBill: (amount: string) => `${amount} for this bill`,
     payOr: (fix: string) => `Please pay it, or ${fix}.`,
     bankOnWay: "Your bank payment is on its way",
@@ -45,7 +46,7 @@ const words = catalog({
     onItsWay: (amount: string) =>
       `Su pago bancario de ${amount} está en camino.`,
     emailOnce: "Le avisaremos por correo cuando se acredite.",
-    wasDue: (day: string) => `Esta factura vencía el ${day} y no se ha pagado.`,
+    late: "Esta factura no se pagó antes de su fecha de vencimiento.",
     forBill: (amount: string) => `${amount} de esta factura`,
     payOr: (fix: string) => `Páguela, o ${fix}.`,
     bankOnWay: "Su pago bancario está en camino",
@@ -101,9 +102,11 @@ export function PortalBill() {
   );
 }
 
-// what's left to do about it, if anything
+// what's left to do about it, if anything; while it's unpaid, that a
+// cleaning plan with cleans on it is paused, when one is
 function useStanding(bill: BillView): Alert | null {
   const t = useSaid(words);
+  const paused = pausedPlans(bill.plans).length > 0 ? ` ${t.PLAN_PAUSED}` : "";
   if (bill.status === "processing") {
     return {
       key: "processing",
@@ -115,14 +118,14 @@ function useStanding(bill: BillView): Alert | null {
     return {
       key: "late",
       tone: "danger",
-      children: `${t.w.wasDue(t.formatDay(bill.dueOn))} ${t.PLAN_PAUSED}`,
+      children: `${t.w.late}${paused}`,
     };
   }
   if (bill.unpaid && !asksTheClient(bill.unpaid.kind)) {
     return {
       key: "unpaid",
       tone: "info",
-      children: `${t.notThrough(t.w.forBill(t.formatMoney(bill.totalCents)))} ${t.clientFix.waiting}`,
+      children: `${t.notThrough(t.w.forBill(t.formatMoney(bill.totalCents)))} ${t.clientFix.waiting}${paused}`,
     };
   }
   if (bill.unpaid) {
@@ -140,6 +143,7 @@ function useStanding(bill: BillView): Alert | null {
           {kind === "declined"
             ? t.w.payOr(t.UPDATE_AND_RETRY)
             : t.clientFix[kind]}
+          {paused}
         </>
       ),
       action: (

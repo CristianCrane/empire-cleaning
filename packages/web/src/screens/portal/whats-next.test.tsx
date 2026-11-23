@@ -278,7 +278,9 @@ describe("Home's hero, with nothing booked", () => {
       label: "To pay",
       tone: "danger",
       headline: "$184.50",
-      lines: ["Once it's paid, your plan carries on from its next date."],
+      lines: [
+        "Until it's paid, your cleaning plan is paused. Then it carries on from its next date.",
+      ],
       action: { label: "Update your card" },
     });
     // why, above it, once
@@ -641,11 +643,26 @@ describe("Home's card: what's owed first, when it asks anything of them", () => 
     expect(hero).toMatchObject({
       label: "To pay",
       lines: [
-        "Cleans already booked still go ahead, but we won't book any more.",
+        "Until it's paid, your cleaning plan is paused. Cleans already booked still go ahead, but we won't book any more.",
       ],
       action: { label: "Update your card" },
     });
     expect(tiles.map((s) => s.label)).not.toContain("Your card");
+  });
+
+  test("an Unpaid clean pausing a plan, with only another visit booked", () => {
+    // a Site Visit booked isn't one of the plan's cleans: none goes ahead
+    const { hero } = next({
+      plans: [plan({ status: "on_hold", nextStartsAt: null })],
+      siteVisits: [visit],
+      pastJobs: [pastJob({ unpaid: "declined", owedCents: 18450 })],
+    });
+    expect(hero).toMatchObject({
+      label: "To pay",
+      lines: [
+        "Until it's paid, your cleaning plan is paused. Then it carries on from its next date.",
+      ],
+    });
   });
 
   test("a clean waiting on the payment service asks nothing of them", () => {

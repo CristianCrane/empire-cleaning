@@ -464,6 +464,12 @@ const clientQuoteTone: Record<QuoteStatus, StatusTone> = {
   turned_down: "neutral",
 };
 
+// the paused ones of a Client's cleaning plans, or of a Bill's (each with
+// Jobs on it, paused while it's Unpaid), as the server says
+export const pausedPlans = <P extends { status: ServicePlanStatus }>(
+  plans: P[],
+) => plans.filter((p) => p.status === "on_hold");
+
 const planTone: Record<ServicePlanStatus, StatusTone> = {
   active: "success",
   on_hold: "warning",

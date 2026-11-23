@@ -16,6 +16,7 @@ const REFUND_TAKES_DAYS = "It can take a few days to reach you.";
 const UPDATE_AND_RETRY = "update your card and we'll try again straight away";
 const BOOKED_GO_AHEAD =
   "Cleans already booked still go ahead, but we won't book any more.";
+const PAUSED_TILL_PAID = "Until it's paid, your cleaning plan is paused.";
 
 const moreHoursEn = (a: Changed) =>
   `${a.hours} ${formats.en.plural(a.hours!, { one: "more hour", other: "more hours" })}`;
@@ -25,6 +26,8 @@ const UPDATE_AND_RETRY_ES =
   "actualice su tarjeta y lo volvemos a intentar enseguida";
 const BOOKED_GO_AHEAD_ES =
   "Las limpiezas ya reservadas siguen en pie, pero no reservaremos más.";
+const PAUSED_TILL_PAID_ES =
+  "Hasta que se pague, su plan de limpieza está en pausa.";
 
 const moreHoursEs = (a: Changed) =>
   `${a.hours} ${formats.es.plural(a.hours!, { one: "hora más", other: "horas más" })}`;
@@ -76,7 +79,9 @@ export const payments = catalog({
     // a Client's cleaning plan, paused while a payment on it is Unpaid, and
     // back on once it's paid
     BOOKED_GO_AHEAD,
-    PLAN_PAUSED: `Until it's paid, your cleaning plan is paused. ${BOOKED_GO_AHEAD}`,
+    PLAN_PAUSED: `${PAUSED_TILL_PAID} ${BOOKED_GO_AHEAD}`,
+    // with none of its cleans booked, it picks up once it's paid
+    PLAN_PAUSED_NONE_BOOKED: `${PAUSED_TILL_PAID} Then it carries on from its next date.`,
     PLAN_BACK_ON:
       "Your cleaning plan is back on, and we'll book your cleans as usual.",
     // a fee for a clean that didn't happen, by the Job's status
@@ -125,7 +130,8 @@ export const payments = catalog({
       late: "Por favor, páguela en su página.",
     },
     BOOKED_GO_AHEAD: BOOKED_GO_AHEAD_ES,
-    PLAN_PAUSED: `Hasta que se pague, su plan de limpieza está en pausa. ${BOOKED_GO_AHEAD_ES}`,
+    PLAN_PAUSED: `${PAUSED_TILL_PAID_ES} ${BOOKED_GO_AHEAD_ES}`,
+    PLAN_PAUSED_NONE_BOOKED: `${PAUSED_TILL_PAID_ES} Luego continúa desde su próxima fecha.`,
     PLAN_BACK_ON:
       "Su plan de limpieza está activo de nuevo, y reservaremos sus limpiezas como siempre.",
     feeName: {

@@ -2081,6 +2081,9 @@ export type BillView = BillSummary & {
   voidReason: string | null;
   // whether the Client can pay it on its page now
   payable: boolean;
+  // the Client's Service Plans with Jobs on it, oldest first: each On Hold
+  // while it's Unpaid (ADR-0016), unless Ended
+  plans: Pick<ServicePlanSummary, "id" | "status" | "property">[];
 };
 
 // the payment provider's form for paying a Bill on its page, by card or bank

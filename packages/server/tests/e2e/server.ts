@@ -55,6 +55,7 @@ import {
   requestReschedule,
 } from "../../src/features/reschedule/index.ts";
 import { generateServicePlanJobs } from "../../src/features/service-plans/index.ts";
+import { chaseBills } from "../../src/features/bills/index.ts";
 import { bookSiteVisit } from "../../src/features/site-visits/index.ts";
 import { properties } from "../../src/features/properties/index.ts";
 import { quotes } from "../../src/features/quotes/quotes.schema.ts";
@@ -239,6 +240,12 @@ control.post("/bills/billed-week", async (req, res) => {
   res.json(
     await billedWeek({ ...week, byAccountId: await accountIdOf(officeEmail) }),
   );
+});
+
+// what the server's Bill timer does: a Bill paid on its page and past its
+// due date is late, and reminded
+control.post("/bills/chase", async (_req, res) => {
+  res.json({ sent: await chaseBills() });
 });
 
 // how the test payment form pays a Bill: by card, or a bank debit that stays
