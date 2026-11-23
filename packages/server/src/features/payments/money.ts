@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNull, lte, notExists, or, sql } from "drizzle-orm";
-import { DAY_MS } from "@empire-cleaning/models";
+import { DAY_MS, MINUTE_MS } from "@empire-cleaning/models";
 import { apart, db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
@@ -55,14 +55,31 @@ export const NO_CARD = "no Payment Method is saved";
 // its own idempotency key. If the reply never comes, or the transaction it
 // was taken in rolls back, the next try for the same thing finds the
 // attempt: asks again with its key within a day, while the provider still
-// replays it, or else looks the payment up; and records what was taken
-// rather than taking it again. A declined attempt is over, so the next try
-// asks the card afresh.
+// replays it and the caller would ask the same card, or else looks the
+// payment up; and records what was taken rather than taking it again. A
+// declined attempt is over, so the next try asks the card afresh.
+
+// long enough after asking that a try still waiting on its reply has had it
+export const SETTLED_AFTER_MS = 15 * MINUTE_MS;
 
 // the provider call an attempt makes, as asked but for its key
 type Asked =
   | { call: "charge"; input: Omit<ChargeInput, "idempotencyKey"> }
   | { call: "deposit"; input: Omit<DepositInput, "idempotencyKey"> };
+
+// what the caller would ask now, which an earlier attempt is sent again
+// only if it asks too: the saved card, or null for a card typed in now,
+// which is no saved card an earlier attempt named
+type AskingNow = { card: string | null };
+
+// the saved card a request names; a card typed in is a token, used once,
+// so it names none
+const savedCardOf = (asked: Asked) =>
+  asked.call === "charge"
+    ? asked.input.paymentMethodId
+    : "paymentMethodId" in asked.input.source
+      ? asked.input.source.paymentMethodId
+      : null;
 
 // where an attempt stands once asked: taken (with the card a Deposit saved,
 // when it's known), or not yet known, or not taken
@@ -79,7 +96,9 @@ type Outcome =
 // written outside the caller's transaction, so it stands whatever that does
 const update = async (
   attempt: ChargeAttempt,
-  set: Partial<Pick<ChargeAttempt, "status" | "gatewayRef" | "reason">>,
+  set: Partial<
+    Pick<ChargeAttempt, "status" | "gatewayRef" | "reason" | "sentAt">
+  >,
 ) => {
   const [updated] = await apart
     .update(chargeAttempts)
@@ -153,12 +172,30 @@ const ask = async (attempt: ChargeAttempt): Promise<Outcome> => {
 };
 
 // what an earlier attempt came to, asking the provider if we never heard
-const outcomeOf = async (attempt: ChargeAttempt): Promise<Outcome> => {
+const outcomeOf = async (
+  attempt: ChargeAttempt,
+  now?: AskingNow,
+): Promise<Outcome> => {
   if (attempt.status === "taken") {
     return { status: "taken", attempt, saved: null };
   }
   const fresh = clock.now().getTime() - attempt.askedAt.getTime() < DAY_MS;
-  if (attempt.status === "pending" && fresh) return ask(attempt);
+  if (attempt.status === "pending" && fresh) {
+    const card = savedCardOf(attempt.request as Asked);
+    if (!now || !card || card === now.card) {
+      return ask(await update(attempt, { sentAt: clock.now() }));
+    }
+    // asked on a card the Client has since replaced (#534, F13). A changed
+    // request takes a new key, once the first is known not to have run and
+    // not to be running still
+    // (https://docs.stripe.com/error-low-level#content-errors): a quarter
+    // hour after it was last sent it can't be, so it's looked up, and the
+    // caller asks the card now
+    const since = clock.now().getTime() - attempt.sentAt.getTime();
+    if (since < SETTLED_AFTER_MS) {
+      return { status: "unknown", reason: UNREACHABLE };
+    }
+  }
   const found = await paymentGateway
     .chargeOutcome({
       payerId: (attempt.request as Asked).input.payerId,
@@ -211,6 +248,7 @@ const attempt = async (
   forId: string,
   asked: Asked,
 ): Promise<Outcome> => {
+  const now = clock.now();
   const [made] = await apart
     .insert(chargeAttempts)
     .values({
@@ -218,7 +256,8 @@ const attempt = async (
       forId,
       request: asked,
       amountCents: asked.input.amount,
-      askedAt: clock.now(),
+      askedAt: now,
+      sentAt: now,
     })
     .returning();
   return ask(made!);
@@ -252,15 +291,17 @@ const record = async (
 /**
  * Records what earlier attempts for a Job or Bill took that no Charge
  * records yet, asking the provider how each ended: the Charges, or why
- * that isn't known yet.
+ * that isn't known yet. `now` is what the caller would ask next, if it
+ * would: an attempt that asked another card isn't sent again.
  */
 export const recordTakenEarlier = async (
   tx: Tx,
   chargeFor: ChargeFor,
+  now?: AskingNow,
 ): Promise<Charge[] | { unknown: string }> => {
   const recorded: Charge[] = [];
   for (const earlier of await openAttempts(tx, forIdOf(chargeFor))) {
-    const outcome = await outcomeOf(earlier);
+    const outcome = await outcomeOf(earlier, now);
     if (outcome.status === "unknown") return { unknown: outcome.reason };
     if (outcome.status === "taken") {
       recorded.push(await record(tx, chargeFor, outcome.attempt, null));
@@ -298,7 +339,9 @@ export const chargeSaved = async (
   },
 ): Promise<Taken> => {
   if (!method) return { ok: false, reason: NO_CARD };
-  const earlier = await recordTakenEarlier(tx, chargeFor);
+  const earlier = await recordTakenEarlier(tx, chargeFor, {
+    card: method.gatewayRef,
+  });
   // it may yet take the money, so nothing more is asked for meanwhile
   if ("unknown" in earlier) return { ok: false, reason: earlier.unknown };
   let cents = earlier.reduce((sum, c) => sum + c.amountCents, 0);
@@ -350,7 +393,7 @@ export const takeDepositOnce = async (
   asked: Asked,
 ): Promise<DepositAttempt> => {
   for (const earlier of await openAttempts(tx, quoteId)) {
-    const outcome = await outcomeOf(earlier);
+    const outcome = await outcomeOf(earlier, { card: savedCardOf(asked) });
     if (outcome.status === "unknown") {
       return { status: "failed", reason: outcome.reason };
     }

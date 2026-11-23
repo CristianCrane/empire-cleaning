@@ -526,13 +526,18 @@ const outcomeOf = (
 // Stripe's short code for why it refused, which callers pass on. A declined
 // card is the charge_declined signal; anything else Stripe refuses (our
 // keys, "No such customer") is payment_gateway_error, with its full message
-// for us. When it may have done it after all, it throws instead, for the
-// caller to ask again how it went (ADR-0022): the connection failed, Stripe
-// erred, or the same key's request is still in progress
+// for us. When it may have done it after all, or hasn't yet, it throws
+// instead, for the caller to ask again how it went (ADR-0022): the
+// connection failed, Stripe erred, the same key's request is still in
+// progress, or Stripe said to slow down. That last is any 429, over our
+// rate or the object locked by another request, which Stripe doesn't
+// process and caches no reply for, so the same key asks again
+// (https://docs.stripe.com/rate-limits)
 const reasonOf = (error: unknown, what: string) => {
   if (
     error instanceof Stripe.errors.StripeConnectionError ||
     error instanceof Stripe.errors.StripeAPIError ||
+    error instanceof Stripe.errors.StripeRateLimitError ||
     (error instanceof Stripe.errors.StripeIdempotencyError &&
       error.statusCode === 409)
   ) {
