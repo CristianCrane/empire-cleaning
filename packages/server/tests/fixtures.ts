@@ -433,8 +433,8 @@ export const billWeekly = async (
  * home from Friday the 9th, whose first Job, done that day, is on the Bill
  * too. With `failing`, its automatic Charge is declined, so it's Unpaid (and
  * the plan On Hold), and Charges keep failing until failCharges(null); a
- * reason in place of true is the decline's, as "processing" for one we try
- * again ourselves. The
+ * reason in place of true is the decline's, and "processing" leaves the
+ * Charge processing, for one we try again ourselves. The
  * clock is left at 10am on Monday the 12th; with `unbilled`, it stops before
  * then, at noon on the day the last Job was done, and no Bill is made yet.
  */

@@ -60,10 +60,10 @@ const words = catalog({
 
 // one of the Client's weekly Bills (ADR-0016), a Record (docs/ux.md),
 // where its emails lead: the whole Bill, which prints cleanly, and paying it
-// here by card or bank debit while it's due, the page's next step (the `ui`
-// skill), its form in a dialog so the page has one Pay; beside Print behind
-// a ⋯ while it's a payment we try again ourselves (ADR-0022), which asks
-// nothing of them. Its week is its Week fact (BillDetail)
+// here by card or bank debit while the server says it can be (`payable`),
+// the page's next step (the `ui` skill), its form in a dialog so the page
+// has one Pay; none while it's a payment of ours, which asks nothing of
+// them (ADR-0022, #533). Its week is its Week fact (BillDetail)
 export function PortalBill() {
   const t = useSaid(words);
   const bill = useLoaderData({ from: "/portal/bills/$billId" });
@@ -73,7 +73,6 @@ export function PortalBill() {
     icon: CreditCard,
     dialog: (state) => <PayBill bill={bill} {...state} />,
   };
-  const ours = !!bill.unpaid && !asksTheClient(bill.unpaid.kind);
 
   return (
     <>
@@ -85,8 +84,8 @@ export function PortalBill() {
         ]}
         title={t.p.bill(bill.number)}
         status={<BillStatusBadge bill={bill} />}
-        next={(!ours && pay) || undefined}
-        actions={[ours && pay, print]}
+        next={pay || undefined}
+        actions={[print]}
         alerts={[useStanding(bill)]}
         details={
           <BillDetail

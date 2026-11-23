@@ -115,8 +115,15 @@ const billLink = (billId: string) =>
 
 export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
   const t = saidWith(lang, words);
-  const { w, billNotPaid, cleanNotPaid, formatShortDay, payBill, shortDayOf } =
-    t;
+  const {
+    w,
+    billNotPaid,
+    cleanNotPaid,
+    formatShortDay,
+    payBill,
+    seeBill,
+    shortDayOf,
+  } = t;
   const owing: Owed[] = [
     // a Bill that couldn't be taken, or is past its due date
     ...data.bills
@@ -130,7 +137,13 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         text: asksTheClient(b.unpaid!.kind)
           ? billNotPaid(b.number)
           : w.billNotYet(b.number),
-        action: { label: payBill(b.number), href: billLink(b.id) },
+        // nothing to pay on its page while it's ours (#533)
+        action: {
+          label: asksTheClient(b.unpaid!.kind)
+            ? payBill(b.number)
+            : seeBill(b.number),
+          href: billLink(b.id),
+        },
       })),
     // a clean, or its fee, that couldn't be charged
     ...data.pastJobs
