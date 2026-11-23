@@ -739,6 +739,26 @@ describe("paying the Deposit with a card entered just now", () => {
     expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
   });
 
+  // #534, F15: an attempt waiting on the bank is stored failed, so
+  // nothing stops a second accept while the first's approval is still out
+  // (the page reloads to Sent when finalize fails, PortalQuote.tsx)
+  test("accepted again while the bank is still approving the first Deposit, takes one Deposit", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+
+    // the bank approves the first, but the browser's finalize never
+    // arrives; the Client pays again, and this time the bank doesn't ask
+    testPayments().requireApproval(null);
+    await payNow(client, quote);
+    await finalize(client, quote);
+
+    expect(testPayments().charges).toHaveLength(1);
+  });
+
   test("refunds the Deposit if the day filled up while the bank was asking", async () => {
     // 8 hours on Monday
     await cleaners(2, 4);
