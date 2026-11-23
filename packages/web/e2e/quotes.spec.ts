@@ -662,7 +662,7 @@ test("Office Staff change what a Draft is for, and what was asked stays", async 
   // a Standard Clean was asked for, with a Deep Clean recommended for a
   // first visit
   await expect(page.getByRole("region", { name: "Deep Clean" })).toContainText(
-    "Recommended",
+    "Shown to the client as recommended",
   );
 
   await page.getByRole("button", { name: "Standard Clean Service" }).click();
