@@ -239,22 +239,23 @@ const isOpen = (tx: Tx | typeof db) =>
     ),
   );
 
-// the open attempts for Jobs, Bills or Quotes, of any kind: a Job asked for
+// the open attempts for a Job, Bill or Quote, of any kind: a Job asked for
 // as a fee may be charged a Balance now
-const openAttempts = (tx: Tx | typeof db, forIds: string[]) =>
-  forIds.length === 0
-    ? Promise.resolve([])
-    : tx
-        .select()
-        .from(chargeAttempts)
-        .where(and(inArray(chargeAttempts.forId, forIds), isOpen(tx)))
-        .orderBy(chargeAttempts.askedAt);
+const openAttempts = (tx: Tx | typeof db, forId: string) =>
+  tx
+    .select()
+    .from(chargeAttempts)
+    .where(and(eq(chargeAttempts.forId, forId), isOpen(tx)))
+    .orderBy(chargeAttempts.askedAt);
 
-// whether a payment we asked for any of these Jobs, Bills or Quotes may
-// still take the money: nothing more is taken for it meanwhile, by us or by
-// the Client paying on its page (#533)
-export const chargeOpen = async (forIds: string[], tx: Tx | typeof db = db) =>
-  (await openAttempts(tx, forIds)).length > 0;
+// The one rule (#533, #534; the owner, 2026-11-23: "Yes, I think the one
+// rule makes sense"): while a payment we asked for a Job, Bill or Quote may
+// still take the money, nothing else that moves money on it starts, by us,
+// by the Client paying a Bill on its page, or by Office Staff cancelling a
+// Bill or recording a payment made another way. Two at once would take it
+// twice, or leave money to give back (ADR-0022)
+export const chargeOpen = async (forId: string, tx: Tx | typeof db = db) =>
+  (await openAttempts(tx, forId)).length > 0;
 
 // a new attempt, committed, then asked
 const attempt = async (
@@ -316,7 +317,7 @@ export const recordTakenEarlier = async (
 ): Promise<Charge[] | { unknown: string }> => {
   const recorded: Charge[] = [];
   let now = owed;
-  for (const earlier of await openAttempts(tx, [forIdOf(chargeFor)])) {
+  for (const earlier of await openAttempts(tx, forIdOf(chargeFor))) {
     const outcome = await outcomeOf(earlier, now);
     if (outcome.status === "unknown") return { unknown: outcome.reason };
     if (outcome.status === "taken") {
@@ -410,7 +411,7 @@ export const takeDepositOnce = async (
   quoteId: string,
   asked: Asked,
 ): Promise<DepositAttempt> => {
-  for (const earlier of await openAttempts(tx, [quoteId])) {
+  for (const earlier of await openAttempts(tx, quoteId)) {
     const outcome = await outcomeOf(earlier, {
       amount: asked.input.amount,
       card: savedCardOf(asked),
@@ -489,7 +490,7 @@ export const giveBackDeposit = async (
  * again. Hold the Quote, so no try to accept it is taking one meanwhile.
  */
 export const giveBackUnbookedDeposits = async (tx: Tx, quoteId: string) => {
-  for (const earlier of await openAttempts(tx, [quoteId])) {
+  for (const earlier of await openAttempts(tx, quoteId)) {
     const outcome = await outcomeOf(earlier, null);
     if (outcome.status !== "taken") continue;
     await giveBackDeposit(

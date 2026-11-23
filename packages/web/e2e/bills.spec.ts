@@ -251,8 +251,8 @@ test("a Bill whose card payment is still going through can't be paid another way
   const { billId } = await billed({ failing: "processing" });
   await signedInAs(page, olive.email);
   await page.goto(`/office/bills/${billId}`);
-  const goingThrough =
-    "A card payment for this bill is still going through. Try again in a few minutes.";
+  const goingThrough = (yet: string, then: string) =>
+    `A card payment for this bill is still going through, so ${yet}. Check back in a few minutes: it'll be paid, or you can ${then} then.`;
 
   await pageAction(page, "Record a payment");
   const record = page.getByRole("dialog", { name: "Record a payment" });
@@ -260,7 +260,12 @@ test("a Bill whose card payment is still going through can't be paid another way
     .getByRole("textbox", { name: "How it was paid" })
     .fill("Cheque 1042");
   await record.getByRole("button", { name: "Record payment" }).click();
-  await expect(record.getByText(goingThrough, { exact: true })).toBeVisible();
+  await expect(
+    record.getByText(
+      goingThrough("a payment can't be recorded yet", "record it"),
+      { exact: true },
+    ),
+  ).toBeVisible();
   await record.getByRole("button", { name: "Cancel" }).click();
   await expect(record).toBeHidden();
 
@@ -272,7 +277,11 @@ test("a Bill whose card payment is still going through can't be paid another way
     .getByRole("textbox", { name: "Why it's cancelled" })
     .fill("Sent in error");
   await cancel.getByRole("button", { name: "Cancel bill" }).click();
-  await expect(cancel.getByText(goingThrough, { exact: true })).toBeVisible();
+  await expect(
+    cancel.getByText(goingThrough("it can't be cancelled yet", "cancel it"), {
+      exact: true,
+    }),
+  ).toBeVisible();
 });
 
 test("a Bill paid from a bank account is processing until it clears", async ({

@@ -641,15 +641,6 @@ export const retryUnpaidBillsFor = async (clientId: string) => {
 
 // ---- on its page ----
 
-// The one rule for a Bill (#533, #534; the owner, 2026-11-23: "Yes, I
-// think the one rule makes sense"): while a card payment of ours on it may
-// still take the money, nothing else that moves money on it starts, by the
-// Client paying on its page or by Office Staff cancelling it or recording a
-// payment made another way. Two at once would take it twice, or leave money
-// to give back (ADR-0022)
-const chargeGoingThrough = (bill: Bill, tx: Tx | typeof db = db) =>
-  chargeOpen([bill.id], tx);
-
 // why the Client can't pay a Bill on its page now, or null when they can:
 // a bank debit of theirs on its way, or a payment of ours going through or
 // one we try again ourselves (ADR-0022); or nothing owed
@@ -660,7 +651,7 @@ const notPayable = async (
   if (bill.status !== "due" || bill.totalCents <= 0) return "nothingToPay";
   const waiting =
     bill.unpaidReason !== null && unpaidKind(bill.unpaidReason) === "waiting";
-  return waiting || (await chargeGoingThrough(bill)) ? "ours" : null;
+  return waiting || (await chargeOpen(bill.id)) ? "ours" : null;
 };
 
 const clientBill = async (clientId: string, billId: string) => {
@@ -832,9 +823,11 @@ const notDue = (bill: Pick<Bill, "status">, then = "") =>
     ? `A bank payment for this bill is on its way${then}.`
     : `This bill is already ${bill.status === "void" ? "cancelled" : "paid"}.`;
 
-// why Office Staff can't cancel a due Bill, or record a payment on it, now
-const GOING_THROUGH =
-  "A card payment for this bill is still going through. Try again in a few minutes.";
+// why Office Staff can't cancel a due Bill, or record a payment on it, yet:
+// our card payment may still take it (chargeOpen's one rule), and if it
+// does the Bill is paid
+const goingThrough = (yet: string, then: string) =>
+  `A card payment for this bill is still going through, so ${yet}. Check back in a few minutes: it'll be paid, or you can ${then} then.`;
 
 /**
  * Office Staff void a Bill that shouldn't have gone out, while it's unpaid:
@@ -856,8 +849,10 @@ export const voidBill = async (
     if (bill.status !== "due") {
       throw new ConflictError(notDue(bill, ", so it can't be cancelled"));
     }
-    if (await chargeGoingThrough(bill, tx)) {
-      throw new ConflictError(GOING_THROUGH);
+    if (await chargeOpen(bill.id, tx)) {
+      throw new ConflictError(
+        goingThrough("it can't be cancelled yet", "cancel it"),
+      );
     }
     await tx
       .update(bills)
@@ -911,8 +906,10 @@ export const recordOutsidePayment = async (
     if (bill.status !== "due") {
       throw new ConflictError(notDue(bill));
     }
-    if (await chargeGoingThrough(bill, tx)) {
-      throw new ConflictError(GOING_THROUGH);
+    if (await chargeOpen(bill.id, tx)) {
+      throw new ConflictError(
+        goingThrough("a payment can't be recorded yet", "record it"),
+      );
     }
     await tx
       .update(bills)
