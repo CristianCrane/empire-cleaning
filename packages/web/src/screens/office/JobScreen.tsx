@@ -121,7 +121,7 @@ export function JobScreen() {
       status={<OfficeJobBadge job={job} />}
       next={next}
       actions={more}
-      alerts={alertsFor(job)}
+      alerts={alertsFor(job, next)}
       details={
         <JobLead
           job={job}
@@ -273,9 +273,9 @@ function useActionsOf(job: OfficeJob): {
 // only what the badge can't say: to when a move is asked and what it
 // costs; why a payment failed and what puts it right; that no cleaner is
 // free to take it; why a plan is the next step (the client asked for
-// regular visits, and this was their first clean). The step each calls for
-// is the page's primary
-const alertsFor = (job: OfficeJob): Alert[] => {
+// regular visits, and this was their first clean), while it is.
+// The step each calls for is the page's primary
+const alertsFor = (job: OfficeJob, next?: PageAction): Alert[] => {
   const alerts: Alert[] = [];
   const request = job.rescheduleRequest;
   const unpaid = job.payment?.unpaid;
@@ -328,7 +328,8 @@ const alertsFor = (job: OfficeJob): Alert[] => {
       ),
     });
   }
-  if (job.canOfferServicePlan) {
+  // only while the plan is the step: under a review or a retry, it waits
+  if (next?.label === QUOTE_A_PLAN) {
     alerts.push({
       key: "plan",
       tone: "info",

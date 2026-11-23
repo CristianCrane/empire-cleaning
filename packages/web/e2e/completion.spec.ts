@@ -165,6 +165,9 @@ test(
     await expect(extraTime).toContainText("+1 h");
     await expect(extraTime).toContainText("+$59.88");
     await expect(extraTime).toContainText("To review");
+    // the review is the step: a plan to offer waits, unsaid, behind it
+    await expectNextStep(page, "Review");
+    await expect(page.getByText("Casey wants regular visits.")).toHaveCount(0);
     await extraTime.click();
     const review = page.getByRole("dialog", { name: "More time" });
     await expect(review).toContainText('"Heavy grease"');
