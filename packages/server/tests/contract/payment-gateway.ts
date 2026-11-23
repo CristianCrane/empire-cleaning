@@ -555,6 +555,15 @@ export const paymentGatewayContract = (
             chargeId,
             refundId: refund.refundId,
           });
+          // asked again with its key, it's the first reply back, made: a
+          // retry within a day can't tell it failed (#534, F7)
+          expect(
+            await t.gateway.refund({
+              chargeId,
+              amount: 2000,
+              idempotencyKey: `refund:${run}:${chargeId}`,
+            }),
+          ).toEqual(refund);
         },
       );
 

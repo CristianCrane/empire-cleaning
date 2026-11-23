@@ -227,7 +227,7 @@ describe("a refund that fails after it's made", () => {
     expect(testMonitoring().signalled("refund_failed")).toHaveLength(1);
   });
 
-  // #534, F8: within a day a retry asks again with the same key, and the
+  // #534, F7: within a day a retry asks again with the same key, and the
   // provider replays its first reply, the refund made
   test("of ours whose reply was lost counts as not given back once it's found", async () => {
     const me = await officeAccount();

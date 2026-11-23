@@ -110,7 +110,7 @@ describe("Stripe's refusals", () => {
     ).rejects.toBe(error);
   });
 
-  // #534, F9: Stripe didn't process it (https://docs.stripe.com/rate-limits),
+  // #534, F8: Stripe didn't process it (https://docs.stripe.com/rate-limits),
   // and the SDK retries a 429 only when Stripe-Should-Retry says so; read
   // as a refusal, the Client's card reads declined and nothing tries again
   test("when Stripe limits our rate, it throws", async () => {
