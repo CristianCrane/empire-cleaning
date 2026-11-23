@@ -19,17 +19,19 @@ import {
   type PageAction,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
+import { addressOf } from "../format.ts";
 import { linkTo } from "../../links.ts";
 import {
   BillDetail,
   BillLetterhead,
   BillStatusBadge,
+  pausedPlans,
   usePrintBill,
 } from "../BillParts.tsx";
 import { useAction } from "../action.ts";
 import { clientTrail } from "./trails.ts";
 
-const { formatMoney } = formats.en;
+const { formatList, formatMoney } = formats.en;
 
 // one weekly Bill for the Office (ADR-0016), a Record (docs/ux.md): the
 // whole Bill as the Client sees it, where it stands, and while it's due,
@@ -102,11 +104,21 @@ function standing(bill: BillView): Alert | null {
           : asksTheClient(kind)
             ? `Its payment didn't go through${why ? ` (${why})` : ""}.`
             : `Its payment hasn't gone through yet${why ? ` (${why})` : ""}.`
-      } ${officeFix[kind]} Until it's paid, the client's cleaning plans with jobs on this bill are paused.`,
+      } ${officeFix[kind]}${plansPaused(bill)}`,
     };
   }
   // one simply due says when by in its line, and how it's paid in its facts
   return null;
+}
+
+// which of the client's cleaning plans it keeps paused, by their homes, as
+// the Office's Needs attention names them; nothing when it holds none
+function plansPaused(bill: BillView) {
+  const homes = pausedPlans(bill).map((p) => addressOf(p.property));
+  if (homes.length === 0) return "";
+  return homes.length === 1
+    ? ` Until it's paid, the client's cleaning plan at ${homes[0]} is paused.`
+    : ` Until it's paid, the client's cleaning plans at ${formatList(homes)} are paused.`;
 }
 
 // a short note, required, sent with the action; the API's message shown if

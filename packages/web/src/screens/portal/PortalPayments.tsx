@@ -66,7 +66,15 @@ export function PortalPayments() {
   const home = useHomeUrl();
   const money = moneyNow(data, t.lang);
   const { owed, clearing } = money;
-  const owing = owed && owedAnswer(owed, t.lang);
+  // a paused plan's cleans booked go ahead; none is booked till it's paid
+  const paused = data.plans.filter((p) => p.status === "on_hold");
+  const owing =
+    owed &&
+    owedAnswer(
+      owed,
+      t.lang,
+      paused.length > 0 && { booked: paused.some((p) => p.nextStartsAt) },
+    );
   const { history } = data;
 
   return (

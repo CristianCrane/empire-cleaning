@@ -4,6 +4,7 @@ import {
   type ClientPastJob,
   type ClientPayment,
   type PaymentMethodView,
+  type ServicePlanSummary,
   catalog,
   type Language,
 } from "@empire-cleaning/models";
@@ -81,6 +82,8 @@ const words = catalog({
 // #435)
 
 export type PaymentsData = {
+  // a paused one is said under what's owed (owedAnswer)
+  plans: ServicePlanSummary[];
   pastJobs: ClientPastJob[];
   bills: BillSummary[];
   paymentMethod: PaymentMethodView | null;

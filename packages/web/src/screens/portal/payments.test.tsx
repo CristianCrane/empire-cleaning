@@ -44,6 +44,7 @@ const bill = (over: Partial<BillSummary> = {}): BillSummary =>
   }) as BillSummary;
 
 const data = (over: Partial<PaymentsData> = {}): PaymentsData => ({
+  plans: [],
   pastJobs: [],
   bills: [],
   paymentMethod: card,

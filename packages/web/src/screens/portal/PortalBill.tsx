@@ -19,6 +19,7 @@ import {
   BillDetail,
   BillLetterhead,
   BillStatusBadge,
+  pausedPlans,
   usePrintBill,
 } from "../BillParts.tsx";
 import { useBillPaymentForm } from "./CardForm.tsx";
@@ -106,9 +107,11 @@ export function PortalBill() {
   );
 }
 
-// what's left to do about it, if anything
+// what's left to do about it, if anything; while it's unpaid, that a
+// cleaning plan with cleans on it is paused, when one is
 function useStanding(bill: BillView): Alert | null {
   const t = useSaid(words);
+  const paused = pausedPlans(bill).length > 0 ? ` ${t.PLAN_PAUSED}` : "";
   if (bill.status === "processing") {
     return {
       key: "processing",
@@ -120,14 +123,14 @@ function useStanding(bill: BillView): Alert | null {
     return {
       key: "late",
       tone: "danger",
-      children: `${t.w.wasDue(t.formatDay(bill.dueOn))} ${t.PLAN_PAUSED}`,
+      children: `${t.w.wasDue(t.formatDay(bill.dueOn))}${paused}`,
     };
   }
   if (bill.unpaid && !asksTheClient(bill.unpaid.kind)) {
     return {
       key: "unpaid",
       tone: "info",
-      children: `${t.w.notYet(t.formatMoney(bill.totalCents))} ${t.clientFix.waiting}`,
+      children: `${t.w.notYet(t.formatMoney(bill.totalCents))} ${t.clientFix.waiting}${paused}`,
     };
   }
   if (bill.unpaid) {
@@ -145,6 +148,7 @@ function useStanding(bill: BillView): Alert | null {
           {kind === "declined"
             ? t.w.payOr(t.UPDATE_AND_RETRY)
             : t.clientFix[kind]}
+          {paused}
         </>
       ),
       action: (

@@ -171,6 +171,11 @@ const paidHow = (t: T, bill: BillView, forClient: boolean) => {
   }
 };
 
+// the cleaning plans with Jobs on a Bill that are paused, as the server
+// says: while it's Unpaid, each that hasn't Ended
+export const pausedPlans = (bill: Pick<BillView, "plans">) =>
+  bill.plans.filter((p) => p.status === "on_hold");
+
 // where it stands now, in a line under its total
 const nowLine = (t: T, bill: BillView, forClient: boolean) => {
   const { w } = t;

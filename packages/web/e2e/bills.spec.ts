@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import {
   billedWeek,
+  chaseBills,
   createStaff,
   emailsTo,
   expect,
@@ -19,6 +20,7 @@ import {
   openTile,
   listRows,
   payThisBill,
+  setClock,
 } from "./harness.ts";
 
 // Weekly Bills for commercial Clients (ADR-0016), in the Office and the
@@ -295,9 +297,10 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   await expect(onHold).toContainText("bill EC-000001 unpaid");
   await unpaidBill.click();
   await expect(page).toHaveURL(`/office/bills/${billId}`);
+  // and which of the client's plans it pauses, by its home
   await expect(
     page.getByText(
-      /^Its payment didn't go through( \(.+\))?\. We've emailed the client to update their card/,
+      /^Its payment didn't go through( \(.+\))?\. We've emailed the client to update their card, which tries again\. Until it's paid, the client's cleaning plan at 41-12 Austin St, 4B, 11375 is paused\.$/,
     ),
   ).toBeVisible();
   // recording one made another way is the Office's next step; and the
@@ -312,10 +315,16 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   await expect(hold).toContainText("bill EC-000001");
   await expectNextStep(page, "See bill EC-000001");
 
-  // the Client pays it from their plan's page
+  // the Client's Payments say what the pause means under what's owed
   await failCharges(null);
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
+  await client.goto("/portal/payments");
+  await expect(client.getByRole("region", { name: "To pay" })).toContainText(
+    "Cleans already booked still go ahead, but we won't book any more.",
+  );
+
+  // and they pay it from their plan's page
   await client.goto(`/portal/plans/${planId}`);
   await expect(
     client
@@ -323,8 +332,11 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
       .filter({ hasText: "Your cleaning plan is paused" }),
   ).toContainText("bill EC-000001");
   await pageAction(client, "Pay bill EC-000001");
+  // which says the plan is paused till it's paid
   await expect(
-    client.getByText(/^We couldn't take \$[\d.,]+ for this bill/),
+    client.getByText(
+      /^We couldn't take \$[\d.,]+ for this bill.* Until it's paid, your cleaning plan is paused\. Cleans already booked still go ahead, but we won't book any more\.$/,
+    ),
   ).toBeVisible();
   // it was never charged to their card, as it would have been (#499)
   const details = client.getByRole("region", { name: "Bill details" });
@@ -343,6 +355,34 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
     ),
   ).toBeVisible();
   await expect(client.getByText("Your cleaning plan is paused")).toBeHidden();
+});
+
+test("a late Bill with no cleaning plan on it says no plan is paused, to the Client or the Office", async ({
+  page,
+  browser,
+}) => {
+  const { billId } = await billed({ payment: "on_page" });
+  // the day after it was due by, after 8am New York
+  await setClock("2026-01-27T14:00:00Z");
+  await chaseBills();
+
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/bills/${billId}`);
+  await expect(
+    page.getByText("This bill was due by Mon, Jan 26 and hasn't been paid.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+
+  const office = await (await browser.newContext()).newPage();
+  await signedInAs(office, olive.email);
+  await office.goto(`/office/bills/${billId}`);
+  await expect(
+    office.getByText(
+      "It wasn't paid by its due date. We remind the client each week until it's paid.",
+      { exact: true },
+    ),
+  ).toBeVisible();
 });
 
 test(

@@ -240,6 +240,10 @@ export const billedWeek = (week: {
     planId: string | null;
   }>;
 
+// what the server's Bill timer does as the clock advances: a Bill paid on
+// its page and past its due date is late, and reminded
+export const chaseBills = () => control("/bills/chase", { method: "POST" });
+
 // how the test payment form pays a Bill on its page from now on: by card
 // (the default), or by a bank debit that stays processing
 export const payBillsBy = (by: "card" | "bank") =>

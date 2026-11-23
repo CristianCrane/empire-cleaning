@@ -312,6 +312,8 @@ describe("making Bills", () => {
       status: "paid",
       paidVia: "page",
       payable: false,
+      // a one-off clean's: no cleaning plan of theirs is on it
+      plans: [],
     });
     expect(testEmail().lastTo(BILLING_EMAIL).subject).toBe(
       "Your receipt for bill EC-000001",
@@ -642,6 +644,19 @@ describe("Unpaid Bills", () => {
       .from(servicePlans)
       .where(eq(servicePlans.id, planId));
     expect(plan!.status).toBe("on_hold");
+    // the Bill says which plan it holds, at which home, and that it's paused
+    expect((await billOf(office, summary!.id)).plans).toEqual([
+      {
+        id: planId,
+        status: "on_hold",
+        property: {
+          id: expect.any(String),
+          street: "41-12 Austin St",
+          unit: "4B",
+          postcode: "11375",
+        },
+      },
+    ]);
     const notice = testEmail().lastTo(BILLING_EMAIL);
     expect(notice.subject).toBe("We couldn't take payment for bill EC-000001");
     expect(notice.text).toContain("cleaning plan is paused");
@@ -698,6 +713,9 @@ describe("Unpaid Bills", () => {
       .from(servicePlans)
       .where(eq(servicePlans.id, planId));
     expect(resumed!.status).toBe("active");
+    expect((await billOf(office, summary!.id)).plans).toMatchObject([
+      { id: planId, status: "active" },
+    ]);
     expect(testEmail().lastTo(BILLING_EMAIL).text).toContain(
       "Your cleaning plan is back on",
     );

@@ -1369,6 +1369,7 @@ export const billView = async (
     voidedAt: bill.voidedAt?.toISOString() ?? null,
     voidReason: bill.voidReason,
     payable: payable(bill),
+    plans: (await plansOn(bill.id)).map(({ startedAt: _, ...plan }) => plan),
   };
 };
 
