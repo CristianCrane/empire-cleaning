@@ -351,11 +351,12 @@ const aboutBill = (
   }
 };
 
-// what the Bill did to their Service Plan, or will
-const planNoteOf = (lang: Language, note: PlanNote) => {
-  const { BOOKED_GO_AHEAD, PLAN_BACK_ON, PLAN_PAUSED } = messages[lang];
+// what the Bill did to their Service Plan, or will: paused now, until
+// it's paid, or goes through when it asks nothing of them
+const planNoteOf = (lang: Language, note: PlanNote, bill: BillToSend) => {
+  const { BOOKED_GO_AHEAD, PLAN_BACK_ON, noMoreCleans } = messages[lang];
   const notes: Record<PlanNote, string> = {
-    paused: PLAN_PAUSED,
+    paused: noMoreCleans(bill.unpaid ? asksTheClient(bill.unpaid) : true),
     back_on: PLAN_BACK_ON,
     pauses_if_late: `${words[lang].PAUSES_IF_LATE} ${BOOKED_GO_AHEAD}`,
   };
@@ -399,7 +400,7 @@ export const billEmail = (
   });
   const extra = [
     ...(settled.length > 0 ? [w.INSTEAD, ...settledLines(lang, settled)] : []),
-    ...(plan ? [planNoteOf(lang, plan)] : []),
+    ...(plan ? [planNoteOf(lang, plan, bill)] : []),
   ];
   return {
     lang,
@@ -465,7 +466,7 @@ export const jobNamed = (
 // couldn't, and what that did to their Service Plan
 const settledLines = (lang: Language, settled: SettledJob[]) => {
   const w = words[lang];
-  const { clientFix, notTaken, PLAN_BACK_ON, PLAN_PAUSED } = messages[lang];
+  const { clientFix, notTaken, PLAN_BACK_ON, noMoreCleans } = messages[lang];
   const { formatMoney } = formats[lang];
   const card = cardOf(lang, settled[0]?.settled.paymentMethod ?? null);
   const lines = [
@@ -497,14 +498,23 @@ const settledLines = (lang: Language, settled: SettledJob[]) => {
           : w.refundsTo(card);
     lines.push(`${what}${refunded ? ` ${w.REFUND_DAYS}` : ""}`);
   }
-  const failed = settled.find((s) => s.settled.failure);
+  // one that asks something of them first, so its fix, the pause line and
+  // the button below all follow the same payment
+  const failed =
+    settled.find(
+      (s) => s.settled.failure && asksTheClient(unpaidKind(s.settled.failure)),
+    ) ?? settled.find((s) => s.settled.failure);
   if (failed) {
     lines.push(
       `${notTaken(w.PAYMENT, card)} ${clientFix[unpaidKind(failed.settled.failure!)]}`,
     );
   }
   if (settled.some((s) => s.settled.plan === "held")) {
-    lines.push(PLAN_PAUSED);
+    lines.push(
+      noMoreCleans(
+        failed ? asksTheClient(unpaidKind(failed.settled.failure!)) : true,
+      ),
+    );
   } else if (settled.some((s) => s.settled.plan === "resumed")) {
     lines.push(PLAN_BACK_ON);
   }

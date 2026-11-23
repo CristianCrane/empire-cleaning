@@ -52,8 +52,7 @@ const words = catalog({
     billN: (n: string, amount: string) => `bill ${n} (${amount})`,
     couldntTake: "We couldn't take payment for ",
     // a payment we try again ourselves, still on its way
-    notYet: (what: string) =>
-      `The payment for ${what} hasn't gone through yet.`,
+    notYet: (what: string) => `The payment for ${what} is pending.`,
     cancels: (cleans: number, hours: number, when: string) =>
       `It cancels your ${cleans === 1 ? "clean" : `${cleans} cleans`} booked more than ${hours} hours away, free: ${when}.`,
     goesAhead: (when: string, hours: number) =>
@@ -86,7 +85,7 @@ const words = catalog({
       `la limpieza del ${when} (${amount})`,
     billN: (n: string, amount: string) => `la factura ${n} (${amount})`,
     couldntTake: "No pudimos cobrar ",
-    notYet: (what: string) => `El pago de ${what} aún no ha pasado.`,
+    notYet: (what: string) => `El pago de ${what} está pendiente.`,
     cancels: (cleans: number, hours: number, when: string) =>
       oneStop(
         `Cancela, sin cargo, ${cleans === 1 ? "su limpieza reservada" : `sus ${cleans} limpiezas reservadas`} a más de ${hours} horas: ${when}.`,
@@ -162,6 +161,9 @@ export function useOnHold(
 ): { alerts: Alert[]; next?: PageAction } {
   const t = useSaid(words);
   if (plan?.status !== "on_hold") return { alerts: [] };
+  const asks = (u: { kind: UnpaidKind }) => asksTheClient(u.kind);
+  // the ones that ask something first, as money that asks leads: the
+  // first alert, which says the pause, then says it of a payment that asks
   const unpaid = [
     ...plan.unpaid.map((u) => ({
       key: u.jobId,
@@ -195,8 +197,7 @@ export function useOnHold(
         href: billHref(b.billId),
       },
     })),
-  ];
-  const asks = (u: { kind: UnpaidKind }) => asksTheClient(u.kind);
+  ].sort((a, b) => Number(asks(b)) - Number(asks(a)));
   const first = unpaid.find(asks);
 
   const alerts = unpaid.map((u, i): Alert => ({
@@ -220,12 +221,12 @@ export function useOnHold(
         {asks(u)
           ? `${forClient ? t.w.couldntTake : "The client's payment didn't go through for "}${u.what}.`
           : forClient
-            ? `${t.w.notYet(u.what)} ${t.clientFix.waiting}`
+            ? `${t.w.notYet(u.what)} ${t.NOTHING_TO_DO}`
             : `The client's payment for ${u.what} hasn't gone through yet. ${officeFix.waiting}`}
         {i === 0 &&
           (forClient
-            ? ` ${t.BOOKED_GO_AHEAD}`
-            : " Jobs already booked still go ahead, but no more are booked until it's paid.")}
+            ? ` ${t.noMoreCleans(asks(u))}`
+            : " No more jobs are booked until it's paid.")}
       </p>
     ),
   }));

@@ -241,7 +241,7 @@ export const unpaidEmail = (
   },
 ): Email => {
   const w = words[lang];
-  const { notTaken, PLAN_PAUSED, UPDATE_AND_RETRY, UPDATE_CARD } =
+  const { notTaken, noMoreCleans, UPDATE_AND_RETRY, UPDATE_CARD } =
     messages[lang];
   return {
     lang,
@@ -256,7 +256,8 @@ export const unpaidEmail = (
       ),
       cleanDetails(lang, clean),
       paragraph(w.unpaid.please(UPDATE_AND_RETRY)),
-      ...(held ? [paragraph(PLAN_PAUSED)] : []),
+      // sent once it's theirs to put right (nowTheirs), so until it's paid
+      ...(held ? [paragraph(noMoreCleans(true))] : []),
       cleanButton(lang, jobId, UPDATE_CARD),
     ],
   };

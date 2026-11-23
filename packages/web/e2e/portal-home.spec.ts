@@ -157,11 +157,14 @@ test("a paused plan, nothing booked and nothing to do, says so calmly above the 
 
   await page.goto("/portal");
   await expect(why(page)).toHaveText(
-    "Your cleaning plan is paused. A payment on it hasn't gone through yet. We'll try again by ourselves, so there's nothing you need to do.",
+    "Your cleaning plan is paused. A payment on it is pending. Nothing you need to do.",
   );
-  await expect(
-    page.getByRole("region", { name: "Your cleaning plan" }),
-  ).toContainText("Nothing's booked until it goes through.");
+  const plan = page.getByRole("region", { name: "Your cleaning plan" });
+  await expect(plan).toContainText("Nothing's booked until it goes through.");
+  // nothing to do, so its way to the plan is outlined, not the primary
+  const seePlan = plan.getByRole("link", { name: "See your plan" });
+  await expect(seePlan).toHaveClass(/(^|\s)border-primary(\s|$)/);
+  await expect(seePlan).not.toHaveClass(/(^|\s)bg-primary(\s|$)/);
   // nothing asked of them: the usual step stays
   await expect(
     page.getByRole("link", { name: "Request a quote", exact: true }),

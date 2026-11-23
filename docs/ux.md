@@ -158,7 +158,12 @@ Cleaner's Your jobs render through `HomePage`
   the tiles meanwhile; while it asks something out of the usual (money
   owed that asks, a price change, a crew who couldn't get in), the title
   row's action stands aside too. A paused plan with nothing to do is the
-  plan's card, its alert calm (info). With nothing waiting anywhere,
+  plan's card, its alert calm (info), its way to the plan outlined. Money owed that asks nothing (a
+  payment we try again ourselves) is Payments' card alone, calm: info,
+  "Payment pending" and one line, that there's nothing to do (and, while
+  it pauses a plan, "Until it goes through, we won't book more cleans on your
+  plan."), and its way to see it outlined, as the page has no next step.
+  With nothing waiting anywhere,
   offers to answer included, it's a green all-clear card, as a screen says only what's true (the
   `ui` skill). The Office's is its first
   to-do, the server's order.
@@ -757,5 +762,8 @@ stays as it is (#336).
    `docs/screens.md`, a new route's row in the Route index and its entry, or
    the entry of a screen whose parts or their order change.
 
-A change that only applies these rules needs no prototype; it still gets a
-row in `docs/ux-log.md`.
+Steps 2 and 3 are for a new UX question: a new flow, or a new look for a
+screen. Any other change (one to how a flow behaves, a wording change, one
+that only applies these rules) has no prototype to pick from: its design
+is reviewed before its code, as the `ui` skill's Settling a screen sizes
+it, and it still gets a row in `docs/ux-log.md`.

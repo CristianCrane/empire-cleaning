@@ -416,7 +416,7 @@ Keeps: what's next, date tile, shortcut tiles (ux-portal). Renders through
   something of them (the amount, Pay or Update your card), else a price
   change to answer (what it adds, Review the price change), else that
   morning's How we get in, else a quote ready, else the next clean
-  (`DateTile`, the primary), else the plan paused or where they stand;
+  (`DateTile`, the primary), else the plan paused (its way to it outlined) or where they stand;
   news (info Notices); up to four link tiles, what else waits on them
   first (a quote, a price change with what it adds and by when), then
   shortcuts.
@@ -437,7 +437,7 @@ Keeps: what you owe first, fixed header Button (ux-portal). Renders through
 `HomePage` (#435).
 
 - Header: "Payments" in the bar; Your card (secondary), standing aside while the card asks something of them (its tile stays).
-- Body: what you owe (`AnswerCard`: `IconTile`, the primary) or all paid;
+- Body: what you owe (`AnswerCard`: `IconTile`, the primary; for a payment we try again ourselves, Payment pending, one line (and one while it pauses a plan), its link outlined) or all paid;
   Notices of payments clearing; tiles All payments (`?open=history`, the
   Statement by month in place) and Your card (a link).
 
@@ -484,7 +484,7 @@ Keeps: the Record (ux-portal). Renders through `RecordPage` (#432).
   a move is asked (Cancel or Skip its one action, outlined in red) or once
   cancelled (a Button to the plan or to request a quote).
 - Alerts: each only why: Unpaid (one we try again ourselves info, its
-  "hasn't gone through yet", its badge "Not paid yet", as it asks nothing), a price change (one that isn't the next
+  its badge "Payment pending", its line "Nothing you need to do.", as it asks nothing), a price change (one that isn't the next
   step keeping its own Review), a move asked for (Withdraw request, its one action) or
   turned down, the crew couldn't get in (red: when, why, what it cost).
 - Body: Details (`DetailsCard`: a date tile, the time large, the address,
@@ -494,7 +494,7 @@ Keeps: the Record (ux-portal). Renders through `RecordPage` (#432).
   until when it's free to move or cancel); cancelled, or the receipt (the
   quoted price only when a change makes the total differ, the rest by that
   name, a weekly Bill it went on by its number, linked, with its badge;
-  what's still to come by the badge's word, Unpaid or Not paid yet, and the
+  what's still to come by the badge's word, Unpaid or Payment pending, and the
   card it was charged to only once nothing is, or the rest goes on a weekly
   Bill).
 

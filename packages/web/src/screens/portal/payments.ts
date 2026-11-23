@@ -20,11 +20,6 @@ const words = catalog({
     toPay: "To pay",
     billDue: (n: string, day: string) => `Bill ${n} is due by ${day}`,
     andMore: (first: string, n: number) => `${first}, and ${n} more`,
-    // one the payment service is trying again, which we see to (ADR-0022)
-    billNotYet: (n: string) =>
-      `Your payment for bill ${n} hasn't gone through yet`,
-    cleanNotYet: (day: string) =>
-      `Your payment for your ${day} clean hasn't gone through yet`,
     onPage: "You pay each bill on its page",
     noCard: "No card saved yet",
     refundOnBill: (n: string) => `Refund on bill ${n}`,
@@ -48,9 +43,6 @@ const words = catalog({
     toPay: "Por pagar",
     billDue: (n: string, day: string) => `La factura ${n} vence el ${day}`,
     andMore: (first: string, n: number) => `${first}, y ${n} más`,
-    billNotYet: (n: string) => `El pago de la factura ${n} aún no ha pasado`,
-    cleanNotYet: (day: string) =>
-      `El pago de su limpieza del ${day} aún no ha pasado`,
     onPage: "Paga cada factura en su página",
     noCard: "Aún no hay tarjeta guardada",
     refundOnBill: (n: string) => `Devolución de la factura ${n}`,
@@ -90,10 +82,12 @@ type Owed = {
   cents: number;
   // something failed or is past its due date, not just waiting on them
   late: boolean;
-  // whether it asks anything of them: not only a clean the payment service
-  // is trying again, which we see to ourselves
+  // whether it asks anything of them: false for a payment we try again
+  // ourselves (a Bill's or a clean's), which waits on us, and the card
+  // says so calmly (owedAnswer)
   asks: boolean;
-  // why, the most pressing first
+  // why, the most pressing first; for one pending, what it's for (the
+  // card's label says it's pending)
   text: string;
   action: { label: string; href: AppHref };
 };
@@ -115,15 +109,8 @@ const billLink = (billId: string) =>
 
 export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
   const t = saidWith(lang, words);
-  const {
-    w,
-    billNotPaid,
-    cleanNotPaid,
-    formatShortDay,
-    payBill,
-    seeBill,
-    shortDayOf,
-  } = t;
+  const { w, billNotPaid, cleanNotPaid, formatShortDay, payBill, shortDayOf } =
+    t;
   const owing: Owed[] = [
     // a Bill that couldn't be taken, or is past its due date
     ...data.bills
@@ -136,12 +123,12 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         asks: asksTheClient(b.unpaid!.kind),
         text: asksTheClient(b.unpaid!.kind)
           ? billNotPaid(b.number)
-          : w.billNotYet(b.number),
+          : t.p.bill(b.number),
         // nothing to pay on its page while it's ours (#533)
         action: {
           label: asksTheClient(b.unpaid!.kind)
             ? payBill(b.number)
-            : seeBill(b.number),
+            : t.p.seeTheBill,
           href: billLink(b.id),
         },
       })),
@@ -154,7 +141,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         asks: asksTheClient(j.unpaid!),
         text: asksTheClient(j.unpaid!)
           ? cleanNotPaid(shortDayOf(j.startsAt))
-          : w.cleanNotYet(shortDayOf(j.startsAt)),
+          : t.p.yourClean(shortDayOf(j.startsAt)),
         // we try one waiting on the payment service again ourselves
         action: !asksTheClient(j.unpaid!)
           ? {
@@ -186,15 +173,18 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
   // what asks something of them leads (the sort keeps the order otherwise)
   owing.sort((a, b) => Number(b.asks) - Number(a.asks));
   const [first] = owing;
+  // the card is the one that leads, and what's like it: one we try again
+  // ourselves isn't added to what asks to be paid, as it can't be (#533)
+  const alike = owing.filter((o) => o.asks === first?.asks);
   const owed: Owed | null = first
     ? {
-        cents: owing.reduce((sum, o) => sum + o.cents, 0),
-        late: owing.some((o) => o.late),
-        asks: owing.some((o) => o.asks),
+        cents: alike.reduce((sum, o) => sum + o.cents, 0),
+        late: alike.some((o) => o.late),
+        asks: first.asks,
         text:
-          owing.length === 1
+          alike.length === 1
             ? first.text
-            : w.andMore(first.text, owing.length - 1),
+            : w.andMore(first.text, alike.length - 1),
         action: first.action,
       }
     : null;
@@ -214,35 +204,50 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
   };
 }
 
-// a Client's plan as the owed card reads it: paused or not, and its next
-// booked clean
-type PlanNow = Pick<ServicePlanSummary, "status" | "nextStartsAt">;
+// a Client's plan as the owed card reads it: paused or not
+type PlanNow = Pick<ServicePlanSummary, "status">;
 
-// what a paused cleaning plan means, under what's owed: that it's paused
-// till it's paid, and that a paused plan's cleans already booked go ahead,
-// or, with none of them booked, it carries on once it's paid; nothing
-// while no plan is paused. The Bill's alert says it in the same words
-export function pausedLine(plans: PlanNow[], lang: Language): string[] {
+// what a paused cleaning plan means, under what's owed: no more cleans
+// booked until it's paid (or, asking nothing, until it goes through);
+// nothing while no plan is paused. The Bill's alert and the plan's say it
+// in the same words (noMoreCleans)
+export function pausedLine(
+  plans: PlanNow[],
+  lang: Language,
+  asks: boolean,
+): string[] {
   const t = saidWith(lang, words);
-  const paused = pausedPlans(plans);
-  if (paused.length === 0) return [];
-  return [
-    paused.some((p) => p.nextStartsAt)
-      ? t.PLAN_PAUSED
-      : t.PLAN_PAUSED_NONE_BOOKED,
-  ];
+  return pausedPlans(plans).length > 0 ? [t.noMoreCleans(asks)] : [];
 }
 
 // what's owed as a Home's answer (AnswerCard): Payments' card, and the
 // Client's Home's when it asks something of them. One that's late says
-// why above the card (whyAlert); one simply due, in its line. While it
-// pauses a cleaning plan, a line says what that means (pausedLine)
+// why above the card (whyAlert); one simply due, in its line. One that
+// asks nothing, a payment we try again ourselves, is calm: Payment
+// pending, one short line, what it's for and that there's nothing to do,
+// and a way to see it rather than a primary (#493, #536). Either says a
+// paused plan in a line (pausedLine), as a clean's page doesn't say it
 export function owedAnswer(
   owed: Owed,
   lang: Language,
   plans: PlanNow[],
 ): { hero: Hero; why?: Why } {
   const t = saidWith(lang, words);
+  if (!owed.asks) {
+    return {
+      hero: {
+        label: t.paymentPending,
+        icon: Wallet,
+        tone: "info",
+        headline: t.formatMoney(owed.cents),
+        lines: [
+          `${owed.text} · ${t.NOTHING_TO_DO}`,
+          ...pausedLine(plans, lang, false),
+        ],
+        action: { ...owed.action, secondary: true },
+      },
+    };
+  }
   return {
     hero: {
       label: t.w.toPay,
@@ -250,7 +255,10 @@ export function owedAnswer(
       icon: Wallet,
       tone: owed.late ? "danger" : "warning",
       headline: t.formatMoney(owed.cents),
-      lines: [...(owed.late ? [] : [owed.text]), ...pausedLine(plans, lang)],
+      lines: [
+        ...(owed.late ? [] : [owed.text]),
+        ...pausedLine(plans, lang, true),
+      ],
       action: owed.action,
     },
     ...(owed.late && { why: { tone: "danger", lead: `${owed.text}.` } }),

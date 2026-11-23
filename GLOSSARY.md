@@ -257,7 +257,7 @@ _Spanish_: factura; a voided one is cancelada
 
 **Unpaid**:
 A Job whose Balance, or part of it, or whose fee failed to be charged and has not yet been recovered; or a Bill whose Charge failed, or that is still unpaid after its due date.
-_On screen_: "Unpaid"; one we try again ourselves, which asks nothing of the Client (the payment service unreachable, a card charge still processing), its badge "Not paid yet" (Spanish "Aún sin pagar"), and its alerts say what happened, "hasn't gone through yet" ("aún no ha pasado"); the Office's Bill, while our card payment on it may still take the money, says instead what that holds back: "You can't cancel this bill or record a payment while its card payment is going through"
+_On screen_: "Unpaid"; one we try again ourselves, which asks nothing of the Client (the payment service unreachable, a card charge still processing), "Payment pending" (Spanish "Pago pendiente"), its one line "Nothing you need to do." ("No tiene que hacer nada."); the Office's Bill, while our card payment on it may still take the money, says instead what that holds back: "You can't cancel this bill or record a payment while its card payment is going through"
 _Avoid_: Overdue, outstanding, failed payment
 _Spanish_: sin pagar
 
