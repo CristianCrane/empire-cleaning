@@ -841,6 +841,41 @@ describe("an Unpaid Job", () => {
     expect(amounts()).toHaveLength(2);
   });
 
+  // #534, F13: a retry sent the attempt's request again, which names the
+  // card it was first asked on. One that named another card isn't sent
+  // again: a quarter hour after it was last sent, so it can't still be
+  // running at the provider, it's looked up, and the card saved now is
+  // asked (https://docs.stripe.com/error-low-level#content-errors)
+  test("is one Unpaid while the provider was down, then charged on the card the Client saves, a quarter hour after it was last tried", async () => {
+    const { cory, client, jobId } = await bookedJob();
+    testPayments().goDown();
+    await complete(cory.agent, jobId).expect(200);
+    testClock().advance({ minutes: 15 });
+    // the Clock sends it again, on the card it was asked on, and still
+    // hears nothing
+    await settleOpenPayments();
+    testPayments().goDown(false);
+    const before = testPayments().charges.length;
+
+    testClock().advance({ minutes: 5 });
+    const form = (
+      await client.post("/api/payment-methods/mine/card-form").expect(200)
+    ).body as { secret: string };
+    testPayments().fillCardForm(form.secret, "mastercard");
+    await client
+      .put("/api/payment-methods/mine")
+      .send({ token: form.secret })
+      .expect(200);
+    expect(testPayments().charges).toHaveLength(before);
+
+    testClock().advance({ minutes: 10 });
+    await settleOpenPayments();
+    const saved = testPayments().paymentMethods.at(-1)!;
+    expect(testPayments().charges.slice(before)).toEqual([
+      expect.objectContaining({ paymentMethodId: saved.paymentMethodId }),
+    ]);
+  });
+
   test("is one declined once the provider is back: the Client is told then", async () => {
     const { cory, jobId } = await bookedJob();
     testPayments().goDown();

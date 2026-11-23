@@ -987,6 +987,60 @@ describe("trying again after the Deposit's reply was lost", () => {
     expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
   });
 
+  // #534, F13, for a Deposit off a saved card: the second try sent the
+  // first's request again, on the card the Client had then
+  test("the Office's second try, after the Client saved another card, takes the Deposit from that card", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+    const acceptForCasey = () =>
+      office
+        .post(`/api/quotes/${quote.id}/accept`)
+        .send({ revisionId: quote.offer!.id, serviceKey: SEEDED.deep });
+    testPayments().goDown();
+    await acceptForCasey().expect(409);
+    testPayments().goDown(false);
+    await addCard(client);
+
+    // the first may still be running at the provider for a quarter hour
+    expect((await acceptForCasey().expect(409)).body.message).toBe(
+      "Something went wrong taking the payment, so nothing was booked. Please try again in a few minutes.",
+    );
+    testClock().advance({ minutes: 15 });
+    await acceptForCasey().expect(200);
+
+    expect(depositsAtProvider()).toEqual([
+      expect.objectContaining({
+        paymentMethodId: testPayments().paymentMethods.at(-1)!.paymentMethodId,
+      }),
+    ]);
+  });
+
+  // and so for a card typed in: it's never the saved card asked before
+  test("the Client's second try with a card typed in, after one on their saved card, takes the Deposit from the card typed in", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+    const saved = testPayments().paymentMethods.at(-1)!;
+    testPayments().goDown();
+    await accept(client, quote).expect(409);
+    testPayments().goDown(false);
+
+    await payNow(client, quote).expect(409);
+    testClock().advance({ minutes: 15 });
+    await payNow(client, quote).expect(200);
+
+    const typedIn = testPayments().paymentMethods.at(-1)!;
+    expect(typedIn.paymentMethodId).not.toBe(saved.paymentMethodId);
+    expect(depositsAtProvider()).toEqual([
+      expect.objectContaining({ paymentMethodId: typedIn.paymentMethodId }),
+    ]);
+  });
+
   test("the Client's second try with their saved card takes no second Deposit", async () => {
     await cleaners();
     const office = await signInAsOffice();

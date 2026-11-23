@@ -341,11 +341,14 @@ export const settleJob = async (
     const billed = isBilledWeekly(job!, client, {
       lines: before.bills.length,
     });
-    // billed, or owing nothing more, a try would ask for nothing now
+    // billed, owing nothing more, or with no card, a try would ask for
+    // nothing now
     const earlier = await recordTakenEarlier(
       tx,
       { jobId, kind: kindOf(job!) },
-      !billed && before.owedCents > 0 ? { amount: before.owedCents } : null,
+      !billed && before.owedCents > 0 && method
+        ? { amount: before.owedCents, card: method.gatewayRef }
+        : null,
     );
     const found = "unknown" in earlier ? [] : earlier;
     const ledger = found.length > 0 ? await ledgerOf(job!, tx) : before;
