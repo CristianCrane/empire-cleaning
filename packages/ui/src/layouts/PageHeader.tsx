@@ -270,14 +270,18 @@ function useScrolledAway() {
   const [away, setAway] = useState(false);
   useEffect(() => {
     if (!element) return setAway(false);
+    // a busy browser can hand over several reports at once, oldest first:
+    // the newest is where the element is now (#539)
     const watch = new IntersectionObserver(
-      ([entry]) =>
+      (entries) => {
+        const entry = entries.at(-1);
         setAway(
           !!entry &&
             entry.intersectionRatio < 1 &&
             entry.boundingClientRect.height > 0 &&
             entry.boundingClientRect.top < 0,
-        ),
+        );
+      },
       { threshold: 1 },
     );
     watch.observe(element);
