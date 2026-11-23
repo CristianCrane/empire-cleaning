@@ -110,7 +110,8 @@ describe("what a Client owes now", () => {
         href: href("/portal/bills/$billId", { billId: "bill" }),
       },
     });
-    // the declined one leads, though the waiting one came first
+    // the declined one leads, though the waiting one came first, and is
+    // the card alone: the waiting one can't be paid
     expect(
       moneyNow(
         data({
@@ -125,9 +126,10 @@ describe("what a Client owes now", () => {
         }),
       ).owed,
     ).toMatchObject({
+      cents: 125350,
       asks: true,
       late: true,
-      text: "We couldn't take payment for bill EC-000042, and 1 more",
+      text: "We couldn't take payment for bill EC-000042",
     });
   });
 

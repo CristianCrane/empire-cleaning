@@ -172,15 +172,18 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
   // what asks something of them leads (the sort keeps the order otherwise)
   owing.sort((a, b) => Number(b.asks) - Number(a.asks));
   const [first] = owing;
+  // the card is the one that leads, and what's like it: one we try again
+  // ourselves isn't added to what asks to be paid, as it can't be (#533)
+  const alike = owing.filter((o) => o.asks === first?.asks);
   const owed: Owed | null = first
     ? {
-        cents: owing.reduce((sum, o) => sum + o.cents, 0),
-        late: owing.some((o) => o.late),
-        asks: owing.some((o) => o.asks),
+        cents: alike.reduce((sum, o) => sum + o.cents, 0),
+        late: alike.some((o) => o.late),
+        asks: first.asks,
         text:
-          owing.length === 1
+          alike.length === 1
             ? first.text
-            : w.andMore(first.text, owing.length - 1),
+            : w.andMore(first.text, alike.length - 1),
         action: first.action,
       }
     : null;
