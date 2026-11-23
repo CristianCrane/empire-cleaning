@@ -243,27 +243,19 @@ const jobHref = href("/portal/jobs/$jobId", { jobId: "job" });
 describe("what a paused plan means, under what's owed", () => {
   test("nothing while no plan is paused", () => {
     expect(pausedLine([])).toEqual([]);
-    expect(
-      pausedLine([{ status: "active", nextStartsAt: WEEK_LATER }]),
-    ).toEqual([]);
+    expect(pausedLine([{ status: "active" }])).toEqual([]);
   });
 
   // what the pause does, true whether or not its cleans are booked, so
   // it never says booked cleans go ahead when none are (#532's U5)
-  test("a paused plan books no more cleans until it's paid, booked or not", () => {
-    for (const nextStartsAt of [WEEK_LATER, null])
-      expect(
-        pausedLine([
-          { status: "active", nextStartsAt: null },
-          { status: "on_hold", nextStartsAt },
-        ]),
-      ).toEqual(["Until it's paid, we won't book more cleans on your plan."]);
+  test("a paused plan books no more cleans until it's paid", () => {
+    expect(pausedLine([{ status: "active" }, { status: "on_hold" }])).toEqual([
+      "Until it's paid, we won't book more cleans on your plan.",
+    ]);
   });
 
   test("asking nothing of them, until it goes through", () => {
-    expect(
-      pausedLine([{ status: "on_hold", nextStartsAt: WEEK_LATER }], false),
-    ).toEqual([
+    expect(pausedLine([{ status: "on_hold" }], false)).toEqual([
       "Until it goes through, we won't book more cleans on your plan.",
     ]);
   });

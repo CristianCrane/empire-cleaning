@@ -204,9 +204,8 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
   };
 }
 
-// a Client's plan as the owed card reads it: paused or not, and its next
-// booked clean
-type PlanNow = Pick<ServicePlanSummary, "status" | "nextStartsAt">;
+// a Client's plan as the owed card reads it: paused or not
+type PlanNow = Pick<ServicePlanSummary, "status">;
 
 // what a paused cleaning plan means, under what's owed: no more cleans
 // booked until it's paid (or, asking nothing, until it goes through);

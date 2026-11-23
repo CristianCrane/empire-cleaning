@@ -161,6 +161,9 @@ export function useOnHold(
 ): { alerts: Alert[]; next?: PageAction } {
   const t = useSaid(words);
   if (plan?.status !== "on_hold") return { alerts: [] };
+  const asks = (u: { kind: UnpaidKind }) => asksTheClient(u.kind);
+  // the ones that ask something first, as money that asks leads: the
+  // first alert, which says the pause, then says it of a payment that asks
   const unpaid = [
     ...plan.unpaid.map((u) => ({
       key: u.jobId,
@@ -194,8 +197,7 @@ export function useOnHold(
         href: billHref(b.billId),
       },
     })),
-  ];
-  const asks = (u: { kind: UnpaidKind }) => asksTheClient(u.kind);
+  ].sort((a, b) => Number(asks(b)) - Number(asks(a)));
   const first = unpaid.find(asks);
 
   const alerts = unpaid.map((u, i): Alert => ({
@@ -223,7 +225,7 @@ export function useOnHold(
             : `The client's payment for ${u.what} hasn't gone through yet. ${officeFix.waiting}`}
         {i === 0 &&
           (forClient
-            ? ` ${t.noMoreCleans(Boolean(first))}`
+            ? ` ${t.noMoreCleans(asks(u))}`
             : " No more jobs are booked until it's paid.")}
       </p>
     ),

@@ -498,7 +498,12 @@ const settledLines = (lang: Language, settled: SettledJob[]) => {
           : w.refundsTo(card);
     lines.push(`${what}${refunded ? ` ${w.REFUND_DAYS}` : ""}`);
   }
-  const failed = settled.find((s) => s.settled.failure);
+  // one that asks something of them first, so its fix, the pause line and
+  // the button below all follow the same payment
+  const failed =
+    settled.find(
+      (s) => s.settled.failure && asksTheClient(unpaidKind(s.settled.failure)),
+    ) ?? settled.find((s) => s.settled.failure);
   if (failed) {
     lines.push(
       `${notTaken(w.PAYMENT, card)} ${clientFix[unpaidKind(failed.settled.failure!)]}`,

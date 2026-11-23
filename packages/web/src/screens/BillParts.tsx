@@ -92,7 +92,7 @@ const words = catalog({
     made: "Emitida",
     howPaid: "Cómo se paga",
     onItsPage: "En su página, con tarjeta o banco",
-    whatFor: "Por qué es",
+    whatFor: "Para qué es",
     taxIncluded: "Impuestos incluidos",
     print: "Imprimir",
   },
