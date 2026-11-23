@@ -5,6 +5,9 @@ import {
   CalendarClock,
   CalendarX,
   CircleAlert,
+  CircleCheck,
+  CircleX,
+  ClipboardPen,
   CreditCard,
   Send,
   Undo2,
@@ -20,7 +23,7 @@ import type {
 import { Timeline, TimelineItem } from "@empire-cleaning/ui";
 import { wasSkipped, screenWords } from "../format.ts";
 import { jobStatusIcon } from "../icons.ts";
-import { feeNameOf, wontHappen } from "./JobCompletion.tsx";
+import { feeNameOf, whatOf, wontHappen } from "./JobCompletion.tsx";
 
 const { assignmentStateLabel, cancelledLabel } = screenWords.en;
 
@@ -127,6 +130,40 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       title: job.completion.completedBy
         ? `Done by ${job.completion.completedBy.name}`
         : "Done",
+    });
+    // each price change: reported by whoever marked it done, then sent to
+    // the client and answered, when it was
+    const by = job.completion.completedBy?.name ?? "The cleaner";
+    job.completion.adjustments.forEach((a) => {
+      const what = whatOf(a);
+      moments.push({
+        key: `reported-${a.id}`,
+        at: a.reportedAt,
+        icon: ClipboardPen,
+        title: `${by} reported a price change: ${what}`,
+      });
+      if (a.proposedAt) {
+        moments.push({
+          key: `proposed-${a.id}`,
+          at: a.proposedAt,
+          icon: Send,
+          title: `Price change sent to the client: ${what}`,
+        });
+      }
+      if (a.answeredAt) {
+        moments.push({
+          key: `answered-${a.id}`,
+          at: a.answeredAt,
+          icon: a.status === "approved" ? CircleCheck : CircleX,
+          title: `${
+            a.status === "approved"
+              ? "The client approved"
+              : a.status === "declined"
+                ? "The client declined"
+                : "The client didn't answer"
+          } the price change: ${what}`,
+        });
+      }
     });
   }
   const { cancellation, noAccess } = job;

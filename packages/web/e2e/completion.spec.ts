@@ -213,6 +213,17 @@ test(
 
     await page.reload();
     await expect(adjustments).toContainText("Approved");
+    // each step of it in History, who reported it first (#493)
+    const history = page.getByRole("region", { name: "History" });
+    await expect(history).toContainText(
+      "Cory Cleaner reported a price change: More time",
+    );
+    await expect(history).toContainText(
+      "Price change sent to the client: More time",
+    );
+    await expect(history).toContainText(
+      "The client approved the price change: More time",
+    );
   },
 );
 
@@ -331,13 +342,13 @@ test("Office Staff correct the Condition and undo a completion made by mistake",
 
   // the condition the cleaner found, a fact; corrected from the header
   const completed = page.getByRole("region", { name: "How it went" });
-  await expect(completed).toContainText("HeavyHow dirty the home was");
+  await expect(completed).toContainText("HeavyHow dirty it was");
   await pageAction(page, "Correct the condition");
   const correct = page.getByRole("dialog", { name: "Correct the condition" });
   await correct.getByText("Light", { exact: true }).click();
   await correct.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Condition corrected")).toBeVisible();
-  await expect(completed).toContainText("LightHow dirty the home was");
+  await expect(completed).toContainText("LightHow dirty it was");
   await expect(page.getByText("Done", { exact: true })).toBeVisible();
   // done, paid, nothing waiting: correcting it is no next step
   await expectNothingNext(page);

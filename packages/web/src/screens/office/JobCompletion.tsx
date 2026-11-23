@@ -203,7 +203,7 @@ function PriceForm({
 }
 
 // what an Adjustment is about: the Add-on, or extra time
-const whatOf = (a: AdjustmentView) =>
+export const whatOf = (a: AdjustmentView) =>
   a.kind === "extra_time" ? "More time" : a.addOnName!;
 
 // what happened to it on the day, in short for the Table, in full when

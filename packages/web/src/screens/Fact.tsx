@@ -9,11 +9,11 @@ const words = catalog({
   en: {
     floorArea: "Floor area",
     // the condition a cleaner found on a Job, as its pages say it
-    howDirty: "How dirty the home was",
+    howDirty: "How dirty it was",
   },
   es: {
     floorArea: "Superficie",
-    howDirty: "Qué tan sucia estaba la casa",
+    howDirty: "Qué tan sucio estaba",
   },
 });
 

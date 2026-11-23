@@ -337,7 +337,7 @@ const alertsFor = (job: OfficeJob, next?: PageAction): Alert[] => {
       children: (
         <p>
           <strong>{firstNameOf(job.client.name)} wants regular visits.</strong>{" "}
-          This was the first clean here, and this home has no cleaning plan.
+          This was the first clean here, and there's no cleaning plan here.
         </p>
       ),
     });

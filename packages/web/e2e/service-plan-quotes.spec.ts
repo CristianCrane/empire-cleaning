@@ -56,7 +56,7 @@ const startPlan = async (page: Page) => {
   // the fact the step rests on, above it
   await expect(
     page.getByText(
-      "Casey wants regular visits. This was the first clean here, and this home has no cleaning plan.",
+      "Casey wants regular visits. This was the first clean here, and there's no cleaning plan here.",
     ),
   ).toBeVisible();
   await page.getByRole("button", { name: "Quote a cleaning plan" }).click();
