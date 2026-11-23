@@ -167,6 +167,7 @@ export const chargeAttempts = pgTable(
     // the Job, Bill or Quote it's for, as `kind` says
     forId: uuid("for_id").notNull(),
     // the provider call and what it was asked with, to ask again just so
+    // while the caller would ask the same card (ADR-0022)
     request: jsonb("request").notNull(),
     status: chargeAttemptStatus("status").notNull().default("pending"),
     amountCents: integer("amount_cents").notNull(),
@@ -175,6 +176,9 @@ export const chargeAttempts = pgTable(
     reason: text("reason"),
     // by the Clock: the provider forgets its key a day later
     askedAt: timestamp("asked_at", { withTimezone: true }).notNull(),
+    // when it was last sent to the provider: asked again within the day,
+    // each send may still be running there for a while after
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull(),
     ...timestamps,
   },
   (t) => [index("charge_attempts_for_idx").on(t.kind, t.forId)],
