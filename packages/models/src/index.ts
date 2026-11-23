@@ -1652,6 +1652,15 @@ export type JobPayment = {
   paidCents: number;
   // what weekly Bills have billed for it (ADR-0016), which they now owe
   billedCents: number;
+  // those Bills, oldest first, each with what it billed for it and what
+  // its Charges gave back for it
+  bills: (Pick<
+    BillSummary,
+    "id" | "number" | "status" | "unpaid" | "totalCents"
+  > & {
+    cents: number;
+    refundedCents: number;
+  })[];
   // still to take (positive) or to give back (negative)
   owedCents: number;
   // the Client's saved Payment Method, e.g. "Visa ending 4242"

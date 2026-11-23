@@ -303,7 +303,11 @@ export const receiptEmail = (
       amounts(
         lang,
         [
-          [w.QUOTED, quotedCents],
+          // the quoted price only where a change makes the total differ,
+          // as the clean's receipt says it
+          ...(adjustments.length > 0
+            ? [[w.QUOTED, quotedCents] as [string, number]]
+            : []),
           ...adjustments.map((a): [string, number] => [
             changeLabel(lang, a),
             a.totalCents,

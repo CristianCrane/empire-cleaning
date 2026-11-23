@@ -52,7 +52,7 @@ export const quoteTitle = (lang: Language, q: QuoteSummary) =>
     ? `${said[lang].quoteKindName(q.kind)}, ${q.service.name}`
     : saidWith(lang, words).w.quoteFor(q.service.name);
 
-// the most pressing thing about a home: its plan, a Quote to answer, the
+// the most pressing thing about a home: its plan, a Quote ready, the
 // next clean, a Quote we're preparing, or nothing
 export function standingOf(
   lang: Language,

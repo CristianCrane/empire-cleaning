@@ -82,7 +82,12 @@ import {
   servicePlans,
   servicePlanVisits,
 } from "../service-plans/service-plans.schema.ts";
-import { billedOf, isBilledWeekly, owesOnBill } from "./billed-weekly.ts";
+import {
+  billLinesOf,
+  billNumber,
+  isBilledWeekly,
+  owesOnBill,
+} from "./billed-weekly.ts";
 import { billLines, bills, type Bill, type BillLine } from "./bills.schema.ts";
 import { cleanOf } from "../services/services.ts";
 import { log, monitoring } from "../../services/monitoring/index.ts";
@@ -91,10 +96,6 @@ import { log, monitoring } from "../../services/monitoring/index.ts";
 const CREDIT_REFUND_DAYS = 30;
 // a Bill paid on its page is first reminded this many days before it's due
 const BILL_REMINDER_DAYS = 3;
-
-// EC-000123
-export const billNumber = (number: number) =>
-  `EC-${String(number).padStart(6, "0")}`;
 
 // ---- what a Bill bills ----
 
@@ -232,24 +233,18 @@ type NewLine = Omit<
 >;
 
 // What a Job's next Bill bills: each part less what Bills not voided have
-// billed for it already, so nothing is billed twice; whatever was billed and
-// is no longer owed comes off, as a correction. Nothing for a Job never
-// billed that nets to nothing, such as a fee its Deposit already covers.
-const linesFor = async (job: Job, tx: Tx | typeof db): Promise<NewLine[]> => {
+// billed for it already (`before`, billLinesOf), so nothing is billed twice;
+// whatever was billed and is no longer owed comes off, as a correction.
+// Nothing for a Job never billed that nets to nothing, such as a fee its
+// Deposit already covers.
+const linesFor = async (
+  job: Job,
+  before: Awaited<ReturnType<typeof billLinesOf>>,
+  tx: Tx | typeof db,
+): Promise<NewLine[]> => {
   const parts = await partsOf(job, tx);
-  const before = await tx
-    .select({
-      key: billLines.key,
-      fee: billLines.fee,
-      change: billLines.change,
-      amountCents: billLines.amountCents,
-      taxCents: billLines.taxCents,
-    })
-    .from(billLines)
-    .innerJoin(bills, eq(bills.id, billLines.billId))
-    .where(and(eq(billLines.jobId, job.id), ne(bills.status, "void")));
   const billed = new Map<string, Part>();
-  for (const line of before) {
+  for (const { line } of before) {
     const known = billed.get(line.key);
     billed.set(line.key, {
       key: line.key,
@@ -359,8 +354,9 @@ const makeBill = async (
       .for("update", { of: jobs });
     const lines: NewLine[] = [];
     for (const { job } of candidates) {
-      if (!isBilledWeekly(job, client, await billedOf(job.id, tx))) continue;
-      lines.push(...(await linesFor(job, tx)));
+      const before = await billLinesOf(job.id, tx);
+      if (!isBilledWeekly(job, client, { lines: before.length })) continue;
+      lines.push(...(await linesFor(job, before, tx)));
     }
     if (lines.length === 0) return null;
 

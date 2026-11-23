@@ -1,11 +1,12 @@
-import { useState, type ComponentProps } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
 import { useLoaderData } from "@tanstack/react-router";
 import {
   CalendarClock,
+  Clock,
+  CircleX,
+  ClipboardPenLine,
   CreditCard,
-  FileText,
   MapPin,
-  Users,
   CalendarDays,
   Sparkles,
 } from "lucide-react";
@@ -35,12 +36,14 @@ import {
   DetailsCard,
   Facts,
   type Alert,
+  type DialogState,
   ButtonLink,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { addressOf, formatHours, formatMinutes } from "../format.ts";
+import { addressOf, formatMinutes, howLong } from "../format.ts";
+import { QuoteIcon } from "../icons.ts";
 import { type Said, useSaid } from "../words.ts";
 import {
   AskedRows,
@@ -66,8 +69,10 @@ const words = catalog({
     askedFor: "What you asked for",
     asked: "Asked",
     yourKind: (kind: string) => `Your ${kind.toLowerCase()}`,
+    // its badge, once its day filled up: it waits on us for a new quote
+    fullyBooked: "Fully booked",
     bookedUp: (planDays: boolean, when: string) =>
-      `Sorry, ${planDays ? "one of the days your plan starts on has" : `${when} has`} been fully booked since we sent this quote, so it can't be accepted. We've let our team know, and we'll send you a new quote for another time.`,
+      `Sorry, ${planDays ? "one of the days your plan starts on has" : `${when} has`} been fully booked since we sent this quote, so it can't be accepted. We'll send you a new quote for another time.`,
     details: "Quote details",
     aWeekTax: "A week, with a clean on each day, tax included",
     aCleanTax: (service: string) => `${service}, a clean, tax included`,
@@ -75,13 +80,12 @@ const words = catalog({
     from: (when: string) => `From ${when}`,
     yourClean: "Your clean",
     where: "Where",
-    crewAbout: (cleaners: string, hours: string) =>
-      `${cleaners}, about ${hours}`,
     recommend: (recommended: string, own: string) =>
       `We recommend a ${recommended} for a first visit: it brings your home up to standard. A ${own} costs less.`,
     recommended: "Recommended",
+    // how long it runs, as the clean's page says it
     hoursDeposit: (hours: string, deposit: string) =>
-      `${hours} of cleaning · ${deposit} deposit`,
+      `${hours} · ${deposit} deposit`,
     noLongerFits:
       "No longer fits on that day: it's been booked up since we sent this quote",
     oneADay: "One clean a day. ",
@@ -160,8 +164,9 @@ const words = catalog({
     askedFor: "Lo que pidió",
     asked: "Pedida",
     yourKind: (kind: string) => `Su ${kind.toLowerCase()}`,
+    fullyBooked: "Día lleno",
     bookedUp: (planDays: boolean, when: string) =>
-      `Lo sentimos, ${planDays ? "uno de los días en que empieza su plan se llenó" : `el ${when} se llenó`} después de que le enviamos esta cotización, así que no se puede aceptar. Ya le avisamos a nuestro equipo, y le enviaremos una nueva cotización para otra hora.`,
+      `Lo sentimos, ${planDays ? "uno de los días en que empieza su plan se llenó" : `el ${when} se llenó`} después de que le enviamos esta cotización, así que no se puede aceptar. Le enviaremos una nueva cotización para otra hora.`,
     details: "Detalles de la cotización",
     aWeekTax: "Una semana, con una limpieza cada día, impuestos incluidos",
     aCleanTax: (service: string) =>
@@ -170,13 +175,11 @@ const words = catalog({
     from: (when: string) => `Desde el ${when}`,
     yourClean: "Su limpieza",
     where: "Dónde",
-    crewAbout: (cleaners: string, hours: string) =>
-      `${cleaners}, cerca de ${hours}`,
     recommend: (recommended: string, own: string) =>
       `Le recomendamos una ${recommended} para la primera visita: deja su casa en buen estado. Una ${own} cuesta menos.`,
     recommended: "Recomendada",
     hoursDeposit: (hours: string, deposit: string) =>
-      `${hours} de limpieza · ${deposit} de depósito`,
+      `${hours} · ${deposit} de depósito`,
     noLongerFits:
       "Ya no cabe ese día: se llenó después de que le enviamos esta cotización",
     oneADay: "Una limpieza por día. ",
@@ -271,6 +274,7 @@ function QuotePage({
   title,
   updatedAt = null,
   openUntil = null,
+  badge = <ClientQuoteStatusBadge status={quote.status} />,
   ...page
 }: {
   quote: ClientQuoteView;
@@ -278,9 +282,11 @@ function QuotePage({
   updatedAt?: string | null;
   // while an offer is open
   openUntil?: string | null;
+  // the status's own, unless the page knows more
+  badge?: ReactNode;
 } & Pick<
   ComponentProps<typeof RecordPage>,
-  "alerts" | "details" | "children"
+  "next" | "actions" | "alerts" | "details" | "children"
 >) {
   const t = useSaid(words);
   const subtitle = [
@@ -297,7 +303,7 @@ function QuotePage({
         { label: t.p.yourQuote },
       ]}
       title={title}
-      status={<ClientQuoteStatusBadge status={quote.status} />}
+      status={badge}
       subtitle={subtitle || undefined}
       {...page}
     />
@@ -316,15 +322,20 @@ function AskedQuote({ quote }: { quote: AskedQuoteView }) {
     <QuotePage
       quote={quote}
       title={t.p.yourQuote}
+      // asking again is the one way on from a no
+      next={
+        quote.status === "turned_down"
+          ? {
+              label: t.REQUEST_A_QUOTE,
+              icon: ClipboardPenLine,
+              href: requestQuoteHref,
+            }
+          : undefined
+      }
       alerts={[
         quote.status === "turned_down"
           ? {
               key: "turned down",
-              action: (
-                <ButtonLink variant="text" href={requestQuoteHref}>
-                  {t.REQUEST_A_QUOTE}
-                </ButtonLink>
-              ),
               children: `${t.turnedDown(quote.turnDownReason!)} ${t.ASK_AGAIN}`,
             }
           : siteVisit
@@ -391,12 +402,31 @@ function OfferedQuote({
     quote.options.find((o) => o.serviceKey === serviceKey) ?? quote.options[0]!;
 
   const open = quote.status === "sent";
+  // its day filled up after it was sent: nothing to pay for, and nothing
+  // waits on them, as we send a new quote; saying no is what's left
+  const bookedUp = open && quote.bookable.length === 0;
   return (
     <QuotePage
       quote={quote}
       title={t.w.yourKind(t.quoteKindName(quote.kind))}
       updatedAt={quote.updatedAt}
-      openUntil={open ? quote.expiresAt : null}
+      openUntil={open && !bookedUp ? quote.expiresAt : null}
+      badge={
+        bookedUp ? (
+          <StatusBadge tone="info">{t.w.fullyBooked}</StatusBadge>
+        ) : undefined
+      }
+      actions={
+        bookedUp
+          ? [
+              {
+                label: t.w.decline,
+                icon: CircleX,
+                dialog: (state) => <DeclineDialog quote={quote} {...state} />,
+              },
+            ]
+          : undefined
+      }
       alerts={[
         standing(t, quote, chosen),
         quote.changesPlan &&
@@ -406,19 +436,21 @@ function OfferedQuote({
               <PlanChangeText quote={quote} change={quote.changesPlan} />
             ),
           },
-        // its day filled up after it was sent: nothing to pay for
-        open &&
-          quote.bookable.length === 0 && {
-            key: "booked up",
-            action: <Decline quote={quote} variant="text" />,
-            children: t.w.bookedUp(
-              Boolean(quote.plan && quote.plan.days.length > 1),
-              t.formatDateTime(quote.proposedStartsAt),
-            ),
-          },
+        bookedUp && {
+          key: "booked up",
+          children: t.w.bookedUp(
+            Boolean(quote.plan && quote.plan.days.length > 1),
+            t.formatDateTime(quote.proposedStartsAt),
+          ),
+        },
       ]}
       details={
-        <QuoteDetails quote={quote} chosen={chosen} onChoose={setServiceKey} />
+        <QuoteDetails
+          quote={quote}
+          chosen={chosen}
+          bookedUp={bookedUp}
+          onChoose={setServiceKey}
+        />
       }
     >
       {open &&
@@ -437,10 +469,13 @@ function OfferedQuote({
 function QuoteDetails({
   quote,
   chosen,
+  bookedUp = false,
   onChoose,
 }: {
   quote: QuoteView;
   chosen: QuoteOption;
+  // no option fits its day any more: the page's alert says so
+  bookedUp?: boolean;
   onChoose: (serviceKey: string) => void;
 }) {
   const t = useSaid(words);
@@ -452,7 +487,7 @@ function QuoteDetails({
   return (
     <DetailsCard
       label={t.w.details}
-      tile={<IconTile icon={FileText} size="lg" />}
+      tile={<IconTile icon={QuoteIcon} size="lg" />}
       kicker={
         plan
           ? plan.days.length > 1
@@ -490,13 +525,16 @@ function QuoteDetails({
           line={t.p.yourHome}
         />
         <Fact
-          icon={Users}
-          label={t.onSite}
-          value={t.w.crewAbout(
-            t.cleaners(quote.crewSize),
-            formatHours(chosen.hoursOnSite),
-          )}
-          line={t.onSite}
+          icon={Clock}
+          label={t.howLong}
+          value={
+            plan
+              ? howLong(
+                  t,
+                  ...plan.days.map((_, i) => quote.options[i]!.hoursOnSite),
+                )
+              : howLong(t, chosen.hoursOnSite)
+          }
         />
       </Facts>
 
@@ -528,9 +566,9 @@ function QuoteDetails({
                   {t.formatMoney(option.totalCents)}
                 </span>
                 <span className="text-sm text-fg-muted">
-                  {quote.bookable.includes(option.serviceKey)
+                  {quote.bookable.includes(option.serviceKey) || bookedUp
                     ? t.w.hoursDeposit(
-                        formatHours(option.labourHours),
+                        howLong(t, option.hoursOnSite),
                         t.formatMoney(option.depositCents),
                       )
                     : t.w.noLongerFits}
@@ -809,7 +847,7 @@ function Accept({
         {newCard && <ConsentNote action="paying" />}
         {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <Actions>
-          <Decline quote={quote} variant="quiet" />
+          <Decline quote={quote} />
           <Button
             isPending={action.isPending}
             isDisabled={!payment.isReady}
@@ -893,7 +931,7 @@ function AcceptChange({ quote }: { quote: QuoteView }) {
         </p>
         {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <Actions>
-          <Decline quote={quote} variant="quiet" />
+          <Decline quote={quote} />
           <Button isPending={action.isPending} onPress={() => void accept()}>
             {t.w.acceptNew}
           </Button>
@@ -903,16 +941,23 @@ function AcceptChange({ quote }: { quote: QuoteView }) {
   );
 }
 
-// beside accepting, quietly, or a Notice's text action: they're asked once
-// more before it's done. Not red, as they can ask for a quote again (the
-// `ui` skill)
-function Decline({
+// beside accepting, quietly, or the page's one action once it's booked up:
+// they're asked once more before it's done. Not red, as they can ask for a
+// quote again (the `ui` skill)
+function Decline({ quote }: { quote: QuoteView }) {
+  const t = useSaid(words);
+  return (
+    <DialogTrigger>
+      <Button variant="quiet">{t.w.decline}</Button>
+      <DeclineDialog quote={quote} />
+    </DialogTrigger>
+  );
+}
+
+function DeclineDialog({
   quote,
-  variant,
-}: {
-  quote: QuoteView;
-  variant: "quiet" | "text";
-}) {
+  ...state
+}: { quote: QuoteView } & Partial<DialogState>) {
   const t = useSaid(words);
   const action = useAction(t.p.didntWork);
 
@@ -925,27 +970,24 @@ function Decline({
   };
 
   return (
-    <DialogTrigger>
-      <Button variant={variant}>{t.w.decline}</Button>
-      <Dialog title={t.w.declineQ} role="alertdialog">
-        {({ close }) => (
-          <>
-            <p>{t.w.thanks}</p>
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <Button variant="quiet" onPress={close}>
-                {t.w.keep}
-              </Button>
-              <Button
-                isPending={action.isPending}
-                onPress={() => void decline(close)}
-              >
-                {t.p.decline}
-              </Button>
-            </Actions>
-          </>
-        )}
-      </Dialog>
-    </DialogTrigger>
+    <Dialog title={t.w.declineQ} role="alertdialog" {...state}>
+      {({ close }) => (
+        <>
+          <p>{t.w.thanks}</p>
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              {t.w.keep}
+            </Button>
+            <Button
+              isPending={action.isPending}
+              onPress={() => void decline(close)}
+            >
+              {t.p.decline}
+            </Button>
+          </Actions>
+        </>
+      )}
+    </Dialog>
   );
 }

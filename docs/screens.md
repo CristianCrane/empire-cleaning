@@ -418,7 +418,7 @@ Keeps: what's next, date tile, shortcut tiles (ux-portal). Renders through
 Keeps: Tabs, by month, date tiles (ux-portal). Renders through `ListPage`
 (#433).
 
-- Header: "Your cleans" in the bar.
+- Header: "Cleans" in the bar.
 - Body: Tabs Upcoming · Past; by month, dated rows led by the kind of clean
   (the home too, for a Client with more than one); with nothing in either,
   one quiet line; Show more (N left).
@@ -466,25 +466,45 @@ Keeps: steps, quiet choices (#114). Renders through `FormPage` (#434).
 
 Keeps: the Record (ux-portal). Renders through `RecordPage` (#432).
 
-- Header: Your cleans › date and time; the Service and its status.
-- Actions: while booked, Menu (Pick a new time; Skip or Cancel in red, its
-  dialog saying what it costs); once cancelled, a Button to the plan or to
-  request a quote.
-- Alerts: Unpaid (pay), price change to review, a move asked for (withdraw)
-  or turned down.
-- Body: Details (`DetailsCard`: the time large, the address, icon facts, and
-  while it's still free, until when it's free to move or cancel);
-  cancelled, no access or the receipt.
+- Header: Cleans › date and time; the Service and its status.
+- Actions: the next step the primary, the first that asks something: Update
+  your card (Unpaid, unless we try again ourselves), Review the price change
+  (the one that lapses first, its dialog titled by what it's for), Check how
+  we get in (after the crew couldn't), Pick a new time (booked); the rest
+  behind its arrow (Skip or Cancel last, in red, its dialog saying what it
+  costs; the plan or Request a quote after a No Access). Nothing next while
+  a move is asked (Cancel or Skip its one action, outlined in red) or once
+  cancelled (a Button to the plan or to request a quote).
+- Alerts: each only why: Unpaid (one we try again ourselves info, its
+  "hasn't gone through yet", its badge "Not paid yet", as it asks nothing), a price change (one that isn't the next
+  step keeping its own Review), a move asked for (Withdraw request, its one action) or
+  turned down, the crew couldn't get in (red: when, why, what it cost).
+- Body: Details (`DetailsCard`: a date tile, the time large, the address,
+  icon facts, a row only with something in it (price, how long (no crew
+  count) and the deposit paid only while it's booked, its extras and plan while booked or done),
+  and while it's still free,
+  until when it's free to move or cancel); cancelled, or the receipt (the
+  quoted price only when a change makes the total differ, the rest by that
+  name, a weekly Bill it went on by its number, linked, with its badge;
+  what's still to come by the badge's word, Unpaid or Not paid yet, and the
+  card it was charged to only once nothing is, or the rest goes on a weekly
+  Bill).
 
 #### Client portal > Your quote
 
 Keeps: read like a Quote, paying under it (#165). Renders through `RecordPage` (#432).
 
-- Header: Home › Your quote; the title and its status; "updated · open
+- Header: Home › Your quote; the title and its status (Ready while it's
+  theirs to answer, Fully booked once its day filled up); "updated · open
   until", while it applies.
-- Alerts: how it ended (accepted, declined, expired), what it does to the
-  plan, booked up (decline).
-- Body: Quote details (`DetailsCard`: what it comes to, icon facts); Accept
+- Actions: turned down, Request a quote the primary; booked up, Decline
+  this quote its one action (a Button); else none.
+- Alerts: each only why: how it ended (accepted, declined, expired, turned
+  down), what it does to the plan, booked up.
+- Body: Quote details (`DetailsCard`: what it comes to, icon facts, how
+  long its crew is there, on each option too, a plan's each weekday's
+  joined by "+", or once when they match, no cleaning hours or crew on its
+  weekday cards); Accept
   (Decline beside it, quiet; its confirm not red). While it's being
   prepared: what they asked for.
 

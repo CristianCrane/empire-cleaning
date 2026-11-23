@@ -12,6 +12,7 @@ import {
   signedInAs,
   signInWithLink,
   test,
+  turnDownQuote,
   draftTheQuote,
   addCleaner,
   linkIn,
@@ -348,7 +349,6 @@ test("the Client sees only the latest Revision, from any of its emails", async (
 
 test("Office Staff Turn down a Quote asked for, and the Client is told why", async ({
   page,
-  browser,
 }) => {
   await requestQuoteAsGuest(casey);
   await signInAsOffice(page);
@@ -358,14 +358,7 @@ test("Office Staff Turn down a Quote asked for, and the Client is told why", asy
   // asked for: drafting it is the next step, turning it down behind the
   // arrow
   await expectNextStep(page, "Draft the quote");
-  await pageAction(page, "Turn down");
-  const dialog = page.getByRole("alertdialog", {
-    name: "Turn down this quote?",
-  });
-  await dialog.getByText("Outside the area we clean").click();
-  await dialog.getByRole("button", { name: "Turn down" }).click();
-
-  await expect(page.getByText("Quote turned down")).toBeVisible();
+  await turnDownQuote(page);
   // the story says when and why
   const story = page.getByRole("list", { name: /This quote's story/ });
   await expect(
@@ -376,19 +369,8 @@ test("Office Staff Turn down a Quote asked for, and the Client is told why", asy
   const told = (await emailsTo(casey.email)).find(
     (e) => e.subject === "About your quote from Empire Cleaning",
   );
+  // the email's link shows them the same: portal-quote.spec.ts
   expect(told?.text).toContain("It's outside the area we clean");
-  // the email's link shows them the same
-  const client = await (await browser.newContext()).newPage();
-  await signedInAs(client, casey.email);
-  await client.goto(
-    await linkIn(casey.email, "About your quote from Empire Cleaning"),
-  );
-  await expect(
-    client.getByText(
-      "Sorry, we can't take this one on. It's outside the area we clean.",
-    ),
-  ).toBeVisible();
-  await expect(client.getByText("Turned down")).toBeVisible();
   // closed, so off the list of open Quotes
   await page.goto("/office/quotes");
   await expect(page.getByText("No quotes yet")).toBeVisible();

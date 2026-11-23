@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, ne, sql, sum } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { currentLanguage } from "#services/request";
 import {
   type Card,
@@ -10,8 +10,12 @@ import {
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
-import { billedOf, isBilledWeekly } from "../bills/billed-weekly.ts";
-import { billLines, bills } from "../bills/bills.schema.ts";
+import {
+  billLinesOf,
+  billNumber,
+  isBilledWeekly,
+} from "../bills/billed-weekly.ts";
+import type { Bill } from "../bills/bills.schema.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import {
@@ -68,21 +72,25 @@ type Ledger = {
   billedCents: number;
   // the Charges of those Bills, which a Refund for it comes from first
   billCharges: Charge[];
-  // whether any has
-  billedLines: number;
+  // those Bills, each once, with what each billed for it and what its
+  // Charges gave back for it
+  bills: { bill: Bill; cents: number; refundedCents: number }[];
   owedCents: number;
 };
 
-// the Charges that paid Bills not voided with lines for a Job
-const billChargesOf = async (jobId: string, tx: Tx | typeof db) =>
-  (
-    await tx
-      .selectDistinct({ charge: charges })
-      .from(charges)
-      .innerJoin(bills, eq(bills.id, charges.billId))
-      .innerJoin(billLines, eq(billLines.billId, bills.id))
-      .where(and(eq(billLines.jobId, jobId), ne(bills.status, "void")))
-  ).map((r) => r.charge);
+// the Charges that paid these Bills
+const billChargesOf = async (of: Bill[], tx: Tx | typeof db) =>
+  of.length === 0
+    ? []
+    : tx
+        .select()
+        .from(charges)
+        .where(
+          inArray(
+            charges.billId,
+            of.map((b) => b.id),
+          ),
+        );
 
 // What the Job should have taken against what it has. A Completed Job owes
 // its price with the Adjustments that count, plus the fee if a second Late
@@ -107,13 +115,33 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
     .from(charges)
     .where(eq(charges.jobId, job.id))
     .orderBy(desc(charges.chargedAt), desc(charges.createdAt));
-  const billed = await billedOf(job.id, tx);
-  const billCharges = await billChargesOf(job.id, tx);
-  const [fromBills] = await tx
-    .select({ cents: sum(refunds.amountCents).mapWith(Number) })
+  const onBills = new Map<
+    string,
+    { bill: Bill; cents: number; refundedCents: number }
+  >();
+  for (const { bill, line } of await billLinesOf(job.id, tx))
+    onBills.set(bill.id, {
+      bill,
+      cents: (onBills.get(bill.id)?.cents ?? 0) + line.amountCents,
+      refundedCents: 0,
+    });
+  const billCharges = await billChargesOf(
+    [...onBills.values()].map((b) => b.bill),
+    tx,
+  );
+  // given back for it from Bills' Charges, each to the Bill it came from
+  const fromBills = await tx
+    .select({ cents: refunds.amountCents, chargeId: refunds.chargeId })
     .from(refunds)
     .where(and(eq(refunds.jobId, job.id), isNull(refunds.failedAt)));
-  const billedCents = billed.cents - (fromBills?.cents ?? 0);
+  for (const { cents, chargeId } of fromBills) {
+    const billId = billCharges.find((c) => c.id === chargeId)?.billId;
+    const onBill = billId ? onBills.get(billId) : undefined;
+    if (onBill) onBill.refundedCents += cents;
+  }
+  const billedCents =
+    [...onBills.values()].reduce((total, b) => total + b.cents, 0) -
+    fromBills.reduce((total, r) => total + r.cents, 0);
   const given =
     taken.length === 0
       ? []
@@ -165,7 +193,7 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
     refundedAtProviderCents,
     billedCents,
     billCharges,
-    billedLines: billed.lines,
+    bills: [...onBills.values()],
     owedCents:
       Math.max(owes - refundedAtProviderCents, 0) - paidCents - billedCents,
   };
@@ -176,13 +204,11 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
 // its home waits (WEB-5)
 export const paidUp = async (job: Job, tx: Tx | typeof db = db) => {
   if (job.unpaidSince) return false;
-  if ((await ledgerOf(job, tx)).owedCents > 0) return false;
-  const holding = await tx
-    .select({ status: bills.status })
-    .from(bills)
-    .innerJoin(billLines, eq(billLines.billId, bills.id))
-    .where(and(eq(billLines.jobId, job.id), ne(bills.status, "void")));
-  return holding.every((bill) => bill.status === "paid");
+  const ledger = await ledgerOf(job, tx);
+  return (
+    ledger.owedCents <= 0 &&
+    ledger.bills.every(({ bill }) => bill.status === "paid")
+  );
 };
 
 // where a Job's money stands, for the Office and its Client
@@ -212,6 +238,15 @@ export const paymentOf = async (job: Job): Promise<JobPayment> => {
     })),
     paidCents: ledger.paidCents,
     billedCents: ledger.billedCents,
+    bills: ledger.bills.map(({ bill, cents, refundedCents }) => ({
+      id: bill.id,
+      number: billNumber(bill.number),
+      status: bill.status,
+      unpaid: unpaidOf(currentLanguage(), bill.unpaidSince, bill.unpaidReason),
+      totalCents: bill.totalCents,
+      cents,
+      refundedCents,
+    })),
     owedCents: ledger.owedCents,
     // in the reply's language
     paymentMethod: owner?.method
@@ -301,7 +336,7 @@ export const settleJob = async (
       paymentMethod: method && cardIn(method),
       plan: null,
       billed: isBilledWeekly(job!, client, {
-        lines: ledger.billedLines,
+        lines: ledger.bills.length,
       }),
     };
 

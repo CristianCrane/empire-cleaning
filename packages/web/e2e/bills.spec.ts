@@ -19,6 +19,7 @@ import {
   openTile,
   listRows,
   payThisBill,
+  titleBadge,
 } from "./harness.ts";
 
 // Weekly Bills for commercial Clients (ADR-0016), in the Office and the
@@ -41,10 +42,6 @@ const billed = async (
 };
 
 const heading = (page: Page) => page.getByRole("heading", { level: 1 });
-
-// the Bill's status, beside its heading
-const badge = (page: Page, status: string) =>
-  heading(page).locator("..").getByText(status, { exact: true });
 
 test(
   "Office Staff switch a business to weekly Bills paid on their page, with a billing email",
@@ -150,7 +147,7 @@ test(
     await dialog.getByRole("button", { name: "Record payment" }).click();
 
     await expect(dialog).toBeHidden();
-    await expect(badge(page, "Paid")).toBeVisible();
+    await expect(titleBadge(page, "Paid")).toBeVisible();
     await expect(
       page.getByRole("region", { name: "Bill details" }),
     ).toContainText("Cheque 1042");
@@ -181,7 +178,7 @@ test("Office Staff void a Bill that shouldn't have gone out", async ({
   await dialog.getByRole("button", { name: "Cancel bill" }).click();
 
   await expect(dialog).toBeHidden();
-  await expect(badge(page, "Cancelled")).toBeVisible();
+  await expect(titleBadge(page, "Cancelled")).toBeVisible();
   await expect(
     page.getByRole("region", { name: "Bill details" }),
   ).toContainText("Sent before the Adjustment was agreed");
@@ -228,7 +225,7 @@ test(
     await pay.click();
 
     await expect(page.getByText("Thank you, your bill is paid")).toBeVisible();
-    await expect(badge(page, "Paid")).toBeVisible();
+    await expect(titleBadge(page, "Paid")).toBeVisible();
     await expect(
       page.getByRole("region", { name: "Bill details" }),
     ).toContainText("Paid on this page");
@@ -254,7 +251,7 @@ test("a Bill paid from a bank account is processing until it clears", async ({
   await (await payThisBill(page)).pay.click();
 
   await expect(page.getByText("Your bank payment is on its way")).toBeVisible();
-  await expect(badge(page, "Clearing")).toBeVisible();
+  await expect(titleBadge(page, "Clearing")).toBeVisible();
   await expectNoPageAction(page, "Pay this bill");
 });
 
@@ -332,7 +329,7 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   await expect(details).not.toContainText("Charged to your card");
   await expectNextStep(client, "Pay this bill");
   await (await payThisBill(client)).pay.click();
-  await expect(badge(client, "Paid")).toBeVisible();
+  await expect(titleBadge(client, "Paid")).toBeVisible();
 
   await client.goto(`/portal/plans/${planId}`);
   await expect(client.getByText("Active", { exact: true })).toBeVisible();
@@ -375,3 +372,50 @@ test(
     ).toHaveCount(0);
   },
 );
+
+// a clean's receipt says where the rest of its money went: the Bill, by its
+// number and where it stands, a link to it, and no "Paid" total that is
+// only the Deposit (#493 PR 4's UX review, U2 and U15)
+test("a weekly-billed clean's receipt names its Bill and where it stands", async ({
+  page,
+}) => {
+  const { jobId, billId } = await billed();
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/jobs/${jobId}`);
+
+  // done, how long it was to take goes: the receipt says when it was
+  await expect(page.getByRole("region", { name: "Details" })).not.toContainText(
+    "How long",
+  );
+  const receipt = page.getByRole("region", { name: "Your receipt" });
+  const bill = receipt.getByRole("link", { name: "Bill EC-000001" });
+  await expect(bill.locator("..")).toHaveText("Bill EC-000001Paid");
+  await expect(receipt.getByText("Paid", { exact: true })).toHaveCount(1);
+  // ending on the receipt, for its picture (pr:shots)
+  await expect(bill).toHaveAttribute("href", `/portal/bills/${billId}`);
+});
+
+// a Bill's payment we try again ourselves waits on us: its badge and its
+// alert say so alike, the Client's and the Office's (#493 PR 14)
+test("a Bill we try again ourselves reads as not paid yet, not failed", async ({
+  page,
+  browser,
+}) => {
+  const { billId } = await billed({ failing: "processing" });
+  await signedInAs(page, olive.email);
+  await page.goto(`/office/bills/${billId}`);
+  await expect(titleBadge(page, "Not paid yet")).toBeVisible();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  await client.goto(`/portal/bills/${billId}`);
+  await expect(titleBadge(client, "Not paid yet")).toBeVisible();
+  await expect(client.getByRole("main").getByRole("alert")).toHaveCount(0);
+  await expect(
+    client
+      .getByRole("main")
+      .getByRole("status")
+      .filter({ hasText: "We'll try again by ourselves" }),
+  ).toBeVisible();
+});
