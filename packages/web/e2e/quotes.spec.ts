@@ -191,6 +191,11 @@ test("a Quote waits on a proposed time to be sent, picked in a tap", async ({
   await expect(
     part.getByRole("button", { name: "Tue, Jan 6", exact: true }),
   ).toHaveAttribute("aria-current", "date");
+  await expect(part).toContainText("Open times on Tue, Jan 6");
+  // nothing before today to page back to
+  await expect(
+    part.getByRole("button", { name: "Previous week" }),
+  ).toBeDisabled();
   await part.getByRole("button", { name: "10:00 AM", exact: true }).click();
   await expect(status).toHaveText("Saved");
   await expect(sendTo).toBeEnabled();
@@ -647,6 +652,18 @@ test("the draft says when the proposed time has no room for a clean", async ({
   );
   await expect(status).toHaveText("Saved · No room on Tue, Jan 13 at 9:00 AM");
   await expect(sendIt).toBeEnabled();
+  // the card says so of the clean asked for too, not of the Deep Clean alone
+  await expect(
+    page.getByRole("region", { name: "Standard Clean", exact: true }),
+  ).toContainText(
+    "The client can't pick it at this time: not enough cleaners are free then.",
+  );
+  // and paged off its week, what's wrong with it is still said
+  await proposed.getByRole("button", { name: "Next week" }).click();
+  await expect(
+    proposed.getByRole("status").filter({ hasText: "Picked" }),
+  ).toContainText("Not enough cleaners are free then.");
+  await proposed.getByRole("button", { name: "Show it" }).click();
 
   // and at 10am, room for both
   await page
@@ -679,13 +696,23 @@ test("the draft says when the proposed time has no room for a clean", async ({
     .click();
   await page.keyboard.type("1000PM");
   await expect(proposed).toContainText(
-    "The Deep Clean would run past midnight, so the quote can't be sent with it. Pick an earlier start time.",
+    "The Deep Clean would run past midnight at this time, so the quote can't be sent with it. Pick an earlier start time.",
   );
   await expect(deep).toContainText(
-    "It would run past midnight at this time, so the quote can't be sent.",
+    "It would run past midnight at this time, so the quote can't be sent with it. Pick an earlier start time.",
   );
   await expect(status).toHaveText("Saved · Pick an earlier start time");
   await expect(sendIt).toBeDisabled();
+
+  // the nearest time the Deep Clean ends by midnight, with room for both,
+  // is a tap away, as when it's short of room
+  const late = proposed.getByRole("alert").filter({ hasText: "past midnight" });
+  await expect(late).toContainText(
+    "Tue, Jan 13 at 7:00 PM has room for the Deep Clean too.",
+  );
+  await late.getByRole("button", { name: "Pick that time" }).click();
+  await expect(status).toHaveText("Saved");
+  await expect(sendIt).toBeEnabled();
 });
 
 test("Office Staff change what a Draft is for, and what was asked stays", async ({

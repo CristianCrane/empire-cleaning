@@ -224,7 +224,7 @@ Keeps: a Draft page of its own (#145). Renders through `FormPage` (#434).
   the plan change.
 - Body: one Card: What was asked and the first clean (folded); Service
   (its Type, its own price; the recommended Service's behind a fold) or Plan and
-  each weekday (its Cleaners, then its proposed time); Extras and Terms
+  each weekday (its Cleaners, its own price, then its proposed time); Extras and Terms
   (folded); Proposed time: the open times to pick from, a week's days over
   the viewed day's start times, the date and time fields behind "Type a
   date and time"; folded to the time ("Not picked yet" before one), open

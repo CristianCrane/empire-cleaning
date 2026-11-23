@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import { catalog, type Language } from "@empire-cleaning/models";
+import { catalog, type Language, upperFirst } from "@empire-cleaning/models";
 
 // The language the app gives the design system (ADR-0025): its own words
 // (Close, Next, Back) and every screen built from it follow it. Given by
@@ -96,7 +96,7 @@ export const uiWords = catalog({
       return needed === 0
         ? done
         : confirmed === 0
-          ? falta.charAt(0).toUpperCase() + falta.slice(1)
+          ? upperFirst(falta)
           : `${done}, ${falta}`;
     },
     needed: "Falta",

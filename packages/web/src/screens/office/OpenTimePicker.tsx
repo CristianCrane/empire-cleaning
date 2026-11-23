@@ -38,8 +38,8 @@ const WEEKS = 7;
 // refuses it (too soon, past midnight). `flags` marks the picked tile too,
 // when it's the quote's own clean the lines are about, not only the
 // Service recommended beside it; then `alsoFor` names those others ("the
-// Deep Clean"), when it's room they lack, for the picker to offer the
-// nearest time with room for them too.
+// Deep Clean"), when it's room they lack (ending by midnight among it), for
+// the picker to offer the nearest time with room for them too.
 export type TimeProblem = {
   tone: "warning" | "danger";
   lines: string[];
@@ -240,11 +240,12 @@ export function PickOpenTime({
               apart(a, picked, pickedTime) - apart(b, picked, pickedTime),
           )[0]
       : undefined;
-  // the picked time, said while its tile isn't on screen
+  // the picked time, said while its tile isn't on screen, with its
+  // problem's lines, what's wrong and how to fix it, as over its tile
   const pickedLine =
     picked && pickedTime && viewed !== picked
       ? `Picked: ${formatDay(picked)}, ${formatClock(pickedTime)}${until ? ` ${until}` : ""}${
-          problem ? ", which has a problem." : fits ? ", which has room." : "."
+          !problem && fits ? ", which has room." : "."
         }`
       : undefined;
 
@@ -257,8 +258,12 @@ export function PickOpenTime({
               label={`${formatDay(from)} – ${formatDay(to)}`}
               previous={weekly ? "Earlier weeks" : "Previous week"}
               next={weekly ? "Later weeks" : "Next week"}
-              // never a page all gone: the one before a past first day
-              canGoBack={dayOf(from)?.closed !== "past"}
+              // never a page all gone: back from the page with today, or
+              // a past first day (the server's clock ahead of this one)
+              canGoBack={
+                addDays(from, -step) >= today() &&
+                dayOf(from)?.closed !== "past"
+              }
               onStep={page}
             />
             <div
@@ -338,7 +343,10 @@ export function PickOpenTime({
                   </Button>
                 }
               >
-                {pickedLine}
+                <p>{pickedLine}</p>
+                {problem?.lines.map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
               </Notice>
             )}
             {/* the picked time's problem, over the tile it marks */}
@@ -386,18 +394,25 @@ export function PickOpenTime({
                 No time on {formatDay(viewed)} has room for it.
               </p>
             ) : (
-              groups.map((group) => (
-                <TimeTiles
-                  key={group.name}
-                  label={`${group.name} on ${formatDay(viewed)}${of}`}
-                  heading={group.name}
-                  times={group.times}
-                  chosen={onViewed}
-                  flagged={problem?.flags ? problem.tone : undefined}
-                  until={until}
-                  onPick={(time) => onPick({ date: viewed, time })}
-                />
-              ))
+              <>
+                {/* the day they're for in words, as the strip's mark for
+                    it is a fill (#493's UX review round 2, U6) */}
+                <p className="font-semibold">
+                  Open times on {formatDay(viewed)}
+                </p>
+                {groups.map((group) => (
+                  <TimeTiles
+                    key={group.name}
+                    label={`${group.name} on ${formatDay(viewed)}${of}`}
+                    heading={group.name}
+                    times={group.times}
+                    chosen={onViewed}
+                    flagged={problem?.flags ? problem.tone : undefined}
+                    until={until}
+                    onPick={(time) => onPick({ date: viewed, time })}
+                  />
+                ))}
+              </>
             )}
           </div>
         </>

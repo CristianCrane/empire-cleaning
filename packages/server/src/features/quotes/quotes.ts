@@ -1708,7 +1708,7 @@ const untimelyOf = (
           reason: "past_midnight",
           message:
             own && endsByMidnight(startsAt, toOption(revision, own).hoursOnSite)
-              ? runsPastMidnight(option.serviceName)
+              ? runsPastMidnight(`the ${option.serviceName}`)
               : messages[currentLanguage()].ENDS_BY_MIDNIGHT,
         },
       ];

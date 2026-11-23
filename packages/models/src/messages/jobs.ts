@@ -1,4 +1,5 @@
 import type { DayCapacity } from "../index.ts";
+import { upperFirst } from "../format.ts";
 import { catalog } from "../language.ts";
 
 // What the server and the screens both say about a time for a clean
@@ -25,23 +26,22 @@ export type NoRoom = "past_midnight" | "full" | "crew";
 export const noRoomOf = (room: DayCapacity): NoRoom =>
   !room.endsByMidnight ? "past_midnight" : !room.hasHours ? "full" : "crew";
 
-// each, in the Office's few words (English, ADR-0025), that its lines are
-// built on: "The client can't pick it at this time: that day is too full."
-export const NO_ROOM: Record<NoRoom, string> = {
-  past_midnight: "it would run past midnight",
+// the two that leave a time sendable, in the Office's few words (English,
+// ADR-0025), that its lines are built on: "The client can't pick it at
+// this time: that day is too full."
+export const NO_ROOM: Record<Exclude<NoRoom, "past_midnight">, string> = {
   full: "that day is too full",
   crew: "not enough cleaners are free then",
 };
 
-const sentence = (words: string) =>
-  `${words[0]!.toUpperCase()}${words.slice(1)}`;
-export const DAY_FULL = `${sentence(NO_ROOM.full)} for this job.`;
-export const NO_CREW = `${sentence(NO_ROOM.crew)}.`;
+export const DAY_FULL = `${upperFirst(NO_ROOM.full)} for this job.`;
+export const NO_CREW = `${upperFirst(NO_ROOM.crew)}.`;
 
 // a one-off quote's Service offered beside its own, which alone would run
-// past midnight at its time: Send refuses the quote for it
-export const runsPastMidnight = (serviceName: string) =>
-  `The ${serviceName} would run past midnight, so the quote can't be sent with it. Pick an earlier start time.`;
+// past midnight at its time: Send refuses the quote for it. `subject` is
+// it, "the Deep Clean" where Send says so, "it" in its own aside
+export const runsPastMidnight = (subject: string) =>
+  `${upperFirst(subject)} would run past midnight at this time, so the quote can't be sent with it. Pick an earlier start time.`;
 
 // the Office's way to make room, after what else they can do
 export const MORE_HOURS = "give a cleaner more working hours that day";

@@ -226,9 +226,10 @@ for a dialog. It renders through `FormPage`
   line under it ("Also offered: Deep Clean $299.41"), its price and
   working folded behind it, and in the Service part its own price behind
   a fold (the user, on #527: "The recommendation is an aside"). Under
-  that line, unfolded, why the client can't pick it at the time proposed
-  ("The client can't pick it at this time: that day is too full."), a
-  warning; in danger when it would run past midnight, which Send refuses.
+  each option's price, unfolded, the one asked for and that line both,
+  why the client can't pick it at the time proposed ("The client can't
+  pick it at this time: that day is too full."), a warning; in danger
+  when it would run past midnight, which Send refuses.
 - **Its button at the card's foot**, after what saving agrees to (a
   card's consent), in view. A form with a price or a Send (the Draft, New
   quote) makes its button the page's next step instead (FormPage's
@@ -711,13 +712,14 @@ stays as it is (#336).
   user's pick B): a strip of a week's days, each saying why it's shut
   ("No cleaners" when no Cleaner works it, as its fix is more hours, "No
   room" when it's full), over the viewed day's start times that have room
-  for the clean asked for, those without left out; the time picked fills
+  for the clean asked for, under its name ("Open times on Tue, Jan 6"),
+  those without left out; the time picked fills
   its tile with when it ends, or is marked with its problem, which a line
   over it says, naming the Service offered beside it when it's that one's
-  problem, and the nearest time that has room for it too, with "Pick that
-  time";
-  paged off its tile, a line says the time picked and "Show it" goes back
-  to it. A plan's new weekday comes with no time, for the weekday the
+  problem, and the nearest time that has room for it too (ending by
+  midnight among it), with "Pick that time"; paged off its tile, a line
+  says the time picked and its problem, and "Show it" goes back to it.
+  Back is off where the page before has no day to come. A plan's new weekday comes with no time, for the weekday the
   client asked for, and once dated pages through its own weekday's dates.
   The fields are behind "Type a date and time". The part folds to its time
   on load when that's set, has room and can be sent, and again so when a

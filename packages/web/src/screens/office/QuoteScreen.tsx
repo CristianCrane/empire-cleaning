@@ -56,6 +56,7 @@ import {
   MORE_HOURS,
   NO_ROOM,
   noRoomOf,
+  runsPastMidnight,
   formats,
   messages,
 } from "@empire-cleaning/models";
@@ -915,7 +916,12 @@ function DraftPrices({
           <FoldedPrice
             price={own}
             working={own.suggested}
-            under={own.overrideCents !== null && <PricedFrom option={own} />}
+            under={
+              <>
+                {own.overrideCents !== null && <PricedFrom option={own} />}
+                <NoRoomLine room={own.room} />
+              </>
+            }
           >
             <OptionRows
               option={own}
@@ -962,7 +968,12 @@ function DraftPrices({
               working={option.suggested}
               perClean
               under={
-                option.overrideCents !== null && <PricedFrom option={option} />
+                <>
+                  {option.overrideCents !== null && (
+                    <PricedFrom option={option} />
+                  )}
+                  <NoRoomLine room={option.room} />
+                </>
               }
             >
               <PlanRows
@@ -1053,9 +1064,7 @@ function AlsoOffered({
       </Fold>
       {/* unfolded, as it changes what the client can do; the proposed
           time's part says how to fix it */}
-      {option.room && !option.room.hasRoom && (
-        <NoRoomBeside room={option.room} />
-      )}
+      <NoRoomLine room={option.room} />
     </section>
   );
 }
@@ -1358,8 +1367,16 @@ const timeCheck = ({
     // which the server's line names
     const flags =
       refused.reason !== "past_midnight" || !rooms[own]!.endsByMidnight;
+    const late = options.filter((_, i) => !rooms[i]!.endsByMidnight);
     return {
-      problem: { tone: "danger", lines: [refused.message], flags },
+      problem: {
+        tone: "danger",
+        lines: [refused.message],
+        flags,
+        // a time ending by midnight being room it lacks, the picker's
+        // nearest time with room for it too
+        ...(!flags && { alsoFor: formatList(late.map(describeOption)) }),
+      },
       fits: false,
     };
   }
@@ -1416,17 +1433,18 @@ const roomProblems = (
   });
 };
 
-// Under the Service recommended for a first visit, why the client can't
-// pick it at the time proposed: a warning, as the quote can still be sent,
-// but danger when it would run past midnight, which Send refuses
-function NoRoomBeside({ room }: { room: DayCapacity }) {
+// Under each option's price, why the client can't pick it at the time
+// proposed, so the card, the client's view, doesn't read as if the others
+// can be (#493's UX review round 2, U1): a warning, as the quote can still
+// be sent, but danger when it would run past midnight, which Send refuses.
+// Nothing while it has room, or before it has a time.
+function NoRoomLine({ room }: { room: DayCapacity | null }) {
+  if (!room || room.hasRoom) return null;
   const why = noRoomOf(room);
   return why === "past_midnight" ? (
-    <p className="text-danger-strong">
-      It would run past midnight at this time, so the quote can't be sent.
-    </p>
+    <p className="text-sm text-danger-strong">{runsPastMidnight("it")}</p>
   ) : (
-    <p className="text-warning-strong">
+    <p className="text-sm text-warning-strong">
       The client can't pick it at this time: {NO_ROOM[why]}.
     </p>
   );
@@ -2332,6 +2350,19 @@ function PlanDayFields({
           onChange={(crewSize) => onChange({ crewSize })}
         />
       </FieldRow>
+      {/* its price is beside the form, with the rest; over the time, as
+          the one-off's is in its Service, not under a long picker where it
+          reads as one of the picker's (#493's UX review round 2, U5) */}
+      {option && (
+        <OverrideFields
+          override={day.override}
+          label="one-off"
+          name={`${name}.override`}
+          onChange={(change) =>
+            onChange({ override: { ...day.override, ...change } })
+          }
+        />
+      )}
       <FormPart
         key={foldFor}
         title="Proposed time"
@@ -2366,17 +2397,6 @@ function PlanDayFields({
           }
         />
       </FormPart>
-      {/* its price is beside the form, with the rest */}
-      {option && (
-        <OverrideFields
-          override={day.override}
-          label="one-off"
-          name={`${name}.override`}
-          onChange={(change) =>
-            onChange({ override: { ...day.override, ...change } })
-          }
-        />
-      )}
     </FormPart>
   );
 }

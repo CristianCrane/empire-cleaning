@@ -26,6 +26,7 @@ import {
   quarterHours,
   quarterHoursText,
   timeOf,
+  upperFirst,
 } from "@empire-cleaning/models";
 import { conditions, formWords } from "@empire-cleaning/quote-request";
 import { labels } from "./labels.ts";
@@ -133,11 +134,6 @@ export function timeOfField(time: Time | null | undefined) {
 
 // an instant -> the New York day it falls on, "2026-01-12"
 export const dayOfInstant = (iso: string) => dayOf(new Date(iso));
-
-// words that start a sentence or a label: "the Deep Clean" -> "The Deep
-// Clean"
-const upperFirst = (words: string) =>
-  words.charAt(0).toUpperCase() + words.slice(1);
 
 // a Site Visit's length: 30 -> "30 min", 90 -> "1 h 30 min"
 export const formatMinutes = (minutes: number) => {
