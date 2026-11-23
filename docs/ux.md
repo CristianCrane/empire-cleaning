@@ -757,8 +757,8 @@ stays as it is (#336).
    `docs/screens.md`, a new route's row in the Route index and its entry, or
    the entry of a screen whose parts or their order change.
 
-Steps 2 and 3 are for a new flow. Any other change (one to how a flow
-behaves, a wording change, one that only applies these rules) has no
-prototype to pick from: its design is reviewed before its code, as the `ui`
-skill's Settling a screen sizes it, and it still gets a row in
-`docs/ux-log.md`.
+Steps 2 and 3 are for a new UX question: a new flow, or a new look for a
+screen. Any other change (one to how a flow behaves, a wording change, one
+that only applies these rules) has no prototype to pick from: its design
+is reviewed before its code, as the `ui` skill's Settling a screen sizes
+it, and it still gets a row in `docs/ux-log.md`.
