@@ -180,6 +180,8 @@ const JOBS: JobSeed[][] = [
 
 const clockOf = (h: number) =>
   `${String(Math.floor(h)).padStart(2, "0")}:${h % 1 ? "30" : "00"}`;
+const setOut = (at: LocalDateTime) =>
+  `${formatDay(at.date)} · ${formatClock(at.time)} to ${formatClock(clockOf(hoursOf(at.time) + ON_SITE))}`;
 const clock = (h: number) =>
   `${String(Math.floor(h)).padStart(2, "0")}:${h % 1 ? "30" : "00"}`;
 // New York's offset in winter
@@ -835,6 +837,18 @@ function Draft({ layout, c }: { layout: string; c: Case }) {
           />
           <RoomLine at={d.start} />
         </>
+      ) : layout === "B" && hasRoom(d.start, CREW, ON_SITE) ? (
+        <Fold label={setOut(d.start)}>
+          <div className="flex flex-col gap-4 pt-3">
+            <OpenTimes
+              start={d.start}
+              onPick={placeDay(i)}
+              title={d.title}
+              weekly
+            />
+            <TypedTime at={d.start} onPick={placeDay(i)} />
+          </div>
+        </Fold>
       ) : (
         <>
           <OpenTimes
@@ -847,7 +861,9 @@ function Draft({ layout, c }: { layout: string; c: Case }) {
           {!hasRoom(d.start, CREW, ON_SITE) && <RoomLine at={d.start} />}
         </>
       )}
-      <TypedTime at={d.start} onPick={placeDay(i)} />
+      {!(layout === "B" && hasRoom(d.start, CREW, ON_SITE)) && (
+        <TypedTime at={d.start} onPick={placeDay(i)} />
+      )}
       <Checkbox>Set the one-off price yourself</Checkbox>
     </FormPart>
   ));
@@ -892,7 +908,7 @@ function Draft({ layout, c }: { layout: string; c: Case }) {
                 short: "Standard Clean $194.89",
               }
         }
-        note={plan || start ? "Saved" : "Pick a time to send it"}
+        note={plan || start ? "Saved" : "Pick a time first"}
       >
         <FormPart
           title="What was asked"
@@ -944,7 +960,12 @@ function Draft({ layout, c }: { layout: string; c: Case }) {
         </FormPart>
         {layout === "A" && !plan && proposedPart(1)}
         {layout !== "A" && !plan && (
-          <FormPart title="Proposed time">
+          <FormPart
+            title="Proposed time"
+            {...(c.start && hasRoom(c.start, CREW, ON_SITE) && layout === "B"
+              ? { summary: setOut(c.start) }
+              : {})}
+          >
             <OpenTimes
               start={start}
               onPick={setStart}
