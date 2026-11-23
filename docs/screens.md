@@ -405,8 +405,9 @@ Keeps: the Record, layout D (#493). Renders through `RecordPage` (#432).
   the same); Extras
   (`ExtrasSection`); Crew (`CrewSection`; its line only while someone is
   still needed or to confirm). Once over, Completed or Couldn't get in
-  first, the Job folded under it, its Crew only who'd confirmed: no ticks,
-  no ghosts, no line.
+  first (the condition as "How dirty the home was", the Office's words),
+  the Job folded under it, its Crew only who'd confirmed: no ticks, no
+  ghosts, no line.
 
 #### Cleaner > Cleaner needed
 
