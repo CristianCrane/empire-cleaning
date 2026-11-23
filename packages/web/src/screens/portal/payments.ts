@@ -20,12 +20,6 @@ const words = catalog({
     toPay: "To pay",
     billDue: (n: string, day: string) => `Bill ${n} is due by ${day}`,
     andMore: (first: string, n: number) => `${first}, and ${n} more`,
-    // one we try again ourselves (ADR-0022): what happened, as its Bill
-    // and its clean say it
-    billNotYet: (n: string) =>
-      `Your payment for bill ${n} hasn't gone through yet`,
-    cleanNotYet: (day: string) =>
-      `Your payment for your ${day} clean hasn't gone through yet`,
     onPage: "You pay each bill on its page",
     noCard: "No card saved yet",
     refundOnBill: (n: string) => `Refund on bill ${n}`,
@@ -49,9 +43,6 @@ const words = catalog({
     toPay: "Por pagar",
     billDue: (n: string, day: string) => `La factura ${n} vence el ${day}`,
     andMore: (first: string, n: number) => `${first}, y ${n} más`,
-    billNotYet: (n: string) => `El pago de la factura ${n} aún no ha pasado`,
-    cleanNotYet: (day: string) =>
-      `El pago de su limpieza del ${day} aún no ha pasado`,
     onPage: "Paga cada factura en su página",
     noCard: "Aún no hay tarjeta guardada",
     refundOnBill: (n: string) => `Devolución de la factura ${n}`,
@@ -95,7 +86,8 @@ type Owed = {
   // ourselves (a Bill's or a clean's), which waits on us, and the card
   // says so calmly (owedAnswer)
   asks: boolean;
-  // why, the most pressing first
+  // why, the most pressing first; for one pending, what it's for (the
+  // card's label says it's pending)
   text: string;
   action: { label: string; href: AppHref };
 };
@@ -131,7 +123,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         asks: asksTheClient(b.unpaid!.kind),
         text: asksTheClient(b.unpaid!.kind)
           ? billNotPaid(b.number)
-          : w.billNotYet(b.number),
+          : t.p.bill(b.number),
         // nothing to pay on its page while it's ours (#533)
         action: {
           label: asksTheClient(b.unpaid!.kind)
@@ -149,7 +141,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         asks: asksTheClient(j.unpaid!),
         text: asksTheClient(j.unpaid!)
           ? cleanNotPaid(shortDayOf(j.startsAt))
-          : w.cleanNotYet(shortDayOf(j.startsAt)),
+          : t.p.yourClean(shortDayOf(j.startsAt)),
         // we try one waiting on the payment service again ourselves
         action: !asksTheClient(j.unpaid!)
           ? {
@@ -234,10 +226,11 @@ export function pausedLine(plans: PlanNow[], lang: Language): string[] {
 // what's owed as a Home's answer (AnswerCard): Payments' card, and the
 // Client's Home's when it asks something of them. One that's late says
 // why above the card (whyAlert); one simply due, in its line. One that
-// asks nothing, a payment we try again ourselves, is calm: not paid yet,
-// what happened and that there's nothing to do, in one line as its Bill
-// says it, and a way to see it rather than a primary (#493). While it pauses a cleaning
-// plan, a line says what that means (pausedLine)
+// asks nothing, a payment we try again ourselves, is calm: Payment
+// pending, one short line, what it's for and that there's nothing to do,
+// and a way to see it rather than a primary (#493, #536). Its plan's pause
+// isn't said here: its Bill's page says it, and Home's paused plan card
+// (whats-next). One that asks says its plan's pause in a line (pausedLine)
 export function owedAnswer(
   owed: Owed,
   lang: Language,
@@ -247,14 +240,11 @@ export function owedAnswer(
   if (!owed.asks) {
     return {
       hero: {
-        label: t.notPaidYet,
+        label: t.paymentPending,
         icon: Wallet,
         tone: "info",
         headline: t.formatMoney(owed.cents),
-        lines: [
-          `${owed.text}. ${t.clientFix.waiting}`,
-          ...pausedLine(plans, lang),
-        ],
+        lines: [`${owed.text} · ${t.NOTHING_TO_DO}`],
         action: { ...owed.action, secondary: true },
       },
     };

@@ -157,7 +157,7 @@ test("a paused plan, nothing booked and nothing to do, says so calmly above the 
 
   await page.goto("/portal");
   await expect(why(page)).toHaveText(
-    "Your cleaning plan is paused. A payment on it hasn't gone through yet. We'll try again by ourselves, so there's nothing you need to do.",
+    "Your cleaning plan is paused. A payment on it is pending. Nothing you need to do.",
   );
   await expect(
     page.getByRole("region", { name: "Your cleaning plan" }),

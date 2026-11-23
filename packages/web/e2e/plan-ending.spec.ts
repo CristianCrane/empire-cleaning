@@ -256,9 +256,7 @@ test("a plan On Hold for a payment we try again ourselves asks nothing of the Cl
     page
       .getByRole("status")
       .filter({ hasText: "Your cleaning plan is paused" }),
-  ).toContainText(
-    "We'll try again by ourselves, so there's nothing you need to do.",
-  );
+  ).toContainText("is pending. Nothing you need to do.");
   await expectNothingNext(page);
   await expectNoPageAction(page, "Update your card");
 });

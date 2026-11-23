@@ -751,8 +751,9 @@ const noAccess = (
 // A charge that failed: what it was, and how it's put right, which the
 // page's Update your card does (saving a card tries it again). Red, as
 // it's already late; one we try again ourselves asks nothing and waits on
-// us, so it's info, says it hasn't gone through yet, as a Bill's does,
-// and needs no "Payment needed". (UX pass, #96)
+// us, so it's info, and says only that there's nothing to do, as a
+// Bill's does: the badge says it's pending, the receipt how much.
+// It needs no "Payment needed". (UX pass, #96)
 const unpaid = (
   t: Said & { w: (typeof words)["en"] },
   payment: JobPayment,
@@ -772,9 +773,7 @@ const unpaid = (
         {t.clientFix[kind]}
       </p>
     ) : (
-      <p>
-        {t.notThrough(t.formatMoney(payment.owedCents))} {t.clientFix.waiting}
-      </p>
+      <p>{t.NOTHING_TO_DO}</p>
     ),
   };
 };
@@ -953,7 +952,7 @@ function Receipt({ job }: { job: ClientJobDetail }) {
             <dt className="font-semibold">
               {payment.unpaid && asksTheClient(payment.unpaid.kind)
                 ? t.unpaid
-                : t.notPaidYet}
+                : t.paymentPending}
             </dt>
             <dd className="text-end font-semibold">
               {t.formatMoney(payment.owedCents)}

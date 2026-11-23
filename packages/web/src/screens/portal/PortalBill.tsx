@@ -124,7 +124,7 @@ function useStanding(bill: BillView): Alert | null {
     return {
       key: "unpaid",
       tone: "info",
-      children: `${t.notThrough(t.w.forBill(t.formatMoney(bill.totalCents)))} ${t.clientFix.waiting}${paused}`,
+      children: `${t.NOTHING_TO_DO}${paused}`,
     };
   }
   if (bill.unpaid) {

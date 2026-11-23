@@ -668,14 +668,14 @@ const clientBill = async (clientId: string, billId: string) => {
 export const payWords = catalog({
   en: {
     onItsWay: "Your bank payment for this bill is on its way.",
-    ours: `This bill's payment hasn't gone through yet. ${messages.en.clientFix.waiting}`,
+    ours: `This bill's payment is pending. ${messages.en.NOTHING_TO_DO}`,
     nothingToPay: "There's nothing to pay on this bill.",
     notThrough: (because: string) =>
       `Your payment didn't go through${because}. Please try again, or use another card or bank account.`,
   },
   es: {
     onItsWay: "Su pago bancario de esta factura ya está en camino.",
-    ours: `El pago de esta factura aún no ha pasado. ${messages.es.clientFix.waiting}`,
+    ours: `El pago de esta factura está pendiente. ${messages.es.NOTHING_TO_DO}`,
     nothingToPay: "No hay nada que pagar en esta factura.",
     notThrough: (because: string) =>
       `Su pago no pasó${because}. Vuelva a intentarlo, o use otra tarjeta o cuenta bancaria.`,

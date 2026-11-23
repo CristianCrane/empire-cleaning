@@ -76,8 +76,8 @@ const words = catalog({
       `${visitor} comes to see ${address} for about ${length}`,
     visitFree: (phone: string) =>
       `Free: we look before we quote. To change the time, call ${phone}.`,
-    // then that there's nothing to do, in the Bill's words (clientFix)
-    planNotThrough: "A payment on it hasn't gone through yet.",
+    // then that there's nothing to do (NOTHING_TO_DO)
+    planPending: "A payment on it is pending.",
     untilPaid:
       "Nothing's booked until it goes through. Then your plan carries on from its next date.",
     forWhen: (when: string) => `For ${when}`,
@@ -148,7 +148,7 @@ const words = catalog({
       `${visitor} va a ver ${address} durante cerca de ${length}`,
     visitFree: (phone: string) =>
       `Gratis: vemos el lugar antes de cotizar. Para cambiar la hora, llame al ${phone}.`,
-    planNotThrough: "Un pago del plan aún no ha pasado.",
+    planPending: "Un pago del plan está pendiente.",
     untilPaid:
       "No hay nada reservado hasta que el pago pase. Después, su plan continúa desde su próxima fecha.",
     forWhen: (when: string) => `Para el ${when}`,
@@ -545,7 +545,7 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Answer {
       why: {
         tone: "info",
         lead: t.p.planPaused,
-        more: `${w.planNotThrough} ${t.clientFix.waiting}`,
+        more: `${w.planPending} ${t.NOTHING_TO_DO}`,
       },
     };
   }

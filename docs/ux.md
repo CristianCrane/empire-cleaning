@@ -160,8 +160,8 @@ Cleaner's Your jobs render through `HomePage`
   row's action stands aside too. A paused plan with nothing to do is the
   plan's card, its alert calm (info). Money owed that asks nothing (a
   payment we try again ourselves) is Payments' card alone, calm: info,
-  "Not paid yet", that there's nothing to do, and its way to see it
-  outlined, as the page has no next step.
+  "Payment pending" and one line, that there's nothing to do, and its way
+  to see it outlined, as the page has no next step.
   With nothing waiting anywhere,
   offers to answer included, it's a green all-clear card, as a screen says only what's true (the
   `ui` skill). The Office's is its first

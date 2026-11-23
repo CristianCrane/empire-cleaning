@@ -313,7 +313,7 @@ describe("Home's hero, with nothing booked", () => {
     expect(why).toEqual({
       tone: "info",
       lead: "Your cleaning plan is paused.",
-      more: "A payment on it hasn't gone through yet. We'll try again by ourselves, so there's nothing you need to do.",
+      more: "A payment on it is pending. Nothing you need to do.",
     });
     // nothing asked of them: Request a quote stays
     expect(asks).toBe(false);

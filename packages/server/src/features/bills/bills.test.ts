@@ -825,14 +825,14 @@ describe("Unpaid Bills", () => {
       .post(`/api/bills/mine/${id}/payment-form`)
       .expect(409);
     expect(refused.body.message).toBe(
-      "This bill's payment hasn't gone through yet. We'll try again by ourselves, so there's nothing you need to do.",
+      "This bill's payment is pending. Nothing you need to do.",
     );
     const enEspañol = await client
       .post(`/api/bills/mine/${id}/payment-form`)
       .set("Accept-Language", "es")
       .expect(409);
     expect(enEspañol.body.message).toBe(
-      "El pago de esta factura aún no ha pasado. Lo volveremos a intentar nosotros, así que usted no tiene que hacer nada.",
+      "El pago de esta factura está pendiente. No tiene que hacer nada.",
     );
     // so its page offers no Pay
     expect(
