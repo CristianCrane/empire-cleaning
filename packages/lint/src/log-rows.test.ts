@@ -23,7 +23,7 @@ describe("doubled", () => {
       row,
     );
     expect(doubled(text, ux)).toEqual([
-      { key: ["Office > Today", "Which sections?"], lines: [5, 7] },
+      { key: ["Which sections?"], lines: [5, 7] },
     ]);
   });
 
@@ -33,15 +33,24 @@ describe("doubled", () => {
       "| Office > Today | Which sections? | A / B | **A** (narrowed 2026-11-22: B on a phone) | one box | — | #94 |",
     );
     expect(doubled(text, ux)).toEqual([
-      { key: ["Office > Today", "Which sections?"], lines: [5, 6] },
+      { key: ["Which sections?"], lines: [5, 6] },
     ]);
   });
 
-  it("passes a screen's two questions, and a question two screens share", () => {
+  it("finds a row whose Screen was widened in place, by its Question", () => {
+    const text = uxLog(
+      "| Client > Bill | While a payment was ours, where was Pay? | A / B | **A** | why | — | #493 |",
+      "| Client > Bill; Payments' and Home's owed card | While a payment was ours, where was Pay? | A / B | **A** | why | — | #493 |",
+    );
+    expect(doubled(text, ux)).toEqual([
+      { key: ["While a payment was ours, where was Pay?"], lines: [5, 6] },
+    ]);
+  });
+
+  it("passes a screen's two questions", () => {
     const text = uxLog(
       "| Office > Today | Which sections? | A / B | **A** | why | — | #94 |",
       "| Office > Today | What leads? | A / B | **A** | why | — | #94 |",
-      "| Office > Bills | What leads? | A / B | **A** | why | — | #95 |",
     );
     expect(doubled(text, ux)).toEqual([]);
   });

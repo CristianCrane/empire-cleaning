@@ -1,16 +1,18 @@
 // A row the UX or test findings log holds twice. The logs merge with git's
-// union driver (.gitattributes, the process log's L181), which keeps both
-// sides' lines where a plain merge would stop on a conflict: so a row one
-// branch edited in place, as a later pick narrows an older one (`(narrowed
-// <date>: …)` in Picked), comes back beside its old text, and the old text
-// reads as a decision still standing. `pnpm lint` runs this, in CI's Checks.
+// union driver (.gitattributes, the process log's L181), which keeps every
+// line both sides wrote where a plain merge would stop on a conflict, and
+// drops none: so a row one branch edited in place, as a later pick narrows an
+// older one (`(narrowed <date>: …)` in Picked) or widens its Screen, comes
+// back beside its old text, which reads as a decision still standing. `pnpm
+// lint` runs this, in CI's Checks.
 //
-// A row is known by its key: a UX decision by its Screen and Question, a
-// finding by its Date and Finding, each cell's first 80 characters, so an
-// edit at a finding's end still matches. What it can't see: an edit lost, a
-// row both sides edited where the merge kept one side's text alone; and a
-// finding rewritten from its first words, kept beside its old text (Date and
-// Where would catch that, but two findings of a day share a Where).
+// A row is known by its key, each cell's first 80 characters: a UX decision
+// by its Question, which an edit that widens the Screen keeps; a finding by
+// its Date and Finding, so an edit at a finding's end still matches. What it
+// can't see is one row under two keys: a Question reworded in place, a
+// finding rewritten from its first words, or the same finding two branches
+// logged in their own words (Date and Where would catch those, but two
+// findings of a day share a Where).
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -19,7 +21,7 @@ import { fileURLToPath } from "node:url";
 export type Log = { path: string; key: string[] };
 
 export const logs: Log[] = [
-  { path: "docs/ux-log.md", key: ["Screen", "Question"] },
+  { path: "docs/ux-log.md", key: ["Question"] },
   { path: "docs/testing-log.md", key: ["Date", "Finding"] },
 ];
 
@@ -72,7 +74,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       log.key,
     )) {
       console.error(
-        `empire(log-rows): ${log.path}:${found.lines.join(", :")}: the same ${log.key.join(" and ")} (${found.key.join(", ")}) on ${found.lines.length} rows, as a union merge keeps a row edited in place beside its old text: keep the newer row`,
+        `empire(log-rows): ${log.path}:${found.lines.join(", :")}: the same ${log.key.join(" and ")} (${found.key.join(", ")}) on ${found.lines.length} rows, as a union merge keeps a row edited in place beside its old text: fold them into one row that keeps every edit`,
       );
       process.exitCode = 1;
     }
