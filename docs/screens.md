@@ -181,7 +181,7 @@ Renders through `FormPage` (#434).
 
 - Header: Quotes › New quote; the title; About this page (folded).
 - Body: one Card: Who's calling (Find the client, a List), then the Quote
-  form's steps, each open. What it comes to leads: first on a phone, a
+  form's steps, each open. Quote, the price so far, leads: first on a phone, a
   sticky aside from `xl`, its working folded.
 - Actions: Draft a quote, once someone's calling: the header's primary
   from md, the price so far beside it in the header that sticks below
@@ -223,8 +223,8 @@ Keeps: a Draft page of its own (#145). Renders through `FormPage` (#434).
 - Alerts: the client still sees the quote as sent (once it's been sent);
   the plan change.
 - Body: one Card: What was asked and the first clean (folded); Service
-  (its own price; the recommended Service's behind a fold) or Plan and
-  each weekday; Extras and Terms (folded); Proposed time. Prices leads:
+  (its Type, its own price; the recommended Service's behind a fold) or Plan and
+  each weekday; Extras and Terms (folded); Proposed time. Quote leads:
   first on a phone, a sticky aside from `xl`; a one-off's own price, the
   Service recommended for a first visit one folded line under it ("Also
   offered: …"); a plan's week first; each price's working folded. The

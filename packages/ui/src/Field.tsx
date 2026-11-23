@@ -71,9 +71,20 @@ const width = {
 // neighbour sits near it, not across a wide dialog (docs/ux.md, Forms):
 // columns of 13rem or more, two to a row in a form's card, three in a
 // wider one (a wide dialog), one on a phone. 13rem holds a number's − and + with its number
-export function FieldRow({ children }: { children: ReactNode }) {
+export function FieldRow({
+  packed,
+  children,
+}: {
+  // fields of a day's width or less, side by side at their answers' widths
+  // from the row's start, as a date and its start time (the user, on #527:
+  // "breaking symmetry and balance"), not spread across a card's columns
+  packed?: boolean;
+  children: ReactNode;
+}) {
   return (
-    <div className="grid max-w-form grid-cols-[repeat(auto-fill,minmax(min(13rem,100%),1fr))] gap-4">
+    <div
+      className={`grid max-w-form gap-4 ${packed ? "grid-cols-1 sm:grid-cols-[repeat(auto-fill,13rem)]" : "grid-cols-[repeat(auto-fill,minmax(min(13rem,100%),1fr))]"}`}
+    >
       {children}
     </div>
   );

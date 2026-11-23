@@ -115,7 +115,8 @@ export function NewQuoteScreen() {
           <FormPage
             {...page}
             aside={{
-              title: "What it comes to",
+              // the quote the client will see (the user, on #527)
+              title: "Quote",
               leads: true,
               children: <PriceSoFar price={price} />,
             }}

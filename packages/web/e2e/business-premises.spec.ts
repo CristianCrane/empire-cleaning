@@ -228,7 +228,7 @@ test("New quote gives no price for a business until its floor area is known", as
 
   // the minimum charge, read out, would be a price for a business of no
   // size: what's missing says so in the price's place, and the footer's
-  const comesTo = page.getByRole("region", { name: "What it comes to" });
+  const comesTo = page.getByRole("region", { name: "Quote" });
   await expect(comesTo).toContainText(
     "No price until the floor area is known.",
   );

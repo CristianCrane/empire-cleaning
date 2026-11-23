@@ -83,7 +83,7 @@ test(
     // the Standard Clean asked for is the Draft's price; the Deep Clean
     // recommended for a first visit, offered too, an aside under it (the
     // user, on #527)
-    const prices = page.getByRole("region", { name: "Prices" });
+    const prices = page.getByRole("region", { name: "Quote" });
     await expect(prices.getByRole("heading", { level: 3 })).toHaveText([
       "Standard Clean",
     ]);
@@ -217,6 +217,27 @@ test(
       .getByRole("button", { name: "Keep it" })
       .click();
     await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  },
+);
+
+// the date, its start time and the way to pick both from the Schedule on
+// one left edge, the button not centred under them (the user, on #527:
+// "breaking symmetry and balance"); on a phone each is full width
+test(
+  "a Draft's proposed time lines up on one left edge",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    await requestQuoteAsGuest(casey);
+    await signInAsOffice(page);
+    await startDraft(page);
+    if (!isMobile) await page.setViewportSize({ width: 1440, height: 900 });
+    const part = page.getByRole("region", { name: "Proposed time" });
+    const date = await part.getByRole("group", { name: "Date" }).boundingBox();
+    const pick = await part
+      .getByRole("button", { name: "Pick from the schedule" })
+      .boundingBox();
+    expect(pick!.x).toBe(date!.x);
+    if (isMobile) expect(pick!.width).toBe(date!.width);
   },
 );
 
@@ -663,7 +684,7 @@ test("Office Staff change what a Draft is for, and what was asked stays", async 
     "Shown to the client as recommended",
   );
 
-  await page.getByRole("button", { name: "Standard Clean Service" }).click();
+  await page.getByRole("button", { name: "Standard Clean Type" }).click();
   await page.getByRole("option", { name: "Move-in/out Clean" }).click();
   await saved(page);
 
@@ -674,7 +695,7 @@ test("Office Staff change what a Draft is for, and what was asked stays", async 
   // as it was asked
   await page.reload();
   await expect(
-    page.getByRole("button", { name: "Move-in/out Clean Service" }),
+    page.getByRole("button", { name: "Move-in/out Clean Type" }),
   ).toBeVisible();
   await page.getByRole("button", { name: /^What was asked/ }).click();
   await expect(
@@ -688,7 +709,7 @@ test("deleting a first Draft whose Service was asked for again since leaves the 
   await requestQuoteAsGuest(casey);
   await signInAsOffice(page);
   await startDraft(page);
-  await page.getByRole("button", { name: "Standard Clean Service" }).click();
+  await page.getByRole("button", { name: "Standard Clean Type" }).click();
   await page.getByRole("option", { name: "Move-in/out Clean" }).click();
   await saved(page);
   // the Standard Clean is free again, and Casey asks for it
@@ -712,7 +733,7 @@ test("a Draft for a Service priced by area is priced on the area Office Staff ty
   await signInAsOffice(page);
   await startDraft(page);
 
-  await page.getByRole("button", { name: "Standard Clean Service" }).click();
+  await page.getByRole("button", { name: "Standard Clean Type" }).click();
   await page.getByRole("option", { name: "Painting" }).click();
   const area = page.getByRole("textbox", { name: "Area in sq ft" });
   await expect(area).toBeVisible();

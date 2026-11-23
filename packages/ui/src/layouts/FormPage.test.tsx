@@ -96,7 +96,7 @@ const pricedNoting = (note: string) => (
       next={{ label: "Send", icon: Send, onAction: () => {} }}
       price={{ line: "Deep Clean $568.87", short: "$568.87" }}
       note={note}
-      aside={{ title: "Prices", leads: true, children: <p>$568.87</p> }}
+      aside={{ title: "Quote", leads: true, children: <p>$568.87</p> }}
     >
       <p className="h-[200rem]">The form</p>
     </FormPage>
@@ -156,7 +156,7 @@ test("a priced Form page's header that sticks leaves the price to the aside besi
     .at(-1)!;
   expect(price.getClientRects()).toHaveLength(0);
   // the aside clears the header that sticks
-  const aside = page.getByRole("region", { name: "Prices" }).element();
+  const aside = page.getByRole("region", { name: "Quote" }).element();
   expect(box(aside).top).toBeGreaterThanOrEqual(box(send.element()).bottom);
 });
 
@@ -254,7 +254,7 @@ test("a priced Form page's submit sends its form from the header that sticks, an
         title="New quote"
         next={{ label: "Draft a quote", icon: Send, submit: true }}
         price={{ missing: "No price until the floor area is known." }}
-        aside={{ title: "What it comes to", children: <p>No price</p> }}
+        aside={{ title: "Quote", children: <p>No price</p> }}
       >
         <label>
           Street

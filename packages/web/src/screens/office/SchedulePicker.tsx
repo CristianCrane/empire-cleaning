@@ -72,8 +72,9 @@ export function PickFromSchedule(props: Props) {
   return (
     <DialogTrigger>
       {/* the way to the Schedule, under the date and time it sets: full width
-          on a phone, centred beneath them on a larger screen */}
-      <Button variant="secondary" className="w-full sm:w-auto sm:self-center">
+          on a phone, on their left edge on a larger screen, not centred under
+          them (the user, on #527: "breaking symmetry and balance") */}
+      <Button variant="secondary" className="w-full sm:w-auto sm:self-start">
         <CalendarDays aria-hidden size={20} />
         Pick from the schedule
       </Button>

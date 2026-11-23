@@ -240,7 +240,7 @@ export const PricedOnAPhone: Story = {
       },
     ],
     aside: {
-      title: "Prices",
+      title: "Quote",
       leads: true,
       children: <p className="font-display text-3xl font-bold">$568.87</p>,
     },
@@ -258,7 +258,7 @@ export const PricedOnAPhone: Story = {
             </Button>
           }
         >
-          <TextField label="Service" defaultValue="Deep Clean" />
+          <TextField label="Type" defaultValue="Deep Clean" />
         </FormPart>
         <FormPart title="Terms" summary="2 cleaners · 25% deposit">
           <NumberField label="Cleaners" defaultValue={2} />
@@ -278,7 +278,7 @@ export const PricedOnAPhone: Story = {
     </AppLayout>
   ),
   play: async ({ canvas }) => {
-    const prices = canvas.getByRole("region", { name: "Prices" });
+    const prices = canvas.getByRole("region", { name: "Quote" });
     const service = canvas.getByRole("region", { name: "Service" });
     // the price comes first
     await expect(

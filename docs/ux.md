@@ -658,7 +658,12 @@ stays as it is (#336).
   sq ft). Fields side by side go in a `FieldRow`, no wider than a
   form, columns of 13rem or more (two to a row in a form's card, three in a
   wider one, one on a phone), so a short field's neighbour sits near it, not across a wide
-  dialog; `ChoiceTiles` keep a form's width too. On a phone every field is full width, a thumb's target.
+  dialog; `ChoiceTiles` keep a form's width too. A date and its start time go in a
+  `packed` `FieldRow`, each at its answer's width from the row's start, and
+  Pick from the schedule, which fills both, under them on the same left
+  edge: spread across a card's two columns, with the button centred under
+  them, they broke the form's one edge (the user, on #527: "breaking
+  symmetry and balance"). On a phone every field is full width, a thumb's target.
   ("A form keeps a form's width")
 - **Every search field shows a magnifying glass.**
 

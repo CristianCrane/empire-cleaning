@@ -1882,7 +1882,8 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
           },
         ]}
         aside={{
-          title: "Prices",
+          // the quote the client will see (the user, on #527)
+          title: "Quote",
           leads: true,
           children: (
             <DraftPrices quote={quote} dayTitles={dayTitles} stale={stale} />
@@ -1967,8 +1968,10 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
           </>
         ) : (
           <FormPart title="Service">
+            {/* "Type", as the part already says Service (the user, on
+                #527); its region names it Service to a screen reader */}
             <Select
-              label="Service"
+              label="Type"
               name="serviceKey"
               selectedKey={fields.serviceKey}
               onSelectionChange={(key) => set({ serviceKey: String(key) })}
@@ -2062,7 +2065,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
             is the date's error when it's sent, the server's (WEB-D) */}
         {!plan && (
           <FormPart title="Proposed time">
-            <FieldRow>
+            <FieldRow packed>
               <DatePicker
                 label="Date"
                 name="proposedStart"
@@ -2168,7 +2171,7 @@ function PlanDayFields({
         )
       }
     >
-      <FieldRow>
+      <FieldRow packed>
         <DatePicker
           label="Date"
           name={`${name}.start`}
