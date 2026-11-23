@@ -19,13 +19,12 @@ import {
   type PageAction,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
-import { addressOf } from "../format.ts";
+import { addressOf, pausedPlans } from "../format.ts";
 import { linkTo } from "../../links.ts";
 import {
   BillDetail,
   BillLetterhead,
   BillStatusBadge,
-  pausedPlans,
   usePrintBill,
 } from "../BillParts.tsx";
 import { useAction } from "../action.ts";
@@ -114,7 +113,7 @@ function standing(bill: BillView): Alert | null {
 // which of the client's cleaning plans it keeps paused, by their homes, as
 // the Office's Needs attention names them; nothing when it holds none
 function plansPaused(bill: BillView) {
-  const homes = pausedPlans(bill).map((p) => addressOf(p.property));
+  const homes = pausedPlans(bill.plans).map((p) => addressOf(p.property));
   if (homes.length === 0) return "";
   return homes.length === 1
     ? ` Until it's paid, the client's cleaning plan at ${homes[0]} is paused.`

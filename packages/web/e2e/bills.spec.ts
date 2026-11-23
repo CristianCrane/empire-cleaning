@@ -321,7 +321,7 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   await signedInAs(client, casey.email);
   await client.goto("/portal/payments");
   await expect(client.getByRole("region", { name: "To pay" })).toContainText(
-    "Cleans already booked still go ahead, but we won't book any more.",
+    "Until it's paid, your cleaning plan is paused. Cleans already booked still go ahead, but we won't book any more.",
   );
 
   // and they pay it from their plan's page
@@ -357,6 +357,19 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   await expect(client.getByText("Your cleaning plan is paused")).toBeHidden();
 });
 
+test("a Bill whose payment we try again ourselves says its plan is paused, with nothing to do", async ({
+  page,
+}) => {
+  const { billId } = await billed({ plan: true, failing: "processing" });
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/bills/${billId}`);
+  await expect(
+    page.getByRole("status").filter({ hasText: "hasn't gone through yet" }),
+  ).toHaveText(
+    /^Your payment of \$[\d.,]+ for this bill hasn't gone through yet( \(.+\))?\. We'll try again by ourselves, so there's nothing you need to do\. Until it's paid, your cleaning plan is paused\. Cleans already booked still go ahead, but we won't book any more\.$/,
+  );
+});
+
 test("a late Bill with no cleaning plan on it says no plan is paused, to the Client or the Office", async ({
   page,
   browser,
@@ -369,7 +382,7 @@ test("a late Bill with no cleaning plan on it says no plan is paused, to the Cli
   await signedInAs(page, casey.email);
   await page.goto(`/portal/bills/${billId}`);
   await expect(
-    page.getByText("This bill was due by Mon, Jan 26 and hasn't been paid.", {
+    page.getByText("This bill wasn't paid by its due date.", {
       exact: true,
     }),
   ).toBeVisible();

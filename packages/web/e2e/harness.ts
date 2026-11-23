@@ -226,7 +226,8 @@ export const billedWeek = (week: {
   payment?: "automatic" | "on_page";
   billingEmail?: string;
   plan?: boolean;
-  failing?: boolean;
+  // declined, or the provider's reason ("processing")
+  failing?: boolean | string;
   unbilled?: boolean;
 }) =>
   control("/bills/billed-week", {

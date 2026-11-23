@@ -32,7 +32,12 @@ import {
 import type { HomeTile } from "@empire-cleaning/ui";
 import { linkTo, sameHref } from "../../links.ts";
 import { QuoteIcon, SiteVisitIcon } from "../icons.ts";
-import { addressOf, formatHours, formatMinutes } from "../format.ts";
+import {
+  addressOf,
+  formatHours,
+  formatMinutes,
+  pausedPlans,
+} from "../format.ts";
 import { saidWith } from "../words.ts";
 import type { Hero, Why } from "./HeroCard.tsx";
 import { moneyNow, owedAnswer, yourCardTile } from "./payments.ts";
@@ -285,7 +290,7 @@ export function whatsNext(
   const [next] = booked;
 
   const money = moneyNow(data, lang);
-  const paused = data.plans.find((p) => p.status === "on_hold");
+  const [paused] = pausedPlans(data.plans);
   const sent = data.quotes.filter((q) => q.status === "sent");
   const reviews = data.pastJobs.filter((j) => j.waiting.length > 0);
   const changes = reviews.flatMap((job) =>
@@ -311,7 +316,7 @@ export function whatsNext(
   // answer; how we get in, the morning we couldn't
   const lead = ((): Answer | undefined => {
     if (money.owed?.asks) {
-      return owedAnswer(money.owed, lang, paused && { booked: !!next });
+      return owedAnswer(money.owed, lang, data.plans);
     }
     if (changes.length > 0) {
       const [{ job, change }] = changes as [(typeof changes)[number]];

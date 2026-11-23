@@ -6,6 +6,7 @@ import type {
 } from "@empire-cleaning/models";
 import {
   moneyNow as moneyNowIn,
+  pausedLine as pausedLineIn,
   paymentRow as paymentRowIn,
   type PaymentsData,
 } from "./payments.ts";
@@ -14,6 +15,8 @@ import {
 const moneyNow = (data: PaymentsData) => moneyNowIn(data, "en");
 const paymentRow = (p: Parameters<typeof paymentRowIn>[0]) =>
   paymentRowIn(p, "en");
+const pausedLine = (plans: Parameters<typeof pausedLineIn>[0]) =>
+  pausedLineIn(plans, "en");
 
 // Tuesday 20 October 2026, 9am in New York
 const CLEAN = "2026-10-20T13:00:00.000Z";
@@ -200,6 +203,40 @@ const payment = (over: Partial<ClientPayment> = {}): ClientPayment => ({
   ...over,
 });
 const jobHref = href("/portal/jobs/$jobId", { jobId: "job" });
+
+// the owed card's line, on Home and Payments alike, while money owed
+// pauses a plan
+describe("what a paused plan means, under what's owed", () => {
+  test("nothing while no plan is paused", () => {
+    expect(pausedLine([])).toEqual([]);
+    expect(
+      pausedLine([{ status: "active", nextStartsAt: WEEK_LATER }]),
+    ).toEqual([]);
+  });
+
+  test("a paused plan's cleans already booked go ahead", () => {
+    expect(
+      pausedLine([
+        { status: "active", nextStartsAt: null },
+        { status: "on_hold", nextStartsAt: WEEK_LATER },
+      ]),
+    ).toEqual([
+      "Until it's paid, your cleaning plan is paused. Cleans already booked still go ahead, but we won't book any more.",
+    ]);
+  });
+
+  test("with none of a paused plan's cleans booked, it carries on once paid", () => {
+    // another plan's clean booked isn't the paused one's
+    expect(
+      pausedLine([
+        { status: "on_hold", nextStartsAt: null },
+        { status: "active", nextStartsAt: WEEK_LATER },
+      ]),
+    ).toEqual([
+      "Until it's paid, your cleaning plan is paused. Then it carries on from its next date.",
+    ]);
+  });
+});
 
 describe("how a payment reads", () => {
   test("a clean's charge is just the clean, on its day", () => {

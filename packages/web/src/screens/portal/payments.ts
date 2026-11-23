@@ -10,6 +10,7 @@ import {
 } from "@empire-cleaning/models";
 import { CreditCard, Wallet } from "lucide-react";
 import { linkTo, type AppHref } from "../../links.ts";
+import { pausedPlans } from "../format.ts";
 import type { Hero, Why } from "./HeroCard.tsx";
 import { said, saidWith } from "../words.ts";
 
@@ -25,7 +26,6 @@ const words = catalog({
     cleanNotYet: (day: string) =>
       `Your payment for your ${day} clean hasn't gone through yet`,
     onPage: "You pay each bill on its page",
-    carriesOn: "Once it's paid, your plan carries on from its next date.",
     noCard: "No card saved yet",
     refundOnBill: (n: string) => `Refund on bill ${n}`,
     range: (from: string, to: string) => `${from} – ${to}`,
@@ -53,7 +53,6 @@ const words = catalog({
     cleanNotYet: (day: string) =>
       `El pago de su limpieza del ${day} aún no ha pasado`,
     onPage: "Paga cada factura en su página",
-    carriesOn: "Cuando esté pagado, su plan continúa desde su próxima fecha.",
     noCard: "Aún no hay tarjeta guardada",
     refundOnBill: (n: string) => `Devolución de la factura ${n}`,
     range: (from: string, to: string) => `${from} – ${to}`,
@@ -204,20 +203,35 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
   };
 }
 
+// a Client's plan as the owed card reads it: paused or not, and its next
+// booked clean
+type PlanNow = Pick<ServicePlanSummary, "status" | "nextStartsAt">;
+
+// what a paused cleaning plan means, under what's owed: that it's paused
+// till it's paid, and that a paused plan's cleans already booked go ahead,
+// or, with none of them booked, it carries on once it's paid; nothing
+// while no plan is paused. The Bill's alert says it in the same words
+export function pausedLine(plans: PlanNow[], lang: Language): string[] {
+  const t = saidWith(lang, words);
+  const paused = pausedPlans(plans);
+  if (paused.length === 0) return [];
+  return [
+    paused.some((p) => p.nextStartsAt)
+      ? t.PLAN_PAUSED
+      : t.PLAN_PAUSED_NONE_BOOKED,
+  ];
+}
+
 // what's owed as a Home's answer (AnswerCard): Payments' card, and the
 // Client's Home's when it asks something of them. One that's late says
 // why above the card (whyAlert); one simply due, in its line. While it
-// pauses a cleaning plan, a line says what that means: cleans booked go
-// ahead, or, with none booked, it carries on once it's paid
+// pauses a cleaning plan, a line says what that means (pausedLine)
 export function owedAnswer(
   owed: Owed,
   lang: Language,
-  paused?: { booked: boolean } | false,
+  plans: PlanNow[],
 ): { hero: Hero; why?: Why } {
   const t = saidWith(lang, words);
-  const pausedLine = paused
-    ? [paused.booked ? t.BOOKED_GO_AHEAD : t.w.carriesOn]
-    : [];
   return {
     hero: {
       label: t.w.toPay,
@@ -225,7 +239,7 @@ export function owedAnswer(
       icon: Wallet,
       tone: owed.late ? "danger" : "warning",
       headline: t.formatMoney(owed.cents),
-      lines: [...(owed.late ? [] : [owed.text]), ...pausedLine],
+      lines: [...(owed.late ? [] : [owed.text]), ...pausedLine(plans, lang)],
       action: owed.action,
     },
     ...(owed.late && { why: { tone: "danger", lead: `${owed.text}.` } }),
