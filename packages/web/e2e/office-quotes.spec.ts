@@ -6,9 +6,11 @@ import {
   expect,
   expectAccessible,
   listRows,
+  proposeNextMonday,
   requestQuoteAsGuest,
   requestQuoteForPremises,
   serviceKey,
+  saved,
   signedInAs,
   test,
   pageAction,
@@ -106,6 +108,9 @@ test(
     await expect(
       page.getByRole("region", { name: "Standard Clean" }),
     ).toContainText("$194.89");
+    // a time picked, so only the missing email holds Send
+    await proposeNextMonday(page);
+    await saved(page);
     await expect(
       page.getByText(
         "Pat Phoner has no email yet, so this quote can't be sent.",

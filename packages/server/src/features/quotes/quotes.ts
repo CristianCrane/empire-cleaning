@@ -35,6 +35,7 @@ import {
   timeOf,
   weekdayOf,
   messages,
+  runsPastMidnight,
   endsByMidnight,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
@@ -1464,7 +1465,15 @@ export const draftOpenTimes = async (
     draft,
     quote.propertyId,
     options,
-    weekday,
+    {
+      // whose room decides: a one-off's own Service's option, or the one
+      // weekday that moves
+      own:
+        draft.kind === "one_off"
+          ? options.indexOf(ownOption(draft, options))
+          : 0,
+      ...(weekday === undefined ? {} : { weekday }),
+    },
     days,
     clock.now(),
   );
@@ -1689,11 +1698,18 @@ const untimelyOf = (
       ];
     }
     if (!endsByMidnight(startsAt, option.hoursOnSite)) {
+      // a one-off's own clean ending in time, its longest being the
+      // Service recommended beside it: that one's named, as it's what to
+      // fix
+      const own = weekday === null && ownOption(revision, rows);
       return [
         {
           weekday,
           reason: "past_midnight",
-          message: messages[currentLanguage()].ENDS_BY_MIDNIGHT,
+          message:
+            own && endsByMidnight(startsAt, toOption(revision, own).hoursOnSite)
+              ? runsPastMidnight(option.serviceName)
+              : messages[currentLanguage()].ENDS_BY_MIDNIGHT,
         },
       ];
     }

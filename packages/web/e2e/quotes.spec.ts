@@ -612,24 +612,38 @@ test("the draft says when the proposed time has no room for a clean", async ({
 
   await proposeNextMonday(page);
   await expect(proposed).toContainText(
-    "That day is too full for the Deep Clean, so the client will see it but can't pick it. Pick another day so they can.",
+    "The client can't pick the Deep Clean at this time: that day is too full.",
   );
   // the aside says so too, unfolded; it can still be sent
-  await expect(page.getByRole("region", { name: "Deep Clean" })).toContainText(
-    "Can't be picked at this time: that day is too full.",
+  const deep = page.getByRole("region", { name: "Deep Clean" });
+  await expect(deep).toContainText(
+    "The client can't pick it at this time: that day is too full.",
   );
   await expect(status).toHaveText("Saved");
   await expect(sendIt).toBeEnabled();
 
-  // Tuesday has the hours, but no crew at 9am, for either: the client
-  // couldn't accept it, which can still be sent
+  // the nearest time with room for both is a tap away: Tuesday, once
+  // its Cleaners are back from the other home
+  const fullDay = proposed
+    .getByRole("status")
+    .filter({ hasText: "that day is too full" });
+  await expect(fullDay).toContainText(
+    "Tue, Jan 13 at 9:30 AM has room for the Deep Clean too.",
+  );
+  await fullDay.getByRole("button", { name: "Pick that time" }).click();
+  await expect(status).toHaveText("Saved");
+  await expect(deep).not.toContainText("can't pick");
+  await expect(proposed).not.toContainText("can't pick");
+
+  // at 9am Tuesday has the hours, but no crew, for either: the client
+  // can't accept it, though it can still be sent
   await page
-    .getByRole("group", { name: "Date" })
-    .getByRole("spinbutton", { name: /day/i })
+    .getByRole("group", { name: "Start time" })
+    .getByRole("spinbutton", { name: /hour/i })
     .click();
-  await page.keyboard.type("13");
+  await page.keyboard.type("0900AM");
   await expect(proposed).toContainText(
-    "Not enough cleaners are free then. The client couldn't accept it: pick another time, or give a cleaner more working hours that day.",
+    "Not enough cleaners are free then. So the client can't accept the quote: pick another time, or give a cleaner more working hours that day.",
   );
   await expect(status).toHaveText("Saved · No room on Tue, Jan 13 at 9:00 AM");
   await expect(sendIt).toBeEnabled();
@@ -642,19 +656,33 @@ test("the draft says when the proposed time has no room for a clean", async ({
   await page.keyboard.type("10");
   await expect(status).toHaveText("Saved");
   await expect(proposed).not.toContainText("Not enough cleaners");
+  await expect(deep).not.toContainText("can't pick");
+
+  // paged off its week, the picked time is still said, and a tap away
+  await proposed.getByRole("button", { name: "Next week" }).click();
+  const picked = proposed.getByRole("status").filter({ hasText: "Picked" });
+  await expect(picked).toContainText(
+    /Picked: Tue, Jan 13, 10:00 AM to [\d:]+ [AP]M, which has room\./,
+  );
+  await picked.getByRole("button", { name: "Show it" }).click();
+  await expect(picked).toBeHidden();
   await expect(
-    page.getByRole("region", { name: "Deep Clean" }),
-  ).not.toContainText("Can't be picked");
+    proposed.getByRole("button", { name: /^10:00 AM/, pressed: true }),
+  ).toBeVisible();
 
   // from 10pm the Deep Clean, 2.5 hours on site, would run past midnight,
-  // which can't be sent
+  // which can't be sent; the Standard Clean ends in time, so it's the Deep
+  // Clean that's named, and its tile isn't marked
   await page
     .getByRole("group", { name: "Start time" })
     .getByRole("spinbutton", { name: /hour/i })
     .click();
   await page.keyboard.type("1000PM");
   await expect(proposed).toContainText(
-    "This would run past midnight. Pick an earlier start time.",
+    "The Deep Clean would run past midnight, so the quote can't be sent with it. Pick an earlier start time.",
+  );
+  await expect(deep).toContainText(
+    "It would run past midnight at this time, so the quote can't be sent.",
   );
   await expect(status).toHaveText("Saved · Pick an earlier start time");
   await expect(sendIt).toBeDisabled();

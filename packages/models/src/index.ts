@@ -613,8 +613,14 @@ export type DayTimes = { date: IsoDate; times: string[] };
 
 // A day of a Draft quote's picker: its open starts, and when it has none,
 // why: it's gone, it's all too soon to send (Late Cancellation's 24 hours),
-// or no start in the window has room for the clean
-export type OpenDay = DayTimes & { closed: "past" | "soon" | "full" | null };
+// no Cleaner works it, or no start in the window has room for the clean.
+// `everyOption`: those of its starts every option offered has room at, a
+// one-off's Service recommended for a first visit with its own (a plan
+// weekday's, all of them)
+export type OpenDay = DayTimes & {
+  everyOption: string[];
+  closed: "past" | "soon" | "off" | "full" | null;
+};
 
 // a start is picked from the Schedule to the half hour, then fine-tuned in
 // the time field

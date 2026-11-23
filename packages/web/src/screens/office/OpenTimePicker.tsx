@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 import type { CalendarDate, Time } from "@internationalized/date";
-import { ChevronLeft, ChevronRight, Keyboard } from "lucide-react";
+import { Keyboard } from "lucide-react";
 import {
   addDays,
   clockTime,
@@ -16,8 +16,10 @@ import {
   DatePicker,
   FieldRow,
   Notice,
+  Stepper,
   TimeField,
   TimeTiles,
+  focusRing,
   staleFade,
   useOpenOnInvalid,
 } from "@empire-cleaning/ui";
@@ -35,11 +37,14 @@ const WEEKS = 7;
 // a warning while it can still be sent (no room then), danger while Send
 // refuses it (too soon, past midnight). `flags` marks the picked tile too,
 // when it's the quote's own clean the lines are about, not only the
-// Service recommended beside it.
+// Service recommended beside it; then `alsoFor` names those others ("the
+// Deep Clean"), when it's room they lack, for the picker to offer the
+// nearest time with room for them too.
 export type TimeProblem = {
   tone: "warning" | "danger";
   lines: string[];
   flags: boolean;
+  alsoFor?: string;
 };
 
 type Props = {
@@ -59,6 +64,9 @@ type Props = {
   // the plan's other weekdays (0 Monday), which this one can't be on
   taken?: number[];
   problem?: TimeProblem;
+  // the picked time, as last saved, has room for each option and can be
+  // sent
+  fits: boolean;
   // a change is being saved: what's shown is of the Draft before it
   stale: boolean;
   // where the API's errors for its time are reported: "proposedStart",
@@ -77,6 +85,14 @@ export const endsAt = (time: string, hoursOnSite: number) => {
   const minutes = (hoursOf(time) + quarterHours(hoursOnSite)) * 60;
   return minutes < 24 * 60 ? formatClock(clockTime(minutes)) : undefined;
 };
+
+// how far one start is from another, in hours
+const apart = (
+  at: { date: string; time: string },
+  date: string,
+  time: string,
+) =>
+  Math.abs((daysIn(date, at.date) - 1) * 24 + hoursOf(at.time) - hoursOf(time));
 
 // the strip's first date showing `date`: its week's Monday, or on a dated
 // weekday, the page of seven of its dates from the first one to come
@@ -110,6 +126,7 @@ export function PickOpenTime({
   time,
   taken = [],
   problem,
+  fits,
   stale,
   name,
   onChange,
@@ -159,6 +176,8 @@ export function PickOpenTime({
     if (day?.closed === "past") return "Past";
     if (day?.closed === "soon") return "Too soon";
     if (inPlan(date)) return "In plan";
+    // its fix is more working hours, not another time
+    if (day?.closed === "off") return "No cleaners";
     if (day?.closed === "full") return "No room";
     return undefined;
   };
@@ -178,6 +197,13 @@ export function PickOpenTime({
       ...strip,
       from: addDays(from, by * 7 * step),
       viewed: undefined,
+    });
+  // back to the picked day, from another day or page
+  const showPicked = (date: string) =>
+    setStrip({
+      ...strip,
+      from: dates.includes(date) ? from : stripFrom(date, weekly),
+      viewed: date,
     });
 
   // the viewed day's, once loaded: a page just turned to, or a weekday's
@@ -201,35 +227,40 @@ export function PickOpenTime({
   const ends = pickedTime && hoursOnSite && endsAt(pickedTime, hoursOnSite);
   const until = ends ? `to ${ends}` : undefined;
   const of = title ? `, ${title}` : "";
+  // the open time nearest the picked one with room for the options beside
+  // it too, of the week loaded
+  const roomForAll =
+    problem?.alsoFor && picked && pickedTime
+      ? (days ?? [])
+          .filter((d) => !inPlan(d.date))
+          .flatMap((d) => d.everyOption.map((t) => ({ date: d.date, time: t })))
+          .filter((at) => at.date !== picked || at.time !== pickedTime)
+          .sort(
+            (a, b) =>
+              apart(a, picked, pickedTime) - apart(b, picked, pickedTime),
+          )[0]
+      : undefined;
+  // the picked time, said while its tile isn't on screen
+  const pickedLine =
+    picked && pickedTime && viewed !== picked
+      ? `Picked: ${formatDay(picked)}, ${formatClock(pickedTime)}${until ? ` ${until}` : ""}${
+          problem ? ", which has a problem." : fits ? ", which has room." : "."
+        }`
+      : undefined;
 
   return (
     <div className="flex flex-col gap-4">
       {ready ? (
         <>
           <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-2">
-              <Button
-                variant="quiet"
-                size="icon"
-                aria-label={weekly ? "Earlier weeks" : "Previous week"}
-                // never a page all gone: the one before a past first day
-                isDisabled={dayOf(from)?.closed === "past"}
-                onPress={() => page(-1)}
-              >
-                <ChevronLeft aria-hidden size={20} />
-              </Button>
-              <p className="font-semibold" aria-live="polite">
-                {formatDay(from)} – {formatDay(to)}
-              </p>
-              <Button
-                variant="quiet"
-                size="icon"
-                aria-label={weekly ? "Later weeks" : "Next week"}
-                onPress={() => page(1)}
-              >
-                <ChevronRight aria-hidden size={20} />
-              </Button>
-            </div>
+            <Stepper
+              label={`${formatDay(from)} – ${formatDay(to)}`}
+              previous={weekly ? "Earlier weeks" : "Previous week"}
+              next={weekly ? "Later weeks" : "Next week"}
+              // never a page all gone: the one before a past first day
+              canGoBack={dayOf(from)?.closed !== "past"}
+              onStep={page}
+            />
             <div
               role="group"
               aria-label={`Days${of}`}
@@ -246,7 +277,7 @@ export function PickOpenTime({
                     disabled={shut(date)}
                     aria-current={isViewed ? "date" : undefined}
                     onClick={() => view(date)}
-                    className={`relative flex min-h-touch flex-col items-center gap-0.5 rounded-md px-0.5 py-1.5 outline-offset-2 focus-visible:outline-2 focus-visible:outline-focus disabled:cursor-default ${
+                    className={`${focusRing()} relative flex min-h-touch flex-col items-center gap-0.5 rounded-md px-0.5 py-1.5 disabled:cursor-default ${
                       isPicked
                         ? "bg-primary/10 font-semibold text-primary ring-2 ring-primary ring-inset"
                         : shut(date)
@@ -294,14 +325,60 @@ export function PickOpenTime({
             aria-busy={stale || loading}
             className={`flex flex-col gap-4 ${staleFade(stale)}`}
           >
+            {pickedLine && (
+              <Notice
+                tone={problem?.tone ?? "info"}
+                action={
+                  <Button
+                    variant="text"
+                    size="sm"
+                    onPress={() => showPicked(picked!)}
+                  >
+                    Show it
+                  </Button>
+                }
+              >
+                {pickedLine}
+              </Notice>
+            )}
             {/* the picked time's problem, over the tile it marks */}
             {problem &&
               viewed === picked &&
-              problem.lines.map((line) => (
-                <Notice key={line} tone={problem.tone}>
-                  {line}
-                </Notice>
-              ))}
+              problem.lines.map((line, i) => {
+                // the last line says how to fix it, when it's the options
+                // beside it that have no room: the nearest time that has
+                const suggest =
+                  problem.alsoFor !== undefined &&
+                  i === problem.lines.length - 1 &&
+                  !loading;
+                return (
+                  <Notice
+                    key={line}
+                    tone={problem.tone}
+                    action={
+                      suggest &&
+                      roomForAll && (
+                        <Button
+                          variant="text"
+                          size="sm"
+                          onPress={() => onPick(roomForAll)}
+                        >
+                          Pick that time
+                        </Button>
+                      )
+                    }
+                  >
+                    <p>{line}</p>
+                    {suggest && (
+                      <p>
+                        {roomForAll
+                          ? `${formatDay(roomForAll.date)} at ${formatClock(roomForAll.time)} has room for ${problem.alsoFor} too.`
+                          : `No time this week has room for ${problem.alsoFor} too.`}
+                      </p>
+                    )}
+                  </Notice>
+                );
+              })}
             {loading ? (
               <p className="text-sm text-fg-muted">Loading open times…</p>
             ) : groups.length === 0 ? (
@@ -334,9 +411,10 @@ export function PickOpenTime({
         name={name}
         date={date}
         time={time}
-        // a time off the half hour isn't a tile but on its day; with no
-        // open times yet, it's the only way
-        defaultOpen={!ready || (time !== null && time.minute % 30 !== 0)}
+        // with no open times yet, it's the only way
+        shown={!ready}
+        // a time off the half hour isn't a tile but on its day
+        defaultOpen={time !== null && time.minute % 30 !== 0}
         onChange={onChange}
       />
     </div>
@@ -350,18 +428,22 @@ function TypedTime({
   name,
   date,
   time,
+  shown,
   defaultOpen,
   onChange,
 }: {
   name: string;
   date: CalendarDate | null;
   time: Time | null;
+  // open, and no line to fold them behind, while it's the only way
+  shown: boolean;
   defaultOpen: boolean;
   onChange: Props["onChange"];
 }) {
   // a time that's wrong opens them, so it can be shown
-  const { ref, open, setOpen, onInvalidCapture } =
-    useOpenOnInvalid(defaultOpen);
+  const fold = useOpenOnInvalid(defaultOpen);
+  const { ref, setOpen, onInvalidCapture } = fold;
+  const open = shown || fold.open;
   const fieldsId = useId();
   return (
     <div className="flex flex-col gap-4">

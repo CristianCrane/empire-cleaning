@@ -20,9 +20,28 @@ export const jobs = catalog({
   },
 });
 
-// the Office's, in English (ADR-0025)
-export const DAY_FULL = "That day is too full for this job.";
-export const NO_CREW = "Not enough cleaners are free then.";
+// why a clean has no room at its time: the first of its rules it fails
+export type NoRoom = "past_midnight" | "full" | "crew";
+export const noRoomOf = (room: DayCapacity): NoRoom =>
+  !room.endsByMidnight ? "past_midnight" : !room.hasHours ? "full" : "crew";
+
+// each, in the Office's few words (English, ADR-0025), that its lines are
+// built on: "The client can't pick it at this time: that day is too full."
+export const NO_ROOM: Record<NoRoom, string> = {
+  past_midnight: "it would run past midnight",
+  full: "that day is too full",
+  crew: "not enough cleaners are free then",
+};
+
+const sentence = (words: string) =>
+  `${words[0]!.toUpperCase()}${words.slice(1)}`;
+export const DAY_FULL = `${sentence(NO_ROOM.full)} for this job.`;
+export const NO_CREW = `${sentence(NO_ROOM.crew)}.`;
+
+// a one-off quote's Service offered beside its own, which alone would run
+// past midnight at its time: Send refuses the quote for it
+export const runsPastMidnight = (serviceName: string) =>
+  `The ${serviceName} would run past midnight, so the quote can't be sent with it. Pick an earlier start time.`;
 
 // the Office's way to make room, after what else they can do
 export const MORE_HOURS = "give a cleaner more working hours that day";
@@ -31,6 +50,7 @@ export const ADD_HOURS = `Pick another time, or ${MORE_HOURS}.`;
 // why a clean has no room, for Office Staff, then how to fix it: `fix`, or
 // another time or more hours
 export const whyNoRoom = (room: DayCapacity, fix = ADD_HOURS) => {
-  if (!room.endsByMidnight) return jobs.en.ENDS_BY_MIDNIGHT;
-  return `${room.hasHours ? NO_CREW : DAY_FULL} ${fix}`;
+  const why = noRoomOf(room);
+  if (why === "past_midnight") return jobs.en.ENDS_BY_MIDNIGHT;
+  return `${why === "full" ? DAY_FULL : NO_CREW} ${fix}`;
 };

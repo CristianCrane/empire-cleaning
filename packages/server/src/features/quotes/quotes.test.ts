@@ -548,7 +548,52 @@ describe("a Draft's open times", () => {
       draft.id,
       "from=2026-01-06&to=2026-01-06",
     );
-    expect(day).toEqual({ date: "2026-01-06", times: [], closed: "full" });
+    expect(day).toEqual({
+      date: "2026-01-06",
+      times: [],
+      everyOption: [],
+      closed: "full",
+    });
+  });
+
+  test("say a day no Cleaner works is off, not full", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    const draft = await startDraft(office, quoteId);
+    // Monday to Friday
+    await staffMember("Cory Cleaner");
+    await staffMember("Dana Cleaner");
+
+    const days = await openTimes(
+      office,
+      draft.id,
+      "from=2026-01-09&to=2026-01-10",
+    );
+    expect(days.map(({ date, closed }) => ({ date, closed }))).toEqual([
+      { date: "2026-01-09", closed: null },
+      { date: "2026-01-10", closed: "off" },
+    ]);
+  });
+
+  test("are the asked-for Service's, and say which have room for the one offered beside it too", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    const draft = await startDraft(office, quoteId);
+    const standard = option(draft, "standard").labourHours;
+    const deep = option(draft, "deep").labourHours;
+    // a crew of 2 with the hours for the Standard Clean, not the Deep
+    const hours = Math.ceil(standard / 2);
+    expect(hours * 2).toBeLessThan(deep);
+    await staffMember("Cory Cleaner", { usualWeek: [hours, 0, 0, 0, 0, 0, 0] });
+    await staffMember("Dana Cleaner", { usualWeek: [hours, 0, 0, 0, 0, 0, 0] });
+
+    const [day] = await openTimes(
+      office,
+      draft.id,
+      "from=2026-01-12&to=2026-01-12",
+    );
+    expect(day!.times.length).toBeGreaterThan(0);
+    expect(day!.everyOption).toEqual([]);
   });
 });
 
@@ -581,6 +626,40 @@ describe("sending a Quote", () => {
     });
     expect(later.draft!.untimely).toEqual([]);
     await office.post(`/api/quotes/${draft.id}/send`).expect(200);
+  });
+
+  test("can't send a one-off whose Service offered beside it would run past midnight, and says which", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    const draft = await startDraft(office, quoteId);
+    // the latest quarter hour the Standard Clean ends by midnight from
+    const own = option(draft, "standard").hoursOnSite;
+    const start = Math.floor((24 - own) * 4) / 4;
+    expect(start + option(draft, "deep").hoursOnSite).toBeGreaterThan(24);
+    const time = `${String(Math.floor(start)).padStart(2, "0")}:${String((start % 1) * 60).padStart(2, "0")}`;
+
+    const saved = await save(office, draft, {
+      proposedStart: { date: "2026-01-12", time },
+    });
+    expect(saved.draft!.untimely).toEqual([
+      {
+        weekday: null,
+        reason: "past_midnight",
+        message:
+          "The Deep Clean would run past midnight, so the quote can't be sent with it. Pick an earlier start time.",
+      },
+    ]);
+
+    // its own too: the usual line
+    const later = await save(office, draft, {
+      proposedStart: { date: "2026-01-12", time: "23:30" },
+    });
+    expect(later.draft!.untimely).toMatchObject([
+      {
+        reason: "past_midnight",
+        message: "This would run past midnight. Pick an earlier start time.",
+      },
+    ]);
   });
 
   test("needs a proposed time", async () => {

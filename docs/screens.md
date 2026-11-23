@@ -227,11 +227,12 @@ Keeps: a Draft page of its own (#145). Renders through `FormPage` (#434).
   each weekday (its Cleaners, then its proposed time); Extras and Terms
   (folded); Proposed time: the open times to pick from, a week's days over
   the viewed day's start times, the date and time fields behind "Type a
-  date and time"; folded to the time on load when it's set, has room and
-  can be sent. Quote leads:
+  date and time"; folded to the time ("Not picked yet" before one), open
+  on load unless it's set, has room and can be sent. Quote leads:
   first on a phone, a sticky aside from `xl`; a one-off's own price, the
   Service recommended for a first visit one folded line under it ("Also
-  offered: …"); a plan's week first; each price's working folded. The
+  offered: …"), and under that why the client can't pick it at the time
+  proposed, if they can't; a plan's week first; each price's working folded. The
   header that sticks and a phone's foot name the one-off's own price.
 
 #### Office > Clients

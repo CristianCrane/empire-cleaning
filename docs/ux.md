@@ -225,7 +225,10 @@ for a dialog. It renders through `FormPage`
   which the sent Quote offers too (ADR-0018), is an aside: one quiet
   line under it ("Also offered: Deep Clean $299.41"), its price and
   working folded behind it, and in the Service part its own price behind
-  a fold (the user, on #527: "The recommendation is an aside").
+  a fold (the user, on #527: "The recommendation is an aside"). Under
+  that line, unfolded, why the client can't pick it at the time proposed
+  ("The client can't pick it at this time: that day is too full."), a
+  warning; in danger when it would run past midnight, which Send refuses.
 - **Its button at the card's foot**, after what saving agrees to (a
   card's consent), in view. A form with a price or a Send (the Draft, New
   quote) makes its button the page's next step instead (FormPage's
@@ -705,12 +708,21 @@ stays as it is (#336).
 - **A time is picked from the times that are free**, with the day and
   time fields kept as the keyboard's way. A Draft quote's proposed time is
   picked in its part, in a tap (`office/OpenTimePicker.tsx`, #493, the
-  user's pick B): a strip of a week's days, each saying why it's shut, over
-  the viewed day's start times that have room, those without left out; the
-  time picked fills its tile with when it ends, or is marked with its
-  problem, which a line over it says; a plan's weekday, once dated, pages
-  through its own weekday's dates; the fields behind "Type a date and
-  time". The Office's dialogs that move a booked time (a Job, a plan's
+  user's pick B): a strip of a week's days, each saying why it's shut
+  ("No cleaners" when no Cleaner works it, as its fix is more hours, "No
+  room" when it's full), over the viewed day's start times that have room
+  for the clean asked for, those without left out; the time picked fills
+  its tile with when it ends, or is marked with its problem, which a line
+  over it says, naming the Service offered beside it when it's that one's
+  problem, and the nearest time that has room for it too, with "Pick that
+  time";
+  paged off its tile, a line says the time picked and "Show it" goes back
+  to it. A plan's new weekday comes with no time, for the weekday the
+  client asked for, and once dated pages through its own weekday's dates.
+  The fields are behind "Type a date and time". The part folds to its time
+  on load when that's set, has room and can be sent, and again so when a
+  weekday's added or removed. It pages with the kit's `Stepper`, as the
+  Schedule and a Cleaner's working hours do. The Office's dialogs that move a booked time (a Job, a plan's
   visit, a Site Visit) still pick on the Schedule
   (`office/SchedulePicker.tsx`, inline in a wide dialog) until #543; a
   Client picks a day on a month, then that day's open times

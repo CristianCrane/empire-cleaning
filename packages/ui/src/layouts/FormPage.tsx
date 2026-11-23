@@ -5,10 +5,10 @@ import { Actions } from "../Actions.tsx";
 import type { Crumb } from "../Breadcrumbs.tsx";
 import { Card } from "../Card.tsx";
 import { Fold } from "../Fold.tsx";
-import { Heading } from "../Heading.tsx";
 import { useUiWords } from "../language.ts";
 import { Section } from "../Section.tsx";
 import { useOpenOnInvalid } from "../openOnInvalid.ts";
+import { focusRing } from "../utils.ts";
 import { useWide } from "../wide.ts";
 import { Alerts, type Alert } from "./Alerts.tsx";
 import { PageFrame } from "./PageFrame.tsx";
@@ -203,67 +203,76 @@ export function FormPage({
   );
 }
 
-const rule = "border-t border-border pt-5 first:border-t-0 first:pt-0";
+// ruled off from the part before, when it's one of the card's own parts
+const ruled = (level: 2 | 3) =>
+  level === 2 ? "border-t border-border pt-5 first:border-t-0 first:pt-0" : "";
 
-// One part of a Form page's card, ruled off from the one before. Open, a
-// Section: its title over its fields, its text Buttons (`actions`) on the
-// title's line. Given `summary` (what's set, in a line), it's folded to that line, a tap
-// opening it in place. Folded, its fields stay in the form, hidden, so a
-// required one or the API's field error still counts, and the part opens
-// itself to show a field in it that's found wrong. `inPart`: a part within
-// a part (a plan weekday's Proposed time), its title an h3 in the reading
-// size, with no rule above it, folded the same way
+// One part of a Form page's card, ruled off from the one before; a part
+// within a part (a plan weekday's Proposed time) is `headingLevel` 3, with
+// no rule. Open, a Section: its title over its fields, its text Buttons
+// (`actions`) on the title's line. Given `summary` (what's set, in a
+// line, worked out as it changes), a tap folds it to that line and opens
+// it in place, the title a line's size either way; it loads folded unless
+// `defaultOpen` (where there's something to do). Folded, its fields stay
+// in the form, hidden, so a required one or the API's field error still
+// counts, and the part opens itself to show a field in it that's found
+// wrong.
 export function FormPart(
-  props: { title: string; children: ReactNode; inPart?: boolean } & (
-    { summary: string } | { summary?: never; actions?: ReactNode }
+  props: { title: string; children: ReactNode; headingLevel?: 2 | 3 } & (
+    | { summary: string; defaultOpen?: boolean }
+    | { summary?: never; actions?: ReactNode }
   ),
 ) {
-  const { title, children, inPart = false } = props;
+  const { title, children, headingLevel = 2 } = props;
   if (props.summary !== undefined)
     return (
-      <Folded title={title} summary={props.summary} inPart={inPart}>
+      <Folded
+        title={title}
+        summary={props.summary}
+        defaultOpen={props.defaultOpen ?? false}
+        level={headingLevel}
+      >
         {children}
       </Folded>
     );
-  if (inPart) return <InPart title={title}>{children}</InPart>;
   return (
-    <Section title={title} actions={props.actions} className={`gap-4 ${rule}`}>
+    <Section
+      title={title}
+      headingLevel={headingLevel}
+      actions={props.actions}
+      className={`gap-4 ${ruled(headingLevel)}`}
+    >
       {children}
     </Section>
-  );
-}
-
-function InPart({ title, children }: { title: string; children: ReactNode }) {
-  const headingId = useId();
-  return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-4">
-      <Heading level={3} size={4} id={headingId}>
-        {title}
-      </Heading>
-      {children}
-    </section>
   );
 }
 
 function Folded({
   title,
   summary,
-  inPart,
+  defaultOpen,
+  level,
   children,
 }: {
   title: string;
   summary: string;
-  inPart: boolean;
+  defaultOpen: boolean;
+  level: 2 | 3;
   children: ReactNode;
 }) {
   const bodyId = useId();
   // a field in it that's wrong opens it, so it can be shown
-  const { ref: body, open, setOpen, onInvalidCapture } = useOpenOnInvalid();
-  const Title = inPart ? "h3" : "h2";
+  const {
+    ref: body,
+    open,
+    setOpen,
+    onInvalidCapture,
+  } = useOpenOnInvalid(defaultOpen);
+  const Title = level === 2 ? "h2" : "h3";
   return (
     <section
       aria-label={title}
-      className={`flex flex-col gap-4 ${inPart ? "" : rule}`}
+      className={`flex flex-col gap-4 ${ruled(level)}`}
       onInvalidCapture={onInvalidCapture}
     >
       <Title>
@@ -272,7 +281,7 @@ function Folded({
           aria-expanded={open}
           aria-controls={bodyId}
           onClick={() => setOpen((o) => !o)}
-          className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-md px-2 py-1 text-left outline-offset-2 hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-focus"
+          className={`-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-md px-2 py-1 text-left hover:bg-surface-sunken ${focusRing()}`}
         >
           <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-3">
             <span className="font-semibold text-fg sm:w-40 sm:shrink-0">

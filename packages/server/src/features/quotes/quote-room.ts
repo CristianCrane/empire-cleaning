@@ -97,26 +97,18 @@ export const optionRoomsOf = async (
  * Service Plan Quote's weekday `weekday` moves to each start beside its
  * other weekdays' starts, the Jobs of its home's plan the Quote would then
  * replace counting as gone (replacedFor, from its earliest clean). A
- * one-off's options all move there: its own Service needs room and every
- * one must end by midnight, as Send asks, but the one recommended for a
- * first visit is an aside, so a time it alone doesn't fit stays open, and
- * the room line says so. A plan's `weekday` is one of its saved ones; a
+ * one-off's options all move there: its own Service (`own`, its place among
+ * those that move; a plan's one weekday is 0) needs room and every one must end by midnight, as Send asks,
+ * but the one recommended for a first visit is an aside, so a time it alone
+ * doesn't fit stays open, the room line says so, and `everyOption` names
+ * the times both fit. A plan's `weekday` is one of its saved ones; a
  * one-off has none (draftOpenTimes refuses either).
  */
 export const openTimesOf = async (
-  revision: {
-    kind: QuoteKind;
-    serviceKey: string | null;
-    proposedStartsAt: Date | null;
-  },
+  revision: { kind: QuoteKind; proposedStartsAt: Date | null },
   propertyId: string,
-  options: {
-    serviceKey: string;
-    startsAt: Date | null;
-    labourHours: number;
-    crewSize: number;
-  }[],
-  weekday: number | undefined,
+  options: { startsAt: Date | null; labourHours: number; crewSize: number }[],
+  { own, weekday }: { own: number; weekday?: number },
   days: ScheduleDay[],
   now: Date,
 ): Promise<OpenDay[]> => {
@@ -131,10 +123,6 @@ export const openTimesOf = async (
       labourHours,
       crewSize,
     }));
-  const own =
-    revision.kind === "one_off"
-      ? moving.findIndex((o) => o.serviceKey === revision.serviceKey)
-      : 0;
   const soon = (startsAt: Date) => lateFrom(startsAt) <= now;
   const starts = days
     .flatMap((day) => windowTimes.map((time) => atTime(day.date, time)))
@@ -147,18 +135,26 @@ export const openTimesOf = async (
   const replacing = new Map(
     starts.map((startsAt, i) => [startsAt.getTime(), replaced[i]!]),
   );
-  const fits = (day: ScheduleDay, startsAt: Date) => {
-    if (soon(startsAt)) return false;
-    const rooms = cleanRooms(
-      [day],
-      at(startsAt),
-      replacing.get(startsAt.getTime())!,
-    );
-    return rooms[own]!.hasRoom && rooms.every((room) => room.endsByMidnight);
+  // each moving clean's room at a start not too soon, worked out once
+  const roomsAt = new Map<number, DayCapacity[]>();
+  const rooms = (day: ScheduleDay, startsAt: Date) => {
+    const key = startsAt.getTime();
+    if (!roomsAt.has(key)) {
+      roomsAt.set(key, cleanRooms([day], at(startsAt), replacing.get(key)!));
+    }
+    return roomsAt.get(key)!;
   };
+  const fits = (day: ScheduleDay, startsAt: Date) =>
+    !soon(startsAt) &&
+    rooms(day, startsAt)[own]!.hasRoom &&
+    rooms(day, startsAt).every((room) => room.endsByMidnight);
+  const fitsEvery = (day: ScheduleDay, startsAt: Date) =>
+    fits(day, startsAt) && rooms(day, startsAt).every((room) => room.hasRoom);
+  const every = startsWhere(days, windowTimes, fitsEvery);
   const today = dayOf(now);
-  return startsWhere(days, windowTimes, fits).map((day) => ({
+  return startsWhere(days, windowTimes, fits).map((day, i) => ({
     ...day,
+    everyOption: every[i]!.times,
     closed:
       day.times.length > 0
         ? null
@@ -166,7 +162,10 @@ export const openTimesOf = async (
           ? "past"
           : windowTimes.every((time) => soon(atTime(day.date, time)))
             ? "soon"
-            : "full",
+            : // no Cleaner works it: more hours is the fix, not another time
+              days[i]!.staffHours === 0
+              ? "off"
+              : "full",
   }));
 };
 

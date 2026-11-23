@@ -54,6 +54,8 @@ import {
   weekdayOf,
   whyNoRoom,
   MORE_HOURS,
+  NO_ROOM,
+  noRoomOf,
   formats,
   messages,
 } from "@empire-cleaning/models";
@@ -1052,9 +1054,7 @@ function AlsoOffered({
       {/* unfolded, as it changes what the client can do; the proposed
           time's part says how to fix it */}
       {option.room && !option.room.hasRoom && (
-        <p className="text-warning-strong">
-          Can't be picked at this time: {cantPick(option.room)}.
-        </p>
+        <NoRoomBeside room={option.room} />
       )}
     </section>
   );
@@ -1321,14 +1321,16 @@ const dollars = { style: "currency", currency: "USD" } as const;
 
 // What's wrong with a clean's time, for the picker to say over its tile, of
 // the Draft as last saved and only while what's on screen is that time and
-// crew: what Send refuses it for (too soon, past midnight), alone, in
+// crew (`fits` when that time is all well, said while its tile is paged
+// off): what Send refuses it for (too soon, past midnight), alone, in
 // danger; else whether each option has room then, by the rule accepting
 // asks (the Jobs a plan change replaces counted as gone), a warning, not a
 // rule, as the Office may be about to add hours or a Cleaner and it can
 // still be sent (Jen's to answer, #206). The tile is marked when it's the
 // quote's own clean (`own`, its place in `options`) that has a problem,
-// not only the Service recommended beside it. None when all's well.
-const timeProblem = ({
+// not only the Service recommended beside it; when it isn't, the others are
+// named, for the picker to find a time with room for them too.
+const timeCheck = ({
   options,
   own,
   untimely,
@@ -1342,26 +1344,48 @@ const timeProblem = ({
   date: string | undefined;
   time: string | undefined;
   crewSize: number;
-}): TimeProblem | undefined => {
+}): { problem?: TimeProblem; fits: boolean } => {
   const rooms = options.map((o) => o.room);
   const onScreen = (room: DayCapacity | null): room is DayCapacity =>
     room !== null &&
     room.date === date &&
     timeOfDay(room.startsAt) === time &&
     room.crewSize === crewSize;
-  if (!rooms.every(onScreen)) return undefined;
+  if (!rooms.every(onScreen)) return { fits: false };
   const refused = untimely.find((u) => u.reason !== "no_time");
-  if (refused) return { tone: "danger", lines: [refused.message], flags: true };
+  if (refused) {
+    // past midnight, it may be only the Service beside it that runs on,
+    // which the server's line names
+    const flags =
+      refused.reason !== "past_midnight" || !rooms[own]!.endsByMidnight;
+    return {
+      problem: { tone: "danger", lines: [refused.message], flags },
+      fits: false,
+    };
+  }
   const lines = roomProblems(options, rooms);
-  if (lines.length === 0) return undefined;
-  return { tone: "warning", lines, flags: !rooms[own]!.hasRoom };
+  if (lines.length === 0) return { fits: true };
+  if (!rooms[own]!.hasRoom) {
+    return { problem: { tone: "warning", lines, flags: true }, fits: false };
+  }
+  const others = options.filter((_, i) => !rooms[i]!.hasRoom);
+  return {
+    problem: {
+      tone: "warning",
+      lines,
+      flags: false,
+      alsoFor: formatList(others.map(describeOption)),
+    },
+    fits: false,
+  };
 };
 
 // What's wrong with these options' rooms, then how to fix it, a line for
 // each of a room's rules that fails; none when every one has room. With
 // none of them fitting, why, once for each reason, and that the client
-// couldn't accept it; with one fitting, the others named by what keeps them
-// out, which the client sees but can't pick (PortalQuote's `bookable`).
+// can't accept the quote then; with one fitting, the others named by what
+// keeps them out, which the client sees but can't pick (PortalQuote's
+// `bookable`): the picker offers a time with room for them too.
 const roomProblems = (
   options: OfficeQuoteOption[],
   rooms: DayCapacity[],
@@ -1374,41 +1398,39 @@ const roomProblems = (
         rooms.map((r) =>
           whyNoRoom(
             r,
-            `The client couldn't accept it: pick another time, or ${MORE_HOURS}.`,
+            `So the client can't accept the quote: pick another time, or ${MORE_HOURS}.`,
           ),
         ),
       ),
     ];
   }
-  const missing = (rule: (room: DayCapacity) => boolean) =>
-    options.filter((_, i) => !rooms[i]!.hasRoom && rule(rooms[i]!));
   // none runs past midnight here: that one can't be sent, which
-  // timeProblem says first
-  const full = missing((r) => !r.hasHours);
-  const crewless = missing((r) => r.hasHours);
-  const names = (some: OfficeQuoteOption[]) =>
-    formatList(some.map(describeOption));
-  // what the client sees of them, then how to let them pick
-  const seen = (some: OfficeQuoteOption[], pick: string) => {
-    const them = some.length === 1 ? "it" : "them";
-    return `so the client will see ${them} but can't pick ${them}. Pick ${pick} so they can.`;
-  };
-  return [
-    full.length > 0 &&
-      `That day is too full for ${names(full)}, ${seen(full, "another day")}`,
-    crewless.length > 0 &&
-      `Not enough cleaners are free then for ${formatList(crewless.map(describeOption), "or")}, ${seen(crewless, "another time")}`,
-  ].filter((problem) => problem !== false);
+  // timeCheck says first
+  return (["full", "crew"] as const).flatMap((why) => {
+    const some = options.filter(
+      (_, i) => !rooms[i]!.hasRoom && noRoomOf(rooms[i]!) === why,
+    );
+    if (some.length === 0) return [];
+    const names = formatList(some.map(describeOption));
+    return [`The client can't pick ${names} at this time: ${NO_ROOM[why]}.`];
+  });
 };
 
-// why the client can't pick an option at its time, in a few words: the aside
-// says so under the Service recommended for a first visit
-const cantPick = (room: DayCapacity) =>
-  !room.endsByMidnight
-    ? "it would run past midnight"
-    : !room.hasHours
-      ? "that day is too full"
-      : "not enough cleaners are free";
+// Under the Service recommended for a first visit, why the client can't
+// pick it at the time proposed: a warning, as the quote can still be sent,
+// but danger when it would run past midnight, which Send refuses
+function NoRoomBeside({ room }: { room: DayCapacity }) {
+  const why = noRoomOf(room);
+  return why === "past_midnight" ? (
+    <p className="text-danger-strong">
+      It would run past midnight at this time, so the quote can't be sent.
+    </p>
+  ) : (
+    <p className="text-warning-strong">
+      The client can't pick it at this time: {NO_ROOM[why]}.
+    </p>
+  );
+}
 
 const describeOption = (o: OfficeQuoteOption) => `the ${o.serviceName}`;
 
@@ -1973,6 +1995,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
                     ? [weekdayOf(d.date.toString())]
                     : [],
                 )}
+                weekdays={plan.days.length}
                 onChange={(change) => setDay(day.key, change)}
                 onRemove={
                   plan.days.length > 1
@@ -2098,34 +2121,19 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
 const dayTitle = (day: DayFields, index: number) =>
   day.date ? `${weekdayName(day.date.toString())}s` : `Weekday ${index + 1}`;
 
-// A new weekday for a Service Plan Draft: like the last, on the day after
-// it if that's still within a week of the first, at the same time
-const anotherDay = (days: DayFields[]): DayFields => {
-  const last = days.at(-1)!;
-  const dates = days.flatMap((d) => (d.date ? [d.date] : []));
-  const first = dates.reduce<CalendarDate | undefined>(
-    (min, d) => (!min || d.compare(min) < 0 ? d : min),
-    undefined,
-  );
-  const next = last.date?.add({ days: 1 });
-  const taken = (d: CalendarDate) =>
-    dates.some((t) => weekdayOf(t.toString()) === weekdayOf(d.toString()));
-  return {
-    key: nextKey(),
-    date:
-      next && first && next.compare(first.add({ days: 7 })) < 0 && !taken(next)
-        ? next
-        : null,
-    time: last.time,
-    crewSize: last.crewSize,
-    override: { on: false, price: 0, reason: "" },
-  };
-};
+// A new weekday for a Service Plan Draft: its Cleaners like the last's, and
+// no time yet, for Office Staff to pick the weekday the client asked for
+// (a guess at it would lock its strip to the guessed weekday's dates)
+const anotherDay = (days: DayFields[]): DayFields => ({
+  key: nextKey(),
+  date: null,
+  time: null,
+  crewSize: days.at(-1)!.crewSize,
+  override: { on: false, price: 0, reason: "" },
+});
 
 // A one-off Draft's proposed time, picked from the open times in its part
-// as the asked-for Service's clean. It loads folded to its time when that's
-// set, has room and can be sent, as the other parts fold to what's set; open
-// otherwise, where there's something to do.
+// as the asked-for Service's clean (folded as `timeFold` says)
 function ProposedTime({
   quote,
   fields,
@@ -2143,7 +2151,7 @@ function ProposedTime({
   const date = fields.date?.toString();
   const time = timeOfField(fields.time);
   const untimely = quote.untimely.filter((u) => u.weekday === null);
-  const problem = timeProblem({
+  const { problem, fits } = timeCheck({
     options: quote.options,
     own: quote.options.indexOf(own),
     untimely,
@@ -2151,13 +2159,17 @@ function ProposedTime({
     time,
     crewSize: fields.crewSize,
   });
-  const [summary] = useState(() =>
-    date && time && !problem && untimely.length === 0
-      ? timeSummary(date, time, own.hoursOnSite)
-      : undefined,
-  );
   return (
-    <FormPart title="Proposed time" {...(summary ? { summary } : {})}>
+    <FormPart
+      title="Proposed time"
+      {...timeFold({
+        date,
+        time,
+        hoursOnSite: own.hoursOnSite,
+        problem,
+        untimely,
+      })}
+    >
       <PickOpenTime
         quoteId={quote.id}
         saves={saves}
@@ -2165,6 +2177,7 @@ function ProposedTime({
         date={fields.date}
         time={fields.time}
         problem={problem}
+        fits={fits}
         stale={stale}
         name="proposedStart"
         onChange={onChange}
@@ -2179,10 +2192,32 @@ function ProposedTime({
   );
 }
 
-// a time set, in a folded part's line: "Fri, Dec 4 · 11:30 AM to 2:00 PM"
-const timeSummary = (date: string, time: string, hoursOnSite: number) => {
-  const ends = endsAt(time, hoursOnSite);
-  return `${formatDay(date)} · ${formatClock(time)}${ends ? ` to ${ends}` : ""}`;
+// A Proposed time part's fold, as the other parts fold to what's set: its
+// line, the time set ("Fri, Dec 4 · 11:30 AM to 2:00 PM", when it ends once
+// priced) or that there's none; and folded on load only when that time is
+// set, has room and can be sent, open otherwise, where there's something
+// to do. Folded by hand, its line follows the time picked since.
+const timeFold = ({
+  date,
+  time,
+  hoursOnSite,
+  problem,
+  untimely,
+}: {
+  date: string | undefined;
+  time: string | undefined;
+  hoursOnSite: number | undefined;
+  problem: TimeProblem | undefined;
+  untimely: Untimely[];
+}) => {
+  if (!date || !time) return { summary: "Not picked yet", defaultOpen: true };
+  const ends =
+    hoursOnSite === undefined ? undefined : endsAt(time, hoursOnSite);
+  return {
+    summary: `${formatDay(date)} · ${formatClock(time)}${ends ? ` to ${ends}` : ""}`,
+    defaultOpen:
+      hoursOnSite === undefined || problem !== undefined || untimely.length > 0,
+  };
 };
 
 // What Send waits on, said beside it after "Saved", of the Draft as last
@@ -2222,8 +2257,11 @@ const noteOf = (state: SaveState, hold: string | undefined) =>
     : saveStateLabel[state];
 
 // A plan's weekday: its Cleaners, then its proposed time, picked from the
-// open times as the Draft's one-off's is (folded to it on load when it's
-// set, has room and can be sent), then its price set by hand
+// open times as the Draft's one-off's is, then its price set by hand. Its
+// time folds as on load again when a weekday's added or removed, so a
+// finished one steps out of the way of the new one: once that saves, as
+// whether it's finished is the Draft's as last saved, and a time typed just
+// before the press may still be saving.
 function PlanDayFields({
   index,
   title,
@@ -2234,6 +2272,7 @@ function PlanDayFields({
   option,
   untimely,
   taken,
+  weekdays,
   onChange,
   onRemove,
 }: {
@@ -2247,28 +2286,27 @@ function PlanDayFields({
   option: OfficeQuoteOption | undefined;
   untimely: Untimely[];
   taken: number[];
+  // how many the plan has
+  weekdays: number;
   onChange: (change: Partial<DayFields>) => void;
   // none while it's the plan's only weekday
   onRemove: (() => void) | undefined;
 }) {
+  const [foldFor, setFoldFor] = useState(weekdays);
+  if (foldFor !== weekdays && !stale) setFoldFor(weekdays);
   const name = `plan.days.${index}`;
   const date = day.date?.toString();
   const time = timeOfField(day.time);
-  const problem =
-    option &&
-    timeProblem({
-      options: [option],
-      own: 0,
-      untimely,
-      date,
-      time,
-      crewSize: day.crewSize,
-    });
-  const [summary] = useState(() =>
-    date && time && option && !problem && untimely.length === 0
-      ? timeSummary(date, time, option.hoursOnSite)
-      : undefined,
-  );
+  const { problem, fits } = option
+    ? timeCheck({
+        options: [option],
+        own: 0,
+        untimely,
+        date,
+        time,
+        crewSize: day.crewSize,
+      })
+    : { fits: false };
   return (
     <FormPart
       title={title}
@@ -2294,7 +2332,18 @@ function PlanDayFields({
           onChange={(crewSize) => onChange({ crewSize })}
         />
       </FieldRow>
-      <FormPart title="Proposed time" inPart {...(summary ? { summary } : {})}>
+      <FormPart
+        key={foldFor}
+        title="Proposed time"
+        headingLevel={3}
+        {...timeFold({
+          date,
+          time,
+          hoursOnSite: option?.hoursOnSite,
+          problem,
+          untimely,
+        })}
+      >
         <PickOpenTime
           quoteId={quoteId}
           weekday={index}
@@ -2305,6 +2354,7 @@ function PlanDayFields({
           time={day.time}
           taken={taken}
           problem={problem}
+          fits={fits}
           stale={stale}
           name={`${name}.start`}
           onChange={onChange}
