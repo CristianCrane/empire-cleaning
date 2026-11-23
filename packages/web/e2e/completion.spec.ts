@@ -171,7 +171,7 @@ test(
     // paid in full, but not the last word while the change is open (#493)
     await expect(
       page.getByRole("region", { name: "Money" }).getByRole("definition"),
-    ).toContainText([/Total without the price change still open, paid by/]);
+    ).toContainText([/Total before price changes, paid by/]);
     await extraTime.click();
     const review = page.getByRole("dialog", { name: "More time" });
     await expect(review).toContainText('"Heavy grease"');
@@ -251,7 +251,7 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
     ),
   ).toBeVisible();
   await expect(page.getByRole("region", { name: "History" })).toContainText(
-    /Payment of \$[\d.,]+ didn't go through/,
+    /Balance of \$[\d.,]+ didn't go through/,
   );
   await expectNextStep(page, "Try the payment again");
 

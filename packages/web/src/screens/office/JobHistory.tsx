@@ -184,7 +184,15 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       key: "unpaid",
       at: unpaid.since,
       icon: CircleAlert,
-      title: `Payment of ${formatMoney(job.payment!.owedCents)} didn't go through`,
+      // named as its charge would be once it goes through: what's owed once
+      // done is the Balance, once it didn't happen its fee
+      title: `${
+        job.status === "completed"
+          ? chargeLabel.balance
+          : job.status === "cancelled" || job.status === "no_access"
+            ? feeName[job.status]
+            : "Payment"
+      } of ${formatMoney(job.payment!.owedCents)} didn't go through`,
     });
   }
   // newest first; of two at the same moment, the later told first: a
