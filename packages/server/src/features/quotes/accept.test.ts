@@ -767,6 +767,27 @@ describe("paying the Deposit with a card entered just now", () => {
     );
   });
 
+  // #534, F11: giveBackDeposit reads a lost reply as a refusal, so the
+  // Office is told to refund by hand a Deposit already refunded
+  test("a Deposit refunded when the day filled up, whose refund reply was lost, isn't reported as not refunded", async () => {
+    await cleaners(2, 4);
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("approved");
+    const waiting = (await payNow(client, quote).expect(200))
+      .body as AcceptOutcome;
+    await bookedJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 7 });
+    // the bank's answer is in, so the reply lost next is the refund's
+    await testPayments().depositOutcome(refOf(waiting));
+    testPayments().loseNextReply();
+
+    await finalize(client, quote).expect(409);
+
+    expect(testPayments().refunds).toHaveLength(1);
+    expect(testMonitoring().signalled("refund_failed")).toEqual([]);
+  });
+
   test("refunds the Deposit if the Quote was accepted another way meanwhile", async () => {
     await cleaners();
     const office = await signInAsOffice();

@@ -962,6 +962,65 @@ describe("Unpaid Bills", () => {
     ).toHaveLength(1);
   });
 
+  // #534, F9: billed, the Job is settled without chargeSaved, so its lost
+  // Balance is never found, and the Bill takes the Balance again for good
+  test("a Job whose Balance reply was lost, then billed weekly, isn't charged again on the Bill", async () => {
+    const office = await signInAsOffice();
+    const me = (await office.get("/api/me").expect(200))
+      .body as SignedInAccount;
+    const cleaner = await staffMember("Cory Cleaner");
+    const job = await acceptedJob({
+      startsAt: WEDNESDAY_9AM,
+      byAccountId: me.id,
+    });
+    const client = (await findClientByEmail(casey.email))!;
+    await addPremises(client.id);
+    const offered = await offerAssignment(job.id, cleaner.id, me.id);
+    await confirmAssignment(cleaner.id, offered.assignments[0]!.id);
+    testClock().set(WEDNESDAY_NOON);
+    testPayments().loseNextReply();
+    await completeJob(cleaner.id, job.id, {
+      condition: "moderate",
+      reports: [],
+    });
+
+    await setBilling(office, client.id).expect(200);
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    await settleOpenPayments();
+
+    const [row] = await db.select().from(jobs).where(eq(jobs.id, job.id));
+    const { totalCents } = await paymentOf(row!);
+    const taken = testPayments().charges.reduce((s, c) => s + c.amount, 0);
+    const given = testPayments().refunds.reduce((s, r) => s + r.amount, 0);
+    expect(taken - given).toBe(totalCents);
+  });
+
+  // #534, F10: an attempt still pending is asked again with its request, so
+  // one that never reached the provider is made now, for a Bill already paid
+  test("one whose Charge never reached the provider, then paid another way, isn't charged later", async () => {
+    const { office, clientId } = await billedJob();
+    testPayments().goDown();
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    testPayments().goDown(false);
+    const [{ id, totalCents }] = (await billsOf(office, clientId)) as [
+      BillSummary,
+    ];
+    await office
+      .post(`/api/bills/${id}/outside-payment`)
+      .send({ note: "Cheque 1042" })
+      .expect(200);
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    await settleOpenPayments();
+
+    expect(
+      testPayments().charges.filter((c) => c.amount === totalCents),
+    ).toEqual([]);
+  });
+
   test("Office Staff can record a payment made another way, which settles it", async () => {
     const { office, clientId } = await billedJob();
     testPayments().failCharges();
