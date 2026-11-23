@@ -176,9 +176,10 @@ const badgeOf = (
   }
   if (job.rescheduleRequest?.status === "pending")
     return { label: w.moveAsked, tone: "warning" };
+  // once it's started, a crew short can't be filled: it's under way
+  if (job.started) return { label: "In progress", tone: "success" };
   if (job.assignment === "unassigned")
     return { label: crewLabel.unassigned, tone: crewTone.unassigned };
-  if (job.started) return { label: "In progress", tone: "success" };
   if (job.today) return { label: w.today, tone: "info" };
   return null;
 };
@@ -219,7 +220,9 @@ function useActionsOf(job: OfficeJob): {
       icon: CalendarCheck,
       dialog: (state: DialogState) => <AnswerRequest job={job} {...state} />,
     },
+    // till it starts: then the server offers it to nobody
     booked(job) &&
+      !job.started &&
       job.cleanersNeeded > 0 &&
       job.cleaners.length > 0 && {
         label: "Offer to a cleaner",
@@ -313,6 +316,7 @@ const alertsFor = (job: OfficeJob, next?: PageAction): Alert[] => {
   }
   if (
     booked(job) &&
+    !job.started &&
     job.cleanersNeeded > 0 &&
     job.openTo.opened &&
     job.openTo.cleaners === 0
@@ -336,7 +340,7 @@ const alertsFor = (job: OfficeJob, next?: PageAction): Alert[] => {
       children: (
         <p>
           <strong>{firstNameOf(job.client.name)} wants regular visits.</strong>{" "}
-          This was their first clean, and no cleaning plan has been offered yet.
+          This was their first clean, and they have no cleaning plan.
         </p>
       ),
     });
@@ -499,7 +503,7 @@ const openToOf = (job: OfficeJob) => {
   const openTo =
     job.cleanersNeeded > 0 &&
     (!opened
-      ? `Free cleaners can take it from ${formatDateTime(opensAt)}.`
+      ? `Cleaners free that day can take it from ${formatDateTime(opensAt)}.`
       : free > 0 && `${cleaners(free, "free")} can take it: ${firstTo}.`);
   const saidNo =
     passedBy.length > 0 &&

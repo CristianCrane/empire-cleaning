@@ -25,7 +25,7 @@ const { assignmentStateLabel, cancelledLabel } = screenWords.en;
 
 const { formatDateTime, formatMoney } = formats.en;
 
-const { planCancelled } = messages.en;
+const { planCancelled, feeName, LATE_MOVE_FEE } = messages.en;
 
 type Moment = {
   key: string;
@@ -35,7 +35,7 @@ type Moment = {
   description?: string;
 };
 
-const chargeLabel = { deposit: "Deposit", balance: "Balance", fee: "Fee" };
+const chargeLabel = { deposit: "Deposit", balance: "Balance" };
 
 // an Assignment answered: its icon; its title is who and what they did,
 // "Cory confirmed"
@@ -69,12 +69,19 @@ const momentsOf = (job: OfficeJob): Moment[] => {
     { key: "booked", at: job.bookedAt, icon: CalendarPlus, title: "Booked" },
   ];
   const charges = job.payment?.charges ?? [];
+  // a fee by what it's for, as Money names it: "Late cancellation fee"
+  const chargeName = (c: (typeof charges)[number]) =>
+    c.kind !== "fee"
+      ? chargeLabel[c.kind]
+      : job.status === "cancelled" || job.status === "no_access"
+        ? feeName[job.status]
+        : LATE_MOVE_FEE;
   const charged = (c: (typeof charges)[number], i: number) =>
     moments.push({
       key: `charge-${i}`,
       at: c.chargedAt,
       icon: CreditCard,
-      title: `${chargeLabel[c.kind]} of ${formatMoney(c.amountCents)} charged`,
+      title: `${chargeName(c)} of ${formatMoney(c.amountCents)} charged`,
     });
   // a Deposit follows its booking
   charges.forEach((c, i) => c.kind === "deposit" && charged(c, i));
@@ -158,14 +165,18 @@ const momentsOf = (job: OfficeJob): Moment[] => {
   // or fee its ending, a refund its cancelling
   charges.forEach((c, i) => {
     if (c.kind !== "deposit") charged(c, i);
-    if (c.refundedAt) {
+    c.refunds.forEach((r, j) =>
       moments.push({
-        key: `refund-${i}`,
-        at: c.refundedAt,
+        key: `refund-${i}-${j}`,
+        at: r.refundedAt,
         icon: Undo2,
-        title: `${formatMoney(c.refundedCents)} of the ${chargeLabel[c.kind].toLowerCase()} refunded`,
-      });
-    }
+        // all of it back at once reads as the charge did
+        title:
+          r.amountCents === c.amountCents
+            ? `${chargeName(c)} of ${formatMoney(r.amountCents)} refunded`
+            : `${formatMoney(r.amountCents)} of the ${formatMoney(c.amountCents)} ${chargeName(c).toLowerCase()} refunded`,
+      }),
+    );
   });
   const unpaid = job.payment?.unpaid;
   if (unpaid) {

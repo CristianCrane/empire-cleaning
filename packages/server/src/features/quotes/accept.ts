@@ -434,6 +434,7 @@ const recordAcceptance = async (
         crewSize: clean.crewSize,
       },
       tx,
+      now,
     );
     firstJobs.push({ position: clean.position, job });
   }

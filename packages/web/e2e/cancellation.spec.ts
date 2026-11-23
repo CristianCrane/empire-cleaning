@@ -201,7 +201,7 @@ test(
     await expect(history).toContainText("Cancelled by us");
     await expect(history).toContainText("Our crew is unwell.");
     await expect(history).toContainText(/Deposit of \$[\d.]+ charged/);
-    await expect(history).toContainText(/\$[\d.]+ of the deposit refunded/);
+    await expect(history).toContainText(/Deposit of \$[\d.]+ refunded/);
     const money = page.getByRole("region", { name: "Money" });
     await expect(money.getByRole("definition")).toHaveText([
       /^\$[\d.]+$/,

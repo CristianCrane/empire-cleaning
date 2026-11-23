@@ -1647,8 +1647,8 @@ export type ChargeView = {
   amountCents: number;
   refundedCents: number;
   chargedAt: string;
-  // when the last of it was given back; null if none was
-  refundedAt: string | null;
+  // each time some of it was given back, oldest first
+  refunds: { amountCents: number; refundedAt: string }[];
 };
 
 // where a Job's money stands. All amounts tax included.

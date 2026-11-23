@@ -33,6 +33,7 @@ import {
 } from "../completion/completion.ts";
 import { addOnsOf } from "../jobs/add-ons.ts";
 import { hoursOnSiteOf, onSchedule } from "../jobs/jobs.ts";
+import { whyStarted } from "../jobs/rules.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { jobView, scheduleOn, scheduledJobs } from "../jobs/schedule.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
@@ -264,7 +265,8 @@ export const emailOffer = (
 // Office Staff take someone off a Job, Offered or Confirmed, leaving a
 // Cleaner Needed open to everyone free for it but them, as a Release does (#242): Office
 // Staff can still Offer it to them. They're emailed unless they took
-// themselves off, and so is anyone free for it, if the Job is within 48 hours
+// themselves off, and so is anyone free for it, if the Job is within 48 hours.
+// Refused once the Job has started, as Offering is: no one could fill the gap
 export const removeAssignment = async (
   jobId: string,
   assignmentId: string,
@@ -273,8 +275,15 @@ export const removeAssignment = async (
   const { job, property } = await findJob(jobId);
   const removed = await db.transaction(async (tx) => {
     // one change to a Job's crew at a time, as Offering takes
-    await tx.select().from(jobs).where(eq(jobs.id, jobId)).for("update");
+    const [locked] = await tx
+      .select({ startsAt: jobs.startsAt })
+      .from(jobs)
+      .where(eq(jobs.id, jobId))
+      .for("update");
     const now = clock.now();
+    if (locked && locked.startsAt <= now) {
+      throw new ConflictError(whyStarted("takenOff"));
+    }
     const [removed] = await tx
       .update(assignments)
       .set({ status: "released", answeredAt: now, takenOffAt: now })

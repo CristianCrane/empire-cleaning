@@ -140,7 +140,7 @@ test(
       "$50.46Late cancellation fee, paid",
     );
     await expect(page.getByRole("region", { name: "History" })).toContainText(
-      "Fee of $50.46 charged",
+      "Late cancellation fee of $50.46 charged",
     );
   },
 );

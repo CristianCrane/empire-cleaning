@@ -19,6 +19,7 @@ import {
   pageAction,
   expectNoPageAction,
   expectNextStep,
+  expectNothingNext,
 } from "./harness.ts";
 
 // the API's fake clock is at 4am on Monday 5 January 2026 in New York. The
@@ -141,6 +142,24 @@ test("Office Staff take someone off a Job, leaving a Cleaner Needed", async ({
   expect((await emailsTo(cory.email)).at(-1)!.subject).toBe(
     "You're no longer on a job",
   );
+});
+
+// #493: once it's started, a crew short is under way: nobody can be offered
+// it (the server refuses), so it isn't the next step, nor asked for
+test("a started Job a cleaner short is in progress, with no one to offer it to", async ({
+  page,
+}) => {
+  const cory = await addCleaner("Cory Cleaner");
+  await addCleaner("Dee Cleaner");
+  const job = await thursdayJob(2);
+  await offerJob(job.id, cory.id, { confirmed: true });
+  await setClock("2026-01-08T15:00:00Z");
+  await signInAsOffice(page);
+  await page.goto(`/office/jobs/${job.id}`);
+
+  await expect(page.getByText("In progress", { exact: true })).toBeVisible();
+  await expectNothingNext(page);
+  await expectNoPageAction(page, "Offer to a cleaner");
 });
 
 // #406, #493: the Job's next step its primary, the rest behind its arrow,
@@ -619,7 +638,9 @@ test("the Office sees when a Job's Cleaners Needed open to Cleaners", async ({
   await page.goto(`/office/jobs/${job.id}`);
 
   await expect(
-    page.getByText("Free cleaners can take it from Tue, Jan 6, 9:00 AM."),
+    page.getByText(
+      "Cleaners free that day can take it from Tue, Jan 6, 9:00 AM.",
+    ),
   ).toBeVisible();
   await expect(page.getByRole("region", { name: "Crew" })).toContainText(
     "2 needed",
