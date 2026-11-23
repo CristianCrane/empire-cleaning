@@ -6,7 +6,7 @@ import type {
   QuoteSummary,
   ScheduleDay,
 } from "@empire-cleaning/models";
-import { dayOf, type Clean } from "@empire-cleaning/models";
+import { dayOf, PICK_TIMES, type Clean } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import { onSchedule } from "../jobs/jobs.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
@@ -20,7 +20,7 @@ import { quotesWithoutRoomEmail } from "./emails.ts";
 import { openQuotes } from "./quote-state.ts";
 import { quotes, revisionOptions } from "./quotes.schema.ts";
 import { cleanRooms, cleansFit } from "./rules.ts";
-import { startsOn, startsWithoutCrew } from "../jobs/rules.ts";
+import { startsOn, startsWhere } from "../jobs/rules.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 
 // A Sent Quote doesn't hold its time: a booking for another Client, or fewer
@@ -90,7 +90,7 @@ export const optionRoomsOf = async (
 
 /**
  * The starts on these days of the Schedule where a Draft's clean would
- * find no crew free (startsWithoutCrew), as its room line asks it
+ * find no crew free (startsWhere), as its room line asks it
  * (cleanRooms), the Draft as last saved: a Service Plan Quote's weekday
  * `weekday` moved to each start beside its other weekdays' starts, the
  * Jobs of its home's plan that the Quote would then replace counting as
@@ -126,10 +126,15 @@ export const draftStartsWithoutCrew = async (
   const replacing = new Map(
     starts.map((startsAt, i) => [startsAt.getTime(), replaced[i]!]),
   );
-  return startsWithoutCrew(days, (day, startsAt) =>
-    cleanRooms([day], at(startsAt), replacing.get(startsAt.getTime())!).every(
-      (room) => room.hasCrew,
-    ),
+  return startsWhere(
+    days,
+    PICK_TIMES,
+    (day, startsAt) =>
+      !cleanRooms(
+        [day],
+        at(startsAt),
+        replacing.get(startsAt.getTime())!,
+      ).every((room) => room.hasCrew),
   );
 };
 

@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { atTime, roomOn } from "@empire-cleaning/models";
+import { atTime, PICK_TIMES, roomOn } from "@empire-cleaning/models";
 import { validate } from "../../middleware/validation.ts";
 import { authorize } from "../auth/authorize.ts";
-import { startsWithoutCrew } from "./rules.ts";
+import { startsWhere } from "./rules.ts";
 import { clock } from "../../services/clock/index.ts";
 import { roomFor, scheduleFor, scheduleOn } from "./schedule.ts";
 import {
@@ -44,9 +44,10 @@ router.get(
 router.get("/starts", validate({ query: startsSchema }), async (req, res) => {
   const { from, to, ...clean } = req.query;
   res.json(
-    startsWithoutCrew(
+    startsWhere(
       await scheduleFor(from, to),
-      (day, startsAt) => roomOn(day, { ...clean, startsAt }).hasCrew,
+      PICK_TIMES,
+      (day, startsAt) => !roomOn(day, { ...clean, startsAt }).hasCrew,
     ),
   );
 });

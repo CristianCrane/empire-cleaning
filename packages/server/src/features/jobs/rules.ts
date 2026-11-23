@@ -22,22 +22,20 @@ export const startsOn = (day: ScheduleDay) =>
   PICK_TIMES.map((time) => atTime(day.date, time));
 
 /**
- * The starts on each of these days of the Schedule (startsOn) where a clean
- * would find no crew free, as `hasCrew` says of it there (roomOn's, or a
- * Quote's cleanRooms'): the times the Office's pickers mark. Only the
- * headcount: a day's hours show in its header.
+ * Each of these days of the Schedule with those of `times` (times of day, in
+ * order) that `passes` at a start then: the one shape of every picker's
+ * starts, whichever rule picks them (the Office's pickers' marks, a Job's
+ * times to move to).
  */
-export const startsWithoutCrew = (
+export const startsWhere = (
   days: ScheduleDay[],
-  hasCrew: (day: ScheduleDay, startsAt: Date) => boolean,
+  times: readonly string[],
+  passes: (day: ScheduleDay, startsAt: Date) => boolean,
 ): DayTimes[] =>
-  days.map((day) => {
-    const starts = startsOn(day);
-    return {
-      date: day.date,
-      times: PICK_TIMES.filter((_, i) => !hasCrew(day, starts[i]!)),
-    };
-  });
+  days.map((day) => ({
+    date: day.date,
+    times: times.filter((time) => passes(day, atTime(day.date, time))),
+  }));
 
 // A day as it is once some of its booked Jobs are replaced, as a plan's new
 // terms replace them (#15): they're gone, and so are the times held for
