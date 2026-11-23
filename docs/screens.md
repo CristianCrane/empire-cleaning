@@ -247,8 +247,9 @@ Keeps: title outside the Card (#119). Renders through `RecordPage` (#432).
 Keeps: one page of Sections, its History last (#493). Renders through `RecordPage` (#432).
 
 - Header: Clients › client › address; the address.
-- Actions: Menu (New quote, Correct details).
-- Alerts: on hold, see it first (premises with no findings), rooms missing,
+- Actions: on hold, its next step the primary (See bill N, or See the job),
+  the rest behind its arrow; otherwise Menu (New quote, Correct details).
+- Alerts: on hold (why), see it first (premises with no findings), rooms missing,
   new terms (open the Quote).
 - Body: Home details (`DetailsCard`: `IconTile`, icon facts); Cleaning plan
   (Section: Change terms and End plan in red on its title line, the plan's
@@ -262,7 +263,10 @@ Keeps: the Record. Renders through `RecordPage` (#432).
 - Header: Clients › client › home › Cleaning plan; "Cleaning plan" and its
   Ended badge.
 - Actions: none once Ended; opened from Today while it runs, Menu (Change
-  terms; End plan in red).
+  terms; End plan in red), behind the primary while on hold (See bill N, or
+  See the job).
+- Alerts: on hold (why), in its badge's tone: warning, or info for a
+  payment we try again ourselves.
 - Body: the plan (`DetailsCard`); visits waiting; Jobs (Section: List).
 
 #### Office > Site visit
@@ -284,9 +288,11 @@ Keeps: the Record; findings are part of the visit (#156). Renders through `Recor
 Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432).
 
 - Header: the letterhead (print only, before the layout); Clients › client ›
-  Bill N; "Bill N" and its status; the week.
-- Actions: Menu (Record a payment, Print; Cancel bill in red).
-- Alerts: the Client's standing.
+  Bill N; "Bill N" and its status (its week is a fact).
+- Actions: once its payment didn't go through or it's late, Record a payment
+  the primary, Print and Cancel bill in red behind its arrow; otherwise Menu
+  (Record a payment, Print; Cancel bill in red).
+- Alerts: why it's unpaid, or its bank payment on its way.
 - Body: the Bill (`DetailsCard`: what it comes to, icon facts, the lines).
 
 #### Office > Staff
@@ -422,7 +428,7 @@ Keeps: Tabs, by month, date tiles (ux-portal). Renders through `ListPage`
 Keeps: what you owe first, fixed header Button (ux-portal). Renders through
 `HomePage` (#435).
 
-- Header: "Payments" in the bar; Your card (secondary).
+- Header: "Payments" in the bar; Your card (secondary), standing aside while the card asks something of them (its tile stays).
 - Body: what you owe (`AnswerCard`: `IconTile`, the primary) or all paid;
   Notices of payments clearing; tiles All payments (`?open=history`, the
   Statement by month in place) and Your card (a link).
@@ -487,8 +493,11 @@ Keeps: read like a Quote, paying under it (#165). Renders through `RecordPage` (
 Keeps: headline, then facts across (ux-portal). Renders through `RecordPage` (#432).
 
 - Header: Your details › street › Your plan; "Your plan" and its status.
-- Actions: Menu (Ask to change; End plan in red).
-- Alerts: on hold.
+- Actions: on hold, its next step the primary (Pay bill N, or Update your
+  card), the rest behind its arrow, unless it's a payment we try again
+  ourselves; otherwise Menu (Ask to change; End plan in red).
+- Alerts: on hold (why), in its badge's tone: warning, or info for a
+  payment we try again ourselves, which says there's nothing to do.
 - Body: the plan (`DetailsCard`); Upcoming (Section: List).
 
 #### Client portal > A home
@@ -504,10 +513,13 @@ Keeps: a list of homes, each with its own page (ux-portal). Renders through `Rec
 
 Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432).
 
-- Header: letterhead; Payments › Bill N; "Bill N" and its status; the week.
-- Actions: one Button (Print).
-- Alerts: standing.
-- Body: Pay (Section, while due); the Bill (`DetailsCard`).
+- Header: letterhead; Payments › Bill N; "Bill N" and its status (its week is a fact).
+- Actions: while due, Pay this bill the primary (its form in a dialog),
+  Print behind its arrow; both behind a ⋯ while it's a payment we try again
+  ourselves; otherwise one Button (Print).
+- Alerts: why it's unpaid (Update your card, a text Button), or its bank
+  payment on its way.
+- Body: the Bill (`DetailsCard`).
 
 ### Signed out and signed in
 

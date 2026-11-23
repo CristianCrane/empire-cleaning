@@ -15,7 +15,7 @@ import {
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
 import { useHomeUrl } from "../home-search.ts";
-import { HeroCard } from "./HeroCard.tsx";
+import { HeroCard, whyAlert } from "./HeroCard.tsx";
 import {
   moneyNow,
   owedAnswer,
@@ -66,23 +66,27 @@ export function PortalPayments() {
   const home = useHomeUrl();
   const money = moneyNow(data, t.lang);
   const { owed, clearing } = money;
+  const owing = owed && owedAnswer(owed, t.lang);
   const { history } = data;
 
   return (
     <HomePage
       title={t.p.payments}
       actions={[
-        {
+        // stands aside while the card asks something of them, as Home's
+        // does (docs/ux.md; UX review U18); Your card's tile stays below
+        !owed?.asks && {
           label: t.p.yourCard,
           icon: CreditCard,
           href: linkTo({ to: "/portal/payment-method" }),
         },
       ]}
+      alerts={[whyAlert(owing?.why)]}
       answer={
         <HeroCard
           hero={
-            owed
-              ? owedAnswer(owed, t.lang)
+            owing
+              ? owing.hero
               : {
                   label: t.w.allPaid,
                   icon: CircleCheck,

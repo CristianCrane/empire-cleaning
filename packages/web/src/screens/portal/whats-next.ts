@@ -34,7 +34,7 @@ import { linkTo, sameHref } from "../../links.ts";
 import { QuoteIcon, SiteVisitIcon } from "../icons.ts";
 import { addressOf, formatHours, formatMinutes } from "../format.ts";
 import { saidWith } from "../words.ts";
-import type { Hero } from "./HeroCard.tsx";
+import type { Hero, Why } from "./HeroCard.tsx";
 import { moneyNow, owedAnswer, yourCardTile } from "./payments.ts";
 
 // Home's words, in the Client's language (ADR-0025)
@@ -81,7 +81,6 @@ const words = catalog({
       `${visitor} comes to see ${address} for about ${length}`,
     visitFree: (phone: string) =>
       `Free: we look before we quote. To change the time, call ${phone}.`,
-    planPaused: "Your cleaning plan is paused.",
     weTryAgain:
       "A payment on it hasn't gone through yet. We'll try again by ourselves, so there's nothing you need to do.",
     untilPaid:
@@ -160,7 +159,6 @@ const words = catalog({
       `${visitor} va a ver ${address} durante cerca de ${length}`,
     visitFree: (phone: string) =>
       `Gratis: vemos el lugar antes de cotizar. Para cambiar la hora, llame al ${phone}.`,
-    planPaused: "Su plan de limpieza está en pausa.",
     weTryAgain:
       "Un pago del plan aún no ha pasado. Lo volveremos a intentar por nuestra cuenta, así que no tiene que hacer nada.",
     untilPaid:
@@ -222,15 +220,6 @@ export type HomeData = {
   siteVisits: ClientSiteVisit[];
   bills: BillSummary[];
   paymentMethod: PaymentMethodView | null;
-};
-
-// why the card says what it does, when it needs a reason (money late, a
-// price change, a crew who couldn't get in, a plan paused): its first
-// sentence bold, as a page's alerts read
-type Why = {
-  tone: "info" | "warning" | "danger";
-  lead: string;
-  more?: string;
 };
 
 export type WhatsNext = {
@@ -324,18 +313,12 @@ export function whatsNext(
   // answer; how we get in, the morning we couldn't
   const lead = ((): Answer | undefined => {
     if (money.owed?.asks) {
-      const owed = owedAnswer(money.owed, lang);
+      const { hero: owed, why } = owedAnswer(money.owed, lang);
       const pausedLine = paused
         ? // booked cleans go ahead; none is booked till it is paid
           [next ? t.BOOKED_GO_AHEAD : w.carriesOn]
         : [];
-      // one that's late says why above the card; one simply due, its line
-      return money.owed.late
-        ? {
-            hero: { ...owed, lines: pausedLine },
-            why: { tone: "danger", lead: `${money.owed.text}.` },
-          }
-        : { hero: { ...owed, lines: [...owed.lines, ...pausedLine] } };
+      return { hero: { ...owed, lines: [...owed.lines, ...pausedLine] }, why };
     }
     if (changes.length > 0) {
       const [{ job, change }] = changes as [(typeof changes)[number]];
@@ -576,7 +559,7 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Answer {
         lines: [w.untilPaid],
         action: { label: t.p.seeYourPlan, href: planLink(paused.id) },
       },
-      why: { tone: "info", lead: w.planPaused, more: w.weTryAgain },
+      why: { tone: "info", lead: t.p.planPaused, more: w.weTryAgain },
     };
   }
 

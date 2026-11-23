@@ -1,4 +1,5 @@
 import {
+  asksTheClient,
   catalog,
   type Language,
   type Unpaid,
@@ -77,8 +78,8 @@ export const whyNotPaid = (
 // haven't been told: before, it was paid (`before` null), or only waiting
 // on the provider, which we try again ourselves
 export const nowTheirs = (before: string | null, failure: string) =>
-  unpaidKind(failure) !== "waiting" &&
-  (before === null || unpaidKind(before) === "waiting");
+  asksTheClient(unpaidKind(failure)) &&
+  (before === null || !asksTheClient(unpaidKind(before)));
 
 // as a view shows it, in the reader's language
 export const unpaidOf = (

@@ -222,7 +222,7 @@ test("the Client pays a Bill on its page by card", async ({ page }) => {
   });
   await signedInAs(page, casey.email);
   await page.goto(`/portal/bills/${billId}`);
-  const { form, pay } = payThisBill(page);
+  const { form, pay } = await payThisBill(page);
   const card = cardFrame(form).getByRole("tab", { name: "Card" });
   if (await card.isVisible()) await card.click();
   await enterCard(form, CARD.visa);
