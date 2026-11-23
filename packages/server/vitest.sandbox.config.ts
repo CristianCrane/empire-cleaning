@@ -24,7 +24,8 @@ export default defineConfig({
         process.env.STRIPE_WEBHOOK_SECRET || "whsec_contract_tests",
     },
     // each test waits on Stripe, some on its webhooks for up to five
-    // minutes; one at a time, as its test-mode rate limits are strict
+    // minutes (the failing refund's case longer, its timeout beside it);
+    // one at a time, as its test-mode rate limits are strict
     testTimeout: 6 * MINUTE_MS,
     fileParallelism: false,
   },

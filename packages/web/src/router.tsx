@@ -46,6 +46,7 @@ import type {
   StaffDetail,
   StaffMember,
 } from "@empire-cleaning/models";
+import { asksTheClient } from "@empire-cleaning/models";
 import {
   LanguageProvider,
   Link,
@@ -839,7 +840,7 @@ const portalPaymentMethodRoute = createRoute({
     // try again ourselves
     return {
       saved,
-      unpaid: pastJobs.filter((j) => j.unpaid && j.unpaid !== "waiting"),
+      unpaid: pastJobs.filter((j) => j.unpaid && asksTheClient(j.unpaid)),
     };
   },
   component: PortalPaymentMethod,

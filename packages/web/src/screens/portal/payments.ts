@@ -1,4 +1,5 @@
 import {
+  asksTheClient,
   type BillSummary,
   type ClientPastJob,
   type ClientPayment,
@@ -8,7 +9,7 @@ import {
 } from "@empire-cleaning/models";
 import { CreditCard, Wallet } from "lucide-react";
 import { linkTo, type AppHref } from "../../links.ts";
-import type { Hero } from "./HeroCard.tsx";
+import type { Hero, Why } from "./HeroCard.tsx";
 import { said, saidWith } from "../words.ts";
 
 // in the Client's language (ADR-0025)
@@ -17,6 +18,11 @@ const words = catalog({
     toPay: "To pay",
     billDue: (n: string, day: string) => `Bill ${n} is due by ${day}`,
     andMore: (first: string, n: number) => `${first}, and ${n} more`,
+    // one the payment service is trying again, which we see to (ADR-0022)
+    billNotYet: (n: string) =>
+      `Your payment for bill ${n} hasn't gone through yet`,
+    cleanNotYet: (day: string) =>
+      `Your payment for your ${day} clean hasn't gone through yet`,
     onPage: "You pay each bill on its page",
     noCard: "No card saved yet",
     refundOnBill: (n: string) => `Refund on bill ${n}`,
@@ -41,6 +47,9 @@ const words = catalog({
     toPay: "Por pagar",
     billDue: (n: string, day: string) => `La factura ${n} vence el ${day}`,
     andMore: (first: string, n: number) => `${first}, y ${n} más`,
+    billNotYet: (n: string) => `El pago de la factura ${n} aún no ha pasado`,
+    cleanNotYet: (day: string) =>
+      `El pago de su limpieza del ${day} aún no ha pasado`,
     onPage: "Paga cada factura en su página",
     noCard: "Aún no hay tarjeta guardada",
     refundOnBill: (n: string) => `Devolución de la factura ${n}`,
@@ -112,10 +121,13 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
       .filter((b) => b.unpaid && b.status === "due")
       .map((b) => ({
         cents: b.totalCents,
-        late: true,
-        // one the payment service is trying again asks nothing yet
-        asks: b.unpaid!.kind !== "waiting",
-        text: billNotPaid(b.number),
+        // one the payment service is trying again asks nothing yet, and
+        // isn't late: it waits on us
+        late: asksTheClient(b.unpaid!.kind),
+        asks: asksTheClient(b.unpaid!.kind),
+        text: asksTheClient(b.unpaid!.kind)
+          ? billNotPaid(b.number)
+          : w.billNotYet(b.number),
         action: { label: payBill(b.number), href: billLink(b.id) },
       })),
     // a clean, or its fee, that couldn't be charged
@@ -123,20 +135,21 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
       .filter((j) => j.unpaid)
       .map((j) => ({
         cents: j.owedCents,
-        late: true,
-        asks: j.unpaid !== "waiting",
-        text: cleanNotPaid(shortDayOf(j.startsAt)),
+        late: asksTheClient(j.unpaid!),
+        asks: asksTheClient(j.unpaid!),
+        text: asksTheClient(j.unpaid!)
+          ? cleanNotPaid(shortDayOf(j.startsAt))
+          : w.cleanNotYet(shortDayOf(j.startsAt)),
         // we try one waiting on the payment service again ourselves
-        action:
-          j.unpaid === "waiting"
-            ? {
-                label: t.p.seeTheClean,
-                href: linkTo({
-                  to: "/portal/jobs/$jobId",
-                  params: { jobId: j.id },
-                }),
-              }
-            : { label: t.UPDATE_CARD, href: cardLink },
+        action: !asksTheClient(j.unpaid!)
+          ? {
+              label: t.p.seeTheClean,
+              href: linkTo({
+                to: "/portal/jobs/$jobId",
+                params: { jobId: j.id },
+              }),
+            }
+          : { label: t.UPDATE_CARD, href: cardLink },
       })),
     // a Bill to pay on its page, not yet late
     ...data.bills
@@ -155,6 +168,8 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         action: { label: payBill(b.number), href: billLink(b.id) },
       })),
   ];
+  // what asks something of them leads (the sort keeps the order otherwise)
+  owing.sort((a, b) => Number(b.asks) - Number(a.asks));
   const [first] = owing;
   const owed: Owed | null = first
     ? {
@@ -185,17 +200,24 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
 }
 
 // what's owed as a Home's answer (AnswerCard): Payments' card, and the
-// Client's Home's when it asks something of them
-export function owedAnswer(owed: Owed, lang: Language): Hero {
+// Client's Home's when it asks something of them. One that's late says
+// why above the card (whyAlert); one simply due, in its line
+export function owedAnswer(
+  owed: Owed,
+  lang: Language,
+): { hero: Hero; why?: Why } {
   const t = saidWith(lang, words);
   return {
-    label: t.w.toPay,
-    // money, not a warning: the warning's triangle is a Notice's
-    icon: Wallet,
-    tone: owed.late ? ("danger" as const) : ("warning" as const),
-    headline: t.formatMoney(owed.cents),
-    lines: [owed.text],
-    action: owed.action,
+    hero: {
+      label: t.w.toPay,
+      // money, not a warning: the warning's triangle is a Notice's
+      icon: Wallet,
+      tone: owed.late ? "danger" : "warning",
+      headline: t.formatMoney(owed.cents),
+      lines: owed.late ? [] : [owed.text],
+      action: owed.action,
+    },
+    ...(owed.late && { why: { tone: "danger", lead: `${owed.text}.` } }),
   };
 }
 

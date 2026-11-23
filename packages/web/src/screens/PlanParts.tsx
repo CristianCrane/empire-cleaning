@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
 import {
+  BriefcaseBusiness,
   CalendarClock,
   CircleStop,
+  CreditCard,
+  FileText,
   CirclePlus,
   Clock,
   PiggyBank,
@@ -12,7 +15,10 @@ import {
   CANCELLATION_CUTOFF_HOURS,
   type EndPlanTerms,
   type ServicePlanView,
+  type UnpaidKind,
+  asksTheClient,
   catalog,
+  officeFix,
   oneStop,
 } from "@empire-cleaning/models";
 import {
@@ -32,7 +38,7 @@ import {
   DialogTrigger,
 } from "@empire-cleaning/ui";
 import { postJson } from "../api.ts";
-import type { AppHref } from "../links.ts";
+import { linkTo, sameHref, type AppHref } from "../links.ts";
 import { useAction } from "./action.ts";
 import { formatHours } from "./format.ts";
 import { type Said, useSaid } from "./words.ts";
@@ -43,10 +49,11 @@ const words = catalog({
   en: {
     cleanOn: (when: string, amount: string) =>
       `the clean on ${when} (${amount})`,
-    payForClean: "Pay for that clean",
     billN: (n: string, amount: string) => `bill ${n} (${amount})`,
-    paused: "Your plan is paused.",
     couldntTake: "We couldn't take payment for ",
+    // a payment we try again ourselves, still on its way
+    notYet: (what: string) =>
+      `The payment for ${what} hasn't gone through yet.`,
     cancels: (cleans: number, hours: number, when: string) =>
       `It cancels your ${cleans === 1 ? "clean" : `${cleans} cleans`} booked more than ${hours} hours away, free: ${when}.`,
     goesAhead: (when: string, hours: number) =>
@@ -77,10 +84,9 @@ const words = catalog({
   es: {
     cleanOn: (when: string, amount: string) =>
       `la limpieza del ${when} (${amount})`,
-    payForClean: "Pagar esa limpieza",
     billN: (n: string, amount: string) => `la factura ${n} (${amount})`,
-    paused: "Su plan está en pausa.",
     couldntTake: "No pudimos cobrar ",
+    notYet: (what: string) => `El pago de ${what} aún no ha pasado.`,
     cancels: (cleans: number, hours: number, when: string) =>
       oneStop(
         `Cancela, sin cargo, ${cleans === 1 ? "su limpieza reservada" : `sus ${cleans} limpiezas reservadas`} a más de ${hours} horas: ${when}.`,
@@ -138,8 +144,14 @@ type Viewer = {
   endPath: string;
 };
 
-// why a plan is On Hold: a danger alert for each Unpaid Job or Bill, its
-// one action the way to it (UX pass, #96). The first says what the hold means
+// Why a plan is On Hold, and the way to put it right as the page's next
+// step (the `ui` skill: the next step is the primary, the alert says why).
+// An alert for each Unpaid Job or Bill, the first saying what the hold
+// means: warning, as the plan waits on the Client, in its badge's tone;
+// info for a payment we try again ourselves (ADR-0022), which asks
+// nothing of the Client. The first that asks something is the next step;
+// any other way to one keeps a text link in its alert (the Office's to a
+// waiting one too), unless it goes where the next step does
 export function useOnHold(
   plan: Omit<ServicePlanView, "upcoming"> | null,
   {
@@ -147,46 +159,69 @@ export function useOnHold(
     jobHref,
     billHref,
   }: { billHref: (billId: string) => AppHref } & Omit<Viewer, "endPath">,
-): Alert[] {
+): { alerts: Alert[]; next?: PageAction } {
   const t = useSaid(words);
-  if (plan?.status !== "on_hold") return [];
+  if (plan?.status !== "on_hold") return { alerts: [] };
   const unpaid = [
     ...plan.unpaid.map((u) => ({
       key: u.jobId,
+      kind: u.kind,
       what: forClient
         ? t.w.cleanOn(t.formatDateTime(u.startsAt), t.formatMoney(u.owedCents))
         : `the clean on ${t.formatDateTime(u.startsAt)} (${t.formatMoney(u.owedCents)})`,
-      href: jobHref(u.jobId),
-      label: forClient ? t.w.payForClean : "See the job",
+      // a clean's payment is put right by a card that works, which tries
+      // it again
+      way: forClient
+        ? {
+            label: t.UPDATE_CARD,
+            icon: CreditCard,
+            href: linkTo({ to: "/portal/payment-method" }),
+          }
+        : {
+            label: "See the job",
+            icon: BriefcaseBusiness,
+            href: jobHref(u.jobId),
+          },
     })),
     ...plan.unpaidBills.map((b) => ({
       key: b.billId,
+      kind: b.kind,
       what: forClient
         ? t.w.billN(b.number, t.formatMoney(b.totalCents))
         : `bill ${b.number} (${t.formatMoney(b.totalCents)})`,
-      href: billHref(b.billId),
-      label: forClient ? t.payBill(b.number) : `See bill ${b.number}`,
+      way: {
+        label: forClient ? t.payBill(b.number) : `See bill ${b.number}`,
+        icon: FileText,
+        href: billHref(b.billId),
+      },
     })),
   ];
-  return unpaid.map((u, i) => ({
+  const asks = (u: { kind: UnpaidKind }) => asksTheClient(u.kind);
+  const first = unpaid.find(asks);
+
+  const alerts = unpaid.map((u, i): Alert => ({
     key: u.key,
-    tone: "danger",
-    action: (
-      <ButtonLink variant="danger-text" href={u.href}>
-        {u.label}
-      </ButtonLink>
-    ),
+    tone: asks(u) ? "warning" : "info",
+    action: (asks(u) || !forClient) &&
+      !sameHref(u.way.href, first?.way.href) && (
+        <ButtonLink variant="text" href={u.way.href}>
+          {u.way.label}
+        </ButtonLink>
+      ),
     children: (
       <p>
         {i === 0 && (
           <>
-            <strong>{forClient ? t.w.paused : "Paused."}</strong>{" "}
+            <strong>
+              {forClient ? t.p.planPaused : "Cleaning plan paused."}
+            </strong>{" "}
           </>
         )}
-        {forClient
-          ? t.w.couldntTake
-          : "The client's payment didn't go through for "}
-        {u.what}.
+        {asks(u)
+          ? `${forClient ? t.w.couldntTake : "The client's payment didn't go through for "}${u.what}.`
+          : forClient
+            ? `${t.w.notYet(u.what)} ${t.clientFix.waiting}`
+            : `The client's payment for ${u.what} hasn't gone through yet. ${officeFix.waiting}`}
         {i === 0 &&
           (forClient
             ? ` ${t.BOOKED_GO_AHEAD}`
@@ -194,6 +229,7 @@ export function useOnHold(
       </p>
     ),
   }));
+  return { alerts, next: first?.way };
 }
 
 // what Ending a plan does, as sentences
