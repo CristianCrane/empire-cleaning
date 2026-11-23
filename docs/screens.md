@@ -297,8 +297,11 @@ Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432
   Bill N; "Bill N" and its status (its week is a fact).
 - Actions: once its payment didn't go through or it's late, Record a payment
   the primary, Print and Cancel bill in red behind its arrow; otherwise Menu
-  (Record a payment, Print; Cancel bill in red).
-- Alerts: why it's unpaid, or its bank payment on its way.
+  (Record a payment, Print; Cancel bill in red). While its card payment is
+  going through, Record a payment and Cancel bill are greyed, each saying
+  under it "Not while its card payment is going through".
+- Alerts: that, while its card payment is going through; why it's unpaid;
+  or its bank payment on its way.
 - Body: the Bill (`DetailsCard`: what it comes to, icon facts, the lines).
 
 #### Office > Staff

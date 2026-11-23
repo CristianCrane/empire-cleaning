@@ -25,6 +25,7 @@ import type {
 } from "@empire-cleaning/models";
 import {
   addDays,
+  cardNotDone,
   DAY_MS,
   dayOf,
   mondayOf,
@@ -613,7 +614,8 @@ export const retryBill = async (billId: string) => {
       .where(eq(bills.id, billId))
       .for("update");
     if (!bill || (bill.status === "due" && bill.totalCents > 0)) return [];
-    const taken = await recordTakenEarlier(tx, { billId, kind: "bill" });
+    // owing nothing, one never heard of is looked up, not sent again
+    const taken = await recordTakenEarlier(tx, { billId, kind: "bill" }, null);
     return "unknown" in taken ? [] : taken;
   });
   for (const charge of extra) {
@@ -641,9 +643,8 @@ export const retryUnpaidBillsFor = async (clientId: string) => {
 // ---- on its page ----
 
 // why the Client can't pay a Bill on its page now, or null when they can:
-// a bank debit of theirs on its way, or a payment of ours, which our charge
-// may still take or we try again ourselves (ADR-0022), as two at once would
-// take it twice until a refund (#533); or nothing owed
+// a bank debit of theirs on its way, or a payment of ours going through or
+// one we try again ourselves (ADR-0022); or nothing owed
 const notPayable = async (
   bill: Bill,
 ): Promise<"onItsWay" | "ours" | "nothingToPay" | null> => {
@@ -823,6 +824,12 @@ const notDue = (bill: Pick<Bill, "status">, then = "") =>
     ? `A bank payment for this bill is on its way${then}.`
     : `This bill is already ${bill.status === "void" ? "cancelled" : "paid"}.`;
 
+// why Office Staff can't cancel a due Bill, or record a payment on it, yet:
+// our card payment may still take it (chargeOpen's one rule). Its page says
+// so beforehand (canCancelOrRecord), so this answers a page opened before
+const cardNotDoneTo = (what: "cancel" | "record") =>
+  new ConflictError(cardNotDone[what]);
+
 /**
  * Office Staff void a Bill that shouldn't have gone out, while it's unpaid:
  * it stays, as voided, and everything on it goes on the next Bill, or is
@@ -843,6 +850,7 @@ export const voidBill = async (
     if (bill.status !== "due") {
       throw new ConflictError(notDue(bill, ", so it can't be cancelled"));
     }
+    if (await chargeOpen(bill.id, tx)) throw cardNotDoneTo("cancel");
     await tx
       .update(bills)
       .set({
@@ -895,6 +903,7 @@ export const recordOutsidePayment = async (
     if (bill.status !== "due") {
       throw new ConflictError(notDue(bill));
     }
+    if (await chargeOpen(bill.id, tx)) throw cardNotDoneTo("record");
     await tx
       .update(bills)
       .set({
@@ -1376,6 +1385,7 @@ export const billView = async (
     voidedAt: bill.voidedAt?.toISOString() ?? null,
     voidReason: bill.voidReason,
     payable: (await notPayable(bill)) === null,
+    canCancelOrRecord: bill.status === "due" && !(await chargeOpen(bill.id)),
     plans: (await plansOn(bill.id)).map(({ startedAt: _, ...plan }) => plan),
   };
 };

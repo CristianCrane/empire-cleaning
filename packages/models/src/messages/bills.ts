@@ -58,3 +58,20 @@ export const bills = catalog({
 export const ON_THAT_WEEKS_BILL = "goes on that week's bill";
 export const cleansPaidForOffice = (how: BillPayment | "per_clean") =>
   cleansPaidBy(how, false);
+
+// why Office Staff can't cancel a Bill, or record a payment on it, while
+// our card payment on it may still take the money (ADR-0022's one rule):
+// the page's alert beside both greyed actions, the line under each in its
+// menu (`item`, short, as the menu may cover the alert), and the server's
+// refusal of each from a page opened before. It promises neither, as most go through
+// and leave the Bill paid (design review U6). "Usually": the Clock asks
+// again once an attempt is SETTLED_AFTER_MS old, on its next tick
+// (TICK_MS), and an attempt stays open while the provider can't be reached
+const whileCardGoes = (cant: string) =>
+  `You can't ${cant} while its card payment is going through, which usually takes under half an hour.`;
+export const cardNotDone = {
+  page: whileCardGoes("cancel this bill or record a payment"),
+  cancel: whileCardGoes("cancel this bill"),
+  record: whileCardGoes("record a payment on this bill"),
+  item: "Not while its card payment is going through",
+};

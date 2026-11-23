@@ -21,13 +21,16 @@ import { Menu, MenuItem, MenuSeparator } from "../Menu.tsx";
 // straight away still runs (starting a Draft): its Button, or what holds it
 // (the split button's arrow, the ⋯), shows it, so the press is seen to be
 // heard. `isDisabled` while the page's goal needs it but it can't be done
-// yet: greyed, with why in the page's alert (the `ui` skill)
+// yet: greyed, with why beside it (the `ui` skill): the page's alert says
+// why, and `why` says it again in short under the item in a menu, which
+// may cover the alert as it opens
 export type PageAction = {
   label: string;
   icon: LucideIcon;
   danger?: boolean;
   isPending?: boolean;
   isDisabled?: boolean;
+  why?: string;
 } & (
   | { dialog: (state: DialogState) => ReactNode }
   | { href: NonNullable<LinkProps["href"]> }
@@ -159,6 +162,7 @@ function items(
       danger={action.danger}
       large={large}
       isDisabled={action.isDisabled}
+      description={action.isDisabled ? action.why : undefined}
       {...("href" in action
         ? { href: action.href }
         : { onAction: press(action) })}

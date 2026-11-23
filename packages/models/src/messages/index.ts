@@ -39,7 +39,11 @@ export const messages = catalog({
 
 // the rules the words state, and the Office's own words
 export { RELEASE_CUTOFF_HOURS } from "./assignments.ts";
-export { cleansPaidForOffice, ON_THAT_WEEKS_BILL } from "./bills.ts";
+export {
+  cardNotDone,
+  cleansPaidForOffice,
+  ON_THAT_WEEKS_BILL,
+} from "./bills.ts";
 export {
   CANCELLATION_CUTOFF_HOURS,
   cancelCostForOffice,

@@ -167,7 +167,8 @@ export const chargeAttempts = pgTable(
     // the Job, Bill or Quote it's for, as `kind` says
     forId: uuid("for_id").notNull(),
     // the provider call and what it was asked with, to ask again just so
-    // while the caller would ask the same card (ADR-0022)
+    // while it's what the caller would ask now: as much, on the same card
+    // (ADR-0022)
     request: jsonb("request").notNull(),
     status: chargeAttemptStatus("status").notNull().default("pending"),
     amountCents: integer("amount_cents").notNull(),

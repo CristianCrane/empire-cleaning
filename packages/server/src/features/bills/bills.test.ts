@@ -859,7 +859,10 @@ describe("Unpaid Bills", () => {
     ).toHaveLength(1);
   });
 
-  test("one whose Charge reply was lost can't be paid on its page meanwhile, and paid another way gives back what the lost Charge took", async () => {
+  // #534, F10: and a cheque recorded meanwhile left the lost Charge to give
+  // back, or to make, if it never reached the provider; the one rule
+  // refuses it
+  test("one whose Charge reply was lost can't be paid on its page or by cheque meanwhile, and the Clock records what it took", async () => {
     const { office, clientId } = await billedJob();
     testPayments().loseNextReply();
     testClock().set(NEXT_MONDAY);
@@ -871,21 +874,96 @@ describe("Unpaid Bills", () => {
     await client
       .post(`/api/bills/mine/${summary!.id}/payment-form`)
       .expect(409);
-    await office
+    const refused = await office
       .post(`/api/bills/${summary!.id}/outside-payment`)
       .send({ note: "Cheque 1042" })
-      .expect(200);
+      .expect(409);
+    expect(refused.body.message).toBe(
+      "You can't record a payment on this bill while its card payment is going through, which usually takes under half an hour.",
+    );
 
     testClock().advance({ minutes: 15 });
     await settleOpenPayments();
     await settleOpenPayments();
-    expect(testPayments().refunds).toEqual([
-      expect.objectContaining({ chargeId: lost.chargeId, amount: lost.amount }),
-    ]);
+    expect(testPayments().refunds).toEqual([]);
+    // no Charge after the lost one
+    expect(testPayments().charges.at(-1)).toBe(lost);
     expect(await billOf(office, summary!.id)).toMatchObject({
       status: "paid",
-      paidVia: "outside",
+      paidVia: "charge",
     });
+  });
+
+  // #534, F4: voided, its Jobs were charged per clean at once, while the
+  // Bill's own Charge could still go through; the one rule refuses it
+  test("one whose Charge is still going through can't be cancelled until it has", async () => {
+    const { office, clientId } = await billedJob();
+    testPayments().failCharges("processing");
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    testPayments().failCharges(null);
+    const [{ id, totalCents }] = (await billsOf(office, clientId)) as [
+      BillSummary,
+    ];
+    await setBilling(office, clientId, { weekly: false }).expect(200);
+    // its page says so beforehand
+    expect(await billOf(office, id)).toMatchObject({
+      status: "due",
+      canCancelOrRecord: false,
+    });
+
+    // and a page opened before is refused
+    const refused = await office
+      .post(`/api/bills/${id}/void`)
+      .send({ reason: "Sent in error" })
+      .expect(409);
+    expect(refused.body.message).toBe(
+      "You can't cancel this bill while its card payment is going through, which usually takes under half an hour.",
+    );
+
+    // the Bill's Charge goes through, and the Clock records it
+    testPayments().clearCharges();
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    expect(await billOf(office, id)).toMatchObject({ status: "paid" });
+    expect(
+      testPayments().charges.filter((c) => c.amount === totalCents),
+    ).toHaveLength(1);
+    expect(testPayments().refunds).toEqual([]);
+  });
+
+  // #534, F9: billed, the Job is settled without chargeSaved, so its lost
+  // Balance is never found, and the Bill takes the Balance again for good
+  test("a Job whose Balance reply was lost, then billed weekly, isn't charged again on the Bill", async () => {
+    const office = await signInAsOffice();
+    const me = (await office.get("/api/me").expect(200))
+      .body as SignedInAccount;
+    const cleaner = await staffMember("Cory Cleaner");
+    const job = await acceptedJob({
+      startsAt: WEDNESDAY_9AM,
+      byAccountId: me.id,
+    });
+    const client = (await findClientByEmail(casey.email))!;
+    await addPremises(client.id);
+    const offered = await offerAssignment(job.id, cleaner.id, me.id);
+    await confirmAssignment(cleaner.id, offered.assignments[0]!.id);
+    testClock().set(WEDNESDAY_NOON);
+    testPayments().loseNextReply();
+    await completeJob(cleaner.id, job.id, {
+      condition: "moderate",
+      reports: [],
+    });
+
+    await setBilling(office, client.id).expect(200);
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    await settleOpenPayments();
+
+    const [row] = await db.select().from(jobs).where(eq(jobs.id, job.id));
+    const { totalCents } = await paymentOf(row!);
+    const taken = testPayments().charges.reduce((s, c) => s + c.amount, 0);
+    const given = testPayments().refunds.reduce((s, r) => s + r.amount, 0);
+    expect(taken - given).toBe(totalCents);
   });
 
   test("Office Staff can record a payment made another way, which settles it", async () => {
@@ -1219,6 +1297,7 @@ describe("putting Bills right", () => {
     testClock().set(NEXT_MONDAY);
     await makeDueBills();
     const [{ id }] = (await billsOf(office, clientId)) as [BillSummary];
+    expect(await billOf(office, id)).toMatchObject({ canCancelOrRecord: true });
 
     const voided = (
       await office
