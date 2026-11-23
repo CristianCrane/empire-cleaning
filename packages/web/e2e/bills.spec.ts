@@ -405,8 +405,7 @@ test("Payments says a Bill we try again ourselves needs nothing from them", asyn
 
   const card = page.getByRole("region", { name: "Not paid yet" });
   for (const line of [
-    "Bill EC-000001",
-    "We'll try again by ourselves, so there's nothing you need to do.",
+    "Your payment for bill EC-000001 hasn't gone through yet. We'll try again by ourselves, so there's nothing you need to do.",
     "Until it's paid, your cleaning plan is paused. Cleans already booked still go ahead, but we won't book any more.",
   ])
     await expect(card.getByText(line, { exact: true })).toBeVisible();

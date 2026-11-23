@@ -85,7 +85,7 @@ describe("what a Client owes now", () => {
     );
 
     expect(owed).toMatchObject({
-      text: "Your Oct 20 clean",
+      text: "Your payment for your Oct 20 clean hasn't gone through yet",
       // so their Home leads with what's next, not this, and Payments
       // says it calmly
       asks: false,
@@ -104,7 +104,7 @@ describe("what a Client owes now", () => {
     expect(moneyNow(data({ bills: [waiting] })).owed).toMatchObject({
       asks: false,
       late: false,
-      text: "Bill EC-000041",
+      text: "Your payment for bill EC-000041 hasn't gone through yet",
       action: {
         label: "See the bill",
         href: href("/portal/bills/$billId", { billId: "bill" }),
@@ -203,8 +203,7 @@ describe("the owed card", () => {
         tone: "info",
         headline: "$1,253.50",
         lines: [
-          "Bill EC-000041",
-          "We'll try again by ourselves, so there's nothing you need to do.",
+          "Your payment for bill EC-000041 hasn't gone through yet. We'll try again by ourselves, so there's nothing you need to do.",
         ],
         action: expect.objectContaining({
           label: "See the bill",
