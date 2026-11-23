@@ -20,6 +20,7 @@ import { clients } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import {
   chargeSaved,
+  recordTakenEarlier,
   refundedAtProvider,
   refundFrom,
 } from "../payments/money.ts";
@@ -299,6 +300,11 @@ const describe = async (tx: Tx, job: Job) => {
  * (ADR-0009). Completing, approving an increase, correcting a completion and
  * retrying all come here.
  *
+ * What an earlier try took, whose reply was lost, is recorded first, so it
+ * counts whatever the Job owes now (ADR-0022): it's given back once the Job
+ * owes less (#534, F1, F3), and a weekly Bill bills only the rest (F9).
+ * While that isn't known yet, nothing moves.
+ *
  * A Charge is taken off-session from the Client's saved Payment Method. If
  * it can't be (declined, no card saved, the provider unreachable), the Job
  * is Unpaid until a later settling takes it. One settling of a Job at a
@@ -320,7 +326,7 @@ export const settleJob = async (
       .from(jobs)
       .where(eq(jobs.id, jobId))
       .for("update");
-    const ledger = await ledgerOf(job!, tx);
+    const before = await ledgerOf(job!, tx);
     const [owner] = await tx
       .select({ client: clients, method: paymentMethods })
       .from(properties)
@@ -328,24 +334,37 @@ export const settleJob = async (
       .leftJoin(paymentMethods, eq(paymentMethods.clientId, clients.id))
       .where(eq(properties.id, job!.propertyId));
     const { client, method } = owner!;
+    const billed = isBilledWeekly(job!, client, {
+      lines: before.bills.length,
+    });
+    // billed, or owing nothing more, a try would ask for nothing now
+    const earlier = await recordTakenEarlier(
+      tx,
+      { jobId, kind: kindOf(job!) },
+      !billed && before.owedCents > 0 ? { amount: before.owedCents } : null,
+    );
+    const found = "unknown" in earlier ? [] : earlier;
+    const ledger = found.length > 0 ? await ledgerOf(job!, tx) : before;
     const settled: Settled = {
-      chargedCents: 0,
+      // what a lost reply took counts as charged now, as it's found
+      chargedCents: found.reduce((sum, c) => sum + c.amountCents, 0),
       refundedCents: 0,
-      failure: null,
+      // it may yet take the money, so nothing more moves meanwhile; billed,
+      // nothing moves anyway, and the Clock asks after it (ADR-0022)
+      failure: "unknown" in earlier && !billed ? earlier.unknown : null,
       becameUnpaid: false,
       paymentMethod: method && cardIn(method),
       plan: null,
-      billed: isBilledWeekly(job!, client, {
-        lines: ledger.bills.length,
-      }),
+      billed,
     };
+    const moves = !settled.billed && !settled.failure;
 
     // billed weekly, nothing moves: the next Bill takes it, and a Job
     // Unpaid before weekly billing was switched on this week no longer is.
     // What Bills took for it is given back from their Charges first, never
     // from its Deposit (#241). A refund that fails is tried again by the
     // next settling.
-    if (!settled.billed && ledger.owedCents < 0) {
+    if (moves && ledger.owedCents < 0) {
       const fromBills = await refundFrom(
         tx,
         ledger.billCharges,
@@ -360,7 +379,7 @@ export const settleJob = async (
         }));
     }
 
-    if (!settled.billed && ledger.owedCents > 0) {
+    if (moves && ledger.owedCents > 0) {
       const charged = await chargeSaved(tx, {
         client,
         method,
@@ -369,7 +388,7 @@ export const settleJob = async (
         for: { jobId, kind: kindOf(job!) },
         item,
       });
-      if (charged.ok) settled.chargedCents = charged.cents;
+      if (charged.ok) settled.chargedCents += charged.cents;
       else settled.failure = charged.reason;
     }
 

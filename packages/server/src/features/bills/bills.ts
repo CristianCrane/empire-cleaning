@@ -613,7 +613,8 @@ export const retryBill = async (billId: string) => {
       .where(eq(bills.id, billId))
       .for("update");
     if (!bill || (bill.status === "due" && bill.totalCents > 0)) return [];
-    const taken = await recordTakenEarlier(tx, { billId, kind: "bill" });
+    // owing nothing, one never heard of is looked up, not sent again
+    const taken = await recordTakenEarlier(tx, { billId, kind: "bill" }, null);
     return "unknown" in taken ? [] : taken;
   });
   for (const charge of extra) {
@@ -651,7 +652,7 @@ const notPayable = async (
   if (bill.status !== "due" || bill.totalCents <= 0) return "nothingToPay";
   const waiting =
     bill.unpaidReason !== null && unpaidKind(bill.unpaidReason) === "waiting";
-  return waiting || (await chargeOpen(bill.id)) ? "ours" : null;
+  return waiting || (await chargeOpen([bill.id])) ? "ours" : null;
 };
 
 const clientBill = async (clientId: string, billId: string) => {

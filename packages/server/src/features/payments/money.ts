@@ -55,9 +55,14 @@ export const NO_CARD = "no Payment Method is saved";
 // its own idempotency key. If the reply never comes, or the transaction it
 // was taken in rolls back, the next try for the same thing finds the
 // attempt: asks again with its key within a day, while the provider still
-// replays it, or else looks the payment up; and records what was taken
-// rather than taking it again. A declined attempt is over, so the next try
-// asks the card afresh.
+// replays it and it asks what the try would ask now, or else looks the
+// payment up; and records what was taken rather than taking it again. A
+// declined attempt is over, so the next try asks the card afresh.
+
+// what a try would ask the provider for now, against which an earlier
+// attempt it never heard the end of is sent again or only looked up: null
+// when it would ask for nothing
+type Now = { amount: number } | null;
 
 // long enough after asking that a try still waiting on its reply has had it
 export const SETTLED_AFTER_MS = 15 * MINUTE_MS;
@@ -155,13 +160,24 @@ const ask = async (attempt: ChargeAttempt): Promise<Outcome> => {
   }
 };
 
-// what an earlier attempt came to, asking the provider if we never heard
-const outcomeOf = async (attempt: ChargeAttempt): Promise<Outcome> => {
+// What an earlier attempt came to, asking the provider if we never heard.
+// One never heard of is sent again, within the day the provider replays it,
+// only while it asks what the try would ask `now`; otherwise sending it
+// would make a payment no longer wanted, if it never reached the provider
+// (#534, F10). So it's looked up instead: not found, it may still be on its
+// way for a quarter of an hour, and after that it was never made.
+const outcomeOf = async (
+  attempt: ChargeAttempt,
+  now: Now,
+): Promise<Outcome> => {
   if (attempt.status === "taken") {
     return { status: "taken", attempt, saved: null };
   }
-  const fresh = clock.now().getTime() - attempt.askedAt.getTime() < DAY_MS;
-  if (attempt.status === "pending" && fresh) return ask(attempt);
+  const age = clock.now().getTime() - attempt.askedAt.getTime();
+  const pending = attempt.status === "pending";
+  if (pending && age < DAY_MS && now?.amount === attempt.amountCents) {
+    return ask(attempt);
+  }
   const found = await paymentGateway
     .chargeOutcome({
       payerId: (attempt.request as Asked).input.payerId,
@@ -171,10 +187,12 @@ const outcomeOf = async (attempt: ChargeAttempt): Promise<Outcome> => {
     })
     .catch(() => undefined);
   if (found === undefined) return { status: "unknown", reason: UNREACHABLE };
-  return found === null
-    ? (await update(attempt, { status: "failed", reason: "never_made" }),
-      { status: "failed", reason: "never_made" })
-    : keep(attempt, found);
+  if (found !== null) return keep(attempt, found);
+  if (pending && age < SETTLED_AFTER_MS) {
+    return { status: "unknown", reason: UNREACHABLE };
+  }
+  await update(attempt, { status: "failed", reason: "never_made" });
+  return { status: "failed", reason: "never_made" };
 };
 
 // an attempt we never heard the end of, or that took money no Charge
@@ -193,20 +211,22 @@ const isOpen = (tx: Tx | typeof db) =>
     ),
   );
 
-// the open attempts for a Job, Bill or Quote, of any kind: a Job asked for
+// the open attempts for Jobs, Bills or Quotes, of any kind: a Job asked for
 // as a fee may be charged a Balance now
-const openAttempts = (tx: Tx | typeof db, forId: string) =>
-  tx
-    .select()
-    .from(chargeAttempts)
-    .where(and(eq(chargeAttempts.forId, forId), isOpen(tx)))
-    .orderBy(chargeAttempts.askedAt);
+const openAttempts = (tx: Tx | typeof db, forIds: string[]) =>
+  forIds.length === 0
+    ? Promise.resolve([])
+    : tx
+        .select()
+        .from(chargeAttempts)
+        .where(and(inArray(chargeAttempts.forId, forIds), isOpen(tx)))
+        .orderBy(chargeAttempts.askedAt);
 
-// whether a payment we asked for a Job, Bill or Quote may still take the
-// money: nothing more is taken for it meanwhile, by us or by the Client
-// paying on its page (#533)
-export const chargeOpen = async (forId: string) =>
-  (await openAttempts(db, forId)).length > 0;
+// whether a payment we asked for any of these Jobs, Bills or Quotes may
+// still take the money: nothing more is taken for it meanwhile, by us or by
+// the Client paying on its page (#533)
+export const chargeOpen = async (forIds: string[], tx: Tx | typeof db = db) =>
+  (await openAttempts(tx, forIds)).length > 0;
 
 // a new attempt, committed, then asked
 const attempt = async (
@@ -255,18 +275,23 @@ const record = async (
 /**
  * Records what earlier attempts for a Job or Bill took that no Charge
  * records yet, asking the provider how each ended: the Charges, or why
- * that isn't known yet.
+ * that isn't known yet. `owed` is what the Job or Bill owes without them,
+ * as a try would ask for it now (outcomeOf); each found taken takes it
+ * down.
  */
 export const recordTakenEarlier = async (
   tx: Tx,
   chargeFor: ChargeFor,
+  owed: Now,
 ): Promise<Charge[] | { unknown: string }> => {
   const recorded: Charge[] = [];
-  for (const earlier of await openAttempts(tx, forIdOf(chargeFor))) {
-    const outcome = await outcomeOf(earlier);
+  let now = owed;
+  for (const earlier of await openAttempts(tx, [forIdOf(chargeFor)])) {
+    const outcome = await outcomeOf(earlier, now);
     if (outcome.status === "unknown") return { unknown: outcome.reason };
     if (outcome.status === "taken") {
       recorded.push(await record(tx, chargeFor, outcome.attempt, null));
+      if (now) now = { amount: now.amount - outcome.attempt.amountCents };
     }
   }
   return recorded;
@@ -276,7 +301,8 @@ export const recordTakenEarlier = async (
  * Charges a Client's saved Payment Method, without them there, and records
  * the Charge. What an earlier try for the same thing took, whose reply was
  * lost or whose transaction rolled back, is recorded first and counts
- * towards `amount`; only the rest is asked for. Never throws for money that
+ * towards `amount`; only the rest is asked for, and if that isn't taken
+ * it's why, as the rest is still owed. Never throws for money that
  * couldn't be taken: no Payment Method saved, a decline, or the provider
  * unreachable (or an earlier try still unknown) each come back as why, for
  * the caller to make what it charged for Unpaid.
@@ -301,7 +327,7 @@ export const chargeSaved = async (
   },
 ): Promise<Taken> => {
   if (!method) return { ok: false, reason: NO_CARD };
-  const earlier = await recordTakenEarlier(tx, chargeFor);
+  const earlier = await recordTakenEarlier(tx, chargeFor, { amount });
   // it may yet take the money, so nothing more is asked for meanwhile
   if ("unknown" in earlier) return { ok: false, reason: earlier.unknown };
   let cents = earlier.reduce((sum, c) => sum + c.amountCents, 0);
@@ -324,16 +350,14 @@ export const chargeSaved = async (
       description,
     },
   });
+  // what an earlier try took is recorded, but the rest is still owed
+  // (#534, F2)
   if (outcome.status !== "taken") {
-    return cents > 0
-      ? { ok: true, cents }
-      : {
-          ok: false,
-          reason:
-            outcome.status === "needs_approval"
-              ? "needs_approval"
-              : outcome.reason,
-        };
+    return {
+      ok: false,
+      reason:
+        outcome.status === "needs_approval" ? "needs_approval" : outcome.reason,
+    };
   }
   await record(tx, chargeFor, outcome.attempt, item);
   return { ok: true, cents: cents + outcome.attempt.amountCents };
@@ -352,8 +376,8 @@ export const takeDepositOnce = async (
   quoteId: string,
   asked: Asked,
 ): Promise<DepositAttempt> => {
-  for (const earlier of await openAttempts(tx, quoteId)) {
-    const outcome = await outcomeOf(earlier);
+  for (const earlier of await openAttempts(tx, [quoteId])) {
+    const outcome = await outcomeOf(earlier, { amount: asked.input.amount });
     if (outcome.status === "unknown") {
       return { status: "failed", reason: outcome.reason };
     }
@@ -428,8 +452,8 @@ export const giveBackDeposit = async (
  * again. Hold the Quote, so no try to accept it is taking one meanwhile.
  */
 export const giveBackUnbookedDeposits = async (tx: Tx, quoteId: string) => {
-  for (const earlier of await openAttempts(tx, quoteId)) {
-    const outcome = await outcomeOf(earlier);
+  for (const earlier of await openAttempts(tx, [quoteId])) {
+    const outcome = await outcomeOf(earlier, null);
     if (outcome.status !== "taken") continue;
     await giveBackDeposit(
       outcome.attempt.gatewayRef!,

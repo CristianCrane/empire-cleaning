@@ -2,7 +2,7 @@
 
 A Charge was asked for inside the transaction that recorded it, with a new random idempotency key each time. When the provider took the money but its reply was lost, or the transaction then rolled back, nothing recorded the Charge: the Job or Bill still looked owed, and the retry, under a new key, charged the Client again. The same held for a Deposit taken on acceptance (#241).
 
-Now every payment off a saved card, and every Deposit, is a Charge attempt, committed in its own transaction before the provider is asked, with its own idempotency key. What the provider answered is written to it straight after. The next try for the same Job, Bill or Quote first asks after any attempt it never heard the end of, or that took money no Charge records.
+Now every payment off a saved card, and every Deposit, is a Charge attempt, committed in its own transaction before the provider is asked, with its own idempotency key. What the provider answered is written to it straight after. The next try for the same Job, Bill or Quote first asks after any attempt it never heard the end of, or that took money no Charge records, and only then works out what's owed. So what a lost reply took counts however the Job has changed since: it's given back once the Job owes less, and a weekly Bill bills only the rest (#534).
 
 A next try comes from whichever happens first:
 
@@ -12,13 +12,13 @@ A next try comes from whichever happens first:
 
 Each try holds the Job, Bill or Quote it's for, so tries from these at once take turns.
 
-Within a day, while the provider still replays a key's first reply, it asks again with the same key and the same request. After that, it looks the payment up by the key, which every payment carries in its metadata. Money an attempt took is recorded as a Charge then, and counts towards what's owed; only the rest is asked for. An attempt declined is over, so the next try asks the card afresh.
+Within a day, while the provider still replays a key's first reply, it asks again with the same key and the same request, but only while that's what the try would ask now. Otherwise, and after the day, it looks the payment up by the key, which every payment carries in its metadata. Not found within a quarter of an hour of asking, it may still be on its way, so the try waits; after that, it was never made. So nothing owed any more, as for a Bill paid another way or a Quote nobody accepted, never has a payment made for it that hadn't reached the provider (#534). Money an attempt took is recorded as a Charge then, and counts towards what's owed; only the rest is asked for, and the rest declined leaves it Unpaid. An attempt declined is over, so the next try asks the card afresh.
 
 We chose this over a key that's only stable across retries, which the provider forgets after a day and which replays a stored error. And over moving every call out of the caller's transaction, a bigger change that still needs a stable key for a lost reply.
 
 ## Consequences
 
-- Taking money never throws for want of the provider: a lost reply, or an earlier attempt still unknown, comes back as "the payment provider couldn't be reached". The Job or Bill is Unpaid, and nothing more is asked for until the attempt is known, by open payments if by nothing sooner. The Client accepting a Quote is told to try again in a few minutes.
+- Taking money never throws for want of the provider: a lost reply, or an earlier attempt still unknown, comes back as "the payment provider couldn't be reached". The Job or Bill is Unpaid, and nothing more is asked for or given back until the attempt is known, by open payments if by nothing sooner. The Client accepting a Quote is told to try again in a few minutes.
 - Every idempotency key is built in one place (`features/payments/keys.ts`), each kind of payment with its own shape, so no two share a key.
 - A Deposit an earlier try took is the Deposit if it was for as much and the card it saved, if any, is known. Otherwise it's given back, and a new one taken.
 - A payment still processing (no card does this off-session, but the provider allows it) isn't a decline: its attempt waits, and the next try asks how it ended.
