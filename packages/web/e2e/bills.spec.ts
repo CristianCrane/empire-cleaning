@@ -388,15 +388,15 @@ test("a Bill we try again ourselves reads as payment pending, not failed, says i
       .getByRole("status")
       .filter({ hasText: "Nothing you need to do." }),
   ).toHaveText(
-    "Nothing you need to do. Until it's paid, your cleaning plan is paused. Cleans already booked still go ahead, but we won't book any more.",
+    "Until it's paid, your cleaning plan is paused. Cleans already booked still go ahead, but we won't book any more. Nothing you need to do.",
   );
   await expectNoPageAction(page, "Pay this bill");
 });
 
 // nothing to pay while it's ours, so their Payments' card asks nothing:
 // not "To pay" but Payment pending, info as the Bill is, one short line,
-// the Bill a link to see, not the page's primary (#493). Its plan's pause
-// is its Bill's to say, the test above (#536)
+// the Bill a link to see, not the page's primary (#493); its plan's pause
+// in its fewest words, what's booked left to its Bill, the test above (#536)
 test("Payments says a Bill we try again ourselves needs nothing from them", async ({
   page,
 }) => {
@@ -405,12 +405,12 @@ test("Payments says a Bill we try again ourselves needs nothing from them", asyn
   await page.goto("/portal/payments");
 
   const card = page.getByRole("region", { name: "Payment pending" });
-  await expect(
-    card.getByText("Bill EC-000001 · Nothing you need to do.", {
-      exact: true,
-    }),
-  ).toBeVisible();
-  await expect(card).not.toContainText("paused");
+  for (const line of [
+    "Bill EC-000001 · Nothing you need to do.",
+    "Until it's paid, your cleaning plan is paused.",
+  ])
+    await expect(card.getByText(line, { exact: true })).toBeVisible();
+  await expect(card).not.toContainText("booked");
   await expect(page.getByRole("region", { name: "To pay" })).toHaveCount(0);
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
   // nothing next: the link is outlined, and no Pay anywhere on the page

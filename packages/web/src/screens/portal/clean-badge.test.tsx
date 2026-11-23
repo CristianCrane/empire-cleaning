@@ -30,7 +30,7 @@ describe("a clean's badge", () => {
     );
   });
 
-  test("a payment we try again ourselves is only not paid yet", async () => {
+  test("a payment we try again ourselves is only payment pending", async () => {
     expect(await badge({ unpaid: "waiting" })).toBe("Payment pending");
     expect(await badge({ unpaid: "waiting", status: "no_access" })).not.toBe(
       "Payment pending",

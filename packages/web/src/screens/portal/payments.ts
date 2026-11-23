@@ -228,9 +228,10 @@ export function pausedLine(plans: PlanNow[], lang: Language): string[] {
 // why above the card (whyAlert); one simply due, in its line. One that
 // asks nothing, a payment we try again ourselves, is calm: Payment
 // pending, one short line, what it's for and that there's nothing to do,
-// and a way to see it rather than a primary (#493, #536). Its plan's pause
-// isn't said here: its Bill's page says it, and Home's paused plan card
-// (whats-next). One that asks says its plan's pause in a line (pausedLine)
+// and a way to see it rather than a primary (#493, #536). A paused plan in
+// its fewest true words, as a clean's page doesn't say it (what's booked
+// is the plan's page's to say). One that asks says its plan's pause in
+// full (pausedLine)
 export function owedAnswer(
   owed: Owed,
   lang: Language,
@@ -244,7 +245,10 @@ export function owedAnswer(
         icon: Wallet,
         tone: "info",
         headline: t.formatMoney(owed.cents),
-        lines: [`${owed.text} · ${t.NOTHING_TO_DO}`],
+        lines: [
+          `${owed.text} · ${t.NOTHING_TO_DO}`,
+          ...(pausedPlans(plans).length > 0 ? [t.PAUSED_TILL_PAID] : []),
+        ],
         action: { ...owed.action, secondary: true },
       },
     };

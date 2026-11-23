@@ -79,6 +79,9 @@ export const payments = catalog({
     // back on once it's paid
     BOOKED_GO_AHEAD,
     PLAN_PAUSED: `${PAUSED_TILL_PAID} ${BOOKED_GO_AHEAD}`,
+    // the pause alone, where a payment pending is said in a line: what's
+    // booked is the plan's page's to say (#536)
+    PAUSED_TILL_PAID,
     // with none of its cleans booked, it picks up once it's paid
     PLAN_PAUSED_NONE_BOOKED: `${PAUSED_TILL_PAID} Then it carries on from its next date.`,
     PLAN_BACK_ON:
@@ -130,6 +133,7 @@ export const payments = catalog({
     },
     BOOKED_GO_AHEAD: BOOKED_GO_AHEAD_ES,
     PLAN_PAUSED: `${PAUSED_TILL_PAID_ES} ${BOOKED_GO_AHEAD_ES}`,
+    PAUSED_TILL_PAID: PAUSED_TILL_PAID_ES,
     PLAN_PAUSED_NONE_BOOKED: `${PAUSED_TILL_PAID_ES} Luego continúa desde su próxima fecha.`,
     PLAN_BACK_ON:
       "Su plan de limpieza está activo de nuevo, y reservaremos sus limpiezas como siempre.",

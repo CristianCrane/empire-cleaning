@@ -44,8 +44,8 @@ const words = catalog({
     notPaidBy: (day: string) => `Not paid by ${day}`,
     didntGo: (day: string) => `Payment didn't go through ${day}`,
     // one the payment service is trying again, which we see to
-    // the badge says it's pending
-    notYet: (day: string) => `Payment tried ${day}`,
+    // the badge says it's pending; "started", as "tried" reads as failed
+    notYet: (day: string) => `Payment started ${day}`,
     toPayBy: (day: string) => `To pay by ${day}`,
     toBeCharged: "To be charged to your card",
     offYourNext: "Comes off your next bill",
@@ -80,7 +80,7 @@ const words = catalog({
     bankOnWay: "Hay un pago bancario en camino",
     notPaidBy: (day: string) => `No se pagó antes del ${day}`,
     didntGo: (day: string) => `El pago no pasó el ${day}`,
-    notYet: (day: string) => `Pago intentado el ${day}`,
+    notYet: (day: string) => `Pago iniciado el ${day}`,
     toPayBy: (day: string) => `A pagar antes del ${day}`,
     toBeCharged: "Se cobrará a su tarjeta",
     offYourNext: "Se descuenta de su próxima factura",

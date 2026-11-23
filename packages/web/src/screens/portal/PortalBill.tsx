@@ -105,7 +105,8 @@ export function PortalBill() {
 // cleaning plan with cleans on it is paused, when one is
 function useStanding(bill: BillView): Alert | null {
   const t = useSaid(words);
-  const paused = pausedPlans(bill.plans).length > 0 ? ` ${t.PLAN_PAUSED}` : "";
+  const isPaused = pausedPlans(bill.plans).length > 0;
+  const paused = isPaused ? ` ${t.PLAN_PAUSED}` : "";
   if (bill.status === "processing") {
     return {
       key: "processing",
@@ -124,7 +125,10 @@ function useStanding(bill: BillView): Alert | null {
     return {
       key: "unpaid",
       tone: "info",
-      children: `${t.NOTHING_TO_DO}${paused}`,
+      // what happened first, then that nothing's asked (the `ui` skill)
+      children: isPaused
+        ? `${t.PLAN_PAUSED} ${t.NOTHING_TO_DO}`
+        : t.NOTHING_TO_DO,
     };
   }
   if (bill.unpaid) {
