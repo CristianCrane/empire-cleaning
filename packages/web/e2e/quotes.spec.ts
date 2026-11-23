@@ -169,16 +169,31 @@ test("prices follow the Draft as it changes, and an override waits for its reaso
   await expect(status).toHaveText("Saved");
 });
 
-test("a Quote waits on a proposed time to be sent", async ({ page }) => {
+test("a Quote waits on a proposed time to be sent, picked in a tap", async ({
+  page,
+}) => {
+  // the API's now, so the days the picker starts on are the API's
+  await page.clock.setFixedTime("2026-01-05T09:00:00Z");
   await requestQuoteAsGuest(casey);
   await signInAsOffice(page);
   await startDraft(page);
+  const status = page.getByRole("status").filter({ hasText: /saved/i });
+  const sendTo = page.getByRole("button", { name: `Send to ${casey.name}` });
+  await expect(status).toHaveText("Saved · Pick a time to send");
+  await expect(sendTo).toBeDisabled();
+
+  // it starts on the first day with room, Tuesday: Monday is within 24
+  // hours of the API's 4am
+  const part = page.getByRole("region", { name: "Proposed time" });
   await expect(
-    page.getByRole("status").filter({ hasText: /saved/i }),
-  ).toHaveText("Saved · Pick a time to send");
-  await expect(
-    page.getByRole("button", { name: `Send to ${casey.name}` }),
+    part.getByRole("button", { name: "Mon, Jan 5, too soon" }),
   ).toBeDisabled();
+  await expect(
+    part.getByRole("button", { name: "Tue, Jan 6", exact: true }),
+  ).toHaveAttribute("aria-current", "date");
+  await part.getByRole("button", { name: "10:00 AM", exact: true }).click();
+  await expect(status).toHaveText("Saved");
+  await expect(sendTo).toBeEnabled();
 });
 
 // a bar at the foot is a phone's (#493 D1): there it holds the price,
