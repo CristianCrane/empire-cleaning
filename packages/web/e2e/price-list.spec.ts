@@ -60,7 +60,7 @@ test(
     const deep = page.getByRole("region", { name: "Deep Clean" });
     const standard = page.getByRole("region", { name: "Standard Clean" });
     await expect(deep).toContainText("$299.41");
-    await expect(deep).toContainText("Recommended");
+    await expect(deep).toContainText("Shown to the client as recommended");
     await expect(deep).toContainText("Includes $24.41 tax");
     await expect(deep).toContainText("Suggested price, before tax$275.00");
     await expect(standard).toContainText("$194.89");

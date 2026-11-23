@@ -190,7 +190,7 @@ function BookingForm({
           </SelectItem>
         ))}
       </Select>
-      <FieldRow>
+      <FieldRow packed>
         <DatePicker label="Day" name="date" value={date} onChange={setDate} />
         <TimeField
           label="Start time"
