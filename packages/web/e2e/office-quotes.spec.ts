@@ -81,7 +81,7 @@ test(
     await page.getByRole("button", { name: "New client" }).click();
     // who's calling comes first
     await page.getByRole("textbox", { name: "Full name" }).fill("Pat Phoner");
-    const price = page.getByRole("region", { name: "What it comes to" });
+    const price = page.getByRole("region", { name: "Quote" });
     await expect(price).toContainText("Pick what they need");
     await chooseService(page);
     await describeNewHome(page);

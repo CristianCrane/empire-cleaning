@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 
 // What most don't need to read, folded under a line saying what it is
@@ -14,8 +14,11 @@ export function Fold({
   defaultOpen?: boolean;
   children: ReactNode;
 }) {
+  // read once: React sets `open` again whenever the prop changes, which
+  // would shut a fold the person opened (#527, review F15)
+  const [opensWith] = useState(defaultOpen);
   return (
-    <details className="group flex flex-col" open={defaultOpen}>
+    <details className="group flex flex-col" open={opensWith}>
       <summary className="flex w-fit cursor-pointer list-none items-center gap-1 rounded-sm text-sm font-semibold text-primary outline-offset-2 focus-visible:outline-2 focus-visible:outline-focus [&::-webkit-details-marker]:hidden">
         <ChevronDown
           aria-hidden

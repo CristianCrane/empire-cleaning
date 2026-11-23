@@ -282,7 +282,9 @@ function AFormsWidth() {
           <code>medium</code> to about 14 (a phone, a day, a number),{" "}
           <code>long</code> a few words (a <code>Select</code>'s default).
           Fields side by side go in a <code>FieldRow</code>, no wider than a
-          form. On a phone every field is full width.
+          form; a day and its start time in a <code>packed</code> one, each at
+          its own width from the row's start, not spread across the card. On a
+          phone every field is full width.
         </p>
       </Rule>
       <Example verdict="Do">
@@ -295,7 +297,7 @@ function AFormsWidth() {
               <TextField label="ZIP code" width="short" />
             </FieldRow>
             <NumberField label="Bedrooms" defaultValue={2} />
-            <FieldRow>
+            <FieldRow packed>
               <DatePicker label="Day" />
               <TimeField label="Start time" />
             </FieldRow>
@@ -1321,21 +1323,21 @@ function BarAtTheFoot() {
       <div className="flex flex-col gap-6">
         <Rule title="A bar at the foot is an ActionFooter">
           <p>
-            What must stay in reach while a long page scrolls (a Quote Draft's
-            Send) goes in an <code>ActionFooter</code>, which the page's layout
-            places: above the tab bar on a phone, full width beside the rail or
-            the sidebar on a wider screen. Never a sticky bar of the page's own:
-            it pins under the tab bar. What it sums up on its left, the main
-            action last, on the right. (On a phone a dialog's sheet pins its own
-            Buttons: it sits over the tab bar.)
+            What must stay in reach while a long page scrolls on a phone (a
+            Quote Draft's Send) goes in an <code>ActionFooter</code>, which the
+            page's layout places: above the tab bar. A wider screen keeps a
+            page's next step in the header that sticks instead. Never a sticky
+            bar of the page's own: it pins under the tab bar. What it sums up on
+            its left, the main action last, on the right. (On a phone a dialog's
+            sheet pins its own Buttons: it sits over the tab bar.)
           </p>
         </Rule>
         <div className="h-[120vh] rounded-lg bg-bg" />
         <p>The end of the page</p>
       </div>
       <ActionFooter
-        aria-label="Send the quote"
-        summary="Deep Clean $385.00 · Standard Clean $210.00"
+        aria-label="What to do"
+        summary="Standard Clean $210.00"
         status="Saved"
       >
         <Button>
