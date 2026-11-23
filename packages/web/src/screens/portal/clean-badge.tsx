@@ -1,7 +1,8 @@
-import type {
-  ClientUpcomingJob,
-  JobStatus,
-  UnpaidKind,
+import {
+  asksTheClient,
+  type ClientUpcomingJob,
+  type JobStatus,
+  type UnpaidKind,
 } from "@empire-cleaning/models";
 import { StatusBadge } from "@empire-cleaning/ui";
 import { JobStatusBadge } from "../JobBadges.tsx";
@@ -22,7 +23,7 @@ export type CleanState = {
 
 // A clean's badge: where two states hold, the one waiting on the Client
 // first (unpaid, then a price change to OK), then what happened, a payment
-// we try again ourselves after those, as it waits on us ("Not paid yet",
+// we try again ourselves after those, as it waits on us ("Not through yet",
 // a Bill's word for it too), and the same word on each of
 // their screens, the Cleans list and the clean's page (the `ui` skill, a
 // screen says only what's true for this reader now). A list row leaves the
@@ -30,14 +31,14 @@ export type CleanState = {
 // (`plain`), and a row with none has none, so a list's Status shows only
 // while a row has one.
 export function cleanBadge(t: Said, clean: CleanState, plain = false) {
-  if (clean.unpaid && clean.unpaid !== "waiting")
+  if (clean.unpaid && asksTheClient(clean.unpaid))
     return <StatusBadge tone="danger">{t.unpaid}</StatusBadge>;
   if (clean.priceChange)
     return <StatusBadge tone="warning">{t.p.needsOk}</StatusBadge>;
   if (clean.status === "no_access")
     return <JobStatusBadge status="no_access" />;
   if (clean.unpaid)
-    return <StatusBadge tone="info">{t.notPaidYet}</StatusBadge>;
+    return <StatusBadge tone="info">{t.notThroughYet}</StatusBadge>;
   if (clean.status === "cancelled")
     return <StatusBadge>{t.cancelledLabel(clean.skipped)}</StatusBadge>;
   if (clean.moveAsked)

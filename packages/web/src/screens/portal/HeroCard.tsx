@@ -4,6 +4,7 @@ import {
   ButtonLink,
   DateTile,
   IconTile,
+  type Alert,
   type StatusTone,
 } from "@empire-cleaning/ui";
 import type { AppHref } from "../../links.ts";
@@ -22,6 +23,26 @@ export type Hero = {
   lines: string[];
   action?: { label: string; href: AppHref };
 };
+
+// why the answer is what it is, when that needs saying (a payment late, a
+// plan paused): an alert above the card, its tone the state's
+export type Why = {
+  tone: "info" | "warning" | "danger";
+  lead: string;
+  more?: string;
+};
+
+export const whyAlert = (why: Why | undefined): Alert | false =>
+  !!why && {
+    key: "why",
+    tone: why.tone,
+    children: (
+      <p>
+        <strong>{why.lead}</strong>
+        {why.more && ` ${why.more}`}
+      </p>
+    ),
+  };
 
 export function HeroCard({ hero }: { hero: Hero }) {
   return (

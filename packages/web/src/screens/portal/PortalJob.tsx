@@ -46,7 +46,12 @@ import { PickAvailableTime } from "../AvailabilityPicker.tsx";
 import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
 import { addressOf, howLong, wasSkipped } from "../format.ts";
 import { type Said, useSaid } from "../words.ts";
-import { catalog, oneStop, stopAfter } from "@empire-cleaning/models";
+import {
+  asksTheClient,
+  catalog,
+  oneStop,
+  stopAfter,
+} from "@empire-cleaning/models";
 import { cleanBadge } from "./clean-badge.tsx";
 import { BillStatusBadge } from "../BillParts.tsx";
 
@@ -275,7 +280,7 @@ function useNow(job: ClientJobDetail): {
   const [first] = proposed;
 
   const updateCard: PageAction | false = !!payment.unpaid &&
-    payment.unpaid.kind !== "waiting" && {
+    asksTheClient(payment.unpaid.kind) && {
       label: t.UPDATE_CARD,
       icon: CreditCard,
       href: linkTo({ to: "/portal/payment-method" }),
@@ -746,7 +751,8 @@ const noAccess = (
 // A charge that failed: what it was, and how it's put right, which the
 // page's Update your card does (saving a card tries it again). Red, as
 // it's already late; one we try again ourselves asks nothing and waits on
-// us, so it's info, and needs no "Payment needed". (UX pass, #96)
+// us, so it's info, says it hasn't gone through yet, as a Bill's does,
+// and needs no "Payment needed". (UX pass, #96)
 const unpaid = (
   t: Said & { w: (typeof words)["en"] },
   payment: JobPayment,
@@ -754,20 +760,21 @@ const unpaid = (
   const { kind, why } = payment.unpaid!;
   return {
     key: "unpaid",
-    tone: kind === "waiting" ? "info" : "danger",
-    children: (
+    tone: asksTheClient(kind) ? "danger" : "info",
+    children: asksTheClient(kind) ? (
       <p>
-        {kind !== "waiting" && (
-          <>
-            <strong>{t.p.paymentNeeded}</strong>{" "}
-          </>
-        )}
+        <strong>{t.p.paymentNeeded}</strong>{" "}
         {t.notTaken(
           t.formatMoney(payment.owedCents),
           kind === "no_card" ? null : (payment.paymentMethod ?? t.p.card),
           why,
         )}{" "}
         {t.clientFix[kind]}
+      </p>
+    ) : (
+      <p>
+        {t.notThrough(t.formatMoney(payment.owedCents), why)}{" "}
+        {t.clientFix.waiting}
       </p>
     ),
   };

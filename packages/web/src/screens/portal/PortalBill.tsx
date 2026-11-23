@@ -1,14 +1,16 @@
 import { useLoaderData } from "@tanstack/react-router";
-import { type BillView, catalog } from "@empire-cleaning/models";
+import { asksTheClient, type BillView, catalog } from "@empire-cleaning/models";
+import { CreditCard } from "lucide-react";
 import {
   Actions,
   Button,
   ButtonLink,
-  Card,
-  Section,
+  Dialog,
   Notice,
   RecordPage,
   type Alert,
+  type DialogState,
+  type PageAction,
 } from "@empire-cleaning/ui";
 import { ApiError, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
@@ -18,7 +20,6 @@ import {
   BillLetterhead,
   BillStatusBadge,
   usePrintBill,
-  billWeek,
 } from "../BillParts.tsx";
 import { useBillPaymentForm } from "./CardForm.tsx";
 import { useSaid } from "../words.ts";
@@ -29,12 +30,10 @@ const words = catalog({
     onItsWay: (amount: string) =>
       `Your bank payment of ${amount} is on its way.`,
     emailOnce: "We'll email you once it has.",
-    wasDue: (day: string, amount: string) =>
-      `This bill was due by ${day} and hasn't been paid. Please pay ${amount} below.`,
+    wasDue: (day: string) =>
+      `This bill was due by ${day} and hasn't been paid.`,
     forBill: (amount: string) => `${amount} for this bill`,
-    payBelow: (fix: string) => `Please pay it below, or ${fix}.`,
-    pleasePay: (amount: string, day: string) =>
-      `Please pay ${amount} by ${day}.`,
+    payOr: (fix: string) => `Please pay it, or ${fix}.`,
     bankOnWay: "Your bank payment is on its way",
     paid: "Thank you, your bill is paid",
     payThis: "Pay this bill",
@@ -46,12 +45,9 @@ const words = catalog({
     onItsWay: (amount: string) =>
       `Su pago bancario de ${amount} está en camino.`,
     emailOnce: "Le avisaremos por correo cuando se acredite.",
-    wasDue: (day: string, amount: string) =>
-      `Esta factura vencía el ${day} y no se ha pagado. Pague ${amount} abajo.`,
+    wasDue: (day: string) => `Esta factura vencía el ${day} y no se ha pagado.`,
     forBill: (amount: string) => `${amount} de esta factura`,
-    payBelow: (fix: string) => `Páguela abajo, o ${fix}.`,
-    pleasePay: (amount: string, day: string) =>
-      `Pague ${amount} antes del ${day}.`,
+    payOr: (fix: string) => `Páguela, o ${fix}.`,
     bankOnWay: "Su pago bancario está en camino",
     paid: "Gracias, su factura está pagada",
     payThis: "Pagar esta factura",
@@ -63,11 +59,20 @@ const words = catalog({
 
 // one of the Client's weekly Bills (ADR-0016), a Record (docs/ux.md),
 // where its emails lead: the whole Bill, which prints cleanly, and paying it
-// here by card or bank debit while it's due
+// here by card or bank debit while it's due, the page's next step (the `ui`
+// skill), its form in a dialog so the page has one Pay; beside Print behind
+// a ⋯ while it's a payment we try again ourselves (ADR-0022), which asks
+// nothing of them. Its week is its Week fact (BillDetail)
 export function PortalBill() {
   const t = useSaid(words);
   const bill = useLoaderData({ from: "/portal/bills/$billId" });
   const print = usePrintBill();
+  const pay: PageAction | false = bill.payable && {
+    label: t.w.payThis,
+    icon: CreditCard,
+    dialog: (state) => <PayBill bill={bill} {...state} />,
+  };
+  const ours = !!bill.unpaid && !asksTheClient(bill.unpaid.kind);
 
   return (
     <>
@@ -79,8 +84,8 @@ export function PortalBill() {
         ]}
         title={t.p.bill(bill.number)}
         status={<BillStatusBadge bill={bill} />}
-        subtitle={billWeek(t.lang, bill)}
-        actions={[print]}
+        next={(!ours && pay) || undefined}
+        actions={[ours && pay, print]}
         alerts={[useStanding(bill)]}
         details={
           <BillDetail
@@ -91,9 +96,7 @@ export function PortalBill() {
             }
           />
         }
-      >
-        {bill.payable && <PayBill bill={bill} />}
-      </RecordPage>
+      />
     </>
   );
 }
@@ -112,15 +115,21 @@ function useStanding(bill: BillView): Alert | null {
     return {
       key: "late",
       tone: "danger",
-      children: `${t.w.wasDue(t.formatDay(bill.dueOn), t.formatMoney(bill.totalCents))} ${t.PLAN_PAUSED}`,
+      children: `${t.w.wasDue(t.formatDay(bill.dueOn))} ${t.PLAN_PAUSED}`,
+    };
+  }
+  if (bill.unpaid && !asksTheClient(bill.unpaid.kind)) {
+    return {
+      key: "unpaid",
+      tone: "info",
+      children: `${t.notThrough(t.w.forBill(t.formatMoney(bill.totalCents)))} ${t.clientFix.waiting}`,
     };
   }
   if (bill.unpaid) {
     const { kind, why } = bill.unpaid;
     return {
       key: "unpaid",
-      // one we try again ourselves waits on us, as its badge says
-      tone: kind === "waiting" ? "info" : "danger",
+      tone: "danger",
       children: (
         <>
           {t.notTaken(
@@ -129,13 +138,13 @@ function useStanding(bill: BillView): Alert | null {
             why,
           )}{" "}
           {kind === "declined"
-            ? t.w.payBelow(t.UPDATE_AND_RETRY)
+            ? t.w.payOr(t.UPDATE_AND_RETRY)
             : t.clientFix[kind]}
         </>
       ),
-      action: kind !== "waiting" && (
+      action: (
         <ButtonLink
-          variant="danger-text"
+          variant="text"
           href={linkTo({ to: "/portal/payment-method" })}
         >
           {t.UPDATE_CARD}
@@ -143,27 +152,32 @@ function useStanding(bill: BillView): Alert | null {
       ),
     };
   }
-  return bill.payment === "on_page" && bill.totalCents > 0
-    ? {
-        key: "pay",
-        tone: "warning",
-        children: t.w.pleasePay(
-          t.formatMoney(bill.totalCents),
-          t.formatDay(bill.dueOn),
-        ),
-      }
-    : null;
+  // a Bill simply due says so in its badge, and when by in the line under
+  // its total
+  return null;
 }
 
 // paying it here, by card or bank debit: a card pays at once, a bank debit
 // is processing until it clears
-function PayBill({ bill }: { bill: BillView }) {
+function PayBill({ bill, ...state }: { bill: BillView } & DialogState) {
+  const t = useSaid(words);
+  return (
+    <Dialog title={t.w.payThis} {...state}>
+      {({ close }) => <PayForm bill={bill} close={close} />}
+    </Dialog>
+  );
+}
+
+// the dialog's content, rendered only while it's open: the payment starts
+// then, and the provider's form mounts into a box that's on the page (one
+// payment for the Bill however often it's opened: startBillPayment)
+function PayForm({ bill, close }: { bill: BillView; close: () => void }) {
   const t = useSaid(words);
   const payment = useBillPaymentForm(bill.id);
   const action = useAction(t.p.didntWork);
 
-  const pay = () =>
-    action.run(
+  const pay = async () => {
+    const ok = await action.run(
       async () => {
         const ref = await payment.pay();
         return postJson<BillView>(`/api/bills/mine/${bill.id}/payment`, {
@@ -176,26 +190,26 @@ function PayBill({ bill }: { bill: BillView }) {
       },
       (paid) => (paid.status === "processing" ? t.w.bankOnWay : t.w.paid),
     );
+    if (ok) close();
+  };
 
   return (
-    <Section
-      className="print:hidden"
-      title={t.w.payThis}
-      description={t.w.byCardOrBank(t.formatMoney(bill.totalCents))}
-    >
-      <Card>
-        {payment.field}
-        {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-        <Actions>
-          <Button
-            onPress={() => void pay()}
-            isPending={action.isPending}
-            isDisabled={!payment.isReady}
-          >
-            {t.w.pay(t.formatMoney(bill.totalCents))}
-          </Button>
-        </Actions>
-      </Card>
-    </Section>
+    <>
+      <p>{t.w.byCardOrBank(t.formatMoney(bill.totalCents))}</p>
+      {payment.field}
+      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+      <Actions>
+        <Button variant="quiet" onPress={close}>
+          {t.p.cancel}
+        </Button>
+        <Button
+          onPress={() => void pay()}
+          isPending={action.isPending}
+          isDisabled={!payment.isReady}
+        >
+          {t.w.pay(t.formatMoney(bill.totalCents))}
+        </Button>
+      </Actions>
+    </>
   );
 }

@@ -82,6 +82,7 @@ export function PropertyScreen() {
     <RecordPage
       trail={[...clientTrail(home.client), { label: addressOf(home) }]}
       title={addressOf(home)}
+      next={onHold.next}
       actions={[
         {
           label: NEW_QUOTE,
@@ -104,7 +105,7 @@ export function PropertyScreen() {
         },
       ]}
       alerts={[
-        ...onHold,
+        ...onHold.alerts,
         premises &&
           !home.findingsRecorded && { key: "see", children: SEE_IT_FIRST },
         !premises &&

@@ -684,6 +684,7 @@ describe("Unpaid Bills", () => {
         billId: summary!.id,
         number: "EC-000001",
         totalCents: summary!.totalCents,
+        kind: "declined",
       },
     ]);
     const attention = (

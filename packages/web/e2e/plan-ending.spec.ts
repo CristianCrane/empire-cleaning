@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 import {
   completedFirstClean,
   createStaff,
@@ -13,6 +14,7 @@ import {
   test,
   expectNextStep,
   expectNoPageAction,
+  expectNothingNext,
   pageAction,
   openTile,
   saveACard,
@@ -146,26 +148,119 @@ test("a Client's plan is On Hold while a fee is Unpaid, and back on once they pa
   await expect(page.getByText("Your clean is skipped")).toBeVisible();
 
   await page.goto(`/portal/plans/${planId}`);
-  const onHold = page
-    .getByRole("alert")
-    .filter({ hasText: "Your plan is paused" });
-  await expect(onHold).toContainText(
-    "Your plan is paused. We couldn't take payment for the clean on Mon, Jan 19, 9:00 AM ($50.46). Cleans already booked still go ahead, but we won't book any more.",
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "Your cleaning plan is paused" }),
+  ).toContainText(
+    "Your cleaning plan is paused. We couldn't take payment for the clean on Mon, Jan 19, 9:00 AM ($50.46). Cleans already booked still go ahead, but we won't book any more.",
   );
   await expectAccessible(page);
 
+  // putting it right is the page's next step: saving a card tries the
+  // charge again
   await failCharges(null);
-  await onHold.getByRole("link", { name: "Pay for that clean" }).click();
-  // on the clean, putting it right is the next step: saving a card tries
-  // the charge again
   await expectNextStep(page, "Update your card");
   await pageAction(page, "Update your card");
   await saveACard(page).save.click();
   await expect(page.getByText("Card saved")).toBeVisible();
 
   await page.goto(`/portal/plans/${planId}`);
-  await expect(page.getByText("Your plan is paused")).toHaveCount(0);
+  await expect(page.getByText("Your cleaning plan is paused")).toHaveCount(0);
   await expect(page.getByText("Active", { exact: true })).toBeVisible();
+});
+
+// skips a clean of Casey's plan late, for a fee that can't be charged
+const skipLate = async (page: Page, jobId: string) => {
+  await page.goto(`/portal/jobs/${jobId}`);
+  await pageAction(page, "Skip this clean");
+  await page
+    .getByRole("alertdialog", { name: "Skip this clean?" })
+    .getByRole("button", { name: "Skip this clean" })
+    .click();
+  await expect(page.getByText("Your clean is skipped")).toBeVisible();
+};
+
+test(
+  "a plan On Hold for two payments leads with the first that asks something, and the Office reaches each",
+  { tag: "@desktop" },
+  async ({ page, browser }) => {
+    const { planId, firstJob } = await planStarted();
+    // the first fee's bank payment still clearing, which we see to
+    // ourselves (ADR-0022); the second's card declined
+    await failCharges("processing");
+    await signedInAs(page, casey.email);
+    await setClock(SUNDAY_10AM);
+    await skipLate(page, firstJob.id);
+    // the next week's clean, skipped late too
+    await page.goto(`/portal/plans/${planId}`);
+    await page
+      .getByRole("grid", { name: "Your upcoming cleans" })
+      .getByRole("row")
+      .filter({ hasText: "Mon, Jan 26" })
+      .click();
+    await expect(page).toHaveURL(/\/portal\/jobs\//);
+    const secondJob = page.url().split("/").pop()!;
+    await setClock("2026-01-25T15:00:00Z");
+    await failCharges();
+    await skipLate(page, secondJob);
+
+    // the declined one is the next step, though the waiting one came first;
+    // neither alert offers a link of its own
+    await page.goto(`/portal/plans/${planId}`);
+    const held = page.getByRole("status").filter({ hasText: "the clean on" });
+    await expect(held).toHaveCount(2);
+    await expectNextStep(page, "Update your card");
+    await expect(held.getByRole("link")).toHaveCount(0);
+
+    // the Office: the declined job its next step, the waiting one its
+    // alert's link
+    const office = await (await browser.newContext()).newPage();
+    await signedInAs(office, olive.email);
+    await office.goto(`/office/service-plans/${planId}`);
+    await expectNextStep(office, "See the job");
+    await office
+      .getByRole("status")
+      .filter({ hasText: "hasn't gone through yet" })
+      .getByRole("link", { name: "See the job" })
+      .click();
+    await expect(office).toHaveURL(`/office/jobs/${firstJob.id}`);
+    await office.goBack();
+    // the alert's link has the same name, so the next step by its place
+    await office
+      .getByRole("group", { name: "What to do" })
+      .getByRole("link", { name: "See the job" })
+      .click();
+    await expect(office).toHaveURL(`/office/jobs/${secondJob}`);
+  },
+);
+
+test("a plan On Hold for a payment we try again ourselves asks nothing of the Client", async ({
+  page,
+}) => {
+  const { planId, firstJob } = await planStarted();
+  await setClock(SUNDAY_10AM);
+  // the bank payment for the fee is still clearing (ADR-0022)
+  await failCharges("processing");
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/jobs/${firstJob.id}`);
+  await pageAction(page, "Skip this clean");
+  await page
+    .getByRole("alertdialog", { name: "Skip this clean?" })
+    .getByRole("button", { name: "Skip this clean" })
+    .click();
+  await expect(page.getByText("Your clean is skipped")).toBeVisible();
+
+  await page.goto(`/portal/plans/${planId}`);
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "Your cleaning plan is paused" }),
+  ).toContainText(
+    "We'll try again by ourselves, so there's nothing you need to do.",
+  );
+  await expectNothingNext(page);
+  await expectNoPageAction(page, "Update your card");
 });
 
 test(
@@ -193,9 +288,9 @@ test(
     // the plan is on its home's page
     await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
     await expect(
-      page.getByRole("alert").filter({ hasText: "Paused." }),
+      page.getByRole("status").filter({ hasText: "Paused." }),
     ).toContainText(
-      "Paused. The client's payment didn't go through for the clean on Mon, Jan 19, 9:00 AM ($50.46).",
+      "Cleaning plan paused. The client's payment didn't go through for the clean on Mon, Jan 19, 9:00 AM ($50.46).",
     );
 
     // on the plan, its own action (WEB-J)

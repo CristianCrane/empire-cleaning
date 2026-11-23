@@ -33,8 +33,9 @@ export const labels = catalog({
     // a bank payment, or a Bill paid by one, on its way
     clearing: "Clearing",
     // a payment we try again ourselves (Unpaid, waiting): not failed for
-    // the Client, and not paid
-    notPaidYet: "Not paid yet",
+    // the Client, and not paid; as its alerts say it, "hasn't gone through
+    // yet"
+    notThroughYet: "Not through yet",
     howWeGetIn: "How we get in",
     jobStatus: {
       booked: "Booked",
@@ -70,7 +71,7 @@ export const labels = catalog({
     taxIncludedOf: (what: string) => `${what}, impuestos incluidos`,
     payBill: (n: string) => `Pagar la factura ${n}`,
     clearing: "En proceso",
-    notPaidYet: "Aún sin pagar",
+    notThroughYet: "Aún no ha pasado",
     howWeGetIn: "Cómo entramos",
     jobStatus: {
       booked: "Reservada",

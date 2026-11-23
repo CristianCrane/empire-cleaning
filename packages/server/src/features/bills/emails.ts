@@ -10,6 +10,7 @@ import {
 } from "../../services/email/blocks.ts";
 import {
   addDays,
+  asksTheClient,
   catalog,
   type Card,
   inLanguage,
@@ -300,7 +301,7 @@ const aboutBill = (
     case "unpaid":
     case "made":
       // we try again ourselves, so they're only told the Bill
-      if (bill.unpaid === "waiting") {
+      if (bill.unpaid && !asksTheClient(bill.unpaid)) {
         return [w.yourBill(number), w.waiting(total, card)];
       }
       if (bill.unpaid) {
@@ -533,7 +534,8 @@ export const chargedPerCleanEmail = (
       // a card puts it right, unless we're trying again ourselves
       unpaid &&
       settled.some(
-        (s) => s.settled.failure && unpaidKind(s.settled.failure) !== "waiting",
+        (s) =>
+          s.settled.failure && asksTheClient(unpaidKind(s.settled.failure)),
       )
         ? button(UPDATE_CARD, "/portal/payment-method")
         : cleansButton(lang),

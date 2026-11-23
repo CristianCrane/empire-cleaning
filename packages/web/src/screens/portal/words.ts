@@ -19,6 +19,8 @@ export const portalWords = catalog({
     moveOr: "Move or",
     yourCard: "Your card",
     yourPlan: "Your cleaning plan",
+    // a plan On Hold, as its page and Home lead with it
+    planPaused: "Your cleaning plan is paused.",
     seeYourPlan: "See your plan",
     // a sent Quote, while it can be accepted
     openUntil: (when: string) => `Open until ${when}`,
@@ -66,6 +68,7 @@ export const portalWords = catalog({
     moveOr: "Reprogramar",
     yourCard: "Su tarjeta",
     yourPlan: "Su plan de limpieza",
+    planPaused: "Su plan de limpieza está en pausa.",
     seeYourPlan: "Ver su plan",
     openUntil: (when: string) => `Abierta hasta el ${when}`,
     cancel: "Cancelar",
