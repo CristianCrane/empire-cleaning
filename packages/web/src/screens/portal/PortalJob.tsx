@@ -773,8 +773,7 @@ const unpaid = (
       </p>
     ) : (
       <p>
-        {t.notThrough(t.formatMoney(payment.owedCents), why)}{" "}
-        {t.clientFix.waiting}
+        {t.notThrough(t.formatMoney(payment.owedCents))} {t.clientFix.waiting}
       </p>
     ),
   };

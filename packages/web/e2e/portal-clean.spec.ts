@@ -94,7 +94,7 @@ test("a payment we try again ourselves asks nothing of the clean's reader", asyn
   await completeJob(job.id, cory.id, { condition: "moderate", reports: [] });
   await clean(page, job.id);
   // waiting on us, not failed
-  await expect(page.getByText("Not through yet")).toBeVisible();
+  await expect(page.getByText("Not paid yet")).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(
     page.getByRole("main").getByRole("status").filter({

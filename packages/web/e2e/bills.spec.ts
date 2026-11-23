@@ -400,20 +400,20 @@ test("a weekly-billed clean's receipt names its Bill and where it stands", async
 
 // a Bill's payment we try again ourselves waits on us: its badge and its
 // alert say so alike, the Client's and the Office's (#493 PR 14)
-test("a Bill we try again ourselves reads as not through yet, not failed", async ({
+test("a Bill we try again ourselves reads as not paid yet, not failed", async ({
   page,
   browser,
 }) => {
   const { billId } = await billed({ failing: "processing" });
   await signedInAs(page, olive.email);
   await page.goto(`/office/bills/${billId}`);
-  await expect(badge(page, "Not through yet")).toBeVisible();
+  await expect(badge(page, "Not paid yet")).toBeVisible();
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
   await client.goto(`/portal/bills/${billId}`);
-  await expect(badge(client, "Not through yet")).toBeVisible();
+  await expect(badge(client, "Not paid yet")).toBeVisible();
   await expect(client.getByRole("main").getByRole("alert")).toHaveCount(0);
   await expect(
     client

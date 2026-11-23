@@ -55,9 +55,9 @@ export const payments = catalog({
     ) =>
       `We couldn't take ${amount}${card ? ` from your ${card}` : ""}${why ? ` (${why})` : ""}.`,
     // a payment we try again ourselves, still on its way, as the Client is
-    // told: `amount` as notTaken's
-    notThrough: (amount: string, why: string | null = null) =>
-      `Your payment of ${amount} hasn't gone through yet${why ? ` (${why})` : ""}.`,
+    // told: `amount` as notTaken's. No why: it asks nothing of them
+    notThrough: (amount: string) =>
+      `Your payment of ${amount} hasn't gone through yet.`,
     // a clean's payment that didn't go through, as its Client is told, for
     // a sentence to end: `day` already formatted
     cleanNotPaid: (day: string) =>
@@ -111,8 +111,7 @@ export const payments = catalog({
       why: string | null = null,
     ) =>
       `No pudimos cobrar ${amount}${card ? ` de su ${card}` : ""}${why ? ` (${why})` : ""}.`,
-    notThrough: (amount: string, why: string | null = null) =>
-      `Su pago de ${amount} aún no ha pasado${why ? ` (${why})` : ""}.`,
+    notThrough: (amount: string) => `Su pago de ${amount} aún no ha pasado.`,
     cleanNotPaid: (day: string) =>
       `No pudimos cobrar el pago de su limpieza del ${day}`,
     UPDATE_AND_RETRY: UPDATE_AND_RETRY_ES,

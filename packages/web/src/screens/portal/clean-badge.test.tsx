@@ -30,10 +30,10 @@ describe("a clean's badge", () => {
     );
   });
 
-  test("a payment we try again ourselves is only not through yet", async () => {
-    expect(await badge({ unpaid: "waiting" })).toBe("Not through yet");
+  test("a payment we try again ourselves is only not paid yet", async () => {
+    expect(await badge({ unpaid: "waiting" })).toBe("Not paid yet");
     expect(await badge({ unpaid: "waiting", status: "no_access" })).not.toBe(
-      "Not through yet",
+      "Not paid yet",
     );
   });
 });
@@ -49,6 +49,6 @@ test("a Bill we try again ourselves says the same as a clean", async () => {
         }}
       />,
     );
-  expect((await bill("waiting")).container.textContent).toBe("Not through yet");
+  expect((await bill("waiting")).container.textContent).toBe("Not paid yet");
   expect((await bill("declined")).container.textContent).toBe("Unpaid");
 });

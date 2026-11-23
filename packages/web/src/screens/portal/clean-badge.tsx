@@ -23,7 +23,7 @@ export type CleanState = {
 
 // A clean's badge: where two states hold, the one waiting on the Client
 // first (unpaid, then a price change to OK), then what happened, a payment
-// we try again ourselves after those, as it waits on us ("Not through yet",
+// we try again ourselves after those, as it waits on us ("Not paid yet",
 // a Bill's word for it too), and the same word on each of
 // their screens, the Cleans list and the clean's page (the `ui` skill, a
 // screen says only what's true for this reader now). A list row leaves the
@@ -38,7 +38,7 @@ export function cleanBadge(t: Said, clean: CleanState, plain = false) {
   if (clean.status === "no_access")
     return <JobStatusBadge status="no_access" />;
   if (clean.unpaid)
-    return <StatusBadge tone="info">{t.notThroughYet}</StatusBadge>;
+    return <StatusBadge tone="info">{t.notPaidYet}</StatusBadge>;
   if (clean.status === "cancelled")
     return <StatusBadge>{t.cancelledLabel(clean.skipped)}</StatusBadge>;
   if (clean.moveAsked)

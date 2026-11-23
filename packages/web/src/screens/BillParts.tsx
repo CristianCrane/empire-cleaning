@@ -106,13 +106,13 @@ export function BillStatusBadge({
 }: {
   bill: Pick<BillSummary, "status" | "unpaid" | "totalCents">;
 }) {
-  const { w, unpaid, clearing, notThroughYet } = useSaid(words);
+  const { w, unpaid, clearing, notPaidYet } = useSaid(words);
   if (bill.status === "void") return <StatusBadge>{w.cancelled}</StatusBadge>;
   if (bill.status === "processing")
     return <StatusBadge tone="info">{clearing}</StatusBadge>;
   // one we try again ourselves waits on us (ADR-0022), as a clean's does
   if (bill.unpaid && !asksTheClient(bill.unpaid.kind))
-    return <StatusBadge tone="info">{notThroughYet}</StatusBadge>;
+    return <StatusBadge tone="info">{notPaidYet}</StatusBadge>;
   if (bill.unpaid) return <StatusBadge tone="danger">{unpaid}</StatusBadge>;
   if (bill.status === "due")
     return <StatusBadge tone="warning">{w.due}</StatusBadge>;

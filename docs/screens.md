@@ -476,7 +476,7 @@ Keeps: the Record (ux-portal). Renders through `RecordPage` (#432).
   a move is asked (Cancel or Skip its one action, outlined in red) or once
   cancelled (a Button to the plan or to request a quote).
 - Alerts: each only why: Unpaid (one we try again ourselves info, its
-  "hasn't gone through yet", its badge "Not through yet", as it asks nothing), a price change (one that isn't the next
+  "hasn't gone through yet", its badge "Not paid yet", as it asks nothing), a price change (one that isn't the next
   step keeping its own Review), a move asked for (Withdraw request, its one action) or
   turned down, the crew couldn't get in (red: when, why, what it cost).
 - Body: Details (`DetailsCard`: a date tile, the time large, the address,
