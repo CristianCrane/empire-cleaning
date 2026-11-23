@@ -70,14 +70,14 @@ export const formatHours = (hours: number) => `${hours} h`;
 // how long a Job runs, as a person says it: to the quarter hour, and
 // "About" only when that rounded it: 6 -> "6 h", 3.3 -> "About 3¼ h";
 // several, a plan's weekdays, joined, "About" said once: 1.9, 3.75 ->
-// "About 2 h + 3¾ h"
+// "About 2 h + 3¾ h"; the same on each, once, so it isn't read as a sum:
+// 3.75, 3.75 -> "3¾ h"
 export const howLong = (
   t: { about: (hours: string) => string },
   ...hours: number[]
 ) => {
-  const text = hours
-    .map((h) => `${quarterHoursText(quarterHours(h))} h`)
-    .join(" + ");
+  const each = hours.map((h) => `${quarterHoursText(quarterHours(h))} h`);
+  const text = each.every((e) => e === each[0]) ? each[0]! : each.join(" + ");
   return hours.every((h) => quarterHours(h) === h) ? text : t.about(text);
 };
 

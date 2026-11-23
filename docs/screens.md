@@ -494,7 +494,8 @@ Keeps: read like a Quote, paying under it (#165). Renders through `RecordPage` (
   down), what it does to the plan, booked up.
 - Body: Quote details (`DetailsCard`: what it comes to, icon facts, how
   long its crew is there, on each option too, a plan's each weekday's
-  joined by "+", no cleaning hours or crew on its weekday cards); Accept
+  joined by "+", or once when they match, no cleaning hours or crew on its
+  weekday cards); Accept
   (Decline beside it, quiet; its confirm not red). While it's being
   prepared: what they asked for.
 
