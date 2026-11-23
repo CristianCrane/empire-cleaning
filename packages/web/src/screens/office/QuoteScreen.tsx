@@ -1348,8 +1348,9 @@ function RoomOnDay({
       {problems.length === 0 ? (
         <p className="flex items-center gap-2 text-sm text-success-strong">
           <CircleCheck aria-hidden size={16} className="shrink-0" />
-          {/* "it", the quote: a Service recommended for a first visit is
-          named only when it doesn't fit (the user, on #527) */}
+          {/* "it", the quote, as the recommended Service is an aside (the
+          user, on #527); named below only when it alone doesn't fit, as
+          that changes what the client can pick */}
           {formatDay(day)} has room for it.
         </p>
       ) : (
