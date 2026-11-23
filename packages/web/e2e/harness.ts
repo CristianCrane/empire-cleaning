@@ -47,7 +47,8 @@ export const addCleaner = (
     body: JSON.stringify({ name, usualWeek }),
   });
 
-// every Charge is declined with this reason from now on; null to stop
+// every Charge is declined with this reason from now on, or left
+// processing with "processing", as the provider does; null to stop
 export const failCharges = (reason: string | null = "card_declined") =>
   control("/payments/fail", {
     method: "POST",

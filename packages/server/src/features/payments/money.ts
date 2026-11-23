@@ -192,12 +192,18 @@ const isOpen = (tx: Tx | typeof db) =>
 
 // the open attempts for a Job, Bill or Quote, of any kind: a Job asked for
 // as a fee may be charged a Balance now
-const openAttempts = (tx: Tx, forId: string) =>
+const openAttempts = (tx: Tx | typeof db, forId: string) =>
   tx
     .select()
     .from(chargeAttempts)
     .where(and(eq(chargeAttempts.forId, forId), isOpen(tx)))
     .orderBy(chargeAttempts.askedAt);
+
+// whether a payment we asked for a Job, Bill or Quote may still take the
+// money: nothing more is taken for it meanwhile, by us or by the Client
+// paying on its page (#533)
+export const chargeOpen = async (forId: string) =>
+  (await openAttempts(db, forId)).length > 0;
 
 // a new attempt, committed, then asked
 const attempt = async (

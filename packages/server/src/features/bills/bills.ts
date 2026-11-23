@@ -31,6 +31,7 @@ import {
   startOfDay,
   timeOf,
   catalog,
+  messages,
   type Language,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
@@ -62,6 +63,7 @@ import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { REMINDER_TIME } from "../jobs/reminders.ts";
 import { idempotencyKey } from "../payments/keys.ts";
 import {
+  chargeOpen,
   chargeSaved,
   recordTakenEarlier,
   refundFrom,
@@ -638,7 +640,19 @@ export const retryUnpaidBillsFor = async (clientId: string) => {
 
 // ---- on its page ----
 
-const payable = (bill: Bill) => bill.status === "due" && bill.totalCents > 0;
+// why the Client can't pay a Bill on its page now, or null when they can:
+// a bank debit of theirs on its way, or a payment of ours, which our charge
+// may still take or we try again ourselves (ADR-0022), as two at once would
+// take it twice until a refund (#533); or nothing owed
+const notPayable = async (
+  bill: Bill,
+): Promise<"onItsWay" | "ours" | "nothingToPay" | null> => {
+  if (bill.status === "processing") return "onItsWay";
+  if (bill.status !== "due" || bill.totalCents <= 0) return "nothingToPay";
+  const waiting =
+    bill.unpaidReason !== null && unpaidKind(bill.unpaidReason) === "waiting";
+  return waiting || (await chargeOpen(bill.id)) ? "ours" : null;
+};
 
 const clientBill = async (clientId: string, billId: string) => {
   const [bill] = await db
@@ -654,12 +668,14 @@ const clientBill = async (clientId: string, billId: string) => {
 export const payWords = catalog({
   en: {
     onItsWay: "Your bank payment for this bill is on its way.",
+    ours: `This bill's payment hasn't gone through yet. ${messages.en.clientFix.waiting}`,
     nothingToPay: "There's nothing to pay on this bill.",
     notThrough: (because: string) =>
       `Your payment didn't go through${because}. Please try again, or use another card or bank account.`,
   },
   es: {
     onItsWay: "Su pago bancario de esta factura ya está en camino.",
+    ours: `El pago de esta factura aún no ha pasado. ${messages.es.clientFix.waiting}`,
     nothingToPay: "No hay nada que pagar en esta factura.",
     notThrough: (because: string) =>
       `Su pago no pasó${because}. Vuelva a intentarlo, o use otra tarjeta o cuenta bancaria.`,
@@ -673,13 +689,8 @@ export const startBillPayment = async (
   billId: string,
 ): Promise<BillPaymentForm> => {
   const bill = await clientBill(client.id, billId);
-  if (!payable(bill)) {
-    throw new ConflictError(
-      bill.status === "processing"
-        ? payWords[currentLanguage()].onItsWay
-        : payWords[currentLanguage()].nothingToPay,
-    );
-  }
+  const not = await notPayable(bill);
+  if (not) throw new ConflictError(payWords[currentLanguage()][not]);
   const { ref, secret } = await paymentGateway.startBillPayment({
     payerId: await payerFor(client),
     amount: bill.totalCents,
@@ -1364,7 +1375,7 @@ export const billView = async (
     paymentNote: bill.paymentNote,
     voidedAt: bill.voidedAt?.toISOString() ?? null,
     voidReason: bill.voidReason,
-    payable: payable(bill),
+    payable: (await notPayable(bill)) === null,
     plans: (await plansOn(bill.id)).map(({ startedAt: _, ...plan }) => plan),
   };
 };

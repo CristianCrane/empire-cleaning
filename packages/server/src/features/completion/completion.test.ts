@@ -746,6 +746,31 @@ describe("an Unpaid Job", () => {
   });
 
   // #241, finding 1
+  // #533: no form pays a Job by hand, and the Client's try again waits on
+  // the charge, as every retry does (chargeSaved)
+  test("is one whose Balance is still processing, and the Client trying again takes nothing more until it's through", async () => {
+    const { office, cory, client, jobId, quote } = await bookedJob();
+    const deep = deepOf(quote);
+    testPayments().failCharges("processing");
+    await complete(cory.agent, jobId).expect(200);
+    testPayments().failCharges(null);
+    expect(
+      (await officeJob(office, jobId)).completion!.payment.unpaid,
+    ).toMatchObject({ kind: "waiting" });
+    const asked = testPayments().paymentAttempts.length;
+
+    await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(409);
+    expect(testPayments().paymentAttempts).toHaveLength(asked);
+
+    testPayments().clearCharges();
+    await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(200);
+    expect(testPayments().paymentAttempts).toHaveLength(asked);
+    expect(amounts()).toEqual([
+      deep.depositCents,
+      deep.totalCents - deep.depositCents,
+    ]);
+  });
+
   test("is one whose Balance the provider took but whose reply was lost, and retrying it takes nothing more", async () => {
     const { office, cory, client, jobId, quote } = await bookedJob();
     const deep = deepOf(quote);

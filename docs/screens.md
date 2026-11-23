@@ -534,9 +534,9 @@ Keeps: a list of homes, each with its own page (ux-portal). Renders through `Rec
 Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432).
 
 - Header: letterhead; Payments › Bill N; "Bill N" and its status (its week is a fact).
-- Actions: while due, Pay this bill the primary (its form in a dialog),
-  Print behind its arrow; both behind a ⋯ while it's a payment we try again
-  ourselves; otherwise one Button (Print).
+- Actions: while the server says it can be paid (`payable`), Pay this bill
+  the primary (its form in a dialog), Print behind its arrow; otherwise one
+  Button (Print), as while it's a payment we take ourselves (#533).
 - Alerts: why it's unpaid (Update your card, a text Button), or its bank
   payment on its way.
 - Body: the Bill (`DetailsCard`).

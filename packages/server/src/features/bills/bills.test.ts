@@ -809,7 +809,49 @@ describe("Unpaid Bills", () => {
     );
   });
 
-  test("one whose Charge reply was lost, then paid on its page, gives back what the lost Charge took", async () => {
+  // #533: paid on its page too, it would be taken twice until a refund
+  test("one whose Charge is still processing can't be paid on its page, and is charged once when it goes through", async () => {
+    const { office, clientId } = await billedJob();
+    testPayments().failCharges("processing");
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    testPayments().failCharges(null);
+    const [{ id, totalCents }] = (await billsOf(office, clientId)) as [
+      BillSummary,
+    ];
+    const client = await signIn(casey.email);
+
+    const refused = await client
+      .post(`/api/bills/mine/${id}/payment-form`)
+      .expect(409);
+    expect(refused.body.message).toBe(
+      "This bill's payment hasn't gone through yet. We'll try again by ourselves, so there's nothing you need to do.",
+    );
+    const enEspañol = await client
+      .post(`/api/bills/mine/${id}/payment-form`)
+      .set("Accept-Language", "es")
+      .expect(409);
+    expect(enEspañol.body.message).toBe(
+      "El pago de esta factura aún no ha pasado. Lo volveremos a intentar nosotros, así que usted no tiene que hacer nada.",
+    );
+    // so its page offers no Pay
+    expect(
+      (await client.get(`/api/bills/mine/${id}`).expect(200)).body,
+    ).toMatchObject({ status: "due", payable: false });
+
+    testPayments().clearCharges();
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    expect(await billOf(office, id)).toMatchObject({
+      status: "paid",
+      paidVia: "charge",
+    });
+    expect(
+      testPayments().paymentAttempts.filter((a) => a.amount === totalCents),
+    ).toHaveLength(1);
+  });
+
+  test("one whose Charge reply was lost can't be paid on its page meanwhile, and paid another way gives back what the lost Charge took", async () => {
     const { office, clientId } = await billedJob();
     testPayments().loseNextReply();
     testClock().set(NEXT_MONDAY);
@@ -817,15 +859,13 @@ describe("Unpaid Bills", () => {
     const lost = testPayments().charges.at(-1)!;
     const [summary] = await billsOf(office, clientId);
     const client = await signIn(casey.email);
-    const form = (
-      await client
-        .post(`/api/bills/mine/${summary!.id}/payment-form`)
-        .expect(200)
-    ).body as BillPaymentForm;
-    testPayments().payBill(form.ref, "card");
+    // the lost Charge took it already (#533)
     await client
-      .post(`/api/bills/mine/${summary!.id}/payment`)
-      .send({ ref: form.ref })
+      .post(`/api/bills/mine/${summary!.id}/payment-form`)
+      .expect(409);
+    await office
+      .post(`/api/bills/${summary!.id}/outside-payment`)
+      .send({ note: "Cheque 1042" })
       .expect(200);
 
     testClock().advance({ minutes: 15 });
@@ -836,7 +876,7 @@ describe("Unpaid Bills", () => {
     ]);
     expect(await billOf(office, summary!.id)).toMatchObject({
       status: "paid",
-      paidVia: "page",
+      paidVia: "outside",
     });
   });
 

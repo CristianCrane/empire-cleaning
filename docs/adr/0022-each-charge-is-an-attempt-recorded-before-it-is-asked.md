@@ -8,7 +8,7 @@ A next try comes from whichever happens first:
 
 - **The Client or the Office.** For a Job, the Client taps "try again" on it, or the Office does; or the Client saves a new card, which tries each of their Unpaid Jobs and Bills. For a Quote, the Client or the Office accepts it again.
 - **Something changes what's owed.** A completion corrected, an Adjustment answered, a cancellation, a plan changed or Ended, or a Bill voided settles its Jobs again.
-- **The Clock, so nobody has to.** Every 10 minutes, open payments (`settleOpenPayments`) tries each attempt still open a quarter of an hour after it was asked, and each Job or Bill Unpaid only because the provider couldn't be reached. A Job is settled again and a due Bill charged again. A Bill paid another way meanwhile, on its page, gives back what its lost Charge took, and so does a Quote nobody accepted again. A declined card is left for the Client's new one. Lapsed credits' refunds are tried on every run already.
+- **The Clock, so nobody has to.** Every 10 minutes, open payments (`settleOpenPayments`) tries each attempt still open a quarter of an hour after it was asked, and each Job or Bill Unpaid only because the provider couldn't be reached. A Job is settled again and a due Bill charged again. A Bill paid another way meanwhile, as the Office records, gives back what its lost Charge took (its page takes no payment while an attempt is open, #533), and so does a Quote nobody accepted again. A declined card is left for the Client's new one. Lapsed credits' refunds are tried on every run already.
 
 Each try holds the Job, Bill or Quote it's for, so tries from these at once take turns.
 

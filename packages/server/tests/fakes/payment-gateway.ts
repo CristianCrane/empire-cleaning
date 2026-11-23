@@ -99,6 +99,8 @@ export class FakePaymentGateway implements PaymentGateway {
   private readonly made = new Map<string, ChargeResult>();
   // and every refund, likewise
   private readonly madeRefunds = new Map<string, string>();
+  // Charges still processing, by the key each was asked with
+  private readonly processing = new Map<string, RecordedCharge>();
   private replyLost = false;
   private held: { reached: () => void; gate: Promise<void> } | null = null;
   // Bill payments started in the browser, by ref, and how each stands
@@ -108,9 +110,20 @@ export class FakePaymentGateway implements PaymentGateway {
   >();
   private nextId = 1;
 
-  // every Charge and Deposit is declined with `reason` until failCharges(null)
+  // every Charge and Deposit is declined with `reason` until
+  // failCharges(null); "processing" leaves a Charge processing instead, as
+  // Stripe does, until clearCharges()
   failCharges(reason: string | null = "card_declined") {
     this.chargeFailure = reason;
+  }
+
+  // every Charge left processing goes through
+  clearCharges() {
+    for (const [key, charge] of this.processing) {
+      this.charges.push(charge);
+      this.made.set(key, { ok: true, chargeId: charge.chargeId });
+    }
+    this.processing.clear();
   }
 
   // someone refunds `amount` of a Charge in the provider's dashboard, as
@@ -522,6 +535,17 @@ export class FakePaymentGateway implements PaymentGateway {
         const declined =
           this.chargeFailure ??
           this.declines(this.cards.get(input.paymentMethodId) ?? "visa", false);
+        if (declined === "processing") {
+          const chargeId = this.id("pi");
+          this.processing.set(idempotencyKey, { ...input, chargeId });
+          const result: ChargeResult = {
+            ok: false,
+            reason: declined,
+            chargeId,
+          };
+          this.made.set(idempotencyKey, result);
+          return result;
+        }
         const result: ChargeResult = declined
           ? { ok: false, reason: declined }
           : { ok: true, chargeId: this.id("pi") };
@@ -540,6 +564,9 @@ export class FakePaymentGateway implements PaymentGateway {
   }: ChargeLookup): Promise<ChargeResult | null> {
     this.check();
     if (chargeId) {
+      if ([...this.processing.values()].some((c) => c.chargeId === chargeId)) {
+        return { ok: false, reason: "processing", chargeId };
+      }
       return this.charges.some((c) => c.chargeId === chargeId)
         ? { ok: true, chargeId }
         : null;
