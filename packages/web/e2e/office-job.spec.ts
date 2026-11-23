@@ -166,3 +166,26 @@ test.describe("the Office's Job", { tag: "@desktop" }, () => {
     await expectAccessible(page);
   });
 });
+
+// the Cleaner's Job once done, the crew it folds under "The job" open: who
+// was there (#493 PR 11 gives an ended crew one rule for both readers)
+test(
+  "the Cleaner's done Job, its crew",
+  { tag: "@desktop" },
+  async ({ page }) => {
+    const dee = await addCleaner("Dee Cleaner");
+    const job = await bookedJob({ crewSize: 2 });
+    await offerJob(job.id, dee.id, { confirmed: true });
+    await setClock(MONDAY_11AM);
+    await completeJob(job.id, job.cory.id, {
+      condition: "moderate",
+      reports: [],
+    });
+    await signedInAs(page, "cory@example.com");
+    await page.goto(`/cleaner/jobs/${job.id}`);
+    await page.getByText("The job", { exact: true }).click();
+    await expect(page.getByRole("region", { name: "Crew" })).toBeVisible();
+
+    await expectAccessible(page);
+  },
+);
