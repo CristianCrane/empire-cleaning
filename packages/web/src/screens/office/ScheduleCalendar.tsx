@@ -540,15 +540,6 @@ export function ScheduleCalendar({
                   onPick &&
                   timesOn(day.date)
                     .filter((time) => hasCrew(day, time))
-                    .filter(
-                      (time) =>
-                        !(
-                          proposed?.start.date === day.date &&
-                          hoursOf(time) >= hoursOf(proposed.start.time) &&
-                          hoursOf(time) <
-                            hoursOf(proposed.start.time) + proposed.hoursOnSite
-                        ),
-                    )
                     .map((time) => (
                       <button
                         key={time}

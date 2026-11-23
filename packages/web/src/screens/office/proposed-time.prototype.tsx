@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import {
   ADD_HOURS,
+  roomOn,
   addDays,
   daysIn,
   NO_CREW,
@@ -177,6 +178,8 @@ const JOBS: JobSeed[][] = [
   [],
 ];
 
+const clockOf = (h: number) =>
+  `${String(Math.floor(h)).padStart(2, "0")}:${h % 1 ? "30" : "00"}`;
 const clock = (h: number) =>
   `${String(Math.floor(h)).padStart(2, "0")}:${h % 1 ? "30" : "00"}`;
 // New York's offset in winter
@@ -227,23 +230,19 @@ const scheduleDay = (date: string): ScheduleDay => {
   };
 };
 
-// the server's answer, made up: a start has room when enough cleaners work
-// the whole clean and have no Job overlapping it
-const freeCrewAt = (date: string, start: number, hoursOnSite: number) =>
-  whoIsFreeAt(date, start, hoursOnSite).length;
-const whoIsFreeAt = (date: string, start: number, hoursOnSite: number) => {
-  const i = weekdayIndex(date);
-  const end = start + hoursOnSite;
-  return CLEANERS.filter((name) => {
-    const h = HOURS[i]![name];
-    if (!h || h[0] > start || h[1] < end) return false;
-    return !JOBS[i]!.some(
-      ([s, len, crew]) => crew.includes(name) && s < end && s + len > start,
-    );
-  });
-};
+// the server's answer, made up from the server's own rule: models' roomOn,
+// hours and headcount, anyone working that day free at any time of it
 const hasRoom = (at: LocalDateTime, crewSize: number, hoursOnSite: number) =>
-  freeCrewAt(at.date, hoursOf(at.time), hoursOnSite) >= crewSize;
+  roomOn(scheduleDay(at.date), {
+    startsAt: new Date(`${at.date}T${at.time}:00-05:00`),
+    labourHours: crewSize * hoursOnSite,
+    crewSize,
+  }).hasRoom;
+// who's on a Job during the clean, for C's picture
+const onAJob = (date: string, name: string, start: number, end: number) =>
+  JOBS[weekdayIndex(date)]!.some(
+    ([s0, len, crew]) => crew.includes(name) && s0 < end && s0 + len > start,
+  );
 const noCrewOn = (
   dates: string[],
   crewSize: number,
@@ -258,7 +257,9 @@ const noCrewOn = (
 const openTimes = (date: string, crewSize: number, hoursOnSite: number) =>
   PICK_TIMES.filter(
     (time) =>
-      hoursOf(time) >= 7 && hasRoom({ date, time }, crewSize, hoursOnSite),
+      hoursOf(time) >= 7 &&
+      hoursOf(time) <= 19 &&
+      hasRoom({ date, time }, crewSize, hoursOnSite),
   );
 
 const datesFrom = (from: string, to: string) =>
@@ -324,13 +325,13 @@ function RoomLine({ at, title }: { at: LocalDateTime; title?: string }) {
       <p className="flex items-center gap-2 text-sm text-success-strong">
         <CircleCheck aria-hidden size={16} className="shrink-0" />
         {title ? `${title}: ` : ""}
-        {formatDay(at.date)}, {formatClock(at.time)} has room for it.
+        Has room for it.
       </p>
     );
   return (
     <Notice tone="danger">
       {title ? `${title}, ` : ""}
-      {formatDay(at.date)}, {formatClock(at.time)}: {NO_CREW} {ADD_HOURS}
+      {NO_CREW} {ADD_HOURS}
     </Notice>
   );
 }
@@ -433,7 +434,7 @@ function DayStrip({
               key={date}
               type="button"
               aria-current={viewed ? "date" : undefined}
-              aria-label={`${formatDay(date)}${room ? "" : ", full"}${chosen ? ", picked" : ""}`}
+              aria-label={`${formatDay(date)}${room ? "" : ", no room"}${chosen ? ", picked" : ""}`}
               onClick={() => onDay(date)}
               className={`flex min-h-touch flex-col items-center gap-0.5 rounded-md px-0.5 py-1.5 ${
                 chosen
@@ -454,7 +455,7 @@ function DayStrip({
                 {Number(date.slice(8))}
               </span>
               <span aria-hidden className="h-4 text-xs">
-                {room ? "" : "Full"}
+                {room ? "" : "No room"}
               </span>
             </button>
           );
@@ -529,13 +530,13 @@ function OnTheSchedule({
 
 // ---- B: the day's open times ----
 
-// C: the day's cleaners, each a row across the day: when they work, their
-// Jobs, and the picked clean as a band down every row, so who's free for it
-// shows
+// C: the day's cleaners, each a row of their Jobs across the day, and the
+// clean a column behind the rows: where it lands on a gap, someone's free
 function WhoIsFree({ day, start }: { day: string; start?: LocalDateTime }) {
   const i = weekdayIndex(day);
   const hours = HOURS[i]!;
   const working = CLEANERS.filter((name) => hours[name]);
+  const off = CLEANERS.filter((name) => !hours[name]);
   if (working.length === 0)
     return (
       <p className="text-sm text-fg-muted">
@@ -543,28 +544,28 @@ function WhoIsFree({ day, start }: { day: string; start?: LocalDateTime }) {
       </p>
     );
   const from = 7;
-  const to = 19;
+  const to = 21;
   const at = (h: number) => `${((h - from) / (to - from)) * 100}%`;
   const span = (a: number, b: number) => ({
     left: at(a),
     width: `${((b - a) / (to - from)) * 100}%`,
   });
   const band = start?.date === day ? hoursOf(start.time) : undefined;
-  const free = band === undefined ? [] : whoIsFreeAt(day, band, ON_SITE);
-  const fits = free.length >= CREW;
+  const fits = start ? hasRoom(start, CREW, ON_SITE) : true;
   const tone = fits
-    ? "border-primary bg-primary/15 text-primary"
-    : "border-danger-strong bg-danger-subtle text-danger-strong";
+    ? "border-primary bg-primary/10"
+    : "border-danger-strong bg-danger-subtle";
+  const free =
+    band === undefined
+      ? 0
+      : working.filter((name) => !onAJob(day, name, band, band + ON_SITE))
+          .length;
   return (
-    <div
-      role="group"
-      aria-label={`Cleaners on ${formatDay(day)}`}
-      className="flex flex-col gap-1 text-xs"
-    >
+    <div className="flex flex-col gap-1 text-xs">
       <div className="grid grid-cols-[3.5rem_1fr] items-end">
         <span />
-        <div className="relative h-4 text-fg-muted">
-          {[8, 12, 16].map((h) => (
+        <div aria-hidden className="relative h-4 text-fg-muted">
+          {[8, 12, 16, 20].map((h) => (
             <span
               key={h}
               className="absolute -translate-x-1/2"
@@ -575,35 +576,34 @@ function WhoIsFree({ day, start }: { day: string; start?: LocalDateTime }) {
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-[3.5rem_1fr]">
+      <div
+        role="group"
+        aria-label={`Cleaners on ${formatDay(day)}${band === undefined ? "" : `, ${free} free then`}`}
+        className="grid grid-cols-[3.5rem_1fr]"
+      >
         <span />
-        <div className="relative h-5">
+        <div className="relative">
+          {[8, 10, 12, 14, 16, 18, 20].map((h) => (
+            <div
+              key={h}
+              aria-hidden
+              className="absolute inset-y-0 border-s border-border"
+              style={{ left: at(h) }}
+            />
+          ))}
           {band !== undefined && (
-            <span
-              className={`absolute inset-y-0 flex items-center justify-center rounded-sm border-2 border-dashed font-semibold whitespace-nowrap ${tone}`}
+            <div
+              aria-hidden
+              className={`absolute -inset-y-1 rounded-md border-2 border-dashed ${tone}`}
               style={span(band, band + ON_SITE)}
-            >
-              {!fits && (
-                <CircleAlert aria-hidden size={12} className="me-0.5" />
-              )}
-              {formatClock(start!.time)}
-            </span>
+            />
           )}
-        </div>
-      </div>
-      <div className="relative grid grid-cols-[3.5rem_1fr] gap-y-1">
-        {working.map((name) => {
-          const [a, b] = hours[name]!;
-          return (
-            <div key={name} className="contents">
-              <span className="self-center truncate font-semibold">
-                {name.split(" ")[0]}
-              </span>
-              <div className="relative h-7 rounded-sm bg-border">
-                <div
-                  className="absolute inset-y-0 bg-surface ring-1 ring-border ring-inset"
-                  style={span(a, b)}
-                />
+          <div className="relative flex flex-col gap-1">
+            {working.map((name) => (
+              <div key={name} className="relative h-7">
+                <span className="absolute top-0 -left-14 w-13 truncate leading-7 font-semibold">
+                  {name.split(" ")[0]}
+                </span>
                 {JOBS[i]!.filter(([, , crew]) => crew.includes(name)).map(
                   ([s0, len, , client]) => (
                     <div
@@ -615,18 +615,16 @@ function WhoIsFree({ day, start }: { day: string; start?: LocalDateTime }) {
                     </div>
                   ),
                 )}
-                {band !== undefined && free.includes(name) && (
-                  <div
-                    aria-label={`${name.split(" ")[0]} is free then`}
-                    className={`absolute inset-y-0.5 rounded-sm border-2 border-dashed ${tone}`}
-                    style={span(band, band + ON_SITE)}
-                  />
-                )}
               </div>
-            </div>
-          );
-        })}
+            ))}
+          </div>
+        </div>
       </div>
+      {off.length > 0 && (
+        <p className="text-sm text-fg-muted">
+          Off: {off.map((n) => n.split(" ")[0]).join(", ")}
+        </p>
+      )}
     </div>
   );
 }
@@ -654,7 +652,11 @@ function OpenTimes({
     : open;
   const groups = [
     { name: "Morning", times: times.filter((t) => hoursOf(t) < 12) },
-    { name: "Afternoon", times: times.filter((t) => hoursOf(t) >= 12) },
+    {
+      name: "Afternoon",
+      times: times.filter((t) => hoursOf(t) >= 12 && hoursOf(t) < 17),
+    },
+    { name: "Evening", times: times.filter((t) => hoursOf(t) >= 17) },
   ].filter((g) => g.times.length > 0);
   return (
     <div className="flex flex-col gap-4">
@@ -663,8 +665,7 @@ function OpenTimes({
       {withCrew && <WhoIsFree day={day} start={start} />}
       {groups.length === 0 ? (
         <p className="text-sm text-fg-muted">
-          No time on {formatDay(day)} has {CREW} cleaners free for {ON_SITE}{" "}
-          hours.
+          No time on {formatDay(day)} has room for it.
         </p>
       ) : (
         groups.map((group) => (
@@ -704,6 +705,11 @@ function OpenTimes({
                     }`}
                   >
                     {formatClock(t)}
+                    {chosen && (
+                      <span className="block text-xs font-normal">
+                        to {formatClock(clockOf(hoursOf(t) + ON_SITE))}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -866,7 +872,12 @@ function Draft({ layout, c }: { layout: string; c: Case }) {
           },
         ]}
         aside={{ title: "Quote", leads: true, children: <Aside plan={plan} /> }}
-        next={{ label: "Send", icon: Send, onAction: say("Send") }}
+        next={{
+          label: "Send",
+          icon: Send,
+          onAction: say("Send"),
+          isDisabled: plan ? false : !start,
+        }}
         price={
           plan
             ? {
@@ -878,7 +889,7 @@ function Draft({ layout, c }: { layout: string; c: Case }) {
                 short: "Standard Clean $194.89",
               }
         }
-        note="Saved"
+        note={plan || start ? "Saved" : "Pick a time to send it"}
       >
         <FormPart
           title="What was asked"
