@@ -83,7 +83,7 @@ import { QUOTE_A_PLAN, useStartDraft } from "./StartDraft.tsx";
 const w = screenWords.en;
 const { cleaners, cancelledLabel, jobStatusLabel } = w;
 
-const { formatDateTime, formatMoney } = formats.en;
+const { formatDateTime } = formats.en;
 
 const booked = (job: OfficeJob) => job.status === "booked";
 
@@ -98,7 +98,7 @@ const wontHappen = (job: OfficeJob) =>
  * alert only for what the badge can't say. Its header card says when,
  * where and who for; then, while it's booked, its extras, crew and money.
  * Once it's over, what History doesn't say leads (how it went, its money),
- * and the rest folds under Details. Its story is last.
+ * and the rest folds under "The job". Its story is last.
  */
 export function JobScreen() {
   const job = useLoaderData({ from: "/office/jobs/$jobId" });
@@ -137,8 +137,8 @@ export function JobScreen() {
         <>
           <HowItWent job={job} />
           <JobMoney job={job} />
-          <JobFold label="Details">
-            <Card hiddenTitle="Details">
+          <JobFold label="The job">
+            <Card hiddenTitle="Job facts">
               <JobFacts job={job} />
             </Card>
             {parts}
@@ -191,8 +191,9 @@ function OfficeJobBadge({ job }: { job: OfficeJob }) {
 // The page's next step, the first of these that applies: take the payment
 // that failed, review a price change, answer a move asked, offer it to a
 // cleaner, offer the home a cleaning plan; else, while it can move, Move
-// job. The rest behind the split button's arrow, red last; a red one is
-// never the next step
+// job. The rest behind the split button's arrow, red last: what's done now
+// and then (Ask for a new time, Correct the condition) is never the next
+// step, so a done Job with nothing waiting has none
 function useActionsOf(job: OfficeJob): {
   next?: PageAction;
   more: PageAction[];
@@ -203,7 +204,8 @@ function useActionsOf(job: OfficeJob): {
   const [reported] = toReviewOf(job);
   const terms = job.rescheduleTerms;
 
-  const all = [
+  // the steps a Job waits on, the first its next
+  const [next, ...steps] = [
     job.payment?.unpaid && retry,
     reported && {
       label: "Review",
@@ -236,6 +238,9 @@ function useActionsOf(job: OfficeJob): {
       icon: CalendarSync,
       dialog: (state: DialogState) => <MoveJob job={job} {...state} />,
     },
+  ].filter((a): a is PageAction => !!a);
+  // and what's done now and then, never the next step
+  const rest: (PageAction | false | null | undefined)[] = [
     terms && {
       label: "Ask for a new time",
       icon: CalendarClock,
@@ -258,15 +263,18 @@ function useActionsOf(job: OfficeJob): {
       danger: true,
       dialog: (state: DialogState) => <UndoCompletion job={job} {...state} />,
     },
-  ].filter((a): a is PageAction => !!a);
-  const [first] = all;
-  const next = first && !first.danger ? first : undefined;
-  return { next, more: next ? all.slice(1) : all };
+  ];
+  return {
+    next,
+    more: [...steps, ...rest.filter((a): a is PageAction => !!a)],
+  };
 }
 
 // only what the badge can't say: to when a move is asked and what it
 // costs; why a payment failed and what puts it right; that no cleaner is
-// free to take it. The step each calls for is the page's primary
+// free to take it; why a plan is the next step (the client asked for
+// regular visits, and this was their first clean). The step each calls for
+// is the page's primary
 const alertsFor = (job: OfficeJob): Alert[] => {
   const alerts: Alert[] = [];
   const request = job.rescheduleRequest;
@@ -296,8 +304,7 @@ const alertsFor = (job: OfficeJob): Alert[] => {
       children: (
         <p>
           <strong>
-            {formatMoney(job.payment.owedCents)} didn't go through
-            {unpaid.why && ` (${unpaid.why})`}.
+            Its payment didn't go through{unpaid.why && ` (${unpaid.why})`}.
           </strong>{" "}
           {officeFix[unpaid.kind]}
         </p>
@@ -317,6 +324,18 @@ const alertsFor = (job: OfficeJob): Alert[] => {
         <p>
           <strong>No cleaner is free then.</strong> Offer it to someone, or{" "}
           {MORE_HOURS}.
+        </p>
+      ),
+    });
+  }
+  if (job.canOfferServicePlan) {
+    alerts.push({
+      key: "plan",
+      tone: "info",
+      children: (
+        <p>
+          <strong>{firstNameOf(job.client.name)} wants regular visits.</strong>{" "}
+          This was their first clean, and no cleaning plan has been offered yet.
         </p>
       ),
     });
@@ -384,21 +403,21 @@ function JobFacts({ job }: { job: OfficeJob }) {
           icon={CalendarCheck}
           label="Free to move or cancel"
           value={formatDateTime(moveUntil)}
-          line="Free to move or cancel until"
+          line="Free for the client to move or cancel until"
         />
       ) : (
         <>
           {moveUntil && (
             <Fact
-              icon={CalendarSync}
+              icon={CalendarCheck}
               label="Free to move"
               value={formatDateTime(moveUntil)}
-              line="Free to move until"
+              line="Free for the client to move until"
             />
           )}
           {cancelUntil && (
             <Fact
-              icon={CalendarX}
+              icon={CalendarCheck}
               label="Free to cancel"
               value={formatDateTime(cancelUntil)}
               line="Free for the client to cancel until"
@@ -438,21 +457,19 @@ function HowItWent({ job }: { job: OfficeJob }) {
             />
           )}
         </Facts>
-        {completion && <Adjustments job={job} />}
       </Card>
+      {completion && <Adjustments job={job} />}
     </Section>
   );
 }
 
 // the crew as faces (Crew.tsx): while it's booked, everyone on it, a ghost
-// for each still needed, a ✕ to take each off, and in its line who its
-// Cleaners Needed are open to (ADR-0019) and who said no. Once it's over,
-// who was there; nobody, no part
+// for each still needed, a ✕ to take each off till it starts, and in its
+// line who its Cleaners Needed are open to (ADR-0019) and who said no. Once
+// it's over, who was there (`over`); nobody, no part
 function Crew({ job }: { job: OfficeJob }) {
   const over = !booked(job);
-  const crew = job.assignments.filter((a) =>
-    over ? a.status === "confirmed" : isOnCrew(a.status),
-  );
+  const crew = job.assignments.filter((a) => isOnCrew(a.status));
   return (
     <CrewSection
       title="Crew"
@@ -463,7 +480,7 @@ function Crew({ job }: { job: OfficeJob }) {
         name: a.staff.name,
         confirmed: a.status === "confirmed",
         picture: a.staff.imageUrl,
-        action: !over && <Remove job={job} assignment={a} />,
+        action: !over && !job.started && <Remove job={job} assignment={a} />,
       }))}
     />
   );

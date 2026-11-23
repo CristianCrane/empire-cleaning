@@ -4,8 +4,10 @@ import {
   CalendarPlus,
   CalendarClock,
   CalendarX,
+  CircleAlert,
   CreditCard,
   Send,
+  Undo2,
   UserCheck,
   UserMinus,
   type LucideIcon,
@@ -60,8 +62,8 @@ const requestAnswered: Record<
 // everything that happened to a Job, newest first, whole: its booking, its
 // Assignments Offered, Confirmed, Released or taken off, Reschedule
 // Requests and their answers (closed unanswered if the Job stopped being
-// booked first), each charge, and how it went or ended, who did it named in
-// its title
+// booked first), each charge and refund, a payment that didn't go through,
+// and how it went or ended; who asked, did or ended it named in its title
 const momentsOf = (job: OfficeJob): Moment[] => {
   const moments: Moment[] = [
     { key: "booked", at: job.bookedAt, icon: CalendarPlus, title: "Booked" },
@@ -89,8 +91,8 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       key: "asked",
       at: request.requestedAt,
       icon: CalendarClock,
-      title: `${request.byClient ? firstNameOf(job.client.name) : "The office"} asked to move it`,
-      description: `${formatDateTime(request.fromStartsAt)} to ${formatDateTime(request.startsAt)}`,
+      title: `${request.byClient ? firstNameOf(job.client.name) : "The office"} asked to move it to ${formatDateTime(request.startsAt)}`,
+      description: `From ${formatDateTime(request.fromStartsAt)}`,
     });
     if (request.answeredAt && request.status !== "pending") {
       const { icon, title } = requestAnswered[request.status];
@@ -142,19 +144,32 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       title: `${noAccess.recordedBy?.name ?? "The crew"} couldn't get in`,
     });
   }
-  // each charge last, as each follows what it's for
-  job.payment?.charges.forEach((c, i) =>
+  // each charge and refund last, as each follows what it's for
+  job.payment?.charges.forEach((c, i) => {
     moments.push({
       key: `charge-${i}`,
       at: c.chargedAt,
       icon: CreditCard,
       title: `${chargeLabel[c.kind]} of ${formatMoney(c.amountCents)} charged`,
-      description:
-        c.refundedCents > 0
-          ? `${formatMoney(c.refundedCents)} refunded`
-          : undefined,
-    }),
-  );
+    });
+    if (c.refundedAt) {
+      moments.push({
+        key: `refund-${i}`,
+        at: c.refundedAt,
+        icon: Undo2,
+        title: `${formatMoney(c.refundedCents)} of the ${chargeLabel[c.kind].toLowerCase()} refunded`,
+      });
+    }
+  });
+  const unpaid = job.payment?.unpaid;
+  if (unpaid) {
+    moments.push({
+      key: "unpaid",
+      at: unpaid.since,
+      icon: CircleAlert,
+      title: `Payment of ${formatMoney(job.payment!.owedCents)} didn't go through`,
+    });
+  }
   // newest first; of two at the same moment, the later told first: a
   // Deposit charged over the offer made at its booking, a Balance over Done
   return moments

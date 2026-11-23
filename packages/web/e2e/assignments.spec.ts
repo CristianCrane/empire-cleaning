@@ -115,7 +115,11 @@ test("Office Staff take someone off a Job, leaving a Cleaner Needed", async ({
   await signInAsOffice(page);
   await page.goto(`/office/jobs/${job.id}`);
   const crew = page.getByRole("region", { name: "Crew" });
-  await expect(crew).toContainText("1 of 1 confirmed");
+  // all confirmed, the tick says it: no line
+  await expect(
+    crew.getByRole("listitem").filter({ hasText: "Cory Cleaner, confirmed" }),
+  ).toBeVisible();
+  await expect(crew).not.toContainText("1 of 1 confirmed");
 
   await page.getByRole("button", { name: "Remove Cory Cleaner" }).click();
   await page

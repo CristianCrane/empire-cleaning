@@ -238,12 +238,7 @@ export function CleanerJobScreen() {
 // any other), the rest by their first names
 const crewOf = (t: Said, job: CleanerJob) =>
   job.crew
-    // once it's over, who was there (Crew.tsx, `over`)
-    .filter((m) =>
-      job.outcome
-        ? m.status === "confirmed"
-        : !(m.you && m.status === "offered"),
-    )
+    .filter((m) => !(m.you && m.status === "offered"))
     .sort((a, b) => Number(b.you) - Number(a.you))
     .map((m) => ({
       name: m.you ? t.c.you : firstNameOf(m.name),

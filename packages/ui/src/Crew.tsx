@@ -81,8 +81,9 @@ export function CrewFace({
 // `line`, what this reader needs to know too (the Office's: when free
 // cleaners can take it); then a face for each member and a ghost for each
 // Cleaner Needed, in a card. `size` is how many the Job takes; `actions`
-// sit on its title's line. On a Job that's over (`over`), only who was
-// there: no line, no ghosts, no ticks; none, no part at all
+// sit on its title's line. The line says nothing of a crew all confirmed:
+// the ticks say it. On a Job that's over (`over`), only who was there,
+// those who'd confirmed: no line, no ghosts, no ticks; none, no part at all
 export function CrewSection({
   title,
   members,
@@ -99,19 +100,22 @@ export function CrewSection({
   actions?: ReactNode;
 }) {
   const words = useUiWords();
-  if (over && members.length === 0) return null;
+  const shown = over ? members.filter((m) => m.confirmed) : members;
+  if (over && shown.length === 0) return null;
   const needed = over ? 0 : Math.max(0, size - members.length);
   const confirmed = members.filter((m) => m.confirmed).length;
-  const stands = words.crewLine(confirmed, members.length + needed, needed);
+  const stands =
+    needed === 0 && confirmed === members.length
+      ? null
+      : words.crewLine(confirmed, members.length + needed, needed);
+  const description = over
+    ? undefined
+    : [stands, line].filter(Boolean).join(". ") || undefined;
   return (
-    <Section
-      title={title}
-      description={over ? undefined : line ? `${stands}. ${line}` : stands}
-      actions={actions}
-    >
+    <Section title={title} description={description} actions={actions}>
       <Card>
         <ul className="flex flex-wrap gap-x-6 gap-y-3">
-          {members.map((m, i) => (
+          {shown.map((m, i) => (
             <li key={`${m.name}-${i}`}>
               <CrewFace member={m} over={over} />
             </li>

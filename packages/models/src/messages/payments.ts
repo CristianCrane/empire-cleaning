@@ -140,8 +140,10 @@ export const payments = catalog({
 // what happens next, once a payment didn't go through, as the Office reads
 // it, in English (ADR-0025)
 export const officeFix: Record<UnpaidKind, string> = {
-  declined: "We've emailed the client to update their card, which tries again.",
-  no_card: "We've emailed the client to add a card, which tries again.",
+  declined:
+    "We've emailed the client to update their card. Saving it tries the payment again.",
+  no_card:
+    "We've emailed the client to add a card. Saving it tries the payment again.",
   waiting: "We'll try again by ourselves.",
   late: "We remind the client each week until it's paid.",
 };

@@ -53,6 +53,12 @@ const planCard = (page: Page, name: string) =>
 const startPlan = async (page: Page) => {
   const { job } = await firstCleanDone(page);
   await page.goto(`/office/jobs/${job.id}`);
+  // the fact the step rests on, above it
+  await expect(
+    page.getByText(
+      "Casey wants regular visits. This was their first clean, and no cleaning plan has been offered yet.",
+    ),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Quote a cleaning plan" }).click();
   await atPlanDraft(page);
 };

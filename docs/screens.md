@@ -158,24 +158,33 @@ Keeps: one column, History last, as every Record (#493). Renders through `Record
   usual case), Done, Couldn't get in, Cancelled or Skipped once over. The
   next step the split button's primary (Try the payment again, Review,
   Answer, Offer to a cleaner, Quote a cleaning plan, else Move job), the
-  rest behind its arrow (Ask for a new time, Correct the condition; Cancel
-  job and Mark not done in red, last); none while it's going on.
+  rest behind its arrow (Ask for a new time, Correct the condition, never
+  the primary; Cancel job and Mark not done in red, last); none while it's
+  going on, or once it's over with nothing waiting.
 - Alerts: only what the badge can't say, with no buttons: the time a move
-  is asked for and what it costs; how much didn't go through and why; no
-  cleaner free.
+  is asked for and what it costs the client; that its payment didn't go
+  through, why, and what puts it right; no cleaner free; that the client
+  wants regular visits and this was their first clean (beside Quote a
+  cleaning plan).
 - Body: the header card (`JobLead`: `DateTile`, muted once it won't
   happen; the times; the home and the client, each a link; while booked, a
   fact each: How long, Cleaning hours for a crew of more than one, Extras,
   until when it's free to move or cancel, how we get in last and full
-  width). While booked: Extras, Crew (`CrewSection`: a face each, a ghost
-  for each still needed, ✕ to take one off; who it's open to and who said
-  no in its line), Money (Price, Deposit paid). Once over: How it went (the
-  condition and the price changes, or what the cleaner said when they
-  couldn't get in), Money (one line a fact: what it came to and how it was
-  paid, on weekly bills, refunded, still owed; How it's worked out
-  folded), then Details folded: the facts, Extras, who was there.
+  width; the client's free-to-move-or-cancel time said as the client's).
+  While booked: Extras, Crew (`CrewSection`: a face each, a ghost for each
+  still needed, ✕ to take one off till it starts; its line where it stands
+  unless all are in and confirmed, who it's open to and who said no), Money
+  (Price, Deposit paid). Once over: How it went (the condition, or what the
+  cleaner said when they couldn't get in; the price changes under its
+  card), Money (one line a fact: what it came to and how it was paid, a fee
+  named for what it's for and kept from the deposit or paid; on the
+  client's weekly bill, refunded, still owed; How it's worked out folded),
+  then "The job" folded: the facts, Extras, who was there (those who'd
+  confirmed).
 - History: a Card, last, at every width, whole: booked, each offer and
-  answer, each move asked, each charge, how it ended, who in each title.
+  answer, each move asked (to when in its title), each charge and refund,
+  a payment that didn't go through, how it ended; who asked, did or ended
+  it in its title.
 
 #### Office > Quotes
 
@@ -388,8 +397,10 @@ Keeps: the Record, layout D (#493). Renders through `RecordPage` (#432).
   address; How long, Client, the client's number once they've confirmed,
   on the Job's day, Extras as a count, How we get in last and full width,
   the same); Extras
-  (`ExtrasSection`); Crew (`CrewSection`). Once over, Completed or
-  Couldn't get in first, the Job folded under it.
+  (`ExtrasSection`); Crew (`CrewSection`; its line only while someone is
+  still needed or to confirm). Once over, Completed or Couldn't get in
+  first, the Job folded under it, its Crew only who'd confirmed: no ticks,
+  no ghosts, no line.
 
 #### Cleaner > Cleaner needed
 

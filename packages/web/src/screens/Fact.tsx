@@ -4,7 +4,7 @@ import { catalog, type PropertyView } from "@empire-cleaning/models";
 import { useSaid } from "./words.ts";
 
 // in the screen's language: the Office's English, the portal's its
-// Client's (ADR-0025)
+// Client's, the Cleaner's their own (ADR-0025)
 const words = catalog({
   en: {
     floorArea: "Floor area",

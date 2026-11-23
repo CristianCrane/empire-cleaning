@@ -14,6 +14,8 @@ import {
   test,
   addCleaner,
   linkIn,
+  expectNextStep,
+  expectNothingNext,
   pageAction,
   openTile,
   saveACard,
@@ -34,7 +36,7 @@ const casey = { name: "Casey Client", email: "casey@example.com" };
 
 // Casey's Job, Quoted by Olive, with Cory Confirmed on it, and the clock
 // moved to after it starts
-const jobUnderway = async () => {
+const jobUnderway = async ({ wantsRegularService = true } = {}) => {
   await createStaff(olive);
   await signUp(olive.email);
   const cory = await addCleaner("Cory Cleaner");
@@ -42,6 +44,7 @@ const jobUnderway = async () => {
     startsAt: MONDAY_9AM,
     officeEmail: olive.email,
     addOns: ["Inside the oven"],
+    wantsRegularService,
   });
   await offerJob(job.id, cory.id, { confirmed: true });
   await setClock(MONDAY_11AM);
@@ -233,6 +236,17 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   await expect(
     attention.getByRole("row").filter({ hasText: "Collect the balance" }),
   ).toBeVisible();
+  // the Job says what puts it right, when it failed, and leads with the retry
+  await page.goto(`/office/jobs/${job.id}`);
+  await expect(
+    page.getByText(
+      /^Its payment didn't go through.*\. We've emailed the client to update their card\. Saving it tries the payment again\.$/,
+    ),
+  ).toBeVisible();
+  await expect(page.getByRole("region", { name: "History" })).toContainText(
+    /Payment of \$[\d.,]+ didn't go through/,
+  );
+  await expectNextStep(page, "Try the payment again");
 
   const client = await asCasey(browser);
   await client.goto(await linkIn(casey.email, "We couldn't take your payment"));
@@ -260,7 +274,7 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   await expect(client.getByText(/^We couldn't take payment/)).toHaveCount(0);
 
   // nothing owed is left for the Office: Money counts none
-  await page.reload();
+  await page.goto("/office");
   await expect(page.getByRole("button", { name: /^Money/ })).toBeDisabled();
 });
 
@@ -302,7 +316,8 @@ test("Office Staff remove an Adjustment from its own dialog, confirming in the s
 test("Office Staff correct the Condition and undo a completion made by mistake", async ({
   page,
 }) => {
-  const { job, cory } = await jobUnderway();
+  // no regular visits asked for, so no plan to offer once it's done
+  const { job, cory } = await jobUnderway({ wantsRegularService: false });
   await completeJob(job.id, cory.id, { condition: "heavy", reports: [] });
   await signedInAs(page, olive.email);
   await page.goto(`/office/jobs/${job.id}`);
@@ -317,6 +332,8 @@ test("Office Staff correct the Condition and undo a completion made by mistake",
   await expect(page.getByText("Condition corrected")).toBeVisible();
   await expect(completed).toContainText("LightHow dirty the home was");
   await expect(page.getByText("Done", { exact: true })).toBeVisible();
+  // done, paid, nothing waiting: correcting it is no next step
+  await expectNothingNext(page);
 
   await pageAction(page, "Mark not done");
   await page

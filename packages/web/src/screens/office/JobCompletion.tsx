@@ -1,4 +1,4 @@
-import { formats } from "@empire-cleaning/models";
+import { formats, messages } from "@empire-cleaning/models";
 import { useState, type ReactNode } from "react";
 import {
   CreditCard,
@@ -48,6 +48,8 @@ import { dollars, formatHours } from "../format.ts";
 import { ConditionField } from "./PropertyFields.tsx";
 
 const { formatDate, formatMoney } = formats.en;
+
+const { feeName } = messages.en;
 
 // a price change the Cleaner reported, waiting on the Office: the Job's
 // badge and its row's both say so
@@ -592,6 +594,13 @@ export function JobMoney({ job }: { job: OfficeJob }) {
   const due = job.completion
     ? payment.totalCents
     : ((job.cancellation ?? job.noAccess)?.feeCents ?? 0);
+  // a fee by what it's for: "Couldn't-get-in fee"
+  const fee =
+    job.status === "cancelled" || job.status === "no_access"
+      ? feeName[job.status]
+      : "Fee";
+  // a fee with no Charge of its own was kept from the Deposit
+  const kept = !payment.charges.some((c) => c.kind === "fee");
   const dueFact = (line?: string) =>
     job.completion ? (
       <Fact
@@ -607,7 +616,7 @@ export function JobMoney({ job }: { job: OfficeJob }) {
         icon={Receipt}
         label="Fee"
         value={formatMoney(due)}
-        line={line}
+        line={line ?? fee}
       />
     );
   const facts =
@@ -634,7 +643,13 @@ export function JobMoney({ job }: { job: OfficeJob }) {
           // paid in full, it's said once: what it came to, and how it was
           // paid
           due > 0 && due === paid
-            ? dueFact(`${job.completion ? "Total" : "Fee"}, paid${by}`)
+            ? dueFact(
+                job.completion
+                  ? `Total, paid${by}`
+                  : kept
+                    ? `${fee}, kept from the deposit`
+                    : `${fee}, paid${by}`,
+              )
             : due > 0 && dueFact(),
           paid > 0 && paid !== due && (
             <Fact
@@ -651,7 +666,7 @@ export function JobMoney({ job }: { job: OfficeJob }) {
               icon={Files}
               label="On weekly bills"
               value={formatMoney(payment.billedCents)}
-              line="On the client's weekly bills"
+              line="On the client's weekly bill"
             />
           ),
           refunded > 0 && (

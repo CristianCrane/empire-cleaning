@@ -97,6 +97,8 @@ export const acceptedJob = (job: {
   crewSize?: number;
   depositPercent?: number;
   addOns?: string[];
+  // whether the Client asked for regular visits (yes unless said)
+  wantsRegularService?: boolean;
 }) =>
   control("/jobs/accepted", {
     method: "POST",

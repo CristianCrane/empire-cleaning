@@ -1422,8 +1422,8 @@ export type AssignmentView = {
   answeredAt: string | null;
 };
 
-// a booked Job as Office Staff manage its Assignments, and once Completed,
-// its Adjustments and payment
+// a Job as Office Staff manage it: its Assignments while booked, its
+// payment at every status, and once it's over, how it ended
 export type OfficeJob = ScheduledJob & {
   // its home, and how we get in there
   property: Pick<PropertyView, "accessInstructions">;
@@ -1647,6 +1647,8 @@ export type ChargeView = {
   amountCents: number;
   refundedCents: number;
   chargedAt: string;
+  // when the last of it was given back; null if none was
+  refundedAt: string | null;
 };
 
 // where a Job's money stands. All amounts tax included.

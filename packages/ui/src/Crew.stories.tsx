@@ -49,6 +49,15 @@ export const OneNotYet: Story = {
   },
 };
 
+// all in and all confirmed: the ticks say it, so no line
+export const AllConfirmed: Story = {
+  args: { size: 1 },
+  play: async ({ canvasElement }) => {
+    const crew = within(canvasElement).getByRole("region", { name: "Crew" });
+    await expect(crew).toHaveTextContent(/^Crew\s*You, confirmed$/);
+  },
+};
+
 // what this reader needs to know too, after where it stands
 export const WithLine: Story = {
   args: { line: "Free cleaners can take it from Mon, Jan 5, 9:00 AM." },
@@ -59,10 +68,17 @@ export const WithLine: Story = {
   },
 };
 
-// a Job that's over: who was there, no line, no ghost, no tick, nothing
-// read out of whether they'd confirmed
+// a Job that's over: who was there, those who'd confirmed; no line, no
+// ghost, no tick, nothing read out of whether they'd confirmed
 export const Over: Story = {
-  args: { over: true, line: "Free cleaners can take it." },
+  args: {
+    over: true,
+    line: "Free cleaners can take it.",
+    members: [
+      { name: "You", confirmed: true },
+      { name: "Dee", confirmed: false },
+    ],
+  },
   play: async ({ canvasElement }) => {
     const crew = within(canvasElement).getByRole("region", { name: "Crew" });
     await expect(within(crew).getAllByRole("listitem")).toHaveLength(1);

@@ -137,7 +137,7 @@ test(
       "A late cancellation. The plan carries on.",
     );
     await expect(page.getByRole("region", { name: "Money" })).toContainText(
-      "$50.46Fee, paid",
+      "$50.46Late cancellation fee, paid",
     );
     await expect(page.getByRole("region", { name: "History" })).toContainText(
       "Fee of $50.46 charged",
