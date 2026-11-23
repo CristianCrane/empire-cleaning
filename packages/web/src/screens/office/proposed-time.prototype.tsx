@@ -660,7 +660,6 @@ function OpenTimes({
   ].filter((g) => g.times.length > 0);
   return (
     <div className="flex flex-col gap-4">
-      {!start && <p className="text-sm text-fg-muted">No time picked yet.</p>}
       <DayStrip day={day} chosen={start?.date} onDay={setDay} weekly={weekly} />
       {withCrew && <WhoIsFree day={day} start={start} />}
       {groups.length === 0 ? (
@@ -689,7 +688,12 @@ function OpenTimes({
                       className="flex min-h-touch items-center justify-center gap-1 rounded-md border-2 border-dashed border-danger-strong bg-danger-subtle font-semibold text-danger-strong tabular-nums"
                     >
                       <CircleAlert aria-hidden size={16} />
-                      {formatClock(t)}
+                      <span>
+                        {formatClock(t)}
+                        <span className="block text-xs font-normal">
+                          to {formatClock(clockOf(hoursOf(t) + ON_SITE))}
+                        </span>
+                      </span>
                     </button>
                   );
                 return (
@@ -788,7 +792,6 @@ function Draft({ layout, c }: { layout: string; c: Case }) {
   // A's: the day's schedule, under the week's strip
   const scheduleFor = (span: 1 | 3 | 7) => (
     <div className="flex flex-col gap-4">
-      {!start && <p className="text-sm text-fg-muted">No time picked yet.</p>}
       <OnTheSchedule
         span={span}
         phone={phone}
@@ -819,7 +822,7 @@ function Draft({ layout, c }: { layout: string; c: Case }) {
       <FieldRow>
         <NumberField label="Cleaners" minValue={1} maxValue={10} value={CREW} />
       </FieldRow>
-      <span className="font-semibold">Starts</span>
+      <span className="font-semibold">Proposed time</span>
       {layout === "A" ? (
         <>
           <OnTheSchedule
