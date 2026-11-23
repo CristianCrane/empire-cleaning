@@ -38,6 +38,7 @@ import {
   signIn,
   testClock,
   testEmail,
+  testMonitoring,
   testPayments,
 } from "../../../tests/harness.ts";
 import { FAKE_SIGNATURE } from "../../../tests/fakes/payment-gateway.ts";
@@ -1019,6 +1020,30 @@ describe("Unpaid Bills", () => {
     expect(
       testPayments().charges.filter((c) => c.amount === totalCents),
     ).toEqual([]);
+  });
+
+  // #534, F12: credits refund only from Bill Charges, a Bill paid another
+  // way has none, and refundFrom refunds nothing without a word
+  test("a lapsed credit, its Bills paid another way, is refunded or the Office is told", async () => {
+    const { office, clientId, jobId } = await billedJob({ payment: "on_page" });
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const [first] = await billsOf(office, clientId);
+    await office
+      .post(`/api/bills/${first!.id}/outside-payment`)
+      .send({ note: "Cheque 1042" })
+      .expect(200);
+    await undoCompletion(jobId);
+    testClock().advance({ days: 7 });
+    await makeDueBills();
+
+    testClock().advance({ days: 31 });
+    await makeDueBills();
+
+    expect(
+      testPayments().refunds.length +
+        testMonitoring().signalled("refund_failed").length,
+    ).toBeGreaterThan(0);
   });
 
   test("Office Staff can record a payment made another way, which settles it", async () => {

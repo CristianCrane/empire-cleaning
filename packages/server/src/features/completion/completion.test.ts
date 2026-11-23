@@ -820,6 +820,51 @@ describe("an Unpaid Job", () => {
     );
   });
 
+  // #534, F13: the retry re-sends the attempt's stored request, which
+  // names the card it was asked on, though it never reached the provider
+  test("is one Unpaid while the provider was down, then charged on the card the Client saves", async () => {
+    const { cory, client, jobId } = await bookedJob();
+    testPayments().goDown();
+    await complete(cory.agent, jobId).expect(200);
+    testPayments().goDown(false);
+
+    const form = (
+      await client.post("/api/payment-methods/mine/card-form").expect(200)
+    ).body as { secret: string };
+    testPayments().fillCardForm(form.secret, "mastercard");
+    await client
+      .put("/api/payment-methods/mine")
+      .send({ token: form.secret })
+      .expect(200);
+
+    const saved = testPayments().paymentMethods.at(-1)!;
+    expect(testPayments().charges.at(-1)).toMatchObject({
+      paymentMethodId: saved.paymentMethodId,
+    });
+  });
+
+  // #534, F14: the email names the card saved now, but a refund goes back
+  // to the card each Charge was taken from
+  test("undone after the Client saved a new card, says the refund goes to the card it was taken from", async () => {
+    const { office, cory, client, jobId } = await bookedJob();
+    await complete(cory.agent, jobId).expect(200);
+    const form = (
+      await client.post("/api/payment-methods/mine/card-form").expect(200)
+    ).body as { secret: string };
+    testPayments().fillCardForm(form.secret, "mastercard");
+    await client
+      .put("/api/payment-methods/mine")
+      .send({ token: form.secret })
+      .expect(200);
+
+    await office.delete(`/api/jobs/${jobId}/completion`).expect(200);
+
+    const told = testEmail().lastTo(casey.email);
+    expect(told.subject).toBe("A correction to your clean");
+    expect(told.text).toContain("4242");
+    expect(told.text).not.toContain("4444");
+  });
+
   test("is one Unpaid while the provider was down: open payments charge it once it's back", async () => {
     const { office, cory, jobId } = await bookedJob();
     testPayments().goDown();
