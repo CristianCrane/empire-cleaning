@@ -554,15 +554,13 @@ test("the draft says whether the proposed day has room for each clean", async ({
   );
   await expect(proposed).not.toContainText("has room");
 
-  // and at 10am, room for both
+  // and at 10am, room for both, said of the quote
   await page
     .getByRole("group", { name: "Start time" })
     .getByRole("spinbutton", { name: /hour/i })
     .click();
   await page.keyboard.type("10");
-  await expect(proposed).toContainText(
-    "Tue, Jan 13 has room for either clean.",
-  );
+  await expect(proposed).toContainText("Tue, Jan 13 has room for it.");
   await expect(proposed).not.toContainText("Not enough cleaners");
 
   // from 10pm the Deep Clean, 2.5 hours on site, would run past midnight
