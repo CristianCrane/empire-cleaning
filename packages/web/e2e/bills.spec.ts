@@ -22,6 +22,7 @@ import {
   openTile,
   listRows,
   payThisBill,
+  returnToTab,
   setClock,
   titleBadge,
 } from "./harness.ts";
@@ -246,20 +247,9 @@ test(
 );
 
 // the one rule: nothing else moves its money while our Charge may still
-// take it (#534, ADR-0022): its page says so before she tries
-test("a Bill whose card payment is still going through can't be paid another way or cancelled yet, and says so up front", async ({
-  page,
-}) => {
-  const { billId } = await billed({ failing: "processing" });
-  await signedInAs(page, olive.email);
-  await page.goto(`/office/bills/${billId}`);
-
-  await expect(titleBadge(page, "Not paid yet")).toBeVisible();
-  await expect(page.getByText(cardNotDone.page, { exact: true })).toBeVisible();
-  await expectGreyedPageActions(page, ["Record a payment", "Cancel bill"]);
-});
-
-// and a page opened before our Charge started is turned down when pressed:
+// take it (#534, ADR-0022). Its page says so before she tries (the test
+// "a Bill we try again ourselves…"), and a page opened before our Charge
+// started is turned down when pressed:
 // the dialog says why once the page has caught up, its button greyed and
 // what she typed kept, and stops saying it once the payment is done
 test("a Bill's dialog opened before its card payment started says why it can't be done once pressed", async ({
@@ -291,9 +281,9 @@ test("a Bill's dialog opened before its card payment started says why it can't b
   await how.fill("Cheque 1042");
   before = false;
   await record.getByRole("button", { name: "Record payment" }).click();
-  await expect(
-    record.getByText(cardNotDone.record, { exact: true }),
-  ).toBeVisible();
+  // info, as it waits on us: a status, not a danger alert
+  await expect(record.getByRole("status")).toHaveText(cardNotDone.record);
+  await expect(record.getByRole("alert")).toHaveCount(0);
   await expect(
     record.getByRole("button", { name: "Record payment" }),
   ).toBeDisabled();
@@ -312,9 +302,8 @@ test("a Bill's dialog opened before its card payment started says why it can't b
     .fill("Sent in error");
   before = false;
   await cancel.getByRole("button", { name: "Cancel bill" }).click();
-  await expect(
-    cancel.getByText(cardNotDone.cancel, { exact: true }),
-  ).toBeVisible();
+  await expect(cancel.getByRole("status")).toHaveText(cardNotDone.cancel);
+  await expect(cancel.getByRole("alert")).toHaveCount(0);
   await expect(
     cancel.getByRole("button", { name: "Cancel bill" }),
   ).toBeDisabled();
@@ -325,7 +314,7 @@ test("a Bill's dialog opened before its card payment started says why it can't b
   // left open while the payment ends unpaid: once she's back on the tab,
   // the button is back on and nothing says it's still going through
   done = true;
-  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await returnToTab(page);
   await expect(
     cancel.getByRole("button", { name: "Cancel bill" }),
   ).toBeEnabled();
@@ -456,7 +445,9 @@ test("a Bill we try again ourselves reads as not paid yet, not failed, says its 
 }) => {
   const { billId } = await billed({ plan: true, failing: "processing" });
 
-  // the Office's says until when it can do nothing about it, and which plan
+  // the Office's says what it can't do yet and why, and which plan, with
+  // both greyed: nothing else moves its money while our Charge may still
+  // take it (#534, ADR-0022)
   const office = await (await browser.newContext()).newPage();
   await signedInAs(office, olive.email);
   await office.goto(`/office/bills/${billId}`);
@@ -468,6 +459,7 @@ test("a Bill we try again ourselves reads as not paid yet, not failed, says its 
       { exact: true },
     ),
   ).toBeVisible();
+  await expectGreyedPageActions(office, ["Record a payment", "Cancel bill"]);
 
   // their Payments lead to it to see, not to pay
   await signedInAs(page, casey.email);
