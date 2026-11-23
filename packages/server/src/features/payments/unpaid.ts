@@ -35,7 +35,8 @@ const known: Record<string, UnpaidKind> = {
 const whyWords = catalog({
   en: {
     [UNREACHABLE]: "we couldn't reach the payment service",
-    // a saved card's or bank account's: the provider doesn't say which
+    // a charge to the saved card the provider leaves processing (ADR-0022):
+    // only a card is charged so, so no bank payment is clearing
     processing: "it's still being processed",
     [NOT_SETTLED]: "something went wrong on our side",
     [NO_CARD]: "no card is saved",

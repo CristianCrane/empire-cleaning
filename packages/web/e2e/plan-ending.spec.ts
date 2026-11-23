@@ -186,7 +186,7 @@ test(
   { tag: "@desktop" },
   async ({ page, browser }) => {
     const { planId, firstJob } = await planStarted();
-    // the first fee's bank payment still clearing, which we see to
+    // the first fee's card charge still processing, which we see to
     // ourselves (ADR-0022); the second's card declined
     await failCharges("processing");
     await signedInAs(page, casey.email);
@@ -240,7 +240,7 @@ test("a plan On Hold for a payment we try again ourselves asks nothing of the Cl
 }) => {
   const { planId, firstJob } = await planStarted();
   await setClock(SUNDAY_10AM);
-  // the bank payment for the fee is still clearing (ADR-0022)
+  // the card charge for the fee is still processing (ADR-0022)
   await failCharges("processing");
   await signedInAs(page, casey.email);
   await page.goto(`/portal/jobs/${firstJob.id}`);

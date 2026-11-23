@@ -20,7 +20,7 @@ describe("why a payment didn't go through", () => {
     }
   });
 
-  test("one still processing says so, card or bank alike", () => {
+  test("a card charge still processing says so, not that a bank payment clears", () => {
     expect(whyNotPaid("en", "processing")).toEqual({
       kind: "waiting",
       why: "it's still being processed",

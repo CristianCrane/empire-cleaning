@@ -370,7 +370,7 @@ test("a Bill whose payment we try again ourselves says its plan is paused, with 
     /^Your payment of \$[\d.,]+ for this bill hasn't gone through yet( \(.+\))?\. We'll try again by ourselves, so there's nothing you need to do\. Until it's paid, your cleaning plan is paused\. Cleans already booked still go ahead, but we won't book any more\.$/,
   );
 
-  // the Office's says why, true of a card as of a bank, and which plan
+  // the Office's says why, of the card it charged, and which plan
   const office = await (await browser.newContext()).newPage();
   await signedInAs(office, olive.email);
   await office.goto(`/office/bills/${billId}`);
