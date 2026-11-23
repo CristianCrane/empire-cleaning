@@ -11,7 +11,7 @@
 // its Date and Finding, so an edit at a finding's end still matches. What it
 // can't see is one row under two keys: a Question reworded in place, a
 // finding rewritten from its first words, or the same finding two branches
-// logged in their own words (Date and Where would catch those, but two
+// logged in their own words (Date and Where would catch the last two, but two
 // findings of a day share a Where).
 
 import { readFileSync } from "node:fs";
