@@ -1,5 +1,4 @@
 import type { HTMLAttributes, ReactNode } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   addDays,
   daysIn,
@@ -7,7 +6,7 @@ import {
   type LocalDateTime,
   formats,
 } from "@empire-cleaning/models";
-import { Button, Select, SelectItem } from "@empire-cleaning/ui";
+import { Button, Select, SelectItem, Stepper } from "@empire-cleaning/ui";
 import { today } from "./format.ts";
 import { hoursOf, timeAt } from "./schedule-layout.ts";
 import { SPANS, type Span } from "./schedule-range.ts";
@@ -57,15 +56,16 @@ export function RangeBar({
 
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant="quiet"
-          size="icon"
-          aria-label={`Previous ${stepLabel[span]}`}
-          onPress={() => onShow(span, addDays(from, -span))}
-        >
-          <ChevronLeft aria-hidden size={20} />
-        </Button>
+      <Stepper
+        label={
+          from === to
+            ? formatDay(from)
+            : `${formatDay(from)} – ${formatDay(to)}`
+        }
+        previous={`Previous ${stepLabel[span]}`}
+        next={`Next ${stepLabel[span]}`}
+        onStep={(by) => onShow(span, addDays(from, by * span))}
+      >
         <Button
           variant="secondary"
           size="sm"
@@ -73,20 +73,7 @@ export function RangeBar({
         >
           {span === 7 ? "This week" : "Today"}
         </Button>
-        <Button
-          variant="quiet"
-          size="icon"
-          aria-label={`Next ${stepLabel[span]}`}
-          onPress={() => onShow(span, addDays(from, span))}
-        >
-          <ChevronRight aria-hidden size={20} />
-        </Button>
-        <p className="font-semibold" aria-live="polite">
-          {from === to
-            ? formatDay(from)
-            : `${formatDay(from)} – ${formatDay(to)}`}
-        </p>
-      </div>
+      </Stepper>
       <Select
         label="Show"
         className="w-32"

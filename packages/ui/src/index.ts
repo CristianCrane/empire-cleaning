@@ -88,6 +88,8 @@ export { Section } from "./Section.tsx";
 export { Segment, SegmentedControl } from "./SegmentedControl.tsx";
 export { Select, SelectItem } from "./Select.tsx";
 export { StatusBadge, type StatusTone } from "./StatusBadge.tsx";
+export { Stepper } from "./Stepper.tsx";
+export { focusRing } from "./utils.ts";
 export { readStored, store } from "./stored.ts";
 export { useSettled } from "./settled.ts";
 export { staleFade } from "./stale.ts";
