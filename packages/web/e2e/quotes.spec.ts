@@ -157,10 +157,12 @@ test("a Quote can't be sent without a proposed time", async ({ page }) => {
   await expect(page.getByText("Pick a time")).toBeVisible();
 });
 
-// a bar at the foot is a phone's (#493 D1): there it holds the prices,
-// whether they're saved and Send, Delete draft on the title row; from md Send
+// a bar at the foot is a phone's (#493 D1): there it holds the price,
+// whether it's saved and Send, Delete draft on the title row; from md Send
 // is the header's next step, Delete draft behind its arrow, "Saved" beside
-// it, and once scrolled the header that sticks keeps the prices in view
+// it, and once scrolled the header that sticks keeps the price in view. The
+// price is the one asked for, named; the Deep Clean recommended for a first
+// visit is an aside, in neither (the user's word on #527's U1)
 test(
   "a Draft's Send is its next step, its prices kept in view as it scrolls",
   { tag: "@desktop" },
@@ -172,9 +174,7 @@ test(
     await expectNextStep(page, `Send to ${casey.name}`);
     const next = page.getByRole("group", { name: "What to do" });
     if (isMobile) {
-      await expect(next).toContainText(
-        /^Deep Clean \$[\d,.]+ · Standard Clean \$[\d,.]+Saved/,
-      );
+      await expect(next).toContainText(/^Standard Clean \$[\d,.]+Saved/);
       await expect(
         page.getByRole("button", { name: "Delete draft" }),
       ).toBeVisible();
@@ -187,9 +187,11 @@ test(
     await page
       .getByRole("region", { name: "Proposed time" })
       .scrollIntoViewIfNeeded();
-    // the header that sticks: the prices in the fewest words, as the
-    // prices beside the form aren't, and Saved
-    await expect(page.getByText(/^\$[\d,.]+ · \$[\d,.]+$/)).toBeVisible();
+    // the header that sticks: the price asked for, named, as the prices
+    // beside the form aren't in view, and Saved
+    await expect(
+      page.getByText(/^Standard Clean \$[\d,.]+$/).filter({ visible: true }),
+    ).toBeVisible();
     await saved(page);
     await pageAction(page, "Delete draft");
     await page

@@ -1490,8 +1490,16 @@ const saveStateLabel: Record<SaveState, string> = {
 // how long after the last change the Draft is saved and priced again
 const SAVE_DELAY_MS = 500;
 
-// the prices as last worked out: in a line, as a phone's foot shows them,
-// and in the fewest words, for the header that sticks on a wider screen
+// a one-off Quote's own option: its Service, the one asked for unless the
+// Office changed it, after any recommended for a first visit (ADR-0018)
+const ownOption = (quote: ShownQuote) =>
+  quote.options.find((o) => !o.recommended)!;
+
+// the price as last worked out: in a line, as a phone's foot shows it, and
+// in the fewest words, for the header that sticks on a wider screen. A
+// one-off Quote's is its own Service's, the one asked for unless the Office
+// changed it: the Service recommended for a first visit is an aside, in
+// neither (the user, on #527's U1)
 const priceOf = (quote: ShownQuote) => {
   const { plan } = quote;
   if (plan) {
@@ -1507,12 +1515,9 @@ const priceOf = (quote: ShownQuote) => {
           short: `${week} a week`,
         };
   }
-  return {
-    line: quote.options
-      .map((o) => `${o.serviceName} ${formatMoney(o.totalCents)}`)
-      .join(" · "),
-    short: quote.options.map((o) => formatMoney(o.totalCents)).join(" · "),
-  };
+  const own = ownOption(quote);
+  const named = `${own.serviceName} ${formatMoney(own.totalCents)}`;
+  return { line: named, short: named };
 };
 
 // The area a Service priced by area is priced on: typed, or left empty to
