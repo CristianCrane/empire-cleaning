@@ -123,6 +123,7 @@ import {
   AskedFacts,
   askedSummary,
   FoldedPrice,
+  PriceWorking,
   seeThePremises,
   WhichKindDialog,
   TurnDownQuote,
@@ -870,10 +871,12 @@ function Offer({ quote }: { quote: ShownQuote }) {
   );
 }
 
-// What the Draft comes to as last saved, beside it (#434): each option's or
-// plan weekday's price, read-only, its working folded under it, then a
-// plan's week. Faded and busy while a change is saved; each price is set
-// in the part it prices
+// What the Draft comes to as last saved, beside it (#434): a one-off
+// Quote's own price, the one asked for, and the Service recommended for a
+// first visit quiet under it (the user, on #527); or each plan weekday's
+// price, then the plan's week. Read-only, each working folded under its
+// price. Faded and busy while a change is saved; each price is set in the
+// part it prices
 function DraftPrices({
   quote,
   dayTitles,
@@ -896,75 +899,89 @@ function DraftPrices({
       />
     </OfferPrice>
   );
+  const busy = `flex flex-col gap-5 [&>section+section]:border-t [&>section+section]:border-border [&>section+section]:pt-5 ${staleFade(stale)}`;
+  const version = (
+    <p className="text-sm text-fg-muted">
+      From your prices, version {quote.priceListVersion}.
+    </p>
+  );
+  if (!plan) {
+    const own = ownOption(quote);
+    const recommended = recommendedOption(quote);
+    return (
+      <div aria-busy={stale} className={busy}>
+        <OfferPrice title={own.serviceName}>
+          <FoldedPrice
+            price={own}
+            working={own.suggested}
+            under={own.overrideCents !== null && <PricedFrom option={own} />}
+          >
+            <OptionRows
+              option={own}
+              crewSize={quote.crewSize}
+              depositPercent={quote.depositPercent}
+            />
+            {version}
+          </FoldedPrice>
+        </OfferPrice>
+        {recommended && (
+          <AlsoOffered option={recommended}>
+            <OptionRows
+              option={recommended}
+              crewSize={quote.crewSize}
+              depositPercent={quote.depositPercent}
+            />
+            {version}
+          </AlsoOffered>
+        )}
+      </div>
+    );
+  }
   return (
-    <div
-      aria-busy={stale}
-      className={`flex flex-col gap-5 [&>section+section]:border-t [&>section+section]:border-border [&>section+section]:pt-5 ${staleFade(stale)}`}
-    >
+    <div aria-busy={stale} className={busy}>
       {week}
-      {/* as the sent Quote's Offer draws them: a plan's weekday or an option */}
+      {/* as the sent Quote's Offer draws them, a weekday each */}
       {quote.options.map((option, i) => {
-        const day = plan?.days[i];
-        if (plan && !day) return null;
+        const day = plan.days[i];
+        if (!day) return null;
         return (
           <OfferPrice
             key={option.serviceKey + String(i)}
             title={
-              !plan
-                ? option.serviceName
-                : plan.days.length === 1
-                  ? `${option.serviceName}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`
-                  : `${dayTitles[i] ?? `Weekday ${i + 1}`}: ${option.serviceName}`
+              plan.days.length === 1
+                ? `${option.serviceName}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`
+                : `${dayTitles[i] ?? `Weekday ${i + 1}`}: ${option.serviceName}`
             }
             badge={
-              day ? (
-                <PlanSaving day={day} discountPercent={plan!.discountPercent} />
-              ) : (
-                option.recommended && (
-                  <StatusBadge tone="success">Recommended</StatusBadge>
-                )
-              )
+              <PlanSaving day={day} discountPercent={plan.discountPercent} />
             }
           >
             <FoldedPrice
               price={option}
               working={option.suggested}
-              perClean={!!day}
+              perClean
               under={
                 option.overrideCents !== null && <PricedFrom option={option} />
               }
             >
-              {day && plan ? (
-                <>
-                  <PlanRows
-                    option={option}
-                    day={day}
-                    discountPercent={plan.discountPercent}
-                  >
-                    <HoursRows option={option} crewSize={day.crewSize} />
-                  </PlanRows>
-                  {plan.discountPercent > 0 && (
-                    <p className="text-sm text-fg-muted">
-                      The plan discount comes off the one-off price, whoever set
-                      it.
-                    </p>
-                  )}
-                </>
-              ) : (
-                <OptionRows
-                  option={option}
-                  crewSize={quote.crewSize}
-                  depositPercent={quote.depositPercent}
-                />
+              <PlanRows
+                option={option}
+                day={day}
+                discountPercent={plan.discountPercent}
+              >
+                <HoursRows option={option} crewSize={day.crewSize} />
+              </PlanRows>
+              {plan.discountPercent > 0 && (
+                <p className="text-sm text-fg-muted">
+                  The plan discount comes off the one-off price, whoever set it.
+                </p>
               )}
-              <p className="text-sm text-fg-muted">
-                From your prices, version {quote.priceListVersion}.
-              </p>
+              {version}
             </FoldedPrice>
           </OfferPrice>
         );
       })}
-      {plan && !week && (
+      {!week && (
         <OfferPrice title="Deposit">
           <PlanTotals
             plan={plan}
@@ -1003,6 +1020,36 @@ function OfferPrice({
         {badge}
       </div>
       {children}
+    </section>
+  );
+}
+
+// The Service recommended for a first visit, which the sent Quote offers
+// beside the one asked for (ADR-0018): an aside to the Draft's price, one
+// quiet line under it, its price and working folded behind it (the user, on
+// #527: "The recommendation is an aside")
+function AlsoOffered({
+  option,
+  children,
+}: {
+  option: OfficeQuoteOption;
+  children: ReactNode;
+}) {
+  return (
+    <section aria-label={option.serviceName} className="flex flex-col text-sm">
+      <Fold
+        label={`Also offered: ${option.serviceName} ${formatMoney(option.totalCents)}`}
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-fg-muted">
+            Recommended for a first visit. The client picks one when they
+            accept. Includes {formatMoney(option.taxCents)} tax.
+          </p>
+          {option.overrideCents !== null && <PricedFrom option={option} />}
+          <PriceWorking breakdown={option.suggested} />
+          {children}
+        </div>
+      </Fold>
     </section>
   );
 }
@@ -1494,6 +1541,9 @@ const SAVE_DELAY_MS = 500;
 // Office changed it, after any recommended for a first visit (ADR-0018)
 const ownOption = (quote: ShownQuote) =>
   quote.options.find((o) => !o.recommended)!;
+// and the Service it recommends in its place for a first visit, if any
+const recommendedOption = (quote: ShownQuote) =>
+  quote.options.find((o) => o.recommended);
 
 // the price as last worked out: in a line, as a phone's foot shows it, and
 // in the fewest words, for the header that sticks on a wider screen. A
@@ -1594,6 +1644,22 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
   // an option new since the Service changed has none yet
   const overrideFor = (option: OfficeQuoteOption) =>
     fields.overrides[option.serviceKey] ?? overrideOf(option);
+  // each option's own, so its "Why this price" is told apart from the other's
+  const overrideGroup = (option: OfficeQuoteOption) => (
+    <div
+      role="group"
+      aria-label={option.serviceName}
+      className="flex flex-col gap-4"
+    >
+      <OverrideFields
+        override={overrideFor(option)}
+        label={option.serviceName}
+        name={`overrides.${option.serviceKey}`}
+        onChange={(change) => setOverride(option, change)}
+      />
+    </div>
+  );
+  const recommended = recommendedOption(quote);
   const setOverride = (option: OfficeQuoteOption, change: Partial<Override>) =>
     update(({ overrides }) => ({
       overrides: {
@@ -1902,11 +1968,6 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
             <Select
               label="Service"
               name="serviceKey"
-              description={
-                quote.options.length > 1
-                  ? `With a ${quote.options[0]!.serviceName} recommended for a first visit`
-                  : undefined
-              }
               selectedKey={fields.serviceKey}
               onSelectionChange={(key) => set({ serviceKey: String(key) })}
             >
@@ -1917,23 +1978,17 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
               ))}
             </Select>
             {areaField}
-            {quote.options.map((option) => (
-              // each option's own, so its "Why this price" is told apart
-              // from the other's
-              <div
-                key={option.serviceKey}
-                role="group"
-                aria-label={option.serviceName}
-                className="flex flex-col gap-4"
+            {overrideGroup(ownOption(quote))}
+            {recommended && (
+              // an aside, as beside the form (the user, on #527): its own
+              // price set behind a fold, open while it's set
+              <Fold
+                label={`${recommended.serviceName}, also offered for a first visit`}
+                defaultOpen={overrideFor(recommended).on}
               >
-                <OverrideFields
-                  override={overrideFor(option)}
-                  label={option.serviceName}
-                  name={`overrides.${option.serviceKey}`}
-                  onChange={(change) => setOverride(option, change)}
-                />
-              </div>
-            ))}
+                {overrideGroup(recommended)}
+              </Fold>
+            )}
           </FormPart>
         )}
 

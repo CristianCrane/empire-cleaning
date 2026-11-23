@@ -223,9 +223,12 @@ Keeps: a Draft page of its own (#145). Renders through `FormPage` (#434).
 - Alerts: the client still sees the quote as sent (once it's been sent);
   the plan change.
 - Body: one Card: What was asked and the first clean (folded); Service
-  (its own prices) or Plan and each weekday; Extras and Terms (folded);
-  Proposed time. Prices leads: first on a phone, a sticky aside from
-  `xl`, a plan's week first, each price's working folded.
+  (its own price; the recommended Service's behind a fold) or Plan and
+  each weekday; Extras and Terms (folded); Proposed time. Prices leads:
+  first on a phone, a sticky aside from `xl`; a one-off's own price, the
+  Service recommended for a first visit one folded line under it ("Also
+  offered: …"); a plan's week first; each price's working folded. The
+  header that sticks and a phone's foot name the one-off's own price.
 
 #### Office > Clients
 

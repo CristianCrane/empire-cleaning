@@ -63,6 +63,13 @@ const send = async (page: Page) => {
   await expect(page.getByText("Sent", { exact: true }).first()).toBeVisible();
 };
 
+// the Deep Clean recommended for a first visit: its price set behind its
+// fold in the Service part
+const deepCleanOverride = async (page: Page) => {
+  await page.getByText("Deep Clean, also offered for a first visit").click();
+  return page.getByRole("group", { name: "Deep Clean" });
+};
+
 const quoteLink = () => linkIn(casey.email, "Your quote from Empire Cleaning");
 
 test(
@@ -73,11 +80,22 @@ test(
     await signInAsOffice(page);
     await startDraft(page);
 
+    // the Standard Clean asked for is the Draft's price; the Deep Clean
+    // recommended for a first visit, offered too, an aside under it (the
+    // user, on #527)
+    const prices = page.getByRole("region", { name: "Prices" });
+    await expect(prices.getByRole("heading", { level: 3 })).toHaveText([
+      "Standard Clean",
+    ]);
+    await expect(
+      prices.getByText(/^Also offered: Deep Clean \$[\d,.]+$/),
+    ).toBeVisible();
     await expect(
       page.getByRole("region", { name: "Deep Clean" }),
-    ).toContainText("Recommended");
-    // its price set in the Service part, the price itself beside it
-    const deep = page.getByRole("group", { name: "Deep Clean" });
+    ).toContainText("Recommended for a first visit");
+    // its price set in the Service part, behind its fold, the price itself
+    // beside it
+    const deep = await deepCleanOverride(page);
     await deep.getByText("Set the Deep Clean price yourself").click();
     await deep
       .getByRole("textbox", { name: "Deep Clean price before tax" })
@@ -366,7 +384,7 @@ test("the Client sees only the latest Revision, from any of its emails", async (
   await expect(client.getByText(/Updated/)).toBeHidden();
 
   await pageAction(page, "Change quote");
-  const deep = page.getByRole("group", { name: "Deep Clean" });
+  const deep = await deepCleanOverride(page);
   await deep.getByText("Set the Deep Clean price yourself").click();
   await deep
     .getByRole("textbox", { name: "Deep Clean price before tax" })

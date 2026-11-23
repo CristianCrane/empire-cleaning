@@ -215,7 +215,12 @@ for a dialog. It renders through `FormPage`
   be untrue (the `ui` skill). It
   shows only totals, each one's working folded under "How
   it's worked out"; what sets a price (a price of your own, its reason)
-  stays in the part it prices.
+  stays in the part it prices. A one-off Draft's price is the one asked
+  for, its own Service's; the Service recommended for a first visit,
+  which the sent Quote offers too (ADR-0018), is an aside: one quiet
+  line under it ("Also offered: Deep Clean $299.41"), its price and
+  working folded behind it, and in the Service part its own price behind
+  a fold (the user, on #527: "The recommendation is an aside").
 - **Its button at the card's foot**, after what saving agrees to (a
   card's consent), in view. A form with a price or a Send (the Draft, New
   quote) makes its button the page's next step instead (FormPage's
@@ -223,7 +228,8 @@ for a dialog. It renders through `FormPage`
   behind its arrow, whether it's saved beside it (shown from the start,
   "Saved"), and once scrolled the header that sticks carries the title,
   the total (below `xl`, where the prices beside the form don't stay in
-  view) and the button; on a phone the page's `ActionFooter`, its total
+  view; a one-off Draft's named, "Standard Clean $194.89", the
+  recommendation in neither) and the button; on a phone the page's `ActionFooter`, its total
   and whether it's saved on the left, the button on the right, Delete
   draft alone on the title row. The sticky header's total slides in with
   it, once the title row's button has scrolled away, and never from `xl`,
