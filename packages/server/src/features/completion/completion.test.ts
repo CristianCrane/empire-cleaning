@@ -20,7 +20,7 @@ import type {
 import { db } from "#db";
 import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { chaseProposedAdjustments, completeJob } from "#features/completion";
-import { settleOpenPayments } from "#features/payments";
+import { chargeAttempts, settleOpenPayments } from "#features/payments";
 import { properties } from "#features/properties";
 import { createStaff } from "#features/staff";
 import {
@@ -1112,6 +1112,39 @@ describe("Office Staff correcting a completion", () => {
       deep.totalCents - deep.depositCents,
     ]);
     expect(refunded()).toEqual([deep.totalCents - deep.depositCents]);
+  });
+
+  // #534, review F10: the Clock sent it again a minute ago, so it may still
+  // be on its way, however long since it was first asked
+  test("undo one whose Balance the Clock sent again, unheard, and it waits a quarter hour from that send", async () => {
+    const { office, cory, jobId, quote } = await bookedJob();
+    const deep = deepOf(quote);
+    testPayments().goDown();
+    await complete(cory.agent, jobId).expect(200);
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    testPayments().goDown(false);
+    const balance = async () =>
+      (
+        await db
+          .select()
+          .from(chargeAttempts)
+          .where(eq(chargeAttempts.forId, jobId))
+      ).at(-1)!;
+    expect((await balance()).status).toBe("pending");
+
+    testClock().advance({ minutes: 1 });
+    await office.delete(`/api/jobs/${jobId}/completion`).expect(200);
+    expect((await balance()).status).toBe("pending");
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    expect(await balance()).toMatchObject({
+      status: "failed",
+      reason: "never_made",
+    });
+    expect(amounts()).toEqual([deep.depositCents]);
+    expect(refunded()).toEqual([]);
   });
 
   // #534, F3: the retry finds the lost top-up, counts it as covering the

@@ -1104,6 +1104,32 @@ describe("trying again after the Deposit's reply was lost", () => {
     ]);
   });
 
+  // #534, review F13: sent again, it would take the first option's Deposit,
+  // only to give it back
+  test("one for another option, accepted once the provider is back, is never taken", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+    testPayments().goDown();
+    await accept(client, quote, "deep").expect(409);
+    testPayments().goDown(false);
+
+    // within the quarter hour it may still be on its way, so not yet
+    await accept(client, quote, "standard").expect(409);
+    testClock().advance({ minutes: 15 });
+    await accept(client, quote, "standard").expect(200);
+
+    expect(testPayments().refunds).toEqual([]);
+    expect(depositsAtProvider()).toHaveLength(1);
+    expect(await depositCharges()).toEqual([
+      expect.objectContaining({
+        gatewayRef: depositsAtProvider()[0]!.chargeId,
+      }),
+    ]);
+  });
+
   // #534: an attempt never heard of is looked up, not sent again, once
   // nobody wants the Deposit it asked for
   test("one that never reached the provider, with nobody trying again, isn't taken a quarter of an hour on", async () => {
