@@ -208,19 +208,17 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
 // booked clean
 type PlanNow = Pick<ServicePlanSummary, "status" | "nextStartsAt">;
 
-// what a paused cleaning plan means, under what's owed: that it's paused
-// till it's paid, and that a paused plan's cleans already booked go ahead,
-// or, with none of them booked, it carries on once it's paid; nothing
-// while no plan is paused. The Bill's alert says it in the same words
-export function pausedLine(plans: PlanNow[], lang: Language): string[] {
+// what a paused cleaning plan means, under what's owed: no more cleans
+// booked until it's paid (or, asking nothing, until it goes through);
+// nothing while no plan is paused. The Bill's alert and the plan's say it
+// in the same words (noMoreCleans)
+export function pausedLine(
+  plans: PlanNow[],
+  lang: Language,
+  asks: boolean,
+): string[] {
   const t = saidWith(lang, words);
-  const paused = pausedPlans(plans);
-  if (paused.length === 0) return [];
-  return [
-    paused.some((p) => p.nextStartsAt)
-      ? t.PLAN_PAUSED
-      : t.PLAN_PAUSED_NONE_BOOKED,
-  ];
+  return pausedPlans(plans).length > 0 ? [t.noMoreCleans(asks)] : [];
 }
 
 // what's owed as a Home's answer (AnswerCard): Payments' card, and the
@@ -228,9 +226,8 @@ export function pausedLine(plans: PlanNow[], lang: Language): string[] {
 // why above the card (whyAlert); one simply due, in its line. One that
 // asks nothing, a payment we try again ourselves, is calm: Payment
 // pending, one short line, what it's for and that there's nothing to do,
-// and a way to see it rather than a primary (#493, #536). A paused plan in
-// its fewest true words, what it does (a clean's page doesn't say it).
-// One that asks says its plan's pause in full (pausedLine)
+// and a way to see it rather than a primary (#493, #536). Either says a
+// paused plan in a line (pausedLine), as a clean's page doesn't say it
 export function owedAnswer(
   owed: Owed,
   lang: Language,
@@ -246,7 +243,7 @@ export function owedAnswer(
         headline: t.formatMoney(owed.cents),
         lines: [
           `${owed.text} · ${t.NOTHING_TO_DO}`,
-          ...(pausedPlans(plans).length > 0 ? [t.PLAN_BOOKS_NO_MORE] : []),
+          ...pausedLine(plans, lang, false),
         ],
         action: { ...owed.action, secondary: true },
       },
@@ -259,7 +256,10 @@ export function owedAnswer(
       icon: Wallet,
       tone: owed.late ? "danger" : "warning",
       headline: t.formatMoney(owed.cents),
-      lines: [...(owed.late ? [] : [owed.text]), ...pausedLine(plans, lang)],
+      lines: [
+        ...(owed.late ? [] : [owed.text]),
+        ...pausedLine(plans, lang, true),
+      ],
       action: owed.action,
     },
     ...(owed.late && { why: { tone: "danger", lead: `${owed.text}.` } }),

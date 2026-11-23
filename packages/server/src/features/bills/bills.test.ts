@@ -684,7 +684,9 @@ describe("Unpaid Bills", () => {
     ]);
     const notice = testEmail().lastTo(BILLING_EMAIL);
     expect(notice.subject).toBe("We couldn't take payment for bill EC-000001");
-    expect(notice.text).toContain("cleaning plan is paused");
+    expect(notice.text).toContain(
+      "Until it's paid, we won't book more cleans on your plan.",
+    );
     expect(
       (await office.get("/api/bills?unpaid=true").expect(200)).body,
     ).toHaveLength(1);
@@ -752,6 +754,10 @@ describe("Unpaid Bills", () => {
     testPayments().goDown();
     testClock().set(NEXT_MONDAY);
     await makeDueBills();
+    // while it's ours to try again, nothing's theirs to pay (#536)
+    expect(testEmail().lastTo(BILLING_EMAIL).text).toContain(
+      "Until it goes through, we won't book more cleans on your plan.",
+    );
     testPayments().goDown(false);
     testPayments().failCharges();
 
@@ -759,7 +765,9 @@ describe("Unpaid Bills", () => {
     await settleOpenPayments();
     const notice = testEmail().lastTo(BILLING_EMAIL);
     expect(notice.subject).toBe("We couldn't take payment for bill EC-000001");
-    expect(notice.text).toContain("your cleaning plan is paused");
+    expect(notice.text).toContain(
+      "Until it's paid, we won't book more cleans on your plan.",
+    );
   });
 
   test("one declined once the provider is back tells the Client then", async () => {
@@ -1130,7 +1138,7 @@ describe("reminders and late Bills", () => {
       ).unpaidBills,
     ).toHaveLength(1);
     expect(testEmail().lastTo(BILLING_EMAIL).text).toContain(
-      "your cleaning plan is paused",
+      "Until it's paid, we won't book more cleans on your plan.",
     );
 
     // a bank debit on its way lifts On Hold; failing, it holds again
@@ -1154,7 +1162,7 @@ describe("reminders and late Bills", () => {
     }).expect(200);
     expect(await planStatus()).toBe("on_hold");
     expect(testEmail().lastTo(BILLING_EMAIL).text).toContain(
-      "your cleaning plan is paused",
+      "Until it's paid, we won't book more cleans on your plan.",
     );
 
     await office
@@ -1617,7 +1625,9 @@ describe("switching weekly billing off", () => {
       `couldn't take ${formatMoney(settled[0]!.unpaidCents!)}`,
     );
     expect(notice.text).toContain("update your card");
-    expect(notice.text).toContain("cleaning plan is paused");
+    expect(notice.text).toContain(
+      "Until it's paid, we won't book more cleans on your plan.",
+    );
     expect(notice.html).toContain("/portal/payment-method");
   });
 

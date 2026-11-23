@@ -153,7 +153,7 @@ test("a Client's plan is On Hold while a fee is Unpaid, and back on once they pa
       .getByRole("status")
       .filter({ hasText: "Your cleaning plan is paused" }),
   ).toContainText(
-    "Your cleaning plan is paused. We couldn't take payment for the clean on Mon, Jan 19, 9:00 AM ($50.46). Cleans already booked still go ahead, but we won't book any more.",
+    "Your cleaning plan is paused. We couldn't take payment for the clean on Mon, Jan 19, 9:00 AM ($50.46). Until it's paid, we won't book more cleans on your plan.",
   );
   await expectAccessible(page);
 

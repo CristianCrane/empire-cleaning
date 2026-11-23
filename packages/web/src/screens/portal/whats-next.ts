@@ -540,7 +540,13 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Answer {
         tone: "info",
         headline: t.planName(paused),
         lines: [w.untilPaid],
-        action: { label: t.p.seeYourPlan, href: planLink(paused.id) },
+        // nothing to do, so not the page's primary, as the owed card's
+        // See the bill (#536)
+        action: {
+          label: t.p.seeYourPlan,
+          href: planLink(paused.id),
+          secondary: true,
+        },
       },
       why: {
         tone: "info",

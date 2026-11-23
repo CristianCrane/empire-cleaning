@@ -223,8 +223,8 @@ export function useOnHold(
             : `The client's payment for ${u.what} hasn't gone through yet. ${officeFix.waiting}`}
         {i === 0 &&
           (forClient
-            ? ` ${t.BOOKED_GO_AHEAD}`
-            : " Jobs already booked still go ahead, but no more are booked until it's paid.")}
+            ? ` ${t.noMoreCleans(Boolean(first))}`
+            : " No more jobs are booked until it's paid.")}
       </p>
     ),
   }));

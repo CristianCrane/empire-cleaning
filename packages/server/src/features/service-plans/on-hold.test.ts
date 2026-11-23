@@ -73,7 +73,7 @@ describe("a plan Job left Unpaid", () => {
       }),
     );
     expect(testEmail().lastTo(casey.email).text).toMatch(
-      /cleaning plan is paused/,
+      /Until it's paid, we won't book more cleans on your plan\./,
     );
     // their past cleans show it Skipped, its fee Unpaid, latest first
     const past = (await client.get("/api/jobs/mine/past").expect(200))
@@ -171,7 +171,9 @@ describe("a plan Job left Unpaid", () => {
     await settleOpenPayments();
     const notice = testEmail().lastTo(casey.email);
     expect(notice.subject).toBe("We couldn't take your payment");
-    expect(notice.text).toMatch(/cleaning plan is paused/);
+    expect(notice.text).toMatch(
+      /Until it's paid, we won't book more cleans on your plan\./,
+    );
   });
 
   test("when it's a completed Job's Balance puts the plan On Hold too, and the Office's retry resumes it", async () => {
@@ -184,7 +186,9 @@ describe("a plan Job left Unpaid", () => {
     expect((await clientPlan(client, planId)).status).toBe("on_hold");
     const unpaidNotice = testEmail().lastTo(casey.email);
     expect(unpaidNotice.subject).toBe("We couldn't take your payment");
-    expect(unpaidNotice.text).toMatch(/cleaning plan is paused/);
+    expect(unpaidNotice.text).toMatch(
+      /Until it's paid, we won't book more cleans on your plan\./,
+    );
 
     testPayments().failCharges(null);
     await office.post(`/api/jobs/${jobId}/balance/retry`).expect(200);

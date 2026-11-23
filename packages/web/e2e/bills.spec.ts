@@ -318,7 +318,7 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   await signedInAs(client, casey.email);
   await client.goto("/portal/payments");
   await expect(client.getByRole("region", { name: "To pay" })).toContainText(
-    "Until it's paid, your cleaning plan is paused. Cleans already booked still go ahead, but we won't book any more.",
+    "Until it's paid, we won't book more cleans on your plan.",
   );
 
   // and they pay it from their plan's page
@@ -332,7 +332,7 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   // which says the plan is paused till it's paid
   await expect(
     client.getByText(
-      /^We couldn't take \$[\d.,]+ for this bill.* Until it's paid, your cleaning plan is paused\. Cleans already booked still go ahead, but we won't book any more\.$/,
+      /^We couldn't take \$[\d.,]+ for this bill.* Until it's paid, we won't book more cleans on your plan\.$/,
     ),
   ).toBeVisible();
   // it was never charged to their card, as it would have been (#499)
@@ -388,7 +388,7 @@ test("a Bill we try again ourselves reads as payment pending, not failed, says i
       .getByRole("status")
       .filter({ hasText: "Nothing you need to do." }),
   ).toHaveText(
-    "Until it's paid, your cleaning plan is paused. Cleans already booked still go ahead, but we won't book any more. Nothing you need to do.",
+    "Nothing you need to do. Until it goes through, we won't book more cleans on your plan.",
   );
   await expectNoPageAction(page, "Pay this bill");
 });

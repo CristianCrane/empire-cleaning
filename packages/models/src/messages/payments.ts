@@ -76,16 +76,16 @@ export const payments = catalog({
       late: "Please pay it on its page.",
     } satisfies Record<UnpaidKind, string>,
     // a Client's cleaning plan, paused while a payment on it is Unpaid, and
-    // back on once it's paid
+    // back on once it's paid: as a rule (the terms, a Bill that would
+    // pause it if late), where booked cleans going ahead is a promise
     BOOKED_GO_AHEAD,
     PLAN_PAUSED: `${PAUSED_TILL_PAID} ${BOOKED_GO_AHEAD}`,
-    // a paused plan in a line, where a payment pending is: what it does,
-    // as "paused" alone read as the next clean off too, and "goes through",
-    // as Home says it, since "until it's paid" read as theirs to pay (#536)
-    PLAN_BOOKS_NO_MORE:
-      "Until it goes through, we won't book more cleans on your plan.",
-    // with none of its cleans booked, it picks up once it's paid
-    PLAN_PAUSED_NONE_BOOKED: `${PAUSED_TILL_PAID} Then it carries on from its next date.`,
+    // a plan paused now, wherever it's said: what the pause does, true
+    // whether or not any of its cleans are booked (#532's U5), "until it's
+    // paid" only when it asks them to pay, else "until it goes through", as
+    // Home says it, since "paid" read as theirs to do (#536)
+    noMoreCleans: (asks: boolean) =>
+      `${asks ? "Until it's paid" : "Until it goes through"}, we won't book more cleans on your plan.`,
     PLAN_BACK_ON:
       "Your cleaning plan is back on, and we'll book your cleans as usual.",
     // a fee for a clean that didn't happen, by the Job's status
@@ -135,9 +135,8 @@ export const payments = catalog({
     },
     BOOKED_GO_AHEAD: BOOKED_GO_AHEAD_ES,
     PLAN_PAUSED: `${PAUSED_TILL_PAID_ES} ${BOOKED_GO_AHEAD_ES}`,
-    PLAN_BOOKS_NO_MORE:
-      "Hasta que el pago pase, no reservaremos más limpiezas de su plan.",
-    PLAN_PAUSED_NONE_BOOKED: `${PAUSED_TILL_PAID_ES} Luego continúa desde su próxima fecha.`,
+    noMoreCleans: (asks: boolean) =>
+      `Hasta que ${asks ? "se pague" : "el pago pase"}, no reservaremos más limpiezas de su plan.`,
     PLAN_BACK_ON:
       "Su plan de limpieza está activo de nuevo, y reservaremos sus limpiezas como siempre.",
     feeName: {

@@ -106,7 +106,7 @@ export function PortalBill() {
 function useStanding(bill: BillView): Alert | null {
   const t = useSaid(words);
   const isPaused = pausedPlans(bill.plans).length > 0;
-  const paused = isPaused ? ` ${t.PLAN_PAUSED}` : "";
+  const paused = isPaused ? ` ${t.noMoreCleans(true)}` : "";
   if (bill.status === "processing") {
     return {
       key: "processing",
@@ -125,9 +125,9 @@ function useStanding(bill: BillView): Alert | null {
     return {
       key: "unpaid",
       tone: "info",
-      // what happened first, then that nothing's asked (the `ui` skill)
+      // as few words as Payments' card, in its words (#536)
       children: isPaused
-        ? `${t.PLAN_PAUSED} ${t.NOTHING_TO_DO}`
+        ? `${t.NOTHING_TO_DO} ${t.noMoreCleans(false)}`
         : t.NOTHING_TO_DO,
     };
   }

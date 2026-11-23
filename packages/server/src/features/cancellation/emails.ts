@@ -11,6 +11,7 @@ import { crewWords, jobsButton } from "../assignments/emails.ts";
 import type { Settled } from "../completion/balance.ts";
 import { bookAnother } from "../quotes/emails.ts";
 import {
+  asksTheClient,
   cancelCostForOffice,
   catalog,
   ON_THAT_WEEKS_BILL,
@@ -100,14 +101,16 @@ const refundLine = (lang: Language, settled: Settled) =>
 // how taking a plan Job's fee went, as a line for the Client
 const feeChargeLine = (lang: Language, settled: Settled) => {
   const w = words[lang];
-  const { clientFix, notTaken, PLAN_PAUSED } = messages[lang];
+  const { clientFix, notTaken, noMoreCleans } = messages[lang];
   if (settled.billed) return [w.ON_WEEKLY_BILL];
   const card = cardOf(lang, settled.paymentMethod);
   if (settled.chargedCents > 0) return [w.chargedTo(card)];
   if (settled.failure) {
     return [
       `${notTaken(w.IT, card)} ${clientFix[unpaidKind(settled.failure)]}`,
-      ...(settled.plan === "held" ? [PLAN_PAUSED] : []),
+      ...(settled.plan === "held"
+        ? [noMoreCleans(asksTheClient(unpaidKind(settled.failure)))]
+        : []),
     ];
   }
   return [];

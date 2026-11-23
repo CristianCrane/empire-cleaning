@@ -16,8 +16,8 @@ import {
 const moneyNow = (data: PaymentsData) => moneyNowIn(data, "en");
 const paymentRow = (p: Parameters<typeof paymentRowIn>[0]) =>
   paymentRowIn(p, "en");
-const pausedLine = (plans: Parameters<typeof pausedLineIn>[0]) =>
-  pausedLineIn(plans, "en");
+const pausedLine = (plans: Parameters<typeof pausedLineIn>[0], asks = true) =>
+  pausedLineIn(plans, "en", asks);
 const owedAnswer = (data: PaymentsData) =>
   owedAnswerIn(moneyNow(data).owed!, "en", data.plans);
 
@@ -248,26 +248,23 @@ describe("what a paused plan means, under what's owed", () => {
     ).toEqual([]);
   });
 
-  test("a paused plan's cleans already booked go ahead", () => {
-    expect(
-      pausedLine([
-        { status: "active", nextStartsAt: null },
-        { status: "on_hold", nextStartsAt: WEEK_LATER },
-      ]),
-    ).toEqual([
-      "Until it's paid, your cleaning plan is paused. Cleans already booked still go ahead, but we won't book any more.",
-    ]);
+  // what the pause does, true whether or not its cleans are booked, so
+  // it never says booked cleans go ahead when none are (#532's U5)
+  test("a paused plan books no more cleans until it's paid, booked or not", () => {
+    for (const nextStartsAt of [WEEK_LATER, null])
+      expect(
+        pausedLine([
+          { status: "active", nextStartsAt: null },
+          { status: "on_hold", nextStartsAt },
+        ]),
+      ).toEqual(["Until it's paid, we won't book more cleans on your plan."]);
   });
 
-  test("with none of a paused plan's cleans booked, it carries on once paid", () => {
-    // another plan's clean booked isn't the paused one's
+  test("asking nothing of them, until it goes through", () => {
     expect(
-      pausedLine([
-        { status: "on_hold", nextStartsAt: null },
-        { status: "active", nextStartsAt: WEEK_LATER },
-      ]),
+      pausedLine([{ status: "on_hold", nextStartsAt: WEEK_LATER }], false),
     ).toEqual([
-      "Until it's paid, your cleaning plan is paused. Then it carries on from its next date.",
+      "Until it goes through, we won't book more cleans on your plan.",
     ]);
   });
 });
