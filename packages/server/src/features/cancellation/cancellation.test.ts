@@ -5,7 +5,6 @@ import type {
   CleanerJobs,
   ClientJob,
   ClientJobDetail,
-  NeedsAttentionItem,
   OfficeJob,
   ScheduleDay,
   SignedInAccount,
@@ -488,28 +487,17 @@ describe("No Access", () => {
       .expect(400);
   });
 
-  // a crew short is in Needs attention till the Job starts, when no one
-  // can be offered it any more (#493): it isn't waiting on that to end
+  // Needs attention drops a Job once it starts (assignments.test.ts)
   test("doesn't wait for the rest of the crew to Confirm", async () => {
-    const { office, asCory, jobId } = await bookedJob({ crewSize: 2 });
-    const unassigned = async () =>
-      (
-        (await office.get("/api/dashboard/needs-attention").expect(200))
-          .body as NeedsAttentionItem[]
-      ).filter((i) => i.kind === "job_unassigned");
-    // an hour before it
-    testClock().set(new Date("2026-01-12T13:00:00Z"));
-    expect(await unassigned()).toHaveLength(1);
+    const { asCory, jobId } = await bookedJob({ crewSize: 2 });
     testClock().set(MONDAY_9_30AM);
 
     const job = (await asCory.get(`/api/assignments/mine/${jobId}`))
       .body as CleanerJob;
     expect(job.canComplete).toBe(false);
     expect(job.canRecordNoAccess).toBe(true);
-    expect(await unassigned()).toEqual([]);
 
     await noAccess(asCory, jobId).expect(200);
-    expect(await unassigned()).toEqual([]);
   });
 
   test("is refused for an Offered Assignment not yet Confirmed", async () => {

@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, lte } from "drizzle-orm";
 import {
   type AssignmentView,
   type CleanerJob,
@@ -581,16 +581,12 @@ export const unassignedJobsWithin = async (hours: number) => {
   const now = clock.now();
   const soon = await scheduledJobs(
     and(
-      gte(jobs.startsAt, startOfDay(dayOf(now))),
+      gt(jobs.startsAt, now),
       lte(jobs.startsAt, new Date(now.getTime() + hours * HOUR_MS)),
     ),
   );
-  // the day's are loaded from its start, for the Schedule's view of it
   const unassigned = soon.filter(
-    (job) =>
-      job.status === "booked" &&
-      job.assignment === "unassigned" &&
-      new Date(job.startsAt) > now,
+    (job) => job.status === "booked" && job.assignment === "unassigned",
   );
   if (unassigned.length === 0) return [];
 
