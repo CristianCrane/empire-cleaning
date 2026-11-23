@@ -573,8 +573,9 @@ export const releaseAssignment = async (
   });
 };
 
-// Booked Jobs from the start of today to `hours` from now whose crew isn't
-// all Confirmed, soonest first. Each needs attention from when it came
+// Booked Jobs not yet started, up to `hours` from now, whose crew isn't
+// all Confirmed, soonest first: once one starts, no one can be offered it
+// (whyNotOffer), so there's nothing to do. Each needs attention from when it came
 // within `hours` of starting, or was booked, whichever is later.
 export const unassignedJobsWithin = async (hours: number) => {
   const now = clock.now();
@@ -584,8 +585,12 @@ export const unassignedJobsWithin = async (hours: number) => {
       lte(jobs.startsAt, new Date(now.getTime() + hours * HOUR_MS)),
     ),
   );
+  // the day's are loaded from its start, for the Schedule's view of it
   const unassigned = soon.filter(
-    (job) => job.status === "booked" && job.assignment === "unassigned",
+    (job) =>
+      job.status === "booked" &&
+      job.assignment === "unassigned" &&
+      new Date(job.startsAt) > now,
   );
   if (unassigned.length === 0) return [];
 

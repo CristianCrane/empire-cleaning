@@ -582,6 +582,14 @@ describe("Unassigned Jobs in Needs attention", () => {
       job: { assignment: "unassigned", client: { name: expect.any(String) } },
     });
     expect(items[1]!.since).toBe("2026-01-05T14:00:00.000Z");
+
+    // once today's has started, no one can be offered it: it leaves (#493)
+    testClock().set(new Date("2026-01-05T20:00:00Z"));
+    expect(
+      (await needsAttention(office))
+        .filter((i) => i.kind === "job_unassigned")
+        .map((i) => i.job.id),
+    ).toEqual([wednesday.id]);
   });
 });
 

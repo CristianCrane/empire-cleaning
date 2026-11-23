@@ -488,20 +488,25 @@ describe("No Access", () => {
       .expect(400);
   });
 
-  test("doesn't wait for the rest of the crew to Confirm, and leaves Needs attention", async () => {
+  // a crew short is in Needs attention till the Job starts, when no one
+  // can be offered it any more (#493): it isn't waiting on that to end
+  test("doesn't wait for the rest of the crew to Confirm", async () => {
     const { office, asCory, jobId } = await bookedJob({ crewSize: 2 });
+    const unassigned = async () =>
+      (
+        (await office.get("/api/dashboard/needs-attention").expect(200))
+          .body as NeedsAttentionItem[]
+      ).filter((i) => i.kind === "job_unassigned");
+    // an hour before it
+    testClock().set(new Date("2026-01-12T13:00:00Z"));
+    expect(await unassigned()).toHaveLength(1);
     testClock().set(MONDAY_9_30AM);
 
     const job = (await asCory.get(`/api/assignments/mine/${jobId}`))
       .body as CleanerJob;
     expect(job.canComplete).toBe(false);
     expect(job.canRecordNoAccess).toBe(true);
-    const unassigned = async () =>
-      (
-        (await office.get("/api/dashboard/needs-attention").expect(200))
-          .body as NeedsAttentionItem[]
-      ).filter((i) => i.kind === "job_unassigned");
-    expect(await unassigned()).toHaveLength(1);
+    expect(await unassigned()).toEqual([]);
 
     await noAccess(asCory, jobId).expect(200);
     expect(await unassigned()).toEqual([]);
