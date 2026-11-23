@@ -121,7 +121,7 @@ describe("a Cleaner reading in Spanish", () => {
       })
       .expect(400);
     expect(issues(wrong.body)).toEqual({
-      condition: "Di cómo estaba la casa",
+      condition: "Di cómo estaba el lugar",
       "reports.0.hours": "Usa cuartos de hora, como 1.25",
       "reports.0.reason": "Di por qué",
     });

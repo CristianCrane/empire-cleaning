@@ -177,7 +177,9 @@ test(
     await expect(review).toContainText('"Heavy grease"');
     await expect(review).toContainText("$55.00 before tax");
     await review.getByRole("button", { name: "Send to the client" }).click();
-    await expect(page.getByText("Sent to the client")).toBeVisible();
+    await expect(
+      page.getByText("Sent to the client", { exact: true }),
+    ).toBeVisible();
     await expect(review).toBeHidden();
     await expect(extraTime).toContainText("Waiting on the client");
 
@@ -314,6 +316,9 @@ test("Office Staff remove an Adjustment from its own dialog, confirming in the s
   await expect(
     adjustments.getByRole("row", { name: /More time/ }),
   ).toContainText("Dismissed");
+  await expect(page.getByRole("region", { name: "History" })).toContainText(
+    "Price change dismissed: More time",
+  );
 
   await adjustments.getByRole("row", { name: /More time/ }).click();
   await page

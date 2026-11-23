@@ -273,7 +273,7 @@ function useActionsOf(job: OfficeJob): {
 // only what the badge can't say: to when a move is asked and what it
 // costs; why a payment failed and what puts it right; that no cleaner is
 // free to take it; why a plan is the next step (the client asked for
-// regular visits, and this was the home's first clean), while it is.
+// regular visits, and this was the first clean at this place), while it is.
 // The step each calls for is the page's primary
 const alertsFor = (job: OfficeJob, next?: PageAction): Alert[] => {
   const alerts: Alert[] = [];
@@ -337,7 +337,8 @@ const alertsFor = (job: OfficeJob, next?: PageAction): Alert[] => {
       children: (
         <p>
           <strong>{firstNameOf(job.client.name)} wants regular visits.</strong>{" "}
-          This was the first clean here, and there's no cleaning plan here.
+          This was the first clean at this place, and it has no cleaning plan
+          yet.
         </p>
       ),
     });
@@ -434,7 +435,7 @@ function JobFacts({ job }: { job: OfficeJob }) {
   );
 }
 
-// once it's over, only what History doesn't say: done, the home's condition
+// once it's over, only what History doesn't say: done, the place's condition
 // the cleaner found and the price changes they reported; couldn't get in,
 // what the cleaner said. A cancelled Job has none: History says why
 function HowItWent({ job }: { job: OfficeJob }) {

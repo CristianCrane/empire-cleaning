@@ -38,7 +38,7 @@ const words = catalog({
     fixDetails: "Some details need fixing.",
     marked: "Job marked done",
     title: "Mark this job done",
-    howWasHome: "How was the home?",
+    howWasPlace: "How was the place?",
     couldntDo: "Extras you couldn't do",
     whyNot: "Why not?",
     didMore: "Extras you did that weren't asked for",
@@ -60,7 +60,7 @@ const words = catalog({
     fixDetails: "Hay que corregir algunos datos.",
     marked: "Trabajo marcado como terminado",
     title: "Marcar este trabajo como terminado",
-    howWasHome: "¿Cómo estaba la casa?",
+    howWasPlace: "¿Cómo estaba el lugar?",
     couldntDo: "Adicionales que no pudiste hacer",
     whyNot: "¿Por qué no?",
     didMore: "Adicionales que hiciste sin que se pidieran",
@@ -152,7 +152,7 @@ export function CompleteJob({
           }}
         >
           <RadioGroup
-            label={w.howWasHome}
+            label={w.howWasPlace}
             name="condition"
             value={condition}
             onChange={(value) => setCondition(value as Condition)}
@@ -242,7 +242,7 @@ function AddOnReports({
   };
 
   return (
-    // its question a field's label, as How was the home? is: one rank
+    // its question a field's label, as How was the place? is: one rank
     <fieldset className="flex flex-col gap-2">
       <legend className="mb-1 text-sm font-semibold text-fg">{title}</legend>
       {addOns.map((addOn) => (
@@ -272,7 +272,7 @@ function AddOnReports({
 }
 
 // what was reported once it's Completed, first on the page, never with
-// prices: who marked it done, as the reader calls them, then the home and
+// prices: who marked it done, as the reader calls them, then the place and
 // what was different. Its badge says Done, so no title says it again
 export function Completed({ job }: { job: CleanerJob }) {
   const completion = job.completion!;

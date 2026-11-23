@@ -334,7 +334,7 @@ test("a Cleaner reading in Spanish takes an open job and marks it done, in tú",
   const form = page.getByRole("dialog", {
     name: "Marcar este trabajo como terminado",
   });
-  await expect(form).toContainText("¿Cómo estaba la casa?");
+  await expect(form).toContainText("¿Cómo estaba el lugar?");
   await expectAccessible(page);
   await form.getByText("Ligera", { exact: true }).click();
   await form.getByRole("button", { name: "Marcar como terminado" }).click();

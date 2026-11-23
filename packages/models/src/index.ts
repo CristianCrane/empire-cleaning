@@ -1637,6 +1637,8 @@ export type AdjustmentView = {
   reportedAt: string;
   proposedAt: string | null;
   answeredAt: string | null;
+  // when the Office dismissed it, if it did
+  dismissedAt: string | null;
   // when a proposed one lapses unanswered
   lapsesAt: string | null;
 };

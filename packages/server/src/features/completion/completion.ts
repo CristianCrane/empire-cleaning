@@ -351,6 +351,8 @@ const toView = (
   reportedAt: a.reportedAt.toISOString(),
   proposedAt: a.proposedAt?.toISOString() ?? null,
   answeredAt: a.answeredAt?.toISOString() ?? null,
+  dismissedAt:
+    a.status === "dismissed" ? (a.reviewedAt?.toISOString() ?? null) : null,
   lapsesAt:
     a.status === "proposed" && a.proposedAt
       ? new Date(a.proposedAt.getTime() + ANSWER_DAYS * DAY_MS).toISOString()

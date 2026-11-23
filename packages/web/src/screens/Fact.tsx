@@ -39,7 +39,7 @@ export function FloorAreaFact({
   );
 }
 
-// a home's condition; `found`, as a cleaner found it on a Job
+// a place's condition; `found`, as a cleaner found it on a Job
 export function ConditionFact({
   property,
   line,

@@ -7,8 +7,8 @@ import {
   CircleAlert,
   CircleCheck,
   CircleX,
-  ClipboardPen,
   CreditCard,
+  MessageSquareText,
   Send,
   Undo2,
   UserCheck,
@@ -16,6 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type {
+  AdjustmentStatus,
   AssignmentState,
   OfficeJob,
   RescheduleRequestStatus,
@@ -63,11 +64,30 @@ const requestAnswered: Record<
   withdrawn: { icon: CalendarX, title: "Move withdrawn by the client" },
 };
 
+// a price change ended: the client's answer, none in time, or the Office's
+// dismissal
+type Ended = Extract<
+  AdjustmentStatus,
+  "approved" | "declined" | "lapsed" | "dismissed"
+>;
+const adjustmentEnded: Record<Ended, { icon: LucideIcon; title: string }> = {
+  approved: {
+    icon: CircleCheck,
+    title: "The client approved the price change",
+  },
+  declined: { icon: CircleX, title: "The client declined the price change" },
+  lapsed: { icon: CircleX, title: "The client didn't answer the price change" },
+  dismissed: { icon: CircleX, title: "Price change dismissed" },
+};
+const ended = (status: AdjustmentStatus): status is Ended =>
+  status in adjustmentEnded;
+
 // everything that happened to a Job, newest first, whole: its booking, its
 // Assignments Offered, Confirmed, Released or taken off, Reschedule
 // Requests and their answers (closed unanswered if the Job stopped being
 // booked first), each charge and refund, a payment that didn't go through,
-// and how it went or ended; who asked, did or ended it named in its title
+// each price change reported, sent, answered or dismissed, and how it went
+// or ended; who asked, did or ended it named in its title
 const momentsOf = (job: OfficeJob): Moment[] => {
   const moments: Moment[] = [
     { key: "booked", at: job.bookedAt, icon: CalendarPlus, title: "Booked" },
@@ -132,14 +152,14 @@ const momentsOf = (job: OfficeJob): Moment[] => {
         : "Done",
     });
     // each price change: reported by whoever marked it done, then sent to
-    // the client and answered, when it was
+    // the client and answered, or dismissed, when it was
     const by = job.completion.completedBy?.name ?? "The cleaner";
     job.completion.adjustments.forEach((a) => {
       const what = whatOf(a);
       moments.push({
         key: `reported-${a.id}`,
         at: a.reportedAt,
-        icon: ClipboardPen,
+        icon: MessageSquareText,
         title: `${by} reported a price change: ${what}`,
       });
       if (a.proposedAt) {
@@ -150,18 +170,14 @@ const momentsOf = (job: OfficeJob): Moment[] => {
           title: `Price change sent to the client: ${what}`,
         });
       }
-      if (a.answeredAt) {
+      const at = a.answeredAt ?? a.dismissedAt;
+      if (at && ended(a.status)) {
+        const { icon, title } = adjustmentEnded[a.status];
         moments.push({
-          key: `answered-${a.id}`,
-          at: a.answeredAt,
-          icon: a.status === "approved" ? CircleCheck : CircleX,
-          title: `${
-            a.status === "approved"
-              ? "The client approved"
-              : a.status === "declined"
-                ? "The client declined"
-                : "The client didn't answer"
-          } the price change: ${what}`,
+          key: `ended-${a.id}`,
+          at,
+          icon,
+          title: `${title}: ${what}`,
         });
       }
     });

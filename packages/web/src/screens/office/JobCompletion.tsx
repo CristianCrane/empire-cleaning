@@ -114,7 +114,7 @@ export function CorrectCondition({
         >
           <ConditionField value={condition} onChange={setCondition} />
           <p className="text-sm text-fg-muted">
-            It's the home's condition too, for future quotes.
+            It's the place's condition too, for future quotes.
           </p>
           {action.problem && <Notice tone="danger">{action.problem}</Notice>}
           <Actions>

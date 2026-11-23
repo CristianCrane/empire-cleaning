@@ -164,7 +164,7 @@ Keeps: one column, History last, as every Record (#493). Renders through `Record
 - Alerts: only what the badge can't say, with no buttons: the time a move
   is asked for and what it costs the client; that its payment didn't go
   through, why, and what puts it right; no cleaner free; that the client
-  wants regular visits and this was the home's first clean (beside Quote a
+  wants regular visits and this was the first clean at this place (beside Quote a
   cleaning plan).
 - Body: the header card (`JobLead`: `DateTile`, muted once it won't
   happen; the times; the home and the client, each a link; while booked, a
@@ -183,8 +183,9 @@ Keeps: one column, History last, as every Record (#493). Renders through `Record
   confirmed).
 - History: a Card, last, at every width, whole: booked, each offer and
   answer, each move asked (to when in its title), each charge and refund,
-  a payment that didn't go through, how it ended; who asked, did or ended
-  it in its title.
+  a payment that didn't go through, each price change reported, sent,
+  answered or dismissed, how it ended; who asked, did or ended it in its
+  title.
 
 #### Office > Quotes
 

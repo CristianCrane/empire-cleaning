@@ -605,6 +605,13 @@ describe("Adjustments", () => {
       .send({ reason: "Our estimate was short" })
       .expect(200);
 
+    // when, for the Office's History to say
+    expect(
+      (await officeJob(office, jobId)).completion!.adjustments[0],
+    ).toMatchObject({
+      status: "dismissed",
+      dismissedAt: testClock().now().toISOString(),
+    });
     expect((await clientJob(client, jobId)).completion!.adjustments).toEqual(
       [],
     );
