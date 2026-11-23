@@ -256,7 +256,8 @@ control.post("/payments/bills-in-browser", (req, res) => {
   res.json({ status: "ok" });
 });
 
-// every Charge is declined with this reason from now on; null to stop
+// every Charge is declined with this reason from now on, or left
+// processing with "processing", as the provider does; null to stop
 control.post("/payments/fail", (req, res) => {
   const { reason } = req.body as { reason: string | null };
   testPayments().failCharges(reason);

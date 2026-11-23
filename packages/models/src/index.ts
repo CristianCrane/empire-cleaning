@@ -2079,7 +2079,9 @@ export type BillView = BillSummary & {
   paymentNote: string | null;
   voidedAt: string | null;
   voidReason: string | null;
-  // whether the Client can pay it on its page now
+  // whether the Client can pay it on its page now: due, owing something,
+  // and not a payment of ours, which our charge may still take or we try
+  // again ourselves (#533)
   payable: boolean;
   // the Client's Service Plans with Jobs on it, oldest first: each On Hold
   // while it's Unpaid (ADR-0016), unless Ended

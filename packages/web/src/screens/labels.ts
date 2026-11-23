@@ -30,6 +30,9 @@ export const labels = catalog({
     total: "Total",
     taxIncludedOf: (what: string) => `${what}, tax included`,
     payBill: (n: string) => `Pay bill ${n}`,
+    // a Bill that asks nothing of its reader: the Office's, or one we try
+    // again ourselves
+    seeBill: (n: string) => `See bill ${n}`,
     // a bank payment, or a Bill paid by one, on its way
     clearing: "Clearing",
     // a payment we try again ourselves (Unpaid, waiting): not failed for
@@ -70,6 +73,7 @@ export const labels = catalog({
     total: "Total",
     taxIncludedOf: (what: string) => `${what}, impuestos incluidos`,
     payBill: (n: string) => `Pagar la factura ${n}`,
+    seeBill: (n: string) => `Ver la factura ${n}`,
     clearing: "En proceso",
     notPaidYet: "Aún sin pagar",
     howWeGetIn: "Cómo entramos",
