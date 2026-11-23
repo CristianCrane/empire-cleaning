@@ -68,7 +68,8 @@ export const settleOpenPayments = async () => {
     }
   };
   // Bills first: a Job charged per clean once its Bill was voided waits on
-  // that Bill's own Charge, given back here, so it's charged in the same run
+  // that Bill's own Charge, settled here (given back, if it took the money),
+  // so the Job is charged in the same run
   await each(
     "Bill",
     [...open.bills, ...unpaidBills.map((b) => b.id)],
