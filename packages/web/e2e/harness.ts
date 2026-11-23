@@ -597,6 +597,13 @@ export const pageAction = async (page: Page, name: string) => {
   await expect(menu).toHaveCount(0);
 };
 
+// a page's status badge, beside its title (docs/ux.md, Page structure)
+export const titleBadge = (page: Page, word: string) =>
+  page
+    .getByRole("heading", { level: 1 })
+    .locator("..")
+    .getByText(word, { exact: true });
+
 // a page's next step, its primary, in what names it "What to do": its
 // header's split button from md, a phone's foot (docs/ux.md, Page
 // structure); not a page's one action when nothing is next, a button in an

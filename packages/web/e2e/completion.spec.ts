@@ -18,6 +18,7 @@ import {
   pageAction,
   openTile,
   saveACard,
+  titleBadge,
 } from "./harness.ts";
 
 // the API's clock is at 4am on Monday 5 January 2026 in New York. The Jobs
@@ -185,10 +186,7 @@ test(
       "The crew did more than was quoted: 1 more hour, $59.88. Please answer by Jan 19, 2026.",
     );
     // the badge says what waits on them, in the Cleans list's words, not Done
-    const titleLine = client
-      .getByRole("heading", { level: 1 })
-      .locator("xpath=..");
-    await expect(titleLine).toHaveText(/Needs your OK$/);
+    await expect(titleBadge(client, "Needs your OK")).toBeVisible();
     await expectAccessible(client);
     await expectNextStep(client, "Review the price change");
     await expect(proposal.getByRole("button")).toHaveCount(0);
@@ -202,7 +200,7 @@ test(
 
     await expect(client.getByText("Approved")).toBeVisible();
     await expect(proposal).toBeHidden();
-    await expect(titleLine).toHaveText(/Done$/);
+    await expect(titleBadge(client, "Done")).toBeVisible();
     const receipt = client.getByRole("region", { name: "Your receipt" });
     await expect(receipt).toContainText("1 more hour");
     await expect(receipt).toContainText("$59.88");

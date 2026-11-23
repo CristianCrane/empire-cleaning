@@ -11,6 +11,7 @@ import {
   requestQuoteAsGuest,
   signedInAs,
   test,
+  titleBadge,
   turnDownQuote,
 } from "./harness.ts";
 
@@ -99,12 +100,7 @@ test("a turned-down quote leads with Request a quote, its alert saying why", asy
   await turnDownQuote(staff);
 
   await quote(page, "About your quote from Empire Cleaning");
-  await expect(
-    page
-      .getByRole("heading", { level: 1 })
-      .locator("..")
-      .getByText("Turned down", { exact: true }),
-  ).toBeVisible();
+  await expect(titleBadge(page, "Turned down")).toBeVisible();
   const why = page
     .getByRole("main")
     .getByRole("status")

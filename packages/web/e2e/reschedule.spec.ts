@@ -17,6 +17,7 @@ import {
   addCleaner,
   pageAction,
   openTile,
+  titleBadge,
 } from "./harness.ts";
 
 // the API's clock is at 4am on Monday 5 January 2026 in New York. The Job
@@ -78,10 +79,7 @@ test(
 
     await expect(page.getByText("Request sent")).toBeVisible();
     // the badge says what's waiting, as the Cleans list does, not Booked
-    const titleLine = page
-      .getByRole("heading", { level: 1 })
-      .locator("xpath=..");
-    await expect(titleLine).toHaveText(/Move asked$/);
+    await expect(titleBadge(page, "Move asked")).toBeVisible();
     const pending = page
       .getByRole("status")
       .filter({ hasText: "You've asked to move it" });
@@ -97,7 +95,7 @@ test(
     await pending.getByRole("button", { name: "Withdraw request" }).click();
     await expect(page.getByText("Request withdrawn")).toBeVisible();
     await expect(pending).toHaveCount(0);
-    await expect(titleLine).toHaveText(/Booked$/);
+    await expect(titleBadge(page, "Booked")).toBeVisible();
   },
 );
 

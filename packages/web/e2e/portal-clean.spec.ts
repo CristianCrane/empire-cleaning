@@ -12,6 +12,7 @@ import {
   setClock,
   signedInAs,
   test,
+  titleBadge,
 } from "./harness.ts";
 
 // A Client's clean leads with its next step (#493): the first thing that
@@ -99,12 +100,7 @@ test("a payment we try again ourselves asks nothing of the clean's reader", asyn
   await clean(page, job.id);
   // waiting on us, not failed
   // its badge, beside the title
-  await expect(
-    page
-      .getByRole("heading", { level: 1 })
-      .locator("..")
-      .getByText("Not paid yet", { exact: true }),
-  ).toBeVisible();
+  await expect(titleBadge(page, "Not paid yet")).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(
     page.getByRole("main").getByRole("status").filter({
