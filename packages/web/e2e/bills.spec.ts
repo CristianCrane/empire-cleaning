@@ -359,6 +359,7 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
 
 test("a Bill whose payment we try again ourselves says its plan is paused, with nothing to do", async ({
   page,
+  browser,
 }) => {
   const { billId } = await billed({ plan: true, failing: "processing" });
   await signedInAs(page, casey.email);
@@ -368,6 +369,17 @@ test("a Bill whose payment we try again ourselves says its plan is paused, with 
   ).toHaveText(
     /^Your payment of \$[\d.,]+ for this bill hasn't gone through yet( \(.+\))?\. We'll try again by ourselves, so there's nothing you need to do\. Until it's paid, your cleaning plan is paused\. Cleans already booked still go ahead, but we won't book any more\.$/,
   );
+
+  // the Office's says why, true of a card as of a bank, and which plan
+  const office = await (await browser.newContext()).newPage();
+  await signedInAs(office, olive.email);
+  await office.goto(`/office/bills/${billId}`);
+  await expect(
+    office.getByText(
+      "Its payment hasn't gone through yet (it's still being processed). We'll try again by ourselves. Until it's paid, the client's cleaning plan at 41-12 Austin St, 4B, 11375 is paused.",
+      { exact: true },
+    ),
+  ).toBeVisible();
 });
 
 test("a late Bill with no cleaning plan on it says no plan is paused, to the Client or the Office", async ({

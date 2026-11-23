@@ -35,7 +35,8 @@ const known: Record<string, UnpaidKind> = {
 const whyWords = catalog({
   en: {
     [UNREACHABLE]: "we couldn't reach the payment service",
-    processing: "the bank payment is still clearing",
+    // a saved card's or bank account's: the provider doesn't say which
+    processing: "it's still being processed",
     [NOT_SETTLED]: "something went wrong on our side",
     [NO_CARD]: "no card is saved",
     [LATE]: "it wasn't paid by its due date",
@@ -47,7 +48,7 @@ const whyWords = catalog({
   },
   es: {
     [UNREACHABLE]: "no pudimos comunicarnos con el servicio de pagos",
-    processing: "el pago bancario aún se está procesando",
+    processing: "se está procesando",
     [NOT_SETTLED]: "algo salió mal de nuestra parte",
     [NO_CARD]: "no hay ninguna tarjeta guardada",
     [LATE]: "no se pagó antes de la fecha límite",

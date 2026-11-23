@@ -20,6 +20,13 @@ describe("why a payment didn't go through", () => {
     }
   });
 
+  test("one still processing says so, card or bank alike", () => {
+    expect(whyNotPaid("en", "processing")).toEqual({
+      kind: "waiting",
+      why: "it's still being processed",
+    });
+  });
+
   test("ours say what to do: wait, add a card, or pay the Bill", () => {
     expect(whyNotPaid("en", UNREACHABLE).kind).toBe("waiting");
     expect(whyNotPaid("en", "processing").kind).toBe("waiting");
