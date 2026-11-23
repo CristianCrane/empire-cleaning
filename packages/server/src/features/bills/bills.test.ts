@@ -871,7 +871,7 @@ describe("Unpaid Bills", () => {
       .send({ note: "Cheque 1042" })
       .expect(409);
     expect(refused.body.message).toBe(
-      "A card payment for this bill is still going through, so a payment can't be recorded yet. Check back in a few minutes: it'll be paid, or you can record it then.",
+      "The card payment for this bill hasn't gone through yet, so a payment can't be recorded now. Check back in a few minutes: it'll be paid, or you can record it then.",
     );
 
     testClock().advance({ minutes: 15 });
@@ -904,7 +904,7 @@ describe("Unpaid Bills", () => {
       .send({ reason: "Sent in error" })
       .expect(409);
     expect(refused.body.message).toBe(
-      "A card payment for this bill is still going through, so it can't be cancelled yet. Check back in a few minutes: it'll be paid, or you can cancel it then.",
+      "The card payment for this bill hasn't gone through yet, so it can't be cancelled now. Check back in a few minutes: it'll be paid, or you can cancel it then.",
     );
 
     // the Bill's Charge goes through, and the Clock records it

@@ -827,7 +827,7 @@ const notDue = (bill: Pick<Bill, "status">, then = "") =>
 // our card payment may still take it (chargeOpen's one rule), and if it
 // does the Bill is paid
 const goingThrough = (yet: string, then: string) =>
-  `A card payment for this bill is still going through, so ${yet}. Check back in a few minutes: it'll be paid, or you can ${then} then.`;
+  `The card payment for this bill hasn't gone through yet, so ${yet}. Check back in a few minutes: it'll be paid, or you can ${then} then.`;
 
 /**
  * Office Staff void a Bill that shouldn't have gone out, while it's unpaid:
@@ -851,7 +851,7 @@ export const voidBill = async (
     }
     if (await chargeOpen(bill.id, tx)) {
       throw new ConflictError(
-        goingThrough("it can't be cancelled yet", "cancel it"),
+        goingThrough("it can't be cancelled now", "cancel it"),
       );
     }
     await tx
@@ -908,7 +908,7 @@ export const recordOutsidePayment = async (
     }
     if (await chargeOpen(bill.id, tx)) {
       throw new ConflictError(
-        goingThrough("a payment can't be recorded yet", "record it"),
+        goingThrough("a payment can't be recorded now", "record it"),
       );
     }
     await tx
