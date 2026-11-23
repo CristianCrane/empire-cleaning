@@ -243,6 +243,38 @@ test(
   },
 );
 
+// the one rule: nothing else moves its money while our Charge may still
+// take it (#534, ADR-0022)
+test("a Bill whose card payment is still going through can't be paid another way or cancelled yet", async ({
+  page,
+}) => {
+  const { billId } = await billed({ failing: "processing" });
+  await signedInAs(page, olive.email);
+  await page.goto(`/office/bills/${billId}`);
+  const goingThrough =
+    "A card payment for this bill is still going through. Try again in a few minutes.";
+
+  await pageAction(page, "Record a payment");
+  const record = page.getByRole("dialog", { name: "Record a payment" });
+  await record
+    .getByRole("textbox", { name: "How it was paid" })
+    .fill("Cheque 1042");
+  await record.getByRole("button", { name: "Record payment" }).click();
+  await expect(record.getByText(goingThrough, { exact: true })).toBeVisible();
+  await record.getByRole("button", { name: "Cancel" }).click();
+  await expect(record).toBeHidden();
+
+  await pageAction(page, "Cancel bill");
+  const cancel = page.getByRole("alertdialog", {
+    name: "Cancel bill EC-000001?",
+  });
+  await cancel
+    .getByRole("textbox", { name: "Why it's cancelled" })
+    .fill("Sent in error");
+  await cancel.getByRole("button", { name: "Cancel bill" }).click();
+  await expect(cancel.getByText(goingThrough, { exact: true })).toBeVisible();
+});
+
 test("a Bill paid from a bank account is processing until it clears", async ({
   page,
 }) => {

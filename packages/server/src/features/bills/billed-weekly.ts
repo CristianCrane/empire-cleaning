@@ -29,17 +29,6 @@ export const billLinesOf = (jobId: string, tx: Tx | typeof db) =>
     .where(and(eq(billLines.jobId, jobId), ne(bills.status, "void")))
     .orderBy(asc(bills.number));
 
-// the Bills voided since they billed a Job, whose own Charge may still
-// have taken its money
-export const voidedBillsOf = async (jobId: string, tx: Tx | typeof db) =>
-  (
-    await tx
-      .selectDistinct({ id: bills.id })
-      .from(billLines)
-      .innerJoin(bills, eq(bills.id, billLines.billId))
-      .where(and(eq(billLines.jobId, jobId), eq(bills.status, "void")))
-  ).map((b) => b.id);
-
 // how a Client pays for their cleans: on a weekly Bill, charged or paid on
 // its page (ADR-0016), or null when each is charged when it's done
 export const weeklyBillOf = (

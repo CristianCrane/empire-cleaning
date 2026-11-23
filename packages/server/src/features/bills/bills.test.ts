@@ -851,7 +851,10 @@ describe("Unpaid Bills", () => {
     ).toHaveLength(1);
   });
 
-  test("one whose Charge reply was lost can't be paid on its page meanwhile, and paid another way gives back what the lost Charge took", async () => {
+  // #534, F10: and a cheque recorded meanwhile left the lost Charge to give
+  // back, or to make, if it never reached the provider; the one rule
+  // refuses it
+  test("one whose Charge reply was lost can't be paid on its page or by cheque meanwhile, and the Clock records what it took", async () => {
     const { office, clientId } = await billedJob();
     testPayments().loseNextReply();
     testClock().set(NEXT_MONDAY);
@@ -863,54 +866,56 @@ describe("Unpaid Bills", () => {
     await client
       .post(`/api/bills/mine/${summary!.id}/payment-form`)
       .expect(409);
-    await office
+    const refused = await office
       .post(`/api/bills/${summary!.id}/outside-payment`)
       .send({ note: "Cheque 1042" })
-      .expect(200);
+      .expect(409);
+    expect(refused.body.message).toBe(
+      "A card payment for this bill is still going through. Try again in a few minutes.",
+    );
 
     testClock().advance({ minutes: 15 });
     await settleOpenPayments();
     await settleOpenPayments();
-    expect(testPayments().refunds).toEqual([
-      expect.objectContaining({ chargeId: lost.chargeId, amount: lost.amount }),
-    ]);
+    expect(testPayments().refunds).toEqual([]);
+    // no Charge after the lost one
+    expect(testPayments().charges.at(-1)).toBe(lost);
     expect(await billOf(office, summary!.id)).toMatchObject({
       status: "paid",
-      paidVia: "outside",
+      paidVia: "charge",
     });
   });
 
-  // #534, F4: voided, its Jobs are charged per clean at once, while the
-  // Bill's own Charge can still go through
-  test("one whose Charge is still processing, voided once the Client is charged per clean, isn't taken twice", async () => {
-    const { office, clientId, jobId, priceCents } = await billedJob();
+  // #534, F4: voided, its Jobs were charged per clean at once, while the
+  // Bill's own Charge could still go through; the one rule refuses it
+  test("one whose Charge is still going through can't be cancelled until it has", async () => {
+    const { office, clientId } = await billedJob();
     testPayments().failCharges("processing");
     testClock().set(NEXT_MONDAY);
     await makeDueBills();
     testPayments().failCharges(null);
-    const [{ id }] = (await billsOf(office, clientId)) as [BillSummary];
+    const [{ id, totalCents }] = (await billsOf(office, clientId)) as [
+      BillSummary,
+    ];
     await setBilling(office, clientId, { weekly: false }).expect(200);
 
-    await office
+    const refused = await office
       .post(`/api/bills/${id}/void`)
       .send({ reason: "Sent in error" })
-      .expect(200);
-    // the Bill's Charge goes through
-    testPayments().clearCharges();
-    const taken = () =>
-      testPayments().charges.reduce((s, c) => s + c.amount, 0);
-    const given = () =>
-      testPayments().refunds.reduce((s, r) => s + r.amount, 0);
-    expect(taken() - given()).toBeLessThanOrEqual(priceCents);
+      .expect(409);
+    expect(refused.body.message).toBe(
+      "A card payment for this bill is still going through. Try again in a few minutes.",
+    );
 
-    // one run of the Clock gives the Bill's Charge back, then charges the
-    // Job for what it owes
+    // the Bill's Charge goes through, and the Clock records it
+    testPayments().clearCharges();
     testClock().advance({ minutes: 15 });
     await settleOpenPayments();
-    expect(testPayments().refunds).toHaveLength(1);
-    expect(taken() - given()).toBe(priceCents);
-    const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId));
-    expect(job!.unpaidReason).toBeNull();
+    expect(await billOf(office, id)).toMatchObject({ status: "paid" });
+    expect(
+      testPayments().charges.filter((c) => c.amount === totalCents),
+    ).toHaveLength(1);
+    expect(testPayments().refunds).toEqual([]);
   });
 
   // #534, F9: billed, the Job is settled without chargeSaved, so its lost
@@ -945,31 +950,6 @@ describe("Unpaid Bills", () => {
     const taken = testPayments().charges.reduce((s, c) => s + c.amount, 0);
     const given = testPayments().refunds.reduce((s, r) => s + r.amount, 0);
     expect(taken - given).toBe(totalCents);
-  });
-
-  // #534, F10: an attempt still pending is asked again with its request, so
-  // one that never reached the provider is made now, for a Bill already paid
-  test("one whose Charge never reached the provider, then paid another way, isn't charged later", async () => {
-    const { office, clientId } = await billedJob();
-    testPayments().goDown();
-    testClock().set(NEXT_MONDAY);
-    await makeDueBills();
-    testPayments().goDown(false);
-    const [{ id, totalCents }] = (await billsOf(office, clientId)) as [
-      BillSummary,
-    ];
-    await office
-      .post(`/api/bills/${id}/outside-payment`)
-      .send({ note: "Cheque 1042" })
-      .expect(200);
-
-    testClock().advance({ minutes: 15 });
-    await settleOpenPayments();
-    await settleOpenPayments();
-
-    expect(
-      testPayments().charges.filter((c) => c.amount === totalCents),
-    ).toEqual([]);
   });
 
   test("Office Staff can record a payment made another way, which settles it", async () => {

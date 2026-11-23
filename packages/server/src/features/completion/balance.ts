@@ -14,13 +14,11 @@ import {
   billLinesOf,
   billNumber,
   isBilledWeekly,
-  voidedBillsOf,
 } from "../bills/billed-weekly.ts";
 import type { Bill } from "../bills/bills.schema.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import {
-  chargeOpen,
   chargeSaved,
   recordTakenEarlier,
   refundedAtProvider,
@@ -305,10 +303,7 @@ const describe = async (tx: Tx, job: Job) => {
  * What an earlier try took, whose reply was lost, is recorded first, so it
  * counts whatever the Job owes now (ADR-0022): it's given back once the Job
  * owes less (#534, F1, F3), and a weekly Bill bills only the rest (F9).
- * While that isn't known yet, nothing moves. Nor is more charged while a
- * Bill voided since it billed the Job still has its own Charge out, as that
- * may yet have taken the money (F4): once the Clock has settled that Charge
- * (given back, if it took the money), it settles the Job.
+ * While that isn't known yet, nothing moves.
  *
  * A Charge is taken off-session from the Client's saved Payment Method. If
  * it can't be (declined, no card saved, the provider unreachable), the Job
@@ -353,22 +348,13 @@ export const settleJob = async (
     );
     const found = "unknown" in earlier ? [] : earlier;
     const ledger = found.length > 0 ? await ledgerOf(job!, tx) : before;
-    // it may yet take the money, so nothing more moves meanwhile; billed,
-    // nothing moves anyway, and the Clock asks after it (ADR-0022). A
-    // voided Bill's Charge out holds back only charging more (F4)
-    const waiting = billed
-      ? null
-      : "unknown" in earlier
-        ? earlier.unknown
-        : ledger.owedCents > 0 &&
-            (await chargeOpen(await voidedBillsOf(jobId, tx), tx))
-          ? "processing"
-          : null;
     const settled: Settled = {
       // what a lost reply took counts as charged now, as it's found
       chargedCents: found.reduce((sum, c) => sum + c.amountCents, 0),
       refundedCents: 0,
-      failure: waiting,
+      // it may yet take the money, so nothing more moves meanwhile; billed,
+      // nothing moves anyway, and the Clock asks after it (ADR-0022)
+      failure: "unknown" in earlier && !billed ? earlier.unknown : null,
       becameUnpaid: false,
       paymentMethod: method && cardIn(method),
       plan: null,
