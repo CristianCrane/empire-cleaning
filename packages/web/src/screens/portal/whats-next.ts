@@ -32,9 +32,9 @@ import {
 import type { HomeTile } from "@empire-cleaning/ui";
 import { linkTo, sameHref } from "../../links.ts";
 import { QuoteIcon, SiteVisitIcon } from "../icons.ts";
-import { addressOf, formatHours, formatMinutes } from "../format.ts";
+import { addressOf, formatMinutes, howLong } from "../format.ts";
 import { saidWith } from "../words.ts";
-import type { Hero } from "./HeroCard.tsx";
+import type { Hero, Why } from "./HeroCard.tsx";
 import { moneyNow, owedAnswer, yourCardTile } from "./payments.ts";
 
 // Home's words, in the Client's language (ADR-0025)
@@ -46,8 +46,6 @@ const words = catalog({
     toAnswer: (n: number) =>
       n === 1 ? "A price change to answer" : `${n} price changes to answer`,
     more: (amount: string) => `${amount} more`,
-    reviewThe: (n: number) =>
-      n === 1 ? "Review the price change" : "Review the price changes",
     // and why, above it: what happened on which clean
     neededMore: (more: string, day: string) =>
       `The crew needed ${more} on your ${day} clean.`,
@@ -59,7 +57,6 @@ const words = catalog({
     // the tile, while what's owed is the card
     answerByHint: (amount: string, day: string) =>
       `${amount}, answer by ${day}`,
-    checkGetIn: "Check how we get in",
     // only on that day, so its time and "today", where the clean's page
     // (PortalJob's teamCame) says the day, as it keeps it after
     cameToday: (time: string, reason: string) =>
@@ -74,14 +71,11 @@ const words = catalog({
     nextClean: "Your next clean",
     serviceAt: (service: string, address: string) => `${service} at ${address}`,
     partOfPlan: (often: string) => `Part of your cleaning plan, ${often}`,
-    crewOnSite: (cleaners: string, hours: string) =>
-      `${cleaners}, about ${hours} on site`,
     siteVisit: "Your site visit",
     comesToSee: (visitor: string, address: string, length: string) =>
       `${visitor} comes to see ${address} for about ${length}`,
     visitFree: (phone: string) =>
       `Free: we look before we quote. To change the time, call ${phone}.`,
-    planPaused: "Your cleaning plan is paused.",
     weTryAgain:
       "A payment on it hasn't gone through yet. We'll try again by ourselves, so there's nothing you need to do.",
     untilPaid:
@@ -128,8 +122,6 @@ const words = catalog({
         ? "Un cambio de precio por responder"
         : `${n} cambios de precio por responder`,
     more: (amount: string) => `${amount} más`,
-    reviewThe: (n: number) =>
-      n === 1 ? "Revisar el cambio de precio" : "Revisar los cambios de precio",
     neededMore: (more: string, day: string) =>
       `El equipo necesitó ${more} en su limpieza del ${day}.`,
     alsoDid: (addOn: string, day: string) =>
@@ -139,7 +131,6 @@ const words = catalog({
     answerFirstBy: (day: string) => `Responda al primero antes del ${day}.`,
     answerByHint: (amount: string, day: string) =>
       `${amount}, responda antes del ${day}`,
-    checkGetIn: "Revisar cómo entramos",
     cameToday: (time: string, reason: string) =>
       `El equipo llegó hoy a ${theTimeEs(time)}, pero no pudo entrar: "${reason}".`,
     andMore: (first: string, more: number) => `${first} · ${more} más`,
@@ -153,14 +144,11 @@ const words = catalog({
     nextClean: "Su próxima limpieza",
     serviceAt: (service: string, address: string) => `${service} en ${address}`,
     partOfPlan: (often: string) => `Parte de su plan de limpieza, ${often}`,
-    crewOnSite: (cleaners: string, hours: string) =>
-      `${cleaners}, cerca de ${hours} en el lugar`,
     siteVisit: "Su visita previa",
     comesToSee: (visitor: string, address: string, length: string) =>
       `${visitor} va a ver ${address} durante cerca de ${length}`,
     visitFree: (phone: string) =>
       `Gratis: vemos el lugar antes de cotizar. Para cambiar la hora, llame al ${phone}.`,
-    planPaused: "Su plan de limpieza está en pausa.",
     weTryAgain:
       "Un pago del plan aún no ha pasado. Lo volveremos a intentar por nuestra cuenta, así que no tiene que hacer nada.",
     untilPaid:
@@ -222,15 +210,6 @@ export type HomeData = {
   siteVisits: ClientSiteVisit[];
   bills: BillSummary[];
   paymentMethod: PaymentMethodView | null;
-};
-
-// why the card says what it does, when it needs a reason (money late, a
-// price change, a crew who couldn't get in, a plan paused): its first
-// sentence bold, as a page's alerts read
-type Why = {
-  tone: "info" | "warning" | "danger";
-  lead: string;
-  more?: string;
 };
 
 export type WhatsNext = {
@@ -324,18 +303,12 @@ export function whatsNext(
   // answer; how we get in, the morning we couldn't
   const lead = ((): Answer | undefined => {
     if (money.owed?.asks) {
-      const owed = owedAnswer(money.owed, lang);
+      const { hero: owed, why } = owedAnswer(money.owed, lang);
       const pausedLine = paused
         ? // booked cleans go ahead; none is booked till it is paid
           [next ? t.BOOKED_GO_AHEAD : w.carriesOn]
         : [];
-      // one that's late says why above the card; one simply due, its line
-      return money.owed.late
-        ? {
-            hero: { ...owed, lines: pausedLine },
-            why: { tone: "danger", lead: `${money.owed.text}.` },
-          }
-        : { hero: { ...owed, lines: [...owed.lines, ...pausedLine] } };
+      return { hero: { ...owed, lines: [...owed.lines, ...pausedLine] }, why };
     }
     if (changes.length > 0) {
       const [{ job, change }] = changes as [(typeof changes)[number]];
@@ -348,7 +321,7 @@ export function whatsNext(
           headline: w.more(t.formatMoney(changedCents)),
           lines: [],
           action: {
-            label: w.reviewThe(changes.length),
+            label: t.p.reviewThe(changes.length),
             href: reviewHref,
           },
         },
@@ -383,7 +356,7 @@ export function whatsNext(
           tone: "warning",
           headline: home.accessInstructions || t.notAdded,
           lines: [],
-          action: { label: w.checkGetIn, href: homeLink(home.id) },
+          action: { label: t.p.checkGetIn, href: homeLink(home.id) },
         },
         why: {
           tone: "warning",
@@ -536,7 +509,8 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Answer {
         lines: [
           w.serviceAt(job.serviceName, addressOf(job.property)),
           ...(plan ? [w.partOfPlan(t.recurrence[plan.recurrence])] : []),
-          w.crewOnSite(t.cleaners(job.crewSize), formatHours(job.hoursOnSite)),
+          // how long, as the clean's page says it (#493's body)
+          howLong(t, job.hoursOnSite),
         ],
         action: { label: t.p.seeTheClean, href: jobLink(job.id) },
       },
@@ -576,7 +550,7 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Answer {
         lines: [w.untilPaid],
         action: { label: t.p.seeYourPlan, href: planLink(paused.id) },
       },
-      why: { tone: "info", lead: w.planPaused, more: w.weTryAgain },
+      why: { tone: "info", lead: t.p.planPaused, more: w.weTryAgain },
     };
   }
 

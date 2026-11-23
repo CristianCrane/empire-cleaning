@@ -1652,6 +1652,15 @@ export type JobPayment = {
   paidCents: number;
   // what weekly Bills have billed for it (ADR-0016), which they now owe
   billedCents: number;
+  // those Bills, oldest first, each with what it billed for it and what
+  // its Charges gave back for it
+  bills: (Pick<
+    BillSummary,
+    "id" | "number" | "status" | "unpaid" | "totalCents"
+  > & {
+    cents: number;
+    refundedCents: number;
+  })[];
   // still to take (positive) or to give back (negative)
   owedCents: number;
   // the Client's saved Payment Method, e.g. "Visa ending 4242"
@@ -1922,11 +1931,22 @@ export type ServicePlanView = Omit<ServicePlanSummary, "days"> & {
   depositCents: number;
   // the Service Plan Quote it was accepted from
   quoteId: string;
-  // its Jobs that are Unpaid, which keep it On Hold, soonest first
-  unpaid: { jobId: string; startsAt: string; owedCents: number }[];
+  // its Jobs that are Unpaid, which keep it On Hold, soonest first, each
+  // with what puts it right
+  unpaid: {
+    jobId: string;
+    startsAt: string;
+    owedCents: number;
+    kind: UnpaidKind;
+  }[];
   // and its Unpaid Bills: those with any of its Jobs on them, which keep it
   // On Hold too (ADR-0016), oldest first
-  unpaidBills: { billId: string; number: string; totalCents: number }[];
+  unpaidBills: {
+    billId: string;
+    number: string;
+    totalCents: number;
+    kind: UnpaidKind;
+  }[];
   // how its Client pays the weekly Bill its cleans go on (ADR-0016), or null
   // while each clean is charged when it's done
   weeklyBill: BillPayment | null;

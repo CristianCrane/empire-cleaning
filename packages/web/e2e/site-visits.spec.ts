@@ -18,6 +18,7 @@ import {
   expectNoPageAction,
   expectNextStep,
   expectNothingNext,
+  titleBadge,
 } from "./harness.ts";
 
 // The API's clock starts at 4am on Monday 5 January 2026 in New York.
@@ -157,9 +158,7 @@ test("a Site Visit that has been is badged To record, on its page and its home's
   await expect(page.getByRole("region", { name: "What it found" })).toHaveCount(
     0,
   );
-  await expect(
-    page.getByRole("heading", { level: 1 }).locator("xpath=.."),
-  ).toHaveText(/To record$/);
+  await expect(titleBadge(page, "To record")).toBeVisible();
   // in the section its crumbs start from, as a home's other pages are
   await expectCurrentSection(page, "Clients");
   // its home's row says it too, not "findings to record" beside Booked

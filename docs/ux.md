@@ -316,8 +316,9 @@ The `ui` skill's rules hold here too; these are this product's.
   (a Client's clean: Needs your OK, Move asked; a Site Visit that has
   been: To record), in the words its rows use (#493 G3.1; the 11-20
   audit's Site visit 1; #507); a subtitle only when it says what
-  nothing else on the page does (a Bill's week), never the title, a crumb
-  or the Client again (each fact once: the `ui` skill); and the page's
+  nothing else on the page does (a Client's Quote, open until when), never
+  the title, a crumb, a fact below (a Bill's week, #493 PR 13) or the Client
+  again (each fact once: the `ui` skill); and the page's
   actions at the end of the title row, on the title's line: one split
   button, the page's next step its primary and the rest behind its arrow
   ("More actions": a menu under it from md, a sheet from a phone's foot),

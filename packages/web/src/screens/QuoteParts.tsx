@@ -117,8 +117,8 @@ export function AskedRows({
 }
 
 // an option's hours, in a dl: its cleaning hours, and how long its crew is
-// there
-function HoursRows({
+// there; the Office's, as the Client reads one how long on the Quote's facts
+export function HoursRows({
   option,
   crewSize,
 }: {
@@ -245,13 +245,10 @@ export function PlanDayCard({
   option,
   day,
   discountPercent,
-  children,
 }: {
   option: QuoteOption;
   day: PlanDayTerms;
   discountPercent: number;
-  // anything more, e.g. the Office's override
-  children?: ReactNode;
 }) {
   return (
     <Card
@@ -264,7 +261,6 @@ export function PlanDayCard({
         day={day}
         discountPercent={discountPercent}
       />
-      {children}
     </Card>
   );
 }
@@ -299,10 +295,13 @@ export function PlanFigures({
   option,
   day,
   discountPercent,
+  children,
 }: {
   option: QuoteOption;
   day: PlanDayTerms;
   discountPercent: number;
+  // more rows for its list, e.g. the Office's hours
+  children?: ReactNode;
 }) {
   return (
     <>
@@ -311,21 +310,25 @@ export function PlanFigures({
         taxCents={option.taxCents}
         perClean
       />
-      <PlanRows option={option} day={day} discountPercent={discountPercent} />
+      <PlanRows option={option} day={day} discountPercent={discountPercent}>
+        {children}
+      </PlanRows>
     </>
   );
 }
 
-// a plan clean against the same clean as a one-off Job, and its hours,
-// under its price
+// a plan clean against the same clean as a one-off Job, under its price
 export function PlanRows({
   option,
   day,
   discountPercent,
+  children,
 }: {
   option: QuoteOption;
   day: PlanDayTerms;
   discountPercent: number;
+  // more rows for its list, e.g. the Office's hours
+  children?: ReactNode;
 }) {
   const { w, formatMoney } = useWords();
   return (
@@ -347,7 +350,7 @@ export function PlanRows({
         <dd className="text-right font-semibold tabular-nums">
           {formatMoney(option.totalCents)}
         </dd>
-        <HoursRows option={option} crewSize={day.crewSize} />
+        {children}
       </dl>
     </>
   );

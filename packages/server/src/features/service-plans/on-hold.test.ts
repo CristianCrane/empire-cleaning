@@ -57,6 +57,8 @@ describe("a plan Job left Unpaid", () => {
         jobId,
         startsAt: "2026-01-19T14:00:00.000Z",
         owedCents: PLAN_DEPOSIT,
+        // a new card puts it right
+        kind: "declined",
       },
     ]);
     expect(await needsAttention(office)).toContainEqual(
@@ -154,10 +156,14 @@ describe("a plan Job left Unpaid", () => {
   });
 
   test("held while the provider was down, then declined, says so in the late notice", async () => {
-    const { cleanerId, jobId } = await crewedServicePlan();
+    const { client, planId, cleanerId, jobId } = await crewedServicePlan();
     testClock().set(new Date("2026-01-19T16:00:00Z"));
     testPayments().goDown();
     await completeJob(cleanerId, jobId, { condition: "moderate", reports: [] });
+    // held, on a payment we try again ourselves: nothing for the Client to do
+    expect((await clientPlan(client, planId)).unpaid).toEqual([
+      expect.objectContaining({ jobId, kind: "waiting" }),
+    ]);
     testPayments().goDown(false);
     testPayments().failCharges();
 

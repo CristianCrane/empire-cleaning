@@ -1,4 +1,9 @@
-import type { ClientUpcomingJob, JobStatus } from "@empire-cleaning/models";
+import {
+  asksTheClient,
+  type ClientUpcomingJob,
+  type JobStatus,
+  type UnpaidKind,
+} from "@empire-cleaning/models";
 import { StatusBadge } from "@empire-cleaning/ui";
 import { JobStatusBadge } from "../JobBadges.tsx";
 import type { Said } from "../words.ts";
@@ -6,8 +11,8 @@ import type { Said } from "../words.ts";
 // where a Client's clean stands, as their screens badge it
 export type CleanState = {
   status: JobStatus;
-  // a charge or fee for it that didn't go through
-  unpaid: boolean;
+  // a charge or fee for it that didn't go through, of what kind
+  unpaid: UnpaidKind | null;
   // a price change the Office proposed, waiting on their OK
   priceChange: boolean;
   // a plan clean they cancelled, which the plan carries on past
@@ -17,18 +22,23 @@ export type CleanState = {
 };
 
 // A clean's badge: where two states hold, the one waiting on the Client
-// first (unpaid, then a price change to OK), and the same word on each of
+// first (unpaid, then a price change to OK), then what happened, a payment
+// we try again ourselves after those, as it waits on us ("Not paid yet",
+// a Bill's word for it too), and the same word on each of
 // their screens, the Cleans list and the clean's page (the `ui` skill, a
 // screen says only what's true for this reader now). A list row leaves the
 // plain states, booked and done, unbadged; the clean's page shows them
 // (`plain`), and a row with none has none, so a list's Status shows only
 // while a row has one.
 export function cleanBadge(t: Said, clean: CleanState, plain = false) {
-  if (clean.unpaid) return <StatusBadge tone="danger">{t.unpaid}</StatusBadge>;
+  if (clean.unpaid && asksTheClient(clean.unpaid))
+    return <StatusBadge tone="danger">{t.unpaid}</StatusBadge>;
   if (clean.priceChange)
     return <StatusBadge tone="warning">{t.p.needsOk}</StatusBadge>;
   if (clean.status === "no_access")
     return <JobStatusBadge status="no_access" />;
+  if (clean.unpaid)
+    return <StatusBadge tone="info">{t.notPaidYet}</StatusBadge>;
   if (clean.status === "cancelled")
     return <StatusBadge>{t.cancelledLabel(clean.skipped)}</StatusBadge>;
   if (clean.moveAsked)
@@ -49,7 +59,7 @@ export const upcomingBadge = (
 ) =>
   cleanBadge(t, {
     status: "booked",
-    unpaid: false,
+    unpaid: null,
     priceChange: false,
     skipped: false,
     moveAsked: job.movingTo !== null,

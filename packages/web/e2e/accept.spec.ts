@@ -253,29 +253,13 @@ test("Office Staff record acceptance of the offer while drafting a new Revision,
   ).toHaveText(["Deep Clean"]);
 });
 
-test("a Quote whose day has filled up can't be paid for, and the Office is asked for another time", async ({
+// the Client's side, nothing to pay for: portal-quote.spec.ts
+test("a Quote whose day has filled up asks the Office for another time", async ({
   page,
-  browser,
 }) => {
   await quoteSent(page, olive, casey);
   // another booking takes all of Monday's 16 hours, from 2pm
   await bookJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 16 });
-
-  const client = await (await browser.newContext()).newPage();
-  await signedInAs(client, casey.email);
-  await client.goto(
-    await linkIn(casey.email, "Your quote from Empire Cleaning"),
-  );
-  await expect(
-    client.getByText(
-      "Sorry, Mon, Jan 12, 9:00 AM has been fully booked since we sent this Quote",
-    ),
-  ).toBeVisible();
-  // nothing to pay for, but they can still say no
-  await expect(payAndBook(client).form).toHaveCount(0);
-  await expect(
-    client.getByRole("button", { name: "Decline this quote" }),
-  ).toBeVisible();
 
   await page.goto("/office");
   const needs = await openTile(page, "Quotes");

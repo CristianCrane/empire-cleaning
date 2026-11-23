@@ -162,11 +162,52 @@ export const completeJob = (
 
 // every price change reported on the Job proposed to its Client, at its
 // worked-out price, by the Office Staff member with `officeEmail`
-export const proposeReported = (jobId: string, officeEmail: string) =>
+const proposeReported = (jobId: string, officeEmail: string) =>
   control(`/jobs/${jobId}/propose`, {
     method: "POST",
     body: JSON.stringify({ officeEmail }),
   });
+
+// Casey's Deep Clean at 9am on Monday 12 January (acceptedJob), Quoted by
+// `office`, added as Office Staff and signed up here, with Cory, a Cleaner
+// added for it, Confirmed on it
+export const bookedClean = async (office: { email: string; name: string }) => {
+  await createStaff({ ...office, roles: ["office_staff"] });
+  await signUp(office.email);
+  const cory = await addCleaner("Cory Cleaner");
+  const job = await acceptedJob({
+    startsAt: "2026-01-12T14:00:00Z",
+    officeEmail: office.email,
+  });
+  await offerJob(job.id, cory.id, { confirmed: true });
+  return { job, cory };
+};
+
+// that clean done at 11am, the clock left there, with each of `hours` more
+// than Quoted reported (an hour, unless said), each proposed to Casey by
+// `office`. With `failing`, its Balance is declined, and Charges keep
+// failing until failCharges(null)
+export const priceChangeWaiting = async (
+  office: { email: string; name: string },
+  {
+    hours = [1],
+    failing = false,
+  }: { hours?: number[]; failing?: boolean } = {},
+) => {
+  const { job, cory } = await bookedClean(office);
+  await setClock("2026-01-12T16:00:00Z");
+  if (failing) await failCharges();
+  await completeJob(job.id, cory.id, {
+    condition: "moderate",
+    reports: hours.map((h) => ({
+      kind: "extra_time" as const,
+      hours: h,
+      reason: "Heavy grease",
+    })),
+  });
+  await proposeReported(job.id, office.email);
+  return job;
+};
 
 // No Access recorded by a Cleaner Confirmed on the Job
 export const recordNoAccess = (
@@ -226,7 +267,8 @@ export const billedWeek = (week: {
   payment?: "automatic" | "on_page";
   billingEmail?: string;
   plan?: boolean;
-  failing?: boolean;
+  // true, or the decline's reason ("processing": one we try again)
+  failing?: boolean | string;
   unbilled?: boolean;
 }) =>
   control("/bills/billed-week", {
@@ -531,18 +573,36 @@ const pageButton = (page: Page, name: string) => {
 export const pageAction = async (page: Page, name: string) => {
   const more = moreActions(page);
   const button = pageButton(page, name);
-  // whichever the page shows, once it's the page wanted
-  await expect(more.or(button).first()).toBeVisible();
-  if ((await button.count()) > 0) {
-    await button.click();
-    return;
-  }
-  await more.click();
-  await page.getByRole("menuitem", { name, exact: true }).click();
+  const menu = page.getByRole("menu");
+  const item = page.getByRole("menuitem", { name, exact: true });
+  // whichever the page shows, once it's the page wanted: straight after a
+  // navigation the page before can still be on screen, its More actions
+  // without the item, so a menu without it is closed and the page looked
+  // at again (#493 PR 14, docs/testing-log.md)
+  await expect(async () => {
+    await expect(more.or(button).first()).toBeVisible({ timeout: 1000 });
+    if ((await button.count()) > 0) return;
+    if ((await menu.count()) === 0) await more.click({ timeout: 1000 });
+    try {
+      await expect(item).toBeVisible({ timeout: 1000 });
+    } catch (error) {
+      await page.keyboard.press("Escape");
+      throw error;
+    }
+  }).toPass({ timeout: 10_000 });
+  if ((await item.count()) > 0) await item.click();
+  else await button.click();
   // gone, the menu's popover or the phone's sheet too, so the dialog it
   // opens is the only one
-  await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(menu).toHaveCount(0);
 };
+
+// a page's status badge, beside its title (docs/ux.md, Page structure)
+export const titleBadge = (page: Page, word: string) =>
+  page
+    .getByRole("heading", { level: 1 })
+    .locator("..")
+    .getByText(word, { exact: true });
 
 // a page's next step, its primary, in what names it "What to do": its
 // header's split button from md, a phone's foot (docs/ux.md, Page
@@ -600,9 +660,11 @@ export const payAndBook = (
   };
 };
 
-// a Bill's form to pay it on its page, and its button
-export const payThisBill = (page: Page) => {
-  const form = page.getByRole("region", { name: "Pay this bill" });
+// a Bill's form to pay it on its page, in the dialog its Pay this bill
+// opens (the page's next step, or behind More actions), and its button
+export const payThisBill = async (page: Page) => {
+  await pageAction(page, "Pay this bill");
+  const form = page.getByRole("dialog", { name: "Pay this bill" });
   return { form, pay: form.getByRole("button", { name: /^Pay \$/ }) };
 };
 
@@ -1001,6 +1063,18 @@ export const quoteSent = async (
   await proposeNextMonday(page);
   await page.getByRole("button", { name: `Send to ${client.name}` }).click();
   await expect(page.getByText(`Quote sent to ${client.email}`)).toBeVisible();
+};
+
+// from a Quote asked for, open in the Office: turned down as outside the
+// area we clean, and the page left on it
+export const turnDownQuote = async (page: Page) => {
+  await pageAction(page, "Turn down");
+  const dialog = page.getByRole("alertdialog", {
+    name: "Turn down this quote?",
+  });
+  await dialog.getByText("Outside the area we clean").click();
+  await dialog.getByRole("button", { name: "Turn down" }).click();
+  await expect(page.getByText("Quote turned down")).toBeVisible();
 };
 
 // from a business's Quote whose premises haven't been seen: records the

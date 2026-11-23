@@ -54,6 +54,10 @@ export const payments = catalog({
       why: string | null = null,
     ) =>
       `We couldn't take ${amount}${card ? ` from your ${card}` : ""}${why ? ` (${why})` : ""}.`,
+    // a payment we try again ourselves, still on its way, as the Client is
+    // told: `amount` as notTaken's. No why: it asks nothing of them
+    notThrough: (amount: string) =>
+      `Your payment of ${amount} hasn't gone through yet.`,
     // a clean's payment that didn't go through, as its Client is told, for
     // a sentence to end: `day` already formatted
     cleanNotPaid: (day: string) =>
@@ -107,6 +111,7 @@ export const payments = catalog({
       why: string | null = null,
     ) =>
       `No pudimos cobrar ${amount}${card ? ` de su ${card}` : ""}${why ? ` (${why})` : ""}.`,
+    notThrough: (amount: string) => `Su pago de ${amount} aún no ha pasado.`,
     cleanNotPaid: (day: string) =>
       `No pudimos cobrar el pago de su limpieza del ${day}`,
     UPDATE_AND_RETRY: UPDATE_AND_RETRY_ES,
@@ -136,6 +141,11 @@ export const payments = catalog({
         : `${a.addOnName}, ${a.kind === "add_on_done" ? "se hizo ese día" : "no se hizo"}`,
   },
 });
+
+// whether a payment that didn't go through asks anything of the Client:
+// not one we try again ourselves (ADR-0022), which waits on us. On the
+// server and every screen that offers a way to put it right
+export const asksTheClient = (kind: UnpaidKind) => kind !== "waiting";
 
 // what happens next, once a payment didn't go through, as the Office reads
 // it, in English (ADR-0025)

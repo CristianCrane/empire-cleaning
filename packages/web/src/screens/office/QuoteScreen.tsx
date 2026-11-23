@@ -108,6 +108,7 @@ import {
 import {
   AddOnList,
   DraftChangesBadge,
+  HoursRows,
   OptionFigures,
   OptionRows,
   PlanFigures,
@@ -836,7 +837,9 @@ function Offer({ quote }: { quote: ShownQuote }) {
                     option={option}
                     day={day}
                     discountPercent={plan!.discountPercent}
-                  />
+                  >
+                    <HoursRows option={option} crewSize={day.crewSize} />
+                  </PlanFigures>
                 ) : (
                   <OptionFigures
                     option={option}
@@ -937,7 +940,9 @@ function DraftPrices({
                     option={option}
                     day={day}
                     discountPercent={plan.discountPercent}
-                  />
+                  >
+                    <HoursRows option={option} crewSize={day.crewSize} />
+                  </PlanRows>
                   {plan.discountPercent > 0 && (
                     <p className="text-sm text-fg-muted">
                       The plan discount comes off the one-off price, whoever set

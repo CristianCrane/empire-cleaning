@@ -117,16 +117,16 @@ test(
       "Every week, on Mondays at 9:00 AM and Wednesdays at 1:00 PM",
     );
     await expect(quote).toContainText("One clean a day.");
-    await expect(
-      client.getByRole("region", {
-        name: "Mondays at 9:00 AM: Standard Clean",
-      }),
-    ).toBeVisible();
-    await expect(
-      client.getByRole("region", {
-        name: "Wednesdays at 1:00 PM: Standard Clean",
-      }),
-    ).toBeVisible();
+    // how long each weekday's crew is there, in the facts as a clean says
+    // it: not the Office's cleaning hours and crew, on each weekday's card
+    await expect(quote).toContainText("About 2 h + 3¾ hHow long");
+    for (const name of [
+      "Mondays at 9:00 AM: Standard Clean",
+      "Wednesdays at 1:00 PM: Standard Clean",
+    ])
+      await expect(client.getByRole("region", { name })).not.toContainText(
+        /On site|Cleaning hours|cleaner/,
+      );
     await expect(
       client.getByRole("region", { name: "Quote details" }),
     ).toContainText(`Deposit (25% of a clean on each day)`);

@@ -41,7 +41,7 @@ import { emailOffer } from "../assignments/assignments.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { billLines, bills } from "../bills/bills.schema.ts";
-import { billNumber } from "../bills/bills.ts";
+import { billNumber } from "../bills/billed-weekly.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { paymentOf } from "../completion/balance.ts";
 import {
@@ -54,6 +54,7 @@ import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { freeFor, jobViews, roomFor } from "../jobs/schedule.ts";
 import { passed } from "../jobs/rules.ts";
 import { charges } from "../payments/payments.schema.ts";
+import { unpaidKind } from "../payments/unpaid.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
 import { optionsIn } from "../quotes/quote-state.ts";
@@ -709,7 +710,8 @@ const findPlan = async (where: ReturnType<typeof and>) => {
   return found;
 };
 
-// its Jobs that are Unpaid, soonest first, with what each owes
+// its Jobs that are Unpaid, soonest first, with what each owes and what
+// puts it right (UnpaidKind)
 const unpaidOf = async (planId: string) => {
   const rows = await db
     .select()
@@ -721,12 +723,13 @@ const unpaidOf = async (planId: string) => {
       jobId: job.id,
       startsAt: job.startsAt.toISOString(),
       owedCents: (await paymentOf(job)).owedCents,
+      kind: unpaidKind(job.unpaidReason ?? ""),
     })),
   );
 };
 
 // the Unpaid Bills with any of its Jobs on them (ADR-0016), oldest Unpaid
-// first, with when each became Unpaid
+// first, with when each became Unpaid and what puts it right
 const unpaidBillsOf = async (planId: string) =>
   (
     await db
@@ -735,6 +738,7 @@ const unpaidBillsOf = async (planId: string) =>
         number: bills.number,
         totalCents: bills.totalCents,
         since: bills.unpaidSince,
+        reason: bills.unpaidReason,
       })
       .from(bills)
       .innerJoin(billLines, eq(billLines.billId, bills.id))
@@ -742,10 +746,11 @@ const unpaidBillsOf = async (planId: string) =>
         and(planJobs(planId, billLines.jobId), isNotNull(bills.unpaidSince)),
       )
       .orderBy(asc(bills.unpaidSince))
-  ).map(({ number, since, ...bill }) => ({
+  ).map(({ number, since, reason, ...bill }) => ({
     ...bill,
     number: billNumber(number),
     since: since!.toISOString(),
+    kind: unpaidKind(reason ?? ""),
   }));
 
 // a plan's terms and price, from the Quote it was accepted from

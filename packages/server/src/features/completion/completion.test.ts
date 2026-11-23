@@ -272,6 +272,8 @@ describe("completing a Job", () => {
       `http://localhost:5173/portal/jobs/${jobId}`,
     );
     expect(receipt.text).toMatch(/We've charged \$[\d,.]+ to your Test card/);
+    // nothing changed the price: the total alone
+    expect(receipt.text).not.toContain("Quoted price");
 
     // the Schedule shows it done
     const [monday] = (
@@ -319,6 +321,7 @@ describe("Adjustments", () => {
     expect(deep.addOns).toEqual([
       expect.objectContaining({ totalCents: QUOTED_OVEN }),
     ]);
+    expect(testEmail().lastTo(casey.email).text).toContain("Quoted price");
     expect(testEmail().lastTo(casey.email).text).toContain(
       "Inside the oven, not done: -$30.49",
     );
