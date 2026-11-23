@@ -88,8 +88,6 @@ const { formatDateTime } = formats.en;
 
 const booked = (job: OfficeJob) => job.status === "booked";
 
-// a Job that won't happen: cancelled, or the crew couldn't get in
-
 /**
  * A Job for the Office, a Record (docs/ux.md), as settled on #493: titled
  * its Service, under the crumb of its day; one badge, from Jen's side; its
@@ -275,7 +273,7 @@ function useActionsOf(job: OfficeJob): {
 // only what the badge can't say: to when a move is asked and what it
 // costs; why a payment failed and what puts it right; that no cleaner is
 // free to take it; why a plan is the next step (the client asked for
-// regular visits, and this was their first clean), while it is.
+// regular visits, and this was the home's first clean), while it is.
 // The step each calls for is the page's primary
 const alertsFor = (job: OfficeJob, next?: PageAction): Alert[] => {
   const alerts: Alert[] = [];
@@ -339,7 +337,7 @@ const alertsFor = (job: OfficeJob, next?: PageAction): Alert[] => {
       children: (
         <p>
           <strong>{firstNameOf(job.client.name)} wants regular visits.</strong>{" "}
-          This was their first clean, and this home has no cleaning plan.
+          This was the first clean here, and this home has no cleaning plan.
         </p>
       ),
     });
