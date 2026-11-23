@@ -20,7 +20,8 @@ import {
 } from "./harness.ts";
 
 // The Office's Job at each moment Jen opens it (#493): a test each, ending
-// on the page as she'd open it. The API's clock is at 4am on Monday 5
+// on the page as she'd open it; and, last, the Cleaner's done Job, whose
+// ended crew follows the same rule. The API's clock is at 4am on Monday 5
 // January 2026 in New York; Casey's Deep Clean is at 9am on Monday the 12th.
 const MONDAY_9AM = "2026-01-12T14:00:00Z";
 const MONDAY_10AM = "2026-01-12T15:00:00Z";
