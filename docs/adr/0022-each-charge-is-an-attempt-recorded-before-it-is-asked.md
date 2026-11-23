@@ -22,6 +22,7 @@ We chose this over a key that's only stable across retries, which the provider f
 - Every idempotency key is built in one place (`features/payments/keys.ts`), each kind of payment with its own shape, so no two share a key.
 - A Deposit an earlier try took is the Deposit if it was for as much and the card it saved, if any, is known. Otherwise it's given back, and a new one taken.
 - A payment still processing (no card does this off-session, but the provider allows it) isn't a decline: its attempt waits, and the next try asks how it ended.
+- A Bill voided while its Charge is still out leaves its Jobs, once each is charged on its own, waiting on that Charge: Unpaid as while the provider can't be reached, and charged once the Clock, which settles Bills before Jobs, has given that Charge back (#534).
 - Refunds are attempts the same way (`refund_attempts`): a refund the provider made but no Refund records is recorded by the next try for the same Job, Bill or credit, never given again. Neither table holds references, as each is written outside the transaction that holds what it's for.
 - When Stripe may have done something after all (the connection failed, Stripe erred, or the same key's request is still in progress), the adapter throws rather than calling it a refusal, so the attempt waits to be asked about.
 - Once a Job settles after a change to it, settling never undoes the change. If it throws, the error is reported and the Job is Unpaid until a retry settles it. One Bill that fails in the weekly run stops no other.

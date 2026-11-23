@@ -880,6 +880,29 @@ describe("Unpaid Bills", () => {
     });
   });
 
+  // #534, F4: voided, its Jobs are charged per clean at once, while the
+  // Bill's own Charge can still go through
+  test("one whose Charge is still processing, voided once the Client is charged per clean, isn't taken twice", async () => {
+    const { office, clientId, priceCents } = await billedJob();
+    testPayments().failCharges("processing");
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    testPayments().failCharges(null);
+    const [{ id }] = (await billsOf(office, clientId)) as [BillSummary];
+    await setBilling(office, clientId, { weekly: false }).expect(200);
+
+    await office
+      .post(`/api/bills/${id}/void`)
+      .send({ reason: "Sent in error" })
+      .expect(200);
+    // the Bill's Charge goes through
+    testPayments().clearCharges();
+
+    const taken = testPayments().charges.reduce((s, c) => s + c.amount, 0);
+    const given = testPayments().refunds.reduce((s, r) => s + r.amount, 0);
+    expect(taken - given).toBeLessThanOrEqual(priceCents);
+  });
+
   // #534, F9: billed, the Job is settled without chargeSaved, so its lost
   // Balance is never found, and the Bill takes the Balance again for good
   test("a Job whose Balance reply was lost, then billed weekly, isn't charged again on the Bill", async () => {

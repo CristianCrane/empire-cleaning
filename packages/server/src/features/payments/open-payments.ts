@@ -67,12 +67,14 @@ export const settleOpenPayments = async () => {
       }
     }
   };
-  await each("Job", [...open.jobs, ...unpaidJobs.map((j) => j.id)], retryJob);
+  // Bills first: a Job charged per clean once its Bill was voided waits on
+  // that Bill's own Charge, given back here, so it's charged in the same run
   await each(
     "Bill",
     [...open.bills, ...unpaidBills.map((b) => b.id)],
     retryBill,
   );
+  await each("Job", [...open.jobs, ...unpaidJobs.map((j) => j.id)], retryJob);
   await each("Quote", open.quotes, (quoteId) =>
     db.transaction(async (tx) => {
       // as accepting it does, so the two never both have its Deposit
