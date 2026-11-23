@@ -1335,7 +1335,7 @@ function BarAtTheFoot() {
       </div>
       <ActionFooter
         aria-label="What to do"
-        summary="Deep Clean $385.00 · Standard Clean $210.00"
+        summary="Standard Clean $210.00"
         status="Saved"
       >
         <Button>

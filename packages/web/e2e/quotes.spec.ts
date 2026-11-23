@@ -92,7 +92,7 @@ test(
     ).toBeVisible();
     await expect(
       page.getByRole("region", { name: "Deep Clean" }),
-    ).toContainText("Recommended for a first visit");
+    ).toContainText("Shown to the client as recommended");
     // its price set in the Service part, behind its fold, the price itself
     // beside it
     const deep = await deepCleanOverride(page);
@@ -182,7 +182,7 @@ test("a Quote can't be sent without a proposed time", async ({ page }) => {
 // price is the one asked for, named; the Deep Clean recommended for a first
 // visit is an aside, in neither (the user's word on #527's U1)
 test(
-  "a Draft's Send is its next step, its prices kept in view as it scrolls",
+  "a Draft's Send is its next step, its price kept in view as it scrolls",
   { tag: "@desktop" },
   async ({ page, isMobile }) => {
     await requestQuoteAsGuest(casey);

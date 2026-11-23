@@ -1041,9 +1041,9 @@ function AlsoOffered({
         label={`Also offered: ${option.serviceName} ${formatMoney(option.totalCents)}`}
       >
         <div className="flex flex-col gap-3">
-          <p className="text-fg-muted">
-            Recommended for a first visit. The client picks one when they
-            accept. Includes {formatMoney(option.taxCents)} tax.
+          <p className="flex flex-col gap-1 text-fg-muted">
+            <span>Shown to the client as recommended; they pick one.</span>
+            <span>Includes {formatMoney(option.taxCents)} tax</span>
           </p>
           {option.overrideCents !== null && <PricedFrom option={option} />}
           <PriceWorking breakdown={option.suggested} />
