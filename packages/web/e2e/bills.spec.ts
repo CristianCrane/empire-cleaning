@@ -407,7 +407,7 @@ test("Payments says a Bill we try again ourselves needs nothing from them", asyn
   const card = page.getByRole("region", { name: "Payment pending" });
   for (const line of [
     "Bill EC-000001 · Nothing you need to do.",
-    "Until it's paid, we won't book more cleans on your plan.",
+    "Until it goes through, we won't book more cleans on your plan.",
   ])
     await expect(card.getByText(line, { exact: true })).toBeVisible();
   await expect(card).not.toContainText("paused");
