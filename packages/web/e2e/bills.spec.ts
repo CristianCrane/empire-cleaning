@@ -377,8 +377,15 @@ test("a Bill we try again ourselves reads as not paid yet, not failed, says its 
     ),
   ).toBeVisible();
 
+  // their Payments lead to it to see, not to pay
   await signedInAs(page, casey.email);
-  await page.goto(`/portal/bills/${billId}`);
+  await page.goto("/portal/payments");
+  const see = page.getByRole("link", { name: "See bill EC-000001" });
+  await expect(see).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Pay bill EC-000001" }),
+  ).toHaveCount(0);
+  await see.click();
   await expect(titleBadge(page, "Not paid yet")).toBeVisible();
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
   await expect(

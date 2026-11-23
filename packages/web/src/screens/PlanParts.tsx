@@ -190,7 +190,7 @@ export function useOnHold(
         ? t.w.billN(b.number, t.formatMoney(b.totalCents))
         : `bill ${b.number} (${t.formatMoney(b.totalCents)})`,
       way: {
-        label: forClient ? t.payBill(b.number) : `See bill ${b.number}`,
+        label: forClient ? t.payBill(b.number) : t.seeBill(b.number),
         icon: FileText,
         href: billHref(b.billId),
       },
