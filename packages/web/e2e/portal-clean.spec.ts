@@ -94,7 +94,7 @@ test("a payment we try again ourselves asks nothing of the clean's reader", asyn
 }) => {
   const { job, cory } = await bookedClean(olive);
   await setClock("2026-01-12T16:00:00Z");
-  // the bank payment still clearing: we try again ourselves
+  // the card charge still processing: we try again ourselves (ADR-0022)
   await failCharges("processing");
   await completeJob(job.id, cory.id, { condition: "moderate", reports: [] });
   await clean(page, job.id);

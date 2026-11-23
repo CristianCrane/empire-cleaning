@@ -4,11 +4,13 @@ import {
   type ClientPastJob,
   type ClientPayment,
   type PaymentMethodView,
+  type ServicePlanSummary,
   catalog,
   type Language,
 } from "@empire-cleaning/models";
 import { CreditCard, Wallet } from "lucide-react";
 import { linkTo, type AppHref } from "../../links.ts";
+import { pausedPlans } from "../format.ts";
 import type { Hero, Why } from "./HeroCard.tsx";
 import { said, saidWith } from "../words.ts";
 
@@ -77,6 +79,8 @@ const words = catalog({
 // #435)
 
 export type PaymentsData = {
+  // a paused one is said under what's owed (owedAnswer)
+  plans: ServicePlanSummary[];
   pastJobs: ClientPastJob[];
   bills: BillSummary[];
   paymentMethod: PaymentMethodView | null;
@@ -197,12 +201,33 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
   };
 }
 
+// a Client's plan as the owed card reads it: paused or not, and its next
+// booked clean
+type PlanNow = Pick<ServicePlanSummary, "status" | "nextStartsAt">;
+
+// what a paused cleaning plan means, under what's owed: that it's paused
+// till it's paid, and that a paused plan's cleans already booked go ahead,
+// or, with none of them booked, it carries on once it's paid; nothing
+// while no plan is paused. The Bill's alert says it in the same words
+export function pausedLine(plans: PlanNow[], lang: Language): string[] {
+  const t = saidWith(lang, words);
+  const paused = pausedPlans(plans);
+  if (paused.length === 0) return [];
+  return [
+    paused.some((p) => p.nextStartsAt)
+      ? t.PLAN_PAUSED
+      : t.PLAN_PAUSED_NONE_BOOKED,
+  ];
+}
+
 // what's owed as a Home's answer (AnswerCard): Payments' card, and the
 // Client's Home's when it asks something of them. One that's late says
-// why above the card (whyAlert); one simply due, in its line
+// why above the card (whyAlert); one simply due, in its line. While it
+// pauses a cleaning plan, a line says what that means (pausedLine)
 export function owedAnswer(
   owed: Owed,
   lang: Language,
+  plans: PlanNow[],
 ): { hero: Hero; why?: Why } {
   const t = saidWith(lang, words);
   return {
@@ -212,7 +237,7 @@ export function owedAnswer(
       icon: Wallet,
       tone: owed.late ? "danger" : "warning",
       headline: t.formatMoney(owed.cents),
-      lines: owed.late ? [] : [owed.text],
+      lines: [...(owed.late ? [] : [owed.text]), ...pausedLine(plans, lang)],
       action: owed.action,
     },
     ...(owed.late && { why: { tone: "danger", lead: `${owed.text}.` } }),

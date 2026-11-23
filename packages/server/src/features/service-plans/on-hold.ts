@@ -26,7 +26,7 @@ export const holdOrResume = async (
 };
 
 // whether any of these plans is On Hold
-export const anyOnHold = async (tx: Tx, planIds: string[]) =>
+const anyOnHold = async (tx: Tx, planIds: string[]) =>
   planIds.length > 0 &&
   (
     await tx

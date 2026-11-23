@@ -77,7 +77,7 @@ import { properties } from "../properties/properties.schema.ts";
 import { currentPriceList, namedByKey } from "../price-list/price-list.ts";
 import { changedOf } from "../completion/emails.ts";
 import { jobQuotes } from "../quotes/job-quotes.ts";
-import { anyOnHold, holdOrResumePlan } from "../service-plans/on-hold.ts";
+import { holdOrResumePlan } from "../service-plans/on-hold.ts";
 import {
   servicePlans,
   servicePlanVisits,
@@ -410,24 +410,36 @@ const makeBill = async (
 
 // ---- paying ----
 
-// the Service Plans with Jobs on a Bill, On Hold while it's Unpaid
-const plansOf = async (billId: string, tx: Tx | typeof db) =>
-  (
-    await tx
-      .selectDistinct({ planId: servicePlanVisits.servicePlanId })
-      .from(billLines)
-      .innerJoin(
-        servicePlanVisits,
-        eq(servicePlanVisits.jobId, billLines.jobId),
-      )
-      .where(eq(billLines.billId, billId))
-  ).map((r) => r.planId);
+// the Service Plans with Jobs on a Bill, oldest first, each where it stands
+// and at which home: On Hold while it's Unpaid, unless Ended
+const plansOn = async (billId: string, tx: Tx | typeof db = db) =>
+  tx
+    .selectDistinct({
+      id: servicePlans.id,
+      status: servicePlans.status,
+      startedAt: servicePlans.startedAt,
+      property: {
+        id: properties.id,
+        street: properties.street,
+        unit: properties.unit,
+        postcode: properties.postcode,
+      },
+    })
+    .from(billLines)
+    .innerJoin(servicePlanVisits, eq(servicePlanVisits.jobId, billLines.jobId))
+    .innerJoin(
+      servicePlans,
+      eq(servicePlans.id, servicePlanVisits.servicePlanId),
+    )
+    .innerJoin(properties, eq(properties.id, servicePlans.propertyId))
+    .where(eq(billLines.billId, billId))
+    .orderBy(asc(servicePlans.startedAt));
 
 // puts the plans with Jobs on a Bill On Hold, or back on, as it now stands
 const holdOrResumePlansOf = async (billId: string, tx: Tx) => {
   let held = false;
   let resumed = false;
-  for (const planId of await plansOf(billId, tx)) {
+  for (const { id: planId } of await plansOn(billId, tx)) {
     const changed = await holdOrResumePlan(tx, planId);
     held ||= changed === "held";
     resumed ||= changed === "resumed";
@@ -505,7 +517,7 @@ const chargeBill = async (
       plan:
         becameUnpaid &&
         !plan &&
-        (await anyOnHold(tx, await plansOf(bill.id, tx)))
+        (await plansOn(bill.id, tx)).some((p) => p.status === "on_hold")
           ? ("held" as const)
           : plan,
     };
@@ -1218,7 +1230,8 @@ const sendBillReminders = async () => {
     if (!claimed) continue;
 
     try {
-      const plans = await hasLivePlansOn(bill.id);
+      // its Jobs from Service Plans that haven't Ended
+      const plans = (await plansOn(bill.id)).some((p) => p.status !== "ended");
       await sendBill(
         bill.id,
         "reminder",
@@ -1244,21 +1257,6 @@ const sendBillReminders = async () => {
     }
   }
   return sent;
-};
-
-// whether a Bill has Jobs on it from Service Plans that haven't Ended
-const hasLivePlansOn = async (billId: string) => {
-  const [found] = await db
-    .select({ id: servicePlans.id })
-    .from(billLines)
-    .innerJoin(servicePlanVisits, eq(servicePlanVisits.jobId, billLines.jobId))
-    .innerJoin(
-      servicePlans,
-      eq(servicePlans.id, servicePlanVisits.servicePlanId),
-    )
-    .where(and(eq(billLines.billId, billId), ne(servicePlans.status, "ended")))
-    .limit(1);
-  return found !== undefined;
 };
 
 // ---- views ----
@@ -1367,6 +1365,7 @@ export const billView = async (
     voidedAt: bill.voidedAt?.toISOString() ?? null,
     voidReason: bill.voidReason,
     payable: payable(bill),
+    plans: (await plansOn(bill.id)).map(({ startedAt: _, ...plan }) => plan),
   };
 };
 

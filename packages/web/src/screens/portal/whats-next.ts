@@ -32,7 +32,7 @@ import {
 import type { HomeTile } from "@empire-cleaning/ui";
 import { linkTo, sameHref } from "../../links.ts";
 import { QuoteIcon, SiteVisitIcon } from "../icons.ts";
-import { addressOf, formatMinutes, howLong } from "../format.ts";
+import { addressOf, formatMinutes, howLong, pausedPlans } from "../format.ts";
 import { saidWith } from "../words.ts";
 import type { Hero, Why } from "./HeroCard.tsx";
 import { moneyNow, owedAnswer, yourCardTile } from "./payments.ts";
@@ -80,7 +80,6 @@ const words = catalog({
       "A payment on it hasn't gone through yet. We'll try again by ourselves, so there's nothing you need to do.",
     untilPaid:
       "Nothing's booked until it goes through. Then your plan carries on from its next date.",
-    carriesOn: "Once it's paid, your plan carries on from its next date.",
     forWhen: (when: string) => `For ${when}`,
     at: " at ",
     seeAsked: "See what you asked for",
@@ -153,7 +152,6 @@ const words = catalog({
       "Un pago del plan aún no ha pasado. Lo volveremos a intentar por nuestra cuenta, así que no tiene que hacer nada.",
     untilPaid:
       "No hay nada reservado hasta que el pago pase. Después, su plan continúa desde su próxima fecha.",
-    carriesOn: "Cuando esté pagado, su plan continúa desde su próxima fecha.",
     forWhen: (when: string) => `Para el ${when}`,
     at: " en ",
     seeAsked: "Ver lo que pidió",
@@ -277,7 +275,7 @@ export function whatsNext(
   const [next] = booked;
 
   const money = moneyNow(data, lang);
-  const paused = data.plans.find((p) => p.status === "on_hold");
+  const [paused] = pausedPlans(data.plans);
   const sent = data.quotes.filter((q) => q.status === "sent");
   const reviews = data.pastJobs.filter((j) => j.waiting.length > 0);
   const changes = reviews.flatMap((job) =>
@@ -303,12 +301,7 @@ export function whatsNext(
   // answer; how we get in, the morning we couldn't
   const lead = ((): Answer | undefined => {
     if (money.owed?.asks) {
-      const { hero: owed, why } = owedAnswer(money.owed, lang);
-      const pausedLine = paused
-        ? // booked cleans go ahead; none is booked till it is paid
-          [next ? t.BOOKED_GO_AHEAD : w.carriesOn]
-        : [];
-      return { hero: { ...owed, lines: [...owed.lines, ...pausedLine] }, why };
+      return owedAnswer(money.owed, lang, data.plans);
     }
     if (changes.length > 0) {
       const [{ job, change }] = changes as [(typeof changes)[number]];
