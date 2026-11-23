@@ -24,6 +24,7 @@ const words = catalog({
     cleanNotYet: (day: string) =>
       `Your payment for your ${day} clean hasn't gone through yet`,
     onPage: "You pay each bill on its page",
+    carriesOn: "Once it's paid, your plan carries on from its next date.",
     noCard: "No card saved yet",
     refundOnBill: (n: string) => `Refund on bill ${n}`,
     range: (from: string, to: string) => `${from} – ${to}`,
@@ -51,6 +52,7 @@ const words = catalog({
     cleanNotYet: (day: string) =>
       `El pago de su limpieza del ${day} aún no ha pasado`,
     onPage: "Paga cada factura en su página",
+    carriesOn: "Cuando esté pagado, su plan continúa desde su próxima fecha.",
     noCard: "Aún no hay tarjeta guardada",
     refundOnBill: (n: string) => `Devolución de la factura ${n}`,
     range: (from: string, to: string) => `${from} – ${to}`,
@@ -201,12 +203,18 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
 
 // what's owed as a Home's answer (AnswerCard): Payments' card, and the
 // Client's Home's when it asks something of them. One that's late says
-// why above the card (whyAlert); one simply due, in its line
+// why above the card (whyAlert); one simply due, in its line. While it
+// pauses a cleaning plan, a line says what that means: cleans booked go
+// ahead, or, with none booked, it carries on once it's paid
 export function owedAnswer(
   owed: Owed,
   lang: Language,
+  paused?: { booked: boolean } | false,
 ): { hero: Hero; why?: Why } {
   const t = saidWith(lang, words);
+  const pausedLine = paused
+    ? [paused.booked ? t.BOOKED_GO_AHEAD : t.w.carriesOn]
+    : [];
   return {
     hero: {
       label: t.w.toPay,
@@ -214,7 +222,7 @@ export function owedAnswer(
       icon: Wallet,
       tone: owed.late ? "danger" : "warning",
       headline: t.formatMoney(owed.cents),
-      lines: owed.late ? [] : [owed.text],
+      lines: [...(owed.late ? [] : [owed.text]), ...pausedLine],
       action: owed.action,
     },
     ...(owed.late && { why: { tone: "danger", lead: `${owed.text}.` } }),
