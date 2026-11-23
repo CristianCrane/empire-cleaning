@@ -24,7 +24,6 @@ import {
   type ScheduledSiteVisit,
   formats,
 } from "@empire-cleaning/models";
-import { daysIn } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -238,19 +237,11 @@ const canGoAt = (day: ScheduleDay, moving: Moving, time: string) => {
 };
 
 // a clean placed on the calendar before it's booked there: when it starts,
-// its time on site, what it's called, and for a Service Plan, how many
-// days apart its cleans are
+// its time on site and what it's called
 export type Proposed = {
   start: LocalDateTime;
   hoursOnSite: number;
   label: string;
-  everyDays?: number;
-};
-
-// whether a Service Plan's later clean falls on a day
-const repeatsOn = (proposed: Proposed | undefined, date: string) => {
-  if (!proposed?.everyDays || date <= proposed.start.date) return false;
-  return (daysIn(proposed.start.date, date) - 1) % proposed.everyDays === 0;
 };
 
 type Dragging = { moving: Moving; grabbedAtPx: number };
@@ -419,11 +410,7 @@ export function ScheduleCalendar({
                   )
                 }
                 marker={
-                  proposed?.start.date === day.date
-                    ? "Starts"
-                    : repeatsOn(proposed, day.date)
-                      ? "Repeats"
-                      : undefined
+                  proposed?.start.date === day.date ? "Starts" : undefined
                 }
               />
             ),

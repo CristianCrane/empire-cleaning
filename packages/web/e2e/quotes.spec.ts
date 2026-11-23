@@ -140,6 +140,10 @@ test("prices follow the Draft as it changes, and an override waits for its reaso
   await requestQuoteAsGuest(casey);
   await signInAsOffice(page);
   await startDraft(page);
+  // Send waits on a time first, saved before the override holds the
+  // saves
+  await proposeNextMonday(page);
+  await saved(page);
 
   const standard = page.getByRole("group", { name: "Standard Clean" });
   await standard.getByText("Set the Standard Clean price yourself").click();
@@ -165,14 +169,16 @@ test("prices follow the Draft as it changes, and an override waits for its reaso
   await expect(status).toHaveText("Saved");
 });
 
-test("a Quote can't be sent without a proposed time", async ({ page }) => {
+test("a Quote waits on a proposed time to be sent", async ({ page }) => {
   await requestQuoteAsGuest(casey);
   await signInAsOffice(page);
   await startDraft(page);
-
-  await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
-
-  await expect(page.getByText("Pick a time")).toBeVisible();
+  await expect(
+    page.getByRole("status").filter({ hasText: /saved/i }),
+  ).toHaveText("Saved · Pick a time to send");
+  await expect(
+    page.getByRole("button", { name: `Send to ${casey.name}` }),
+  ).toBeDisabled();
 });
 
 // a bar at the foot is a phone's (#493 D1): there it holds the price,
@@ -220,26 +226,52 @@ test(
   },
 );
 
-// the date, its start time and the way to pick both from the Schedule on
-// one left edge, the button not centred under them (the user, on #527:
-// "breaking symmetry and balance"); on a phone each is full width
-test(
-  "a Draft's proposed time lines up on one left edge",
-  { tag: "@desktop" },
-  async ({ page, isMobile }) => {
-    await requestQuoteAsGuest(casey);
-    await signInAsOffice(page);
-    await startDraft(page);
-    if (!isMobile) await page.setViewportSize({ width: 1440, height: 900 });
-    const part = page.getByRole("region", { name: "Proposed time" });
-    const date = await part.getByRole("group", { name: "Date" }).boundingBox();
-    const pick = await part
-      .getByRole("button", { name: "Pick from the schedule" })
-      .boundingBox();
-    expect(pick!.x).toBe(date!.x);
-    if (isMobile) expect(pick!.width).toBe(date!.width);
-  },
-);
+// a tap on a day, then on one of its start times that has room: those with
+// no crew free are left out (the user's pick B on #493), and the time picked
+// fills its tile with when it ends, and folds the part to it once saved
+test("Office Staff pick a Draft's proposed time from its open times", async ({
+  page,
+}) => {
+  await requestQuoteAsGuest(casey);
+  await signInAsOffice(page);
+  // both Cleaners at another home on Tuesday from 9 to 9:30
+  await bookJob({ startsAt: "2026-01-13T14:00:00Z", labourHours: 1 });
+  await startDraft(page);
+  await proposeNextMonday(page);
+  await saved(page);
+  const part = page.getByRole("region", { name: "Proposed time" });
+  await expect(
+    part.getByRole("button", { name: "Mon, Jan 12, picked" }),
+  ).toHaveAttribute("aria-current", "date");
+
+  await part.getByRole("button", { name: "Tue, Jan 13", exact: true }).click();
+  const morning = part.getByRole("group", { name: "Morning on Tue, Jan 13" });
+  await expect(
+    morning.getByRole("button", { name: "9:30 AM", exact: true }),
+  ).toBeVisible();
+  await expect(
+    morning.getByRole("button", { name: "9:00 AM", exact: true }),
+  ).toHaveCount(0);
+  await morning.getByRole("button", { name: "10:30 AM", exact: true }).click();
+  await saved(page);
+  await expect(
+    part.getByRole("button", { name: "Tue, Jan 13, picked" }),
+  ).toBeVisible();
+  await expect(
+    morning.getByRole("button", { name: /^10:30 AM\s?to \d+:\d\d (AM|PM)$/ }),
+  ).toHaveAttribute("aria-pressed", "true");
+
+  await page.reload();
+  await expect(
+    page.getByRole("button", {
+      name: /^Proposed time\s*Tue, Jan 13 · 10:30 AM to /,
+    }),
+  ).toHaveAttribute("aria-expanded", "false");
+  await send(page);
+  await expect(
+    page.getByRole("region", { name: "Current quote" }),
+  ).toContainText("Tue, Jan 13, 10:30 AM");
+});
 
 test("a Draft whose prices changed since it was saved shows them before it's sent", async ({
   page,
@@ -546,7 +578,9 @@ test("Quote screens pass automated accessibility checks", async ({
   await expectAccessible(client);
 });
 
-test("the draft says whether the proposed day has room for each clean", async ({
+// what's wrong with the time picked, over its tile, and beside Send, which
+// waits only on a time it can't send
+test("the draft says when the proposed time has no room for a clean", async ({
   page,
 }) => {
   await requestQuoteAsGuest(casey);
@@ -558,119 +592,58 @@ test("the draft says whether the proposed day has room for each clean", async ({
   await bookJob({ startsAt: "2026-01-13T14:00:00Z", labourHours: 1 });
   await startDraft(page);
   const proposed = page.getByRole("region", { name: "Proposed time" });
+  const status = page.getByRole("status").filter({ hasText: /saved/i });
+  const sendIt = page.getByRole("button", { name: `Send to ${casey.name}` });
 
   await proposeNextMonday(page);
   await expect(proposed).toContainText(
-    "That day only has room for the Standard Clean. Pick another day to offer the Deep Clean too.",
+    "That day is too full for the Deep Clean, so the client will see it but can't pick it. Pick another day so they can.",
   );
+  // the aside says so too, unfolded; it can still be sent
+  await expect(page.getByRole("region", { name: "Deep Clean" })).toContainText(
+    "Can't be picked at this time: that day is too full.",
+  );
+  await expect(status).toHaveText("Saved");
+  await expect(sendIt).toBeEnabled();
 
-  // Tuesday has the hours, but no crew at 9am, for either: so no room
+  // Tuesday has the hours, but no crew at 9am, for either: the client
+  // couldn't accept it, which can still be sent
   await page
     .getByRole("group", { name: "Date" })
     .getByRole("spinbutton", { name: /day/i })
     .click();
   await page.keyboard.type("13");
   await expect(proposed).toContainText(
-    "Not enough cleaners are free then. Pick another time, or give a cleaner more working hours that day.",
+    "Not enough cleaners are free then. The client couldn't accept it: pick another time, or give a cleaner more working hours that day.",
   );
-  await expect(proposed).not.toContainText("has room");
+  await expect(status).toHaveText("Saved · No room on Tue, Jan 13 at 9:00 AM");
+  await expect(sendIt).toBeEnabled();
 
-  // and at 10am, room for both, said of the quote
+  // and at 10am, room for both
   await page
     .getByRole("group", { name: "Start time" })
     .getByRole("spinbutton", { name: /hour/i })
     .click();
   await page.keyboard.type("10");
-  await expect(proposed).toContainText("Tue, Jan 13 has room for it.");
+  await expect(status).toHaveText("Saved");
   await expect(proposed).not.toContainText("Not enough cleaners");
+  await expect(
+    page.getByRole("region", { name: "Deep Clean" }),
+  ).not.toContainText("Can't be picked");
 
-  // from 10pm the Deep Clean, 2.5 hours on site, would run past midnight
+  // from 10pm the Deep Clean, 2.5 hours on site, would run past midnight,
+  // which can't be sent
   await page
     .getByRole("group", { name: "Start time" })
     .getByRole("spinbutton", { name: /hour/i })
     .click();
   await page.keyboard.type("1000PM");
   await expect(proposed).toContainText(
-    "The Deep Clean would run past midnight. Pick an earlier start time to offer it too.",
+    "This would run past midnight. Pick an earlier start time.",
   );
+  await expect(status).toHaveText("Saved · Pick an earlier start time");
+  await expect(sendIt).toBeDisabled();
 });
-
-test(
-  "Office Staff pick a Quote's start from the Schedule, seeing what's booked",
-  { tag: ["@desktop"] },
-  async ({ page }) => {
-    await requestQuoteAsGuest(casey);
-    await signInAsOffice(page);
-    // most of Monday booked: an hour from 9am, four from 2pm, each with both
-    // Cleaners
-    await bookJob({ startsAt: "2026-01-12T14:00:00Z", labourHours: 1 });
-    await bookJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 4 });
-    await startDraft(page);
-    await proposeNextMonday(page);
-    // a save landing while the picker is open loads it again, and redraws its
-    // days: a box measured then is of a block already gone
-    await saved(page);
-
-    await page
-      .getByRole("region", { name: "Proposed time" })
-      .getByRole("button", { name: "Pick from the schedule" })
-      .click();
-    const schedule = page.getByRole("dialog", {
-      name: "Pick from the schedule",
-    });
-    // the week around the chosen day on a desktop, the day itself on a phone
-    const monday = schedule.getByRole("region", {
-      name: "Mon, Jan 12",
-      exact: true,
-    });
-    await expect(monday).toContainText("5 h booked · 3 h free");
-    await expect(monday).toContainText("Starts");
-    await expect(monday).toContainText("9:00 AM This clean");
-    await expect(
-      schedule.getByRole("group", { name: "Jobs on Mon, Jan 12" }),
-    ).toContainText("2:00 PM");
-    // another crew's Job at the proposed time: the new clean sits beside it
-    const ninesJob = (await schedule
-      .getByRole("group", { name: "Jobs on Mon, Jan 12" })
-      .getByText(/^9:00 AM Robin/)
-      .boundingBox())!;
-    const thisClean = (await monday
-      .getByText("9:00 AM This clean")
-      .boundingBox())!;
-    expect(
-      thisClean.x >= ninesJob.x + ninesJob.width ||
-        ninesJob.x >= thisClean.x + thisClean.width,
-    ).toBe(true);
-    // nobody is free for it at 9, while that Job is on: marked, though it
-    // can still be picked; free again from 9:30
-    await expect(
-      monday.getByRole("button", {
-        name: "Mon, Jan 12, 9:00 AM, not enough cleaners free",
-      }),
-    ).toBeVisible();
-    await expect(
-      monday.getByRole("button", { name: "Mon, Jan 12, 9:30 AM", exact: true }),
-    ).toBeAttached();
-
-    await expectAccessible(page, "[role=dialog]");
-
-    if (page.viewportSize()!.width < 768) {
-      await schedule.getByRole("button", { name: "Next day" }).click();
-    }
-    await schedule
-      .getByRole("button", { name: "Tue, Jan 13, 10:30 AM" })
-      .click();
-    await expect(schedule).toBeHidden();
-    await expect(
-      page.getByRole("region", { name: "Proposed time" }),
-    ).toContainText("Tue, Jan 13 has room for");
-
-    await send(page);
-    await expect(
-      page.getByRole("region", { name: "Current quote" }),
-    ).toContainText("Tue, Jan 13, 10:30 AM");
-  },
-);
 
 test("Office Staff change what a Draft is for, and what was asked stays", async ({
   page,

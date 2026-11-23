@@ -127,7 +127,7 @@ export function PageHeader({
             <Heading
               level={1}
               inBar={inBar}
-              className="flex min-h-touch items-center"
+              className="flex min-h-touch items-center text-balance"
             >
               {title}
             </Heading>
@@ -175,7 +175,10 @@ export function PageHeader({
 // state wraps to a few short lines there, rather than squeezing the title
 function Note({ children }: { children: ReactNode }) {
   return (
-    <span role="status" className="max-w-48 text-right text-sm text-fg-muted">
+    <span
+      role="status"
+      className="max-w-48 text-right text-sm text-balance text-fg-muted"
+    >
       {children}
     </span>
   );

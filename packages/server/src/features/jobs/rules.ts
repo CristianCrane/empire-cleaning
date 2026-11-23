@@ -4,7 +4,6 @@ import {
   fromHundredths,
   hundredths,
   messages,
-  PICK_TIMES,
   type DayTimes,
   type JobStatus,
   type ScheduleDay,
@@ -17,14 +16,11 @@ import { currentLanguage } from "#services/request";
 // the rules sharing its spans of time (isFree, busyWith, …) are in
 // @empire-cleaning/models (schedule-rules.ts).
 
-// the starts a picker offers on a day of the Schedule
-export const startsOn = (day: ScheduleDay) =>
-  PICK_TIMES.map((time) => atTime(day.date, time));
-
 /**
  * Each of these days of the Schedule with those of `times` (times of day, in
  * order) that `passes` at a start then: the one shape of every picker's
- * starts, whichever rule picks them (the Office's pickers' marks, a Job's
+ * starts, whichever rule picks them (the Office's pickers' marks, a Draft's
+ * open times, a Job's
  * times to move to).
  */
 export const startsWhere = (

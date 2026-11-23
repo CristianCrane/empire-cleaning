@@ -9,7 +9,7 @@ import {
 
 // the days a Draft's picker shows, and for a plan, which of its weekdays,
 // counting from 0 in the Draft's order
-export const draftStartsSchema = withinRange(
+export const draftOpenTimesSchema = withinRange(
   z.object({
     ...range,
     // a digit, as typed: a coerced number would read "?weekday=" as 0

@@ -38,9 +38,11 @@ export const officeTours = {
           text: "Prices are worked out for this home from your prices. Set one yourself if it needs to be different, and say why.",
         },
         {
-          target: { press: "Send to" },
-          title: "Send it",
-          text: "Pick a time, then send it. The client gets an email with a link to accept it and book.",
+          // Send waits, greyed, until a time is picked, so its tour
+          // points at where the time is picked
+          target: { named: "Proposed time" },
+          title: "Pick a time, then send it",
+          text: "Tap a start time that's free. Then send it: the client gets an email with a link to accept it and book.",
         },
       ],
     },

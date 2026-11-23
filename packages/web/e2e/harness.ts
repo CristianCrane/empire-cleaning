@@ -1020,18 +1020,29 @@ export const requestQuoteForPremises = async (
   if (!res.ok) throw new Error(`quote request: ${res.status}`);
 };
 
-// types a start into a Draft's pickers, in `part`: a plan's weekday, or the
-// page. The day goes last, as a weekday's section is named after it.
+// types a start into a Draft's proposed time, in `part`: a plan's weekday,
+// or the page. Its fields sit behind "Type a date and time" once the Draft's
+// open times can show, and in a part folded to the time set on load; the day
+// goes last, as a weekday's section is named after it.
 export const startOn = async (
   page: Page,
   part: Page | Locator,
   date: string,
   time: string,
 ) => {
-  await part
+  const hour = part
     .getByRole("group", { name: "Start time" })
-    .getByRole("spinbutton", { name: /hour/i })
-    .click();
+    .getByRole("spinbutton", { name: /hour/i });
+  const typing = part.getByRole("button", { name: "Type a date and time" });
+  const folded = part.getByRole("button", {
+    name: /^Proposed time/,
+    expanded: false,
+  });
+  // whichever shows first, once the page has settled
+  await expect(hour.or(typing).or(folded).first()).toBeVisible();
+  if (await folded.isVisible()) await folded.click();
+  if (await typing.isVisible()) await typing.click();
+  await hour.click();
   await page.keyboard.type(time);
   await part
     .getByRole("group", { name: "Date" })
@@ -1043,11 +1054,12 @@ export const startOn = async (
 export const proposeNextMonday = (page: Page) =>
   startOn(page, page, "01122026", "0900AM");
 
-// once the Draft has saved all that's on screen
+// once the Draft has saved all that's on screen; what Send waits on, if
+// anything, may follow
 export const saved = (page: Page) =>
   expect(
     page.getByRole("status").filter({ hasText: /saved|prices/i }),
-  ).toHaveText("Saved");
+  ).toHaveText(/^Saved( · .+)?$/);
 
 // what the browser does when the person comes back to this tab
 export const returnToTab = (page: import("@playwright/test").Page) =>

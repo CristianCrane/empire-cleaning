@@ -1,20 +1,14 @@
-import {
-  useContext,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
-import { FormValidationContext } from "react-aria-components";
+import { useId, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { ActionFooter } from "../ActionFooter.tsx";
 import { Actions } from "../Actions.tsx";
 import type { Crumb } from "../Breadcrumbs.tsx";
 import { Card } from "../Card.tsx";
 import { Fold } from "../Fold.tsx";
+import { Heading } from "../Heading.tsx";
 import { useUiWords } from "../language.ts";
 import { Section } from "../Section.tsx";
+import { useOpenOnInvalid } from "../openOnInvalid.ts";
 import { useWide } from "../wide.ts";
 import { Alerts, type Alert } from "./Alerts.tsx";
 import { PageFrame } from "./PageFrame.tsx";
@@ -216,57 +210,63 @@ const rule = "border-t border-border pt-5 first:border-t-0 first:pt-0";
 // title's line. Given `summary` (what's set, in a line), it's folded to that line, a tap
 // opening it in place. Folded, its fields stay in the form, hidden, so a
 // required one or the API's field error still counts, and the part opens
-// itself to show a field in it that's found wrong
+// itself to show a field in it that's found wrong. `inPart`: a part within
+// a part (a plan weekday's Proposed time), its title an h3 in the reading
+// size, with no rule above it, folded the same way
 export function FormPart(
-  props: { title: string; children: ReactNode } & (
+  props: { title: string; children: ReactNode; inPart?: boolean } & (
     { summary: string } | { summary?: never; actions?: ReactNode }
   ),
 ) {
-  const { title, children } = props;
-  if (props.summary === undefined)
+  const { title, children, inPart = false } = props;
+  if (props.summary !== undefined)
     return (
-      <Section
-        title={title}
-        actions={props.actions}
-        className={`gap-4 ${rule}`}
-      >
+      <Folded title={title} summary={props.summary} inPart={inPart}>
         {children}
-      </Section>
+      </Folded>
     );
+  if (inPart) return <InPart title={title}>{children}</InPart>;
   return (
-    <Folded title={title} summary={props.summary}>
+    <Section title={title} actions={props.actions} className={`gap-4 ${rule}`}>
       {children}
-    </Folded>
+    </Section>
+  );
+}
+
+function InPart({ title, children }: { title: string; children: ReactNode }) {
+  const headingId = useId();
+  return (
+    <section aria-labelledby={headingId} className="flex flex-col gap-4">
+      <Heading level={3} size={4} id={headingId}>
+        {title}
+      </Heading>
+      {children}
+    </section>
   );
 }
 
 function Folded({
   title,
   summary,
+  inPart,
   children,
 }: {
   title: string;
   summary: string;
+  inPart: boolean;
   children: ReactNode;
 }) {
   const bodyId = useId();
-  const body = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
-  // the API's field errors, given to the form after it's sent: once its
-  // fields have them, one in here marked invalid opens it
-  const errors = useContext(FormValidationContext);
-  useEffect(() => {
-    if (body.current?.querySelector("[data-invalid]")) setOpen(true);
-  }, [errors]);
+  // a field in it that's wrong opens it, so it can be shown
+  const { ref: body, open, setOpen, onInvalidCapture } = useOpenOnInvalid();
+  const Title = inPart ? "h3" : "h2";
   return (
     <section
       aria-label={title}
-      className={`flex flex-col gap-4 ${rule}`}
-      // a field the browser finds wrong as the form's sent (a required one
-      // left empty) opens it, so it can be shown
-      onInvalidCapture={() => setOpen(true)}
+      className={`flex flex-col gap-4 ${inPart ? "" : rule}`}
+      onInvalidCapture={onInvalidCapture}
     >
-      <h2>
+      <Title>
         <button
           type="button"
           aria-expanded={open}
@@ -290,7 +290,7 @@ function Folded({
             className={`shrink-0 text-fg-muted transition-transform ${open ? "rotate-180" : ""}`}
           />
         </button>
-      </h2>
+      </Title>
       <div
         ref={body}
         id={bodyId}

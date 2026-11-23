@@ -231,7 +231,8 @@ for a dialog. It renders through `FormPage`
   quote) makes its button the page's next step instead (FormPage's
   `next`, #493 D1): from md the header's primary, a Draft's Delete draft
   behind its arrow, whether it's saved beside it (shown from the start,
-  "Saved"), and once scrolled the header that sticks carries the title,
+  "Saved", then what Send waits on, if anything: "Saved · Pick a time to
+  send", "Saved · No room on Fri, Dec 4 at 11:30 AM"), and once scrolled the header that sticks carries the title,
   the total (below `xl`, where the prices beside the form don't stay in
   view; a one-off Draft's named, "Standard Clean $194.89", the
   recommendation in neither) and the button; on a phone the page's `ActionFooter`, its total
@@ -332,7 +333,9 @@ The `ui` skill's rules hold here too; these are this product's.
   again (each fact once: the `ui` skill); and the page's
   actions at the end of the title row, on the title's line: one split
   button, the page's next step its primary and the rest behind its arrow
-  ("More actions": a menu under it from md, a sheet from a phone's foot),
+  ("More actions": a menu under it from md, a sheet from a phone's foot;
+  the arrow outlined while the next step waits, disabled, so one control
+  doesn't show two ranks),
   or a quiet ⋯ ("More actions") when nothing is next. One action with
   nothing next stays a Button, as a menu of one would hide it; a page
   whose only action destroys has no primary, that action in the same
@@ -665,9 +668,10 @@ stays as it is (#336).
   wider one, one on a phone), so a short field's neighbour sits near it, not across a wide
   dialog; `ChoiceTiles` keep a form's width too. A date and its start time go in a
   `packed` `FieldRow`, each at its answer's width from the row's start, and
-  Pick from the schedule, which fills both, under them on the same left
-  edge: spread across a card's two columns, with the button centred under
-  them, they broke the form's one edge (the user, on #527: "breaking
+  in a dialog that moves a booked time, Pick from the schedule, which fills
+  both, under them on the same left edge (a Draft quote's are behind its
+  open times, Time and schedules): spread across a card's two columns, with
+  the button centred under them, they broke the form's one edge (the user, on #527: "breaking
   symmetry and balance"). On a phone every field is full width, a thumb's target.
   ("A form keeps a form's width")
 - **Every search field shows a magnifying glass.**
@@ -698,12 +702,20 @@ stays as it is (#336).
   Visit while booked, even once its time has passed, so a missed one moves
   to a time to come. Either move is confirmed first. ("Schedules As
   Calendars")
-- **Every place a time is chosen uses the calendar picker**, with the day
-  and time fields kept as the keyboard path. The Office picks on the
-  Schedule (`office/SchedulePicker.tsx`, inline in a wide dialog); a Client
-  picks a day on a month, then that day's open times
-  (`screens/AvailabilityPicker.tsx`). Clients never see the Schedule or
-  anyone else's Jobs.
+- **A time is picked from the times that are free**, with the day and
+  time fields kept as the keyboard's way. A Draft quote's proposed time is
+  picked in its part, in a tap (`office/OpenTimePicker.tsx`, #493, the
+  user's pick B): a strip of a week's days, each saying why it's shut, over
+  the viewed day's start times that have room, those without left out; the
+  time picked fills its tile with when it ends, or is marked with its
+  problem, which a line over it says; a plan's weekday, once dated, pages
+  through its own weekday's dates; the fields behind "Type a date and
+  time". The Office's dialogs that move a booked time (a Job, a plan's
+  visit, a Site Visit) still pick on the Schedule
+  (`office/SchedulePicker.tsx`, inline in a wide dialog) until #543; a
+  Client picks a day on a month, then that day's open times
+  (`screens/AvailabilityPicker.tsx`). Both lists of times are the kit's
+  `TimeTiles`. Clients never see the Schedule or anyone else's Jobs.
 
 ### Status and colour
 

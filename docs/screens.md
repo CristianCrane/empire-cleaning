@@ -224,7 +224,11 @@ Keeps: a Draft page of its own (#145). Renders through `FormPage` (#434).
   the plan change.
 - Body: one Card: What was asked and the first clean (folded); Service
   (its Type, its own price; the recommended Service's behind a fold) or Plan and
-  each weekday; Extras and Terms (folded); Proposed time. Quote leads:
+  each weekday (its Cleaners, then its proposed time); Extras and Terms
+  (folded); Proposed time: the open times to pick from, a week's days over
+  the viewed day's start times, the date and time fields behind "Type a
+  date and time"; folded to the time on load when it's set, has room and
+  can be sent. Quote leads:
   first on a phone, a sticky aside from `xl`; a one-off's own price, the
   Service recommended for a first visit one folded line under it ("Also
   offered: …"); a plan's week first; each price's working folded. The

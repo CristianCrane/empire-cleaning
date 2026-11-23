@@ -62,6 +62,7 @@ export {
 } from "./layouts/PageActions.tsx";
 export { type Alert } from "./layouts/Alerts.tsx";
 export { FormPage, FormPart } from "./layouts/FormPage.tsx";
+export { useOpenOnInvalid } from "./openOnInvalid.ts";
 export { PageFrame } from "./layouts/PageFrame.tsx";
 export {
   AnswerCard,

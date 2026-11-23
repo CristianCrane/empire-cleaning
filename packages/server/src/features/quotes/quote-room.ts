@@ -1,12 +1,12 @@
 import { and, asc, eq, inArray, max } from "drizzle-orm";
 import type {
   DayCapacity,
-  DayTimes,
+  OpenDay,
   QuoteKind,
   QuoteSummary,
   ScheduleDay,
 } from "@empire-cleaning/models";
-import { dayOf, PICK_TIMES, type Clean } from "@empire-cleaning/models";
+import { atTime, dayOf, type Clean } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import { onSchedule } from "../jobs/jobs.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
@@ -19,8 +19,9 @@ import { tellOfficeStaff } from "../staff/staff.ts";
 import { quotesWithoutRoomEmail } from "./emails.ts";
 import { openQuotes } from "./quote-state.ts";
 import { quotes, revisionOptions } from "./quotes.schema.ts";
-import { cleanRooms, cleansFit } from "./rules.ts";
-import { startsOn, startsWhere } from "../jobs/rules.ts";
+import { cleanRooms, cleansFit, windowTimes } from "./rules.ts";
+import { startsWhere } from "../jobs/rules.ts";
+import { lateFrom } from "../cancellation/cancellation.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 
 // A Sent Quote doesn't hold its time: a booking for another Client, or fewer
@@ -89,23 +90,36 @@ export const optionRoomsOf = async (
 };
 
 /**
- * The starts on these days of the Schedule where a Draft's clean would
- * find no crew free (startsWhere), as its room line asks it
- * (cleanRooms), the Draft as last saved: a Service Plan Quote's weekday
- * `weekday` moved to each start beside its other weekdays' starts, the
- * Jobs of its home's plan that the Quote would then replace counting as
- * gone (replacedFor, from its earliest clean); a one-off's options all
- * moved there, marked when any has no crew (its longest). A plan's
- * `weekday` is one of its saved ones; a one-off has none (draftStarts
- * refuses either).
+ * A Draft's open starts on these days of the Schedule, as last saved: each
+ * day's in the start window (windowTimes) more than a Late Cancellation's
+ * 24 hours away, as Send asks (refuseUntimely), where the clean has room,
+ * as its room line asks it (cleanRooms); a day with none says why. A
+ * Service Plan Quote's weekday `weekday` moves to each start beside its
+ * other weekdays' starts, the Jobs of its home's plan the Quote would then
+ * replace counting as gone (replacedFor, from its earliest clean). A
+ * one-off's options all move there: its own Service needs room and every
+ * one must end by midnight, as Send asks, but the one recommended for a
+ * first visit is an aside, so a time it alone doesn't fit stays open, and
+ * the room line says so. A plan's `weekday` is one of its saved ones; a
+ * one-off has none (draftOpenTimes refuses either).
  */
-export const draftStartsWithoutCrew = async (
-  revision: { kind: QuoteKind; proposedStartsAt: Date | null },
+export const openTimesOf = async (
+  revision: {
+    kind: QuoteKind;
+    serviceKey: string | null;
+    proposedStartsAt: Date | null;
+  },
   propertyId: string,
-  options: { startsAt: Date | null; labourHours: number; crewSize: number }[],
+  options: {
+    serviceKey: string;
+    startsAt: Date | null;
+    labourHours: number;
+    crewSize: number;
+  }[],
   weekday: number | undefined,
   days: ScheduleDay[],
-): Promise<DayTimes[]> => {
+  now: Date,
+): Promise<OpenDay[]> => {
   const moves = (i: number) => revision.kind === "one_off" || i === weekday;
   const moving = options.filter((_, i) => moves(i));
   const others = cleansOf(revision, options).filter(
@@ -117,7 +131,14 @@ export const draftStartsWithoutCrew = async (
       labourHours,
       crewSize,
     }));
-  const starts = days.flatMap(startsOn);
+  const own =
+    revision.kind === "one_off"
+      ? moving.findIndex((o) => o.serviceKey === revision.serviceKey)
+      : 0;
+  const soon = (startsAt: Date) => lateFrom(startsAt) <= now;
+  const starts = days
+    .flatMap((day) => windowTimes.map((time) => atTime(day.date, time)))
+    .filter((startsAt) => !soon(startsAt));
   const replaced = await replacedFor(
     revision.kind,
     propertyId,
@@ -126,16 +147,27 @@ export const draftStartsWithoutCrew = async (
   const replacing = new Map(
     starts.map((startsAt, i) => [startsAt.getTime(), replaced[i]!]),
   );
-  return startsWhere(
-    days,
-    PICK_TIMES,
-    (day, startsAt) =>
-      !cleanRooms(
-        [day],
-        at(startsAt),
-        replacing.get(startsAt.getTime())!,
-      ).every((room) => room.hasCrew),
-  );
+  const fits = (day: ScheduleDay, startsAt: Date) => {
+    if (soon(startsAt)) return false;
+    const rooms = cleanRooms(
+      [day],
+      at(startsAt),
+      replacing.get(startsAt.getTime())!,
+    );
+    return rooms[own]!.hasRoom && rooms.every((room) => room.endsByMidnight);
+  };
+  const today = dayOf(now);
+  return startsWhere(days, windowTimes, fits).map((day) => ({
+    ...day,
+    closed:
+      day.times.length > 0
+        ? null
+        : day.date < today
+          ? "past"
+          : windowTimes.every((time) => soon(atTime(day.date, time)))
+            ? "soon"
+            : "full",
+  }));
 };
 
 /**

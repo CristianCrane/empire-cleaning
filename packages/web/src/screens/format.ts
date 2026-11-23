@@ -136,7 +136,7 @@ export const dayOfInstant = (iso: string) => dayOf(new Date(iso));
 
 // words that start a sentence or a label: "the Deep Clean" -> "The Deep
 // Clean"
-export const upperFirst = (words: string) =>
+const upperFirst = (words: string) =>
   words.charAt(0).toUpperCase() + words.slice(1);
 
 // a Site Visit's length: 30 -> "30 min", 90 -> "1 h 30 min"

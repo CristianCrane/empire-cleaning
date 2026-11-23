@@ -15,8 +15,11 @@ const tile = tv({
       // can't be picked
       current:
         "cursor-default border-2 border-dashed border-border-strong text-fg-muted",
-      // chosen, but the clean has no room then: the room line says why
-      noRoom:
+      // chosen, with a problem the line above the tiles says: no room then
+      // (a warning, as it can still be sent), or one that stops it (danger)
+      warning:
+        "border-2 border-dashed border-warning-strong bg-warning-subtle text-warning-strong",
+      danger:
         "border-2 border-dashed border-danger-strong bg-danger-subtle text-danger-strong",
     },
   },
@@ -26,9 +29,10 @@ const tile = tv({
  * A day's start times to pick from, a tile each, in rows of three, as booking
  * anywhere reads: open, chosen (filled, with `until` under it, e.g. when the
  * clean ends), the time it's booked at now (`current`, dashed, can't be
- * picked) or chosen with no room (`noRoom`: dashed, in danger's colour, with
- * a mark). The Client's open times (AvailabilityPicker) and the Office's
- * (OpenTimePicker). Each tile reads its time aloud, or `tileLabel`'s words.
+ * picked) or chosen with a problem (`flagged`: dashed, in the warning's or
+ * danger's colour, with a mark). The Client's open times (AvailabilityPicker)
+ * and the Office's (OpenTimePicker). Each tile reads its time aloud, or
+ * `tileLabel`'s words.
  */
 export function TimeTiles({
   label,
@@ -36,7 +40,7 @@ export function TimeTiles({
   times,
   chosen,
   current,
-  noRoom = false,
+  flagged,
   until,
   tileLabel,
   onPick,
@@ -48,7 +52,8 @@ export function TimeTiles({
   times: string[];
   chosen?: string;
   current?: string;
-  noRoom?: boolean;
+  // the chosen time's problem, if it has one
+  flagged?: "warning" | "danger";
   until?: string;
   tileLabel?: (time: string) => string;
   onPick: (time: string) => void;
@@ -64,9 +69,7 @@ export function TimeTiles({
               ? "current"
               : time !== chosen
                 ? "open"
-                : noRoom
-                  ? "noRoom"
-                  : "chosen";
+                : (flagged ?? "chosen");
           return (
             <ToggleButton
               key={time}
@@ -79,7 +82,7 @@ export function TimeTiles({
               }
             >
               <span className="flex items-center gap-1">
-                {state === "noRoom" && (
+                {state === flagged && (
                   <CircleAlert aria-hidden size={16} className="shrink-0" />
                 )}
                 {formatClock(time)}

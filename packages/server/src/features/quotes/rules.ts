@@ -3,7 +3,7 @@ import type {
   QuoteStatus,
   ScheduleDay,
 } from "@empire-cleaning/models";
-import { dayOf, roomOn, type Clean } from "@empire-cleaning/models";
+import { dayOf, PICK_TIMES, roomOn, type Clean } from "@empire-cleaning/models";
 import { withoutReplaced } from "../jobs/rules.ts";
 
 // The rules for accepting a Quote, over what acceptance loads: the Quote as
@@ -12,6 +12,14 @@ import { withoutReplaced } from "../jobs/rules.ts";
 // offers (bookableFor), over the rooms it loads (optionRoomsOf), and each
 // clean's room (cleanRooms) what a Draft is told. They never query: the actions lock and
 // load, ask, then write.
+
+// The starts a Draft's picker offers on a day, every half hour from the
+// first to the last: a setting, not a rule, until the owner says when a
+// clean may start (#206). A time outside it can still be typed.
+const START_WINDOW = { first: "07:00", last: "19:00" };
+export const windowTimes = PICK_TIMES.filter(
+  (time) => time >= START_WINDOW.first && time <= START_WINDOW.last,
+);
 
 // why a Quote can't be booked, as its Deposit is taken or once it has been
 export type Unbookable =
