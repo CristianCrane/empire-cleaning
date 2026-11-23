@@ -2083,6 +2083,10 @@ export type BillView = BillSummary & {
   // and not a payment of ours, which our charge may still take or we try
   // again ourselves (#533)
   payable: boolean;
+  // whether Office Staff can cancel it or record a payment made another way
+  // now: due, and no card payment of ours on it may still take the money
+  // (ADR-0022's one rule; cardNotDone says why not)
+  canCancelOrRecord: boolean;
   // the Client's Service Plans with Jobs on it, oldest first: each On Hold
   // while it's Unpaid (ADR-0016), unless Ended
   plans: Pick<ServicePlanSummary, "id" | "status" | "property">[];

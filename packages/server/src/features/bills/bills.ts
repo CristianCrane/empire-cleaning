@@ -25,6 +25,7 @@ import type {
 } from "@empire-cleaning/models";
 import {
   addDays,
+  cardNotDone,
   DAY_MS,
   dayOf,
   mondayOf,
@@ -824,10 +825,10 @@ const notDue = (bill: Pick<Bill, "status">, then = "") =>
     : `This bill is already ${bill.status === "void" ? "cancelled" : "paid"}.`;
 
 // why Office Staff can't cancel a due Bill, or record a payment on it, yet:
-// our card payment may still take it (chargeOpen's one rule), and if it
-// does the Bill is paid
-const goingThrough = (yet: string, then: string) =>
-  `The card payment for this bill hasn't gone through yet, so ${yet}. Check back in a few minutes: it'll be paid, or you can ${then} then.`;
+// our card payment may still take it (chargeOpen's one rule). Its page says
+// so beforehand (canCancelOrRecord), so this answers a page opened before
+const cardNotDoneTo = (what: "cancel" | "record") =>
+  new ConflictError(cardNotDone[what]);
 
 /**
  * Office Staff void a Bill that shouldn't have gone out, while it's unpaid:
@@ -849,11 +850,7 @@ export const voidBill = async (
     if (bill.status !== "due") {
       throw new ConflictError(notDue(bill, ", so it can't be cancelled"));
     }
-    if (await chargeOpen(bill.id, tx)) {
-      throw new ConflictError(
-        goingThrough("it can't be cancelled now", "cancel it"),
-      );
-    }
+    if (await chargeOpen(bill.id, tx)) throw cardNotDoneTo("cancel");
     await tx
       .update(bills)
       .set({
@@ -906,11 +903,7 @@ export const recordOutsidePayment = async (
     if (bill.status !== "due") {
       throw new ConflictError(notDue(bill));
     }
-    if (await chargeOpen(bill.id, tx)) {
-      throw new ConflictError(
-        goingThrough("a payment can't be recorded now", "record it"),
-      );
-    }
+    if (await chargeOpen(bill.id, tx)) throw cardNotDoneTo("record");
     await tx
       .update(bills)
       .set({
@@ -1392,6 +1385,7 @@ export const billView = async (
     voidedAt: bill.voidedAt?.toISOString() ?? null,
     voidReason: bill.voidReason,
     payable: (await notPayable(bill)) === null,
+    canCancelOrRecord: bill.status === "due" && !(await chargeOpen(bill.id)),
     plans: (await plansOn(bill.id)).map(({ startedAt: _, ...plan }) => plan),
   };
 };

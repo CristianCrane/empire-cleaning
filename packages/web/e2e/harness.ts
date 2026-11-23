@@ -647,6 +647,21 @@ export const expectNoPageAction = async (page: Page, name: string) => {
   await expect(page.getByRole("menu")).toHaveCount(0);
 };
 
+// a page's actions behind More actions that it shows greyed, as its goal
+// needs them but they can't be done yet (its alert says why)
+export const expectGreyedPageActions = async (page: Page, names: string[]) => {
+  await moreActions(page).click();
+  const menu = page.getByRole("menu");
+  await expect(menu).toBeVisible();
+  for (const name of names) {
+    await expect(
+      menu.getByRole("menuitem", { name, exact: true }),
+    ).toBeDisabled();
+  }
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+};
+
 // The forms that take a payment, each found here and only here, by these
 // specs and by the real card form's (card-form.sandbox.ts), which runs only
 // nightly: a screen that moves one fails these specs on its own PR. #444

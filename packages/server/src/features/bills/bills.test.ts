@@ -871,7 +871,7 @@ describe("Unpaid Bills", () => {
       .send({ note: "Cheque 1042" })
       .expect(409);
     expect(refused.body.message).toBe(
-      "The card payment for this bill hasn't gone through yet, so a payment can't be recorded now. Check back in a few minutes: it'll be paid, or you can record it then.",
+      "You can't record a payment on this bill while its card payment is going through, which usually takes under half an hour.",
     );
 
     testClock().advance({ minutes: 15 });
@@ -898,13 +898,19 @@ describe("Unpaid Bills", () => {
       BillSummary,
     ];
     await setBilling(office, clientId, { weekly: false }).expect(200);
+    // its page says so beforehand
+    expect(await billOf(office, id)).toMatchObject({
+      status: "due",
+      canCancelOrRecord: false,
+    });
 
+    // and a page opened before is refused
     const refused = await office
       .post(`/api/bills/${id}/void`)
       .send({ reason: "Sent in error" })
       .expect(409);
     expect(refused.body.message).toBe(
-      "The card payment for this bill hasn't gone through yet, so it can't be cancelled now. Check back in a few minutes: it'll be paid, or you can cancel it then.",
+      "You can't cancel this bill while its card payment is going through, which usually takes under half an hour.",
     );
 
     // the Bill's Charge goes through, and the Clock records it
@@ -1283,6 +1289,7 @@ describe("putting Bills right", () => {
     testClock().set(NEXT_MONDAY);
     await makeDueBills();
     const [{ id }] = (await billsOf(office, clientId)) as [BillSummary];
+    expect(await billOf(office, id)).toMatchObject({ canCancelOrRecord: true });
 
     const voided = (
       await office
