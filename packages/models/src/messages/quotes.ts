@@ -105,6 +105,9 @@ export type PayingFor = {
 // a payment their bank is finishing, past `until`: too far on to call off
 const goingThrough =
   "is still going through with their bank, which usually takes a few minutes";
+// what's at stake for a new version while the Client pays: said once, as
+// its five copies had drifted three ways (#534 review F34)
+const booksDraft = "If it books the quote you sent, your draft is deleted.";
 const payingWhat = ({ name, deposit, service, finishing }: PayingFor) => {
   const what = service ? `for the ${service}` : "to start the cleaning plan";
   return finishing
@@ -123,9 +126,9 @@ export const clientPaying = {
     { card, drafting }: { card: boolean; drafting: boolean },
   ) =>
     p.finishing
-      ? `${payingWhat(p)}${drafting ? " If it books the quote you sent, your draft is deleted. Until it's done, you can't send your changes or record acceptance." : card ? " Until it's done, you can't record acceptance." : ""}`
+      ? `${payingWhat(p)}${drafting ? ` ${booksDraft} Until it's done, you can't send your changes or record acceptance.` : card ? " Until it's done, you can't record acceptance." : ""}`
       : drafting
-        ? `${payingWhat(p)} If it books the quote you sent, your draft is deleted. Until ${p.until}, you can't send your changes or record acceptance.`
+        ? `${payingWhat(p)} ${booksDraft} Until ${p.until}, you can't send your changes or record acceptance.`
         : `${payingWhat(p)} If it isn't approved by ${p.until}, it's called off${card ? " and you can record acceptance" : ""}.`,
   // the Record acceptance dialog's, and the server's refusal of it from a
   // page opened before the Client started paying
@@ -139,8 +142,8 @@ export const clientPaying = {
     { until, finishing }: Pick<PayingFor, "until" | "finishing">,
   ) =>
     finishing
-      ? `${name}'s online payment on the quote you sent ${goingThrough}. If it books that quote, this draft is deleted; if not, you can send your changes then.`
-      : `${name} is paying the deposit on the quote you sent. If it books that quote, this draft is deleted. If it isn't approved by ${until}, you can send your changes then.`,
+      ? `${name}'s online payment ${goingThrough}. ${booksDraft} If not, you can send your changes then.`
+      : `${name} is paying the deposit online. ${booksDraft} If it isn't approved by ${until}, you can send your changes then.`,
   // under the greyed action, short, as the menu or a phone's foot may hide
   // the alert
   item: (firstName: string) => `Not while ${firstName} is paying the deposit`,
@@ -165,7 +168,7 @@ export const clientPaying = {
   // it: it may yet book the quote sent, so the changes wait, as the draft's
   // alert says while it's paid (#534 review F28, UX review U12)
   unsure: (name: string) =>
-    `We couldn't reach the payment service to see whether ${name}'s deposit payment went through, so your changes weren't sent. If it books the quote you sent, this draft is deleted. Please try again in a few minutes.`,
+    `We couldn't reach the payment service to see whether ${name}'s deposit payment went through, so your changes weren't sent. ${booksDraft} Please try again in a few minutes.`,
   // sending changes found it approved, and accepted the quote with it
   sent: (name: string, paid: string | null) =>
     `${wentThrough(name)}${paid ? ` with the ${paid} they paid for` : " and their cleaning plan is started as they chose it"}, and your changes weren't sent.`,

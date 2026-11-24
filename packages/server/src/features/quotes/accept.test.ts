@@ -1234,7 +1234,7 @@ describe("while the Client's bank is approving the Deposit", () => {
       .expect(409);
 
     expect(refused.body.message).toBe(
-      "Casey Client is paying the deposit on the quote you sent. If it books that quote, this draft is deleted. If it isn't approved by 4:15 AM, you can send your changes then.",
+      "Casey Client is paying the deposit online. If it books the quote you sent, your draft is deleted. If it isn't approved by 4:15 AM, you can send your changes then.",
     );
     expect((await quoteOf(office, quote.id)).draft).not.toBeNull();
   });
@@ -1318,7 +1318,7 @@ describe("while the Client's bank is approving the Deposit", () => {
     {
       when: "their bank is still finishing the payment",
       fails: null,
-      says: "Casey Client's online payment on the quote you sent is still going through with their bank, which usually takes a few minutes. If it books that quote, this draft is deleted; if not, you can send your changes then.",
+      says: "Casey Client's online payment is still going through with their bank, which usually takes a few minutes. If it books the quote you sent, your draft is deleted. If not, you can send your changes then.",
     },
     {
       when: "calling it off can't reach the provider",
@@ -1404,7 +1404,7 @@ describe("while the Client's bank is approving the Deposit", () => {
         depositCents: option(quote, "deep").depositCents,
         finishing: true,
       },
-      sent: "Casey Client's online payment on the quote you sent is still going through with their bank, which usually takes a few minutes. If it books that quote, this draft is deleted; if not, you can send your changes then.",
+      sent: "Casey Client's online payment is still going through with their bank, which usually takes a few minutes. If it books the quote you sent, your draft is deleted. If not, you can send your changes then.",
       after: null,
       charges: 1,
     });

@@ -403,7 +403,7 @@ test("a Client's bank approving the Deposit while Office Staff draft changes acc
   await pageAction(page, "Change quote");
   await expect(page).toHaveURL(/\/draft$/);
   await expect(
-    page.getByText("Casey Client is paying the deposit on the quote you sent."),
+    page.getByText("Casey Client is paying the deposit online."),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Send to Casey Client" }).first(),
@@ -433,7 +433,7 @@ test("the draft of a Quote its Client is paying waits to be sent", async ({
   await pageAction(page, "Change quote");
   await expect(page).toHaveURL(/\/draft$/);
   await expect(
-    page.getByText("Casey Client is paying the deposit on the quote you sent."),
+    page.getByText("Casey Client is paying the deposit online."),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Send to Casey Client" }).first(),
@@ -492,7 +492,7 @@ test(
     ).toHaveText("Saved · Send waits on Casey's deposit payment");
     const alert = page.getByRole("status").filter({
       hasText:
-        "Casey Client's online payment on the quote you sent is still going through with their bank, which usually takes a few minutes. If it books that quote, this draft is deleted; if not, you can send your changes then.",
+        "Casey Client's online payment is still going through with their bank, which usually takes a few minutes. If it books the quote you sent, your draft is deleted. If not, you can send your changes then.",
     });
     await expect(alert).toBeFocused();
     await expect(alert).toBeInViewport({ ratio: 1 });
