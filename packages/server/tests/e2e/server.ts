@@ -60,6 +60,7 @@ import { bookSiteVisit } from "../../src/features/site-visits/index.ts";
 import { properties } from "../../src/features/properties/index.ts";
 import { quotes } from "../../src/features/quotes/quotes.schema.ts";
 import { db } from "../../src/db/index.ts";
+import { API_CLOCK_HEADER } from "./api-clock.ts";
 import { accounts } from "../../src/features/auth/auth.schema.ts";
 
 const CONTROL_PORT = Number(process.env.E2E_CONTROL_PORT ?? 3101);
@@ -88,6 +89,17 @@ const accountIdOf = async (email: string) => {
   return account!.id;
 };
 control.use(express.json());
+
+// every answer says where the API's clock is as it goes out, after whatever
+// the request did to it, so the tests' browsers keep to it
+control.use((_req, res, next) => {
+  const json = res.json.bind(res);
+  res.json = (body) => {
+    res.setHeader(API_CLOCK_HEADER, testClock().now().toISOString());
+    return json(body);
+  };
+  next();
+});
 
 control.get("/health", (_req, res) => {
   res.json({ status: "ok" });

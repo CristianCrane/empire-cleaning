@@ -19,6 +19,7 @@ import {
   expectNoPageAction,
   expectNextStep,
   expectNothingNext,
+  setClock,
   titleBadge,
 } from "./harness.ts";
 
@@ -50,8 +51,6 @@ test(
   "Office Staff book a Site Visit for business premises, and record what it found",
   { tag: "@smoke" },
   async ({ page }) => {
-    // the browser's clock at the API's, so the visit is still to come
-    await page.clock.setFixedTime("2026-01-05T09:00:00Z");
     await requestQuoteForPremises(casey, "Acme Dental");
     await signInAsOffice(page);
 
@@ -134,7 +133,7 @@ test("a Site Visit that has been is badged To record, on its page and its home's
   });
   // the day before, its findings card says when to add them, and nothing
   // is next
-  await page.clock.setFixedTime("2026-01-05T15:00:00Z");
+  await setClock("2026-01-05T15:00:00Z");
   await signInAsOffice(page);
   await page.goto(`/office/site-visits/${visit.id}`);
   await expect(
@@ -145,7 +144,7 @@ test("a Site Visit that has been is badged To record, on its page and its home's
   // the next day: it's been, with nothing recorded. Recording is the page's
   // next step, pinned at a phone's foot after the facts; the alert says
   // only why, and What it found waits until something is
-  await page.clock.setFixedTime("2026-01-07T15:00:00Z");
+  await setClock("2026-01-07T15:00:00Z");
   await page.reload();
   await expect(
     page.getByText("Cory Cleaner has been. A quote waits on what they found.", {

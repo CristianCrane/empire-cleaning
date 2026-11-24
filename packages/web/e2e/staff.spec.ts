@@ -262,10 +262,6 @@ test(
   },
 );
 
-// the API's fake clock is at 4am on Monday 5 January 2026 in New York;
-// the calendar starts on the browser's today, so it's set to that day too
-const API_NOW = new Date("2026-01-05T09:00:00Z");
-
 const dayOnCalendar = (page: Page, day: string) =>
   page.getByRole("button", { name: new RegExp(`^${day} `) });
 
@@ -279,7 +275,6 @@ test("a day off frees a Cleaner's Jobs, and so does deactivating them, each said
     };
     await offerJob(job.id, member.id, { confirmed: true });
   }
-  await page.clock.setFixedTime(API_NOW);
   await signInAsOffice(page);
   await openStaffMember(page, "Cory Cleaner");
 
@@ -325,7 +320,6 @@ test("a Cleaner's Site Visit has to go to someone else before their day off, or 
     date: "2026-01-07",
     time: "15:00",
   });
-  await page.clock.setFixedTime(API_NOW);
   await signInAsOffice(page);
   await openStaffMember(page, "Cory Cleaner");
   const why =
