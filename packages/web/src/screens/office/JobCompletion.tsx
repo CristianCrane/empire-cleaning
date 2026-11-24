@@ -770,26 +770,30 @@ export function JobMoney({ job, columns }: { job: OfficeJob; columns: 2 | 3 }) {
         ];
   const shown = facts.filter(Boolean);
   if (shown.length === 0) return null;
+  // how it's worked out: what was quoted, and the price changes counted
+  const workedOut = [
+    <Fact
+      key="quoted"
+      icon={FileText}
+      label="Quoted"
+      value={formatMoney(payment.quotedCents)}
+    />,
+    payment.adjustmentsCents !== 0 && (
+      <Fact
+        key="changes"
+        icon={ClipboardList}
+        label="Price changes"
+        value={formatMoney(payment.adjustmentsCents)}
+      />
+    ),
+  ].filter(Boolean);
   return (
     <Section title="Money">
       <Card>
         <Facts columns={across(shown.length)}>{shown}</Facts>
         {job.completion && payment.totalCents !== payment.quotedCents && (
           <Fold label="How it's worked out">
-            <Facts columns={across(payment.adjustmentsCents !== 0 ? 2 : 1)}>
-              <Fact
-                icon={FileText}
-                label="Quoted"
-                value={formatMoney(payment.quotedCents)}
-              />
-              {payment.adjustmentsCents !== 0 && (
-                <Fact
-                  icon={ClipboardList}
-                  label="Price changes"
-                  value={formatMoney(payment.adjustmentsCents)}
-                />
-              )}
-            </Facts>
+            <Facts columns={across(workedOut.length)}>{workedOut}</Facts>
           </Fold>
         )}
       </Card>
