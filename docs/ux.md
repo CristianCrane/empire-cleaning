@@ -82,8 +82,18 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   (`Fold`).
 - **Its History**, a `Timeline` in a Card, newest first: last, at every
   width: one column, as a side column competed with the page (#493). Each
-  entry says what happened on one line and when on the line under it, every
-  entry alike (`TimelineItem`, a Quote's story too). What happened (a drop-out, a Cleaner taken off) is told there, not
+  entry says what happened on one line and when on the line under it, then
+  what it was about, where it has a line of its own, under that ("Standard
+  Clean $194.89 · for Mon, Jan 12, 9:00 AM"), every entry alike
+  (`TimelineItem`, a Quote's story too). A Quote sent again names what it
+  changed of the send before it, in the Draft's words for its fields and in
+  the Draft's order: "Quote sent again · cleaners changed", "· Deep Clean
+  price changed" where only the Service offered beside it moved, "· nothing
+  changed". It names what changed, not what to: the entry's own line holds
+  the price and time it was sent for, so two entries show a before and an
+  after, and **Now** the rest. The server works it out (`revisionChanges`),
+  field by field, so a price the Price list moved between sends reads
+  "price changed" (#548). What happened (a drop-out, a Cleaner taken off) is told there, not
   kept as a row elsewhere. A Quote's story is its
   body, **Now** on top holding it as it stands; its Draft is a Form page.
 - **On a phone, the page's next step pinned at the foot**, above the tab
@@ -636,6 +646,25 @@ stays as it is (#336).
   email in a Settings summary row breaks rather than running off a phone
   (#436). On a phone a row's badge (`end`) sits under its text rather than
   beside it (#305).
+- **A row's line is parts set apart by dots, each part whole where it
+  fits** (the kit's `Line`): a wrap moves a whole part to the next line, and
+  never leaves a dot at a line's end or start, as "Standard Clean ·" over
+  "$194.89" did on a phone (#548). What belongs together is one part: a
+  Service and its price ("Standard Clean $194.89"), a name and its role.
+  A part after the first reads on from its dot in lower case, as a
+  sentence does ("Deep Clean · about 1¾ h", models' `inLine`). A slot that
+  takes only text (a `TimelineItem`'s title, a Fact's value, an email's
+  line) takes models' `lineOf`, whose dots are glued to both their
+  neighbours, so they never end or start a line either, though a long part
+  may break inside itself.
+- **Figures sit in a column**: a list of labels and their values (a
+  price's hours and Deposit, a plan clean against a one-off, a plan's
+  totals, a quote's extras, "How it's worked out", a receipt) is the kit's
+  `Figures`, at most 28rem wide from its card's start, each value at the
+  column's end, so on a wide card a value sits near its label rather than
+  across the card (the user's pick B, #548). On a phone, and in any card
+  narrower than that, it's the card's width; a long label wraps inside it,
+  its value staying at the end.
 - **Lean rows**: the fewest columns that drive the decision (who, where,
   status, money, age); no cell that means something different from row to
   row (and colour: the `ui` skill).
@@ -739,6 +768,16 @@ stays as it is (#336).
   Client picks a day on a month, then that day's open times
   (`screens/AvailabilityPicker.tsx`). Both lists of times are the kit's
   `TimeTiles`. Clients never see the Schedule or anyone else's Jobs.
+- **A length of time is said as its reader needs it** (#548). The Office
+  books to the minute, so it reads a length that way: "1 h 38 min", "3 h",
+  "45 min" (`formatHours`), and a clean's end to the same minute ("9:00 AM
+  to 10:38 AM"). A Client or a Cleaner plans their day around it, so they
+  read it to the quarter hour, "About" only when that rounded it: "About
+  1¾ h", "3 h" (models' `howLong`, the emails too), and "until about
+  10:45 AM". The Office's working-out of a price keeps the decimal hours
+  typed on the Price list, each row's running total too ("2.3375 h"), so
+  it adds up against what was typed; its result, the cleaning hours,
+  reads as a length again on the price card.
 
 ### Status and colour
 

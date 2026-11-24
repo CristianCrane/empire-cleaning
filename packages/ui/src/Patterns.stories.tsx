@@ -43,6 +43,7 @@ import { ChoiceTile, ChoiceTiles } from "./ChoiceTiles.tsx";
 import { EmptyState } from "./EmptyState.tsx";
 import { Heading } from "./Heading.tsx";
 import { IconTile } from "./IconTile.tsx";
+import { Line } from "./Line.tsx";
 import { List, ListItem } from "./List.tsx";
 import { Notice } from "./Notice.tsx";
 import { Radio, RadioGroup } from "./RadioGroup.tsx";
@@ -97,13 +98,13 @@ const jobs = (
     <ListItem
       id="1"
       title="9:00 AM · Maria Lopez"
-      description="41-12 Austin St · Standard Clean"
+      description={<Line parts={["41-12 Austin St", "Standard Clean"]} />}
       end={<StatusBadge tone="info">Staffed</StatusBadge>}
     />
     <ListItem
       id="2"
       title="1:00 PM · Dev Patel"
-      description="88 Grand St · Deep Clean"
+      description={<Line parts={["88 Grand St", "Deep Clean"]} />}
       end={<StatusBadge tone="warning">Needs cleaners</StatusBadge>}
     />
   </List>
@@ -196,19 +197,27 @@ function ActionFirstRows() {
             <ListItem
               id="1"
               title="Send a quote"
-              description="Maria Lopez · 41-12 Austin St · asked Oct 26"
+              description={
+                <Line
+                  parts={["Maria Lopez", "41-12 Austin St", "asked Oct 26"]}
+                />
+              }
               start={<IconTile icon={ClipboardPenLine} tone="info" />}
             />
             <ListItem
               id="2"
               title="Find cleaners"
-              description="Dev Patel · 88 Grand St · Oct 28, 1:00 PM"
+              description={
+                <Line parts={["Dev Patel", "88 Grand St", "Oct 28, 1:00 PM"]} />
+              }
               start={<IconTile icon={UserX} tone="warning" />}
             />
             <ListItem
               id="3"
               title="Collect the balance"
-              description="Nina Gold · $184.00 owed · 22 Pine St"
+              description={
+                <Line parts={["Nina Gold", "$184.00 owed", "22 Pine St"]} />
+              }
               start={<IconTile icon={CircleDollarSign} tone="danger" />}
             />
           </List>
@@ -433,9 +442,29 @@ function RecordsAsStories() {
               </TimelineItem>
               <TimelineItem
                 icon={Send}
+                title={"Quote sent again\u00a0·\u00a0cleaners changed"}
+                when="Oct 4"
+                description={
+                  <Line
+                    parts={[
+                      "Standard Clean $194.89",
+                      "for Tue, Oct 13, 9:00 AM",
+                    ]}
+                  />
+                }
+              />
+              <TimelineItem
+                icon={Send}
                 title="Quote sent"
                 when="Oct 3"
-                description="$194.89 · for Tue, Oct 13, 9:00 AM"
+                description={
+                  <Line
+                    parts={[
+                      "Standard Clean $194.89",
+                      "for Tue, Oct 13, 9:00 AM",
+                    ]}
+                  />
+                }
               />
               <TimelineItem
                 icon={MessageSquareText}
