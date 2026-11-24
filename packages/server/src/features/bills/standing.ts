@@ -1,8 +1,7 @@
 import type { BillPaying, Unpaid } from "@empire-cleaning/models";
 import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
-import { clock } from "../../services/clock/index.ts";
-import { APPROVAL_MS, attemptsFor, NOT_APPROVED } from "../payments/money.ts";
+import { attemptsFor, NOT_APPROVED, waitOf } from "../payments/money.ts";
 import { unpaidOf, whyNotPaid } from "../payments/unpaid.ts";
 import type { Bill } from "./bills.schema.ts";
 
@@ -19,6 +18,15 @@ export type PayingOn = {
   failed: { at: Date; reason: string } | null;
 };
 
+// whether a payment on it holds the Bill (ADR-0022's one rule), as its
+// page says before Office Staff press Cancel bill or Record a payment
+// (canCancelOrRecord): one going through, or the Client's bank asking them
+// to approve theirs within its wait. One waited out holds nothing, as
+// cancelling or recording calls it off first, as the alert promised
+// (#534 review F11)
+export const holds = (on: PayingOn) =>
+  on.goingSince !== null || on.approvingUntil !== null;
+
 const NOT_PAYING: PayingOn = {
   goingSince: null,
   approvingUntil: null,
@@ -27,7 +35,6 @@ const NOT_PAYING: PayingOn = {
 
 // each Bill's, by its id, in one query for a list
 export const payingOn = async (billIds: string[], tx: Tx | typeof db = db) => {
-  const now = clock.now().getTime();
   const on = new Map<string, PayingOn>();
   const decided = new Set<string>();
   // newest first
@@ -39,12 +46,10 @@ export const payingOn = async (billIds: string[], tx: Tx | typeof db = db) => {
     const paying = on.get(attempt.forId) ?? { ...NOT_PAYING };
     on.set(attempt.forId, paying);
     if (open) {
-      const until = attempt.askedAt.getTime() + APPROVAL_MS;
-      if (attempt.status !== "approving" || attempt.bankFinishingAt) {
-        paying.goingSince ??= attempt.askedAt;
-      }
-      // past it, the next try calls it off, or the Clock does
-      else if (until > now) paying.approvingUntil ??= new Date(until);
+      const wait = waitOf(attempt);
+      if (!wait.onClient) paying.goingSince ??= attempt.askedAt;
+      // past it, whoever acts next calls it off, or the Clock does
+      else if (!wait.past) paying.approvingUntil ??= wait.until;
       continue;
     }
     if (decided.has(attempt.forId)) continue;

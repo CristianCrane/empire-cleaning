@@ -84,6 +84,21 @@ export const SETTLED_AFTER_MS = 15 * MINUTE_MS;
 // settleOpenPayments)
 export const APPROVAL_MS = 15 * MINUTE_MS;
 
+// How a payment the Client's bank was asked to approve holds its Quote or
+// Bill (ADR-0022's one rule), the one reading of APPROVAL_MS: it waits
+// `onClient` till `until`, APPROVAL_MS after they pressed Pay; their bank
+// finishing it, or anything but a wait on them, isn't (#534 critical
+// review C2); `past`, on them and waited out, it holds nothing, as whoever
+// acts next calls it off first (#534 review F11, F12)
+export const waitOf = (
+  attempt: Pick<ChargeAttempt, "status" | "askedAt" | "bankFinishingAt">,
+) => {
+  const until = new Date(attempt.askedAt.getTime() + APPROVAL_MS);
+  const onClient =
+    attempt.status === "approving" && attempt.bankFinishingAt === null;
+  return { until, onClient, past: onClient && until <= clock.now() };
+};
+
 // why a payment made with the Client there wasn't taken, when it's because
 // it was never approved: they left their bank's check, failed it, or it was
 // called off. Theirs to try again, not a payment that didn't go through
@@ -306,11 +321,10 @@ const approving = async (
   attempt: ChargeAttempt,
   callOff: CallingOff | null,
 ): Promise<Outcome> => {
-  const waited = clock.now().getTime() - attempt.askedAt.getTime();
   const approval = await approvalOf(
     attempt.gatewayRef!,
     attempt,
-    callOff === "client_retried" || waited >= APPROVAL_MS ? callOff : null,
+    callOff === "client_retried" || waitOf(attempt).past ? callOff : null,
   );
   switch (approval.status) {
     case "approved":
@@ -873,12 +887,11 @@ export const giveBackUnbookedDeposits = async (
   quoteId: string,
   unsettled: Set<string>,
 ) => {
-  const after = clock.now().getTime() - APPROVAL_MS;
   const givenBack: string[] = [];
   const calledOff: string[] = [];
   for (const earlier of await openAttempts(tx, quoteId)) {
     if (earlier.status === "approving") {
-      if (earlier.askedAt.getTime() > after) continue;
+      if (waitOf(earlier).until > clock.now()) continue;
       const approval = await approvalOf(
         earlier.gatewayRef!,
         earlier,

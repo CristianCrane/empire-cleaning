@@ -461,13 +461,17 @@ export function usePaymentForm({
 /**
  * The form for saving a card without paying (the Office's add-a-card link).
  * `save()` sets the card up with the provider, then saves it as the
- * Client's Payment Method. After a card is refused, `reset()` starts afresh.
+ * Client's Payment Method; pressed again after the saving failed, it saves
+ * the card already set up, as the provider refuses setting it up twice
+ * (#534 review F7). After a card is refused, `reset()` starts afresh.
  */
 export function useCardForm() {
   const t = useCardWords();
   const { w, locale } = t;
   const [attempt, setAttempt] = useState(0);
   const [problem, setProblem] = useState<string>();
+  // the setup the provider confirmed, till it's saved or started afresh
+  const setUp = useRef<string>(undefined);
 
   // a form is started only when it's shown, and again on each attempt: each
   // is a setup with the provider
@@ -492,8 +496,8 @@ export function useCardForm() {
 
   const save = useCallback(async () => {
     if (!form) throw new CardProblem(w.LOADING);
-    let token = form.secret;
-    if (form.form === "stripe") {
+    let token = setUp.current ?? form.secret;
+    if (form.form === "stripe" && !setUp.current) {
       const { stripe, elements } = ready();
       const result = await stripe.confirmSetup({
         elements,
@@ -504,13 +508,14 @@ export function useCardForm() {
         setProblem(result.error.message);
         throw cardProblem(result.error, w.notSetUp);
       }
-      token = result.setupIntent.id;
+      token = setUp.current = result.setupIntent.id;
     }
     return putJson<PaymentMethodView>("/api/payment-methods/mine", { token });
   }, [form, ready, w]);
 
   const reset = useCallback(() => {
     setProblem(undefined);
+    setUp.current = undefined;
     setAttempt((n) => n + 1);
   }, []);
 

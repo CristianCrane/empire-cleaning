@@ -677,6 +677,13 @@ describe("a Bill payment the Client's bank asks them to approve", () => {
     testPayments().requireApproval("pending");
     await pay().expect(200);
     testClock().advance({ minutes: 16 });
+    // before the Clock's sweep, its page frees them, as its alert promised
+    // (#534 review F11)
+    expect(await billOf(office, id)).toMatchObject({
+      canCancelOrRecord: true,
+      unpaid: null,
+      paying: null,
+    });
 
     await office
       .post(`/api/bills/${id}/void`)

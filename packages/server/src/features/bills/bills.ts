@@ -24,6 +24,7 @@ import type {
   SettledJobView,
 } from "@empire-cleaning/models";
 import {
+  because,
   addDays,
   clientPayingBill,
   DAY_MS,
@@ -58,7 +59,7 @@ import {
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { officeClientView } from "../clients/clients.ts";
 import { counts, paymentOf, settleAfterChange } from "../completion/balance.ts";
-import { payingOn, standing, type PayingOn } from "./standing.ts";
+import { holds, payingOn, standing, type PayingOn } from "./standing.ts";
 import {
   adjustments,
   reportedChange,
@@ -74,6 +75,7 @@ import {
   recordTakenEarlier,
   refundFrom,
   WAITING_ON_PROVIDER,
+  waitOf,
 } from "../payments/money.ts";
 import { cardIn } from "../payments/payments.ts";
 import {
@@ -718,7 +720,7 @@ const nothingTaken = (reason: string) => {
   if (NOT_APPROVED(reason))
     return new ConflictError(payWords[lang].notApproved);
   const { why } = whyNotPaid(lang, reason);
-  return new ConflictError(payWords[lang].notThrough(why ? ` (${why})` : ""));
+  return new ConflictError(payWords[lang].notThrough(because(why)));
 };
 
 // a bank debit on a Bill's page on its way, from now: not due meanwhile, so
@@ -886,7 +888,7 @@ export const settleBill = async (
     const failed = ended.find(
       ({ before: b, now }) =>
         now.call === "bill" &&
-        (b.attempt.status !== "approving" || b.attempt.bankFinishingAt) &&
+        !waitOf(b.attempt).onClient &&
         now.attempt.status === "failed" &&
         !NOT_APPROVED(now.attempt.reason),
     )?.now.attempt.reason;
@@ -996,7 +998,9 @@ const refuseWhilePaying = async (
       ),
     );
   }
-  if (on.goingSince || (await chargeOpen(bill.id, tx))) {
+  // one going through, or one waited out that calling off couldn't reach
+  // the provider to end, which may still take the money
+  if (await chargeOpen(bill.id, tx)) {
     throw new ConflictError(paymentNotDone[what]);
   }
 };
@@ -1567,11 +1571,7 @@ export const billView = async (
     voidedAt: bill.voidedAt?.toISOString() ?? null,
     voidReason: bill.voidReason,
     payable: notPayable(bill, on) === null,
-    canCancelOrRecord:
-      bill.status === "due" &&
-      !on.goingSince &&
-      !on.approvingUntil &&
-      !(await chargeOpen(bill.id)),
+    canCancelOrRecord: bill.status === "due" && !holds(on),
     plans: (await plansOn(bill.id)).map(({ startedAt: _, ...plan }) => plan),
   };
 };
