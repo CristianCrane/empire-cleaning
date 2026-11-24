@@ -411,13 +411,13 @@ const screenWordsIn = (lang: Language) => {
     // 4,500 sq ft" for business premises
     propertySummary: (p: PropertyView) =>
       p.kind === "commercial"
-        ? [
+        ? lineOf([
             p.premisesType.name,
             p.floorArea === null
               ? w.floorAreaNotKnown
               : formatFloorArea(p.floorArea),
-          ].join(" · ")
-        : [
+          ])
+        : lineOf([
             form[p.type],
             ...(p.bedrooms === null
               ? [w.roomsNotKnown]
@@ -425,7 +425,7 @@ const screenWordsIn = (lang: Language) => {
                   p.bedrooms === 0 ? w.studio : count(p.bedrooms, w.bedroom),
                   count(p.bathrooms!, w.bathroom),
                 ]),
-          ].join(" · "),
+          ]),
     // when a business wants cleaning: "Monday, Wednesday and Friday at 6:00
     // PM", or a one-off
     wantedCleaning: (request: {
