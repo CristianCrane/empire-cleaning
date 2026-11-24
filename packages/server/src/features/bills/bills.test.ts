@@ -42,6 +42,7 @@ import {
 } from "#features/completion";
 import { jobs } from "#features/jobs";
 import { currentPriceList } from "#features/price-list";
+import { properties } from "#features/properties";
 import { servicePlans } from "#features/service-plans";
 import { settleOpenPayments } from "#features/payments";
 import {
@@ -227,11 +228,11 @@ describe("making Bills", () => {
       priceCents,
       -depositCents,
     ]);
-    // on its page, short, as its cleans are at one home (#534's UX review
-    // U8); its email names it in full, below
+    // on its page the Office's lines say where, with the short time (#534's
+    // UX review U8, F16); its email has the long one, below
     expect(bill.lines.map((l) => l.label)).toEqual([
-      "Deep Clean, Wed, Jan 7, 9:00 AM",
-      "Deposit paid: Deep Clean, Wed, Jan 7, 9:00 AM",
+      "Deep Clean at 41-12 Austin St, 4B, 11375, Wed, Jan 7, 9:00 AM",
+      "Deposit paid: Deep Clean at 41-12 Austin St, 4B, 11375, Wed, Jan 7, 9:00 AM",
     ]);
     expect(bill.taxCents).toBeGreaterThan(0);
     expect(testPayments().charges.at(-1)!.amount).toBe(
@@ -1756,11 +1757,14 @@ describe("putting Bills right", () => {
         .set("Accept-Language", "es")
         .expect(200)
     ).body as BillView;
+    // which say where, as Casey has her home and her premises
     expect(theirs.lines.map((l) => l.label).sort()).toEqual([
       expect.stringMatching(
-        /^Corrección: Depósito pagado: Limpieza profunda, /,
+        /^Corrección: Depósito pagado: Limpieza profunda en 41-12 Austin St, /,
       ),
-      expect.stringMatching(/^Corrección: Limpieza profunda, /),
+      expect.stringMatching(
+        /^Corrección: Limpieza profunda en 41-12 Austin St, /,
+      ),
     ]);
     expect(testEmail().lastTo(BILLING_EMAIL).subject).toBe(
       "Your bill EC-000002: a credit",
@@ -2144,8 +2148,9 @@ describe("switching weekly billing off", () => {
   });
 });
 
-// a Bill's page names each clean short, its home only when the Bill's
-// cleans are at more than one (#534's UX review U8); its email in full
+// a Bill's page names each clean's time short, and its home for the Office,
+// or a Client with more than one (#534's UX review U8, F16); its email in
+// full
 describe("a Bill's lines", () => {
   const line = {
     key: "price",
@@ -2161,7 +2166,7 @@ describe("a Bill's lines", () => {
     amountCents: 26947,
   };
 
-  test("name a clean's home on its page only when the Bill's cleans are at more than one", () => {
+  test("name a clean's home on its page only when asked, and in full in an email", () => {
     expect(lineLabel("en", line, { home: false })).toBe(
       "Deep Clean, Wed, Jan 7, 9:00 AM",
     );
@@ -2171,5 +2176,25 @@ describe("a Bill's lines", () => {
     expect(lineLabel("en", line)).toBe(
       "Deep Clean at 41-12 Austin St, 4B, 11375, Wednesday, January 7 at 9:00 AM",
     );
+  });
+
+  test("a Client with one property reads each line without where, and the Office with it", async () => {
+    const { office, clientId } = await billedJob();
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const [bill] = await billsOf(office, clientId);
+    // one property, as a business with only its premises has: the
+    // fixture's clean is at a home, so its premises go
+    await db.delete(properties).where(eq(properties.kind, "commercial"));
+
+    const client = await signIn(casey.email);
+    const theirs = (await client.get(`/api/bills/mine/${bill!.id}`).expect(200))
+      .body as BillView;
+    expect(theirs.lines.map((l) => l.label).sort()).toEqual([
+      "Deep Clean, Wed, Jan 7, 9:00 AM",
+      "Deposit paid: Deep Clean, Wed, Jan 7, 9:00 AM",
+    ]);
+    const ours = await billOf(office, bill!.id);
+    expect(ours.lines[0]!.label).toMatch(/^Deep Clean at 41-12 Austin St, /);
   });
 });

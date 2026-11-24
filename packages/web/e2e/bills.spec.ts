@@ -144,8 +144,10 @@ test(
     await expectNothingNext(page);
     const lines = page.getByRole("region", { name: "Bill details" });
     await expect(
-      // one home, so its line names the clean, not where
-      lines.getByRole("link", { name: /^Deep Clean, \w{3}, \w{3} \d+, / }),
+      // the Office's lines say where (#534's review F16)
+      lines.getByRole("link", {
+        name: /^Deep Clean at 41-12 Austin St, 4B, 11375, Wed, Jan 7, /,
+      }),
     ).toBeVisible();
     await expect(lines).toContainText("Tax included");
     await expect(lines).toContainText("Total");
@@ -226,9 +228,16 @@ test(
     );
     await expect(heading(page)).toHaveText("Bill EC-000001");
     // paying it is the page's next step
+    const details = page.getByRole("region", { name: "Bill details" });
+    await expect(details).toContainText("To pay by Mon, Jan 26");
+    // Casey has her home and her premises, so each line says where; with one
+    // property it wouldn't (#534's UX review U8; bills.test.ts)
     await expect(
-      page.getByRole("region", { name: "Bill details" }),
-    ).toContainText("To pay by Mon, Jan 26");
+      details.getByRole("link", {
+        name: "Deep Clean at 41-12 Austin St, 4B, 11375, Wed, Jan 7, 9:00 AM",
+        exact: true,
+      }),
+    ).toBeVisible();
     await expectNextStep(page, "Pay this bill");
     // the fake's form, in the part a card goes in
     const { form, pay } = await payThisBill(page);

@@ -1,6 +1,7 @@
 import {
   and,
   asc,
+  count,
   desc,
   eq,
   gt,
@@ -1485,12 +1486,9 @@ const toSummary = (
     totalCents: bill.totalCents,
     taxCents: bill.taxCents,
     ...standing(bill, on),
-    // one made processing before clearing_since was kept is dated by its
-    // last change, as the payment history dates it
+    // set whenever it's processing (the bills table's check)
     clearingSince:
-      bill.status === "processing"
-        ? (bill.clearingSince ?? bill.updatedAt).toISOString()
-        : null,
+      bill.status === "processing" ? bill.clearingSince!.toISOString() : null,
     paidAt: bill.paidAt?.toISOString() ?? null,
     paidVia: bill.paidVia,
   };
@@ -1546,6 +1544,14 @@ const linesToSay = async (bill: Bill) => {
   );
 };
 
+const homesOf = async (clientId: string) => {
+  const [homes] = await db
+    .select({ n: count() })
+    .from(properties)
+    .where(eq(properties.clientId, clientId));
+  return homes!.n;
+};
+
 // a Bill with its lines; the Office's own, or one of the Client's
 export const billView = async (
   billId: string,
@@ -1565,9 +1571,9 @@ export const billView = async (
   const { bill, client } = found;
   const on = (await payingOn([bill.id]))(bill.id);
   const lines = await linesToSay(bill);
-  // each clean's home only when they're at more than one
-  const home =
-    new Set(lines.flatMap((l) => (l.clean ? [l.clean.address] : []))).size > 1;
+  // each clean's home for the Office; for the Client only when they have
+  // more than one, as their rows say (docs/ux.md, Lists)
+  const home = clientId ? (await homesOf(clientId)) > 1 : true;
   return {
     ...toSummary(bill, client, on),
     // worded in the reply's language: the Office's English, the Client's own

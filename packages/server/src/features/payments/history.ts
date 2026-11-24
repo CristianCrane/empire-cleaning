@@ -187,9 +187,9 @@ export const paymentHistoryFor = async (
       )
       .map((b) => ({
         id: b.id,
-        // a debit begun by a server from before clearing_since, as it
-        // deploys, has only its last write (#520)
-        at: (b.paidAt ?? b.clearingSince ?? b.updatedAt).toISOString(),
+        // paid, or processing, which always has clearing_since (the
+        // bills table's check)
+        at: (b.paidAt ?? b.clearingSince)!.toISOString(),
         kind: "bill" as const,
         amountCents: b.totalCents,
         job: null,

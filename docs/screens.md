@@ -317,7 +317,7 @@ Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432
   payment on its way. None gives the amount, which is the total below.
 - Body: the Bill (`DetailsCard`: what it comes to, where that stands, a
   payment going through started to the minute; icon facts; the lines, each
-  clean short, its home only when the Bill's cleans are at more than one).
+  clean with its home and its time short).
 
 #### Office > Staff
 

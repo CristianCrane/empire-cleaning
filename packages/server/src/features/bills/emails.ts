@@ -94,8 +94,9 @@ const lineWords = catalog({
 // 4B, 11375, Monday, January 12 at 9:00 AM", "Inside the oven, not done:
 // …", "Corrected: Late cancellation fee: …", "Credit from EC-000011". On
 // its page (`onPage`), a row, a Job's are short: "Deep Clean, Mon, Jan 12,
-// 9:00 AM", its home only when the Bill's cleans are at more than one
-// (docs/ux.md, a Client's rows; #534's UX review U8)
+// 9:00 AM", its home when `onPage.home` says (billView: the Office's, or a
+// Client's with more than one, as docs/ux.md's rows say; #534's UX review
+// U8, F16)
 export const lineLabel = (
   lang: Language,
   line: LineToSay,
