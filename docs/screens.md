@@ -232,7 +232,7 @@ Keeps: a Draft page of its own (#145). Renders through `FormPage` (#434).
   first on a phone, a sticky aside from `xl`; a one-off's own price, the
   Service recommended for a first visit one folded line under it ("Also
   offered: …"); a plan's week first; under each option's price, why the
-  client can't pick it at the time proposed, if they can't; each price's working folded. The
+  client can't pick it at the time proposed, if they can't (said once, under the one asked for, when the Service offered has the same problem); each price's working folded. The
   header that sticks and a phone's foot name the one-off's own price.
 
 #### Office > Clients

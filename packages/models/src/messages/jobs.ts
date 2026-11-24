@@ -40,7 +40,8 @@ export const NO_CREW = `${upperFirst(NO_ROOM.crew)}.`;
 // an option on the quote (its own clean, a plan weekday's, or the Service
 // offered beside it) that would run past midnight at its time: Send refuses
 // the quote for it. `subject` names it, "the Deep Clean" where Send says
-// so, "it" in the line under each option's price
+// so, "it" in the line under each option's price, "it and the Deep Clean"
+// there when the Service offered beside it runs past midnight too
 export const runsPastMidnight = (subject: string) =>
   `${upperFirst(subject)} would run past midnight at this time, so the quote can't be sent. Pick an earlier start time.`;
 
