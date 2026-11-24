@@ -51,6 +51,7 @@ import {
 } from "../services/services.ts";
 import { siteVisitStages } from "../site-visits/site-visits.ts";
 import { askedAddOns } from "./asked-add-ons.ts";
+import { revisionChanges } from "./revision-changes.ts";
 import {
   quoteRevisions,
   quotes,
@@ -527,9 +528,18 @@ export const revisionHistory = async (
     )
     .orderBy(desc(quoteRevisions.number));
   const options = await optionsOfRevisions(sent.map((r) => r.id));
-  return sent.map((r) => {
-    const offered = options.get(r.id) ?? [];
-    const headline = headlineOf(quote.kind, offered, r.serviceKey);
+  const compared = sent.map((revision) => {
+    const offered = options.get(revision.id) ?? [];
+    const headline = headlineOf(quote.kind, offered, revision.serviceKey);
+    return { revision, options: offered, headline };
+  });
+  return compared.map((after, i) => {
+    const { revision: r, options: offered, headline } = after;
+    // newest first: the one sent before it is next
+    const before = compared[i + 1];
+    const changed = before ? revisionChanges(before, after) : null;
+    // a one-off Quote's other Service, offered beside its own
+    const other = offered.find((o) => !isOwnOption(r, o));
     return {
       id: r.id,
       number: r.number,
@@ -539,6 +549,11 @@ export const revisionHistory = async (
       proposedStartsAt: r.proposedStartsAt!.toISOString(),
       sentAt: r.sentAt!.toISOString(),
       expiresAt: r.expiresAt!.toISOString(),
+      changed,
+      offeredServiceName:
+        other && changed?.includes("offeredPrice")
+          ? other.suggested.serviceName
+          : null,
     };
   });
 };

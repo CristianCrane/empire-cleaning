@@ -854,6 +854,28 @@ describe("a new Revision", () => {
     });
   });
 
+  test("each send after the first names what it changed of the one before", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    await sentQuote(office, quoteId);
+    await sentQuote(office, quoteId, { crewSize: 3 });
+    // sent again as it was
+    await sentQuote(office, quoteId, { crewSize: 3 });
+    // the Deep Clean offered beside the Standard Clean is dearer, as its
+    // Service's rate went up between the two sends: its price alone changed
+    await setService(office, "deep", { hourlyRateCents: 6500 });
+    const last = await sentQuote(office, quoteId, { crewSize: 3 });
+
+    expect(
+      last.revisions.map((r) => [r.number, r.changed, r.offeredServiceName]),
+    ).toEqual([
+      [4, ["offeredPrice"], "Deep Clean"],
+      [3, [], null],
+      [2, ["cleaners"], null],
+      [1, null, null],
+    ]);
+  });
+
   test("can't be started once the Quote is Accepted, Declined or Turned Down", async () => {
     const quoteId = await asked();
     const office = await signInAsOffice();

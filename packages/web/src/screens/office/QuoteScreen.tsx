@@ -45,6 +45,8 @@ import type {
   QuoteDraftInput,
   RecordedAcceptance,
   Recurrence,
+  RevisionChange,
+  RevisionSummary,
   ServiceChoice,
   ServicePlanInput,
 } from "@empire-cleaning/models";
@@ -61,6 +63,7 @@ import {
   noRoomOf,
   runsPastMidnight,
   formats,
+  lineOf,
   messages,
   type DepositRefundedWhy,
   type PayingFor,
@@ -717,6 +720,38 @@ type Moment = {
   details?: ReactNode;
 };
 
+// what a send changed, as words in a sentence, each the Draft's name for it
+const changeWords: Record<RevisionChange, string> = {
+  service: "service",
+  price: "price",
+  offeredPrice: "price",
+  time: "time",
+  weekdays: "weekdays",
+  cleaners: "cleaners",
+  extras: "extras",
+  area: "area",
+  condition: "condition",
+  deposit: "deposit",
+  planDiscount: "plan discount",
+  recurrence: "how often",
+  validity: "how long it's valid",
+};
+
+// a send after the first and what it changed: "Quote sent again · cleaners
+// changed", "· nothing changed" when sent as it was, and "· Deep Clean price
+// changed" when only the Service offered beside its own got dearer or cheaper
+const sentAgain = (revision: RevisionSummary) => {
+  const changed = (revision.changed ?? []).map((c) =>
+    c === "offeredPrice"
+      ? `${revision.offeredServiceName} ${changeWords[c]}`
+      : changeWords[c],
+  );
+  return lineOf([
+    "Quote sent again",
+    `${changed.length > 0 ? formatList(changed) : "nothing"} changed`,
+  ]);
+};
+
 // why what the Client paid online wasn't booked: "Casey paid it as …", or
 // "accepted it as …" when nothing was charged
 const unbookedAs: Record<DepositRefundedWhy, string> = {
@@ -755,13 +790,13 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
     });
   }
   // oldest first, as they happened (quote.revisions is newest first); a
-  // send after the first says so, as two sends can match word for word
+  // send after the first says so, and what it changed
   for (const [i, revision] of [...quote.revisions].reverse().entries()) {
     moments.push({
       key: revision.id,
       at: revision.sentAt,
       icon: Send,
-      title: i === 0 ? "Quote sent" : "Quote sent again",
+      title: i === 0 ? "Quote sent" : sentAgain(revision),
       // what it was sent for, and when: "Standard Clean $194.89 · for …"
       description: (
         <Line

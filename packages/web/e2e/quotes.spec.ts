@@ -491,11 +491,15 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
 
   await page.goto(quote);
   await pageAction(page, "Carry on with the draft");
+  // a third cleaner, and nothing else
+  const terms = page.getByRole("region", { name: "Terms" });
+  await terms.getByRole("button", { name: /^Terms/ }).click();
+  await terms.getByRole("textbox", { name: "Cleaners" }).fill("3");
   await send(page);
   await expect(page.getByText("Being updated")).toBeHidden();
-  // the second send says so, newest first
-  await expect(page.getByText(/^Quote sent( again)?$/)).toHaveText([
-    "Quote sent again",
+  // the second send says so, and what it changed, newest first
+  await expect(page.getByText(/^Quote sent/)).toHaveText([
+    "Quote sent again · cleaners changed",
     "Quote sent",
   ]);
   await expect(offer).toContainText("Sent ");
