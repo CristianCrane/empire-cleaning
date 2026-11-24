@@ -95,7 +95,7 @@ const words = catalog({
       "Confirm to take it. The first cleaner to confirm gets it. Not for me takes it off your list.",
     offeredText: "Confirm it, or say Not for me and it goes to someone else.",
     doneTitle: "When you're done",
-    doneText: "Mark it done and say how the home was.",
+    doneText: "Mark it done and say how the place was.",
     getInText:
       "It's here, behind the arrow. Say what happened, and we tell the client and the office.",
   },
@@ -111,7 +111,7 @@ const words = catalog({
       "Confírmalo para tomarlo. Se lo queda el primer limpiador que lo confirme. No es para mí lo quita de tu lista.",
     offeredText: "Confírmalo, o di No es para mí y pasa a otra persona.",
     doneTitle: "Cuando termines",
-    doneText: "Márcalo como terminado y di cómo estaba la casa.",
+    doneText: "Márcalo como terminado y di cómo estaba el lugar.",
     getInText:
       "Está aquí, detrás de la flecha. Di lo que pasó, y les avisamos al cliente y a la oficina.",
   },

@@ -17,6 +17,9 @@ export const Default: Story = {};
 // leading a list row
 export const Small: Story = { args: { size: "sm" } };
 
+// for something that won't happen: greyed, not the brand's colour
+export const Muted: Story = { args: { muted: true } };
+
 // in Spanish, as LanguageProvider gives it: "nov", "3", "mar" (ADR-0025)
 export const Spanish: Story = {
   decorators: [

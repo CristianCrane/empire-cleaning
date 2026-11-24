@@ -8,7 +8,6 @@ import {
   CreditCard,
   MapPin,
   CalendarDays,
-  Sparkles,
 } from "lucide-react";
 import type {
   AcceptOutcome,
@@ -43,7 +42,7 @@ import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { addressOf, formatMinutes, howLong, lineOf } from "../format.ts";
-import { QuoteIcon } from "../icons.ts";
+import { ConditionIcon, QuoteIcon } from "../icons.ts";
 import { type Said, useSaid } from "../words.ts";
 import {
   AskedRows,
@@ -364,7 +363,7 @@ function AskedQuote({ quote }: { quote: AskedQuoteView }) {
             />
             {!premises && (
               <Fact
-                icon={Sparkles}
+                icon={ConditionIcon}
                 label={t.condition}
                 value={t.conditionLabel[asked.condition!]}
               />

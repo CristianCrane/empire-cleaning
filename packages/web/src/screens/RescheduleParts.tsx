@@ -1,5 +1,6 @@
 import { useState, type ComponentType } from "react";
 import type {
+  CancellationTerms,
   OfficeJob,
   RescheduleCost,
   RescheduleTerms,
@@ -98,6 +99,21 @@ export const costForClient = (
   feeCents: number,
   job: CostedJob,
 ) => messages[lang].moveCostForClient(moveCost(lang, cost, feeCents, job));
+
+// until when a Job is free for its Client to move, and to cancel or skip,
+// each only while it still is (the server sends the time when it's past):
+// on the Client's clean and the Office's Job, each one row when the two end
+// together, 24 hours before it (ADR-0010)
+export const freeUntilOf = (
+  moving: RescheduleTerms | null,
+  cancelling: CancellationTerms | null | undefined,
+) => ({
+  move: moving?.cost === "free" ? moving.freeUntil : undefined,
+  cancel:
+    cancelling && !cancelling.late && cancelling.feeCents === 0
+      ? cancelling.freeUntil
+      : undefined,
+});
 
 export const costForOffice = (
   cost: RescheduleCost,

@@ -65,7 +65,10 @@ type Ledger = {
   adjustmentsCents: number;
   totalCents: number;
   rescheduleFeeCents: number;
-  charges: (Charge & { refundedCents: number })[];
+  charges: (Charge & {
+    refundedCents: number;
+    refunds: { amountCents: number; refundedAt: Date }[];
+  })[];
   paidCents: number;
   // taken off what it owes by refunds made in the provider's dashboard
   refundedAtProviderCents: number;
@@ -160,12 +163,14 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
             ),
           );
 
-  const withRefunds = taken.map((charge) => ({
-    ...charge,
-    refundedCents: given
-      .filter((r) => r.chargeId === charge.id)
-      .reduce((sum, r) => sum + r.amountCents, 0),
-  }));
+  const withRefunds = taken.map((charge) => {
+    const back = given.filter((r) => r.chargeId === charge.id);
+    return {
+      ...charge,
+      refundedCents: back.reduce((sum, r) => sum + r.amountCents, 0),
+      refunds: back,
+    };
+  });
   const paidCents = withRefunds.reduce(
     (sum, c) => sum + c.amountCents - c.refundedCents,
     0,
@@ -238,6 +243,12 @@ export const paymentOf = async (job: Job): Promise<JobPayment> => {
       amountCents: c.amountCents,
       refundedCents: c.refundedCents,
       chargedAt: c.chargedAt.toISOString(),
+      refunds: [...c.refunds]
+        .sort((a, b) => a.refundedAt.getTime() - b.refundedAt.getTime())
+        .map((r) => ({
+          amountCents: r.amountCents,
+          refundedAt: r.refundedAt.toISOString(),
+        })),
     })),
     paidCents: ledger.paidCents,
     billedCents: ledger.billedCents,

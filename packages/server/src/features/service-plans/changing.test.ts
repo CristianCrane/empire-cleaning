@@ -535,10 +535,10 @@ describe("a change to a plan whose replaced Job owes a fee", () => {
     const replaced = (await office.get(`/api/jobs/${jobId}`).expect(200))
       .body as {
       status: string;
-      cancellation: { payment: { unpaid: unknown } };
+      payment: { unpaid: unknown };
     };
     expect(replaced.status).toBe("cancelled");
-    expect(replaced.cancellation.payment.unpaid).not.toBeNull();
+    expect(replaced.payment.unpaid).not.toBeNull();
 
     await office.post(`/api/jobs/${jobId}/balance/retry`).expect(200);
     expect(

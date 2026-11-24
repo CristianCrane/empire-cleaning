@@ -62,7 +62,7 @@ export const withoutReplaced = (
 // (ADR-0025). Spanish is impersonal ("no se puede"), so it reads right to a
 // Client (usted) and a Cleaner (tú) alike
 type Ended = Exclude<JobStatus, "booked">;
-type Doing = Ended | "moved" | "offered" | "confirmed";
+type Doing = Ended | "moved" | "offered" | "confirmed" | "takenOff";
 const words = catalog({
   en: {
     // what happened to a Job that isn't booked any more
@@ -84,6 +84,7 @@ const words = catalog({
       moved: "move it",
       offered: "offer it to anyone",
       confirmed: "confirm it",
+      takenOff: "take anyone off it",
     } satisfies Record<Doing, string>,
     cantBecause: (why: string, doing: string) =>
       `${why}, so you can't ${doing}.`,
@@ -109,6 +110,7 @@ const words = catalog({
       moved: "reprogramar",
       offered: "ofrecer a nadie",
       confirmed: "confirmar",
+      takenOff: "quitar a nadie",
     },
     cantBecause: (why: string, doing: string) =>
       `${why}, así que no se puede ${doing}.`,

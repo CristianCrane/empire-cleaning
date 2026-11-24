@@ -1,16 +1,20 @@
-import { KeyRound, Ruler, Sparkles } from "lucide-react";
+import { KeyRound, Ruler } from "lucide-react";
 import { Fact } from "@empire-cleaning/ui";
 import { catalog, type PropertyView } from "@empire-cleaning/models";
+import { ConditionIcon } from "./icons.ts";
 import { useSaid } from "./words.ts";
 
 // in the screen's language: the Office's English, the portal's its
-// Client's (ADR-0025)
+// Client's, the Cleaner's their own (ADR-0025)
 const words = catalog({
   en: {
     floorArea: "Floor area",
+    // the condition a cleaner found on a Job, as its pages say it
+    howDirty: "How dirty it was",
   },
   es: {
     floorArea: "Superficie",
+    howDirty: "Qué tan sucio estaba",
   },
 });
 
@@ -36,31 +40,38 @@ export function FloorAreaFact({
   );
 }
 
+// a place's condition; `found`, as a cleaner found it on a Job
 export function ConditionFact({
   property,
   line,
+  found = false,
 }: {
   property: Pick<PropertyView, "condition">;
   line?: string;
+  found?: boolean;
 }) {
   const t = useSaid(words);
   return (
     <Fact
-      icon={Sparkles}
+      icon={ConditionIcon}
       label={t.condition}
       value={t.conditionText(property.condition)}
-      line={line}
+      line={found ? t.w.howDirty : line}
     />
   );
 }
 
+// how we get in; `empty` is what's said when nothing's written down, if
+// not "Not added yet" (the Cleaner's: call the client when you get there)
 export function AccessFact({
   property,
   line,
+  empty,
   className,
 }: {
   property: Pick<PropertyView, "accessInstructions">;
   line?: string;
+  empty?: string;
   className?: string;
 }) {
   const t = useSaid(words);
@@ -70,7 +81,7 @@ export function AccessFact({
       label={t.howWeGetIn}
       value={
         <span className="whitespace-pre-line">
-          {property.accessInstructions || t.notAdded}
+          {property.accessInstructions || (empty ?? t.notAdded)}
         </span>
       }
       line={line}

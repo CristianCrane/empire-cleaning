@@ -86,6 +86,19 @@ export const contactSchema = z.object({
   phone,
 });
 
+// a note someone writes, trimmed: none written is null, never "", so
+// "nothing written" has one form wherever it's read
+const note = (max: number, what?: Parameters<typeof keepUnder>[1]) =>
+  z
+    .string()
+    .trim()
+    .max(max, keepUnder(max, what))
+    .nullable()
+    .transform((written) => written || null);
+
+// how the crew gets in, the Client's to keep (Office Staff may too)
+export const accessInstructions = note(2000);
+
 const address = {
   street: z
     .string()
@@ -97,7 +110,7 @@ const address = {
     .string()
     .trim()
     .regex(/^\d{5}$/, say(words, "zip")),
-  accessInstructions: z.string().trim().max(2000, keepUnder(2000)).nullish(),
+  accessInstructions: accessInstructions.optional(),
 };
 
 // an area in sq ft: a place's floor area, an ask's rough idea of the area
@@ -195,7 +208,7 @@ const request = {
   wantsRegularService: z.boolean(),
   // for a Service priced by area, a rough idea of it; kept only for one
   area: squareFeet(10).nullish(),
-  notes: z.string().trim().max(2000, keepUnder(2000, "the notes")).nullish(),
+  notes: note(2000, "the notes").optional(),
 };
 
 type RequestFields = {
@@ -353,12 +366,7 @@ export const clientSubmission = z
 
 // the Office's own notes on a Property, never shown to the Client; empty
 // clears them
-export const officeNotes = z
-  .string()
-  .trim()
-  .max(4000, keepUnder(4000, "the notes"))
-  .nullable()
-  .transform((notes) => notes || null);
+export const officeNotes = note(4000, "the notes");
 
 // the Office correcting a Property's details (the address is its identity,
 // so it isn't correctable, and nor is whether it's a home); send only what

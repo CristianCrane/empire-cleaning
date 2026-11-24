@@ -39,6 +39,8 @@ export const labels = catalog({
     // so beside a clean it doesn't read as the clean not done
     paymentPending: "Payment pending",
     howWeGetIn: "How we get in",
+    // a Job's header card, as a screen reader names it (JobLead)
+    jobDetails: "Job details",
     jobStatus: {
       booked: "Booked",
       completed: "Done",
@@ -47,6 +49,8 @@ export const labels = catalog({
     } satisfies Record<JobStatus, string>,
     welcome: "Welcome",
     today: "Today",
+    // a Job's badge while a move asked for waits on the Office's answer
+    moveAsked: "Move asked",
     send: "Send",
     siteVisit: "Site visit",
   },
@@ -75,6 +79,7 @@ export const labels = catalog({
     seeBill: (n: string) => `Ver la factura ${n}`,
     paymentPending: "Pago pendiente",
     howWeGetIn: "Cómo entramos",
+    jobDetails: "Detalles del trabajo",
     jobStatus: {
       booked: "Reservada",
       completed: "Terminada",
@@ -85,6 +90,7 @@ export const labels = catalog({
     // everyone is on #206 for Jen
     welcome: "Bienvenido",
     today: "Hoy",
+    moveAsked: "Reprogramación pedida",
     send: "Enviar",
     siteVisit: "Visita previa",
   },

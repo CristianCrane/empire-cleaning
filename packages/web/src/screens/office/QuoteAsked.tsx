@@ -4,7 +4,6 @@ import {
   Globe,
   ClipboardList,
   Ruler,
-  Sparkles,
   BedDouble,
 } from "lucide-react";
 import type {
@@ -40,7 +39,7 @@ import {
   roomsText,
   screenWords,
 } from "../format.ts";
-import { homeIcon } from "../icons.ts";
+import { ConditionIcon, homeIcon } from "../icons.ts";
 import { AskedRows, PriceHead } from "../QuoteParts.tsx";
 import { working } from "./WorkedOutQuote.tsx";
 
@@ -123,7 +122,7 @@ export function AskedFacts({ quote }: { quote: OfficeQuote }) {
         />
       )}
       <Fact
-        icon={Sparkles}
+        icon={ConditionIcon}
         label="Condition"
         value={conditionText(property.condition)}
         line={

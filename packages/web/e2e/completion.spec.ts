@@ -15,6 +15,7 @@ import {
   test,
   addCleaner,
   linkIn,
+  expectNothingNext,
   pageAction,
   openTile,
   saveACard,
@@ -36,7 +37,7 @@ const casey = { name: "Casey Client", email: "casey@example.com" };
 
 // Casey's Job, Quoted by Olive, with Cory Confirmed on it, and the clock
 // moved to after it starts
-const jobUnderway = async () => {
+const jobUnderway = async ({ wantsRegularService = true } = {}) => {
   await createStaff(olive);
   await signUp(olive.email);
   const cory = await addCleaner("Cory Cleaner");
@@ -44,6 +45,7 @@ const jobUnderway = async () => {
     startsAt: MONDAY_9AM,
     officeEmail: olive.email,
     addOns: ["Inside the oven"],
+    wantsRegularService,
   });
   await offerJob(job.id, cory.id, { confirmed: true });
   await setClock(MONDAY_11AM);
@@ -164,12 +166,21 @@ test(
     await expect(extraTime).toContainText("+1 h");
     await expect(extraTime).toContainText("+$59.88");
     await expect(extraTime).toContainText("To review");
+    // the review is the step: a plan to offer waits, unsaid, behind it
+    await expectNextStep(page, "Review");
+    await expect(page.getByText("Casey wants regular visits.")).toHaveCount(0);
+    // paid in full, but not the last word while the change is open (#493)
+    await expect(
+      page.getByRole("region", { name: "Money" }).getByRole("definition"),
+    ).toContainText([/^Price so far, paid by/]);
     await extraTime.click();
     const review = page.getByRole("dialog", { name: "More time" });
     await expect(review).toContainText('"Heavy grease"');
     await expect(review).toContainText("$55.00 before tax");
     await review.getByRole("button", { name: "Send to the client" }).click();
-    await expect(page.getByText("Sent to the client")).toBeVisible();
+    await expect(
+      page.getByText("Sent to the client", { exact: true }),
+    ).toBeVisible();
     await expect(review).toBeHidden();
     await expect(extraTime).toContainText("Waiting on the client");
 
@@ -207,6 +218,17 @@ test(
 
     await page.reload();
     await expect(adjustments).toContainText("Approved");
+    // each step of it in History, who reported it first (#493)
+    const history = page.getByRole("region", { name: "History" });
+    await expect(history).toContainText(
+      "Cory Cleaner reported a price change: More time",
+    );
+    await expect(history).toContainText(
+      "Price change sent to the client: More time",
+    );
+    await expect(history).toContainText(
+      "The client approved the price change: More time",
+    );
   },
 );
 
@@ -237,6 +259,17 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   await expect(
     attention.getByRole("row").filter({ hasText: "Collect the balance" }),
   ).toBeVisible();
+  // the Job says what puts it right, when it failed, and leads with the retry
+  await page.goto(`/office/jobs/${job.id}`);
+  await expect(
+    page.getByText(
+      /^Its payment didn't go through.*\. We've emailed the client to update their card, which tries again\.$/,
+    ),
+  ).toBeVisible();
+  await expect(page.getByRole("region", { name: "History" })).toContainText(
+    /Balance of \$[\d.,]+ didn't go through/,
+  );
+  await expectNextStep(page, "Try the payment again");
 
   const client = await asCasey(browser);
   await client.goto(await linkIn(casey.email, "We couldn't take your payment"));
@@ -268,7 +301,7 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   await expect(client.getByText(/^We couldn't take payment/)).toHaveCount(0);
 
   // nothing owed is left for the Office: Money counts none
-  await page.reload();
+  await page.goto("/office");
   await expect(page.getByRole("button", { name: /^Money/ })).toBeDisabled();
 });
 
@@ -290,6 +323,9 @@ test("Office Staff remove an Adjustment from its own dialog, confirming in the s
   await expect(
     adjustments.getByRole("row", { name: /More time/ }),
   ).toContainText("Dismissed");
+  await expect(page.getByRole("region", { name: "History" })).toContainText(
+    "Price change dismissed: More time",
+  );
 
   await adjustments.getByRole("row", { name: /More time/ }).click();
   await page
@@ -310,15 +346,24 @@ test("Office Staff remove an Adjustment from its own dialog, confirming in the s
 test("Office Staff correct the Condition and undo a completion made by mistake", async ({
   page,
 }) => {
-  const { job, cory } = await jobUnderway();
+  // no regular visits asked for, so no plan to offer once it's done
+  const { job, cory } = await jobUnderway({ wantsRegularService: false });
   await completeJob(job.id, cory.id, { condition: "heavy", reports: [] });
   await signedInAs(page, olive.email);
   await page.goto(`/office/jobs/${job.id}`);
 
+  // the condition the cleaner found, a fact; corrected from the header
   const completed = page.getByRole("region", { name: "How it went" });
-  await completed.getByRole("button", { name: /Condition reported/ }).click();
-  await page.getByRole("option", { name: "Light" }).click();
+  await expect(completed).toContainText("HeavyHow dirty it was");
+  await pageAction(page, "Correct the condition");
+  const correct = page.getByRole("dialog", { name: "Correct the condition" });
+  await correct.getByText("Light", { exact: true }).click();
+  await correct.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Condition corrected")).toBeVisible();
+  await expect(completed).toContainText("LightHow dirty it was");
+  await expect(page.getByText("Done", { exact: true })).toBeVisible();
+  // done, paid, nothing waiting: correcting it is no next step
+  await expectNothingNext(page);
 
   await pageAction(page, "Mark not done");
   await page
@@ -328,7 +373,9 @@ test("Office Staff correct the Condition and undo a completion made by mistake",
 
   await expect(page.getByText("Marked not done")).toBeVisible();
   await expect(completed).toHaveCount(0);
-  await expect(page.getByText("Staffed", { exact: true })).toBeVisible();
+  // booked again, staffed, before its day: the usual case, no badge
+  await expect(page.getByRole("region", { name: "Crew" })).toBeVisible();
+  await expect(page.getByText("Done", { exact: true })).toHaveCount(0);
   expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
     "A correction to your clean",
   );

@@ -150,18 +150,44 @@ Keeps: Table + Tabs (#146). Renders through `ListPage` (#433).
 
 #### Office > Job
 
-Keeps: its actions in one place on the title row (#406; a ⋯ since #493). Renders through `RecordPage` (#432).
+Keeps: one column, History last, as every Record (#493). Renders through `RecordPage` (#432).
 
-- Header: Jobs › Job; "Service at street" and its status.
-- Actions: Menu (Move job, Ask for a new time, Mark not done once done;
-  Cancel job in red).
-- Alerts: Ended, Move asked for (answer), Cleaners needed (offer), Price
-  changes to review, Unpaid (retry; a failed retry is a Toast), Plan offer
-  (once the First Clean is paid); two shown.
-- Body: Job details (`DetailsCard`: `DateTile`, the time large, icon facts);
-  How it went; Crew (Section: List, those on it only); Money (Card: its
-  facts, price changes, How it's worked out folded).
-- History: a Card, last, at every width; a drop-out is told here.
+- Header: Jobs › its day and time; the Service; one badge, from the
+  Office's side: Unpaid, To review, Move asked, Needs cleaners, In
+  progress or Today while booked (none when staffed before its day, the
+  usual case), Done, Couldn't get in, Cancelled or Skipped once over. The
+  next step the split button's primary (Try the payment again, Review,
+  Answer, Offer to a cleaner, Quote a cleaning plan, else Move job), the
+  rest behind its arrow (Ask for a new time, Correct the condition, never
+  the primary; Take <name> off, one for each on the crew till it starts; Cancel job and Mark not done in red, last); none while it's
+  going on, or once it's over with nothing waiting.
+- Alerts: only what the badge can't say, with no buttons: the time a move
+  is asked for and what it costs the client; that its payment didn't go
+  through, why, and what puts it right; no cleaner free; that the client
+  wants regular visits and this was the first clean at this place (beside Quote a
+  cleaning plan).
+- Body: the header card (`JobLead`: `DateTile`, muted once it won't
+  happen; the times; the home and the client, each a link; while booked, a
+  fact each: How long, Cleaning hours for a crew of more than one, Extras,
+  until when it's free to move or cancel, how we get in last and full
+  width; the client's free-to-move-or-cancel time said as the client's).
+  While booked: Extras, Crew (`CrewSection`: a face each, a ghost for each
+  still needed; its line where it stands unless all are in and confirmed,
+  and under it who it's open to and who said no; each taken off from the
+  actions menu till it starts), Money (Price, Deposit). Once over: How it
+  went (the condition, or what the cleaner said when they couldn't get
+  in), Price changes (a list on a phone, a table wider), Money (one line a
+  fact: the price and how it was paid, "Price so far" while a change
+  waits, a fee named for what it's for and kept from the deposit or paid;
+  each weekly Bill it's on, linked, and what's still to go on one;
+  refunded, still owed; How it's worked out folded),
+  then "The job" folded: the facts, Extras, who was there (those who'd
+  confirmed).
+- History: a Card, last, at every width, whole: booked, each offer and
+  answer, each move asked (to when in its title), each charge and refund,
+  a payment that didn't go through, each price change reported, sent,
+  answered or dismissed, how it ended; who asked, did or ended it in its
+  title.
 
 #### Office > Quotes
 
@@ -404,8 +430,11 @@ Keeps: the Record, layout D (#493). Renders through `RecordPage` (#432).
   address; How long, Client, the client's number once they've confirmed,
   on the Job's day, Extras as a count, How we get in last and full width,
   the same); Extras
-  (`ExtrasSection`); Crew (`CrewSection`). Once over, Completed or
-  Couldn't get in first, the Job folded under it.
+  (`ExtrasSection`); Crew (`CrewSection`; its line only while someone is
+  still needed or to confirm). Once over, Completed or Couldn't get in
+  first (the condition as "How dirty it was", the Office's words),
+  the Job folded under it, its Crew only who'd confirmed: no ticks, no
+  ghosts, no line.
 
 #### Cleaner > Cleaner needed
 
