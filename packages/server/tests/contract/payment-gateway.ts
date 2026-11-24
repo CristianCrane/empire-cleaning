@@ -222,7 +222,7 @@ export const paymentGatewayContract = (
           processing: false,
         });
         if (deposit.status !== "needs_approval") return;
-        expect(await t.gateway.depositOutcome(deposit.ref)).toMatchObject({
+        expect(await t.gateway.paymentOutcome(deposit.ref)).toMatchObject({
           status: "needs_approval",
           ref: deposit.ref,
         });
@@ -242,14 +242,14 @@ export const paymentGatewayContract = (
           throw new Error(`expected needs_approval, got ${deposit.status}`);
         }
 
-        await t.gateway.cancelDeposit(deposit.ref, "abandoned");
+        await t.gateway.cancelPayment(deposit.ref, "abandoned");
 
-        expect(await t.gateway.depositOutcome(deposit.ref)).toEqual({
+        expect(await t.gateway.paymentOutcome(deposit.ref)).toEqual({
           status: "failed",
           reason: "canceled",
         });
         await expect(
-          t.gateway.cancelDeposit(deposit.ref, "client_retried"),
+          t.gateway.cancelPayment(deposit.ref, "client_retried"),
         ).rejects.toThrow();
       });
 
@@ -267,7 +267,7 @@ export const paymentGatewayContract = (
           throw new Error(`expected succeeded, got ${deposit.status}`);
         }
 
-        expect(await t.gateway.depositOutcome(deposit.chargeId)).toEqual({
+        expect(await t.gateway.paymentOutcome(deposit.chargeId)).toEqual({
           status: "succeeded",
           chargeId: deposit.chargeId,
           saved: {
@@ -292,7 +292,7 @@ export const paymentGatewayContract = (
         }
 
         await expect(
-          t.gateway.cancelDeposit(deposit.chargeId, "abandoned"),
+          t.gateway.cancelPayment(deposit.chargeId, "abandoned"),
         ).rejects.toThrow();
       });
 

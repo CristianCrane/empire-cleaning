@@ -8,7 +8,7 @@ import {
   type CallingOff,
   type ChargeInput,
   type ChargeResult,
-  type DepositAttempt,
+  type OnSessionResult,
   type DepositInput,
   type RefundResult,
   type SavedPaymentMethod,
@@ -110,7 +110,7 @@ type Outcome =
       saved: SavedPaymentMethod | null;
     }
   | { status: "unknown"; reason: string }
-  | Extract<DepositAttempt, { status: "needs_approval" }>
+  | Extract<OnSessionResult, { status: "needs_approval" }>
   | { status: "failed"; reason: string };
 
 // written outside the caller's transaction, so it stands whatever that does
@@ -139,9 +139,9 @@ const update = async (
 // keeps what the provider said of an attempt
 const keep = async (
   attempt: ChargeAttempt,
-  reply: ChargeResult | DepositAttempt,
+  reply: ChargeResult | OnSessionResult,
 ): Promise<Outcome> => {
-  const said: DepositAttempt =
+  const said: OnSessionResult =
     "ok" in reply
       ? reply.ok
         ? { status: "succeeded", chargeId: reply.chargeId, saved: null }
@@ -283,10 +283,10 @@ export const chargeOpen = async (forId: string, tx: Tx | typeof db = db) =>
 // can lose to the bank approving it just then, so it's read again after:
 // one approved is the Deposit (https://docs.stripe.com/api/payment_intents/cancel).
 
-// where a Deposit waiting on the Client's bank stands
+// where a payment waiting on the Client's bank stands
 export type Approval =
-  // their bank approved it: the Deposit, taken; no charge when it only
-  // saved their card, at 0%
+  // their bank approved it: taken; no charge when it only saved their
+  // card, a 0% Deposit
   | {
       status: "approved";
       chargeId: string | null;
@@ -305,7 +305,7 @@ export type Approval =
   | { status: "unknown"; reason: string };
 
 /**
- * Where a Deposit waiting on the Client's bank, `ref`, stands, asking the
+ * Where a payment waiting on the Client's bank, `ref`, stands, asking the
  * provider; one that ended is written so on its `attempt`. One that only
  * saves a card, no money moving, has none. `callOff` calls off one still
  * waiting, saying why. One the bank refused is called off too, so it can't
@@ -316,13 +316,13 @@ export const approvalOf = async (
   attempt: ChargeAttempt | undefined,
   callOff: CallingOff | null,
 ): Promise<Approval> => {
-  const read = () => paymentGateway.depositOutcome(ref).catch(() => undefined);
+  const read = () => paymentGateway.paymentOutcome(ref).catch(() => undefined);
   let said = await read();
   let calledOff = false;
   if (said?.status === "needs_approval" && !said.processing && callOff) {
     // refused when it's just been taken, or has started processing, or the
     // provider couldn't be reached: read again
-    calledOff = await paymentGateway.cancelDeposit(ref, callOff).then(
+    calledOff = await paymentGateway.cancelPayment(ref, callOff).then(
       () => true,
       () => false,
     );
@@ -365,7 +365,7 @@ export const approvalOf = async (
       // a call-off that failed is tried again on each read (#534 review F20)
       if (said.reason !== "canceled") {
         await paymentGateway
-          .cancelDeposit(ref, "abandoned")
+          .cancelPayment(ref, "abandoned")
           .catch(() => undefined);
       }
       return calledOff ? { status: "called_off" } : { status: "ended", reason };
@@ -543,7 +543,7 @@ export const chargeSaved = async (
 // pending Deposit to book (finalizeDeposit); or nothing more taken, as an
 // earlier one their bank is finishing can't be called off
 export type DepositTaken =
-  | DepositAttempt
+  | OnSessionResult
   | { status: "approved"; ref: string }
   | { status: "finishing" };
 
@@ -557,7 +557,7 @@ const withSaved = async (outcome: Outcome): Promise<Outcome> => {
     return outcome;
   }
   const said = await paymentGateway
-    .depositOutcome(outcome.attempt.gatewayRef!)
+    .paymentOutcome(outcome.attempt.gatewayRef!)
     .catch(() => undefined);
   if (said === undefined) return { status: "unknown", reason: UNREACHABLE };
   return said.status === "succeeded"

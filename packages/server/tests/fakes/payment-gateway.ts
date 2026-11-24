@@ -7,7 +7,7 @@ import {
   type ChargeInput,
   type ChargeLookup,
   type ChargeResult,
-  type DepositAttempt,
+  type OnSessionResult,
   type DepositInput,
   type EventHeaders,
   type PaymentEvent,
@@ -96,7 +96,7 @@ export class FakePaymentGateway implements PaymentGateway {
   // and those called off, never to be taken
   readonly canceled = new Set<string>();
   // Deposits taken without asking, by charge, as the provider still has them
-  private readonly takenAtOnce = new Map<string, DepositAttempt>();
+  private readonly takenAtOnce = new Map<string, OnSessionResult>();
   private readonly replies = new Map<
     string,
     { request: string; reply: unknown }
@@ -444,13 +444,13 @@ export class FakePaymentGateway implements PaymentGateway {
     return this.save(payerId, card);
   }
 
-  async takeDeposit(input: DepositInput): Promise<DepositAttempt> {
+  async takeDeposit(input: DepositInput): Promise<OnSessionResult> {
     this.check();
     const { idempotencyKey, ...request } = input;
     return this.once(
       idempotencyKey,
       request,
-      (): DepositAttempt => {
+      (): OnSessionResult => {
         const { source } = input;
         if ("token" in source && !source.token.startsWith("tok_test")) {
           return { status: "failed", reason: "invalid_token" };
@@ -503,7 +503,7 @@ export class FakePaymentGateway implements PaymentGateway {
           saved?.paymentMethodId ??
             ("paymentMethodId" in source ? source.paymentMethodId : null),
         );
-        const taken: DepositAttempt = { status: "succeeded", chargeId, saved };
+        const taken: OnSessionResult = { status: "succeeded", chargeId, saved };
         if (chargeId) {
           this.made.set(idempotencyKey, { ok: true, chargeId });
           this.takenAtOnce.set(chargeId, taken);
@@ -514,7 +514,7 @@ export class FakePaymentGateway implements PaymentGateway {
     );
   }
 
-  async depositOutcome(ref: string): Promise<DepositAttempt> {
+  async paymentOutcome(ref: string): Promise<OnSessionResult> {
     this.check();
     const taken = this.takenAtOnce.get(ref);
     if (taken) return taken;
@@ -524,7 +524,7 @@ export class FakePaymentGateway implements PaymentGateway {
     // the bank's answer, once given (below), stays, whatever's asked of
     // the next payment (critical review C10)
     const answered = this.replies.get(`outcome:${ref}`);
-    if (answered) return answered.reply as DepositAttempt;
+    if (answered) return answered.reply as OnSessionResult;
     if (
       waiting.byCard ||
       this.approval === "pending" ||
@@ -541,7 +541,7 @@ export class FakePaymentGateway implements PaymentGateway {
     return this.once(
       `outcome:${ref}`,
       null,
-      (): DepositAttempt => {
+      (): OnSessionResult => {
         if (this.approval === "refused") {
           return { status: "failed", reason: "authentication_failed" };
         }
@@ -559,14 +559,14 @@ export class FakePaymentGateway implements PaymentGateway {
   // as at Stripe, refused once taken, called off already, or while a
   // card's bank is finishing it; the bank's answer, if it's given one, is
   // what decides
-  async cancelDeposit(ref: string, _why: CallingOff) {
+  async cancelPayment(ref: string, _why: CallingOff) {
     this.check();
     if (!this.waiting.has(ref) || this.canceled.has(ref)) {
       throw new Error(`no Deposit ${ref} to call off`);
     }
-    // read as depositOutcome says it, so the two never disagree (#534
+    // read as paymentOutcome says it, so the two never disagree (#534
     // review F29)
-    const said = await this.depositOutcome(ref);
+    const said = await this.paymentOutcome(ref);
     if (said.status === "needs_approval" && said.processing) {
       throw new Error(`Deposit ${ref} is processing`);
     }

@@ -11,7 +11,7 @@ import {
   type ChargeInput,
   type ChargeLookup,
   type ChargeResult,
-  type DepositAttempt,
+  type OnSessionResult,
   type DepositInput,
   type EventHeaders,
   type PaymentEvent,
@@ -155,12 +155,14 @@ export class StripePaymentGateway implements PaymentGateway {
     amount,
     description,
     idempotencyKey,
-  }: DepositInput): Promise<DepositAttempt> {
+  }: DepositInput): Promise<OnSessionResult> {
+    // a card entered now is saved by this payment, for later Charges
+    const saves = "token" in source;
     const confirmFrom =
       "token" in source
         ? { confirmation_token: source.token }
         : { payment_method: source.paymentMethodId };
-    try {
+    return withClient("a Deposit", async () => {
       if (amount === 0) {
         const setup = await this.stripe.setupIntents.create(
           {
@@ -175,31 +177,62 @@ export class StripePaymentGateway implements PaymentGateway {
           },
           { idempotencyKey },
         );
-        return outcomeOf(setup, "token" in source);
+        return outcomeOf(setup, saves);
       }
-      const intent = await this.stripe.paymentIntents.create(
-        {
-          amount,
-          currency: "usd",
-          customer: payerId,
-          allowed_payment_method_types: ALLOWED,
-          confirm: true,
-          ...confirmFrom,
-          // a card entered now is saved by this payment, for later Charges
-          ...("token" in source && { setup_future_usage: "off_session" }),
-          description,
-          metadata: { ...DEPOSIT, [KEY]: idempotencyKey },
-          expand: ["payment_method"],
-        },
-        { idempotencyKey },
-      );
-      return outcomeOf(intent, "token" in source);
-    } catch (error) {
-      return { status: "failed", reason: reasonOf(error, "a Deposit") };
-    }
+      return this.payWithClient({
+        payerId,
+        confirmFrom,
+        amount,
+        description,
+        allowed: ALLOWED,
+        saves,
+        metadata: DEPOSIT,
+        idempotencyKey,
+      });
+    });
   }
 
-  async depositOutcome(ref: string): Promise<DepositAttempt> {
+  // a PaymentIntent confirmed here, on-session, from what the Client
+  // entered in the browser's Payment Element (or a card they saved),
+  // saving a card entered now when `saves`
+  private async payWithClient({
+    payerId,
+    confirmFrom,
+    amount,
+    description,
+    allowed,
+    saves,
+    metadata,
+    idempotencyKey,
+  }: {
+    payerId: string;
+    confirmFrom: { confirmation_token: string } | { payment_method: string };
+    amount: number;
+    description: string;
+    allowed: Stripe.PaymentIntentCreateParams["allowed_payment_method_types"];
+    saves: boolean;
+    metadata: Record<string, string>;
+    idempotencyKey: string;
+  }): Promise<OnSessionResult> {
+    const intent = await this.stripe.paymentIntents.create(
+      {
+        amount,
+        currency: "usd",
+        customer: payerId,
+        allowed_payment_method_types: allowed,
+        confirm: true,
+        ...confirmFrom,
+        ...(saves && { setup_future_usage: "off_session" }),
+        description,
+        metadata: { ...metadata, [KEY]: idempotencyKey },
+        expand: ["payment_method"],
+      },
+      { idempotencyKey },
+    );
+    return outcomeOf(intent, saves);
+  }
+
+  async paymentOutcome(ref: string): Promise<OnSessionResult> {
     // only a card entered just now can need approval and be saved by it,
     // except a saved card's on-session Deposit, which saves nothing new
     const intent = ref.startsWith("seti_")
@@ -218,7 +251,7 @@ export class StripePaymentGateway implements PaymentGateway {
   // Stripe refuses to cancel a PaymentIntent that succeeded, or a card's
   // that's processing (https://docs.stripe.com/api/payment_intents/cancel);
   // its reason shows in the dashboard
-  async cancelDeposit(ref: string, why: CallingOff) {
+  async cancelPayment(ref: string, why: CallingOff) {
     await this.stripe.paymentIntents.cancel(ref, {
       cancellation_reason:
         why === "client_retried" ? "requested_by_customer" : "abandoned",
@@ -500,7 +533,7 @@ const saved = (method: Stripe.PaymentMethod): SavedPaymentMethod => ({
 const outcomeOf = (
   intent: Stripe.PaymentIntent | Stripe.SetupIntent,
   savesCard: boolean,
-): DepositAttempt => {
+): OnSessionResult => {
   const method = intent.payment_method;
   switch (intent.status) {
     case "succeeded":
@@ -523,7 +556,7 @@ const outcomeOf = (
         secret: intent.client_secret!,
         processing: intent.status === "processing",
       };
-    // called off by us (cancelDeposit), whatever the bank had said before
+    // called off by us (cancelPayment), whatever the bank had said before
     case "canceled":
       return { status: "failed", reason: "canceled" };
     default: {
@@ -536,6 +569,19 @@ const outcomeOf = (
         reason: error?.decline_code ?? error?.code ?? intent.status,
       };
     }
+  }
+};
+
+// a payment made with the Client there: one Stripe refused failed, as
+// reasonOf says why; one it may have made after all throws
+const withClient = async (
+  what: string,
+  pay: () => Promise<OnSessionResult>,
+): Promise<OnSessionResult> => {
+  try {
+    return await pay();
+  } catch (error) {
+    return { status: "failed", reason: reasonOf(error, what) };
   }
 };
 
