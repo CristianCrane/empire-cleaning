@@ -238,6 +238,11 @@ test("a Site Visit shows on the Schedule, in the Client's portal and in the visi
   await expect(
     page.getByText(/^Cory comes to see 200 Park Ave S.* for about 30 min$/),
   ).toBeVisible();
+  // and on their cleans, its title read on from the time before it
+  await page.goto("/portal/cleans");
+  await expect(page.getByRole("row").first()).toContainText(
+    /3:00 PM\s·\ssite visit/,
+  );
 });
 
 test("a home's Quote for a Service seen first asks for a site visit as a home's", async ({

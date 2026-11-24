@@ -182,13 +182,19 @@ test(
     ]);
     await noViolations(client);
 
-    // the Office's plan says each weekday's time there, and each crew
-    // where they differ
+    // the Office's plan says each weekday's time there and crew, each
+    // named, as they differ
     const planId = new URL(client.url()).pathname.split("/").pop();
     await page.goto(`/office/service-plans/${planId}`);
     await expect(
-      page.getByRole("region", { name: "Cleaning plan" }),
-    ).toContainText("On site, with 2 cleaners + 1 cleaner");
+      page
+        .getByRole("region", { name: "Cleaning plan" })
+        .getByRole("definition")
+        .filter({ hasText: /^On site/ }),
+    ).toHaveText([
+      "On site Mondays, with 2 cleaners",
+      "On site Wednesdays, with 1 cleaner",
+    ]);
   },
 );
 

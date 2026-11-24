@@ -24,6 +24,9 @@ export const labels = catalog({
     // how long a Job runs, asked from the reader's side (howLong)
     howLong: "How long",
     onSiteWith: (cleaners: string) => `On site, with ${cleaners}`,
+    // one weekday's of a plan: "On site Mondays, with 2 cleaners"
+    onSiteOnWith: (day: string, cleaners: string) =>
+      `On site ${day}, with ${cleaners}`,
     extras: "Extras",
     none: "None",
     deposit: "Deposit",
@@ -67,6 +70,8 @@ export const labels = catalog({
     about: (hours: string) => `Cerca de ${hours}`,
     howLong: "Cuánto dura",
     onSiteWith: (cleaners: string) => `En el lugar, con ${cleaners}`,
+    onSiteOnWith: (day: string, cleaners: string) =>
+      `En el lugar ${day}, con ${cleaners}`,
     extras: "Adicionales",
     none: "Ninguno",
     deposit: "Depósito",

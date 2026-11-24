@@ -69,7 +69,8 @@ const visitRow =
   (visit: ClientSiteVisit): ListRow => ({
     id: visit.id,
     at: visit.startsAt,
-    title: t.siteVisit,
+    // read on from the time before it: "Thu 9:00 AM · site visit"
+    title: inLine(t.siteVisit),
     description: (
       <Line
         parts={[

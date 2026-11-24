@@ -431,26 +431,33 @@ export function PlanCard({
           }
         />
         {/* how long: the Client's to the quarter hour, the Office's to
-            the minute, with its crew, as the Schedule books it; each
-            weekday's in turn, and each crew where they differ: "1 h 38 min
-            + 2 h", "On site, with 2 cleaners + 1 cleaner" */}
+            the minute, with its crew, as the Schedule books it; once a
+            plan's weekdays differ in either, each weekday's on its own,
+            named, so nothing is matched by position: "On site Mondays, with
+            2 cleaners" */}
         {forClient ? (
           <Fact
             icon={Clock}
             label={t.howLong}
             value={howLong(t, ...plan.days.map((d) => d.hoursOnSite))}
           />
-        ) : several ? (
-          <Fact
-            icon={Clock}
-            label={t.onSite}
-            value={plan.days.map((d) => formatHours(d.hoursOnSite)).join(" + ")}
-            line={t.onSiteWith(
-              new Set(plan.days.map((d) => d.crewSize)).size === 1
-                ? t.cleaners(one!.crewSize)
-                : plan.days.map((d) => t.cleaners(d.crewSize)).join(" + "),
-            )}
-          />
+        ) : plan.days.some(
+            (d) =>
+              d.hoursOnSite !== one!.hoursOnSite ||
+              d.crewSize !== one!.crewSize,
+          ) ? (
+          plan.days.map((d) => (
+            <Fact
+              key={d.startsAt}
+              icon={Clock}
+              label={t.onSite}
+              value={formatHours(d.hoursOnSite)}
+              line={t.onSiteOnWith(
+                t.planDay(d.startsAt),
+                t.cleaners(d.crewSize),
+              )}
+            />
+          ))
         ) : (
           <Fact
             icon={Clock}

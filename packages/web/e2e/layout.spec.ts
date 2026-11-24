@@ -655,6 +655,14 @@ test("a Service Plan on several weekdays fits every width, Draft, Sent and start
     page,
     plan.replace("/portal/plans/", "/office/service-plans/"),
   );
+  // each clean the same (the crew of 1 it was quoted for): one length and
+  // crew, as a one-weekday plan's
+  await expect(
+    page
+      .getByRole("region", { name: "Cleaning plan" })
+      .getByRole("definition")
+      .filter({ hasText: /^On site/ }),
+  ).toHaveText(["On site, with 1 cleaner"]);
 });
 
 test("cancelling, Cancelled and No Access Jobs fit every width", async ({
