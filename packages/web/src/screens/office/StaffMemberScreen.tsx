@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLoaderData } from "@tanstack/react-router";
-import { Ban, Languages, SquarePen, UserCheck } from "lucide-react";
+import { Ban, Languages, SquarePen } from "lucide-react";
 import type {
   StaffDetail,
   StaffHolding,
@@ -51,8 +51,8 @@ const {
 
 const hoursFormat = { maximumFractionDigits: 2 } as const;
 
-// a day's hours as a calendar cell says them
-// a day's hours as she types them in its dialog: "7.5 h"
+// a day's hours as a calendar cell says them, and as she types them in its
+// dialog: "Off", "7.5 h"
 const hoursLabel = (hours: number) => (hours === 0 ? "Off" : typedHours(hours));
 
 // One Staff member (UX pass, #96), a Record (docs/ux.md): who they are,
@@ -103,12 +103,6 @@ export function StaffMemberScreen() {
           line={member.email}
         >
           <Facts>
-            <Fact
-              icon={UserCheck}
-              label="Signed up"
-              value={member.signedUp ? "Signed up" : "Not yet: invitation sent"}
-              line="Their account"
-            />
             <Fact
               icon={Languages}
               label="Preferred language"
@@ -373,7 +367,8 @@ const daysOf = (month: string) => {
 };
 
 // Their usual week and the days that differ, on a month calendar: each day
-// its hours, the days that differ tinted, past days dimmed. A day from today
+// its hours, only the days that differ tinted (a usual day off is the
+// usual week, so it reads "Off" untinted), past days dimmed. A day from today
 // on opens its dialog; the usual week is changed from the header.
 function Availability({ member }: { member: StaffDetail }) {
   const now = today();
@@ -419,7 +414,7 @@ function Availability({ member }: { member: StaffDetail }) {
                   : "bg-warning-subtle"
                 : hours > 0
                   ? "bg-surface"
-                  : "bg-surface-sunken text-fg-muted";
+                  : "bg-surface text-fg-muted";
               return (
                 <button
                   key={day}
@@ -450,8 +445,8 @@ function Availability({ member }: { member: StaffDetail }) {
             })}
           </div>
           <p className="text-sm text-fg-muted">
-            Tinted days differ from the usual week: amber for time off, blue for
-            more hours.
+            Tinted days differ from the usual week: amber for a day off, blue
+            for other hours.
           </p>
         </div>
       </Card>
