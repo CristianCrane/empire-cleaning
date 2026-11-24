@@ -1,4 +1,5 @@
 import { timestamp } from "drizzle-orm/pg-core";
+import { clock } from "../services/clock/index.ts";
 
 // every table's created and updated times: the database's own record of a
 // row's writes, which orders rows and is never shown. Apart from the pools
@@ -14,12 +15,14 @@ export const timestamps = {
 };
 
 // when a record a person reads was made (a Quote asked, a Price List or
-// Service version saved): the time the screens show as its createdAt.
-// $defaultFn is the app's value on every insert; defaultNow() is the
-// database's, kept for a server still running the code before this column
+// Service version saved), by the Clock, as every other moment of its story
+// is: the time the screens show as its createdAt (#520). $defaultFn is the
+// app's value on every insert; defaultNow() is the database's, kept for a
+// server still running the code before this column. The Clock imports only
+// models, so drizzle-kit can load it
 export const madeAt = {
   madeAt: timestamp("made_at", { withTimezone: true })
     .notNull()
     .defaultNow()
-    .$defaultFn(() => new Date()),
+    .$defaultFn(() => clock.now()),
 };

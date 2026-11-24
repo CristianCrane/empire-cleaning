@@ -7,7 +7,7 @@ import type {
   Service,
   ServiceInput,
 } from "@empire-cleaning/models";
-import { type Agent, api, signIn } from "../../../tests/harness.ts";
+import { type Agent, api, signIn, testClock } from "../../../tests/harness.ts";
 import {
   guestAsk,
   holding,
@@ -138,11 +138,17 @@ describe("Services", () => {
   test("every save is a new version with the same key, keeping its place", async () => {
     const office = await signInAsOffice();
     const before = (await list(office))[1]!;
+    testClock().set(new Date("2026-01-06T14:00:00Z"));
 
     const roomHours = { ...before.roomHours!, bathroomHours: 1.5 };
     const saved = await setService(office, "deep", { roomHours });
 
-    expect(saved).toMatchObject({ key: before.key, roomHours });
+    // saved when the server's Clock says, as the Price List is (#520)
+    expect(saved).toMatchObject({
+      key: before.key,
+      roomHours,
+      createdAt: "2026-01-06T14:00:00.000Z",
+    });
     expect(saved.id).not.toBe(before.id);
     expect(saved.version).toBeGreaterThan(before.version);
     expect((await list(office)).map((s) => s.name)[1]).toBe("Deep Clean");
