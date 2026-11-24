@@ -231,8 +231,8 @@ Keeps: a Draft page of its own (#145). Renders through `FormPage` (#434).
   on load unless it's set, has room and can be sent. Quote leads:
   first on a phone, a sticky aside from `xl`; a one-off's own price, the
   Service recommended for a first visit one folded line under it ("Also
-  offered: …"), and under that why the client can't pick it at the time
-  proposed, if they can't; a plan's week first; each price's working folded. The
+  offered: …"); a plan's week first; under each option's price, why the
+  client can't pick it at the time proposed, if they can't; each price's working folded. The
   header that sticks and a phone's foot name the one-off's own price.
 
 #### Office > Clients

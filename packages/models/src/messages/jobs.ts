@@ -37,9 +37,10 @@ export const NO_ROOM: Record<Exclude<NoRoom, "past_midnight">, string> = {
 export const DAY_FULL = `${upperFirst(NO_ROOM.full)} for this job.`;
 export const NO_CREW = `${upperFirst(NO_ROOM.crew)}.`;
 
-// a one-off quote's Service offered beside its own, which alone would run
-// past midnight at its time: Send refuses the quote for it. `subject` is
-// it, "the Deep Clean" where Send says so, "it" in its own aside
+// an option on the quote (its own clean, a plan weekday's, or the Service
+// offered beside it) that would run past midnight at its time: Send refuses
+// the quote for it. `subject` names it, "the Deep Clean" where Send says
+// so, "it" in the line under each option's price
 export const runsPastMidnight = (subject: string) =>
   `${upperFirst(subject)} would run past midnight at this time, so the quote can't be sent with it. Pick an earlier start time.`;
 
