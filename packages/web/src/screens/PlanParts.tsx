@@ -17,10 +17,8 @@ import {
   type UnpaidKind,
   asksTheClient,
   catalog,
-  dayOf,
   howLong,
   officeFix,
-  weekdayOf,
   oneStop,
   quarterHours,
 } from "@empire-cleaning/models";
@@ -44,7 +42,7 @@ import {
 import { postJson } from "../api.ts";
 import { linkTo, sameHref, type AppHref } from "../links.ts";
 import { useAction } from "./action.ts";
-import { formatHours } from "./format.ts";
+import { dayOfInstant, formatHours, planDayOn } from "./format.ts";
 import { type Said, useSaid } from "./words.ts";
 
 // what the Client reads, in their language (ADR-0025); what only the
@@ -395,14 +393,13 @@ export const cleansSayingLength = <
   days: { startsAt: string; hoursOnSite: number }[],
   cleans: Clean[],
 ) => {
-  const weekday = (startsAt: string) => weekdayOf(dayOf(new Date(startsAt)));
   const oneLength =
     alike(days, (d) => `${quarterHours(d.hoursOnSite)}`).length === 1;
   // a clean moved off the plan's weekdays runs as the card says if it has
   // one length; with several, the card can't say which is its
   const differs = (clean: Clean) => {
     const usual =
-      days.find((d) => weekday(d.startsAt) === weekday(clean.startsAt)) ??
+      planDayOn(days, dayOfInstant(clean.startsAt)) ??
       (oneLength ? days[0] : undefined);
     return (
       !usual ||

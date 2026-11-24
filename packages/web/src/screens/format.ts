@@ -29,6 +29,7 @@ import {
   quarterHours,
   timeOf,
   upperFirst,
+  weekdayOf,
 } from "@empire-cleaning/models";
 import { conditions, formWords } from "@empire-cleaning/quote-request";
 import { labels } from "./labels.ts";
@@ -135,6 +136,13 @@ export function timeOfField(time: Time | null | undefined) {
 
 // an instant -> the New York day it falls on, "2026-01-12"
 export const dayOfInstant = (iso: string) => dayOf(new Date(iso));
+
+// a plan's day that comes round on the weekday of `day` ("2026-01-19"),
+// if any does
+export const planDayOn = <Day extends { startsAt: string }>(
+  days: Day[],
+  day: string,
+) => days.find((d) => weekdayOf(dayOfInstant(d.startsAt)) === weekdayOf(day));
 
 // a Site Visit's length: 30 -> "30 min", 90 -> "1 h 30 min"
 export const formatMinutes = (minutes: number) => {

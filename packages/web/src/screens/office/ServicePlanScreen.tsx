@@ -10,7 +10,6 @@ import {
 import {
   type OfficeServicePlan,
   type UnplacedVisit,
-  weekdayOf,
   formats,
 } from "@empire-cleaning/models";
 import {
@@ -30,7 +29,7 @@ import {
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
-import { crewOf, dayOfInstant, timeOfDay, timeOfField } from "../format.ts";
+import { crewOf, planDayOn, timeOfDay, timeOfField } from "../format.ts";
 import {
   EndPlan,
   PlanCard,
@@ -234,10 +233,7 @@ function BookOrSkip({
   close,
 }: VisitProps & { close: () => void }) {
   // the weekday it came round on: its usual time, and its visit
-  const day =
-    plan.days.find(
-      (d) => weekdayOf(dayOfInstant(d.startsAt)) === weekdayOf(visit.dueOn),
-    ) ?? plan.days[0]!;
+  const day = planDayOn(plan.days, visit.dueOn) ?? plan.days[0]!;
   const usual = timeOfDay(day.startsAt);
   const [date, setDate] = useState<CalendarDate | null>(parseDate(visit.dueOn));
   const [time, setTime] = useState<Time | null>(parseTime(usual));
