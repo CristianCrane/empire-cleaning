@@ -244,7 +244,9 @@ test("a Service Plan of Deep Cleans", async ({ page, browser }) => {
   ).toBeVisible();
   // its story names the plan's Service, and the round's unit
   await expect(
-    page.getByText(/^Deep Clean plan \$[\d,.]+ a clean\s·\sfor /),
+    page.getByText(
+      /^Deep Clean plan \$[\d,.]+ a clean\s·\s2 cleaners\s·\sfor /,
+    ),
   ).toHaveCount(1);
 
   const client = await (await browser.newContext()).newPage();

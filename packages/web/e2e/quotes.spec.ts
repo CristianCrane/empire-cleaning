@@ -440,9 +440,10 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
   const sent = page.getByText("Quote sent", { exact: true });
   const offer = page.getByRole("region", { name: "Current quote" });
   await expect(sent).toHaveText(["Quote sent"]);
-  // for the Service asked for, not the Deep Clean recommended beside it
+  // for the Service asked for, not the Deep Clean recommended beside it,
+  // and the crew it was sent with
   await expect(
-    page.getByText(/^Standard Clean \$[\d,.]+\s·\sfor /),
+    page.getByText(/^Standard Clean \$[\d,.]+\s·\s2 cleaners\s·\sfor /),
   ).toHaveCount(1);
   await expect(offer).toContainText("Sent ");
   // its own Service, the one recommended an aside under it, as the Draft
