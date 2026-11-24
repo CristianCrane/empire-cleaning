@@ -694,7 +694,7 @@ const clientBill = async (clientId: string, billId: string) => {
 
 // what the API says to a Client paying a Bill, in the request's language
 // (ADR-0025): each refusal what happened, then what to do
-export const payWords = catalog({
+const payWords = catalog({
   en: {
     onItsWay: "Your bank payment for this bill is on its way.",
     ours: `This bill's payment is pending. ${messages.en.NOTHING_TO_DO}`,
