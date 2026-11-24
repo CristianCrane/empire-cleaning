@@ -1,13 +1,11 @@
 import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
 import {
-  CANCELLATION_CUTOFF_HOURS,
   cancelCostForOffice,
   type CancellationTerms,
   type CancelledBy,
   type OfficeJob,
   formats,
-  messages,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -20,15 +18,10 @@ import {
   type DialogState,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
-import { wasSkipped, screenWords } from "../format.ts";
 import { useAction } from "../action.ts";
 import type { CostedJob } from "../RescheduleParts.tsx";
 
-const { cancelledLabel, jobStatusLabel } = screenWords.en;
-
-const { formatDateTime, formatMoney } = formats.en;
-
-const { planCancelled } = messages.en;
+const { formatMoney } = formats.en;
 
 // What cancelling costs, as the Office reads it
 const describeTerms = (terms: CancellationTerms, job: CostedJob) =>
@@ -42,8 +35,9 @@ const describeTerms = (terms: CancellationTerms, job: CostedJob) =>
   });
 
 // Office Staff cancel a booked Job, for the Client (by the cancellation
-// policy) or because Empire Cleaning can't do it (always refunded in full).
-// A plan Job is skipped, and the plan carries on.
+// policy) or because we can't do it (always refunded in full). A plan Job
+// is skipped, and the plan carries on. What each costs is said by its
+// choice, or once for both when they cost the same (#521, U12)
 export function CancelJob({
   job,
   isOpen,
@@ -55,6 +49,9 @@ export function CancelJob({
   const [by, setBy] = useState<CancelledBy>("client");
   const [reason, setReason] = useState("");
   const action = useAction("The job wasn't cancelled. Please try again.");
+  const forClient = describeTerms(terms.client, job);
+  const forUs = describeTerms(terms.empire, job);
+  const same = forClient === forUs;
 
   const cancel = async (close: () => void) => {
     const ok = await action.run(
@@ -82,20 +79,15 @@ export function CancelJob({
         <>
           <RadioGroup
             label="Who's cancelling?"
+            description={same ? forClient : undefined}
             value={by}
             onChange={(value) => setBy(value as CancelledBy)}
           >
-            <Radio
-              value="client"
-              description={describeTerms(terms.client, job)}
-            >
+            <Radio value="client" description={same ? undefined : forClient}>
               The client asked
             </Radio>
-            <Radio
-              value="empire"
-              description={describeTerms(terms.empire, job)}
-            >
-              Empire Cleaning can't do it
+            <Radio value="empire" description={same ? undefined : forUs}>
+              We can't do it
             </Radio>
           </RadioGroup>
           {by === "empire" && (
@@ -129,39 +121,3 @@ export function CancelJob({
     </Dialog>
   );
 }
-
-// how a Job that didn't happen ended, in a title and a sentence: Cancelled
-// (a plan Job the Client cancelled is Skipped) or No Access; null otherwise
-export const howItEnded = (
-  job: OfficeJob,
-): { title: string; at: string; description: string } | null => {
-  const { cancellation, noAccess } = job;
-  if (cancellation) {
-    const skipped = wasSkipped(job);
-    const why =
-      cancellation.by === "empire"
-        ? "By Empire Cleaning, refunded in full"
-        : cancellation.late
-          ? "By the client, a late cancellation"
-          : `By the client, more than ${CANCELLATION_CUTOFF_HOURS} hours ahead`;
-    return {
-      title: `${cancelledLabel(skipped)} ${formatDateTime(cancellation.cancelledAt)}`,
-      at: cancellation.cancelledAt,
-      description: [
-        `${why}${skipped ? "; the plan carries on" : ""}.`,
-        cancellation.withPlan && `${planCancelled[cancellation.withPlan]}.`,
-        cancellation.reason,
-      ]
-        .filter(Boolean)
-        .join(" "),
-    };
-  }
-  if (noAccess) {
-    return {
-      title: `${jobStatusLabel.no_access} ${formatDateTime(noAccess.recordedAt)}`,
-      at: noAccess.recordedAt,
-      description: `${noAccess.recordedBy ? `${noAccess.recordedBy.name} said` : "The cleaner said"}: "${noAccess.reason}" Charged like a late cancellation.`,
-    };
-  }
-  return null;
-};

@@ -212,6 +212,16 @@ describe("a signed-in Client asking", () => {
 const ownHomes = async (email: string) =>
   (await (await signIn(email)).get("/api/clients/me")).body;
 
+test("an access note left blank is saved as none, as a home's edit saves it", async () => {
+  await submit(
+    guestAsk({ property: { new: { ...home, accessInstructions: "  " } } }),
+  ).expect(201);
+
+  expect((await ownHomes(casey.email)).properties[0].accessInstructions).toBe(
+    null,
+  );
+});
+
 describe("the Service asked for", () => {
   test("must be named, and on offer for the kind of Property", async () => {
     const { serviceKey: _, ...unnamed } = guestAsk();

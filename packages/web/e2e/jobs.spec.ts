@@ -52,12 +52,13 @@ test(
     await expect(page).toHaveURL(/\/office\/jobs\/[0-9a-f-]{36}$/);
     // a Job belongs to Jobs, whichever way it's reached
     const crumbs = page.getByLabel("Breadcrumbs");
-    // the trail ends at the Job, by its title
+    // titled its Service, the trail ending at its day and time, the home
+    // in its card: each once (#518's U9)
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      /^Deep Clean at /,
+      "Deep Clean",
     );
     await expect(crumbs.locator("[aria-current=page]")).toHaveText(
-      /^Deep Clean at /,
+      "Thu, Jan 8, 9:00 AM",
     );
     await expectCurrentSection(page, "Jobs");
 
@@ -76,11 +77,12 @@ test("Office Staff search Jobs by the address", async ({ page }) => {
   await createStaff(olive);
   await signedInAs(page, olive.email);
   await page.goto(`/office/jobs/${job.id}`);
-  // the street is the Job's title
-  // (as written: the heading is shown in capitals)
-  const street = (await page.getByRole("heading", { level: 1 }).textContent())!
-    .split(" at ")[1]!
-    .split(",")[0]!;
+  // the street, as the Job's card links its home
+  const street = (await page
+    .getByRole("region", { name: "Job details" })
+    .getByRole("link")
+    .first()
+    .textContent())!.split(",")[0]!;
 
   await page.goto("/office/jobs");
   await searchList(page, "Search jobs", street);

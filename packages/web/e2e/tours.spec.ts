@@ -158,6 +158,11 @@ eachTheme(() => {
       labourHours: 4,
     })) as { id: string };
     await requestReschedule(job.id, { date: "2026-01-09", time: "10:00" });
+    // and one needing a cleaner, with no move asked
+    const needy = (await bookJob({
+      startsAt: "2026-01-07T14:00:00.000Z",
+      labourHours: 4,
+    })) as { id: string };
     await createStaff({ ...olive, roles: ["office_staff"] });
 
     // Today. Having seen a Client tour, they're still met by the Office's
@@ -176,11 +181,12 @@ eachTheme(() => {
     await draftTheQuote(page);
     await walkTour(page, officeTours, "office-quote-draft", { escape: true });
 
-    // a Job with a new time asked for, and Cleaners Needed: one tour at a
-    // time, the next on the next visit
+    // a Job with a new time asked for, and Cleaners Needed: its tour is the
+    // next step's, Answer; Offer to a cleaner's waits for a Job it's the next
+    // step of, on the next visit
     await page.goto(`/office/jobs/${job.id}`);
     await walkTour(page, officeTours, "office-job-new-time");
-    await page.reload();
+    await page.goto(`/office/jobs/${needy.id}`);
     await walkTour(page, officeTours, "office-job-cleaner-needed");
 
     await page.getByRole("link", { name: "Schedule", exact: true }).click();

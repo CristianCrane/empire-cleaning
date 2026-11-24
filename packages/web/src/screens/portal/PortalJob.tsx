@@ -45,7 +45,11 @@ import { useAction } from "../action.ts";
 import { linkTo } from "../../links.ts";
 import { requestQuoteHref } from "./whats-next.ts";
 import { PickAvailableTime } from "../AvailabilityPicker.tsx";
-import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
+import {
+  ChooseNewTime,
+  costForClient,
+  freeUntilOf,
+} from "../RescheduleParts.tsx";
 import { addressOf, wasSkipped } from "../format.ts";
 import { type Said, useSaid } from "../words.ts";
 import {
@@ -384,19 +388,13 @@ function useNow(job: ClientJobDetail): {
   };
 }
 
-// until when it's free to move, and to cancel or skip, as the server says,
-// each only while it still is (the server sends the time when it's past):
-// one Fact when the two end together, 24 hours before it (ADR-0010); two
-// when a plan clean booked later than that is free to skip until it starts
+// until when it's free to move, and to cancel or skip (freeUntilOf): one
+// Fact when the two end together; two when a plan clean booked later than
+// that is free to skip until it starts
 function FreeUntil({ job }: { job: ClientJobDetail }) {
   const t = useSaid(words);
   const skip = !!job.servicePlanId;
-  const { rescheduleTerms: moving, cancelTerms: cancelling } = job;
-  const move = moving?.cost === "free" ? moving.freeUntil : undefined;
-  const cancel =
-    cancelling && !cancelling.late && cancelling.feeCents === 0
-      ? cancelling.freeUntil
-      : undefined;
+  const { move, cancel } = freeUntilOf(job.rescheduleTerms, job.cancelTerms);
   const until = (when: string) => t.w.until(t.formatDateTime(when));
   if (move && move === cancel)
     return (

@@ -5,7 +5,6 @@ import type {
   CleanerJobs,
   ClientJob,
   ClientJobDetail,
-  NeedsAttentionItem,
   OfficeJob,
   ScheduleDay,
   SignedInAccount,
@@ -210,16 +209,17 @@ describe("the Client cancelling", () => {
     );
     const job = await officeJob(office, jobId);
     expect(job.status).toBe("cancelled");
-    expect(job.cancellation!.payment.unpaid).not.toBeNull();
+    expect(job.payment!.unpaid).not.toBeNull();
     expect(testEmail().lastTo(casey.email).subject).toBe(
       "Your clean is cancelled",
     );
 
     await office.post(`/api/jobs/${jobId}/balance/retry`).expect(200);
     expect(refunded()).toEqual([deposit]);
-    expect(
-      (await officeJob(office, jobId)).cancellation!.payment,
-    ).toMatchObject({ owedCents: 0, unpaid: null });
+    expect((await officeJob(office, jobId)).payment).toMatchObject({
+      owedCents: 0,
+      unpaid: null,
+    });
   });
 
   test("whose Refund wasn't recorded gives the Deposit back once, retried a day later", async () => {
@@ -235,9 +235,10 @@ describe("the Client cancelling", () => {
     await office.post(`/api/jobs/${jobId}/balance/retry`).expect(200);
 
     expect(refunded()).toEqual([deposit]);
-    expect(
-      (await officeJob(office, jobId)).cancellation!.payment,
-    ).toMatchObject({ owedCents: 0, unpaid: null });
+    expect((await officeJob(office, jobId)).payment).toMatchObject({
+      owedCents: 0,
+      unpaid: null,
+    });
   });
 
   test("less than 24 hours ahead keeps the Deposit as the fee", async () => {
@@ -356,8 +357,8 @@ describe("Office Staff cancelling", () => {
       late: false,
       feeCents: 0,
       reason: "Our crew's van broke down.",
-      payment: { paidCents: 0 },
     });
+    expect(job.payment).toMatchObject({ paidCents: 0 });
     expect(refunded()).toEqual([deposit]);
     const email = testEmail().lastTo(casey.email);
     expect(email.text).toContain("we've had to cancel your clean.");
@@ -410,11 +411,8 @@ describe("No Access", () => {
       status: "no_access",
       completion: null,
       cancelTerms: null,
-      noAccess: {
-        recordedBy: { name: "Cory Cleaner" },
-        feeCents: deposit,
-        payment: { paidCents: deposit, owedCents: 0 },
-      },
+      noAccess: { recordedBy: { name: "Cory Cleaner" }, feeCents: deposit },
+      payment: { paidCents: deposit, owedCents: 0 },
     });
     expect((await clientJob(client, jobId)).noAccess).toMatchObject({
       feeCents: deposit,
@@ -489,23 +487,17 @@ describe("No Access", () => {
       .expect(400);
   });
 
-  test("doesn't wait for the rest of the crew to Confirm, and leaves Needs attention", async () => {
-    const { office, asCory, jobId } = await bookedJob({ crewSize: 2 });
+  // Needs attention drops a Job once it starts (assignments.test.ts)
+  test("doesn't wait for the rest of the crew to Confirm", async () => {
+    const { asCory, jobId } = await bookedJob({ crewSize: 2 });
     testClock().set(MONDAY_9_30AM);
 
     const job = (await asCory.get(`/api/assignments/mine/${jobId}`))
       .body as CleanerJob;
     expect(job.canComplete).toBe(false);
     expect(job.canRecordNoAccess).toBe(true);
-    const unassigned = async () =>
-      (
-        (await office.get("/api/dashboard/needs-attention").expect(200))
-          .body as NeedsAttentionItem[]
-      ).filter((i) => i.kind === "job_unassigned");
-    expect(await unassigned()).toHaveLength(1);
 
     await noAccess(asCory, jobId).expect(200);
-    expect(await unassigned()).toEqual([]);
   });
 
   test("is refused for an Offered Assignment not yet Confirmed", async () => {

@@ -26,7 +26,6 @@ import {
   ExtrasSection,
   Fact,
   Facts,
-  Fold,
   Notice,
   RecordPage,
   type DialogState,
@@ -39,7 +38,8 @@ import { addressOf } from "../format.ts";
 import { jobStatusIcon } from "../icons.ts";
 import { type Said, useSaid } from "../words.ts";
 import { CleanerJobBadge, directionsTo } from "./CleanerHome.tsx";
-import { AccessFact, ClientNumberFact, JobLead } from "./JobLead.tsx";
+import { AccessFact } from "../Fact.tsx";
+import { ClientNumberFact, JobFold, JobLead } from "../JobLead.tsx";
 import { CompleteJob, Completed, useNotYet } from "./CompleteJob.tsx";
 import { NoAccessRecorded, RecordNoAccess } from "./NoAccess.tsx";
 
@@ -194,6 +194,7 @@ export function CleanerJobScreen() {
         title={c.crew}
         size={job.crewSize}
         members={crewOf(t, job)}
+        over={job.outcome !== null}
       />
     </>
   );
@@ -224,9 +225,7 @@ export function CleanerJobScreen() {
         <>
           {job.outcome === "completed" && <Completed job={job} />}
           {job.outcome === "no_access" && <NoAccessRecorded job={job} />}
-          <Fold label={w.theJob}>
-            <div className="flex flex-col gap-6">{parts}</div>
-          </Fold>
+          <JobFold label={w.theJob}>{parts}</JobFold>
         </>
       ) : (
         parts
@@ -277,7 +276,8 @@ function JobDetails({ job }: { job: CleanerJob }) {
         )}
         {onTheDay && (
           <AccessFact
-            note={onTheDay.accessInstructions}
+            property={onTheDay}
+            empty={t.c.nothingWritten}
             className="col-span-full"
           />
         )}

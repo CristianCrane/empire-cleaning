@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, lte } from "drizzle-orm";
 import {
   type AssignmentView,
   type CleanerJob,
@@ -25,12 +25,15 @@ import {
 } from "../cancellation/cancellation.ts";
 import { weeklyBillOfJob } from "../bills/billed-weekly.ts";
 import { clients } from "../clients/clients.schema.ts";
+import { paymentOf } from "../completion/balance.ts";
+import { quotedJobs } from "../completion/pricing.ts";
 import {
   cleanerCompletionsOf,
   officeCompletionOf,
 } from "../completion/completion.ts";
 import { addOnsOf } from "../jobs/add-ons.ts";
 import { hoursOnSiteOf, onSchedule } from "../jobs/jobs.ts";
+import { whyStarted } from "../jobs/rules.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { jobView, scheduleOn, scheduledJobs } from "../jobs/schedule.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
@@ -55,6 +58,16 @@ import {
 } from "./rules.ts";
 import { cleanOf, serviceVersions } from "../services/services.ts";
 import { offerEmail, releasedEmail, takenOffEmail } from "./emails.ts";
+
+// how a Job ended, without the payment the Office's Job carries once, at
+// its top
+const withoutPayment = <T extends { payment: unknown }>(
+  ending: T | null,
+): Omit<T, "payment"> | null => {
+  if (!ending) return null;
+  const { payment: _payment, ...rest } = ending;
+  return rest;
+};
 
 // a booked Job with its Property
 const findJob = async (jobId: string) => {
@@ -83,10 +96,10 @@ const toView = (
 });
 
 // a Job, on the Schedule or Cancelled, with everyone Offered it, the
-// Cleaners who could be, who its Cleaners Needed are open to, what cancelling or moving it would cost, any
-// request to move it, and once it has
-// happened or been Cancelled, how it went and its payment, and whether its
-// Property can be offered a Service Plan from it
+// Cleaners who could be, who its Cleaners Needed are open to, what
+// cancelling or moving it would cost, any request to move it, its payment
+// and how we get in; once it has happened or been Cancelled, how it went,
+// and whether its Property can be offered a Service Plan from it
 export const officeJob = async (jobId: string): Promise<OfficeJob> => {
   const [row] = await db.select().from(jobs).where(eq(jobs.id, jobId));
   if (!row) throw new NotFoundError("Job not found");
@@ -107,6 +120,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     servicePlanId,
     openTo,
     weeklyBill,
+    [home],
   ] = await Promise.all([
     jobView(jobId),
     selectStaff({ assignment: assignments })
@@ -133,7 +147,17 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     planOfJob(jobId),
     openToOf(row),
     weeklyBillOfJob(row, db),
+    db
+      .select({ accessInstructions: properties.accessInstructions })
+      .from(properties)
+      .where(eq(properties.id, row.propertyId)),
   ]);
+  // how it ended carries its payment, read already; a booked Job's is read
+  // here, when a Quote prices it
+  const payment =
+    (completion ?? cancellation ?? noAccess)?.payment ??
+    ((await quotedJobs([row.id])).has(row.id) ? await paymentOf(row) : null);
+  const now = clock.now();
 
   const holding = rows.filter((r) => isOnCrew(r.assignment.status));
   const released = rows.filter((r) => !isOnCrew(r.assignment.status));
@@ -142,9 +166,14 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
 
   return {
     ...job,
-    completion,
-    cancellation,
-    noAccess,
+    property: { ...job.property, accessInstructions: home!.accessInstructions },
+    bookedAt: row.bookedAt.toISOString(),
+    today: isToday(row.startsAt),
+    started: row.startsAt <= now,
+    payment,
+    completion: withoutPayment(completion),
+    cancellation: withoutPayment(cancellation),
+    noAccess: withoutPayment(noAccess),
     cancelTerms,
     rescheduleTerms,
     rescheduleRequest,
@@ -236,7 +265,8 @@ export const emailOffer = (
 // Office Staff take someone off a Job, Offered or Confirmed, leaving a
 // Cleaner Needed open to everyone free for it but them, as a Release does (#242): Office
 // Staff can still Offer it to them. They're emailed unless they took
-// themselves off, and so is anyone free for it, if the Job is within 48 hours
+// themselves off, and so is anyone free for it, if the Job is within 48 hours.
+// Refused once the Job has started, as Offering is: no one could fill the gap
 export const removeAssignment = async (
   jobId: string,
   assignmentId: string,
@@ -245,8 +275,15 @@ export const removeAssignment = async (
   const { job, property } = await findJob(jobId);
   const removed = await db.transaction(async (tx) => {
     // one change to a Job's crew at a time, as Offering takes
-    await tx.select().from(jobs).where(eq(jobs.id, jobId)).for("update");
+    const [locked] = await tx
+      .select({ startsAt: jobs.startsAt })
+      .from(jobs)
+      .where(eq(jobs.id, jobId))
+      .for("update");
     const now = clock.now();
+    if (locked && locked.startsAt <= now) {
+      throw new ConflictError(whyStarted("takenOff"));
+    }
     const [removed] = await tx
       .update(assignments)
       .set({ status: "released", answeredAt: now, takenOffAt: now })
@@ -536,14 +573,15 @@ export const releaseAssignment = async (
   });
 };
 
-// Booked Jobs from the start of today to `hours` from now whose crew isn't
-// all Confirmed, soonest first. Each needs attention from when it came
+// Booked Jobs not yet started, up to `hours` from now, whose crew isn't
+// all Confirmed, soonest first: once one starts, no one can be offered it
+// (whyNotOffer), so there's nothing to do. Each needs attention from when it came
 // within `hours` of starting, or was booked, whichever is later.
 export const unassignedJobsWithin = async (hours: number) => {
   const now = clock.now();
   const soon = await scheduledJobs(
     and(
-      gte(jobs.startsAt, startOfDay(dayOf(now))),
+      gt(jobs.startsAt, now),
       lte(jobs.startsAt, new Date(now.getTime() + hours * HOUR_MS)),
     ),
   );

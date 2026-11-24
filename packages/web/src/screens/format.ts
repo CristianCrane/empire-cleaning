@@ -215,13 +215,6 @@ export const jobLabelOf = (job: {
         icon: jobStatusIcon[job.status],
       };
 
-export const assignmentStateTone = {
-  offered: "warning",
-  confirmed: "success",
-  released: "neutral",
-  taken_off: "neutral",
-} as const satisfies Record<AssignmentState, string>;
-
 // The screens' words for things, in each language (ADR-0025):
 // `screenWords[lang]`, as models' `formats[lang]`; the Office's screens take
 // `screenWords.en`. A literal here is in `words` or `labels` (labels.ts), in both

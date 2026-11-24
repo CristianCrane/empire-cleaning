@@ -1525,12 +1525,24 @@ export type AssignmentView = {
   answeredAt: string | null;
 };
 
-// a booked Job as Office Staff manage its Assignments, and once Completed,
-// its Adjustments and payment
+// a Job as Office Staff manage it: its Assignments while booked, its
+// payment at every status, and once it's over, how it ended
 export type OfficeJob = ScheduledJob & {
-  completion: JobCompletion | null;
-  cancellation: JobCancellation | null;
-  noAccess: JobNoAccess | null;
+  // its home, and how we get in there
+  property: Pick<PropertyView, "accessInstructions">;
+  // when it was booked
+  bookedAt: string;
+  // whether it's today, in New York, and whether it has started, by the
+  // Clock
+  today: boolean;
+  started: boolean;
+  // its price, Deposit and what's been charged, whatever has become of it:
+  // once, here, as how it ended doesn't carry it too. Null for a booked Job
+  // no Quote prices, which only tests put on the Schedule
+  payment: JobPayment | null;
+  completion: Omit<JobCompletion, "payment"> | null;
+  cancellation: Omit<JobCancellation, "payment"> | null;
+  noAccess: Omit<JobNoAccess, "payment"> | null;
   // what cancelling it would cost now, either way; null once it isn't
   // booked
   cancelTerms: Record<CancelledBy, CancellationTerms> | null;
@@ -1728,6 +1740,8 @@ export type AdjustmentView = {
   reportedAt: string;
   proposedAt: string | null;
   answeredAt: string | null;
+  // when the Office dismissed it, if it did
+  dismissedAt: string | null;
   // when a proposed one lapses unanswered
   lapsesAt: string | null;
 };
@@ -1738,6 +1752,8 @@ export type ChargeView = {
   amountCents: number;
   refundedCents: number;
   chargedAt: string;
+  // each time some of it was given back, oldest first
+  refunds: { amountCents: number; refundedAt: string }[];
 };
 
 // where a Job's money stands. All amounts tax included.

@@ -6,7 +6,6 @@ import {
   Actions,
   Button,
   Dialog,
-  DialogTrigger,
   Notice,
   TextField,
   Fact,
@@ -53,37 +52,40 @@ export function AskForNewTime({
 }
 
 // Office Staff confirm or turn down a pending Reschedule Request, in a
-// dialog: the one action of its Notice. Turning it down asks why, as a
-// step in the same dialog.
-export function AnswerRequest({ job }: { job: OfficeJob }) {
+// dialog: the Job's next step while it waits. Turning it down asks why, as
+// a step in the same dialog, and each opening starts from the request.
+export function AnswerRequest({
+  job,
+  isOpen,
+  onOpenChange,
+}: { job: OfficeJob } & DialogState) {
   const [turningDown, setTurningDown] = useState(false);
   return (
-    <DialogTrigger onOpenChange={(open) => !open && setTurningDown(false)}>
-      <Button variant="text" size="sm">
-        <CalendarCheck aria-hidden size={16} />
-        Answer
-      </Button>
-      <Dialog
-        title={turningDown ? "Turn down this request?" : "Move this job?"}
-        role={turningDown ? "alertdialog" : "dialog"}
-      >
-        {({ close }) =>
-          turningDown ? (
-            <TurnDown
-              job={job}
-              close={close}
-              back={() => setTurningDown(false)}
-            />
-          ) : (
-            <Confirm
-              job={job}
-              close={close}
-              turnDown={() => setTurningDown(true)}
-            />
-          )
-        }
-      </Dialog>
-    </DialogTrigger>
+    <Dialog
+      title={turningDown ? "Turn down this request?" : "Move this job?"}
+      role={turningDown ? "alertdialog" : "dialog"}
+      isOpen={isOpen}
+      onOpenChange={(open) => {
+        if (!open) setTurningDown(false);
+        onOpenChange(open);
+      }}
+    >
+      {({ close }) =>
+        turningDown ? (
+          <TurnDown
+            job={job}
+            close={close}
+            back={() => setTurningDown(false)}
+          />
+        ) : (
+          <Confirm
+            job={job}
+            close={close}
+            turnDown={() => setTurningDown(true)}
+          />
+        )
+      }
+    </Dialog>
   );
 }
 

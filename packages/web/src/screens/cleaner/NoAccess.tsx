@@ -16,7 +16,8 @@ import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
 import { useSaid } from "../words.ts";
 import { byWhom } from "./CompleteJob.tsx";
-import { AccessFact, ClientNumberFact } from "./JobLead.tsx";
+import { AccessFact } from "../Fact.tsx";
+import { ClientNumberFact } from "../JobLead.tsx";
 
 const words = catalog({
   en: {
@@ -89,7 +90,7 @@ export function RecordNoAccess({
         >
           {job.onTheDay && (
             <Facts>
-              <AccessFact note={job.onTheDay.accessInstructions} />
+              <AccessFact property={job.onTheDay} empty={t.c.nothingWritten} />
               <ClientNumberFact phone={job.onTheDay.phone} />
             </Facts>
           )}
