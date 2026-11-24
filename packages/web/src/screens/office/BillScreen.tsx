@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLoaderData, useRouter } from "@tanstack/react-router";
 import { Ban, Banknote } from "lucide-react";
 import {
+  because,
   asksTheClient,
   clientPayingBill,
   firstNameOf,
@@ -156,7 +157,7 @@ function standing(bill: BillView): Alert | null {
     return {
       key: "failed",
       tone: "danger",
-      children: `The client's payment of ${formatMoney(bill.totalCents)} didn't go through on ${formatShortDay(dayOfInstant(at))}${why ? ` (${why})` : ""}. ${late ? `${officeFix.late}${plansPaused(bill)}` : "They can try again on its page."}`,
+      children: `The client's payment of ${formatMoney(bill.totalCents)} didn't go through on ${formatShortDay(dayOfInstant(at))}${because(why)}. ${late ? `${officeFix.late}${plansPaused(bill)}` : "They can try again on its page."}`,
     };
   }
   if (bill.unpaid) {
@@ -169,8 +170,8 @@ function standing(bill: BillView): Alert | null {
         kind === "late"
           ? `It wasn't paid by its due date.`
           : asksTheClient(kind)
-            ? `Its payment didn't go through${why ? ` (${why})` : ""}.`
-            : `Its payment hasn't gone through yet${why ? ` (${why})` : ""}.`
+            ? `Its payment didn't go through${because(why)}.`
+            : `Its payment hasn't gone through yet${because(why)}.`
       } ${officeFix[kind]}${plansPaused(bill)}`,
     };
   }

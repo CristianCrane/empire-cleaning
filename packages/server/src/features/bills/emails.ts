@@ -10,6 +10,7 @@ import {
 } from "../../services/email/blocks.ts";
 import {
   addDays,
+  because,
   asksTheClient,
   catalog,
   type Card,
@@ -358,7 +359,7 @@ const aboutBill = (
       const { why } = whyNotPaid(lang, failed ?? "");
       return [
         w.notThroughSubject(number),
-        w.notThrough(total, number, why ? ` (${why})` : ""),
+        w.notThrough(total, number, because(why)),
       ];
     }
   }

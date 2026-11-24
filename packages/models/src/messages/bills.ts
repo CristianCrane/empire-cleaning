@@ -1,5 +1,6 @@
 import type { BillPayment } from "../index.ts";
 import { catalog } from "../language.ts";
+import { because } from "./payments.ts";
 
 // What the server and the screens both say about a weekly Bill
 // (docs/ux.md, Words)
@@ -42,7 +43,7 @@ export const bills = catalog({
     // the Client's last payment on a Bill's page, as its page says it:
     // `amount` already formatted, `why` as whyNotPaid gives it (#534)
     payingFailed: (amount: string, why: string | null) =>
-      `Your payment of ${amount} didn't go through${why ? ` (${why})` : ""}.`,
+      `Your payment of ${amount} didn't go through${because(why)}.`,
     // what to do once a payment on a Bill's page took nothing, true whichever
     // way they paid: the page's alert, and the server's refusal in its dialog
     PAY_AGAIN: "Please try again, or use another card or bank account.",
@@ -59,7 +60,7 @@ export const bills = catalog({
       `No pudimos cobrar el pago de la factura ${number}`,
     BANK_CLEARING: "Normalmente tarda unos días hábiles en hacerse efectivo.",
     payingFailed: (amount: string, why: string | null) =>
-      `Su pago de ${amount} no pasó${why ? ` (${why})` : ""}.`,
+      `Su pago de ${amount} no pasó${because(why)}.`,
     PAY_AGAIN: "Vuelva a intentarlo, o use otra tarjeta o cuenta bancaria.",
   },
 });

@@ -1,4 +1,5 @@
 import {
+  because,
   asksTheClient,
   type BillSummary,
   type ClientPastJob,
@@ -22,7 +23,7 @@ const words = catalog({
     andMore: (first: string, n: number) => `${first}, and ${n} more`,
     // their last payment on a Bill's page, for a sentence to end (#534)
     failedFor: (n: string, why: string | null) =>
-      `Your payment for bill ${n} didn't go through${why ? ` (${why})` : ""}`,
+      `Your payment for bill ${n} didn't go through${because(why)}`,
     failedMany: (n: number) => `Payments for ${n} bills didn't go through`,
     billsUnpaid: (n: number) =>
       `${n} bills aren't paid yet. Each one's page says why`,
@@ -50,7 +51,7 @@ const words = catalog({
     billDue: (n: string, day: string) => `La factura ${n} vence el ${day}`,
     andMore: (first: string, n: number) => `${first}, y ${n} más`,
     failedFor: (n: string, why: string | null) =>
-      `Su pago de la factura ${n} no pasó${why ? ` (${why})` : ""}`,
+      `Su pago de la factura ${n} no pasó${because(why)}`,
     failedMany: (n: number) => `No pasaron los pagos de ${n} facturas`,
     billsUnpaid: (n: number) =>
       `${n} facturas aún no están pagadas. La página de cada una dice por qué`,

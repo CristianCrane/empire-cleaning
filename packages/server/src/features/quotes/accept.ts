@@ -6,6 +6,7 @@ import type {
   QuoteStatus,
 } from "@empire-cleaning/models";
 import {
+  because,
   catalog,
   clientPaying as clientPayingWords,
   dayOf,
@@ -720,13 +721,12 @@ export const acceptQuote = async (
         // the Client is told only that their card wasn't charged
         log.info(`Deposit for Quote ${id} not taken (${attempt.reason})`);
         const { kind, why } = whyNotPaid(currentLanguage(), attempt.reason);
-        const because = why ? ` (${why})` : "";
         throw new ConflictError(
           kind === "waiting"
             ? said().PAYMENT_DOWN
             : acceptor.by === "client"
-              ? said().cardFailed(because)
-              : `${client.name}'s ${messages.en.card(saved!)} didn't go through${because}, so nothing was booked. Email them a link to add another card.`,
+              ? said().cardFailed(because(why))
+              : `${client.name}'s ${messages.en.card(saved!)} didn't go through${because(why)}, so nothing was booked. Email them a link to add another card.`,
         );
       }
       if (attempt.status === "needs_approval") {
