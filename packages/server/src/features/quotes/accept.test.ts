@@ -1437,6 +1437,97 @@ describe("while the Client's bank is approving the Deposit", () => {
     }).toEqual({ finishing: false, again: 200, calledOff: 1 });
   });
 
+  // the wait ends with the outage, as nothing is stored of it: the next
+  // press calls the payment off and sends (critical review C9, pass 7)
+  test("Send refused for a call-off that didn't land sends on the next press", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+    testClock().advance({ minutes: 15 });
+    await office.post(`/api/quotes/${quote.id}/revisions`).send({}).expect(201);
+    vi.spyOn(testPayments(), "cancelDeposit").mockRejectedValueOnce(
+      new Error("Stripe is down"),
+    );
+
+    const first = await office.post(`/api/quotes/${quote.id}/send`);
+    const held = (await quoteOf(office, quote.id)).paying;
+    const again = await office.post(`/api/quotes/${quote.id}/send`);
+
+    expect({
+      first: first.status,
+      held,
+      again: again.status,
+      calledOff: testPayments().canceled.size,
+      charges: testPayments().charges.length,
+    }).toEqual({
+      first: 409,
+      held: null,
+      again: 200,
+      calledOff: 1,
+      charges: 0,
+    });
+  });
+
+  // clientPaying takes the newest attempt
+  // approving with its pending Deposit unsettled. An earlier payment on
+  // the Quote, approved as the day filled and given back once refunds
+  // work (C3), leaves the Client's next one, still asked, as the open one
+  // that holds the pages and Send; on the fake that forgot its answer,
+  // the approved one was called off unrefunded (critical review C10)
+  test("an earlier payment approved and given back doesn't hide the open one from Send", async () => {
+    // 8 hours on Monday
+    await cleaners(2, 4);
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("approved");
+    await payNow(client, quote).expect(200);
+    const filler = await bookedJob({
+      startsAt: "2026-01-12T19:00:00Z",
+      labourHours: 7,
+    });
+    testPayments().failRefunds();
+    await finalize(client, quote).expect(409);
+    // the day frees up, refunds work again, and Casey pays again
+    await db.execute(sql`delete from jobs where id = ${filler.id}`);
+    testPayments().failRefunds(null);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+    const approving = await db.execute(
+      sql`select a.status, p.settled_at is not null as settled from charge_attempts a join pending_deposits p on p.gateway_ref = a.gateway_ref where a.kind = 'deposit' order by a.status`,
+    );
+    const held = (await quoteOf(office, quote.id)).paying;
+    testClock().advance({ minutes: 15 });
+    await office.post(`/api/quotes/${quote.id}/revisions`).send({}).expect(201);
+    vi.spyOn(testPayments(), "cancelDeposit").mockRejectedValueOnce(
+      new Error("Stripe is down"),
+    );
+
+    const sent = await office.post(`/api/quotes/${quote.id}/send`);
+
+    expect({
+      approving: approving.rows,
+      held: held?.until,
+      charges: testPayments().charges.length,
+      refunds: testPayments().refunds.length,
+      send: sent.status,
+      message: sent.body.message,
+    }).toEqual({
+      approving: [
+        { status: "approving", settled: false },
+        { status: "given_back", settled: true },
+      ],
+      held: "2026-01-05T09:15:00.000Z",
+      charges: 1,
+      refunds: 1,
+      send: 409,
+      message: clientPayingWords.unsure(casey.name),
+    });
+  });
+
   // critical review C3: a payment that's ended (approved, the day full, its
   // refund failed) isn't one the Client is still making
   test("the Office isn't told the Client is paying once the payment's ended unbooked", async () => {

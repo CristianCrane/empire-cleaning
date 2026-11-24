@@ -521,6 +521,10 @@ export class FakePaymentGateway implements PaymentGateway {
     const waiting = this.waiting.get(ref);
     if (!waiting) return { status: "failed", reason: "unknown_payment" };
     if (this.canceled.has(ref)) return { status: "failed", reason: "canceled" };
+    // the bank's answer, once given (below), stays, whatever's asked of
+    // the next payment (critical review C10)
+    const answered = this.replies.get(`outcome:${ref}`);
+    if (answered) return answered.reply as DepositAttempt;
     if (
       waiting.byCard ||
       this.approval === "pending" ||
@@ -533,7 +537,7 @@ export class FakePaymentGateway implements PaymentGateway {
         processing: !waiting.byCard && this.approval === "processing",
       };
     }
-    // the bank's answer, once given, stays
+    // the bank answers once, and it's kept for the read above
     return this.once(
       `outcome:${ref}`,
       null,
