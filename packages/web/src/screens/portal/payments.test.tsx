@@ -180,13 +180,40 @@ describe("what a Client owes now", () => {
     ).toBeNull();
   });
 
-  test("a bank debit on its way isn't owed, but is said", () => {
+  // #534's UX review U10
+  test("a bank debit on its way is pending, asking nothing, and said", () => {
     const debit = bill({ status: "processing" });
 
     expect(moneyNow(data({ bills: [debit] }))).toMatchObject({
-      owed: null,
+      owed: {
+        cents: 125350,
+        asks: false,
+        late: false,
+        line: "Bill EC-000041",
+        why: null,
+        action: { label: "See the bill" },
+      },
       clearing: [debit],
     });
+  });
+
+  // #534's UX review U11
+  test("one their bank asks them to approve says so under when it's due", () => {
+    const approving = bill({
+      paying: { status: "approving", until: "2026-10-20T13:15:00.000Z" },
+    });
+    expect(owedAnswer(data({ bills: [approving] })).hero.lines).toEqual([
+      "Bill EC-000041 is due by Nov 3",
+      "Your bank hasn't approved your payment yet",
+    ]);
+    // beside another Bill due, it names its own
+    expect(
+      moneyNow(
+        data({
+          bills: [bill({ id: "other", number: "EC-000040" }), approving],
+        }),
+      ).owed?.waiting,
+    ).toBe("Your bank hasn't approved your payment for bill EC-000041 yet");
   });
 
   test("with no card: Bills on their page need none", () => {

@@ -164,7 +164,8 @@ Cleaner's Your jobs render through `HomePage`
   owed that asks, a price change, a crew who couldn't get in), the title
   row's action stands aside too. A paused plan with nothing to do is the
   plan's card, its alert calm (info), its way to the plan outlined. Money owed that asks nothing (a
-  payment we try again ourselves) is Payments' card alone, calm: info,
+  payment we try again ourselves, or their bank payment on its way) is
+  Payments' card alone, calm: info,
   "Payment pending" and one line, that there's nothing to do (and, while
   it pauses a plan, "Until it goes through, we won't book more cleans on your
   plan."), and its way to see it outlined, as the page has no next step.

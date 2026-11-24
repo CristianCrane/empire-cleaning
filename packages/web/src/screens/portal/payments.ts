@@ -27,6 +27,13 @@ const words = catalog({
     failedMany: (n: number) => `Payments for ${n} bills didn't go through`,
     billsUnpaid: (n: number) =>
       `${n} bills aren't paid yet. Each one's page says why`,
+    // their bank asking them to approve a payment they made on a Bill's
+    // page, in the card's line under when it's due (#534's UX review U11)
+    bankWaiting: "Your bank hasn't approved your payment yet",
+    bankWaitingFor: (n: string) =>
+      `Your bank hasn't approved your payment for bill ${n} yet`,
+    banksWaiting: (n: number) =>
+      `Your bank hasn't approved your payments for ${n} bills yet`,
     onPage: "You pay each bill on its page",
     noCard: "No card saved yet",
     refundOnBill: (n: string) => `Refund on bill ${n}`,
@@ -55,6 +62,11 @@ const words = catalog({
     failedMany: (n: number) => `No pasaron los pagos de ${n} facturas`,
     billsUnpaid: (n: number) =>
       `${n} facturas aún no están pagadas. La página de cada una dice por qué`,
+    bankWaiting: "Su banco aún no ha aprobado su pago",
+    bankWaitingFor: (n: string) =>
+      `Su banco aún no ha aprobado su pago de la factura ${n}`,
+    banksWaiting: (n: number) =>
+      `Su banco aún no ha aprobado sus pagos de ${n} facturas`,
     onPage: "Paga cada factura en su página",
     noCard: "Aún no hay tarjeta guardada",
     refundOnBill: (n: string) => `Devolución de la factura ${n}`,
@@ -105,6 +117,9 @@ type Owed = {
   // the alert above the card: what went wrong, as a sentence; null when
   // nothing did
   why: string | null;
+  // a line under it: their bank asking them to approve a payment of theirs
+  // on it, or null
+  waiting: string | null;
   action: { label: string; href: AppHref };
 };
 
@@ -122,6 +137,9 @@ type Owing = {
   // (#534's UX review U6)
   alone?: string;
   bill?: boolean;
+  // its Bill's number, while their bank asks them to approve a payment
+  // they made on its page
+  waiting?: string;
   action: Owed["action"];
 };
 
@@ -181,6 +199,18 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
           },
         };
       }),
+    // a Bill whose bank debit is on its way: owed till it clears, asking
+    // nothing, as Payment pending, as its page says (#534's UX review U10)
+    ...data.bills
+      .filter((b) => b.status === "processing")
+      .map((b): Owing => ({
+        cents: b.totalCents,
+        late: false,
+        asks: false,
+        bill: true,
+        line: t.p.bill(b.number),
+        action: { label: t.p.seeTheBill, href: billLink(b.id) },
+      })),
     // a clean, or its fee, that couldn't be charged
     ...data.pastJobs
       .filter((j) => j.unpaid)
@@ -228,6 +258,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
           alone: payingFailed(b.paying.why),
           failed: true,
         }),
+        ...(b.paying?.status === "approving" && { waiting: b.number }),
         // its line names it, so its button needn't
         action: { label: t.p.payTheBill, href: billLink(b.id) },
       })),
@@ -251,6 +282,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         asks: first.asks,
         line,
         why: whyOf(alike, line !== null, w),
+        waiting: waitingOf(alike, w),
         action: first.action,
       }
     : null;
@@ -306,6 +338,17 @@ function whyOf(
   return sentence && `${sentence}.`;
 }
 
+// the card's line for their bank asking them to approve what they paid:
+// the Bill unnamed when it's the card's one, as its line names it
+function waitingOf(alike: Owing[], w: (typeof words)["en"]): string | null {
+  const waiting = alike.filter((o) => o.waiting);
+  if (waiting.length === 0) return null;
+  if (waiting.length > 1) return w.banksWaiting(waiting.length);
+  return alike.length === 1
+    ? w.bankWaiting
+    : w.bankWaitingFor(waiting[0]!.waiting!);
+}
+
 // a Client's plan as the owed card reads it: paused or not
 type PlanNow = Pick<ServicePlanSummary, "status">;
 
@@ -325,7 +368,8 @@ export function pausedLine(
 // what's owed as a Home's answer (AnswerCard): Payments' card, and the
 // Client's Home's when it asks something of them. What went wrong says
 // itself above the card (whyAlert); what's simply due, and by when, in its
-// line, kept while a payment on it didn't go through before then. One that
+// line, kept while a payment on it didn't go through before then, and,
+// under it, that their bank is asking them to approve one. One that
 // asks nothing, a payment we try again ourselves, is calm: Payment
 // pending, one short line, what it's for and that there's nothing to do,
 // and a way to see it rather than a primary (#493, #536). Either says a
@@ -360,6 +404,7 @@ export function owedAnswer(
       headline: t.formatMoney(owed.cents),
       lines: [
         ...(owed.line ? [owed.line] : []),
+        ...(owed.waiting ? [owed.waiting] : []),
         ...pausedLine(plans, lang, true),
       ],
       action: owed.action,
