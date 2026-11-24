@@ -41,9 +41,9 @@ const waiting = (quote: QuoteSummary, row = false) => {
 };
 
 // what it's a Quote of: a Service Plan of the Service its cleans are, or
-// the Service its total is for, its Revision's own (the one asked for, unless the Office
-// changed it) or, once Accepted, the one booked; the Service asked for until
-// it has a total
+// the Service its total is for, its Revision's own (the one asked for,
+// unless the Office changed it) or, once Accepted, the one booked; the
+// Service asked for until it has a total
 const serviceOf = (quote: QuoteSummary) =>
   serviceNamed(
     quote.headlineServiceName ?? quote.service.name,
