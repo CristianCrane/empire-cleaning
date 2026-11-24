@@ -127,7 +127,7 @@ export function PageHeader({
             <Heading
               level={1}
               inBar={inBar}
-              className="flex min-h-touch items-center text-balance"
+              className="flex min-h-touch items-center"
             >
               {title}
             </Heading>
