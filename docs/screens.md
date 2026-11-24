@@ -159,7 +159,7 @@ Keeps: one column, History last, as every Record (#493). Renders through `Record
   next step the split button's primary (Try the payment again, Review,
   Answer, Offer to a cleaner, Quote a cleaning plan, else Move job), the
   rest behind its arrow (Ask for a new time, Correct the condition, never
-  the primary; Cancel job and Mark not done in red, last); none while it's
+  the primary; Take <name> off, one for each on the crew till it starts; Cancel job and Mark not done in red, last); none while it's
   going on, or once it's over with nothing waiting.
 - Alerts: only what the badge can't say, with no buttons: the time a move
   is asked for and what it costs the client; that its payment didn't go
@@ -172,13 +172,15 @@ Keeps: one column, History last, as every Record (#493). Renders through `Record
   until when it's free to move or cancel, how we get in last and full
   width; the client's free-to-move-or-cancel time said as the client's).
   While booked: Extras, Crew (`CrewSection`: a face each, a ghost for each
-  still needed, ✕ to take one off till it starts; its line where it stands
-  unless all are in and confirmed, who it's open to and who said no), Money
-  (Price, Deposit paid). Once over: How it went (the condition, or what the
-  cleaner said when they couldn't get in; the price changes under its
-  card), Money (one line a fact: what it came to and how it was paid, a fee
-  named for what it's for and kept from the deposit or paid; on the
-  client's weekly bill, refunded, still owed; How it's worked out folded),
+  still needed; its line where it stands unless all are in and confirmed,
+  and under it who it's open to and who said no; each taken off from the
+  actions menu till it starts), Money (Price, Deposit). Once over: How it
+  went (the condition, or what the cleaner said when they couldn't get
+  in), Price changes (a list on a phone, a table wider), Money (one line a
+  fact: the price and how it was paid, "Price so far" while a change
+  waits, a fee named for what it's for and kept from the deposit or paid;
+  each weekly Bill it's on, linked, and what's still to go on one;
+  refunded, still owed; How it's worked out folded),
   then "The job" folded: the facts, Extras, who was there (those who'd
   confirmed).
 - History: a Card, last, at every width, whole: booked, each offer and

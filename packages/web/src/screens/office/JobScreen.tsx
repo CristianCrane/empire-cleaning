@@ -11,10 +11,9 @@ import {
   Clock,
   MessageSquareText,
   Repeat,
-  Sparkles,
   Undo2,
+  UserMinus,
   UserPlus,
-  X,
 } from "lucide-react";
 import {
   firstNameOf,
@@ -30,7 +29,6 @@ import {
   Card,
   CrewSection,
   Dialog,
-  DialogTrigger,
   ExtrasSection,
   Fact,
   Facts,
@@ -51,19 +49,22 @@ import { deleteJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { AccessFact, ConditionFact } from "../Fact.tsx";
+import { ConditionIcon } from "../icons.ts";
 import {
   addressOf,
   clientName,
   crewLabel,
   crewTone,
+  dayOfInstant,
   formatHours,
   howLong,
   jobStatusTone,
   screenWords,
+  today,
   wasSkipped,
 } from "../format.ts";
 import { JobFold, JobLead } from "../JobLead.tsx";
-import { costForOffice } from "../RescheduleParts.tsx";
+import { costForOffice, freeUntilOf } from "../RescheduleParts.tsx";
 import { CancelJob } from "./JobCancellation.tsx";
 import {
   AdjustmentDialog,
@@ -84,7 +85,7 @@ import { QUOTE_A_PLAN, useStartDraft } from "./StartDraft.tsx";
 const w = screenWords.en;
 const { cleaners, cancelledLabel, jobStatusLabel } = w;
 
-const { formatDateTime } = formats.en;
+const { formatDateTime, formatTime } = formats.en;
 
 const booked = (job: OfficeJob) => job.status === "booked";
 
@@ -94,8 +95,9 @@ const booked = (job: OfficeJob) => job.status === "booked";
  * next step the split button's primary, the rest behind its arrow, and an
  * alert only for what the badge can't say. Its header card says when,
  * where and who for; then, while it's booked, its extras, crew and money.
- * Once it's over, what History doesn't say leads (how it went, its money),
- * and the rest folds under "The job". Its story is last.
+ * Once it's over, what History doesn't say leads (how it went, its price
+ * changes, its money), and the rest folds under "The job". Its story is
+ * last.
  */
 export function JobScreen() {
   const job = useLoaderData({ from: "/office/jobs/$jobId" });
@@ -133,6 +135,7 @@ export function JobScreen() {
       {over ? (
         <>
           <HowItWent job={job} />
+          <Adjustments job={job} />
           <JobMoney job={job} />
           <JobFold label="The job">
             <Card hiddenTitle="Job facts">
@@ -190,8 +193,8 @@ function OfficeJobBadge({ job }: { job: OfficeJob }) {
 // that failed, review a price change, answer a move asked, offer it to a
 // cleaner, offer the home a cleaning plan; else, while it can move, Move
 // job. The rest behind the split button's arrow, red last: what's done now
-// and then (Ask for a new time, Correct the condition) is never the next
-// step, so a done Job with nothing waiting has none
+// and then (Ask for a new time, Correct the condition, take someone off the
+// crew) is never the next step, so a done Job with nothing waiting has none
 function useActionsOf(job: OfficeJob): {
   next?: PageAction;
   more: PageAction[];
@@ -248,9 +251,21 @@ function useActionsOf(job: OfficeJob): {
     },
     job.completion && {
       label: "Correct the condition",
-      icon: Sparkles,
+      icon: ConditionIcon,
       dialog: (state: DialogState) => <CorrectCondition job={job} {...state} />,
     },
+    // each on the crew, till it starts: then they're on site
+    ...(booked(job) && !job.started
+      ? job.assignments
+          .filter((a) => isOnCrew(a.status))
+          .map((a) => ({
+            label: `Take ${a.staff.name} off`,
+            icon: UserMinus,
+            dialog: (state: DialogState) => (
+              <TakeOff job={job} assignment={a} {...state} />
+            ),
+          }))
+      : []),
     job.cancelTerms && {
       label: "Cancel job",
       icon: CalendarX,
@@ -298,14 +313,17 @@ const alertsFor = (job: OfficeJob, next?: PageAction): Alert[] => {
     });
   }
   if (job.payment && unpaid) {
+    // why: the provider's reason when it's one worth naming (unpaid.ts),
+    // else, for a card turned down, that it was, as the Office can say so
+    const why =
+      unpaid.why ??
+      (unpaid.kind === "declined" ? "the card was declined" : null);
     alerts.push({
       key: "unpaid",
       tone: "danger",
       children: (
         <p>
-          <strong>
-            Its payment didn't go through{unpaid.why && ` (${unpaid.why})`}.
-          </strong>{" "}
+          <strong>Its payment didn't go through{why && `: ${why}`}.</strong>{" "}
           {officeFix[unpaid.kind]}
         </p>
       ),
@@ -374,60 +392,53 @@ function WhereAndWho({ job }: { job: OfficeJob }) {
 // a fact each: how long; the cleaning hours, for a crew of more than one
 // (for one, they're how long); how many extras, the signpost to their list;
 // while it's free to move or cancel, until when (one row when the two
-// agree); and how we get in, last and the card's width
+// agree, freeUntilOf); and how we get in, last and the card's width. Four
+// short ones sit two and two, not three and one
 function JobFacts({ job }: { job: OfficeJob }) {
-  const moveUntil =
-    job.rescheduleTerms?.cost === "free" ? job.rescheduleTerms.freeUntil : null;
-  const cancelTerms = job.cancelTerms?.client;
-  const cancelUntil =
-    cancelTerms && !cancelTerms.late && cancelTerms.feeCents === 0
-      ? cancelTerms.freeUntil
-      : null;
-  return (
-    <Facts>
+  const { move, cancel } = freeUntilOf(
+    job.rescheduleTerms,
+    job.cancelTerms?.client,
+  );
+  const free = (label: string, until: string) => (
+    <Fact
+      key={label}
+      icon={CalendarCheck}
+      label={`Free to ${label}`}
+      value={formatDateTime(until)}
+      line={`Free for the client to ${label} until`}
+    />
+  );
+  const short = [
+    <Fact
+      key="how-long"
+      icon={Clock}
+      label={w.howLong}
+      value={howLong(w, job.hoursOnSite)}
+    />,
+    job.crewSize > 1 && (
       <Fact
-        icon={Clock}
-        label={w.howLong}
-        value={howLong(w, job.hoursOnSite)}
+        key="hours"
+        icon={ClipboardList}
+        label="Cleaning hours"
+        value={howLong(w, job.labourHours)}
+        line="Cleaning hours, the crew together"
       />
-      {job.crewSize > 1 && (
-        <Fact
-          icon={ClipboardList}
-          label="Cleaning hours"
-          value={howLong(w, job.labourHours)}
-          line="Cleaning hours, the crew together"
-        />
-      )}
-      {job.addOns.length > 0 && (
-        <Fact icon={CirclePlus} label={w.extras} value={job.addOns.length} />
-      )}
-      {moveUntil && moveUntil === cancelUntil ? (
-        <Fact
-          icon={CalendarCheck}
-          label="Free to move or cancel"
-          value={formatDateTime(moveUntil)}
-          line="Free for the client to move or cancel until"
-        />
-      ) : (
-        <>
-          {moveUntil && (
-            <Fact
-              icon={CalendarCheck}
-              label="Free to move"
-              value={formatDateTime(moveUntil)}
-              line="Free for the client to move until"
-            />
-          )}
-          {cancelUntil && (
-            <Fact
-              icon={CalendarCheck}
-              label="Free to cancel"
-              value={formatDateTime(cancelUntil)}
-              line="Free for the client to cancel until"
-            />
-          )}
-        </>
-      )}
+    ),
+    job.addOns.length > 0 && (
+      <Fact
+        key="extras"
+        icon={CirclePlus}
+        label={w.extras}
+        value={job.addOns.length}
+      />
+    ),
+    ...(move && move === cancel
+      ? [free("move or cancel", move)]
+      : [move && free("move", move), cancel && free("cancel", cancel)]),
+  ].filter(Boolean);
+  return (
+    <Facts columns={short.length === 4 ? 2 : 3}>
+      {short}
       {job.property.accessInstructions && (
         <AccessFact property={job.property} className="col-span-full" />
       )}
@@ -436,8 +447,9 @@ function JobFacts({ job }: { job: OfficeJob }) {
 }
 
 // once it's over, only what History doesn't say: done, the place's condition
-// the cleaner found and the price changes they reported; couldn't get in,
-// what the cleaner said. A cancelled Job has none: History says why
+// the cleaner found (the price changes they reported are a part of their
+// own after it, Adjustments); couldn't get in, what the cleaner said. A
+// cancelled Job has none: History says why
 function HowItWent({ job }: { job: OfficeJob }) {
   const { completion, noAccess } = job;
   if (!completion && !noAccess) return null;
@@ -456,15 +468,14 @@ function HowItWent({ job }: { job: OfficeJob }) {
           )}
         </Facts>
       </Card>
-      {completion && <Adjustments job={job} />}
     </Section>
   );
 }
 
 // the crew as faces (Crew.tsx): while it's booked, everyone on it, a ghost
-// for each still needed, a ✕ to take each off till it starts, and in its
-// line who its Cleaners Needed are open to (ADR-0019) and who said no. Once
-// it's over, who was there (`over`); nobody, no part
+// for each still needed, and in its line who its Cleaners Needed are open
+// to (ADR-0019) and who said no (taking one off is in the actions menu).
+// Once it's over, who was there (`over`); nobody, no part
 function Crew({ job }: { job: OfficeJob }) {
   const over = !booked(job);
   const crew = job.assignments.filter((a) => isOnCrew(a.status));
@@ -478,7 +489,6 @@ function Crew({ job }: { job: OfficeJob }) {
         name: a.staff.name,
         confirmed: a.status === "confirmed",
         picture: a.staff.imageUrl,
-        action: !over && !job.started && <Remove job={job} assignment={a} />,
       }))}
     />
   );
@@ -493,10 +503,15 @@ const openToOf = (job: OfficeJob) => {
     job.cleanersNeeded === 1
       ? "the first to confirm gets it"
       : `the first ${job.cleanersNeeded} to confirm get it`;
+  // the moment it opens, said as "9:00 AM today" when that's today
+  const opens =
+    dayOfInstant(opensAt) === today()
+      ? `${formatTime(opensAt)} today`
+      : formatDateTime(opensAt);
   const openTo =
     job.cleanersNeeded > 0 &&
     (!opened
-      ? `Cleaners free that day can take it from ${formatDateTime(opensAt)}.`
+      ? `Cleaners free that day can take it from ${opens}.`
       : free > 0 && `${cleaners(free, "free")} can take it: ${firstTo}.`);
   const saidNo =
     passedBy.length > 0 &&
@@ -565,13 +580,14 @@ function Offer({ job, close }: { job: OfficeJob; close: () => void }) {
   );
 }
 
-function Remove({
+function TakeOff({
   job,
   assignment,
+  ...state
 }: {
   job: OfficeJob;
   assignment: AssignmentView;
-}) {
+} & DialogState) {
   const action = useAction("They weren't taken off. Please try again.");
   const name = assignment.staff.name;
 
@@ -584,33 +600,28 @@ function Remove({
   };
 
   return (
-    <DialogTrigger>
-      <Button variant="quiet" size="icon" aria-label={`Remove ${name}`}>
-        <X aria-hidden size={18} className="text-fg-muted" />
-      </Button>
-      <Dialog title={`Take ${name} off this job?`} role="alertdialog">
-        {({ close }) => (
-          <>
-            <p>
-              The job will need another cleaner. We'll email {name} to say they
-              don't need to go.
-            </p>
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <Button variant="quiet" onPress={close}>
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                isPending={action.isPending}
-                onPress={() => void remove(close)}
-              >
-                Remove
-              </Button>
-            </Actions>
-          </>
-        )}
-      </Dialog>
-    </DialogTrigger>
+    <Dialog title={`Take ${name} off this job?`} role="alertdialog" {...state}>
+      {({ close }) => (
+        <>
+          <p>
+            The job will need another cleaner. We'll email {name} to say they
+            don't need to go.
+          </p>
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              isPending={action.isPending}
+              onPress={() => void remove(close)}
+            >
+              Take off
+            </Button>
+          </Actions>
+        </>
+      )}
+    </Dialog>
   );
 }

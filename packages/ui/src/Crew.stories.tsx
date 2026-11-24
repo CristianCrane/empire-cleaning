@@ -64,9 +64,17 @@ export const WithLine: Story = {
     line: "Cleaners free that day can take it from Mon, Jan 5, 9:00 AM.",
   },
   play: async ({ canvasElement }) => {
-    await expect(canvasElement).toHaveTextContent(
-      "1 of 2 confirmed, 1 needed. Cleaners free that day can take it from Mon, Jan 5, 9:00 AM.",
-    );
+    // each a line of its own, so the line isn't read as the count's
+    const crew = within(canvasElement).getByRole("region", { name: "Crew" });
+    await expect(
+      within(crew).getByText("1 of 2 confirmed, 1 needed", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      within(crew).getByText(
+        "Cleaners free that day can take it from Mon, Jan 5, 9:00 AM.",
+        { exact: true },
+      ),
+    ).toBeVisible();
   },
 };
 

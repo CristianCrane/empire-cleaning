@@ -122,10 +122,10 @@ test("Office Staff take someone off a Job, leaving a Cleaner Needed", async ({
   ).toBeVisible();
   await expect(crew).not.toContainText("1 of 1 confirmed");
 
-  await page.getByRole("button", { name: "Remove Cory Cleaner" }).click();
+  await pageAction(page, "Take Cory Cleaner off");
   await page
-    .getByRole("alertdialog")
-    .getByRole("button", { name: "Remove" })
+    .getByRole("alertdialog", { name: "Take Cory Cleaner off this job?" })
+    .getByRole("button", { name: "Take off" })
     .click();
 
   await expect(page.getByText("Cory Cleaner taken off the Job")).toBeVisible();
@@ -165,7 +165,7 @@ test("a started Job a cleaner short is in progress, with no one to offer it to",
 // #406, #493: the Job's next step its primary, the rest behind its arrow,
 // Cancel last after a rule; a fact each, the cleaning hours for a crew of
 // two; the crew a face each, the picture the Staff list shows, a tick once
-// confirmed, and an ✕ to take each off
+// confirmed; each taken off from the menu
 test(
   "the Office's Job page names its actions, its details and its crew",
   { tag: "@desktop" },
@@ -189,6 +189,8 @@ test(
     await expectNextStep(page, "Move job");
     await expect(menu.getByRole("menuitem")).toHaveText([
       "Ask for a new time",
+      "Take Cory Cleaner off",
+      "Take Dee Cleaner off",
       "Cancel job",
     ]);
     await expect(menu.getByRole("separator")).toHaveCount(1);
@@ -212,9 +214,6 @@ test(
       "src",
       "https://lh3.googleusercontent.com/a/cory-photo",
     );
-    await expect(
-      crew.getByRole("button", { name: "Remove Dee Cleaner" }),
-    ).toBeVisible();
     await expectAccessible(page);
   },
 );

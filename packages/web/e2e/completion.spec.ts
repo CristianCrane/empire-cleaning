@@ -172,7 +172,7 @@ test(
     // paid in full, but not the last word while the change is open (#493)
     await expect(
       page.getByRole("region", { name: "Money" }).getByRole("definition"),
-    ).toContainText([/Total before the price change waiting, paid by/]);
+    ).toContainText([/^Price so far, paid by/]);
     await extraTime.click();
     const review = page.getByRole("dialog", { name: "More time" });
     await expect(review).toContainText('"Heavy grease"');

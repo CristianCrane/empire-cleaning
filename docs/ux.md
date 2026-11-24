@@ -611,9 +611,10 @@ stays as it is (#336).
 ### Dialogs and rows
 
 - **A row holds no Buttons.** Pressing it opens one dialog that does the
-  work. A row that opens nothing (someone on a Job's crew) may hold one
-  quiet icon Button where the chevron would be, opening its dialog (an ✕
-  takes someone off). ("Rows open one dialog, two Buttons")
+  work. What's done to something that opens nothing (someone on a Job's
+  crew) is in the page's actions menu, named for whom ("Take Cory Cleaner
+  off"): an ✕ by a face sat mid-card, where no chevron goes (#493).
+  ("Rows open one dialog, two Buttons")
 - **A dialog has at most two Buttons**, one filled (primary, or danger) and
   one quiet (Cancel, or an alternative like Dismiss), plus the ✕.
 - **A dialog keeps its title and its Buttons in view** while what's between

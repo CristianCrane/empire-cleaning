@@ -38,11 +38,16 @@ import {
   Fact,
   Facts,
   Fold,
+  Link,
+  List,
+  ListItem,
   type DialogState,
   type PageAction,
   Card,
+  useWide,
 } from "@empire-cleaning/ui";
 import { deleteJson, patchJson, postJson } from "../../api.ts";
+import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { dollars, formatHours } from "../format.ts";
 import { ConditionField } from "./PropertyFields.tsx";
@@ -231,21 +236,38 @@ const counts = (a: AdjustmentView) =>
   a.status === "applied" || a.status === "approved";
 
 /**
- * The Adjustments the Cleaner reported or the Office made, in its Money
- * (WEB-6), one row each: what, what happened, its price and status. A row
- * opens the Adjustment, where Office Staff review an increase, or correct
- * or remove one.
+ * The Adjustments the Cleaner reported or the Office made (WEB-6), a part
+ * of their own after How it went, one row each: what, what happened, its
+ * price and status, a Table from md and rows on a phone (docs/ux.md, an
+ * Office list), the status under the rest. A row opens the Adjustment,
+ * where Office Staff review an increase, or correct or remove one.
  */
 export function Adjustments({ job }: { job: OfficeJob }) {
-  const adjustments = job.completion!.adjustments;
+  const adjustments = job.completion?.adjustments ?? [];
+  const wide = useWide();
   const [openId, setOpenId] = useState<string | null>(null);
   // the latest, once an action reloads the Job; gone if it was removed
   const open = adjustments.find((a) => a.id === openId);
   if (adjustments.length === 0) return null;
 
   return (
-    <Section title="Price changes" headingLevel={3}>
-      {
+    <Section title="Price changes">
+      {!wide ? (
+        <List
+          aria-label="Price changes"
+          items={adjustments}
+          onAction={(key) => setOpenId(String(key))}
+        >
+          {(a) => (
+            <ListItem
+              id={a.id}
+              title={whatOf(a)}
+              description={`${changeOf(a)}, ${signed(a.totalCents)}`}
+              end={statusBadge[a.status]}
+            />
+          )}
+        </List>
+      ) : (
         <Table
           aria-label="Price changes"
           onRowAction={(key) => setOpenId(String(key))}
@@ -271,7 +293,7 @@ export function Adjustments({ job }: { job: OfficeJob }) {
             )}
           </TableBody>
         </Table>
-      }
+      )}
       {open && (
         <AdjustmentDialog
           key={open.id}
@@ -588,10 +610,12 @@ export function UndoCompletion({
   );
 }
 
-// What a Job's money comes to, one line a fact (WEB-6, #493): while it's
-// booked, its price and the Deposit paid; once done, its total when it
-// isn't what's paid, what's paid and how, what's on weekly bills and what's
-// still owed or to refund, how it's worked out folded; once it didn't
+// What a Job's money comes to, one line a fact (WEB-6, #493): its price,
+// "Price" before the day and after it ("Price so far" while a price change
+// waits, as it isn't in it yet), said with how it was paid once paid in
+// full; else what's paid, named the deposit when that's all it is; each
+// weekly Bill it's on, linked; what's still to go on a Bill; refunded;
+// still owed or to refund; how it's worked out, folded. Once it didn't
 // happen, its fee and what was refunded. Nothing, no part. Each charge is
 // in its History, and a failed one an alert above
 export function JobMoney({ job }: { job: OfficeJob }) {
@@ -601,31 +625,36 @@ export function JobMoney({ job }: { job: OfficeJob }) {
   // how it was paid, when the card is known: " by Visa ending 4242"
   const by = payment.paymentMethod ? ` by ${payment.paymentMethod}` : "";
   const refunded = payment.charges.reduce((sum, c) => sum + c.refundedCents, 0);
-  // what it came to once over: its total, or what not happening cost
+  // what it came to once over: its price, or what not happening cost
   const due = job.completion
     ? payment.totalCents
     : ((job.cancellation ?? job.noAccess)?.feeCents ?? 0);
   const fee = feeNameOf(job);
   // a fee with no Charge of its own was kept from the Deposit
   const kept = !payment.charges.some((c) => c.kind === "fee");
-  // a price change still waiting isn't in the total yet: it says so, so a
-  // paid total doesn't read as the last word (those that count are in it)
-  const waiting =
-    job.completion?.adjustments.filter(
-      (a) => a.status === "reported" || a.status === "proposed",
-    ).length ?? 0;
-  const total =
-    waiting === 0
-      ? "Total"
-      : `Total before the price change${waiting > 1 ? "s" : ""} waiting`;
+  // a price change still waiting isn't in the price yet: it says so, so a
+  // paid price doesn't read as the last word (those that count are in it)
+  const waiting = job.completion?.adjustments.some(
+    (a) => a.status === "reported" || a.status === "proposed",
+  );
+  const price = waiting ? "Price so far" : "Price";
+  // what's paid, by what it was: the Deposit, while that's all that's kept
+  const paidAs = payment.charges
+    .filter((c) => c.amountCents > c.refundedCents)
+    .every((c) => c.kind === "deposit")
+    ? "Deposit, paid"
+    : "Paid";
+  // what's still to go on a weekly Bill: its week's before that's made,
+  // the next one's after (docs/ux-log.md, #244)
+  const toBill = job.weeklyBill && owed > 0 && !payment.unpaid;
   const dueFact = (line?: string) =>
     job.completion ? (
       <Fact
         key="due"
         icon={Receipt}
-        label="Total"
+        label="Price"
         value={formatMoney(due)}
-        line={line ?? `${total}, tax included`}
+        line={line ?? `${price}, tax included`}
       />
     ) : (
       <Fact
@@ -652,7 +681,7 @@ export function JobMoney({ job }: { job: OfficeJob }) {
               icon={CreditCard}
               label="Deposit"
               value={formatMoney(paid)}
-              line="Deposit paid"
+              line={`Deposit, paid${by}`}
             />
           ),
         ]
@@ -662,7 +691,7 @@ export function JobMoney({ job }: { job: OfficeJob }) {
           due > 0 && due === paid
             ? dueFact(
                 job.completion
-                  ? `${total}, paid${by}`
+                  ? `${price}, paid${by}`
                   : kept
                     ? `${fee}, kept from the deposit`
                     : `${fee}, paid${by}`,
@@ -674,18 +703,29 @@ export function JobMoney({ job }: { job: OfficeJob }) {
               icon={CreditCard}
               label="Paid"
               value={formatMoney(paid)}
-              line={`Paid${by}`}
+              line={`${paidAs}${by}`}
             />
           ),
-          payment.billedCents !== 0 && (
-            <Fact
-              key="billed"
-              icon={Files}
-              label="On weekly bills"
-              value={formatMoney(payment.billedCents)}
-              line="On the client's weekly bill"
-            />
-          ),
+          ...payment.bills
+            .filter((b) => b.cents !== b.refundedCents)
+            .map((b) => (
+              <Fact
+                key={b.id}
+                icon={Files}
+                label="On a weekly bill"
+                value={formatMoney(b.cents - b.refundedCents)}
+                line={
+                  <Link
+                    href={linkTo({
+                      to: "/office/bills/$billId",
+                      params: { billId: b.id },
+                    })}
+                  >
+                    On bill {b.number}
+                  </Link>
+                }
+              />
+            )),
           refunded > 0 && (
             <Fact
               key="refunded"
@@ -695,13 +735,27 @@ export function JobMoney({ job }: { job: OfficeJob }) {
               line={job.cancellation ? "Deposit refunded" : "Refunded"}
             />
           ),
-          owed !== 0 && (
+          toBill ? (
             <Fact
               key="owed"
-              icon={owed > 0 ? CircleAlert : Undo2}
-              label={owed > 0 ? "Still owed" : "To refund"}
-              value={formatMoney(Math.abs(owed))}
+              icon={Files}
+              label="To bill"
+              value={formatMoney(owed)}
+              line={
+                payment.bills.length === 0
+                  ? "Goes on that week's bill"
+                  : "Goes on the next bill"
+              }
             />
+          ) : (
+            owed !== 0 && (
+              <Fact
+                key="owed"
+                icon={owed > 0 ? CircleAlert : Undo2}
+                label={owed > 0 ? "Still owed" : "To refund"}
+                value={formatMoney(Math.abs(owed))}
+              />
+            )
           ),
         ];
   const shown = facts.filter(Boolean);

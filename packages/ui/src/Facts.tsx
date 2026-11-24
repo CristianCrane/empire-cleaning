@@ -6,11 +6,23 @@ import { twMerge } from "./utils.ts";
 // details card and in every dialog (#432). Even columns across, one on a
 // phone, two from a medium width, three on a wide one, following the width
 // of what holds it (a card beside a History, a dialog), not the screen's.
-// Each is a Fact.
-export function Facts({ children }: { children: ReactNode }) {
+// `columns` 2 keeps it to two, so four short facts sit two and two rather
+// than three and one. Each is a Fact.
+export function Facts({
+  columns = 3,
+  children,
+}: {
+  columns?: 2 | 3;
+  children: ReactNode;
+}) {
   return (
     <div className="@container">
-      <dl className="grid gap-x-6 gap-y-4 @md:grid-cols-2 @3xl:grid-cols-3">
+      <dl
+        className={twMerge(
+          "grid gap-x-6 gap-y-4 @md:grid-cols-2",
+          columns === 3 && "@3xl:grid-cols-3",
+        )}
+      >
         {children}
       </dl>
     </div>

@@ -1,6 +1,7 @@
-import { KeyRound, Ruler, Sparkles } from "lucide-react";
+import { KeyRound, Ruler } from "lucide-react";
 import { Fact } from "@empire-cleaning/ui";
 import { catalog, type PropertyView } from "@empire-cleaning/models";
+import { ConditionIcon } from "./icons.ts";
 import { useSaid } from "./words.ts";
 
 // in the screen's language: the Office's English, the portal's its
@@ -52,7 +53,7 @@ export function ConditionFact({
   const t = useSaid(words);
   return (
     <Fact
-      icon={Sparkles}
+      icon={ConditionIcon}
       label={t.condition}
       value={t.conditionText(property.condition)}
       line={found ? t.w.howDirty : line}

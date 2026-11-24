@@ -37,7 +37,6 @@ type Moment = {
   at: string;
   icon: LucideIcon;
   title: string;
-  description?: string;
 };
 
 const chargeLabel = { deposit: "Deposit", balance: "Balance" };
@@ -128,8 +127,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       key: "asked",
       at: request.requestedAt,
       icon: CalendarClock,
-      title: `${request.byClient ? firstNameOf(job.client.name) : "The office"} asked to move it to ${formatDateTime(request.startsAt)}`,
-      description: `From ${formatDateTime(request.fromStartsAt)}`,
+      title: `${request.byClient ? firstNameOf(job.client.name) : "The office"} asked to move it from ${formatDateTime(request.fromStartsAt)} to ${formatDateTime(request.startsAt)}`,
     });
     if (request.answeredAt && request.status !== "pending") {
       const { icon, title } = requestAnswered[request.status];
@@ -137,8 +135,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
         key: "answered",
         at: request.answeredAt,
         icon,
-        title,
-        description: request.reason ?? undefined,
+        title: request.reason ? `${title}: ${request.reason}` : title,
       });
     }
   }
@@ -185,22 +182,23 @@ const momentsOf = (job: OfficeJob): Moment[] => {
   const { cancellation, noAccess } = job;
   if (cancellation) {
     const skipped = wasSkipped(job);
+    // whether it was late, which its fee is for; the plan's part in it;
+    // and why, as we told the client: after the title's colon, as an
+    // entry's second line is only its time
+    const why = [
+      cancellation.late && "A late cancellation.",
+      skipped && "The plan carries on.",
+      cancellation.withPlan && `${planCancelled[cancellation.withPlan]}.`,
+      cancellation.reason,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    const title = `${cancelledLabel(skipped)} ${cancellation.by === "empire" ? "by us" : "by the client"}`;
     moments.push({
       key: "cancelled",
       at: cancellation.cancelledAt,
       icon: jobStatusIcon.cancelled,
-      title: `${cancelledLabel(skipped)} ${cancellation.by === "empire" ? "by us" : "by the client"}`,
-      // whether it was late, which its fee is for; the plan's part in it;
-      // and why, as we told the client
-      description:
-        [
-          cancellation.late && "A late cancellation.",
-          skipped && "The plan carries on.",
-          cancellation.withPlan && `${planCancelled[cancellation.withPlan]}.`,
-          cancellation.reason,
-        ]
-          .filter(Boolean)
-          .join(" ") || undefined,
+      title: why ? `${title}: ${why}` : title,
     });
   }
   if (noAccess) {
@@ -265,7 +263,6 @@ export function JobHistory({ job }: { job: OfficeJob }) {
           icon={m.icon}
           title={m.title}
           when={formatDateTime(m.at)}
-          description={m.description}
         />
       ))}
     </Timeline>
