@@ -84,8 +84,9 @@ export const SETTLED_AFTER_MS = 15 * MINUTE_MS;
 // before anyone may call it off (#534, Q1): time to find their bank's app
 // and approve it, and not so long that Office Staff, on the phone with
 // them, wait long to record their acceptance or send changes. The Clock
-// calls off one left longer, as it settles what's open this long
-export const APPROVAL_MS = SETTLED_AFTER_MS;
+// calls off one left longer, on its sweep of what's been open
+// SETTLED_AFTER_MS (giveBackUnbookedDeposits)
+export const APPROVAL_MS = 15 * MINUTE_MS;
 
 // the provider call an attempt makes, as asked but for its key
 type Asked =

@@ -9,7 +9,8 @@
     "#services/*": "./src/services/*/index.ts"
   },
   "exports": {
-    "./checkout": "./tests/checkout.ts"
+    "./checkout": "./tests/checkout.ts",
+    "./fake-payments": "./tests/fakes/payment-gateway.ts"
   },
   "scripts": {
     "dev": "tsx watch --clear-screen=false --env-file=.env src/index.ts",

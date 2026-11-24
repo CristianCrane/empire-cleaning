@@ -8,6 +8,7 @@ import {
   type Page,
 } from "@playwright/test";
 import type { Me, QuoteSource, StaffRole } from "@empire-cleaning/models";
+import type { Approval } from "@empire-cleaning/server/fake-payments";
 import { THEME_STORAGE_KEY } from "@empire-cleaning/ui/theme-boot";
 import { apiUrl, controlUrl } from "../playwright.config.ts";
 import { tourIds } from "../src/screens/tours.ts";
@@ -56,10 +57,9 @@ export const failCharges = (reason: string | null = "card_declined") =>
   });
 
 // a card entered in the payment form needs the bank's approval from now on,
-// which it gives ("approved"), refuses, or is still waiting on; null to stop
-export const requireApproval = (
-  answer: "approved" | "refused" | "pending" | null = "approved",
-) =>
+// which it gives ("approved"), refuses, is still waiting on, or is
+// finishing (the fake's Approval); null to stop
+export const requireApproval = (answer: Approval | null = "approved") =>
   control("/payments/approval", {
     method: "POST",
     body: JSON.stringify({ answer }),
