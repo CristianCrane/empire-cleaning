@@ -483,18 +483,19 @@ test(
       .click();
 
     // the line beside Send says it waits, where Send was pressed, and the
-    // alert says on what, as the press found it
+    // alert says on what, as the press found it, in view and read out
     await expect(
       page.getByRole("button", { name: "Send to Casey Client" }).first(),
     ).toBeDisabled();
     await expect(
       page.getByRole("status").filter({ hasText: /prices|saved/i }),
     ).toHaveText("Saved · Send waits on Casey's deposit payment");
-    await expect(
-      page.getByText(
+    const alert = page.getByRole("status").filter({
+      hasText:
         "Casey Client's online payment on the quote you sent is still going through with their bank, which usually takes a few minutes. If it books that quote, this draft is deleted; if not, you can send your changes then.",
-      ),
-    ).toBeVisible();
+    });
+    await expect(alert).toBeFocused();
+    await expect(alert).toBeInViewport({ ratio: 1 });
     await expect(page).toHaveURL(/\/draft$/);
   },
 );

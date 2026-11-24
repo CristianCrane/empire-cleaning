@@ -690,15 +690,13 @@ export const acceptQuote = async (
       const paying = acceptor.by === "office" && (await payingOf(quote, tx));
       if (paying) {
         throw new ConflictError(
-          paying.finishing
-            ? clientPayingWords.finishing(client.name, "record")
-            : clientPayingWords.record({
-                name: client.name,
-                deposit: formats.en.formatMoney(paying.depositCents),
-                service: paying.serviceName,
-                until: formats.en.formatTime(paying.until),
-                finishing: false,
-              }),
+          clientPayingWords.record({
+            name: client.name,
+            deposit: formats.en.formatMoney(paying.depositCents),
+            service: paying.serviceName,
+            until: formats.en.formatTime(paying.until),
+            finishing: paying.finishing,
+          }),
         );
       }
 
@@ -716,9 +714,7 @@ export const acceptQuote = async (
             ),
           } as const;
         }
-        throw new ConflictError(
-          clientPayingWords.finishing(client.name, "record"),
-        );
+        throw new ConflictError(clientPayingWords.finishing(client.name));
       }
       if (attempt.status === "failed") {
         // the Client is told only that their card wasn't charged

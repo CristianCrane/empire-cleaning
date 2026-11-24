@@ -1333,7 +1333,7 @@ describe("while the Client's bank is approving the Deposit", () => {
     }).toEqual({
       send: 409,
       message:
-        "Casey Client's online payment is still going through with their bank, which usually takes a few minutes, so you can't send your changes yet.",
+        "Casey Client's online payment on the quote you sent is still going through with their bank, which usually takes a few minutes. If it books that quote, this draft is deleted; if not, you can send your changes then.",
       charges: 1,
       refunds: 0,
     });
@@ -1375,7 +1375,7 @@ describe("while the Client's bank is approving the Deposit", () => {
         depositCents: option(quote, "deep").depositCents,
         finishing: true,
       },
-      sent: "Casey Client's online payment is still going through with their bank, which usually takes a few minutes, so you can't send your changes yet.",
+      sent: "Casey Client's online payment on the quote you sent is still going through with their bank, which usually takes a few minutes. If it books that quote, this draft is deleted; if not, you can send your changes then.",
       after: null,
       charges: 1,
     });

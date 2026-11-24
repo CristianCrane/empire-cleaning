@@ -1842,12 +1842,10 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
     const paying = await payingOf(current, tx);
     if (paying) {
       throw new ConflictError(
-        paying.finishing
-          ? clientPayingWords.finishing(client.name, "send")
-          : clientPayingWords.draft(client.name, {
-              until: formats.en.formatTime(paying.until),
-              finishing: false,
-            }),
+        clientPayingWords.draft(client.name, {
+          until: formats.en.formatTime(paying.until),
+          finishing: paying.finishing,
+        }),
       );
     }
     const saved = await optionsOf(draft.id, tx);

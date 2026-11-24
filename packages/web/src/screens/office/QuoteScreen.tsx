@@ -1240,8 +1240,9 @@ function EmailCardLink({ quote }: { quote: OfficeQuote }) {
 // or behind the arrow while a change is drafted. Refused as the Client
 // started paying online since the page loaded, or as their bank was found
 // finishing it past its end time (#534), the page reloads under it, and
-// it's greyed with the one rule's alert in place of the refusal; or, their bank having approved it just before, the quote is
-// accepted with what they paid for, which a toast says
+// it's greyed with the one rule's alert in place of the refusal; or, their
+// bank having approved it just before, the quote is accepted with what
+// they paid for, which a toast says
 function RecordAcceptanceDialog({
   quote,
   drafting,
@@ -1885,12 +1886,13 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
       params: { quoteId: now.id },
     });
   });
-  // a refusal to send while they paid says nothing the alert doesn't, and
-  // is untrue once they're done, so it goes as the wait starts or ends
+  // a refusal to send while they paid says nothing the alert doesn't, so
+  // the alert shows in its place (answering the press), and it's untrue
+  // once they're done, so it goes as the wait ends
   const [failedWhile, setFailedWhile] = useState(until);
   if (failedWhile !== until) {
     setFailedWhile(until);
-    setFailure(undefined);
+    if (failedWhile) setFailure(undefined);
   }
 
   // every change counts up; a save records the change it saved, so a save
@@ -2070,7 +2072,8 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
     failure && !paying && (
       <Notice
         key="failure"
-        // in view wherever Send was pressed (#534 UX U4)
+        // in view wherever Send was pressed (#534 UX U4); refused as the
+        // Client is paying, the paying alert answers instead
         answers
         tone="danger"
       >
@@ -2151,6 +2154,10 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
             ? {
                 key: "paying",
                 tone: "warning",
+                // Send refused as the Client is paying: the page loads
+                // again into this alert, which answers the press in its
+                // place (`failure` below), in view wherever Send was
+                answers: !!failure,
                 children: clientPaying.draft(paying.name, paying),
               }
             : draft.offer && {
