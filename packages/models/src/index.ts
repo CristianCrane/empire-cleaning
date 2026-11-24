@@ -2139,11 +2139,22 @@ export type BillSummary = {
   // tax included; below 0 it's a credit on the next Bill
   totalCents: number;
   taxCents: number;
-  // its automatic Charge failed, and it hasn't been paid since
+  // why it's Unpaid: its automatic Charge failed, or it's late, and it
+  // hasn't been paid since; or, "waiting", a payment going through, from
+  // `since`, nothing to do but wait (ADR-0022)
   unpaid: Unpaid | null;
+  // the Client paying it on its page, as its pages tell it (#534): their
+  // bank asking them to approve it, which holds the Bill `until`
+  // (ADR-0022's one rule); or their last payment, which didn't go through
+  // `at`, and why (a clause, as Unpaid's, or null); null when neither
+  paying: BillPaying | null;
   paidAt: string | null;
   paidVia: BillPaidVia | null;
 };
+
+export type BillPaying =
+  | { status: "approving"; until: string }
+  | { status: "failed"; at: string; why: string | null };
 
 export type BillView = BillSummary & {
   lines: BillLineView[];
@@ -2152,24 +2163,37 @@ export type BillView = BillSummary & {
   voidedAt: string | null;
   voidReason: string | null;
   // whether the Client can pay it on its page now: due, owing something,
-  // and not a payment of ours, which our charge may still take or we try
-  // again ourselves (#533)
+  // and no payment going through, which may still take it or we try again
+  // ourselves (#533); one their bank asks them to approve they may start
+  // over, as that calls it off (#534)
   payable: boolean;
   // whether Office Staff can cancel it or record a payment made another way
-  // now: due, and no card payment of ours on it may still take the money
-  // (ADR-0022's one rule; cardNotDone says why not)
+  // now: due, and no payment on it may still take the money, going through
+  // or the Client's bank asking them to approve it (ADR-0022's one rule;
+  // paymentNotDone and clientPayingBill say why not)
   canCancelOrRecord: boolean;
   // the Client's Service Plans with Jobs on it, oldest first: each On Hold
   // while it's Unpaid (ADR-0016), unless Ended
   plans: Pick<ServicePlanSummary, "id" | "status" | "property">[];
 };
 
-// the payment provider's form for paying a Bill on its page, by card or bank
-// debit, with what POST /api/bills/mine/:id/payment then sends back
-export type BillPaymentForm = PaymentForm & { secret: string; ref: string };
+// POST /api/bills/mine/:id/payment: what the Client entered in the payment
+// form (/api/payment-methods/form), a card or a US bank account, as its
+// token; nothing is saved for later
+export type PayBillInput = { token: string };
 
-// POST /api/bills/mine/:id/payment, once the form is done
-export type PayBillInput = { ref: string };
+// what paying a Bill on its page came to: the Bill as it now stands (paid, a
+// bank payment on its way, or its payment pending), or waiting on their
+// bank's approval (e.g. 3D Secure) in the browser with `secret`, then POST
+// .../payment/finish
+export type BillPayOutcome =
+  | { status: "done"; bill: BillView }
+  | { status: "needs_approval"; secret: string };
+
+// POST /api/bills/mine/:id/payment/finish, once the Client's bank approved
+// it in the browser, or didn't (refused, or the Client closed it): one not
+// approved is called off, so nothing is taken
+export type FinishBillPaymentInput = { approved: boolean };
 
 // POST /api/bills/:id/void
 export type VoidBillInput = { reason: string };

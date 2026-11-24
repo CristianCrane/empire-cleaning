@@ -44,9 +44,9 @@ export type GatewayUnderTest = {
   fillCardForm(secret: string, card: TestCard): Promise<string>;
   // the token of a save-only card form the Client left unfinished
   abandonCardForm(secret: string): Promise<string>;
-  // the Client pays a Bill in the browser by a bank debit that stays
-  // processing
-  payByBankDebit(ref: string): Promise<void>;
+  // the token the browser's payment form hands over for a bank account,
+  // linked at once, whose debit stays processing
+  enterBank(): Promise<string>;
   // every payment the provider was asked to take from this payer, declined
   // ones included
   paymentAttempts(payerId: string): Promise<number>;
@@ -651,31 +651,47 @@ export const paymentGatewayContract = (
     });
 
     describe("Bill payments", () => {
-      test("by bank debit, one stays processing, and says what it's for", async () => {
+      test("by card, it's taken at once and the card isn't saved", async () => {
         const t = await setup();
         const { payerId } = await payer(t);
-        const { ref } = await t.gateway.startBillPayment({
+
+        const paid = await t.gateway.payBill({
           payerId,
+          token: await t.enterCard("visa"),
           amount: 12000,
-          description: "Contract check: Bill",
+          description: "Contract check: Bill by card",
           reference: `bill-${run}`,
           idempotencyKey: `bill:${run}:${payerId}`,
         });
 
-        await t.payByBankDebit(ref);
-
-        expect(await t.gateway.billPaymentOutcome(ref)).toEqual({
-          status: "processing",
-          reference: `bill-${run}`,
+        expect(paid).toEqual({
+          status: "succeeded",
+          chargeId: expect.any(String),
+          saved: null,
         });
       });
 
-      test("one the provider doesn't know has failed", async () => {
+      test("by bank debit, it stays processing until the bank clears it", async () => {
         const t = await setup();
+        const { payerId } = await payer(t);
 
-        expect(
-          await t.gateway.billPaymentOutcome("pi_made_up_by_a_client"),
-        ).toEqual({ status: "failed", reason: "unknown_payment" });
+        const paid = await t.gateway.payBill({
+          payerId,
+          token: await t.enterBank(),
+          amount: 12000,
+          description: "Contract check: Bill by bank debit",
+          reference: `bill-${run}`,
+          idempotencyKey: `bill:${run}:${payerId}`,
+        });
+
+        expect(paid).toEqual({
+          status: "needs_approval",
+          ref: expect.any(String),
+          secret: expect.any(String),
+          processing: true,
+        });
+        if (paid.status !== "needs_approval") return;
+        expect(await t.gateway.paymentOutcome(paid.ref)).toEqual(paid);
       });
     });
 

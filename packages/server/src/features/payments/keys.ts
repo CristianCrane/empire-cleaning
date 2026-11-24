@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { ChargeAttempt, RefundAttempt } from "./payments.schema.ts";
 
 // The idempotency key each payment the server asks for carries (ADR-0022):
@@ -19,7 +18,4 @@ export const idempotencyKey = {
   // as its token is used once
   savingCard: (quoteId: string, token: string) =>
     `save-card:${quoteId}:${token}`,
-  // a payment started on a Bill's page: each start is its own, as the
-  // Client may start it again with another amount owed
-  billPayment: (billId: string) => `bill-payment:${billId}:${randomUUID()}`,
 };

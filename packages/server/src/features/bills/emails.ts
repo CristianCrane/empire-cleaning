@@ -23,14 +23,20 @@ import {
 import type { Settled } from "../completion/balance.ts";
 import { changeLabel, type Changed } from "../completion/emails.ts";
 import { cardOf } from "../payments/emails.ts";
-import { unpaidKind } from "../payments/unpaid.ts";
+import { unpaidKind, whyNotPaid } from "../payments/unpaid.ts";
 
 // what a Bill's Unpaid did to the Client's Service Plan, or will: paused,
 // back on, or paused if it isn't paid by its due date
 export type PlanNote = "paused" | "back_on" | "pauses_if_late";
 
 export type Occasion =
-  "made" | "unpaid" | "reminder" | "paid" | "voided" | "debit_failed";
+  | "made"
+  | "unpaid"
+  | "reminder"
+  | "paid"
+  | "voided"
+  // a payment on its page the Client left going through, which then failed
+  | "not_through";
 
 // a Bill, as much of it as its email shows
 export type BillToSend = {
@@ -146,10 +152,10 @@ const words = catalog({
       "Anything on it that's still owed will be on your next bill.",
     OWED_PER_CLEAN:
       "Anything on it that's still owed is charged to your card per clean, as before.",
-    debitFailedSubject: (number: string) =>
-      `Your bank payment for bill ${number} didn't go through`,
-    debitFailed: (total: string, number: string) =>
-      `Your bank payment of ${total} for bill ${number} didn't go through. Please pay it again on its page, by card or from another account.`,
+    notThroughSubject: (number: string) =>
+      `Your payment for bill ${number} didn't go through`,
+    notThrough: (total: string, number: string, because: string) =>
+      `Your payment of ${total} for bill ${number} didn't go through${because}. Please try again on its page, or use another card or bank account.`,
     INSTEAD: "Here's what we've done about each clean on it instead:",
     PAUSES_IF_LATE:
       "If it isn't paid by then, your cleaning plan is paused until it is.",
@@ -228,10 +234,10 @@ const words = catalog({
     OWED_NEXT_BILL: "Lo que todavía se deba de ella irá en su próxima factura.",
     OWED_PER_CLEAN:
       "Lo que todavía se deba de ella se cobra a su tarjeta por cada limpieza, como antes.",
-    debitFailedSubject: (number: string) =>
-      `Su pago bancario de la factura ${number} no se realizó`,
-    debitFailed: (total: string, number: string) =>
-      `Su pago bancario de ${total} de la factura ${number} no se realizó. Por favor, páguela otra vez en su página, con tarjeta o desde otra cuenta.`,
+    notThroughSubject: (number: string) =>
+      `Su pago de la factura ${number} no pasó`,
+    notThrough: (total: string, number: string, because: string) =>
+      `Su pago de ${total} de la factura ${number} no pasó${because}. Vuelva a intentarlo en su página, o use otra tarjeta o cuenta bancaria.`,
     INSTEAD:
       "Esto es lo que hicimos en cambio con cada limpieza de la factura:",
     PAUSES_IF_LATE:
@@ -282,11 +288,13 @@ const aboutBill = (
     today,
     billedWeekly,
     creditRefundDays,
+    failed,
   }: {
     card: string;
     today: string;
     billedWeekly: boolean;
     creditRefundDays: number;
+    failed?: string;
   },
 ): string[] => {
   const w = words[lang];
@@ -346,8 +354,13 @@ const aboutBill = (
         `${w.voided(number)}${bill.voidReason ? ` ${bill.voidReason}` : ""}`,
         billedWeekly ? w.OWED_NEXT_BILL : w.OWED_PER_CLEAN,
       ];
-    case "debit_failed":
-      return [w.debitFailedSubject(number), w.debitFailed(total, number)];
+    case "not_through": {
+      const { why } = whyNotPaid(lang, failed ?? "");
+      return [
+        w.notThroughSubject(number),
+        w.notThrough(total, number, why ? ` (${why})` : ""),
+      ];
+    }
   }
 };
 
@@ -390,6 +403,8 @@ export const billEmail = (
     // they're billed weekly still
     billedWeekly: boolean;
     creditRefundDays: number;
+    // why a payment on its page failed, as recorded (not_through)
+    failed?: string;
   },
 ): Email => {
   const w = words[lang];

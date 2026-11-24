@@ -57,18 +57,14 @@ paymentGatewayContract(
     fillCardForm: (secret, card) =>
       fillCardForm(stripe, secret, PAYMENT_METHOD[card]),
     abandonCardForm: async (secret) => secret.split("_secret_")[0]!,
-    // what confirmPayment does in the browser, by a test bank account
-    payByBankDebit: async (ref) => {
-      await stripe.paymentIntents.confirm(ref, {
-        payment_method: "pm_usBankAccount_processing",
-        mandate_data: {
-          customer_acceptance: {
-            type: "online",
-            online: { ip_address: "127.0.0.1", user_agent: "contract tests" },
-          },
-        },
-      });
-    },
+    // a test bank account, linked at once, as the Payment Element would
+    // hand it over with its mandate
+    enterBank: async () =>
+      (
+        await stripe.testHelpers.confirmationTokens.create({
+          payment_method: "pm_usBankAccount_processing",
+        })
+      ).id,
     paymentAttempts: async (payerId) =>
       (await stripe.paymentIntents.list({ customer: payerId, limit: 100 })).data
         .length,

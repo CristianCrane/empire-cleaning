@@ -26,7 +26,6 @@ import {
   offerAssignment,
 } from "../../src/features/assignments/index.ts";
 import {
-  inPaymentsSandbox,
   installFakes,
   resetDatabase,
   testClock,
@@ -66,14 +65,8 @@ import { accounts } from "../../src/features/auth/auth.schema.ts";
 const CONTROL_PORT = Number(process.env.E2E_CONTROL_PORT ?? 3101);
 
 // fresh fakes, whose payments the browser's test form makes: a Bill paid on
-// its page is paid by card unless a test says otherwise. The sandbox run's
-// browser pays Stripe itself
-const freshFakes = () => {
-  installFakes();
-  if (!inPaymentsSandbox) testPayments().payBillsInBrowser("card");
-};
-
-freshFakes();
+// its page is paid by card unless a test says otherwise
+installFakes();
 await listen(app, env.PORT);
 console.log(`e2e API on port ${env.PORT}`);
 
@@ -107,7 +100,7 @@ control.get("/health", (_req, res) => {
 
 // a clean slate before each test
 control.post("/reset", async (_req, res) => {
-  freshFakes();
+  installFakes();
   freshHomes();
   await resetDatabase();
   res.json({ status: "ok" });
@@ -264,7 +257,7 @@ control.post("/bills/chase", async (_req, res) => {
 // processing
 control.post("/payments/bills-in-browser", (req, res) => {
   const { by } = req.body as { by: "card" | "bank" };
-  testPayments().payBillsInBrowser(by);
+  testPayments().payBillsBy(by);
   res.json({ status: "ok" });
 });
 

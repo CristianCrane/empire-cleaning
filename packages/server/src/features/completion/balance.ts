@@ -385,7 +385,7 @@ export const settleJob = async (
     if (moves && ledger.owedCents > 0) {
       const charged = await chargeSaved(tx, {
         client,
-        method,
+        source: method,
         amount: ledger.owedCents,
         description: await describe(tx, job!),
         for: { jobId, kind: kindOf(job!) },

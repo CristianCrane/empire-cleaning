@@ -32,11 +32,12 @@ export type DepositInput = {
   idempotencyKey: string;
 };
 
-// how a payment made with the Client there went (a Deposit). Needing
-// approval means the Client's bank wants them to approve it in the browser
-// (e.g. 3D Secure) with `secret`; then `paymentOutcome(ref)` says how it
-// ended; `processing` once they have and their bank is finishing it, when
-// it can no longer be called off.
+// how a payment made with the Client there went (a Deposit, or a Bill paid
+// on its page). Needing approval means the Client's bank wants them to
+// approve it in the browser (e.g. 3D Secure) with `secret`; then
+// `paymentOutcome(ref)` says how it ended; `processing` once they have and
+// their bank is finishing it, when it can no longer be called off, as a
+// bank debit is for days until it clears.
 export type OnSessionResult =
   | {
       status: "succeeded";
@@ -71,7 +72,10 @@ export type ChargeResult =
   | { ok: true; chargeId: string }
   | { ok: false; reason: string }
   // not taken yet, nor declined: chargeOutcome() says how it ends
-  | { ok: false; reason: "processing"; chargeId: string };
+  | { ok: false; reason: "processing"; chargeId: string }
+  // a payment made with the Client there, looked up: waiting on their
+  // bank's approval, which paymentOutcome(chargeId) reads
+  | { ok: false; reason: "requires_action"; chargeId: string };
 
 // how to find a Charge asked for before: by its id, once known, or else by
 // the idempotency key it was asked with, at or after `since`
@@ -93,31 +97,17 @@ export type RefundLookup = { chargeId: string; idempotencyKey: string };
 // dashboard
 export type RefundElsewhere = { refundId: string; amount: number; at: Date };
 
-// a Bill the Client pays on its page (ADR-0016), in the browser, by card or
-// bank debit; `reference` is ours (the Bill), and comes back in its events
-export type BillPaymentInput = {
+// a Bill the Client pays on its page (ADR-0016), by a card or bank account
+// entered just now in the browser's payment form, which saves neither;
+// `reference` is ours (the Bill), and comes back in its events
+export type BillInput = {
   payerId: string;
+  token: string;
   amount: number;
   description: string;
   reference: string;
   idempotencyKey: string;
 };
-
-// how a Bill payment started in the browser stands. A bank debit is
-// processing for days until it clears or fails; waiting means the Client
-// hasn't finished the form. A ref the provider doesn't know has failed.
-export type BillPaymentOutcome =
-  | {
-      status: "succeeded";
-      chargeId: string;
-      // what it paid, and for what: the reference it was started with
-      amount: number;
-      reference: string;
-    }
-  // for what, as when it succeeds
-  | { status: "processing"; reference: string }
-  | { status: "waiting" }
-  | { status: "failed"; reason: string };
 
 // a webhook request's headers, as Express gives them
 export type EventHeaders = Record<string, string | string[] | undefined>;
@@ -161,7 +151,11 @@ export interface PaymentGateway {
   }): Promise<SavedPaymentMethod>;
   // the Deposit, with the Client there to approve it if their bank asks
   takeDeposit(input: DepositInput): Promise<OnSessionResult>;
-  // how a payment made with the Client there, that needed approval, ended
+  // a Bill paid on its page, likewise; a bank debit is processing until
+  // it clears or fails, days later, which its events tell
+  payBill(input: BillInput): Promise<OnSessionResult>;
+  // how a payment made with the Client there, that needed approval or was
+  // processing, ended
   paymentOutcome(ref: string): Promise<OnSessionResult>;
   // calls off a payment waiting on the Client's bank, or one it refused, so
   // it's never taken: because the Client tried again, or nobody came back
@@ -174,12 +168,6 @@ export interface PaymentGateway {
   // processing; null if the provider never made it. Asks afresh, unlike
   // repeating its idempotency key, which only replays the first reply
   chargeOutcome(lookup: ChargeLookup): Promise<ChargeResult | null>;
-  // a payment the Client makes in the browser, with `secret`; `ref` asks how
-  // it went
-  startBillPayment(
-    input: BillPaymentInput,
-  ): Promise<{ ref: string; secret: string }>;
-  billPaymentOutcome(ref: string): Promise<BillPaymentOutcome>;
   refund(input: RefundInput): Promise<RefundResult>;
   // a refund whose reply never came, as the provider has it now; null if it
   // was never made
@@ -210,12 +198,11 @@ export const paymentGateway: PaymentGateway = {
   startCardForm: (payerId) => current.startCardForm(payerId),
   savePaymentMethod: (input) => current.savePaymentMethod(input),
   takeDeposit: (input) => current.takeDeposit(input),
+  payBill: (input) => current.payBill(input),
   paymentOutcome: (ref) => current.paymentOutcome(ref),
   cancelPayment: (ref, why) => current.cancelPayment(ref, why),
   charge: (input) => current.charge(input),
   chargeOutcome: (lookup) => current.chargeOutcome(lookup),
-  startBillPayment: (input) => current.startBillPayment(input),
-  billPaymentOutcome: (ref) => current.billPaymentOutcome(ref),
   refund: (input) => current.refund(input),
   refundOutcome: (lookup) => current.refundOutcome(lookup),
   refundsElsewhere: (chargeId) => current.refundsElsewhere(chargeId),
