@@ -8,9 +8,23 @@ import {
   type Page,
 } from "@playwright/test";
 import type { Me, QuoteSource, StaffRole } from "@empire-cleaning/models";
+import { API_CLOCK_HEADER } from "@empire-cleaning/server/api-clock";
+import type { Approval } from "@empire-cleaning/server/fake-payments";
 import { THEME_STORAGE_KEY } from "@empire-cleaning/ui/theme-boot";
 import { apiUrl, controlUrl } from "../playwright.config.ts";
 import { tourIds } from "../src/screens/tours.ts";
+
+// the API's clock as its control server's last answer left it, and every
+// browser the test has open: each keeps to the API's clock, so a page shows
+// the same day and time the API stamps its records with, wherever a test
+// moves it (#520). Set by a clean slate, before any browser opens (browsers)
+let apiNow = new Date(0);
+const clocked = new Set<BrowserContext>();
+const keepToApiClock = async (context: BrowserContext) => {
+  await context.clock.install({ time: apiNow });
+  clocked.add(context);
+  context.on("close", () => clocked.delete(context));
+};
 
 // talks to the e2e API's control server (packages/server/tests/e2e/server.ts)
 const control = async (path: string, init?: RequestInit) => {
@@ -19,6 +33,11 @@ const control = async (path: string, init?: RequestInit) => {
     headers: { "content-type": "application/json" },
   });
   if (!res.ok) throw new Error(`${path}: ${res.status} ${await res.text()}`);
+  const at = new Date(res.headers.get(API_CLOCK_HEADER)!);
+  if (at.getTime() !== apiNow.getTime()) {
+    apiNow = at;
+    for (const context of clocked) await context.clock.setSystemTime(at);
+  }
   return res.json();
 };
 
@@ -47,7 +66,8 @@ export const addCleaner = (
     body: JSON.stringify({ name, usualWeek }),
   });
 
-// every Charge is declined with this reason from now on; null to stop
+// every Charge is declined with this reason from now on, or left
+// processing with "processing", as the provider does; null to stop
 export const failCharges = (reason: string | null = "card_declined") =>
   control("/payments/fail", {
     method: "POST",
@@ -55,10 +75,9 @@ export const failCharges = (reason: string | null = "card_declined") =>
   });
 
 // a card entered in the payment form needs the bank's approval from now on,
-// which it gives ("approved"), refuses, or is still waiting on; null to stop
-export const requireApproval = (
-  answer: "approved" | "refused" | "pending" | null = "approved",
-) =>
+// which it gives ("approved"), refuses, is still waiting on, or is
+// finishing (the fake's Approval); null to stop
+export const requireApproval = (answer: Approval | null = "approved") =>
   control("/payments/approval", {
     method: "POST",
     body: JSON.stringify({ answer }),
@@ -164,11 +183,52 @@ export const completeJob = (
 
 // every price change reported on the Job proposed to its Client, at its
 // worked-out price, by the Office Staff member with `officeEmail`
-export const proposeReported = (jobId: string, officeEmail: string) =>
+const proposeReported = (jobId: string, officeEmail: string) =>
   control(`/jobs/${jobId}/propose`, {
     method: "POST",
     body: JSON.stringify({ officeEmail }),
   });
+
+// Casey's Deep Clean at 9am on Monday 12 January (acceptedJob), Quoted by
+// `office`, added as Office Staff and signed up here, with Cory, a Cleaner
+// added for it, Confirmed on it
+export const bookedClean = async (office: { email: string; name: string }) => {
+  await createStaff({ ...office, roles: ["office_staff"] });
+  await signUp(office.email);
+  const cory = await addCleaner("Cory Cleaner");
+  const job = await acceptedJob({
+    startsAt: "2026-01-12T14:00:00Z",
+    officeEmail: office.email,
+  });
+  await offerJob(job.id, cory.id, { confirmed: true });
+  return { job, cory };
+};
+
+// that clean done at 11am, the clock left there, with each of `hours` more
+// than Quoted reported (an hour, unless said), each proposed to Casey by
+// `office`. With `failing`, its Balance is declined, and Charges keep
+// failing until failCharges(null)
+export const priceChangeWaiting = async (
+  office: { email: string; name: string },
+  {
+    hours = [1],
+    failing = false,
+  }: { hours?: number[]; failing?: boolean } = {},
+) => {
+  const { job, cory } = await bookedClean(office);
+  await setClock("2026-01-12T16:00:00Z");
+  if (failing) await failCharges();
+  await completeJob(job.id, cory.id, {
+    condition: "moderate",
+    reports: hours.map((h) => ({
+      kind: "extra_time" as const,
+      hours: h,
+      reason: "Heavy grease",
+    })),
+  });
+  await proposeReported(job.id, office.email);
+  return job;
+};
 
 // No Access recorded by a Cleaner Confirmed on the Job
 export const recordNoAccess = (
@@ -228,7 +288,8 @@ export const billedWeek = (week: {
   payment?: "automatic" | "on_page";
   billingEmail?: string;
   plan?: boolean;
-  failing?: boolean;
+  // true, or the decline's reason ("processing": one we try again)
+  failing?: boolean | string;
   unbilled?: boolean;
 }) =>
   control("/bills/billed-week", {
@@ -242,6 +303,10 @@ export const billedWeek = (week: {
     planId: string | null;
   }>;
 
+// what the server's Bill timer does as the clock advances: a Bill paid on
+// its page and past its due date is late, and reminded
+export const chaseBills = () => control("/bills/chase", { method: "POST" });
+
 // how the test payment form pays a Bill on its page from now on: by card
 // (the default), or by a bank debit that stays processing
 export const payBillsBy = (by: "card" | "bank") =>
@@ -249,7 +314,8 @@ export const payBillsBy = (by: "card" | "bank") =>
     method: "POST",
     body: JSON.stringify({ by }),
   });
-// moves the API's clock (it starts at 9:00 UTC on Monday 5 January 2026)
+// moves the API's clock (it starts at 9:00 UTC on Monday 5 January 2026),
+// and every open browser's with it (control)
 export const setClock = (at: string) =>
   control("/clock", { method: "POST", body: JSON.stringify({ at }) });
 
@@ -353,8 +419,8 @@ export const setLanguage = async (page: Page, language: "en" | "es") => {
 // Content-Security-Policy (vite.config.ts) blocked anything a page loads.
 // First-time help's tours dim the page and take every press, so a test meets
 // none, as if each had been seen, unless it asks to in its own page
-// (showTours, tours.spec.ts); a browser it opens beside its own closes as it
-// ends (browsers). Under `pnpm pr:shots`, each test ends on a
+// (showTours, tours.spec.ts); every browser it uses keeps to the API's clock,
+// and one it opens beside its own closes as it ends (browsers). Under `pnpm pr:shots`, each test ends on a
 // picture of its screen at rest (prShot)
 export const test = base.extend<{
   cleanSlate: void;
@@ -445,13 +511,14 @@ export const test = base.extend<{
     { auto: true },
   ],
   showTours: [false, { option: true }],
-  // every browser a test uses: tours seen in each, and those it opened
-  // beside its own closed as it ends. Left open, Playwright's end-of-test
+  // every browser a test uses: on the API's clock, from the clean slate's
+  // (control), tours seen in each, and those it opened beside its own closed
+  // as it ends. Left open, Playwright's end-of-test
   // screenshot shoots their pages in every later test of the worker, and a
   // test with no page of its own got one of those as its pr:shots picture
   // (#488)
   browsers: [
-    async ({ browser, context, showTours }, use) => {
+    async ({ browser, context, showTours, cleanSlate: _ }, use) => {
       const routed: BrowserContext[] = [];
       const allSeen = (on: BrowserContext) => {
         routed.push(on);
@@ -465,6 +532,7 @@ export const test = base.extend<{
           });
         });
       };
+      await keepToApiClock(context);
       if (!showTours) await allSeen(context);
       // and in every browser a test opens beside its own, e.g. the Client's
       // while the Office's is open, tours shown in its own or not
@@ -474,6 +542,7 @@ export const test = base.extend<{
       browser.newContext = async (...options) => {
         const beside = await newContext(...options);
         opened.push(beside);
+        await keepToApiClock(beside);
         await allSeen(beside);
         return beside;
       };
@@ -533,18 +602,36 @@ const pageButton = (page: Page, name: string) => {
 export const pageAction = async (page: Page, name: string) => {
   const more = moreActions(page);
   const button = pageButton(page, name);
-  // whichever the page shows, once it's the page wanted
-  await expect(more.or(button).first()).toBeVisible();
-  if ((await button.count()) > 0) {
-    await button.click();
-    return;
-  }
-  await more.click();
-  await page.getByRole("menuitem", { name, exact: true }).click();
+  const menu = page.getByRole("menu");
+  const item = page.getByRole("menuitem", { name, exact: true });
+  // whichever the page shows, once it's the page wanted: straight after a
+  // navigation the page before can still be on screen, its More actions
+  // without the item, so a menu without it is closed and the page looked
+  // at again (#493 PR 14, docs/testing-log.md)
+  await expect(async () => {
+    await expect(more.or(button).first()).toBeVisible({ timeout: 1000 });
+    if ((await button.count()) > 0) return;
+    if ((await menu.count()) === 0) await more.click({ timeout: 1000 });
+    try {
+      await expect(item).toBeVisible({ timeout: 1000 });
+    } catch (error) {
+      await page.keyboard.press("Escape");
+      throw error;
+    }
+  }).toPass({ timeout: 10_000 });
+  if ((await item.count()) > 0) await item.click();
+  else await button.click();
   // gone, the menu's popover or the phone's sheet too, so the dialog it
   // opens is the only one
-  await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(menu).toHaveCount(0);
 };
+
+// a page's status badge, beside its title (docs/ux.md, Page structure)
+export const titleBadge = (page: Page, word: string) =>
+  page
+    .getByRole("heading", { level: 1 })
+    .locator("..")
+    .getByText(word, { exact: true });
 
 // a page's next step, its primary, in what names it "What to do": its
 // header's split button from md, a phone's foot (docs/ux.md, Page
@@ -582,6 +669,26 @@ export const expectNoPageAction = async (page: Page, name: string) => {
   );
   await page.keyboard.press("Escape");
   await expect(page.getByRole("menu")).toHaveCount(0);
+};
+
+// a page's actions behind More actions that it shows greyed, as its goal
+// needs them but they can't be done yet, each saying `why` under it (its
+// alert says it too, which the open menu may cover)
+export const expectGreyedPageActions = async (
+  page: Page,
+  names: string[],
+  why: string,
+) => {
+  await moreActions(page).click();
+  const menu = page.getByRole("menu");
+  await expect(menu).toBeVisible();
+  for (const name of names) {
+    const item = menu.getByRole("menuitem", { name, exact: true });
+    await expect(item).toBeDisabled();
+    await expect(item).toHaveAccessibleDescription(why);
+  }
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
 };
 
 // The forms that take a payment, each found here and only here, by these
@@ -937,18 +1044,29 @@ export const requestQuoteForPremises = async (
   if (!res.ok) throw new Error(`quote request: ${res.status}`);
 };
 
-// types a start into a Draft's pickers, in `part`: a plan's weekday, or the
-// page. The day goes last, as a weekday's section is named after it.
+// types a start into a Draft's proposed time, in `part`: a plan's weekday,
+// or the page. Its fields sit behind "Type a date and time" once the Draft's
+// open times can show, and in a part folded to the time set on load; the day
+// goes last, as a weekday's section is named after it.
 export const startOn = async (
   page: Page,
   part: Page | Locator,
   date: string,
   time: string,
 ) => {
-  await part
+  const hour = part
     .getByRole("group", { name: "Start time" })
-    .getByRole("spinbutton", { name: /hour/i })
-    .click();
+    .getByRole("spinbutton", { name: /hour/i });
+  const typing = part.getByRole("button", { name: "Type a date and time" });
+  const folded = part.getByRole("button", {
+    name: /^Proposed time/,
+    expanded: false,
+  });
+  // whichever shows first, once the page has settled
+  await expect(hour.or(typing).or(folded).first()).toBeVisible();
+  if (await folded.isVisible()) await folded.click();
+  if (await typing.isVisible()) await typing.click();
+  await hour.click();
   await page.keyboard.type(time);
   await part
     .getByRole("group", { name: "Date" })
@@ -960,11 +1078,12 @@ export const startOn = async (
 export const proposeNextMonday = (page: Page) =>
   startOn(page, page, "01122026", "0900AM");
 
-// once the Draft has saved all that's on screen
+// once the Draft has saved all that's on screen; what Send waits on, if
+// anything, may follow
 export const saved = (page: Page) =>
   expect(
     page.getByRole("status").filter({ hasText: /saved|prices/i }),
-  ).toHaveText("Saved");
+  ).toHaveText(/^Saved( · .+)?$/);
 
 // what the browser does when the person comes back to this tab
 export const returnToTab = (page: import("@playwright/test").Page) =>
@@ -1005,6 +1124,18 @@ export const quoteSent = async (
   await proposeNextMonday(page);
   await page.getByRole("button", { name: `Send to ${client.name}` }).click();
   await expect(page.getByText(`Quote sent to ${client.email}`)).toBeVisible();
+};
+
+// from a Quote asked for, open in the Office: turned down as outside the
+// area we clean, and the page left on it
+export const turnDownQuote = async (page: Page) => {
+  await pageAction(page, "Turn down");
+  const dialog = page.getByRole("alertdialog", {
+    name: "Turn down this quote?",
+  });
+  await dialog.getByText("Outside the area we clean").click();
+  await dialog.getByRole("button", { name: "Turn down" }).click();
+  await expect(page.getByText("Quote turned down")).toBeVisible();
 };
 
 // from a business's Quote whose premises haven't been seen: records the

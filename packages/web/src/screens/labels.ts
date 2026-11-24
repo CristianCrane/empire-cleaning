@@ -30,8 +30,15 @@ export const labels = catalog({
     total: "Total",
     taxIncludedOf: (what: string) => `${what}, tax included`,
     payBill: (n: string) => `Pay bill ${n}`,
+    // a Bill that asks nothing of its reader: the Office's, or one we try
+    // again ourselves
+    seeBill: (n: string) => `See bill ${n}`,
     // a bank payment, or a Bill paid by one, on its way
     clearing: "Clearing",
+    // a payment we try again ourselves (Unpaid, waiting): started by us and
+    // pending, not failed, with nothing for the Client to do. "Payment",
+    // so beside a clean it doesn't read as the clean not done
+    paymentPending: "Payment pending",
     howWeGetIn: "How we get in",
     // a Job's header card, as a screen reader names it (JobLead)
     jobDetails: "Job details",
@@ -70,7 +77,9 @@ export const labels = catalog({
     total: "Total",
     taxIncludedOf: (what: string) => `${what}, impuestos incluidos`,
     payBill: (n: string) => `Pagar la factura ${n}`,
+    seeBill: (n: string) => `Ver la factura ${n}`,
     clearing: "En proceso",
+    paymentPending: "Pago pendiente",
     howWeGetIn: "Cómo entramos",
     jobDetails: "Detalles del trabajo",
     jobStatus: {

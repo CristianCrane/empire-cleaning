@@ -2,10 +2,10 @@ import { describe, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 import type {
   AcceptOutcome,
-  DayTimes,
   OfficeQuote,
   QuoteSummary,
   OfficeServicePlan,
+  OpenDay,
   Recurrence,
   SignedInAccount,
 } from "@empire-cleaning/models";
@@ -265,7 +265,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
     ]);
   });
 
-  test("a Draft's picker marks the starts without a crew free as accepting would count them", async () => {
+  test("a Draft's picker offers the starts with room as accepting would count them", async () => {
     const { office, planId } = await crewedServicePlan();
     // both Cleaners from 9am on the 2nd: the plan's own Job, 9am for a crew
     // of 1, takes one
@@ -274,23 +274,24 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
       recurrence: "weekly",
       crewSize: 2,
     });
-    const marked = async (weekday: number) =>
+    const open = async (weekday: number) =>
       (
         (
           await office
             .get(
-              `/api/quotes/${draft.id}/draft/starts?from=2026-02-02&to=2026-02-02&weekday=${weekday}`,
+              `/api/quotes/${draft.id}/draft/open-times?from=2026-02-02&to=2026-02-02&weekday=${weekday}`,
             )
             .expect(200)
-        ).body as DayTimes[]
-      )[0]!.times;
+        ).body as OpenDay[]
+      )[0]!;
 
     // from 9 it replaces the plan's Job; from 9:30 it doesn't, as that Job
     // starts before it, and it's still on
-    const times = await marked(0);
-    expect(times).not.toContain("08:00");
-    expect(times).not.toContain("09:00");
-    expect(times).toContain("09:30");
+    const { times, closed } = await open(0);
+    expect(times).toContain("08:00");
+    expect(times).toContain("09:00");
+    expect(times).not.toContain("09:30");
+    expect(closed).toBeNull();
   });
 
   test("a Draft's picker counts the replaced Jobs from its earliest weekday, as saved", async () => {
@@ -306,25 +307,47 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
       (
         await office
           .get(
-            `/api/quotes/${draft.id}/draft/starts?from=2026-02-02&to=2026-02-02&weekday=1`,
+            `/api/quotes/${draft.id}/draft/open-times?from=2026-02-02&to=2026-02-02&weekday=1`,
           )
           .expect(200)
-      ).body as DayTimes[]
+      ).body as OpenDay[]
     )[0]!;
-    expect(times).not.toContain("09:30");
+    expect(times).toContain("09:30");
 
     await office
-      .get(`/api/quotes/${draft.id}/draft/starts?from=2026-02-02&to=2026-02-01`)
+      .get(
+        `/api/quotes/${draft.id}/draft/open-times?from=2026-02-02&to=2026-02-01`,
+      )
       .expect(400);
     // a weekday it hasn't, or none, is refused rather than shown as free;
     // an empty one too, rather than read as the first
     for (const weekday of ["&weekday=7", "&weekday=2", "", "&weekday="]) {
       await office
         .get(
-          `/api/quotes/${draft.id}/draft/starts?from=2026-02-02&to=2026-02-02${weekday}`,
+          `/api/quotes/${draft.id}/draft/open-times?from=2026-02-02&to=2026-02-02${weekday}`,
         )
         .expect(400);
     }
+  });
+
+  test("a plan's weekday with a time is offered only its own weekday's days", async () => {
+    const { office, planId } = await crewedServicePlan();
+    const draft = await draftedChange(office, planId, {
+      startsAt: MONDAYS[2]!,
+      recurrence: "weekly",
+    });
+    const days = (
+      await office
+        .get(
+          `/api/quotes/${draft.id}/draft/open-times?from=2026-01-26&to=2026-02-15&weekday=0`,
+        )
+        .expect(200)
+    ).body as OpenDay[];
+    expect(days.map((d) => d.date)).toEqual([
+      "2026-01-26",
+      "2026-02-02",
+      "2026-02-09",
+    ]);
   });
 
   test("can take the time of a Job it replaces, which no longer counts against the day", async () => {

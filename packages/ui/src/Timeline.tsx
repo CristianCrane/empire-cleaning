@@ -47,7 +47,7 @@ export function TimelineItem({
   children?: ReactNode;
 }) {
   return (
-    <li className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-2 sm:grid-cols-[2.5rem_minmax(0,1fr)] sm:gap-x-3 [&:last-child_[data-line]]:hidden">
+    <li className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-2 sm:grid-cols-[2.5rem_minmax(0,1fr)] sm:gap-x-3 [&:last-child_[data-line]]:hidden [&:last-child>div:last-child]:pb-0">
       <div className="flex flex-col items-center">
         <span
           aria-hidden

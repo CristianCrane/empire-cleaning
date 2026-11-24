@@ -15,6 +15,7 @@ import {
 import { ApiError, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
+import { pausedPlans } from "../format.ts";
 import {
   BillDetail,
   BillLetterhead,
@@ -30,13 +31,10 @@ const words = catalog({
     onItsWay: (amount: string) =>
       `Your bank payment of ${amount} is on its way.`,
     emailOnce: "We'll email you once it has.",
-    wasDue: (day: string) =>
-      `This bill was due by ${day} and hasn't been paid.`,
+    // its due date is in the line under its total
+    late: "This bill wasn't paid by its due date.",
     forBill: (amount: string) => `${amount} for this bill`,
     payOr: (fix: string) => `Please pay it, or ${fix}.`,
-    // a payment we try again ourselves, still on its way
-    notYet: (amount: string) =>
-      `Your payment of ${amount} for this bill hasn't gone through yet.`,
     bankOnWay: "Your bank payment is on its way",
     paid: "Thank you, your bill is paid",
     payThis: "Pay this bill",
@@ -48,11 +46,9 @@ const words = catalog({
     onItsWay: (amount: string) =>
       `Su pago bancario de ${amount} está en camino.`,
     emailOnce: "Le avisaremos por correo cuando se acredite.",
-    wasDue: (day: string) => `Esta factura vencía el ${day} y no se ha pagado.`,
+    late: "Esta factura no se pagó antes de su fecha de vencimiento.",
     forBill: (amount: string) => `${amount} de esta factura`,
     payOr: (fix: string) => `Páguela, o ${fix}.`,
-    notYet: (amount: string) =>
-      `Su pago de ${amount} de esta factura aún no ha pasado.`,
     bankOnWay: "Su pago bancario está en camino",
     paid: "Gracias, su factura está pagada",
     payThis: "Pagar esta factura",
@@ -64,10 +60,10 @@ const words = catalog({
 
 // one of the Client's weekly Bills (ADR-0016), a Record (docs/ux.md),
 // where its emails lead: the whole Bill, which prints cleanly, and paying it
-// here by card or bank debit while it's due, the page's next step (the `ui`
-// skill), its form in a dialog so the page has one Pay; beside Print behind
-// a ⋯ while it's a payment we try again ourselves (ADR-0022), which asks
-// nothing of them. Its week is its Week fact (BillDetail)
+// here by card or bank debit while the server says it can be (`payable`),
+// the page's next step (the `ui` skill), its form in a dialog so the page
+// has one Pay; none while it's a payment of ours, which asks nothing of
+// them (ADR-0022, #533). Its week is its Week fact (BillDetail)
 export function PortalBill() {
   const t = useSaid(words);
   const bill = useLoaderData({ from: "/portal/bills/$billId" });
@@ -77,7 +73,6 @@ export function PortalBill() {
     icon: CreditCard,
     dialog: (state) => <PayBill bill={bill} {...state} />,
   };
-  const ours = !!bill.unpaid && !asksTheClient(bill.unpaid.kind);
 
   return (
     <>
@@ -89,8 +84,8 @@ export function PortalBill() {
         ]}
         title={t.p.bill(bill.number)}
         status={<BillStatusBadge bill={bill} />}
-        next={(!ours && pay) || undefined}
-        actions={[ours && pay, print]}
+        next={pay || undefined}
+        actions={[print]}
         alerts={[useStanding(bill)]}
         details={
           <BillDetail
@@ -106,9 +101,12 @@ export function PortalBill() {
   );
 }
 
-// what's left to do about it, if anything
+// what's left to do about it, if anything; while it's unpaid, that a
+// cleaning plan with cleans on it is paused, when one is
 function useStanding(bill: BillView): Alert | null {
   const t = useSaid(words);
+  const isPaused = pausedPlans(bill.plans).length > 0;
+  const paused = isPaused ? ` ${t.noMoreCleans(true)}` : "";
   if (bill.status === "processing") {
     return {
       key: "processing",
@@ -120,14 +118,17 @@ function useStanding(bill: BillView): Alert | null {
     return {
       key: "late",
       tone: "danger",
-      children: `${t.w.wasDue(t.formatDay(bill.dueOn))} ${t.PLAN_PAUSED}`,
+      children: `${t.w.late}${paused}`,
     };
   }
   if (bill.unpaid && !asksTheClient(bill.unpaid.kind)) {
     return {
       key: "unpaid",
       tone: "info",
-      children: `${t.w.notYet(t.formatMoney(bill.totalCents))} ${t.clientFix.waiting}`,
+      // as few words as Payments' card, in its words (#536)
+      children: isPaused
+        ? `${t.NOTHING_TO_DO} ${t.noMoreCleans(false)}`
+        : t.NOTHING_TO_DO,
     };
   }
   if (bill.unpaid) {
@@ -145,6 +146,7 @@ function useStanding(bill: BillView): Alert | null {
           {kind === "declined"
             ? t.w.payOr(t.UPDATE_AND_RETRY)
             : t.clientFix[kind]}
+          {paused}
         </>
       ),
       action: (

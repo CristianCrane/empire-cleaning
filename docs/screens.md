@@ -194,8 +194,11 @@ Keeps: Table + filters (#109). Renders through `ListPage` (#433).
 - Header: "Quotes" in the bar; on a phone, the search's icon; New quote
   (primary).
 - Body: Tabs Requested · Draft · Sent · Expired, the search at the end of
-  their line from md; a sortable Table from md, rows on a phone; Show more
-  (N left).
+  their line from md; a sortable Table from md (Client · Address · Service
+  · Total · Waiting, Address from lg, no Total on Requested until a search
+  spans the Tabs),
+  rows on a phone, the Table's cells as one line under the Client; Show
+  more (N left).
 
 #### Office > New quote
 
@@ -205,10 +208,11 @@ Renders through `FormPage` (#434).
 
 - Header: Quotes › New quote; the title; About this page (folded).
 - Body: one Card: Who's calling (Find the client, a List), then the Quote
-  form's steps, each open. What it comes to leads: first on a phone, a
+  form's steps, each open. Quote, the price so far, leads: first on a phone, a
   sticky aside from `xl`, its working folded.
-- Actions: an `ActionFooter` (the price so far, Draft a quote), once
-  someone's calling.
+- Actions: Draft a quote, once someone's calling: the header's primary
+  from md, the price so far beside it in the header that sticks below
+  `xl`; an `ActionFooter` (the price so far, Draft a quote) on a phone.
 
 #### Office > Quote
 
@@ -238,15 +242,25 @@ Keeps: a record as its story (#145). Renders through `RecordPage` (#432).
 
 Keeps: a Draft page of its own (#145). Renders through `FormPage` (#434).
 
-- Header: … › Draft quote; "Draft quote for client" and "Not sent yet".
-- Actions: Header Button (Delete draft, outlined in red); an `ActionFooter`
-  (the price, save state, Send).
+- Header: … › Draft quote; "Draft quote for client".
+- Actions: from md, Send, the header's primary, Delete draft behind its
+  arrow, save state beside it, the price too in the header that sticks
+  below `xl`; on a phone, Delete draft (outlined in red) on the title row
+  and an `ActionFooter` (the price, save state, Send).
 - Alerts: the client still sees the quote as sent (once it's been sent);
   the plan change.
 - Body: one Card: What was asked and the first clean (folded); Service
-  (its own prices) or Plan and each weekday; Extras and Terms (folded);
-  Proposed time. Prices leads: first on a phone, a sticky aside from
-  `xl`, each price's working folded.
+  (its Type, its own price; the recommended Service's behind a fold) or Plan and
+  each weekday (its Cleaners, its own price, then its proposed time); Extras and Terms
+  (folded); Proposed time: the open times to pick from, a week's days over
+  the viewed day's start times, the date and time fields behind "Type a
+  date and time"; folded to the time ("Not picked yet" before one), open
+  on load unless it's set, has room and can be sent. Quote leads:
+  first on a phone, a sticky aside from `xl`; a one-off's own price, the
+  Service recommended for a first visit one folded line under it ("Also
+  offered: …"); a plan's week first; under each option's price, why the
+  client can't pick it at the time proposed, if they can't (said once, under the one asked for, when the Service offered has the same problem); each price's working folded. The
+  header that sticks and a phone's foot name the one-off's own price.
 
 #### Office > Clients
 
@@ -315,8 +329,11 @@ Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432
   Bill N; "Bill N" and its status (its week is a fact).
 - Actions: once its payment didn't go through or it's late, Record a payment
   the primary, Print and Cancel bill in red behind its arrow; otherwise Menu
-  (Record a payment, Print; Cancel bill in red).
-- Alerts: why it's unpaid, or its bank payment on its way.
+  (Record a payment, Print; Cancel bill in red). While its card payment is
+  going through, Record a payment and Cancel bill are greyed, each saying
+  under it "Not while its card payment is going through".
+- Alerts: that, while its card payment is going through; why it's unpaid;
+  or its bank payment on its way.
 - Body: the Bill (`DetailsCard`: what it comes to, icon facts, the lines).
 
 #### Office > Staff
@@ -435,7 +452,7 @@ Keeps: what's next, date tile, shortcut tiles (ux-portal). Renders through
   something of them (the amount, Pay or Update your card), else a price
   change to answer (what it adds, Review the price change), else that
   morning's How we get in, else a quote ready, else the next clean
-  (`DateTile`, the primary), else the plan paused or where they stand;
+  (`DateTile`, the primary), else the plan paused (its way to it outlined) or where they stand;
   news (info Notices); up to four link tiles, what else waits on them
   first (a quote, a price change with what it adds and by when), then
   shortcuts.
@@ -445,7 +462,7 @@ Keeps: what's next, date tile, shortcut tiles (ux-portal). Renders through
 Keeps: Tabs, by month, date tiles (ux-portal). Renders through `ListPage`
 (#433).
 
-- Header: "Your cleans" in the bar.
+- Header: "Cleans" in the bar.
 - Body: Tabs Upcoming · Past; by month, dated rows led by the kind of clean
   (the home too, for a Client with more than one); with nothing in either,
   one quiet line; Show more (N left).
@@ -456,7 +473,7 @@ Keeps: what you owe first, fixed header Button (ux-portal). Renders through
 `HomePage` (#435).
 
 - Header: "Payments" in the bar; Your card (secondary), standing aside while the card asks something of them (its tile stays).
-- Body: what you owe (`AnswerCard`: `IconTile`, the primary) or all paid;
+- Body: what you owe (`AnswerCard`: `IconTile`, the primary; for a payment we try again ourselves, Payment pending, one line (and one while it pauses a plan), its link outlined) or all paid;
   Notices of payments clearing; tiles All payments (`?open=history`, the
   Statement by month in place) and Your card (a link).
 
@@ -493,25 +510,45 @@ Keeps: steps, quiet choices (#114). Renders through `FormPage` (#434).
 
 Keeps: the Record (ux-portal). Renders through `RecordPage` (#432).
 
-- Header: Your cleans › date and time; the Service and its status.
-- Actions: while booked, Menu (Pick a new time; Skip or Cancel in red, its
-  dialog saying what it costs); once cancelled, a Button to the plan or to
-  request a quote.
-- Alerts: Unpaid (pay), price change to review, a move asked for (withdraw)
-  or turned down.
-- Body: Details (`DetailsCard`: the time large, the address, icon facts, and
-  while it's still free, until when it's free to move or cancel);
-  cancelled, no access or the receipt.
+- Header: Cleans › date and time; the Service and its status.
+- Actions: the next step the primary, the first that asks something: Update
+  your card (Unpaid, unless we try again ourselves), Review the price change
+  (the one that lapses first, its dialog titled by what it's for), Check how
+  we get in (after the crew couldn't), Pick a new time (booked); the rest
+  behind its arrow (Skip or Cancel last, in red, its dialog saying what it
+  costs; the plan or Request a quote after a No Access). Nothing next while
+  a move is asked (Cancel or Skip its one action, outlined in red) or once
+  cancelled (a Button to the plan or to request a quote).
+- Alerts: each only why: Unpaid (one we try again ourselves info, its
+  its badge "Payment pending", its line "Nothing you need to do.", as it asks nothing), a price change (one that isn't the next
+  step keeping its own Review), a move asked for (Withdraw request, its one action) or
+  turned down, the crew couldn't get in (red: when, why, what it cost).
+- Body: Details (`DetailsCard`: a date tile, the time large, the address,
+  icon facts, a row only with something in it (price, how long (no crew
+  count) and the deposit paid only while it's booked, its extras and plan while booked or done),
+  and while it's still free,
+  until when it's free to move or cancel); cancelled, or the receipt (the
+  quoted price only when a change makes the total differ, the rest by that
+  name, a weekly Bill it went on by its number, linked, with its badge;
+  what's still to come by the badge's word, Unpaid or Payment pending, and the
+  card it was charged to only once nothing is, or the rest goes on a weekly
+  Bill).
 
 #### Client portal > Your quote
 
 Keeps: read like a Quote, paying under it (#165). Renders through `RecordPage` (#432).
 
-- Header: Home › Your quote; the title and its status; "updated · open
+- Header: Home › Your quote; the title and its status (Ready while it's
+  theirs to answer, Fully booked once its day filled up); "updated · open
   until", while it applies.
-- Alerts: how it ended (accepted, declined, expired), what it does to the
-  plan, booked up (decline).
-- Body: Quote details (`DetailsCard`: what it comes to, icon facts); Accept
+- Actions: turned down, Request a quote the primary; booked up, Decline
+  this quote its one action (a Button); else none.
+- Alerts: each only why: how it ended (accepted, declined, expired, turned
+  down), what it does to the plan, booked up.
+- Body: Quote details (`DetailsCard`: what it comes to, icon facts, how
+  long its crew is there, on each option too, a plan's each weekday's
+  joined by "+", or once when they match, no cleaning hours or crew on its
+  weekday cards); Accept
   (Decline beside it, quiet; its confirm not red). While it's being
   prepared: what they asked for.
 
@@ -541,9 +578,9 @@ Keeps: a list of homes, each with its own page (ux-portal). Renders through `Rec
 Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432).
 
 - Header: letterhead; Payments › Bill N; "Bill N" and its status (its week is a fact).
-- Actions: while due, Pay this bill the primary (its form in a dialog),
-  Print behind its arrow; both behind a ⋯ while it's a payment we try again
-  ourselves; otherwise one Button (Print).
+- Actions: while the server says it can be paid (`payable`), Pay this bill
+  the primary (its form in a dialog), Print behind its arrow; otherwise one
+  Button (Print), as while it's a payment we take ourselves (#533).
 - Alerts: why it's unpaid (Update your card, a text Button), or its bank
   payment on its way.
 - Body: the Bill (`DetailsCard`).

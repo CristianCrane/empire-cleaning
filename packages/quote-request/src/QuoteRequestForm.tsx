@@ -998,10 +998,16 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
               {part.fields}
             </FormPart>
           )),
+          // after the form, a page below a header's button: each takes the
+          // focus as it shows, in view wherever it was pressed (#534 UX U4)
           end: (refusal || failed) && (
             <>
-              {refusal && <Notice>{refusal}</Notice>}
-              {failed && <Notice tone="danger">{words.failed}</Notice>}
+              {refusal && <Notice answers>{refusal}</Notice>}
+              {failed && (
+                <Notice answers tone="danger">
+                  {words.failed}
+                </Notice>
+              )}
             </>
           ),
           isSending,

@@ -19,6 +19,7 @@ import {
   type PageAction,
 } from "@empire-cleaning/ui";
 import type { AppHref } from "../links.ts";
+import { lineOf } from "./format.ts";
 import { type Said, saidWith, useSaid } from "./words.ts";
 
 // in the screen's language: the Office's English, the portal's its
@@ -44,7 +45,8 @@ const words = catalog({
     notPaidBy: (day: string) => `Not paid by ${day}`,
     didntGo: (day: string) => `Payment didn't go through ${day}`,
     // one the payment service is trying again, which we see to
-    notYet: (day: string) => `Payment tried ${day}, not through yet`,
+    // the badge says it's pending; "started", as "tried" reads as failed
+    notYet: (day: string) => `Payment started ${day}`,
     toPayBy: (day: string) => `To pay by ${day}`,
     toBeCharged: "To be charged to your card",
     offYourNext: "Comes off your next bill",
@@ -79,7 +81,7 @@ const words = catalog({
     bankOnWay: "Hay un pago bancario en camino",
     notPaidBy: (day: string) => `No se pagó antes del ${day}`,
     didntGo: (day: string) => `El pago no pasó el ${day}`,
-    notYet: (day: string) => `Pago intentado el ${day}, aún no ha pasado`,
+    notYet: (day: string) => `Pago iniciado el ${day}`,
     toPayBy: (day: string) => `A pagar antes del ${day}`,
     toBeCharged: "Se cobrará a su tarjeta",
     offYourNext: "Se descuenta de su próxima factura",
@@ -91,7 +93,7 @@ const words = catalog({
     made: "Emitida",
     howPaid: "Cómo se paga",
     onItsPage: "En su página, con tarjeta o banco",
-    whatFor: "Por qué es",
+    whatFor: "Para qué es",
     taxIncluded: "Impuestos incluidos",
     print: "Imprimir",
   },
@@ -101,18 +103,19 @@ type T = Said & { w: (typeof words)["en"] };
 // Weekly Bills (ADR-0016), as the Office and the Client both see them
 
 // where a Bill stands: what's left to do about it, or how it ended
-export function BillStatusBadge({ bill }: { bill: BillSummary }) {
-  const { w, unpaid, clearing } = useSaid(words);
+export function BillStatusBadge({
+  bill,
+}: {
+  bill: Pick<BillSummary, "status" | "unpaid" | "totalCents">;
+}) {
+  const { w, unpaid, clearing, paymentPending } = useSaid(words);
   if (bill.status === "void") return <StatusBadge>{w.cancelled}</StatusBadge>;
   if (bill.status === "processing")
     return <StatusBadge tone="info">{clearing}</StatusBadge>;
-  // one we try again ourselves waits on us (ADR-0022)
-  if (bill.unpaid)
-    return (
-      <StatusBadge tone={asksTheClient(bill.unpaid.kind) ? "danger" : "info"}>
-        {unpaid}
-      </StatusBadge>
-    );
+  // one we try again ourselves waits on us (ADR-0022), as a clean's does
+  if (bill.unpaid && !asksTheClient(bill.unpaid.kind))
+    return <StatusBadge tone="info">{paymentPending}</StatusBadge>;
+  if (bill.unpaid) return <StatusBadge tone="danger">{unpaid}</StatusBadge>;
   if (bill.status === "due")
     return <StatusBadge tone="warning">{w.due}</StatusBadge>;
   if (bill.totalCents < 0) return <StatusBadge>{w.credit}</StatusBadge>;
@@ -135,7 +138,7 @@ export const billWeek = (
 // how a Bill reads in a list: its total, and when it's due or how it was paid
 export const billLine = (lang: Language, bill: BillSummary) => {
   const { w, formatDay, formatMoney } = saidWith(lang, words);
-  return [
+  return lineOf([
     billWeek(lang, bill),
     bill.totalCents < 0
       ? w.creditOf(formatMoney(-bill.totalCents))
@@ -144,9 +147,7 @@ export const billLine = (lang: Language, bill: BillSummary) => {
       bill.payment === "on_page" &&
       bill.totalCents > 0 &&
       w.dueBy(formatDay(bill.dueOn)),
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  ]);
 };
 
 // how it was paid, for whoever is looking

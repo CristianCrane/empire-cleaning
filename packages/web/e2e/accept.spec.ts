@@ -16,7 +16,9 @@ import {
   pageAction,
   expectNoPageAction,
   expectNextStep,
+  setClock,
 } from "./harness.ts";
+import type { Browser, Page } from "@playwright/test";
 
 const olive = {
   email: "olive@example.com",
@@ -174,6 +176,16 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
   await pageAction(page, "Record acceptance");
   const confirm = page.getByRole("alertdialog");
   await expect(confirm).toContainText("Test card ending 4242");
+  // the one asked for is picked, as the card leads with it; Casey said
+  // the Deep Clean
+  await expect(
+    confirm.getByRole("radio", { name: "Standard Clean" }),
+  ).toBeChecked();
+  // the radio's label covers its input, so the tap lands on its name
+  await confirm.getByText("Deep Clean", { exact: true }).click();
+  await expect(
+    confirm.getByRole("radio", { name: "Deep Clean" }),
+  ).toBeChecked();
   await confirm.getByRole("button", { name: "Charge and book" }).click();
 
   await expect(page.getByText("Accepted and booked")).toBeVisible();
@@ -250,32 +262,16 @@ test("Office Staff record acceptance of the offer while drafting a new Revision,
     page
       .getByRole("region", { name: "Current quote" })
       .getByRole("heading", { level: 3 }),
-  ).toHaveText(["Deep Clean"]);
+  ).toHaveText(["Standard Clean"]);
 });
 
-test("a Quote whose day has filled up can't be paid for, and the Office is asked for another time", async ({
+// the Client's side, nothing to pay for: portal-quote.spec.ts
+test("a Quote whose day has filled up asks the Office for another time", async ({
   page,
-  browser,
 }) => {
   await quoteSent(page, olive, casey);
   // another booking takes all of Monday's 16 hours, from 2pm
   await bookJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 16 });
-
-  const client = await (await browser.newContext()).newPage();
-  await signedInAs(client, casey.email);
-  await client.goto(
-    await linkIn(casey.email, "Your quote from Empire Cleaning"),
-  );
-  await expect(
-    client.getByText(
-      "Sorry, Mon, Jan 12, 9:00 AM has been fully booked since we sent this Quote",
-    ),
-  ).toBeVisible();
-  // nothing to pay for, but they can still say no
-  await expect(payAndBook(client).form).toHaveCount(0);
-  await expect(
-    client.getByRole("button", { name: "Decline this quote" }),
-  ).toBeVisible();
 
   await page.goto("/office");
   const needs = await openTile(page, "Quotes");
@@ -314,4 +310,215 @@ test("a Client who backs out of declining keeps the Quote open", async ({
   await expect(
     page.getByRole("button", { name: "Decline this quote" }),
   ).toBeVisible();
+});
+
+// #534: while a Client's bank asks them to approve the Deposit, nothing
+// else that moves money on the Quote starts, so it's never taken twice
+
+// Casey, a card saved, pays with one typed in that their bank wants them to
+// approve, and comes back before they have: the Quote waits on them
+const payingOnline = async (page: Page, browser: Browser) => {
+  await quoteSent(page, olive, casey);
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  await client.goto("/portal/payment-method");
+  await saveACard(client).save.click();
+  await expect(
+    client.getByText("Your Test card ending 4242 is saved"),
+  ).toBeVisible();
+  await client.goto(
+    await linkIn(casey.email, "Your quote from Empire Cleaning"),
+  );
+  const { form, accept } = payAndBook(client);
+  await form.getByRole("button", { name: "Use a different card" }).click();
+  await requireApproval("pending");
+  await accept.click();
+  await expect(
+    form.getByText("Your bank hasn't approved the payment yet."),
+  ).toBeVisible();
+  return { client, form, accept };
+};
+
+const paying =
+  /^Casey Client is paying the \$[\d.]+ deposit online, for the Deep Clean, waiting on their bank to approve it\./;
+
+test("Office Staff can't record acceptance while the Client's bank approves their Deposit", async ({
+  page,
+  browser,
+  isMobile,
+}) => {
+  // opened before Casey pays, as on the phone with them
+  await quoteSent(page, olive, casey);
+  const quote = page.url();
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  await client.goto("/portal/payment-method");
+  await saveACard(client).save.click();
+  await expect(
+    client.getByText("Your Test card ending 4242 is saved"),
+  ).toBeVisible();
+  await page.goto(quote);
+  await pageAction(page, "Record acceptance");
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toContainText("Test card ending 4242");
+
+  await client.goto(
+    await linkIn(casey.email, "Your quote from Empire Cleaning"),
+  );
+  const { form, accept } = payAndBook(client);
+  await form.getByRole("button", { name: "Use a different card" }).click();
+  await requireApproval("pending");
+  await accept.click();
+  await expect(
+    form.getByText("Your bank hasn't approved the payment yet."),
+  ).toBeVisible();
+
+  // refused, the dialog says why in the page's words, greyed
+  await confirm.getByRole("button", { name: "Charge and book" }).click();
+  await expect(confirm.getByRole("status")).toHaveText(paying);
+  await expect(
+    confirm.getByRole("button", { name: "Charge and book" }),
+  ).toBeDisabled();
+  await confirm.getByRole("button", { name: "Cancel" }).click();
+  await expect(confirm).toBeHidden();
+
+  // the page says until when, its next step greyed
+  await expect(
+    page.getByRole("status").filter({ hasText: paying }),
+  ).toContainText("it's called off and you can record acceptance.");
+  await expect(
+    page
+      .getByRole("group", { name: "What to do" })
+      .getByRole("button", { name: "Record acceptance" })
+      .first(),
+  ).toBeDisabled();
+  // on a phone, its foot says why, as the alert has scrolled away; a wider
+  // screen has it in the header, by the alert
+  if (isMobile)
+    await expect(
+      page.getByText("Not while Casey is paying the deposit"),
+    ).toBeVisible();
+});
+
+test("a Client's bank approving the Deposit while Office Staff draft changes accepts the quote sent, and the draft goes", async ({
+  page,
+  browser,
+}) => {
+  const { client, accept } = await payingOnline(page, browser);
+  await page.reload();
+  await expect(
+    page.getByRole("status").filter({ hasText: paying }),
+  ).toBeVisible();
+  await pageAction(page, "Change quote");
+  await expect(page).toHaveURL(/\/draft$/);
+  await expect(
+    page.getByText("Casey Client is paying the deposit online."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Send to Casey Client" }).first(),
+  ).toBeDisabled();
+
+  // approved in their bank's app, then pressed again: booked with it
+  await requireApproval(null);
+  await accept.click();
+  await expect(client.getByText(/^You're booked: a Deep Clean/)).toBeVisible();
+
+  await page.clock.runFor(15_000);
+  await expect(page).not.toHaveURL(/\/draft$/);
+  await expect(
+    page.getByText(
+      "Casey Client accepted the quote you sent, so your draft was deleted.",
+    ),
+  ).toBeVisible();
+  await expect(page.getByText(/ accepted it$/)).toBeVisible();
+});
+
+test("the draft of a Quote its Client is paying waits to be sent", async ({
+  page,
+  browser,
+}) => {
+  await payingOnline(page, browser);
+  await page.reload();
+  await pageAction(page, "Change quote");
+  await expect(page).toHaveURL(/\/draft$/);
+  await expect(
+    page.getByText("Casey Client is paying the deposit online."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Send to Casey Client" }).first(),
+  ).toBeDisabled();
+  // said beside Send at every width, as what Send waits on is, and still
+  // while what's typed waits to save (review F22)
+  const status = page.getByRole("status").filter({ hasText: /prices|saved/i });
+  await expect(status).toHaveText(
+    "Saved · Send waits on Casey's deposit payment",
+  );
+  const standard = page.getByRole("group", { name: "Standard Clean" });
+  await standard.getByText("Set the Standard Clean price yourself").click();
+  await standard
+    .getByRole("textbox", { name: "Standard Clean price before tax" })
+    .fill("250");
+  await expect(status).toHaveText(
+    "Give a reason for the new price to update the prices · Send waits on Casey's deposit payment",
+  );
+  // and it ends at rest, as Jen opens it, for its shot
+  await standard.getByText("Set the Standard Clean price yourself").click();
+  await expect(status).toHaveText(
+    "Saved · Send waits on Casey's deposit payment",
+  );
+});
+
+// past the 15 minutes, a payment their bank is finishing can't be called
+// off, so the changes wait on it, as Record acceptance does (#534
+// critical review C2), and the page holds Send till it's done, as it did
+// before the 15 minutes (UX review U8, U9)
+test(
+  "changes wait to be sent while the Client's bank finishes their Deposit",
+  // a laptop's Send is in the header
+  { tag: "@desktop" },
+  async ({ page, browser }) => {
+    await payingOnline(page, browser);
+    await page.reload();
+    await pageAction(page, "Change quote");
+    await expect(page).toHaveURL(/\/draft$/);
+    // approved in their bank's app at 15 minutes, the bank finishing it
+    await setClock("2026-01-05T09:16:00Z");
+    await requireApproval("processing");
+    await page.reload();
+
+    await page
+      .getByRole("button", { name: "Send to Casey Client" })
+      .first()
+      .click();
+
+    // the line beside Send says it waits, where Send was pressed, and the
+    // alert says on what, as the press found it, in view and read out
+    await expect(
+      page.getByRole("button", { name: "Send to Casey Client" }).first(),
+    ).toBeDisabled();
+    await expect(
+      page.getByRole("status").filter({ hasText: /prices|saved/i }),
+    ).toHaveText("Saved · Send waits on Casey's deposit payment");
+    const alert = page.getByRole("status").filter({
+      hasText:
+        "Casey Client's online payment is still going through with their bank, which usually takes a few minutes. If it books the quote you sent, your draft is deleted. If not, you can send your changes then.",
+    });
+    await expect(alert).toBeFocused();
+    await expect(alert).toBeInViewport({ ratio: 1 });
+    await expect(page).toHaveURL(/\/draft$/);
+  },
+);
+
+test("a Client back from their bank before approving the Deposit is told how it goes on", async ({
+  page,
+}) => {
+  await quoteSent(page, olive, casey);
+  await signedInAs(page, casey.email);
+  await page.goto(await linkIn(casey.email, "Your quote from Empire Cleaning"));
+  const { form, accept } = payAndBook(page);
+  await requireApproval("pending");
+  await accept.click();
+  await expect(form.getByRole("status").last()).toHaveText(
+    "Your bank hasn't approved the payment yet. Approve it in your bank's app to book your clean. Or press Accept and pay to start over: the first payment is called off, so you're only charged once.",
+  );
 });

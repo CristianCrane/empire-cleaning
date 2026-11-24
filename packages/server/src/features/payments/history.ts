@@ -3,7 +3,7 @@ import type { ClientPayment, ClientPaymentKind } from "@empire-cleaning/models";
 import { addDays, catalog, messages } from "@empire-cleaning/models";
 import { currentLanguage } from "#services/request";
 import { db } from "../../db/index.ts";
-import { billNumber } from "../bills/bills.ts";
+import { billNumber } from "../bills/billed-weekly.ts";
 import { bills } from "../bills/bills.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
@@ -187,7 +187,9 @@ export const paymentHistoryFor = async (
       )
       .map((b) => ({
         id: b.id,
-        at: (b.paidAt ?? b.updatedAt).toISOString(),
+        // a debit begun by a server from before clearing_since, as it
+        // deploys, has only its last write (#520)
+        at: (b.paidAt ?? b.clearingSince ?? b.updatedAt).toISOString(),
         kind: "bill" as const,
         amountCents: b.totalCents,
         job: null,

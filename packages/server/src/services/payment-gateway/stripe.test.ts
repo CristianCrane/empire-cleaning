@@ -109,6 +109,39 @@ describe("Stripe's refusals", () => {
       stripe.refund({ chargeId: "pi_1", amount: 1000, idempotencyKey: "r" }),
     ).rejects.toBe(error);
   });
+
+  // #534, F8: a 429 is Stripe not doing it yet, as we're over its rate or
+  // another request holds the object (https://docs.stripe.com/rate-limits),
+  // and the SDK makes every 429 this one error. Read as a refusal, the
+  // Client's card read declined and nothing asked again
+  test.each([
+    [
+      "limits our rate",
+      "rate_limit",
+      "Too many requests hit the API too quickly.",
+    ],
+    [
+      "can't get at the object",
+      "lock_timeout",
+      "This object cannot be accessed right now because another API request or Stripe process is currently accessing it.",
+    ],
+  ])("when Stripe %s, it throws", async (_, code, message) => {
+    const { stripe, client } = gateway();
+    const error = Stripe.errors.StripeError.generate({
+      statusCode: 429,
+      type: "invalid_request_error",
+      code,
+      message,
+    } as never);
+    vi.spyOn(client.paymentIntents, "create").mockRejectedValue(error);
+    vi.spyOn(client.refunds, "create").mockRejectedValue(error);
+
+    expect(error).toBeInstanceOf(Stripe.errors.StripeRateLimitError);
+    await expect(charge(stripe)).rejects.toBe(error);
+    await expect(
+      stripe.refund({ chargeId: "pi_1", amount: 1000, idempotencyKey: "r" }),
+    ).rejects.toBe(error);
+  });
 });
 
 // #241, finding 3: no test card does this off-session, so a bank debit's

@@ -39,16 +39,37 @@ export const messages = catalog({
 
 // the rules the words state, and the Office's own words
 export { RELEASE_CUTOFF_HOURS } from "./assignments.ts";
-export { cleansPaidForOffice, ON_THAT_WEEKS_BILL } from "./bills.ts";
+export {
+  cardNotDone,
+  cleansPaidForOffice,
+  ON_THAT_WEEKS_BILL,
+} from "./bills.ts";
 export {
   CANCELLATION_CUTOFF_HOURS,
   cancelCostForOffice,
   type CancelCost,
   type OfficeCancelCost,
 } from "./cancellation.ts";
-export { ADD_HOURS, DAY_FULL, MORE_HOURS, NO_CREW, whyNoRoom } from "./jobs.ts";
+export {
+  ADD_HOURS,
+  DAY_FULL,
+  MORE_HOURS,
+  NO_CREW,
+  NO_ROOM,
+  noRoomOf,
+  runsPastMidnight,
+  whyNoRoom,
+  type NoRoom,
+} from "./jobs.ts";
 export { asksTheClient, officeFix } from "./payments.ts";
-export { needsVisit, noEmailYet, notSeenYet, placeOwner } from "./quotes.ts";
+export {
+  clientPaying,
+  needsVisit,
+  noEmailYet,
+  notSeenYet,
+  placeOwner,
+  type PayingFor,
+} from "./quotes.ts";
 export {
   LATE_RESCHEDULE_HOURS,
   moveCostForOffice,

@@ -1,6 +1,16 @@
 import { isDeepStrictEqual } from "node:util";
 import { currentLanguage } from "#services/request";
-import { and, asc, eq, inArray, isNull, max, ne } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  max,
+  ne,
+} from "drizzle-orm";
 import type {
   AddOnChoice,
   ClientQuoteView,
@@ -21,11 +31,14 @@ import type {
   Service,
   ServicePlanTerms,
   TurnDownReason,
+  Untimely,
 } from "@empire-cleaning/models";
 import {
   addDays,
   atTime,
   CANCELLATION_CUTOFF_HOURS,
+  clientPaying as clientPayingWords,
+  formats,
   DAY_MS,
   dayOf,
   noEmailYet,
@@ -34,6 +47,7 @@ import {
   timeOf,
   weekdayOf,
   messages,
+  runsPastMidnight,
   endsByMidnight,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
@@ -47,7 +61,9 @@ import { email } from "../../services/email/index.ts";
 import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { officeCompletionOf } from "../completion/completion.ts";
+import { APPROVAL_MS } from "../payments/money.ts";
 import { paymentMethodOf, toPaymentMethodView } from "../payments/payments.ts";
+import { chargeAttempts } from "../payments/payments.schema.ts";
 import {
   choiceOf,
   currentPricing,
@@ -87,20 +103,18 @@ import { siteVisitViews } from "../site-visits/views.ts";
 import { askedAddOns } from "./asked-add-ons.ts";
 import { quoteEmail, turnDownEmail } from "./emails.ts";
 import { percentOf } from "./plan-days.ts";
-import {
-  bookableFor,
-  draftStartsWithoutCrew,
-  optionRoomsOf,
-} from "./quote-room.ts";
+import { bookableFor, openTimesOf, optionRoomsOf } from "./quote-room.ts";
 import {
   askedOf,
   firstCleanCompleted,
   firstCleansOf,
   hasCompletedJob,
   isOpen,
+  isOwnOption,
   needSiteVisit,
   offers,
   optionsIn,
+  ownOption,
   revisionHistory,
   siteVisitOf,
   sourceOf,
@@ -108,6 +122,7 @@ import {
   whatClosed,
 } from "./quote-state.ts";
 import {
+  pendingDeposits,
   quoteRevisions,
   quotes,
   revisionOptions,
@@ -379,13 +394,6 @@ const priceOptions = (
 // an option as priced, before it's written to its Revision
 type PricedOption = Omit<RevisionOptionRow, "id" | "revisionId">;
 
-// a Revision's option for its own Service, which has every Add-on it chose:
-// a one-off Quote's recommended Service prices only those that go with it
-const ownOption = <T extends { serviceKey: string }>(
-  revision: Pick<Revision, "serviceKey">,
-  rows: T[],
-) => rows.find((row) => row.serviceKey === revision.serviceKey)!;
-
 // A Revision's terms as it set them, priced afresh by priceOptions: a one-off
 // Quote its own Service (and the one recommended for a first visit, where
 // that's offered), crew and overrides; a Service Plan Quote its weekdays,
@@ -485,8 +493,7 @@ export const toOption = (
   serviceKey: row.serviceKey,
   serviceName: row.suggested.serviceName,
   // a Service Plan's Services are the ones chosen for it
-  recommended:
-    revision.kind === "one_off" && row.serviceKey !== revision.serviceKey,
+  recommended: revision.kind === "one_off" && !isOwnOption(revision, row),
   labourHours: row.labourHours,
   hoursOnSite: hoursOnSiteOf(row),
   priceCents: row.priceCents,
@@ -664,6 +671,7 @@ const officeRevision = async (
     proposedStartsAt: iso(revision.proposedStartsAt),
     sentAt: iso(revision.sentAt),
     expiresAt: iso(revision.expiresAt),
+    untimely: sent ? [] : untimelyOf(revision, rows, clock.now()),
   };
 };
 
@@ -680,6 +688,110 @@ const homePlanIdOf = async (propertyId: string) => {
     );
   return plan?.id ?? null;
 };
+
+// The Deposit the Client's bank was asked to approve on a Quote, the one
+// check of whether the Client is paying it now (ADR-0022's one rule):
+// within APPROVAL_MS of their pressing, till `until`; after it, while
+// their bank finishes it (`finishing`, too far on to call off; #534
+// critical review C2); or `past` it, as settling it couldn't reach the
+// provider to call it off or read it, so it may yet pay the offer sent
+// (#534 review F28, critical review C9). How much, and for which Service
+// (the Office's English; null for a cleaning plan). Its pending Deposit is
+// saved as the Client's try lets go of the Quote; once settled, it's booked
+// or ended, as its attempt waits on giving it back (C3), so it's none
+const clientPaying = async (
+  quote: Pick<Quote, "id" | "kind">,
+  tx: Tx | typeof db,
+) => {
+  const [found] = await tx
+    .select({ attempt: chargeAttempts, pending: pendingDeposits })
+    .from(chargeAttempts)
+    .innerJoin(
+      pendingDeposits,
+      eq(pendingDeposits.gatewayRef, chargeAttempts.gatewayRef),
+    )
+    .where(
+      and(
+        eq(chargeAttempts.kind, "deposit"),
+        eq(chargeAttempts.forId, quote.id),
+        eq(chargeAttempts.status, "approving"),
+        isNull(pendingDeposits.settledAt),
+      ),
+    )
+    .orderBy(desc(chargeAttempts.askedAt))
+    .limit(1);
+  if (!found) return null;
+  const { attempt, pending } = found;
+  const until = new Date(attempt.askedAt.getTime() + APPROVAL_MS);
+  const finishing = attempt.bankFinishingAt !== null;
+  const row =
+    quote.kind === "one_off"
+      ? (await optionsOf(pending.revisionId, tx)).find(
+          (o) => o.serviceKey === pending.serviceKey,
+        )
+      : undefined;
+  return {
+    until,
+    finishing,
+    past: !finishing && until <= clock.now(),
+    serviceName: row ? await serviceNameOf("en", row.serviceId, tx) : null,
+    depositCents: pending.depositCents,
+  };
+};
+
+// The Client's paying, as the Office's pages and Record acceptance wait on
+// it (clientPaying): null when there's none, or it's `past`, as Office
+// Staff may then act on the Quote, the next try calling it off
+export const payingOf = async (
+  quote: Pick<Quote, "id" | "kind">,
+  tx: Tx | typeof db = db,
+) => {
+  const paying = await clientPaying(quote, tx);
+  if (!paying || paying.past) return null;
+  const { past: _, ...shown } = paying;
+  return shown;
+};
+
+// what the Client's bank approved on a Quote that couldn't be booked,
+// oldest first: what Office Staff on the phone with them see. A Deposit
+// once it's been given back (its charge is the pending row's ref), and a
+// card saved with nothing charged (no Deposit, so no attempt)
+const unbookedPaymentsOf = async (quoteId: string) =>
+  (
+    await db
+      .select({ pending: pendingDeposits, attempt: chargeAttempts })
+      .from(pendingDeposits)
+      .leftJoin(
+        chargeAttempts,
+        and(
+          eq(chargeAttempts.kind, "deposit"),
+          eq(chargeAttempts.gatewayRef, pendingDeposits.gatewayRef),
+        ),
+      )
+      .where(
+        and(
+          eq(pendingDeposits.quoteId, quoteId),
+          isNotNull(pendingDeposits.unbookedWhy),
+        ),
+      )
+  )
+    .flatMap(({ pending, attempt }) => {
+      const why = pending.unbookedWhy!;
+      if (!attempt) {
+        return [{ amountCents: 0, endedAt: pending.settledAt!, why }];
+      }
+      return attempt.status === "given_back"
+        ? [
+            {
+              amountCents: attempt.amountCents,
+              endedAt: attempt.givenBackAt!,
+              why,
+            },
+          ]
+        : [];
+    })
+    .sort((x, y) => x.endedAt.getTime() - y.endedAt.getTime())
+    .map((u) => ({ ...u, endedAt: u.endedAt.toISOString() }));
 
 // A Quote in full, for the Office (ADR-0017): what was asked, with the
 // Suggested Price for the Service being worked on (the Draft's, else the
@@ -711,6 +823,8 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     revisions,
     anyCompleted,
     shownRows,
+    paying,
+    unbookedPayments,
   ] = await Promise.all([
     paymentMethodOf(client.id),
     quote.kind === "service_plan" ? findingsOf(propertyId) : null,
@@ -728,6 +842,8 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     revisionHistory(quote),
     hasCompletedJob(propertyId),
     draft || offer ? optionsOf((draft ?? offer)!.id) : [],
+    payingOf(quote),
+    unbookedPaymentsOf(id),
   ]);
   const asked = addOns.get(id) ?? [];
   const chosen = list.addOns.filter((a) => asked.some((c) => c.key === a.key));
@@ -748,7 +864,7 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     origin: quote.origin,
     asked: askedOf(quote, asked, list.services),
     source: sourceOf(quote),
-    createdAt: quote.createdAt.toISOString(),
+    createdAt: quote.madeAt.toISOString(),
     client: {
       id: client.id,
       name: client.name,
@@ -810,6 +926,8 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     turnedDownAt: iso(quote.turnedDownAt),
     turnDownReason: quote.turnDownReason,
     paymentMethod: toPaymentMethodView(paymentMethod),
+    paying: paying && { ...paying, until: paying.until.toISOString() },
+    unbookedPayments,
   };
 };
 
@@ -899,7 +1017,7 @@ export const clientQuoteView = async (
       postcode: property.postcode,
     },
     asked: askedOf(quote, addOns.get(id) ?? [], list.services)!,
-    createdAt: quote.createdAt.toISOString(),
+    createdAt: quote.madeAt.toISOString(),
     sentAt: null,
     siteVisit:
       quote.status === "turned_down"
@@ -1434,15 +1552,17 @@ const planServiceOf = (
   return service;
 };
 
-// the starts on the days from `from` to `to` where the Quote's Draft, as
-// last saved, would have no crew free for a plan's weekday at `weekday` (in
-// the Draft's order), or for a one-off: see draftStartsWithoutCrew
-export const draftStarts = async (
+// the open starts on the days from `from` to `to` for the Quote's Draft,
+// as last saved: for a plan's weekday at `weekday` (in the Draft's order),
+// or for a one-off (openTimesOf). A weekday with a start shows only its own
+// weekday's days, as its picker does, so the weeks its strip spans load
+// once and only those days are worked out.
+export const draftOpenTimes = async (
   id: string,
   { from, to, weekday }: { from: string; to: string; weekday?: number },
 ) => {
   const { quote, draft } = await findDraftRevision(id);
-  const [rows, days] = await Promise.all([
+  const [rows, schedule] = await Promise.all([
     optionsOf(draft.id),
     scheduleFor(from, to),
   ]);
@@ -1455,12 +1575,26 @@ export const draftStarts = async (
   ) {
     throw fieldError(["weekday"], "Pick one of the plan's weekdays");
   }
-  return draftStartsWithoutCrew(
+  const options = inOrder(rows);
+  const dated = weekday === undefined ? null : options[weekday]!.startsAt;
+  const days = dated
+    ? schedule.filter((day) => weekdayOf(day.date) === weekdayOf(dayOf(dated)))
+    : schedule;
+  return openTimesOf(
     draft,
     quote.propertyId,
-    inOrder(rows),
-    weekday,
+    options,
+    {
+      // whose room decides: a one-off's own Service's option, or the one
+      // weekday that moves
+      own:
+        draft.kind === "one_off"
+          ? options.indexOf(ownOption(draft, options))
+          : 0,
+      ...(weekday === undefined ? {} : { weekday }),
+    },
     days,
+    clock.now(),
   );
 };
 
@@ -1628,48 +1762,91 @@ export const saveDraft = async (
   return officeQuote(id);
 };
 
-// Each clean a Draft Revision would book first, with the field that sets its
-// time: a one-off Quote's Job, the longest of its Services; a Service Plan
-// Quote's first on each weekday. Each must be more than a Late
+// Each clean a Draft Revision would book first whose time it can't be Sent
+// with: a one-off Quote's Job, the longest of its Services; a Service Plan
+// Quote's first on each weekday. Each must have a time more than a Late
 // Cancellation's 24 hours away, when the Quote would Expire, and end by
-// midnight.
-const refuseUntimely = (revision: KindedRevision, rows: PricedOption[]) => {
-  const now = clock.now();
+// midnight. The Draft says so as it's saved (officeRevision), and Send
+// refuses the first (refuseUntimely).
+const untimelyOf = (
+  revision: KindedRevision,
+  rows: PricedOption[],
+  now: Date,
+): Untimely[] => {
   const cleans =
     revision.kind === "service_plan"
       ? inOrder(rows).map((row, i) => ({
-          path: ["plan", "days", i, "start"],
+          weekday: i,
           startsAt: row.startsAt,
           option: toOption(revision, row),
         }))
       : [
           {
-            path: ["proposedStart"],
+            weekday: null,
             startsAt: revision.proposedStartsAt,
             option: rows
               .map((row) => toOption(revision, row))
               .sort((a, b) => b.hoursOnSite - a.hoursOnSite)[0]!,
           },
         ];
-  for (const { path, startsAt, option } of cleans) {
+  return cleans.flatMap(({ weekday, startsAt, option }): Untimely[] => {
     if (!startsAt) {
-      throw fieldError(
-        path,
-        revision.kind === "service_plan"
-          ? "Pick when this day's first clean is"
-          : "Pick a time",
-      );
+      return [
+        {
+          weekday,
+          reason: "no_time",
+          message:
+            revision.kind === "service_plan"
+              ? "Pick when this day's first clean is"
+              : "Pick a time",
+        },
+      ];
     }
     // it Expires from then (sendQuote)
     if (lateFrom(startsAt) <= now) {
-      throw fieldError(
-        path,
-        `Pick a time more than ${CANCELLATION_CUTOFF_HOURS} hours away`,
-      );
+      return [
+        {
+          weekday,
+          reason: "too_soon",
+          // what's wrong, then what to do, as the picker says it
+          message:
+            startsAt <= now
+              ? messages[currentLanguage()].PASSED
+              : `That's less than ${CANCELLATION_CUTOFF_HOURS} hours away. Pick a later time.`,
+        },
+      ];
     }
     if (!endsByMidnight(startsAt, option.hoursOnSite)) {
-      throw fieldError(path, messages[currentLanguage()].ENDS_BY_MIDNIGHT);
+      // a one-off's own clean ending in time, its longest being the
+      // Service recommended beside it: that one's named, as it's what to
+      // fix
+      const own = weekday === null && ownOption(revision, rows);
+      return [
+        {
+          weekday,
+          reason: "past_midnight",
+          message:
+            own && endsByMidnight(startsAt, toOption(revision, own).hoursOnSite)
+              ? runsPastMidnight(`the ${option.serviceName}`)
+              : messages[currentLanguage()].ENDS_BY_MIDNIGHT,
+        },
+      ];
     }
+    return [];
+  });
+};
+
+// Send refuses a Draft's first untimely clean, at the field that sets its
+// time
+const refuseUntimely = (revision: KindedRevision, rows: PricedOption[]) => {
+  const [first] = untimelyOf(revision, rows, clock.now());
+  if (first) {
+    throw fieldError(
+      first.weekday === null
+        ? ["proposedStart"]
+        : ["plan", "days", first.weekday, "start"],
+      first.message,
+    );
   }
 };
 
@@ -1693,6 +1870,22 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
     await lockProperty(tx, quote.propertyId);
     const { quote: current, draft } = await findDraftRevision(id, tx);
     const { client, property } = (await homeOf(current.propertyId, tx))!;
+    // The one rule (ADR-0022): changes sent now would close the offer the
+    // Client's bank is approving, for APPROVAL_MS at most, after it while
+    // their bank finishes it (#534 critical review C2), and past it while
+    // settling it couldn't reach the provider (#534 review F28)
+    const paying = await clientPaying(current, tx);
+    if (paying?.past) {
+      throw new ConflictError(clientPayingWords.unsure(client.name));
+    }
+    if (paying) {
+      throw new ConflictError(
+        clientPayingWords.draft(client.name, {
+          until: formats.en.formatTime(paying.until),
+          finishing: paying.finishing,
+        }),
+      );
+    }
     const saved = await optionsOf(draft.id, tx);
     const options = repriced(
       list,

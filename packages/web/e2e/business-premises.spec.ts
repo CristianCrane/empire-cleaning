@@ -228,7 +228,7 @@ test("New quote gives no price for a business until its floor area is known", as
 
   // the minimum charge, read out, would be a price for a business of no
   // size: what's missing says so in the price's place, and the footer's
-  const comesTo = page.getByRole("region", { name: "What it comes to" });
+  const comesTo = page.getByRole("region", { name: "Quote" });
   await expect(comesTo).toContainText(
     "No price until the floor area is known.",
   );
@@ -271,6 +271,7 @@ test("Office Staff quote a business caller from New quote", async ({
   await expect(
     page.getByRole("button", { name: /^What was asked/ }),
   ).toHaveText(
-    /^What was asked\s*Commercial cleaning · Retail · floor area not known yet$/,
+    // the line's dots hold to the word before them (lineOf)
+    /^What was asked\s*Commercial cleaning\s·\sRetail\s·\sfloor area not known yet$/,
   );
 });

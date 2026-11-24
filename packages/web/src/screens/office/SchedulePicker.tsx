@@ -1,4 +1,3 @@
-import { formats } from "@empire-cleaning/models";
 import { useState } from "react";
 import { CalendarDays } from "lucide-react";
 import type { DayTimes, ScheduleDay } from "@empire-cleaning/models";
@@ -17,31 +16,20 @@ import { today } from "../format.ts";
 import { rangeShowing } from "../schedule-range.ts";
 import { ScheduleCalendar } from "./ScheduleCalendar.tsx";
 
-const { weekdayName } = formats.en;
-
 // whose crew the picker marks the times without (#62): a clean's, by its
 // figures, and a booked Job or Site Visit being moved, so it isn't counted
-// against itself; or a Draft quote's as last saved (a plan's weekday,
-// counting from 0), the Jobs it would replace counted as gone, as its room
-// line counts them. `saves` counts the Draft's saves, so the marks load
-// again after each.
-export type Crew =
-  | {
-      labourHours: number;
-      crewSize: number;
-      jobId?: string;
-      siteVisitId?: string;
-    }
-  | { quoteId: string; weekday?: number; saves: number };
+// against itself. (A Draft quote's time is picked from its open times, in
+// OpenTimePicker.)
+type Crew = {
+  labourHours: number;
+  crewSize: number;
+  jobId?: string;
+  siteVisitId?: string;
+};
 
 // where the server says which starts on the days shown have no crew free
 // for it
 const startsOf = (crew: Crew, range: string) => {
-  if ("quoteId" in crew) {
-    const weekday =
-      crew.weekday === undefined ? "" : `&weekday=${crew.weekday}`;
-    return `/api/quotes/${crew.quoteId}/draft/starts?${range}${weekday}`;
-  }
   const figures = Object.entries(crew).flatMap(([key, value]) =>
     value === undefined ? [] : [[key, String(value)]],
   );
@@ -49,8 +37,6 @@ const startsOf = (crew: Crew, range: string) => {
 };
 
 type Props = TimePickerProps & {
-  // a Service Plan's: how many days apart its cleans are, and in words
-  repeats?: { everyDays: number; label: string };
   // what the chosen time's block is called: "This clean" unless said
   label?: string;
   // the clean's crew, to mark the times without one free (#62)
@@ -72,8 +58,9 @@ export function PickFromSchedule(props: Props) {
   return (
     <DialogTrigger>
       {/* the way to the Schedule, under the date and time it sets: full width
-          on a phone, centred beneath them on a larger screen */}
-      <Button variant="secondary" className="w-full sm:w-auto sm:self-center">
+          on a phone, on their left edge on a larger screen, not centred under
+          them (the user, on #527: "breaking symmetry and balance") */}
+      <Button variant="secondary" className="w-full sm:w-auto sm:self-start">
         <CalendarDays aria-hidden size={20} />
         Pick from the schedule
       </Button>
@@ -90,7 +77,6 @@ function PickStart({
   hoursOnSite,
   current,
   limits,
-  repeats,
   label = "This clean",
   crew,
   onPick,
@@ -130,9 +116,6 @@ function PickStart({
         Pick a start time.
         {limits && " Grey days are full."}
         {crew && !limits && " Striped times don't have enough cleaners free."}
-        {date &&
-          repeats &&
-          ` Then ${repeats.label.toLowerCase()} on ${weekdayName(date)}s.`}
       </p>
       {problem && (
         <Notice tone="danger">
@@ -150,7 +133,6 @@ function PickStart({
               start: chosen,
               hoursOnSite,
               label,
-              everyDays: repeats?.everyDays,
             }
           }
           onPick={(at) => {

@@ -35,9 +35,8 @@ const signInAsOffice = async (page: Page) => {
 };
 
 // a week far from today: Monday 1 March 2027 to Sunday 7 March. The API's
-// clock is in January 2026, so every Job in it is still to come. A test
-// whose screen judges a time passed (a Site Visit's drag) sets the
-// browser's clock too, so it doesn't depend on the date it runs.
+// clock is in January 2026, so every Job in it is still to come, and the
+// browser keeps to it (`browsers` in harness.ts).
 const week = "/office/schedule?from=2027-03-01&to=2027-03-07";
 const TUESDAY_9AM = "2027-03-02T14:00:00Z";
 
@@ -481,8 +480,6 @@ test(
       crewSize: 1,
     })) as { id: string };
     await offerJob(job.id, cory.id, { confirmed: true });
-    // the API's clock, for the browser too: these times are still to come
-    await page.clock.setFixedTime("2026-01-05T09:00:00Z");
     await signInAsOffice(page);
     await page.goto(week);
     const block = jobsOn(page, "Tue, Mar 2").getByRole("link", {
@@ -548,11 +545,9 @@ test(
       date: "2027-03-02",
       time: "09:00",
     });
-    // noon on Wednesday: Tuesday's visit was missed, for the server and the
-    // browser alike
+    // noon on Wednesday: Tuesday's visit was missed
     const NOON = "2027-03-03T17:00:00Z";
     await setClock(NOON);
-    await page.clock.setFixedTime(NOON);
     await signedInAs(page, olive.email);
     await page.goto(week);
     const block = jobsOn(page, "Tue, Mar 2").getByRole("link", {

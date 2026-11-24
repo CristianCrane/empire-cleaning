@@ -21,7 +21,9 @@ export type Hero = {
   // the answer, large
   headline: string;
   lines: string[];
-  action?: { label: string; href: AppHref };
+  // the page's primary, or outlined when it asks nothing of them, only a
+  // way to see it (a payment we try again ourselves)
+  action?: { label: string; href: AppHref; secondary?: boolean };
 };
 
 // why the answer is what it is, when that needs saying (a payment late, a
@@ -59,7 +61,12 @@ export function HeroCard({ hero }: { hero: Hero }) {
       lines={hero.lines}
       actions={
         hero.action && (
-          <ButtonLink href={hero.action.href}>{hero.action.label}</ButtonLink>
+          <ButtonLink
+            href={hero.action.href}
+            variant={hero.action.secondary ? "secondary" : "primary"}
+          >
+            {hero.action.label}
+          </ButtonLink>
         )
       }
     />

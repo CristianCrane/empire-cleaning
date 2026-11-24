@@ -2,6 +2,7 @@ import { useLoaderData } from "@tanstack/react-router";
 import { Ban, Banknote } from "lucide-react";
 import {
   asksTheClient,
+  cardNotDone,
   officeFix,
   type BillView,
   formats,
@@ -19,6 +20,7 @@ import {
   type PageAction,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
+import { addressOf, pausedPlans } from "../format.ts";
 import { linkTo } from "../../links.ts";
 import {
   BillDetail,
@@ -29,21 +31,26 @@ import {
 import { useAction } from "../action.ts";
 import { clientTrail } from "./trails.ts";
 
-const { formatMoney } = formats.en;
+const { formatList, formatMoney } = formats.en;
 
 // one weekly Bill for the Office (ADR-0016), a Record (docs/ux.md): the
 // whole Bill as the Client sees it, where it stands, and while it's due,
 // voiding it (cancelling, on screen) or recording a payment made another
 // way. Once its payment didn't go through or it's late, recording one is
 // the page's next step (the `ui` skill), unless it's a payment we try
-// again ourselves (ADR-0022)
+// again ourselves (ADR-0022). While our card payment on it may still take
+// the money, both are greyed, and its alert says until when
+// (canCancelOrRecord, the server's answer)
 export function BillScreen() {
   const bill = useLoaderData({ from: "/office/bills/$billId" });
   const due = bill.status === "due";
   const print = usePrintBill();
+  const held = !bill.canCancelOrRecord;
   const record: PageAction | false = due && {
     label: "Record a payment",
     icon: Banknote,
+    isDisabled: held,
+    why: cardNotDone.item,
     dialog: (state) => <RecordPayment bill={bill} {...state} />,
   };
   const next = !!bill.unpaid && asksTheClient(bill.unpaid.kind);
@@ -63,6 +70,8 @@ export function BillScreen() {
             label: "Cancel bill",
             icon: Ban,
             danger: true,
+            isDisabled: held,
+            why: cardNotDone.item,
             dialog: (state) => <VoidBill bill={bill} {...state} />,
           },
         ]}
@@ -90,6 +99,15 @@ function standing(bill: BillView): Alert | null {
     };
   }
   if (bill.status !== "due") return null;
+  // over why it's unpaid, if it is: it's being tried now, and Office Staff
+  // can do nothing about it until then (UX review U7)
+  if (!bill.canCancelOrRecord) {
+    return {
+      key: "cardNotDone",
+      tone: "info",
+      children: `${cardNotDone.page}${plansPaused(bill)}`,
+    };
+  }
   if (bill.unpaid) {
     const { kind, why } = bill.unpaid;
     // when is the line under its total's (UX review U5)
@@ -102,17 +120,30 @@ function standing(bill: BillView): Alert | null {
           : asksTheClient(kind)
             ? `Its payment didn't go through${why ? ` (${why})` : ""}.`
             : `Its payment hasn't gone through yet${why ? ` (${why})` : ""}.`
-      } ${officeFix[kind]} Until it's paid, the client's cleaning plans with jobs on this bill are paused.`,
+      } ${officeFix[kind]}${plansPaused(bill)}`,
     };
   }
   // one simply due says when by in its line, and how it's paid in its facts
   return null;
 }
 
+// which of the client's cleaning plans it keeps paused, by their homes, as
+// the Office's Needs attention names them; nothing when it holds none
+function plansPaused(bill: BillView) {
+  const homes = pausedPlans(bill.plans).map((p) => addressOf(p.property));
+  if (homes.length === 0) return "";
+  return homes.length === 1
+    ? ` Until it's paid, the client's cleaning plan at ${homes[0]} is paused.`
+    : ` Until it's paid, the client's cleaning plans at ${formatList(homes)} are paused.`;
+}
+
 // a short note, required, sent with the action; the API's message shown if
-// it's turned down
+// it's turned down, once the page has reloaded: a page opened before our
+// card payment started greys the dialog's button then, and says why
 function useBillAction(bill: BillView, path: string, done: string) {
-  const action = useAction("That didn't work. Please try again.");
+  const action = useAction("That didn't work. Please try again.", {
+    reloadOnFailure: true,
+  });
   const run = async (body: Record<string, unknown>, close: () => void) => {
     const ok = await action.run(
       () => postJson<BillView>(`/api/bills/${bill.id}/${path}`, body),
@@ -148,12 +179,16 @@ function RecordPayment({ bill, ...state }: { bill: BillView } & DialogState) {
             isRequired
             autoFocus
           />
-          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <WhyNot bill={bill} problem={action.problem} what="record" />
           <Actions>
             <Button variant="quiet" onPress={close}>
               Cancel
             </Button>
-            <Button type="submit" isPending={action.isPending}>
+            <Button
+              type="submit"
+              isPending={action.isPending}
+              isDisabled={!bill.canCancelOrRecord}
+            >
               Record payment
             </Button>
           </Actions>
@@ -189,12 +224,17 @@ function VoidBill({ bill, ...state }: { bill: BillView } & DialogState) {
             isRequired
             autoFocus
           />
-          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <WhyNot bill={bill} problem={action.problem} what="cancel" />
           <Actions>
             <Button variant="quiet" onPress={close}>
               Keep it
             </Button>
-            <Button type="submit" variant="danger" isPending={action.isPending}>
+            <Button
+              type="submit"
+              variant="danger"
+              isPending={action.isPending}
+              isDisabled={!bill.canCancelOrRecord}
+            >
               Cancel bill
             </Button>
           </Actions>
@@ -202,4 +242,27 @@ function VoidBill({ bill, ...state }: { bill: BillView } & DialogState) {
       )}
     </Dialog>
   );
+}
+
+// why a dialog's action can't be done: while our card payment may still
+// take the money, the server's words for it, info as it waits on us (UX
+// review U4), whether a press was refused or the page caught up first (it
+// reloads when its tab is shown again); else why a press was refused, but
+// not that refusal once the payment is done, as it's untrue then and the
+// button is back on (design review, a dialog left open)
+function WhyNot({
+  bill,
+  problem,
+  what,
+}: {
+  bill: BillView;
+  problem?: string;
+  what: "cancel" | "record";
+}) {
+  if (!bill.canCancelOrRecord) {
+    return <Notice tone="info">{cardNotDone[what]}</Notice>;
+  }
+  return problem && problem !== cardNotDone[what] ? (
+    <Notice tone="danger">{problem}</Notice>
+  ) : null;
 }

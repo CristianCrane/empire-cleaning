@@ -11,6 +11,7 @@ import type {
   QuoteSummary,
   QuoteStatus,
   Recurrence,
+  RevisionSummary,
   ServicePlanStatus,
   Weekday,
 } from "@empire-cleaning/models";
@@ -26,6 +27,7 @@ import {
   quarterHours,
   quarterHoursText,
   timeOf,
+  upperFirst,
 } from "@empire-cleaning/models";
 import { conditions, formWords } from "@empire-cleaning/quote-request";
 import { labels } from "./labels.ts";
@@ -35,6 +37,11 @@ import type { StatusTone } from "@empire-cleaning/ui";
 export const addressOf = (
   p: Pick<PropertyView, "street" | "unit" | "postcode">,
 ) => [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
+
+// a row's line, from the parts it has: "12 Elm St · $184.50". A wrap never
+// starts a line with its dot
+export const lineOf = (parts: (string | false | null | undefined)[]) =>
+  parts.filter(Boolean).join("\u00a0· ");
 
 // a Job's crew, or that it has none yet
 export const crewOf = (crew: { name: string }[]) =>
@@ -68,14 +75,17 @@ export const shortClientName = (c: Pick<ClientName, "name" | "businessName">) =>
 export const formatHours = (hours: number) => `${hours} h`;
 
 // how long a Job runs, as a person says it: to the quarter hour, and
-// "About" only when that rounded it: 6 -> "6 h", 3.3 -> "About 3¼ h"
+// "About" only when that rounded it: 6 -> "6 h", 3.3 -> "About 3¼ h";
+// several, a plan's weekdays, joined, "About" said once: 1.9, 3.75 ->
+// "About 2 h + 3¾ h"; the same on each, once, so it isn't read as a sum:
+// 3.75, 3.75 -> "3¾ h"
 export const howLong = (
   t: { about: (hours: string) => string },
-  hours: number,
+  ...hours: number[]
 ) => {
-  const rounded = quarterHours(hours);
-  const text = `${quarterHoursText(rounded)} h`;
-  return rounded === hours ? text : t.about(text);
+  const each = hours.map((h) => `${quarterHoursText(quarterHours(h))} h`);
+  const text = each.every((e) => e === each[0]) ? each[0]! : each.join(" + ");
+  return hours.every((h) => quarterHours(h) === h) ? text : t.about(text);
 };
 
 // when a Job is over: its start and its hours, to the quarter hour as
@@ -130,11 +140,6 @@ export function timeOfField(time: Time | null | undefined) {
 
 // an instant -> the New York day it falls on, "2026-01-12"
 export const dayOfInstant = (iso: string) => dayOf(new Date(iso));
-
-// words that start a sentence or a label: "the Deep Clean" -> "The Deep
-// Clean"
-export const upperFirst = (words: string) =>
-  words.charAt(0).toUpperCase() + words.slice(1);
 
 // a Site Visit's length: 30 -> "30 min", 90 -> "1 h 30 min"
 export const formatMinutes = (minutes: number) => {
@@ -220,7 +225,7 @@ const words = catalog({
     clientQuoteStatus: {
       requested: "Asked for",
       draft: "Asked for",
-      sent: "To answer",
+      sent: "Ready",
       accepted: "Accepted",
       declined: "Declined",
       expired: "Expired",
@@ -234,8 +239,11 @@ const words = catalog({
     everyWeekOn: (what: string, days: string) =>
       `${what}, every week${days ? ` on ${days}` : ""}`,
     notPriced: "Not priced yet",
-    planHeadline: (plan: string, price: string, perWeek: boolean) =>
-      `Cleaning plan, ${plan}: ${price} ${perWeek ? "a week" : "a clean"}`,
+    planPrice: (price: string, perWeek: boolean) =>
+      `${price} ${perWeek ? "a week" : "a clean"}`,
+    planOf: (service: string) => `${service} plan`,
+    planHeadline: (plan: string, price: string) =>
+      `Cleaning plan, ${plan}: ${price}`,
     rhythm: (often: string, when: string) => `${often}, on ${when}`,
     skipped: "Skipped",
     // where someone stands on a Job's crew: the Office's, and a Cleaner's
@@ -265,7 +273,7 @@ const words = catalog({
     clientQuoteStatus: {
       requested: "Solicitada",
       draft: "Solicitada",
-      sent: "Por responder",
+      sent: "Lista",
       accepted: "Aceptada",
       declined: "Rechazada",
       expired: "Vencida",
@@ -275,8 +283,11 @@ const words = catalog({
     everyWeekOn: (what: string, days: string) =>
       `${what}, cada semana${days ? ` los ${days}` : ""}`,
     notPriced: "Aún sin precio",
-    planHeadline: (plan: string, price: string, perWeek: boolean) =>
-      `Plan de limpieza, ${plan}: ${price} ${perWeek ? "por semana" : "por limpieza"}`,
+    planPrice: (price: string, perWeek: boolean) =>
+      `${price} ${perWeek ? "por semana" : "por limpieza"}`,
+    planOf: (service: string) => `Plan de ${service}`,
+    planHeadline: (plan: string, price: string) =>
+      `Plan de limpieza, ${plan}: ${price}`,
     rhythm: (often: string, when: string) => `${often}, ${when}`,
     skipped: "Saltada",
     // a trabajo, as a Cleaner reads it
@@ -335,6 +346,37 @@ const screenWordsIn = (lang: Language) => {
       : w.everyWeekOn(what, on.length > 0 ? formatList(on) : "");
   };
 
+  // a headline price with its unit: "$194.89", or a Service Plan's round,
+  // given its weekdays, "$201.85 a clean", or for several "$650.10 a week"
+  // (several weekdays are only ever weekly)
+  const priceOf = (cents: number, planDays: number | null) =>
+    planDays === null
+      ? formatMoney(cents)
+      : w.planPrice(formatMoney(cents), planDays > 1);
+
+  // what a Quote is of: its Service, or a Service Plan of it, "Standard
+  // Clean plan"
+  const serviceNamed = (service: string, plan: boolean) =>
+    plan ? w.planOf(service) : service;
+
+  // a Service with its price, as every Office screen names an option or a
+  // Quote's headline: "Standard Clean $194.89", or given a Service Plan's
+  // weekdays, "Standard Clean plan $650.10 a week"
+  const servicePrice = (
+    service: string,
+    cents: number,
+    planDays: number | null = null,
+  ) =>
+    `${serviceNamed(service, planDays !== null)} ${priceOf(cents, planDays)}`;
+
+  // a Quote's headline price, as priceOf says; null with no Revision
+  const quoteTotal = (
+    quote: Pick<QuoteSummary, "headlineTotalCents" | "plan">,
+  ) =>
+    quote.headlineTotalCents === null
+      ? null
+      : priceOf(quote.headlineTotalCents, quote.plan?.days.length ?? null);
+
   return {
     // "Tue, Oct 20" and "Oct 20" for an instant: New York's day
     dayOf: (iso: string) => formats[lang].formatDay(dayOfInstant(iso)),
@@ -362,13 +404,13 @@ const screenWordsIn = (lang: Language) => {
     // 4,500 sq ft" for business premises
     propertySummary: (p: PropertyView) =>
       p.kind === "commercial"
-        ? [
+        ? lineOf([
             p.premisesType.name,
             p.floorArea === null
               ? w.floorAreaNotKnown
               : formatFloorArea(p.floorArea),
-          ].join(" · ")
-        : [
+          ])
+        : lineOf([
             form[p.type],
             ...(p.bedrooms === null
               ? [w.roomsNotKnown]
@@ -376,7 +418,7 @@ const screenWordsIn = (lang: Language) => {
                   p.bedrooms === 0 ? w.studio : count(p.bedrooms, w.bedroom),
                   count(p.bathrooms!, w.bathroom),
                 ]),
-          ].join(" · "),
+          ]),
     // when a business wants cleaning: "Monday, Wednesday and Friday at 6:00
     // PM", or a one-off
     wantedCleaning: (request: {
@@ -411,7 +453,22 @@ const screenWordsIn = (lang: Language) => {
     ) as Record<ServicePlanStatus, { tone: StatusTone; label: string }>,
     recurrenceLabel,
     planName,
-    // how a Quote reads in a list: "Deep Clean $391.04", the Service it
+    quoteTotal,
+    servicePrice,
+    serviceNamed,
+    // what a Sent Revision led with, as servicePrice says
+    revisionHeadline: (
+      revision: Pick<
+        RevisionSummary,
+        "headlineTotalCents" | "headlineServiceName" | "planDays"
+      >,
+    ) =>
+      servicePrice(
+        revision.headlineServiceName,
+        revision.headlineTotalCents,
+        revision.planDays,
+      ),
+    // how a Quote reads in a list: "Standard Clean $194.89", the Service it
     // leads with, or "Cleaning plan, Standard Clean, every 2 weeks: $201.85
     // a clean", or for several weekdays "...: $650.10 a week"
     quoteHeadline: (
@@ -423,12 +480,8 @@ const screenWordsIn = (lang: Language) => {
       quote.headlineTotalCents === null
         ? w.notPriced
         : quote.plan
-          ? w.planHeadline(
-              planName(quote.plan),
-              formatMoney(quote.headlineTotalCents),
-              quote.plan.days.length > 1,
-            )
-          : `${quote.headlineServiceName} ${formatMoney(quote.headlineTotalCents)}`,
+          ? w.planHeadline(planName(quote.plan), quoteTotal(quote)!)
+          : servicePrice(quote.headlineServiceName!, quote.headlineTotalCents),
     // when a Service Plan's cleans come round, each weekday from its first:
     // "Every week, on Mondays at 9:00 AM", or "Every week, on Mondays at
     // 9:00 AM and Wednesdays at 1:00 PM"
@@ -453,6 +506,12 @@ const clientQuoteTone: Record<QuoteStatus, StatusTone> = {
   expired: "neutral",
   turned_down: "neutral",
 };
+
+// the paused ones of a Client's cleaning plans, or of a Bill's (each with
+// Jobs on it, paused while it's Unpaid), as the server says
+export const pausedPlans = <P extends { status: ServicePlanStatus }>(
+  plans: P[],
+) => plans.filter((p) => p.status === "on_hold");
 
 const planTone: Record<ServicePlanStatus, StatusTone> = {
   active: "success",

@@ -1,5 +1,10 @@
 import { Router } from "express";
-import type { AcceptOutcome, CallerQuoteEntry } from "@empire-cleaning/models";
+import type {
+  AcceptOutcome,
+  CallerQuoteEntry,
+  OfficeQuote,
+  RecordedAcceptance,
+} from "@empire-cleaning/models";
 import { ConflictError } from "../../middleware/errors.ts";
 import { byId, validate } from "../../middleware/validation.ts";
 import {
@@ -12,7 +17,9 @@ import {
   acceptQuote,
   finalizeDeposit,
   finalizeProblem,
-  pendingDepositFor,
+  latestDepositFor,
+  settleQuotePayments,
+  tellNotApproved,
 } from "./accept.ts";
 import { askForQuote, enterCallerAsk } from "./asking.ts";
 import { openQuoteList, quotesForClient } from "./quote-state.ts";
@@ -21,7 +28,7 @@ import {
   clientQuoteView,
   declineQuote,
   discardDraft,
-  draftStarts,
+  draftOpenTimes,
   offerServicePlan,
   officeQuote,
   saveDraft,
@@ -33,7 +40,7 @@ import {
   acceptSchema,
   clientAcceptSchema,
   draftSchema,
-  draftStartsSchema,
+  draftOpenTimesSchema,
   startRevisionSchema,
   startSchema,
   turnDownSchema,
@@ -111,17 +118,28 @@ router.post(
     const id = req.params.id;
     // theirs, or a 404
     await clientQuote(id, client.id);
-    const pending = await pendingDepositFor(id);
-    // the webhook may have booked it already
+    // the one they came back from, which the webhook or the Clock may
+    // have finished already
+    const pending = await latestDepositFor(id);
     const finalized = pending
       ? await finalizeDeposit(pending.gatewayRef)
       : ({ status: "settled" } as const);
     const quote = await clientQuote(id, client.id);
-    if (quote.status !== "accepted") {
-      throw new ConflictError(finalizeProblem(finalized));
+    if (quote.status === "accepted") {
+      const outcome: AcceptOutcome = { status: "accepted", quote };
+      res.json(outcome);
+      return;
     }
-    const outcome: AcceptOutcome = { status: "accepted", quote };
-    res.json(outcome);
+    // still theirs to approve: not an error
+    if (finalized.status === "waiting") {
+      const outcome: AcceptOutcome = {
+        status: "waiting",
+        message: finalizeProblem(finalized),
+      };
+      res.json(outcome);
+      return;
+    }
+    throw new ConflictError(finalizeProblem(finalized));
   },
 );
 
@@ -191,18 +209,18 @@ router.patch(
   },
 );
 
-// GET /api/quotes/:id/draft/starts?from=2026-01-26&to=2026-02-01&weekday=0:
-// the starts on those days without a crew free for the Draft as last saved
-// (a plan's weekday, counting from 0, or a one-off's cleans), as its
-// picker marks them
+// GET /api/quotes/:id/draft/open-times?from=2026-01-26&to=2026-02-01&weekday=0:
+// the open starts on those days for the Draft as last saved (a plan's
+// weekday, counting from 0, or a one-off's cleans), as its picker offers
+// them, and why a day has none
 router.get(
-  "/:id/draft/starts",
+  "/:id/draft/open-times",
   authorize("office_staff"),
-  validate({ params: byId, query: draftStartsSchema }),
+  validate({ params: byId, query: draftOpenTimesSchema }),
   async (req, res) => {
     const { from, to, weekday } = req.query;
     res.json(
-      await draftStarts(req.params.id, {
+      await draftOpenTimes(req.params.id, {
         from,
         to,
         weekday,
@@ -228,7 +246,24 @@ router.post(
   authorize("office_staff"),
   validate({ params: byId }),
   async (req, res) => {
-    res.json(await sendQuote(req.params.id));
+    const id = req.params.id;
+    // A Deposit left unapproved past APPROVAL_MS is called off first, and
+    // one the Client's bank approved books the offer it was for, which
+    // nothing then replaces (#534)
+    const settled = await settleQuotePayments(id);
+    if (settled.accepted) {
+      res.json(await officeQuote(id));
+      return;
+    }
+    // the Client told of those called off or refused once it's known
+    // whether the changes went
+    let sent: OfficeQuote | undefined;
+    try {
+      sent = await sendQuote(id);
+    } finally {
+      await tellNotApproved(settled.notApproved, sent !== undefined);
+    }
+    res.json(sent);
   },
 );
 
@@ -256,11 +291,15 @@ router.post(
   validate({ params: byId, body: acceptSchema }),
   async (req, res) => {
     const id = req.params.id;
-    await acceptQuote(
+    const result = await acceptQuote(
       id,
       { revisionId: req.body.revisionId, serviceKey: req.body.serviceKey },
       { by: "office", accountId: signedInAccount(res).id },
     );
-    res.json(await officeQuote(id));
+    const recorded: RecordedAcceptance = {
+      quote: await officeQuote(id),
+      paidOnline: result.status === "accepted" && result.paidOnline,
+    };
+    res.json(recorded);
   },
 );

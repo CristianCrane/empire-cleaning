@@ -153,7 +153,7 @@ test("a Client's plan is On Hold while a fee is Unpaid, and back on once they pa
       .getByRole("status")
       .filter({ hasText: "Your cleaning plan is paused" }),
   ).toContainText(
-    "Your cleaning plan is paused. We couldn't take payment for the clean on Mon, Jan 19, 9:00 AM ($50.46). Cleans already booked still go ahead, but we won't book any more.",
+    "Your cleaning plan is paused. We couldn't take payment for the clean on Mon, Jan 19, 9:00 AM ($50.46). Until it's paid, we won't book more cleans on your plan.",
   );
   await expectAccessible(page);
 
@@ -186,7 +186,7 @@ test(
   { tag: "@desktop" },
   async ({ page, browser }) => {
     const { planId, firstJob } = await planStarted();
-    // the first fee's bank payment still clearing, which we see to
+    // the first fee's card charge still processing, which we see to
     // ourselves (ADR-0022); the second's card declined
     await failCharges("processing");
     await signedInAs(page, casey.email);
@@ -240,7 +240,7 @@ test("a plan On Hold for a payment we try again ourselves asks nothing of the Cl
 }) => {
   const { planId, firstJob } = await planStarted();
   await setClock(SUNDAY_10AM);
-  // the bank payment for the fee is still clearing (ADR-0022)
+  // the card charge for the fee is still processing (ADR-0022)
   await failCharges("processing");
   await signedInAs(page, casey.email);
   await page.goto(`/portal/jobs/${firstJob.id}`);
@@ -257,7 +257,7 @@ test("a plan On Hold for a payment we try again ourselves asks nothing of the Cl
       .getByRole("status")
       .filter({ hasText: "Your cleaning plan is paused" }),
   ).toContainText(
-    "We'll try again by ourselves, so there's nothing you need to do.",
+    "is pending. Nothing you need to do. Until it goes through, we won't book more cleans on your plan.",
   );
   await expectNothingNext(page);
   await expectNoPageAction(page, "Update your card");

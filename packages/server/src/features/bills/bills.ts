@@ -25,12 +25,14 @@ import type {
 } from "@empire-cleaning/models";
 import {
   addDays,
+  cardNotDone,
   DAY_MS,
   dayOf,
   mondayOf,
   startOfDay,
   timeOf,
   catalog,
+  messages,
   type Language,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
@@ -62,6 +64,7 @@ import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { REMINDER_TIME } from "../jobs/reminders.ts";
 import { idempotencyKey } from "../payments/keys.ts";
 import {
+  chargeOpen,
   chargeSaved,
   recordTakenEarlier,
   refundFrom,
@@ -77,12 +80,17 @@ import { properties } from "../properties/properties.schema.ts";
 import { currentPriceList, namedByKey } from "../price-list/price-list.ts";
 import { changedOf } from "../completion/emails.ts";
 import { jobQuotes } from "../quotes/job-quotes.ts";
-import { anyOnHold, holdOrResumePlan } from "../service-plans/on-hold.ts";
+import { holdOrResumePlan } from "../service-plans/on-hold.ts";
 import {
   servicePlans,
   servicePlanVisits,
 } from "../service-plans/service-plans.schema.ts";
-import { billedOf, isBilledWeekly, owesOnBill } from "./billed-weekly.ts";
+import {
+  billLinesOf,
+  billNumber,
+  isBilledWeekly,
+  owesOnBill,
+} from "./billed-weekly.ts";
 import { billLines, bills, type Bill, type BillLine } from "./bills.schema.ts";
 import { cleanOf } from "../services/services.ts";
 import { log, monitoring } from "../../services/monitoring/index.ts";
@@ -91,10 +99,6 @@ import { log, monitoring } from "../../services/monitoring/index.ts";
 const CREDIT_REFUND_DAYS = 30;
 // a Bill paid on its page is first reminded this many days before it's due
 const BILL_REMINDER_DAYS = 3;
-
-// EC-000123
-export const billNumber = (number: number) =>
-  `EC-${String(number).padStart(6, "0")}`;
 
 // ---- what a Bill bills ----
 
@@ -232,24 +236,18 @@ type NewLine = Omit<
 >;
 
 // What a Job's next Bill bills: each part less what Bills not voided have
-// billed for it already, so nothing is billed twice; whatever was billed and
-// is no longer owed comes off, as a correction. Nothing for a Job never
-// billed that nets to nothing, such as a fee its Deposit already covers.
-const linesFor = async (job: Job, tx: Tx | typeof db): Promise<NewLine[]> => {
+// billed for it already (`before`, billLinesOf), so nothing is billed twice;
+// whatever was billed and is no longer owed comes off, as a correction.
+// Nothing for a Job never billed that nets to nothing, such as a fee its
+// Deposit already covers.
+const linesFor = async (
+  job: Job,
+  before: Awaited<ReturnType<typeof billLinesOf>>,
+  tx: Tx | typeof db,
+): Promise<NewLine[]> => {
   const parts = await partsOf(job, tx);
-  const before = await tx
-    .select({
-      key: billLines.key,
-      fee: billLines.fee,
-      change: billLines.change,
-      amountCents: billLines.amountCents,
-      taxCents: billLines.taxCents,
-    })
-    .from(billLines)
-    .innerJoin(bills, eq(bills.id, billLines.billId))
-    .where(and(eq(billLines.jobId, job.id), ne(bills.status, "void")));
   const billed = new Map<string, Part>();
-  for (const line of before) {
+  for (const { line } of before) {
     const known = billed.get(line.key);
     billed.set(line.key, {
       key: line.key,
@@ -359,8 +357,9 @@ const makeBill = async (
       .for("update", { of: jobs });
     const lines: NewLine[] = [];
     for (const { job } of candidates) {
-      if (!isBilledWeekly(job, client, await billedOf(job.id, tx))) continue;
-      lines.push(...(await linesFor(job, tx)));
+      const before = await billLinesOf(job.id, tx);
+      if (!isBilledWeekly(job, client, { lines: before.length })) continue;
+      lines.push(...(await linesFor(job, before, tx)));
     }
     if (lines.length === 0) return null;
 
@@ -414,24 +413,36 @@ const makeBill = async (
 
 // ---- paying ----
 
-// the Service Plans with Jobs on a Bill, On Hold while it's Unpaid
-const plansOf = async (billId: string, tx: Tx | typeof db) =>
-  (
-    await tx
-      .selectDistinct({ planId: servicePlanVisits.servicePlanId })
-      .from(billLines)
-      .innerJoin(
-        servicePlanVisits,
-        eq(servicePlanVisits.jobId, billLines.jobId),
-      )
-      .where(eq(billLines.billId, billId))
-  ).map((r) => r.planId);
+// the Service Plans with Jobs on a Bill, oldest first, each where it stands
+// and at which home: On Hold while it's Unpaid, unless Ended
+const plansOn = async (billId: string, tx: Tx | typeof db = db) =>
+  tx
+    .selectDistinct({
+      id: servicePlans.id,
+      status: servicePlans.status,
+      startedAt: servicePlans.startedAt,
+      property: {
+        id: properties.id,
+        street: properties.street,
+        unit: properties.unit,
+        postcode: properties.postcode,
+      },
+    })
+    .from(billLines)
+    .innerJoin(servicePlanVisits, eq(servicePlanVisits.jobId, billLines.jobId))
+    .innerJoin(
+      servicePlans,
+      eq(servicePlans.id, servicePlanVisits.servicePlanId),
+    )
+    .innerJoin(properties, eq(properties.id, servicePlans.propertyId))
+    .where(eq(billLines.billId, billId))
+    .orderBy(asc(servicePlans.startedAt));
 
 // puts the plans with Jobs on a Bill On Hold, or back on, as it now stands
 const holdOrResumePlansOf = async (billId: string, tx: Tx) => {
   let held = false;
   let resumed = false;
-  for (const planId of await plansOf(billId, tx)) {
+  for (const { id: planId } of await plansOn(billId, tx)) {
     const changed = await holdOrResumePlan(tx, planId);
     held ||= changed === "held";
     resumed ||= changed === "resumed";
@@ -509,7 +520,7 @@ const chargeBill = async (
       plan:
         becameUnpaid &&
         !plan &&
-        (await anyOnHold(tx, await plansOf(bill.id, tx)))
+        (await plansOn(bill.id, tx)).some((p) => p.status === "on_hold")
           ? ("held" as const)
           : plan,
     };
@@ -603,7 +614,8 @@ export const retryBill = async (billId: string) => {
       .where(eq(bills.id, billId))
       .for("update");
     if (!bill || (bill.status === "due" && bill.totalCents > 0)) return [];
-    const taken = await recordTakenEarlier(tx, { billId, kind: "bill" });
+    // owing nothing, one never heard of is looked up, not sent again
+    const taken = await recordTakenEarlier(tx, { billId, kind: "bill" }, null);
     return "unknown" in taken ? [] : taken;
   });
   for (const charge of extra) {
@@ -630,7 +642,18 @@ export const retryUnpaidBillsFor = async (clientId: string) => {
 
 // ---- on its page ----
 
-const payable = (bill: Bill) => bill.status === "due" && bill.totalCents > 0;
+// why the Client can't pay a Bill on its page now, or null when they can:
+// a bank debit of theirs on its way, or a payment of ours going through or
+// one we try again ourselves (ADR-0022); or nothing owed
+const notPayable = async (
+  bill: Bill,
+): Promise<"onItsWay" | "ours" | "nothingToPay" | null> => {
+  if (bill.status === "processing") return "onItsWay";
+  if (bill.status !== "due" || bill.totalCents <= 0) return "nothingToPay";
+  const waiting =
+    bill.unpaidReason !== null && unpaidKind(bill.unpaidReason) === "waiting";
+  return waiting || (await chargeOpen(bill.id)) ? "ours" : null;
+};
 
 const clientBill = async (clientId: string, billId: string) => {
   const [bill] = await db
@@ -646,12 +669,14 @@ const clientBill = async (clientId: string, billId: string) => {
 export const payWords = catalog({
   en: {
     onItsWay: "Your bank payment for this bill is on its way.",
+    ours: `This bill's payment is pending. ${messages.en.NOTHING_TO_DO}`,
     nothingToPay: "There's nothing to pay on this bill.",
     notThrough: (because: string) =>
       `Your payment didn't go through${because}. Please try again, or use another card or bank account.`,
   },
   es: {
     onItsWay: "Su pago bancario de esta factura ya está en camino.",
+    ours: `El pago de esta factura está pendiente. ${messages.es.NOTHING_TO_DO}`,
     nothingToPay: "No hay nada que pagar en esta factura.",
     notThrough: (because: string) =>
       `Su pago no pasó${because}. Vuelva a intentarlo, o use otra tarjeta o cuenta bancaria.`,
@@ -665,13 +690,8 @@ export const startBillPayment = async (
   billId: string,
 ): Promise<BillPaymentForm> => {
   const bill = await clientBill(client.id, billId);
-  if (!payable(bill)) {
-    throw new ConflictError(
-      bill.status === "processing"
-        ? payWords[currentLanguage()].onItsWay
-        : payWords[currentLanguage()].nothingToPay,
-    );
-  }
+  const not = await notPayable(bill);
+  if (not) throw new ConflictError(payWords[currentLanguage()][not]);
   const { ref, secret } = await paymentGateway.startBillPayment({
     payerId: await payerFor(client),
     amount: bill.totalCents,
@@ -742,6 +762,7 @@ export const finishBillPayment = async (
           paidAt: now,
           paidVia: "page",
           paymentRef: null,
+          clearingSince: null,
           unpaidSince: null,
           unpaidReason: null,
         })
@@ -755,7 +776,7 @@ export const finishBillPayment = async (
     if (outcome.status === "processing" && bill.status === "due") {
       await tx
         .update(bills)
-        .set({ status: "processing", paymentRef: ref })
+        .set({ status: "processing", paymentRef: ref, clearingSince: now })
         .where(eq(bills.id, bill.id));
       await holdOrResumePlansOf(bill.id, tx);
     }
@@ -766,7 +787,7 @@ export const finishBillPayment = async (
     ) {
       await tx
         .update(bills)
-        .set({ status: "due", paymentRef: null })
+        .set({ status: "due", paymentRef: null, clearingSince: null })
         .where(eq(bills.id, bill.id));
       return {
         kind: "debit_failed",
@@ -804,6 +825,12 @@ const notDue = (bill: Pick<Bill, "status">, then = "") =>
     ? `A bank payment for this bill is on its way${then}.`
     : `This bill is already ${bill.status === "void" ? "cancelled" : "paid"}.`;
 
+// why Office Staff can't cancel a due Bill, or record a payment on it, yet:
+// our card payment may still take it (chargeOpen's one rule). Its page says
+// so beforehand (canCancelOrRecord), so this answers a page opened before
+const cardNotDoneTo = (what: "cancel" | "record") =>
+  new ConflictError(cardNotDone[what]);
+
 /**
  * Office Staff void a Bill that shouldn't have gone out, while it's unpaid:
  * it stays, as voided, and everything on it goes on the next Bill, or is
@@ -824,6 +851,7 @@ export const voidBill = async (
     if (bill.status !== "due") {
       throw new ConflictError(notDue(bill, ", so it can't be cancelled"));
     }
+    if (await chargeOpen(bill.id, tx)) throw cardNotDoneTo("cancel");
     await tx
       .update(bills)
       .set({
@@ -876,6 +904,7 @@ export const recordOutsidePayment = async (
     if (bill.status !== "due") {
       throw new ConflictError(notDue(bill));
     }
+    if (await chargeOpen(bill.id, tx)) throw cardNotDoneTo("record");
     await tx
       .update(bills)
       .set({
@@ -1222,7 +1251,8 @@ const sendBillReminders = async () => {
     if (!claimed) continue;
 
     try {
-      const plans = await hasLivePlansOn(bill.id);
+      // its Jobs from Service Plans that haven't Ended
+      const plans = (await plansOn(bill.id)).some((p) => p.status !== "ended");
       await sendBill(
         bill.id,
         "reminder",
@@ -1248,21 +1278,6 @@ const sendBillReminders = async () => {
     }
   }
   return sent;
-};
-
-// whether a Bill has Jobs on it from Service Plans that haven't Ended
-const hasLivePlansOn = async (billId: string) => {
-  const [found] = await db
-    .select({ id: servicePlans.id })
-    .from(billLines)
-    .innerJoin(servicePlanVisits, eq(servicePlanVisits.jobId, billLines.jobId))
-    .innerJoin(
-      servicePlans,
-      eq(servicePlans.id, servicePlanVisits.servicePlanId),
-    )
-    .where(and(eq(billLines.billId, billId), ne(servicePlans.status, "ended")))
-    .limit(1);
-  return found !== undefined;
 };
 
 // ---- views ----
@@ -1370,7 +1385,9 @@ export const billView = async (
     paymentNote: bill.paymentNote,
     voidedAt: bill.voidedAt?.toISOString() ?? null,
     voidReason: bill.voidReason,
-    payable: payable(bill),
+    payable: (await notPayable(bill)) === null,
+    canCancelOrRecord: bill.status === "due" && !(await chargeOpen(bill.id)),
+    plans: (await plansOn(bill.id)).map(({ startedAt: _, ...plan }) => plan),
   };
 };
 

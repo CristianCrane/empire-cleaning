@@ -215,7 +215,7 @@ function ChooseTime({ job, close }: Omit<MoveProps, "to">) {
 
   return (
     <>
-      <FieldRow>
+      <FieldRow packed>
         <DatePicker label="Day" value={date} onChange={setDate} />
         <TimeField label="Start time" value={time} onChange={setTime} />
       </FieldRow>

@@ -7,7 +7,7 @@ import {
   StatusBadge,
   type StatusTone,
 } from "@empire-cleaning/ui";
-import { clientName } from "../format.ts";
+import { clientName, lineOf } from "../format.ts";
 import { tabShown, useListUrl } from "../list-search.ts";
 
 // the list's Tabs, Active first: who the Office is dealing with now
@@ -33,7 +33,7 @@ const noneIn: Record<ClientStanding, string> = {
 };
 
 const contactOf = (client: ClientListItem) =>
-  [client.email, client.phone].filter(Boolean).join(" · ");
+  lineOf([client.email, client.phone]);
 
 // The Office's Clients (#96, #433), a List: a Tab per standing with its
 // count, Active (a Service Plan, or a Job coming up or in the last 90 days)

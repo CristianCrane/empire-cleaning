@@ -21,13 +21,16 @@ import { Menu, MenuItem, MenuSeparator } from "../Menu.tsx";
 // straight away still runs (starting a Draft): its Button, or what holds it
 // (the split button's arrow, the ⋯), shows it, so the press is seen to be
 // heard. `isDisabled` while the page's goal needs it but it can't be done
-// yet: greyed, with why in the page's alert (the `ui` skill)
+// yet: greyed, with why beside it (the `ui` skill): the page's alert says
+// why, and `why` says it again in short under the item in a menu, which
+// may cover the alert as it opens
 export type PageAction = {
   label: string;
   icon: LucideIcon;
   danger?: boolean;
   isPending?: boolean;
   isDisabled?: boolean;
+  why?: string;
 } & (
   | { dialog: (state: DialogState) => ReactNode }
   | { href: NonNullable<LinkProps["href"]> }
@@ -38,6 +41,19 @@ export type PageAction = {
 // a page's actions as given: those that apply now, the rest false, null
 // or undefined
 export type PageActions = (PageAction | false | null | undefined)[];
+
+// A page's next step, its primary, which may be more than an action behind
+// an arrow can be: a form's submit button (New quote's Draft a quote, sent
+// by the form, so its required fields are checked and Enter sends it); and
+// named more fully to a screen reader where its label leans on the page
+// (Send, to whom). Greyed while it can't be done yet as any action is
+// (`isDisabled`: Send with no email)
+export type NextAction = (
+  | PageAction
+  | (Omit<PageAction, "dialog" | "href" | "externalHref" | "onAction"> & {
+      submit: true;
+    })
+) & { srLabel?: string };
 
 // the dialogs of the actions one control holds, one open at a time, each
 // drawn here rather than in the menu or sheet: so they outlive it as it
@@ -82,16 +98,18 @@ export function ActionButton({
   variant,
   className = "shrink-0",
 }: {
-  action: PageAction;
+  action: PageAction | NextAction;
   variant: "primary" | "secondary";
   className?: string;
 }) {
-  const { press, dialogs } = useDialogs([action]);
+  const { press, dialogs } = useDialogs("submit" in action ? [] : [action]);
   const look = action.danger ? "danger-outline" : variant;
+  const srLabel = "srLabel" in action && action.srLabel;
   const content = (
     <>
       <action.icon aria-hidden size={18} />
       {action.label}
+      {srLabel && <span className="sr-only"> {srLabel}</span>}
     </>
   );
   if ("href" in action)
@@ -117,7 +135,9 @@ export function ActionButton({
         className={className}
         isPending={action.isPending}
         isDisabled={action.isDisabled}
-        onPress={press(action)}
+        {...("submit" in action
+          ? { type: "submit" as const }
+          : { onPress: press(action) })}
       >
         {content}
       </Button>
@@ -142,6 +162,7 @@ function items(
       danger={action.danger}
       large={large}
       isDisabled={action.isDisabled}
+      description={action.isDisabled ? action.why : undefined}
       {...("href" in action
         ? { href: action.href }
         : { onAction: press(action) })}
@@ -172,7 +193,7 @@ export function SplitButton({
   more,
   opens,
 }: {
-  next: PageAction;
+  next: NextAction;
   more: PageAction[];
   opens: "menu" | "sheet";
 }) {
@@ -180,11 +201,14 @@ export function SplitButton({
   const { press, dialogs } = useDialogs(more);
   const joined = more.length > 0 ? "rounded-r-none" : "";
   const Chevron = opens === "menu" ? ChevronDown : ChevronUp;
+  // outlined while the primary can't be pressed, so the one control
+  // doesn't show two ranks at once
   const arrow = (
     <Button
       aria-label={words.moreActions}
+      variant={next.isDisabled ? "secondary" : "primary"}
       isPending={more.some((a) => a.isPending)}
-      className="shrink-0 rounded-l-none border-l border-primary-fg/40 px-3"
+      className={`shrink-0 rounded-l-none px-3 ${next.isDisabled ? "" : "border-l border-primary-fg/40"}`}
     >
       <Chevron aria-hidden size={20} />
     </Button>

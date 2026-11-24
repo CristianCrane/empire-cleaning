@@ -150,10 +150,14 @@ export function RadioCard({
         <>
           <span className="flex items-start gap-3">
             <span aria-hidden className={dot({ isSelected })} />
-            <span className="flex-1 font-display text-lg font-semibold">
-              {title}
+            {/* the badge drops under the title before the title is squeezed
+                (the `ui` skill: the lesser part gives way first) */}
+            <span className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="grow font-display text-lg font-semibold">
+                {title}
+              </span>
+              {badge}
             </span>
-            {badge}
           </span>
           {children && (
             <span id={detailsId} className="flex flex-col gap-3">

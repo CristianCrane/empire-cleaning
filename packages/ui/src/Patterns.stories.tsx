@@ -12,6 +12,7 @@ import {
   CircleAlert,
   CircleCheck,
   CircleDollarSign,
+  ClipboardCheck,
   House,
   ClipboardPenLine,
   FileClock,
@@ -281,7 +282,9 @@ function AFormsWidth() {
           <code>medium</code> to about 14 (a phone, a day, a number),{" "}
           <code>long</code> a few words (a <code>Select</code>'s default).
           Fields side by side go in a <code>FieldRow</code>, no wider than a
-          form. On a phone every field is full width.
+          form; a day and its start time in a <code>packed</code> one, each at
+          its own width from the row's start, not spread across the card. On a
+          phone every field is full width.
         </p>
       </Rule>
       <Example verdict="Do">
@@ -294,7 +297,7 @@ function AFormsWidth() {
               <TextField label="ZIP code" width="short" />
             </FieldRow>
             <NumberField label="Bedrooms" defaultValue={2} />
-            <FieldRow>
+            <FieldRow packed>
               <DatePicker label="Day" />
               <TimeField label="Start time" />
             </FieldRow>
@@ -1034,9 +1037,11 @@ function OwedFirst() {
           Lead with a home screen's card: what's owed and why, with the one
           Button that pays it, or that nothing is. Its tone is its state:
           warning while something is waiting on them, danger once it failed or
-          is late, success with nothing owed. Ways in that are always there,
-          like changing a card, sit in the header as a secondary Button, never
-          inside a card whose Buttons change with its state.
+          is late, info while it waits on us (a payment we try again ourselves,
+          its link outlined, as nothing is theirs to do), success with nothing
+          owed. Ways in that are always there, like changing a card, sit in the
+          header as a secondary Button, never inside a card whose Buttons change
+          with its state.
         </p>
         <p>
           Then a home screen's tiles: every payment behind one, opened in place,
@@ -1134,9 +1139,10 @@ function DetailsPage() {
         </p>
         <p>
           What needs an answer goes next, as a Notice each, the most pressing
-          first, two at most and the rest behind "Show N more". A Notice holds
-          one text Button; what it does goes wrong in a Toast, never a Notice
-          inside it.
+          first, two at most and the rest behind "Show N more". A Notice says
+          why, and the page's next step does it; it may hold one text Button for
+          an action that isn't the next step, and what that does goes wrong in a
+          Toast, never a Notice inside it.
         </p>
         <p>
           Then one details card: what it is, large, led by its tile; then its
@@ -1150,28 +1156,29 @@ function DetailsPage() {
       <Example verdict="Do">
         <RecordPage
           trail={[{ label: "Cleans", href: "#" }, { label: "Mon, Jan 12" }]}
-          title="Mon, Jan 12"
-          status={<StatusBadge tone="info">Booked</StatusBadge>}
-          actions={[
-            { label: "Pick a new time", icon: CalendarClock, onAction() {} },
-          ]}
+          title="Deep Clean"
+          status={<StatusBadge tone="warning">Needs your OK</StatusBadge>}
+          next={{
+            label: "Review the price change",
+            icon: ClipboardCheck,
+            onAction() {},
+          }}
           alerts={[
             {
               key: "change",
               tone: "warning",
               children: (
                 <p>
-                  <strong>Please approve a price change.</strong> 1 more hour,
-                  $59.88.
+                  The crew did more than was quoted: 1 more hour, $59.88. Please
+                  answer by Jan 19, 2026.
                 </p>
               ),
-              action: <Button variant="text">Review</Button>,
             },
           ]}
           details={
             <DetailsCard
               label="Details"
-              tile={<IconTile icon={CalendarClock} size="lg" />}
+              tile={<DateTile date="2026-01-12T14:00:00Z" />}
               kicker="One-off clean"
               title="Mon, Jan 12, 9:00 AM"
             >
@@ -1318,21 +1325,21 @@ function BarAtTheFoot() {
       <div className="flex flex-col gap-6">
         <Rule title="A bar at the foot is an ActionFooter">
           <p>
-            What must stay in reach while a long page scrolls (a Quote Draft's
-            Send) goes in an <code>ActionFooter</code>, which the page's layout
-            places: above the tab bar on a phone, full width beside the rail or
-            the sidebar on a wider screen. Never a sticky bar of the page's own:
-            it pins under the tab bar. What it sums up on its left, the main
-            action last, on the right. (On a phone a dialog's sheet pins its own
-            Buttons: it sits over the tab bar.)
+            What must stay in reach while a long page scrolls on a phone (a
+            Quote Draft's Send) goes in an <code>ActionFooter</code>, which the
+            page's layout places: above the tab bar. A wider screen keeps a
+            page's next step in the header that sticks instead. Never a sticky
+            bar of the page's own: it pins under the tab bar. What it sums up on
+            its left, the main action last, on the right. (On a phone a dialog's
+            sheet pins its own Buttons: it sits over the tab bar.)
           </p>
         </Rule>
         <div className="h-[120vh] rounded-lg bg-bg" />
         <p>The end of the page</p>
       </div>
       <ActionFooter
-        aria-label="Send the quote"
-        summary="Deep Clean $385.00 · Standard Clean $210.00"
+        aria-label="What to do"
+        summary="Standard Clean $210.00"
         status="Saved"
       >
         <Button>

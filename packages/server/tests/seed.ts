@@ -114,9 +114,12 @@ const weekdayUpTo = (days: number) => {
   return { date: day, time: "09:00" };
 };
 
-// created_at and updated_at come from the database's own clock, so each move
-// of the fake clock first stamps the rows made since the last move with the
-// fake time they were made at
+// created_at and updated_at come from the database's own clock, and lists
+// order rows by created_at (the Quotes list, newest first). The seed
+// writes its stories out of order, moving the fake clock back and forth, so
+// each move first stamps the rows made since the last one with the fake time
+// they were made at. A record's made time (made_at, #520) is the Clock's
+// already
 let stampedTo: Date | null = null;
 // the tables with a created_at, and whether each has an updated_at too: read
 // once, as seeding never changes them

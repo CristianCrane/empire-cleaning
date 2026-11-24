@@ -11,6 +11,7 @@ import {
   signedInAs,
   test,
   draftTheQuote,
+  proposeNextMonday,
   recordFindingsWithoutVisit,
   addCleaner,
   serviceKey,
@@ -18,6 +19,8 @@ import {
   expectNoPageAction,
   expectNextStep,
   expectNothingNext,
+  setClock,
+  titleBadge,
 } from "./harness.ts";
 
 // The API's clock starts at 4am on Monday 5 January 2026 in New York.
@@ -48,8 +51,6 @@ test(
   "Office Staff book a Site Visit for business premises, and record what it found",
   { tag: "@smoke" },
   async ({ page }) => {
-    // the browser's clock at the API's, so the visit is still to come
-    await page.clock.setFixedTime("2026-01-05T09:00:00Z");
     await requestQuoteForPremises(casey, "Acme Dental");
     await signInAsOffice(page);
 
@@ -132,7 +133,7 @@ test("a Site Visit that has been is badged To record, on its page and its home's
   });
   // the day before, its findings card says when to add them, and nothing
   // is next
-  await page.clock.setFixedTime("2026-01-05T15:00:00Z");
+  await setClock("2026-01-05T15:00:00Z");
   await signInAsOffice(page);
   await page.goto(`/office/site-visits/${visit.id}`);
   await expect(
@@ -143,7 +144,7 @@ test("a Site Visit that has been is badged To record, on its page and its home's
   // the next day: it's been, with nothing recorded. Recording is the page's
   // next step, pinned at a phone's foot after the facts; the alert says
   // only why, and What it found waits until something is
-  await page.clock.setFixedTime("2026-01-07T15:00:00Z");
+  await setClock("2026-01-07T15:00:00Z");
   await page.reload();
   await expect(
     page.getByText("Cory Cleaner has been. A quote waits on what they found.", {
@@ -157,9 +158,7 @@ test("a Site Visit that has been is badged To record, on its page and its home's
   await expect(page.getByRole("region", { name: "What it found" })).toHaveCount(
     0,
   );
-  await expect(
-    page.getByRole("heading", { level: 1 }).locator("xpath=.."),
-  ).toHaveText(/To record$/);
+  await expect(titleBadge(page, "To record")).toBeVisible();
   // in the section its crumbs start from, as a home's other pages are
   await expectCurrentSection(page, "Clients");
   // its home's row says it too, not "findings to record" beside Booked
@@ -197,6 +196,8 @@ test("a Quote for business premises can't be drafted until their findings are re
   await expect(
     page.getByText("This business hasn't had a site visit yet"),
   ).toHaveCount(0);
+  // a time is all Send waits on now
+  await proposeNextMonday(page);
   await expect(page.getByRole("button", { name: /^Send to/ })).toBeEnabled();
 });
 

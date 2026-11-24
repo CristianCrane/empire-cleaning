@@ -16,8 +16,12 @@ import {
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-import type { HomeRooms, PriceBreakdown } from "@empire-cleaning/models";
-import { timestamps } from "../../db/timestamps.ts";
+import type {
+  DepositRefundedWhy,
+  HomeRooms,
+  PriceBreakdown,
+} from "@empire-cleaning/models";
+import { madeAt, timestamps } from "../../db/timestamps.ts";
 import { accounts } from "../auth/auth.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { services } from "../services/services.schema.ts";
@@ -136,6 +140,7 @@ export const quotes = pgTable(
     createdBy: uuid("created_by").references(() => accounts.id, {
       onDelete: "set null",
     }),
+    ...madeAt,
     ...timestamps,
   },
   (t) => [
@@ -297,10 +302,13 @@ export const revisionOptions = pgTable(
 );
 
 // A Client's Deposit waiting on their bank's approval (e.g. 3D Secure) in the
-// browser. Nothing is booked yet: once the payment succeeds it's booked by
-// whichever comes first, the browser's finalize call or the provider's
-// webhook. Kept once settled, so a late success for a Quote that was accepted
-// some other way meanwhile is recognised, and refunded.
+// browser. Nothing is booked yet, and nothing else moves money on its Quote
+// meanwhile (the one rule, ADR-0022): once the payment succeeds it's booked
+// by whichever comes first, the browser's finalize call, the provider's
+// webhook, the Clock, or the Office's recording acceptance or sending
+// changes (finalizeDeposit); one whose time filled or Quote closed while
+// the bank asked is refunded. Settled once booked, refunded, refused or
+// called off, and kept, so a later call finds it settled.
 export const pendingDeposits = pgTable(
   "pending_deposits",
   {
@@ -326,6 +334,10 @@ export const pendingDeposits = pgTable(
     }),
     // when it was booked, failed or refunded
     settledAt: timestamp("settled_at", { withTimezone: true }),
+    // why what the Client's bank approved couldn't be booked: a Deposit,
+    // given back once its attempt says so, or a card saved with nothing
+    // charged. The Office's record of it (#534 critical review C5, F19)
+    unbookedWhy: text("unbooked_why").$type<DepositRefundedWhy>(),
     ...timestamps,
   },
   (t) => [index("pending_deposits_quote_id_idx").on(t.quoteId)],

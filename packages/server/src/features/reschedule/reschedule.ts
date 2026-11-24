@@ -42,7 +42,13 @@ import { clients } from "../clients/clients.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { freeFor, roomFor, scheduleFor } from "../jobs/schedule.ts";
-import { passed, callUs, whyNotBooked, whyStarted } from "../jobs/rules.ts";
+import {
+  passed,
+  callUs,
+  startsWhere,
+  whyNotBooked,
+  whyStarted,
+} from "../jobs/rules.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
 import { staff } from "../staff/staff.schema.ts";
@@ -222,16 +228,11 @@ export const rescheduleTimesFor = async (
   }
   if (await pendingOf(job.id)) return { days: [] };
   const { from, to } = bookableRange();
-  const days = (await scheduleFor(from, to))
-    .map((day) => ({
-      date: day.date,
-      times: timesFor(job).filter(
-        (time) =>
-          roomOn(day, asClean({ ...job, startsAt: atTime(day.date, time) }))
-            .hasRoom,
-      ),
-    }))
-    .filter((day) => day.times.length > 0);
+  const days = startsWhere(
+    await scheduleFor(from, to),
+    timesFor(job),
+    (day, startsAt) => roomOn(day, asClean({ ...job, startsAt })).hasRoom,
+  ).filter((day) => day.times.length > 0);
   return { days };
 };
 

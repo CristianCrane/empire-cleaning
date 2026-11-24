@@ -388,6 +388,7 @@ export type PriceList = Omit<PriceListInput, "addOns" | "premisesTypes"> & {
   version: number;
   // the starting figures, until Office Staff save their own
   placeholder: boolean;
+  // when this version was saved, on the server's Clock
   createdAt: string;
   createdByName: string | null;
   addOns: (PriceListAddOn & { key: string })[];
@@ -514,6 +515,7 @@ export type Service = ServiceInput & {
   // this version's id, which a Revision records
   id: string;
   version: number;
+  // when this version was saved, on the server's Clock
   createdAt: string;
   createdByName: string | null;
 };
@@ -545,7 +547,6 @@ export type StaffMember = {
   imageUrl: string | null;
   // the language of the Cleaner area and their emails (ADR-0025)
   preferredLanguage: Language;
-  createdAt: string;
 };
 
 // a day that differs from a Staff member's usual week, e.g. a holiday (0 h)
@@ -610,6 +611,17 @@ export type ScheduledJob = {
 
 // some start times on a day, "09:30", New York time
 export type DayTimes = { date: IsoDate; times: string[] };
+
+// A day of a Draft quote's picker: its open starts, and when it has none,
+// why: it's gone, it's all too soon to send (Late Cancellation's 24 hours),
+// no Cleaner works it, or no start in the window has room for the clean.
+// `everyOption`: those of its starts every option offered has room at, a
+// one-off's Service recommended for a first visit with its own (a plan
+// weekday's, all of them)
+export type OpenDay = DayTimes & {
+  everyOption: string[];
+  closed: "past" | "soon" | "off" | "full" | null;
+};
 
 // a start is picked from the Schedule to the half hour, then fine-tuned in
 // the time field
@@ -1065,6 +1077,7 @@ export type AskedQuoteView = {
   status: "requested" | "turned_down";
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
   asked: QuoteAsked;
+  // when it was asked, on the server's Clock
   createdAt: string;
   sentAt: null;
   // the Site Visit booked to see the premises before they're quoted
@@ -1127,14 +1140,32 @@ export type OfficeRevision = {
   proposedStartsAt: string | null;
   sentAt: string | null;
   expiresAt: string | null;
+  // what keeps a Draft from being Sent, each clean's time that Send refuses
+  // (a plan's weekday, counting from 0, or null for a one-off's), in the
+  // server's words; none on a Sent one
+  untimely: Untimely[];
+};
+
+// a clean's time that a Draft can't be Sent with: none yet, too soon (less
+// than a Late Cancellation's 24 hours away), or running past midnight
+export type Untimely = {
+  weekday: number | null;
+  reason: "no_time" | "too_soon" | "past_midnight";
+  message: string;
 };
 
 // a Sent Revision in a Quote's history
 export type RevisionSummary = {
   id: string;
   number: number;
-  // what it led with, tax included, as QuoteSummary's headlineTotalCents
+  // what it led with, tax included: a Service Plan Quote's round, or a
+  // one-off's option for its own Service, the one it was sent for
   headlineTotalCents: number;
+  // that Service, or the one a Service Plan Quote's cleans are all of
+  headlineServiceName: string;
+  // a Service Plan Quote's weekdays, how many, so its round reads "a clean"
+  // or "a week"; null for a one-off
+  planDays: number | null;
   proposedStartsAt: string;
   sentAt: string;
   expiresAt: string;
@@ -1152,6 +1183,7 @@ export type OfficeQuote = {
   asked: QuoteAsked | null;
   // where a Guest asked from on the landing site; null on any other
   source: QuoteSource | null;
+  // when it was asked or started, on the server's Clock
   createdAt: string;
   // no email until the Office adds one: then it can't be Sent (#34)
   client: OfficeContactDetails & { id: string };
@@ -1209,6 +1241,34 @@ export type OfficeQuote = {
   // the Client's saved Payment Method, which recording acceptance on their
   // behalf charges; null until they add one
   paymentMethod: PaymentMethodView | null;
+  // the Deposit the Client is paying online while their bank asks them to
+  // approve it (#534): what it's for (its Service, null on a cleaning plan),
+  // and until when it holds the Quote, as nothing else that moves money on
+  // it starts meanwhile (ADR-0022), or that it's past then and their bank
+  // is finishing it, holding it till it's done (`finishing`); null when
+  // there's none
+  paying: {
+    until: string;
+    finishing: boolean;
+    serviceName: string | null;
+    depositCents: number;
+  } | null;
+  // what the Client paid online that couldn't be booked once their bank
+  // approved it, and why, oldest first
+  unbookedPayments: UnbookedPayment[];
+};
+
+// why a Deposit paid online couldn't be booked, once the Client's bank
+// approved it: its time filled, the quote changed or closed, or its home's
+// cleaning plan started or changed another way meanwhile
+export type DepositRefundedWhy =
+  "no_room" | "revised" | "closed" | "has_plan" | "plan_changed";
+// a Deposit refunded, or, with amountCents 0, a card saved with nothing
+// charged (no Deposit); endedAt is when it was refunded, or ended
+export type UnbookedPayment = {
+  amountCents: number;
+  endedAt: string;
+  why: DepositRefundedWhy;
 };
 
 // POST /api/quotes: Office Staff offering a Service Plan nobody asked for
@@ -1270,12 +1330,14 @@ export type QuoteSummary = {
   // its home's Service Plan, unless it has none or it has Ended: a Service
   // Plan Quote, or one asked for, may change it
   homePlanId: string | null;
-  // the total it leads with, tax included: a one-off Quote's first option
-  // (the recommended one, if any), or a Service Plan Quote's round, a clean
-  // on each weekday; null with no Revision
+  // the total it leads with, tax included: a Service Plan Quote's round, a
+  // clean on each weekday, or a one-off Quote's option: to the Office its
+  // Revision's own Service (the one asked for, unless the Office changed
+  // it), or once Accepted the one booked; to its Client the first, the
+  // recommended one where there is one (ADR-0018). Null with no Revision
   headlineTotalCents: number | null;
-  // the Service a one-off Quote leads with, its first option's; null for a
-  // Service Plan Quote, or with no Revision
+  // the Service that one-off option is for, or the one a Service Plan
+  // Quote's cleans are all of; null with no Revision
   headlineServiceName: string | null;
   // a Service Plan Quote's; null otherwise
   plan: { recurrence: Recurrence; days: PlanDaySummary[] } | null;
@@ -1287,6 +1349,7 @@ export type QuoteSummary = {
   siteVisit: SiteVisitStage;
   // why Office Staff closed it, once Turned Down
   turnDownReason: TurnDownReason | null;
+  // when it was asked or started, on the server's Clock
   createdAt: string;
 };
 
@@ -1370,7 +1433,16 @@ export type AcceptQuoteInput = {
 // Secure) in the browser with `secret`, then POST .../accept/finalize
 export type AcceptOutcome =
   | { status: "accepted"; quote: QuoteView }
-  | { status: "needs_approval"; secret: string };
+  | { status: "needs_approval"; secret: string }
+  // nothing was taken, as an earlier payment on it is still going through
+  // (#534): their bank is finishing it ("processing"), or hasn't approved
+  // it yet ("waiting", from .../finalize); `message` says what happens next
+  | { status: "processing" | "waiting"; message: string };
+
+// POST /api/quotes/:id/accept: the Quote, accepted, and whether it was by
+// the Client's own payment online, which their bank approved just before
+// (#534), so what they paid for is booked, whatever Office Staff picked
+export type RecordedAcceptance = { quote: OfficeQuote; paidOnline: boolean };
 
 // a booked Job as its Client sees it
 export type ClientJob = {
@@ -1668,6 +1740,15 @@ export type JobPayment = {
   paidCents: number;
   // what weekly Bills have billed for it (ADR-0016), which they now owe
   billedCents: number;
+  // those Bills, oldest first, each with what it billed for it and what
+  // its Charges gave back for it
+  bills: (Pick<
+    BillSummary,
+    "id" | "number" | "status" | "unpaid" | "totalCents"
+  > & {
+    cents: number;
+    refundedCents: number;
+  })[];
   // still to take (positive) or to give back (negative)
   owedCents: number;
   // the Client's saved Payment Method, e.g. "Visa ending 4242"
@@ -2086,8 +2167,17 @@ export type BillView = BillSummary & {
   paymentNote: string | null;
   voidedAt: string | null;
   voidReason: string | null;
-  // whether the Client can pay it on its page now
+  // whether the Client can pay it on its page now: due, owing something,
+  // and not a payment of ours, which our charge may still take or we try
+  // again ourselves (#533)
   payable: boolean;
+  // whether Office Staff can cancel it or record a payment made another way
+  // now: due, and no card payment of ours on it may still take the money
+  // (ADR-0022's one rule; cardNotDone says why not)
+  canCancelOrRecord: boolean;
+  // the Client's Service Plans with Jobs on it, oldest first: each On Hold
+  // while it's Unpaid (ADR-0016), unless Ended
+  plans: Pick<ServicePlanSummary, "id" | "status" | "property">[];
 };
 
 // the payment provider's form for paying a Bill on its page, by card or bank

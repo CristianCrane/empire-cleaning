@@ -20,7 +20,7 @@ import type {
 import { db } from "#db";
 import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { chaseProposedAdjustments, completeJob } from "#features/completion";
-import { settleOpenPayments } from "#features/payments";
+import { chargeAttempts, settleOpenPayments } from "#features/payments";
 import { properties } from "#features/properties";
 import { createStaff } from "#features/staff";
 import {
@@ -272,6 +272,8 @@ describe("completing a Job", () => {
       `http://localhost:5173/portal/jobs/${jobId}`,
     );
     expect(receipt.text).toMatch(/We've charged \$[\d,.]+ to your Test card/);
+    // nothing changed the price: the total alone
+    expect(receipt.text).not.toContain("Quoted price");
 
     // the Schedule shows it done
     const [monday] = (
@@ -319,6 +321,7 @@ describe("Adjustments", () => {
     expect(deep.addOns).toEqual([
       expect.objectContaining({ totalCents: QUOTED_OVEN }),
     ]);
+    expect(testEmail().lastTo(casey.email).text).toContain("Quoted price");
     expect(testEmail().lastTo(casey.email).text).toContain(
       "Inside the oven, not done: -$30.49",
     );
@@ -748,6 +751,31 @@ describe("an Unpaid Job", () => {
   });
 
   // #241, finding 1
+  // #533: no form pays a Job by hand, and the Client's try again waits on
+  // the charge, as every retry does (chargeSaved)
+  test("is one whose Balance is still processing, and the Client trying again takes nothing more until it's through", async () => {
+    const { office, cory, client, jobId, quote } = await bookedJob();
+    const deep = deepOf(quote);
+    testPayments().failCharges("processing");
+    await complete(cory.agent, jobId).expect(200);
+    testPayments().failCharges(null);
+    expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
+      kind: "waiting",
+    });
+    const asked = testPayments().paymentAttempts.length;
+
+    await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(409);
+    expect(testPayments().paymentAttempts).toHaveLength(asked);
+
+    testPayments().clearCharges();
+    await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(200);
+    expect(testPayments().paymentAttempts).toHaveLength(asked);
+    expect(amounts()).toEqual([
+      deep.depositCents,
+      deep.totalCents - deep.depositCents,
+    ]);
+  });
+
   test("is one whose Balance the provider took but whose reply was lost, and retrying it takes nothing more", async () => {
     const { office, cory, client, jobId, quote } = await bookedJob();
     const deep = deepOf(quote);
@@ -814,6 +842,41 @@ describe("an Unpaid Job", () => {
       unpaid: null,
     });
     expect(amounts()).toHaveLength(2);
+  });
+
+  // #534, F13: a retry sent the attempt's request again, which names the
+  // card it was first asked on. One that named another card isn't sent
+  // again: a quarter hour after it was last sent, so it can't still be
+  // running at the provider, it's looked up, and the card saved now is
+  // asked (https://docs.stripe.com/error-low-level#content-errors)
+  test("is one Unpaid while the provider was down, then charged on the card the Client saves, a quarter hour after it was last tried", async () => {
+    const { cory, client, jobId } = await bookedJob();
+    testPayments().goDown();
+    await complete(cory.agent, jobId).expect(200);
+    testClock().advance({ minutes: 15 });
+    // the Clock sends it again, on the card it was asked on, and still
+    // hears nothing
+    await settleOpenPayments();
+    testPayments().goDown(false);
+    const before = testPayments().charges.length;
+
+    testClock().advance({ minutes: 5 });
+    const form = (
+      await client.post("/api/payment-methods/mine/card-form").expect(200)
+    ).body as { secret: string };
+    testPayments().fillCardForm(form.secret, "mastercard");
+    await client
+      .put("/api/payment-methods/mine")
+      .send({ token: form.secret })
+      .expect(200);
+    expect(testPayments().charges).toHaveLength(before);
+
+    testClock().advance({ minutes: 10 });
+    await settleOpenPayments();
+    const saved = testPayments().paymentMethods.at(-1)!;
+    expect(testPayments().charges.slice(before)).toEqual([
+      expect.objectContaining({ paymentMethodId: saved.paymentMethodId }),
+    ]);
   });
 
   test("is one declined once the provider is back: the Client is told then", async () => {
@@ -1033,6 +1096,85 @@ describe("Office Staff correcting a completion", () => {
 
     await complete(cory.agent, jobId).expect(200);
     expect(amounts().at(-1)).toBe(deep.totalCents - deep.depositCents);
+  });
+
+  // #534, F1: owing nothing now, the Job is never settled through
+  // chargeSaved, so what the lost reply took is never found or given back
+  test("undo one whose Balance reply was lost, and what it took is given back", async () => {
+    const { office, cory, jobId, quote } = await bookedJob();
+    const deep = deepOf(quote);
+    testPayments().loseNextReply();
+    await complete(cory.agent, jobId).expect(200);
+    await office.delete(`/api/jobs/${jobId}/completion`).expect(200);
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    await settleOpenPayments();
+    expect(amounts()).toEqual([
+      deep.depositCents,
+      deep.totalCents - deep.depositCents,
+    ]);
+    expect(refunded()).toEqual([deep.totalCents - deep.depositCents]);
+  });
+
+  // #534, review F10: the Clock sent it again a minute ago, so it may still
+  // be on its way, however long since it was first asked
+  test("undo one whose Balance the Clock sent again, unheard, and it waits a quarter hour from that send", async () => {
+    const { office, cory, jobId, quote } = await bookedJob();
+    const deep = deepOf(quote);
+    testPayments().goDown();
+    await complete(cory.agent, jobId).expect(200);
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    testPayments().goDown(false);
+    const balance = async () =>
+      (
+        await db
+          .select()
+          .from(chargeAttempts)
+          .where(eq(chargeAttempts.forId, jobId))
+      ).at(-1)!;
+    expect((await balance()).status).toBe("pending");
+
+    testClock().advance({ minutes: 1 });
+    await office.delete(`/api/jobs/${jobId}/completion`).expect(200);
+    expect((await balance()).status).toBe("pending");
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    expect(await balance()).toMatchObject({
+      status: "failed",
+      reason: "never_made",
+    });
+    expect(amounts()).toEqual([deep.depositCents]);
+    expect(refunded()).toEqual([]);
+  });
+
+  // #534, F3: the retry finds the lost top-up, counts it as covering the
+  // smaller price, and keeps the difference
+  test("lower an approved increase whose charge reply was lost, refunding the difference", async () => {
+    const { office, cory, client, jobId } = await bookedJob();
+    await complete(cory.agent, jobId, {
+      reports: [{ kind: "extra_time", hours: 1, reason: "Ran over" }],
+    }).expect(200);
+    const [time] = (await officeJob(office, jobId)).completion!.adjustments;
+    await office
+      .post(`/api/jobs/${jobId}/adjustments/${time!.id}/propose`)
+      .send({})
+      .expect(200);
+    testPayments().loseNextReply();
+    await client
+      .post(`/api/jobs/mine/${jobId}/adjustments/${time!.id}/approve`)
+      .expect(200);
+
+    await office
+      .patch(`/api/jobs/${jobId}/adjustments/${time!.id}`)
+      .send({ priceCents: 2750, reason: "Half was our fault" })
+      .expect(200);
+
+    expect(amounts().at(-1)).toBe(EXTRA_HOUR);
+    expect(refunded()).toEqual([EXTRA_HOUR - HALF_HOUR_ADD_ON]);
+    expect((await officeJob(office, jobId)).payment!.owedCents).toBe(0);
   });
 
   test("is only for Office Staff", async () => {

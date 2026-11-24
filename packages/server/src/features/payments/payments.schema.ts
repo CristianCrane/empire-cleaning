@@ -145,11 +145,14 @@ export const refunds = pgTable(
 
 // how asking the provider for a payment went: pending until its reply
 // comes, which it may never; processing while the provider has it on its
-// way; taken; failed, as when declined or never made; or given back, as a
-// Deposit nothing was booked for
+// way; approving while the Client's bank asks them to approve a Deposit,
+// until it's booked, called off or refused (#534); taken; failed, as when
+// declined, called off or never made; or given back, as a Deposit nothing
+// was booked for
 export const chargeAttemptStatus = pgEnum("charge_attempt_status", [
   "pending",
   "processing",
+  "approving",
   "taken",
   "failed",
   "given_back",
@@ -167,6 +170,8 @@ export const chargeAttempts = pgTable(
     // the Job, Bill or Quote it's for, as `kind` says
     forId: uuid("for_id").notNull(),
     // the provider call and what it was asked with, to ask again just so
+    // while it's what the caller would ask now: as much, on the same card
+    // (ADR-0022)
     request: jsonb("request").notNull(),
     status: chargeAttemptStatus("status").notNull().default("pending"),
     amountCents: integer("amount_cents").notNull(),
@@ -175,6 +180,16 @@ export const chargeAttempts = pgTable(
     reason: text("reason"),
     // by the Clock: the provider forgets its key a day later
     askedAt: timestamp("asked_at", { withTimezone: true }).notNull(),
+    // when it was last sent to the provider: asked again within the day,
+    // each send may still be running there for a while after
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull(),
+    // when a Deposit taken but not booked was given back, by the Clock's
+    // time: the Office's record of it (#534)
+    givenBackAt: timestamp("given_back_at", { withTimezone: true }),
+    // when, past APPROVAL_MS, a Deposit waiting on the Client's bank was
+    // found too far on to call off (the bank finishing it): it holds its
+    // Quote till it ends, as the Office's pages say (payingOf, #534)
+    bankFinishingAt: timestamp("bank_finishing_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [index("charge_attempts_for_idx").on(t.kind, t.forId)],

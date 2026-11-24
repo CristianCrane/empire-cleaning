@@ -89,7 +89,9 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   body, **Now** on top holding it as it stands; its Draft is a Form page.
 - **On a phone, the page's next step pinned at the foot**, above the tab
   bar, after the facts, the rest behind its arrow in a sheet; a wider
-  screen keeps it in the header (`RecordPage`'s `next`).
+  screen keeps it in the header (`RecordPage`'s `next`). Greyed, it says
+  why in a line above it there (its `why`, `ActionFooter`), as the alert
+  that says so has scrolled away (#534).
 
 ("Layout / RecordPage", "Next Step At A Phones Foot"; "A Record: its header, two alerts, its details, its
 parts"; "A record's History last, one column"; "Records as stories")
@@ -159,7 +161,12 @@ Cleaner's Your jobs render through `HomePage`
   the tiles meanwhile; while it asks something out of the usual (money
   owed that asks, a price change, a crew who couldn't get in), the title
   row's action stands aside too. A paused plan with nothing to do is the
-  plan's card, its alert calm (info). With nothing waiting anywhere,
+  plan's card, its alert calm (info), its way to the plan outlined. Money owed that asks nothing (a
+  payment we try again ourselves) is Payments' card alone, calm: info,
+  "Payment pending" and one line, that there's nothing to do (and, while
+  it pauses a plan, "Until it goes through, we won't book more cleans on your
+  plan."), and its way to see it outlined, as the page has no next step.
+  With nothing waiting anywhere,
   offers to answer included, it's a green all-clear card, as a screen says only what's true (the
   `ui` skill). The Office's is its first
   to-do, the server's order.
@@ -216,15 +223,40 @@ for a dialog. It renders through `FormPage`
   be untrue (the `ui` skill). It
   shows only totals, each one's working folded under "How
   it's worked out"; what sets a price (a price of your own, its reason)
-  stays in the part it prices.
+  stays in the part it prices. A one-off Draft's price is the one asked
+  for, its own Service's; the Service recommended for a first visit,
+  which the sent Quote offers too (ADR-0018), is an aside: one quiet
+  line under it ("Also offered: Deep Clean $299.41"), its price and
+  working folded behind it, and in the Service part its own price behind
+  a fold (the user, on #527: "The recommendation is an aside"). Under
+  each option's price, unfolded, the one asked for and that line both,
+  why the client can't pick it at the time proposed ("The client can't
+  pick it at this time: that day is too full."), a warning; in danger
+  when it would run past midnight, which Send refuses. When the Service
+  offered has the same problem, the line under the one asked for names it
+  ("The client can't pick it or the Deep Clean at this time: …"), said
+  once.
 - **Its button at the card's foot**, after what saving agrees to (a
   card's consent), in view. A form with a price or a Send (the Draft, New
-  quote) has the page's `ActionFooter` instead (FormPage's `footer`),
-  its total and whether it's saved on the left, the button on the right;
-  what's said before the button (a refusal, a warning) comes after the
-  card. That bar spans the content's width, so such a form has an aside
-  and the page is that wide too; a form alone keeps a form's width and
-  its button in its card (FormPage's type holds it).
+  quote) makes its button the page's next step instead (FormPage's
+  `next`, #493 D1): from md the header's primary, a Draft's Delete draft
+  behind its arrow, whether it's saved beside it (shown from the start,
+  "Saved", then what Send waits on, if anything: "Saved · Pick a time to
+  send", "Saved · No room on Fri, Dec 4 at 11:30 AM"), and once scrolled the header that sticks carries the title,
+  the total (below `xl`, where the prices beside the form don't stay in
+  view; a one-off Draft's named, "Standard Clean $194.89", the
+  recommendation in neither) and the button; on a phone the page's `ActionFooter`, its total
+  and whether it's saved on the left, the button on the right, Delete
+  draft alone on the title row. The sticky header's total slides in with
+  it, once the title row's button has scrolled away, and never from `xl`,
+  where the prices beside the form stick too. What's said
+  before the button (a refusal, a warning) comes after the card; one
+  that answers its press takes the focus as it shows, mid-screen, so
+  it's in view and read out wherever the button was, a page above it in
+  the header (Notice's `answers`, #534). Such a
+  form has an aside, its price, and the page is the content's width; a
+  form alone keeps a form's width and its button in its card (FormPage's
+  type holds it).
 - **Outside an area** (Welcome), a page of its own, the logo above and
   who's signed in under it on a phone, beside it from `sm` (`PageFrame`),
   centred at a form's width with no aside.
@@ -314,7 +346,9 @@ The `ui` skill's rules hold here too; these are this product's.
   again (each fact once: the `ui` skill); and the page's
   actions at the end of the title row, on the title's line: one split
   button, the page's next step its primary and the rest behind its arrow
-  ("More actions": a menu under it from md, a sheet from a phone's foot),
+  ("More actions": a menu under it from md, a sheet from a phone's foot;
+  the arrow outlined while the next step waits, disabled, so one control
+  doesn't show two ranks),
   or a quiet ⋯ ("More actions") when nothing is next. One action with
   nothing next stays a Button, as a menu of one would hide it; a page
   whose only action destroys has no primary, that action in the same
@@ -325,19 +359,20 @@ The `ui` skill's rules hold here too; these are this product's.
   the title, the badge and the same actions (the split button, or the ⋯ or
   lone Button when nothing is next), lined up with the page's column (a
   form's width on a Form page with no aside), with room
-  beside the button for what the step rests on (a Draft's price, which
-  #493 builds); a List's New stays on its row. A Record's next step is
+  beside the button for what the step rests on (a Form page's price,
+  below `xl`, and whether it's saved; #493 D1); a List's New stays on its row. A Record's next step is
   there on a wider screen only, and at
   the foot on a phone. Printed, it's the title alone.
   ("Layout / RecordPage / Next Step In The Header", "Nothing Next", "One Action";
-  "Layout / FormPage / Priced With A Footer" for a lone destructive action)
+  "Layout / FormPage / Priced On A Phone" for a lone destructive action,
+  "Priced On A Laptop" for a Form page's next step)
 - **A wide screen keeps a readable column**: the content's, AppLayout's
   `max-w-5xl` (960 px inside its margins), the width every page in an
   area reads at (a page outside one keeps `PageFrame`'s). A Record fills
   it, its header's buttons on its right edge, and a bar at the page's
-  foot lines up with it too (`ActionFooter`), as does a Form page with
-  an aside, the one side column (#493 G4.4: a card stopped 376 px short
-  of its button). No second, narrower cap for a Record: the user's pick
+  foot lines up with it too (`ActionFooter`), and so does a Form page
+  with an aside, the one side column (#493 G4.4: a card stopped 376 px
+  short of its button). No second, narrower cap for a Record: the user's pick
   on the Office's Job drew one column at this width. A form is narrower,
   a form's width (Forms), and a Form page with no aside is narrowed with
   it, header and all, so its buttons still line up with its card.
@@ -407,13 +442,11 @@ The `ui` skill's rules hold here too; these are this product's.
 - **A bar at the foot of a page is an `ActionFooter`**, which the page's
   layout places, never a sticky bar of the page's own, which pins under the phone's tab bar (#425); a sheet's pinned Buttons are the sheet's, over the tab bar (Dialogs and rows). It holds,
   above the tab bar, a Record's next step on a phone, which a wider screen
-  keeps in the header instead (`phone`; the `ui` skill), and a form's
-  price and its button (the Quote Draft's
-  Send, New quote's Draft a quote), full width beside the rail or the
-  sidebar on a wider screen until #493 settles it with a prototype, its row the
-  content's ("A wide screen keeps a readable column"). What it sums up
-  (prices, whether it's saved) on its left, the main action last, on the
-  right. The layout test fails a button or link under a fixed bar. ("A
+  keeps in the header instead (`phone`; the `ui` skill), and on a phone a
+  form's price and its button (the Quote Draft's Send, New quote's Draft a
+  quote), which a wider screen keeps in the header too (#493 D1: Forms).
+  What it sums up (prices, whether it's saved) on its left, the main action
+  last, on the right. The layout test fails a button or link under a fixed bar. ("A
   bar at the foot is an ActionFooter")
 - **Buttons are ranked by fill**: primary filled, secondary outlined,
   `text` for a Section's actions, `danger-text` beside them, a page's
@@ -646,7 +679,13 @@ stays as it is (#336).
   sq ft). Fields side by side go in a `FieldRow`, no wider than a
   form, columns of 13rem or more (two to a row in a form's card, three in a
   wider one, one on a phone), so a short field's neighbour sits near it, not across a wide
-  dialog; `ChoiceTiles` keep a form's width too. On a phone every field is full width, a thumb's target.
+  dialog; `ChoiceTiles` keep a form's width too. A date and its start time go in a
+  `packed` `FieldRow`, each at its answer's width from the row's start, and
+  in a dialog that moves a booked time, Pick from the schedule, which fills
+  both, under them on the same left edge (a Draft quote's are behind its
+  open times, Time and schedules): spread across a card's two columns, with
+  the button centred under them, they broke the form's one edge (the user, on #527: "breaking
+  symmetry and balance"). On a phone every field is full width, a thumb's target.
   ("A form keeps a form's width")
 - **Every search field shows a magnifying glass.**
 
@@ -676,12 +715,31 @@ stays as it is (#336).
   Visit while booked, even once its time has passed, so a missed one moves
   to a time to come. Either move is confirmed first. ("Schedules As
   Calendars")
-- **Every place a time is chosen uses the calendar picker**, with the day
-  and time fields kept as the keyboard path. The Office picks on the
-  Schedule (`office/SchedulePicker.tsx`, inline in a wide dialog); a Client
-  picks a day on a month, then that day's open times
-  (`screens/AvailabilityPicker.tsx`). Clients never see the Schedule or
-  anyone else's Jobs.
+- **A time is picked from the times that are free**, with the day and
+  time fields kept as the keyboard's way. A Draft quote's proposed time is
+  picked in its part, in a tap (`office/OpenTimePicker.tsx`, #493, the
+  user's pick B): a strip of a week's days, each saying why it's shut
+  ("No cleaners" when no Cleaner works it, as its fix is more hours, "No
+  room" when it's full), over the viewed day's start times that have room
+  for the clean asked for, under its name ("Open times on Tue, Jan 6", and ", and the time picked"
+  when its tile there is marked with a problem),
+  those without left out; the time picked fills
+  its tile with when it ends, or is marked with its problem, which a line
+  over it says, naming the Service offered beside it when it's that one's
+  problem, and the nearest time that has room for it too (ending by
+  midnight among it), with "Pick that time"; paged off its tile, a line
+  says the time picked and its problem, and "Show it" goes back to it.
+  Back is off where the page before has no day to come. A plan's new weekday comes with no time, for the weekday the
+  client asked for, and once dated pages through its own weekday's dates.
+  The fields are behind "Type a date and time". The part folds to its time
+  on load when that's set, has room and can be sent, and again so when a
+  weekday's added or removed. It pages with the kit's `Stepper`, as the
+  Schedule and a Cleaner's working hours do. The Office's dialogs that move a booked time (a Job, a plan's
+  visit, a Site Visit) still pick on the Schedule
+  (`office/SchedulePicker.tsx`, inline in a wide dialog) until #543; a
+  Client picks a day on a month, then that day's open times
+  (`screens/AvailabilityPicker.tsx`). Both lists of times are the kit's
+  `TimeTiles`. Clients never see the Schedule or anyone else's Jobs.
 
 ### Status and colour
 
@@ -740,5 +798,8 @@ stays as it is (#336).
    `docs/screens.md`, a new route's row in the Route index and its entry, or
    the entry of a screen whose parts or their order change.
 
-A change that only applies these rules needs no prototype; it still gets a
-row in `docs/ux-log.md`.
+Steps 2 and 3 are for a new UX question: a new flow, or a new look for a
+screen. Any other change (one to how a flow behaves, a wording change, one
+that only applies these rules) has no prototype to pick from: its design
+is reviewed before its code, as the `ui` skill's Settling a screen sizes
+it, and it still gets a row in `docs/ux-log.md`.

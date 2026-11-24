@@ -6,7 +6,7 @@ import {
   LayoutDashboard,
   Printer,
 } from "lucide-react";
-import { afterEach, expect, test } from "vitest";
+import { afterEach, expect, onTestFinished, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { page, userEvent } from "vitest/browser";
 import { Card } from "../Card.tsx";
@@ -153,6 +153,37 @@ test("a Record's ⋯ sticks at the top on a wide screen, and stays on its row on
   expect(more.all()).toHaveLength(1);
 });
 
+// a busy browser can hand the watcher of the title row two reports in one
+// call, oldest first: the row in full, then scrolled away. The newest is
+// the row now, so the header still comes (#539). The first report is held
+// back here and handed over with the next, as Chromium did under load
+test("a Record's ⋯ sticks at the top when its row's reports come two at once", async () => {
+  const Real = window.IntersectionObserver;
+  let held: IntersectionObserverEntry[] | undefined;
+  window.IntersectionObserver = class extends Real {
+    constructor(
+      report: IntersectionObserverCallback,
+      options?: IntersectionObserverInit,
+    ) {
+      super((entries, watch) => {
+        if (!held) return void (held = entries);
+        report([...held.splice(0), ...entries], watch);
+      }, options);
+    }
+  };
+  onTestFinished(() => {
+    window.IntersectionObserver = Real;
+  });
+  await page.viewport(1024, 768);
+  await render(visitWith());
+  const more = page.getByRole("button", { name: "More actions" });
+  await expect.poll(() => held?.length).toBe(1);
+
+  window.scrollTo(0, 600);
+  await expect.poll(() => box(more.element()).top).toBeGreaterThan(0);
+  expect(box(more.element()).bottom).toBeLessThan(80);
+});
+
 // on a phone, read after the facts: pinned at the foot, above the tab bar;
 // the rest in a sheet rising from it, the destructive last
 test("a Record's next step on a phone is pinned at the foot, the rest in a sheet", async () => {
@@ -183,4 +214,36 @@ test("a Record's next step on a phone is pinned at the foot, the rest in a sheet
   await expect
     .element(foot.getByRole("button", { name: "More actions" }))
     .toHaveFocus();
+});
+
+// greyed, its why is on the line above it, as the alert saying it may have
+// scrolled away (#534); live, there's no line
+test("a Record's greyed next step on a phone says why above it", async () => {
+  await page.viewport(390, 844);
+  const record = (isDisabled: boolean) => (
+    <RecordPage
+      trail={[{ label: "Quotes", href: "#" }, { label: "Quote" }]}
+      title="Quote"
+      next={{
+        label: "Record acceptance",
+        icon: CircleCheck,
+        isDisabled,
+        why: "Not while Casey is paying the deposit",
+        onAction: () => {},
+      }}
+    />
+  );
+  const screen = await render(record(true));
+  const foot = page.getByRole("group", { name: "What to do" });
+  const why = foot.getByText("Not while Casey is paying the deposit");
+
+  await expect.element(why).toBeVisible();
+  await expect
+    .element(foot.getByRole("button", { name: "Record acceptance" }))
+    .toBeDisabled();
+  expect(box(why.element()).bottom).toBeLessThanOrEqual(
+    box(button("Record acceptance")).top,
+  );
+  await screen.rerender(record(false));
+  await expect.element(why).not.toBeInTheDocument();
 });

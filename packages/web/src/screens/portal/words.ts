@@ -25,7 +25,6 @@ export const portalWords = catalog({
     // a sent Quote, while it can be accepted
     openUntil: (when: string) => `Open until ${when}`,
     cancel: "Cancel",
-    yourCleans: "Your cleans",
     yourHome: "Your home",
     nothingBooked: "Nothing booked",
     nextShowsHere: "Your next clean shows here once it's booked.",
@@ -34,6 +33,8 @@ export const portalWords = catalog({
     didntWork: "That didn't work. Please try again.",
     seeYourCleaningPlan: "See your cleaning plan",
     seeTheClean: "See the clean",
+    // a Bill its card already names, which asks nothing of them
+    seeTheBill: "See the bill",
     anotherTime: "Need another time?",
     // its Welcome page's heading, and its first tour's title
     cleaningPlan: "Cleaning plan",
@@ -46,6 +47,14 @@ export const portalWords = catalog({
     needsOk: "Needs your OK",
     // by when a price change proposed to them wants their answer
     answerBy: (day: string) => `Please answer by ${day}.`,
+    // a price change: on Home's card, which leads to its clean's page,
+    // where it's the next step
+    reviewThe: (n: number) =>
+      n === 1 ? "Review the price change" : "Review the price changes",
+    // one, by what it's for: a payment, and the dialog answering it
+    priceChange: (item: string) => `Price change: ${item}`,
+    // after a crew couldn't get in, on Home and the clean's page
+    checkGetIn: "Check how we get in",
   },
   es: {
     home: "Inicio",
@@ -64,7 +73,6 @@ export const portalWords = catalog({
     seeYourPlan: "Ver su plan",
     openUntil: (when: string) => `Abierta hasta el ${when}`,
     cancel: "Cancelar",
-    yourCleans: "Sus limpiezas",
     yourHome: "Su casa",
     nothingBooked: "Nada reservado",
     nextShowsHere: "Su próxima limpieza aparecerá aquí cuando esté reservada.",
@@ -73,6 +81,7 @@ export const portalWords = catalog({
     didntWork: "No funcionó. Vuelva a intentarlo.",
     seeYourCleaningPlan: "Ver su plan de limpieza",
     seeTheClean: "Ver la limpieza",
+    seeTheBill: "Ver la factura",
     anotherTime: "¿Necesita otra hora?",
     cleaningPlan: "Plan de limpieza",
     bill: (n: string) => `Factura ${n}`,
@@ -81,5 +90,9 @@ export const portalWords = catalog({
     decline: "Rechazar",
     needsOk: "Necesita su aprobación",
     answerBy: (day: string) => `Responda antes del ${day}.`,
+    reviewThe: (n: number) =>
+      n === 1 ? "Revisar el cambio de precio" : "Revisar los cambios de precio",
+    priceChange: (item: string) => `Cambio de precio: ${item}`,
+    checkGetIn: "Revisar cómo entramos",
   },
 });

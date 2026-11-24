@@ -33,7 +33,13 @@ import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { useStartDraft } from "./StartDraft.tsx";
-import { addressOf, formatHours, roomsText, screenWords } from "../format.ts";
+import {
+  addressOf,
+  formatHours,
+  lineOf,
+  roomsText,
+  screenWords,
+} from "../format.ts";
 import { homeIcon } from "../icons.ts";
 import { AskedRows, PriceHead } from "../QuoteParts.tsx";
 import { working } from "./WorkedOutQuote.tsx";
@@ -76,13 +82,11 @@ const sourceText = ({
 // bathroom · moderate". A business's condition is left out until its Site
 // Visit finds one, as its facts say "Not known yet" where it's named
 export const askedSummary = ({ asked, property }: OfficeQuote) =>
-  [
+  lineOf([
     asked?.service.name,
     propertySummary(property),
     property.condition && conditionText(property.condition).toLowerCase(),
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  ]);
 
 // what the Client (or a caller) asked for, unchanged, and the home it's
 // for (WEB-8, WEB-A); none on a Quote the Office offered unprompted
@@ -323,7 +327,7 @@ export function FoldedPrice({
 // The Suggested Price for the Quote's Service (after the one recommended for
 // a first visit, where that's offered too) and how each was worked out,
 // how a Suggested Price is worked out, from the home's or premises' hours
-function PriceWorking({ breakdown: b }: { breakdown: PriceBreakdown }) {
+export function PriceWorking({ breakdown: b }: { breakdown: PriceBreakdown }) {
   const homeHours = b.homeHours.reduce((sum, part) => sum + part.hours, 0);
   // breakdowns from before #72 have no kind: they're all homes
   const premises = b.propertyKind === "commercial";

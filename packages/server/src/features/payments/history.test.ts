@@ -53,8 +53,8 @@ describe("a Client's payment history", () => {
       .from(charges)
       .where(and(eq(charges.jobId, job.id), eq(charges.kind, "balance")));
     // a Balance for an increase approved later, at the same moment by the
-    // clock (a test's stands still). The clean's own was made first, but is
-    // written again after it, so Postgres hands it back second
+    // clock (a test's stands still): only the write order (created_at) tells
+    // which came first, as the money reads lean on it (#520's critical review)
     const {
       id: _id,
       createdAt: _createdAt,
@@ -73,8 +73,6 @@ describe("a Client's payment history", () => {
       },
       gatewayRef: "fake_extra",
     });
-    await db.delete(charges).where(eq(charges.id, own!.id));
-    await db.insert(charges).values(own!);
 
     const history = await historyOf(casey.email);
 

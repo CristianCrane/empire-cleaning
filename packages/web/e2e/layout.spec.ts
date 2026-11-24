@@ -212,22 +212,30 @@ const problemsAt = (page: Page) =>
     return problems;
   });
 
-const expectFitsEveryWidth = async (page: Page, path: string) => {
-  await page.goto(path);
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  // from the page's top: a page opened again at the URL it was on can open
-  // scrolled down (the Draft, after "Add a weekday": 249 px at 320 wide),
-  // and from md the header that sticks would then be over the page's top
-  // as the checks start. At a phone's width it never shows, so it's gone
-  // long before the widths reach md
+// what's wrong with what's on screen, at each width, each said with what it
+// is (`what`). From the page's top: a page can be scrolled down as the
+// checks start (opened again at the URL it was on, the Draft after "Add a
+// weekday": 249 px at 320 wide; a form after pressing a choice low on a
+// phone), and from md the header that sticks would then be over the page's
+// top, as problemsAt scrolls each control into view at once, before the
+// header can hide. At a phone's width it never shows, so it's gone long
+// before the widths reach md
+const problemsAtEveryWidth = async (page: Page, what: string) => {
   await page.evaluate(() => window.scrollTo(0, 0));
   const problems: string[] = [];
   for (const width of widths) {
     await page.setViewportSize({ width, height: 900 });
     for (const problem of await problemsAt(page)) {
-      problems.push(`${path} at ${width}px: ${problem}`);
+      problems.push(`${what} at ${width}px: ${problem}`);
     }
   }
+  return problems;
+};
+
+const expectFitsEveryWidth = async (page: Page, path: string) => {
+  await page.goto(path);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  const problems = await problemsAtEveryWidth(page, path);
   for (const line of (await page.locator("body").innerText()).split("\n")) {
     if (line.includes(".."))
       problems.push(`${path}: a doubled stop in "${line}"`);
@@ -271,14 +279,7 @@ const expectDialogFitsEveryWidth = async (
   await pageAction(page, button);
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
-  const problems: string[] = [];
-  for (const width of widths) {
-    await page.setViewportSize({ width, height: 900 });
-    for (const problem of await problemsAt(page)) {
-      problems.push(`${button} dialog at ${width}px: ${problem}`);
-    }
-  }
-  expect.soft(problems).toEqual([]);
+  expect.soft(await problemsAtEveryWidth(page, `${button} dialog`)).toEqual([]);
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
 };
 
@@ -397,14 +398,9 @@ test("business premises' screens fit every width, the form included", async ({
     .locator("form")
     .getByText("Commercial cleaning", { exact: true })
     .click();
-  const problems: string[] = [];
-  for (const width of widths) {
-    await page.setViewportSize({ width, height: 900 });
-    for (const problem of await problemsAt(page)) {
-      problems.push(`the business form at ${width}px: ${problem}`);
-    }
-  }
-  expect.soft(problems).toEqual([]);
+  expect
+    .soft(await problemsAtEveryWidth(page, "the business form"))
+    .toEqual([]);
 });
 
 test("the portal's screens fit every width", async ({ page }) => {
@@ -462,6 +458,37 @@ test("a Sent Quote fits every width, for the Office and the Client", async ({
     client,
     quote.replace("/office/quotes/", "/portal/quotes/"),
   );
+});
+
+// the picker's longest words: a line saying the Service offered beside it
+// has no room, and the nearest time that has, a tap away. As one button
+// they ran past a phone's edge
+test("a Draft whose time has no room for the Service beside it fits every width", async ({
+  page,
+}) => {
+  for (const name of ["Cory Cleaner", "Dee Cleaner"]) {
+    await addCleaner(name, [4, 4, 4, 4, 4, 0, 0]);
+  }
+  // Monday half booked: room for the Standard Clean, not the Deep Clean
+  await bookJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 4 });
+  await requestQuoteAsGuest(casey);
+  await createStaff(olive);
+  await signedInAs(page, olive.email);
+  await page.goto("/office/quotes");
+  await page.getByText("Casey Client").click();
+  await draftTheQuote(page);
+  const draft = new URL(page.url()).pathname;
+  await proposeNextMonday(page);
+  await saved(page);
+
+  await page.goto(draft);
+  const proposed = page.getByRole("region", { name: "Proposed time" });
+  await expect(proposed).toContainText("can't pick the Deep Clean");
+  // the nearest time with room for it is found once the times have loaded
+  await expect(
+    proposed.getByRole("button", { name: "7:00 AM", exact: true }),
+  ).toBeVisible();
+  expect.soft(await problemsAtEveryWidth(page, draft)).toEqual([]);
 });
 
 test("an Accepted Quote and the Client's upcoming Jobs fit every width", async ({

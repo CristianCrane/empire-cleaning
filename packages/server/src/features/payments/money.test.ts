@@ -219,6 +219,20 @@ describe("charging again after the provider took the money", () => {
     );
   });
 
+  // #534, F2: the Job reads paid while it still owes the rest, so nothing
+  // tells the Client or tries again
+  test("what was taken counts, but a declined rest is still owed", async () => {
+    const was = await booked();
+    testPayments().loseNextReply();
+    await balance(was, 4200);
+
+    // the Balance went up meanwhile, and the card is declined now
+    testPayments().failCharges();
+    expect(await balance(was, 5000)).toMatchObject({ ok: false });
+
+    expect(takenAtProvider().map((c) => c.amount)).toEqual([4200]);
+  });
+
   test("a declined attempt is over: the next try asks the card again", async () => {
     const was = await booked();
     testPayments().failCharges();

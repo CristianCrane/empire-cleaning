@@ -1,6 +1,8 @@
 import type { Page } from "@playwright/test";
+import { cardNotDone, type BillView } from "@empire-cleaning/models";
 import {
   billedWeek,
+  chaseBills,
   createStaff,
   emailsTo,
   expect,
@@ -16,9 +18,13 @@ import {
   expectNextStep,
   expectNoPageAction,
   expectNothingNext,
+  expectGreyedPageActions,
   openTile,
   listRows,
   payThisBill,
+  returnToTab,
+  setClock,
+  titleBadge,
 } from "./harness.ts";
 
 // Weekly Bills for commercial Clients (ADR-0016), in the Office and the
@@ -41,10 +47,6 @@ const billed = async (
 };
 
 const heading = (page: Page) => page.getByRole("heading", { level: 1 });
-
-// the Bill's status, beside its heading
-const badge = (page: Page, status: string) =>
-  heading(page).locator("..").getByText(status, { exact: true });
 
 test(
   "Office Staff switch a business to weekly Bills paid on their page, with a billing email",
@@ -150,7 +152,7 @@ test(
     await dialog.getByRole("button", { name: "Record payment" }).click();
 
     await expect(dialog).toBeHidden();
-    await expect(badge(page, "Paid")).toBeVisible();
+    await expect(titleBadge(page, "Paid")).toBeVisible();
     await expect(
       page.getByRole("region", { name: "Bill details" }),
     ).toContainText("Cheque 1042");
@@ -181,7 +183,7 @@ test("Office Staff void a Bill that shouldn't have gone out", async ({
   await dialog.getByRole("button", { name: "Cancel bill" }).click();
 
   await expect(dialog).toBeHidden();
-  await expect(badge(page, "Cancelled")).toBeVisible();
+  await expect(titleBadge(page, "Cancelled")).toBeVisible();
   await expect(
     page.getByRole("region", { name: "Bill details" }),
   ).toContainText("Sent before the Adjustment was agreed");
@@ -228,7 +230,7 @@ test(
     await pay.click();
 
     await expect(page.getByText("Thank you, your bill is paid")).toBeVisible();
-    await expect(badge(page, "Paid")).toBeVisible();
+    await expect(titleBadge(page, "Paid")).toBeVisible();
     await expect(
       page.getByRole("region", { name: "Bill details" }),
     ).toContainText("Paid on this page");
@@ -244,6 +246,84 @@ test(
   },
 );
 
+// the one rule: nothing else moves its money while our Charge may still
+// take it (#534, ADR-0022). Its page says so before she tries (the test
+// "a Bill we try again ourselves…"), and a page opened before our Charge
+// started is turned down when pressed:
+// the dialog says why once the page has caught up, its button greyed and
+// what she typed kept, and stops saying it once the payment is done
+test("a Bill's dialog opened before its card payment started says why it can't be done once pressed", async ({
+  page,
+}) => {
+  const { billId } = await billed({ failing: "processing" });
+  await signedInAs(page, olive.email);
+  // the Bill as its page loaded it before our Charge started, until it's
+  // pressed; then once its payment is done, unpaid (the page also loads it
+  // again when its tab is shown)
+  let before = true;
+  let done = false;
+  await page.route(`**/api/bills/${billId}`, async (route) => {
+    if (!before && !done) return route.fallback();
+    const response = await route.fetch();
+    const bill = (await response.json()) as BillView;
+    await route.fulfill({
+      response,
+      json: before
+        ? { ...bill, unpaid: null, canCancelOrRecord: true }
+        : { ...bill, canCancelOrRecord: true },
+    });
+  });
+
+  await page.goto(`/office/bills/${billId}`);
+  await pageAction(page, "Record a payment");
+  const record = page.getByRole("dialog", { name: "Record a payment" });
+  const how = record.getByRole("textbox", { name: "How it was paid" });
+  await how.fill("Cheque 1042");
+  before = false;
+  await record.getByRole("button", { name: "Record payment" }).click();
+  // info, as it waits on us: a status, not a danger alert
+  await expect(record.getByRole("status")).toHaveText(cardNotDone.record);
+  await expect(record.getByRole("alert")).toHaveCount(0);
+  await expect(
+    record.getByRole("button", { name: "Record payment" }),
+  ).toBeDisabled();
+  await expect(how).toHaveValue("Cheque 1042");
+  await record.getByRole("button", { name: "Cancel" }).click();
+  await expect(record).toBeHidden();
+
+  before = true;
+  await page.reload();
+  await pageAction(page, "Cancel bill");
+  const cancel = page.getByRole("alertdialog", {
+    name: "Cancel bill EC-000001?",
+  });
+  await cancel
+    .getByRole("textbox", { name: "Why it's cancelled" })
+    .fill("Sent in error");
+  before = false;
+  await cancel.getByRole("button", { name: "Cancel bill" }).click();
+  await expect(cancel.getByRole("status")).toHaveText(cardNotDone.cancel);
+  await expect(cancel.getByRole("alert")).toHaveCount(0);
+  await expect(
+    cancel.getByRole("button", { name: "Cancel bill" }),
+  ).toBeDisabled();
+  await expect(
+    cancel.getByRole("textbox", { name: "Why it's cancelled" }),
+  ).toHaveValue("Sent in error");
+
+  // left open while the payment ends unpaid: once she's back on the tab,
+  // the button is back on and nothing says it's still going through
+  done = true;
+  await returnToTab(page);
+  await expect(
+    cancel.getByRole("button", { name: "Cancel bill" }),
+  ).toBeEnabled();
+  await expect(cancel.getByText(cardNotDone.cancel)).toBeHidden();
+  await expect(
+    cancel.getByRole("textbox", { name: "Why it's cancelled" }),
+  ).toHaveValue("Sent in error");
+});
+
 test("a Bill paid from a bank account is processing until it clears", async ({
   page,
 }) => {
@@ -254,7 +334,7 @@ test("a Bill paid from a bank account is processing until it clears", async ({
   await (await payThisBill(page)).pay.click();
 
   await expect(page.getByText("Your bank payment is on its way")).toBeVisible();
-  await expect(badge(page, "Clearing")).toBeVisible();
+  await expect(titleBadge(page, "Clearing")).toBeVisible();
   await expectNoPageAction(page, "Pay this bill");
 });
 
@@ -295,9 +375,10 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   await expect(onHold).toContainText("bill EC-000001 unpaid");
   await unpaidBill.click();
   await expect(page).toHaveURL(`/office/bills/${billId}`);
+  // and which of the client's plans it pauses, by its home
   await expect(
     page.getByText(
-      /^Its payment didn't go through( \(.+\))?\. We've emailed the client to update their card/,
+      /^Its payment didn't go through( \(.+\))?\. We've emailed the client to update their card, which tries again\. Until it's paid, the client's cleaning plan at 41-12 Austin St, 4B, 11375 is paused\.$/,
     ),
   ).toBeVisible();
   // recording one made another way is the Office's next step; and the
@@ -312,10 +393,16 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   await expect(hold).toContainText("bill EC-000001");
   await expectNextStep(page, "See bill EC-000001");
 
-  // the Client pays it from their plan's page
+  // the Client's Payments say what the pause means under what's owed
   await failCharges(null);
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
+  await client.goto("/portal/payments");
+  await expect(client.getByRole("region", { name: "To pay" })).toContainText(
+    "Until it's paid, we won't book more cleans on your plan.",
+  );
+
+  // and they pay it from their plan's page
   await client.goto(`/portal/plans/${planId}`);
   await expect(
     client
@@ -323,8 +410,11 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
       .filter({ hasText: "Your cleaning plan is paused" }),
   ).toContainText("bill EC-000001");
   await pageAction(client, "Pay bill EC-000001");
+  // which says the plan is paused till it's paid
   await expect(
-    client.getByText(/^We couldn't take \$[\d.,]+ for this bill/),
+    client.getByText(
+      /^We couldn't take \$[\d.,]+ for this bill.* Until it's paid, we won't book more cleans on your plan\.$/,
+    ),
   ).toBeVisible();
   // it was never charged to their card, as it would have been (#499)
   const details = client.getByRole("region", { name: "Bill details" });
@@ -332,7 +422,7 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   await expect(details).not.toContainText("Charged to your card");
   await expectNextStep(client, "Pay this bill");
   await (await payThisBill(client)).pay.click();
-  await expect(badge(client, "Paid")).toBeVisible();
+  await expect(titleBadge(client, "Paid")).toBeVisible();
 
   await client.goto(`/portal/plans/${planId}`);
   await expect(client.getByText("Active", { exact: true })).toBeVisible();
@@ -343,6 +433,108 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
     ),
   ).toBeVisible();
   await expect(client.getByText("Your cleaning plan is paused")).toBeHidden();
+});
+
+// a Bill's payment we try again ourselves waits on us: its badge and its
+// alert say so alike, the Office's and the Client's (#493 PR 14), and that
+// its plan is paused, the Office's naming the plan's home and why; and the
+// Client is offered no second payment, as ours may still take it (#533).
+// Their Payments say it calmly: the next test
+test("a Bill we try again ourselves reads as payment pending, not failed, says its plan is paused, and offers no Pay", async ({
+  page,
+  browser,
+}) => {
+  const { billId } = await billed({ plan: true, failing: "processing" });
+
+  // the Office's says what it can't do yet and why, and which plan, with
+  // both greyed: nothing else moves its money while our Charge may still
+  // take it (#534, ADR-0022)
+  const office = await (await browser.newContext()).newPage();
+  await signedInAs(office, olive.email);
+  await office.goto(`/office/bills/${billId}`);
+  await expect(titleBadge(office, "Payment pending")).toBeVisible();
+  await expect(office.getByRole("main").getByRole("alert")).toHaveCount(0);
+  await expect(
+    office.getByText(
+      `${cardNotDone.page} Until it's paid, the client's cleaning plan at 41-12 Austin St, 4B, 11375 is paused.`,
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expectGreyedPageActions(
+    office,
+    ["Record a payment", "Cancel bill"],
+    cardNotDone.item,
+  );
+
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/bills/${billId}`);
+  await expect(titleBadge(page, "Payment pending")).toBeVisible();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  await expect(
+    page
+      .getByRole("main")
+      .getByRole("status")
+      .filter({ hasText: "Nothing you need to do." }),
+  ).toHaveText(
+    "Nothing you need to do. Until it goes through, we won't book more cleans on your plan.",
+  );
+  await expectNoPageAction(page, "Pay this bill");
+});
+
+// nothing to pay while it's ours, so their Payments' card asks nothing:
+// not "To pay" but Payment pending, info as the Bill is, one short line,
+// the Bill a link to see, not the page's primary (#493); its plan's pause
+// in its fewest words, what's booked left to its Bill, the test above (#536)
+test("Payments says a Bill we try again ourselves needs nothing from them", async ({
+  page,
+}) => {
+  const { billId } = await billed({ plan: true, failing: "processing" });
+  await signedInAs(page, casey.email);
+  await page.goto("/portal/payments");
+
+  const card = page.getByRole("region", { name: "Payment pending" });
+  for (const line of [
+    "Bill EC-000001 · Nothing you need to do.",
+    "Until it goes through, we won't book more cleans on your plan.",
+  ])
+    await expect(card.getByText(line, { exact: true })).toBeVisible();
+  await expect(card).not.toContainText("paused");
+  await expect(page.getByRole("region", { name: "To pay" })).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  // nothing next: the link is outlined, and no Pay anywhere on the page
+  const see = card.getByRole("link", { name: "See the bill" });
+  await expect(see).toHaveAttribute("href", `/portal/bills/${billId}`);
+  await expect(see).toHaveClass(/(^|\s)border-primary(\s|$)/);
+  await expect(see).not.toHaveClass(/(^|\s)bg-primary(\s|$)/);
+  await expect(page.getByRole("link", { name: /^Pay bill/ })).toHaveCount(0);
+});
+
+test("a late Bill with no cleaning plan on it says no plan is paused, to the Client or the Office", async ({
+  page,
+  browser,
+}) => {
+  const { billId } = await billed({ payment: "on_page" });
+  // the day after it was due by, after 8am New York
+  await setClock("2026-01-27T14:00:00Z");
+  await chaseBills();
+
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/bills/${billId}`);
+  await expect(
+    page.getByText("This bill wasn't paid by its due date.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+
+  const office = await (await browser.newContext()).newPage();
+  await signedInAs(office, olive.email);
+  await office.goto(`/office/bills/${billId}`);
+  await expect(
+    office.getByText(
+      "It wasn't paid by its due date. We remind the client each week until it's paid.",
+      { exact: true },
+    ),
+  ).toBeVisible();
 });
 
 test(
@@ -375,3 +567,25 @@ test(
     ).toHaveCount(0);
   },
 );
+
+// a clean's receipt says where the rest of its money went: the Bill, by its
+// number and where it stands, a link to it, and no "Paid" total that is
+// only the Deposit (#493 PR 4's UX review, U2 and U15)
+test("a weekly-billed clean's receipt names its Bill and where it stands", async ({
+  page,
+}) => {
+  const { jobId, billId } = await billed();
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/jobs/${jobId}`);
+
+  // done, how long it was to take goes: the receipt says when it was
+  await expect(page.getByRole("region", { name: "Details" })).not.toContainText(
+    "How long",
+  );
+  const receipt = page.getByRole("region", { name: "Your receipt" });
+  const bill = receipt.getByRole("link", { name: "Bill EC-000001" });
+  await expect(bill.locator("..")).toHaveText("Bill EC-000001Paid");
+  await expect(receipt.getByText("Paid", { exact: true })).toHaveCount(1);
+  // ending on the receipt, for its picture (pr:shots)
+  await expect(bill).toHaveAttribute("href", `/portal/bills/${billId}`);
+});

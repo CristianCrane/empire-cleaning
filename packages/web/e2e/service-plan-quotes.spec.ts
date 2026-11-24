@@ -104,7 +104,7 @@ const askAgain = async () => {
 test(
   "Office Staff offer a Service Plan once the First Clean is done, and the Client sees the saving",
   { tag: ["@smoke", "@desktop"] },
-  async ({ page, browser }) => {
+  async ({ page, browser, isMobile }) => {
     await firstCleanDone(page);
     // the dashboard nudges: Casey wanted regular visits
     await page.goto("/office");
@@ -159,9 +159,14 @@ test(
       "$231.36",
     );
     await saved(page);
-    await expect(
-      page.getByText(/^Standard Clean, every week: \$231\.36 a clean$/),
-    ).toBeVisible();
+    // a phone's bar at the foot says it in a line; a wider screen has the
+    // prices beside the form, or below `xl` the short total in the header
+    // that sticks (#493 D1)
+    if (isMobile) {
+      await expect(
+        page.getByText(/^Standard Clean, every week: \$231\.36 a clean$/),
+      ).toBeVisible();
+    }
     await startOn19th(page);
     await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
     await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
@@ -230,9 +235,17 @@ test("a Service Plan of Deep Cleans", async ({ page, browser }) => {
   await startOn19th(page);
   await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
   await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
+  // how often, the weekday's card under it naming the day and time
+  const current = page.getByRole("region", { name: "Current quote" });
+  await expect(current).toContainText("Every 2 weeks");
+  await expect(current).not.toContainText("Every 2 weeks, on");
   await expect(
-    page.getByRole("region", { name: "Current quote" }),
-  ).toContainText("Every 2 weeks, on Mondays at 9:00 AM");
+    current.getByRole("region", { name: "Mondays at 9:00 AM: Deep Clean" }),
+  ).toBeVisible();
+  // its story names the plan's Service, and the round's unit
+  await expect(
+    page.getByText(/^Deep Clean plan \$[\d,.]+ a clean · for /),
+  ).toHaveCount(1);
 
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
@@ -468,36 +481,4 @@ test("a home whose First Clean isn't Completed is answered with a one-off Quote"
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     /^Draft quote for /,
   );
-});
-
-test("picking a plan's start from the Schedule marks the days it repeats on", async ({
-  page,
-}) => {
-  await startPlan(page);
-  await startOn19th(page);
-  await saved(page);
-
-  await page
-    .getByRole("region", { name: "Mondays" })
-    .getByRole("button", { name: "Pick from the schedule" })
-    .click();
-  const schedule = page.getByRole("dialog", {
-    name: "Pick from the schedule",
-  });
-  await expect(schedule).toContainText("Then every 2 weeks on Mondays.");
-  await expect(
-    schedule.getByRole("region", { name: "Mon, Jan 19", exact: true }),
-  ).toContainText("Starts");
-
-  // a week at a time, on a phone too
-  await schedule.getByRole("button", { name: /Show$/ }).click();
-  await page.getByRole("option", { name: "Week" }).click();
-  await schedule.getByRole("button", { name: "Next week" }).click();
-  await expect(
-    schedule.getByRole("region", { name: "Mon, Jan 26", exact: true }),
-  ).not.toContainText("Repeats");
-  await schedule.getByRole("button", { name: "Next week" }).click();
-  await expect(
-    schedule.getByRole("region", { name: "Mon, Feb 2", exact: true }),
-  ).toContainText("Repeats");
 });

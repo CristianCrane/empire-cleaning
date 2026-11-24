@@ -41,7 +41,7 @@ const noViolations = async (page: Page) => {
 test(
   "Office Staff offer a plan on several weekdays, each its own visit, and the Client accepts it whole",
   { tag: ["@smoke", "@desktop"] },
-  async ({ page, browser }) => {
+  async ({ page, browser, isMobile }) => {
     await createStaff(olive);
     await signedInAs(page, olive.email);
     const { job } = await completedFirstClean(olive.email);
@@ -58,10 +58,20 @@ test(
     );
     await expect(page.getByRole("region", { name: "Mondays" })).toBeVisible();
 
-    // another weekday: the day after, to start with; Wednesdays instead
+    // another weekday, with no time yet for the one the client asked
+    // for: Mondays folds out of its way
     await page.getByRole("button", { name: "Add a weekday" }).click();
-    const tuesday = page.getByRole("region", { name: "Tuesdays" });
-    await startOn(page, tuesday, "01212026", "0100PM");
+    await expect(
+      page
+        .getByRole("region", { name: "Mondays" })
+        .getByRole("button", { name: /^Proposed time/, expanded: false }),
+    ).toContainText("Mon, Jan 19 · 9:00 AM");
+    await startOn(
+      page,
+      page.getByRole("region", { name: "Weekday 2" }),
+      "01212026",
+      "0100PM",
+    );
     const wednesday = page.getByRole("region", { name: "Wednesdays" });
     await wednesday.getByRole("textbox", { name: "Cleaners" }).fill("1");
     await wednesday.getByRole("textbox", { name: "Cleaners" }).blur();
@@ -75,20 +85,23 @@ test(
     await expect(
       terms.getByRole("radio", { name: "Every 2 weeks" }),
     ).toBeDisabled();
-    await expect(
-      page.getByText(/^2 cleans a week: \$[\d,.]+ a week$/),
-    ).toBeVisible();
+    // a phone's bar at the foot sums the week up; a wider screen's prices
+    // lead with it (#493 D1)
+    if (isMobile) {
+      await expect(
+        page.getByText(/^2 cleans a week: \$[\d,.]+ a week$/),
+      ).toBeVisible();
+    }
     await expect(page.getByRole("region", { name: "Each week" })).toContainText(
       "A week, with a clean on each day",
     );
 
     await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
     await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
+    // how often; each weekday's card names its day and time
     await expect(
       page.getByRole("region", { name: "Current quote" }),
-    ).toContainText(
-      "Every week, on Mondays at 9:00 AM and Wednesdays at 1:00 PM",
-    );
+    ).toContainText("Every week");
     await expect(
       page.getByRole("region", { name: "Mondays at 9:00 AM: Standard Clean" }),
     ).toContainText("On site, with 2 cleaners");
@@ -113,16 +126,16 @@ test(
       "Every week, on Mondays at 9:00 AM and Wednesdays at 1:00 PM",
     );
     await expect(quote).toContainText("One clean a day.");
-    await expect(
-      client.getByRole("region", {
-        name: "Mondays at 9:00 AM: Standard Clean",
-      }),
-    ).toBeVisible();
-    await expect(
-      client.getByRole("region", {
-        name: "Wednesdays at 1:00 PM: Standard Clean",
-      }),
-    ).toBeVisible();
+    // how long each weekday's crew is there, in the facts as a clean says
+    // it: not the Office's cleaning hours and crew, on each weekday's card
+    await expect(quote).toContainText("About 2 h + 3¾ hHow long");
+    for (const name of [
+      "Mondays at 9:00 AM: Standard Clean",
+      "Wednesdays at 1:00 PM: Standard Clean",
+    ])
+      await expect(client.getByRole("region", { name })).not.toContainText(
+        /On site|Cleaning hours|cleaner/,
+      );
     await expect(
       client.getByRole("region", { name: "Quote details" }),
     ).toContainText(`Deposit (25% of a clean on each day)`);

@@ -5,6 +5,7 @@ import {
   MenuItem as AriaMenuItem,
   MenuTrigger,
   Separator,
+  Text,
   type MenuItemProps as AriaMenuItemProps,
 } from "react-aria-components";
 import { Popover } from "./Popover.tsx";
@@ -34,27 +35,50 @@ export function Menu({
 
 // one thing in a Menu, or in an ActionSheet: an icon and what it does,
 // `large` as a sheet's row, for a thumb. danger for one that loses what
-// can't be got back, like Cancel, last, after a MenuSeparator
+// can't be got back, like Cancel, last, after a MenuSeparator. isDisabled
+// greys it, as a Button is greyed, and `description` says under it why,
+// at full strength, as the menu may cover the page's alert that says so
 export function MenuItem({
   icon: Icon,
   danger = false,
   large = false,
+  description,
   children,
   ...props
 }: Omit<AriaMenuItemProps, "children" | "className" | "textValue"> & {
   icon: LucideIcon;
   danger?: boolean;
   large?: boolean;
+  description?: string;
   children: string;
 }) {
+  const greyed = "group-data-disabled:opacity-50";
   return (
     <AriaMenuItem
       {...props}
       textValue={children}
-      className={`flex cursor-default items-center rounded-md font-semibold outline-none focus:bg-surface-sunken ${large ? "min-h-14 gap-4 px-4 text-lg" : "min-h-touch gap-3 px-3"} ${danger ? "text-danger" : "text-fg"}`}
+      className={`group flex cursor-default items-center rounded-md font-semibold outline-none focus:bg-surface-sunken ${large ? "min-h-14 gap-4 px-4 text-lg" : "min-h-touch gap-3 px-3"} ${danger ? "text-danger" : "text-fg"}`}
     >
-      <Icon aria-hidden size={large ? 22 : 18} />
-      {children}
+      <Icon
+        aria-hidden
+        size={large ? 22 : 18}
+        className={`shrink-0 ${greyed}`}
+      />
+      {description ? (
+        <span className="flex flex-col py-2">
+          <Text slot="label" className={greyed}>
+            {children}
+          </Text>
+          <Text
+            slot="description"
+            className={`font-normal text-fg-muted ${large ? "text-base" : "text-sm"}`}
+          >
+            {description}
+          </Text>
+        </span>
+      ) : (
+        <span className={greyed}>{children}</span>
+      )}
     </AriaMenuItem>
   );
 }

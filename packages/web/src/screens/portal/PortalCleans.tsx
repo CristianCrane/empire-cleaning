@@ -7,7 +7,7 @@ import type {
 } from "@empire-cleaning/models";
 import { catalog } from "@empire-cleaning/models";
 import { ListPage, type ListRow } from "@empire-cleaning/ui";
-import { addressOf, formatHours, formatMinutes } from "../format.ts";
+import { addressOf, formatMinutes, howLong, lineOf } from "../format.ts";
 import { tabShown, useListUrl } from "../list-search.ts";
 import { type Said, useSaid } from "../words.ts";
 import { cleanBadge, upcomingBadge } from "./clean-badge.tsx";
@@ -15,7 +15,6 @@ import { cleanBadge, upcomingBadge } from "./clean-badge.tsx";
 // in the Client's language (ADR-0025)
 const words = catalog({
   en: {
-    about: (length: string) => `about ${length}`,
     visit: (visitor: string, length: string) =>
       `${visitor}, about ${length}, free`,
     fee: (amount: string) => `${amount} fee`,
@@ -25,7 +24,6 @@ const words = catalog({
     noneYet: "No cleans yet",
   },
   es: {
-    about: (length: string) => `cerca de ${length}`,
     visit: (visitor: string, length: string) =>
       `${visitor}, cerca de ${length}, gratis`,
     fee: (amount: string) => `cargo de ${amount}`,
@@ -45,9 +43,6 @@ type T = Said & { w: (typeof words)["en"] };
 export const cleansTabs = ["upcoming", "past"] as const;
 type CleansTab = (typeof cleansTabs)[number];
 
-// "12 Elm St · $184.50": the home only when there's more than one
-const lineOf = (parts: (string | false)[]) => parts.filter(Boolean).join(" · ");
-
 const upcomingRow =
   (t: T, homes: number, open: (jobId: string) => void) =>
   (job: ClientUpcomingJob): ListRow => ({
@@ -56,7 +51,7 @@ const upcomingRow =
     title: job.serviceName,
     description: lineOf([
       homes > 1 && addressOf(job.property),
-      t.w.about(formatHours(job.hoursOnSite)),
+      howLong(t, job.hoursOnSite),
     ]),
     badges: [upcomingBadge(t, job)],
     onOpen: () => open(job.id),
@@ -91,7 +86,7 @@ const pastRow =
     badges: [
       cleanBadge(t, {
         status: job.status,
-        unpaid: job.unpaid !== null,
+        unpaid: job.unpaid,
         priceChange: job.waiting.length > 0,
         skipped: job.skipped,
         moveAsked: false,
@@ -124,7 +119,7 @@ export function PortalCleans() {
 
   return (
     <ListPage<ListRow>
-      title={t.p.yourCleans}
+      title={t.p.cleans}
       tabs={[
         {
           id: "upcoming",

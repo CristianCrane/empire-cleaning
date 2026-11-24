@@ -55,10 +55,12 @@ import {
   requestReschedule,
 } from "../../src/features/reschedule/index.ts";
 import { generateServicePlanJobs } from "../../src/features/service-plans/index.ts";
+import { chaseBills } from "../../src/features/bills/index.ts";
 import { bookSiteVisit } from "../../src/features/site-visits/index.ts";
 import { properties } from "../../src/features/properties/index.ts";
 import { quotes } from "../../src/features/quotes/quotes.schema.ts";
 import { db } from "../../src/db/index.ts";
+import { API_CLOCK_HEADER } from "./api-clock.ts";
 import { accounts } from "../../src/features/auth/auth.schema.ts";
 
 const CONTROL_PORT = Number(process.env.E2E_CONTROL_PORT ?? 3101);
@@ -87,6 +89,17 @@ const accountIdOf = async (email: string) => {
   return account!.id;
 };
 control.use(express.json());
+
+// every answer says where the API's clock is as it goes out, after whatever
+// the request did to it, so the tests' browsers keep to it
+control.use((_req, res, next) => {
+  const json = res.json.bind(res);
+  res.json = (body) => {
+    res.setHeader(API_CLOCK_HEADER, testClock().now().toISOString());
+    return json(body);
+  };
+  next();
+});
 
 control.get("/health", (_req, res) => {
   res.json({ status: "ok" });
@@ -241,6 +254,12 @@ control.post("/bills/billed-week", async (req, res) => {
   );
 });
 
+// what the server's Bill timer does: a Bill paid on its page and past its
+// due date is late, and reminded
+control.post("/bills/chase", async (_req, res) => {
+  res.json({ sent: await chaseBills() });
+});
+
 // how the test payment form pays a Bill: by card, or a bank debit that stays
 // processing
 control.post("/payments/bills-in-browser", (req, res) => {
@@ -249,7 +268,8 @@ control.post("/payments/bills-in-browser", (req, res) => {
   res.json({ status: "ok" });
 });
 
-// every Charge is declined with this reason from now on; null to stop
+// every Charge is declined with this reason from now on, or left
+// processing with "processing", as the provider does; null to stop
 control.post("/payments/fail", (req, res) => {
   const { reason } = req.body as { reason: string | null };
   testPayments().failCharges(reason);

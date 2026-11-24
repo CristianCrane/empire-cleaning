@@ -88,7 +88,6 @@ const toMember = (member: Staff, imageUrl: string | null): StaffMember => ({
   signedUp: member.accountId !== null,
   imageUrl,
   preferredLanguage: member.preferredLanguage,
-  createdAt: member.createdAt.toISOString(),
 });
 
 // Staff members with their connected Account's picture, if any, and any

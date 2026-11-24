@@ -67,7 +67,7 @@ _Spanish_: cotización
 **Revision**:
 One priced version of a Quote: its Service, price, Labour Hours, Crew Size and proposed time, and for a Service priced by area the area, or for a Service Plan Quote its visits. Office Staff draft a Revision and send it; once Sent it is never changed, and a newer Sent Revision takes its place as the offer. Clients only ever see the latest Sent Revision.
 _Avoid_: Version, offer, Superseded Quote
-_On screen_: none: it's the quote, which the Office changes ("Change quote") and sends again ("Quote sent"); a person never reads of a second quote
+_On screen_: none: it's the quote, which the Office changes ("Change quote") and sends again ("Quote sent again"); a person never reads of a second quote
 _Spanish_: none
 
 **Turned Down**:
@@ -257,6 +257,7 @@ _Spanish_: factura; a voided one is cancelada
 
 **Unpaid**:
 A Job whose Balance, or part of it, or whose fee failed to be charged and has not yet been recovered; or a Bill whose Charge failed, or that is still unpaid after its due date.
+_On screen_: "Unpaid"; one we try again ourselves, which asks nothing of the Client (the payment service unreachable, a card charge still processing), "Payment pending" (Spanish "Pago pendiente"), its one line "Nothing you need to do." ("No tiene que hacer nada."); the Office's Bill, while our card payment on it may still take the money, says instead what that holds back: "You can't cancel this bill or record a payment while its card payment is going through"
 _Avoid_: Overdue, outstanding, failed payment
 _Spanish_: sin pagar
 

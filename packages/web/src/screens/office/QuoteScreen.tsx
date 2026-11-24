@@ -20,6 +20,7 @@ import {
   Send,
   Trash2,
   CalendarPlus,
+  Undo2,
   type LucideIcon,
   CircleX,
   CalendarClock,
@@ -35,33 +36,40 @@ import {
 import type {
   Condition,
   DayCapacity,
+  Untimely,
   FirstCleanFindings,
   OfficeQuote,
   OfficeQuoteOption,
   OfficeRevision,
   PlanChange,
   QuoteDraftInput,
+  RecordedAcceptance,
   Recurrence,
   ServiceChoice,
   ServicePlanInput,
 } from "@empire-cleaning/models";
 import {
+  clientPaying,
   firstNameOf,
   noEmailYet,
   notSeenYet,
   placeOwner,
-  recurrenceDays,
   weekdayOf,
   whyNoRoom,
+  MORE_HOURS,
+  NO_ROOM,
+  noRoomOf,
+  runsPastMidnight,
   formats,
   messages,
+  type DepositRefundedWhy,
+  type PayingFor,
 } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
   Card,
   Checkbox,
-  DatePicker,
   Dialog,
   Form,
   FormPage,
@@ -77,9 +85,7 @@ import {
   Section,
   Select,
   SelectItem,
-  StatusBadge,
   TextField,
-  TimeField,
   Timeline,
   TimelineItem,
   showToast,
@@ -94,20 +100,27 @@ import {
   type PageAction,
   type PageActions,
 } from "@empire-cleaning/ui";
-import { ApiError, deleteJson, patchJson, postJson } from "../../api.ts";
+import {
+  ApiError,
+  deleteJson,
+  getJson,
+  patchJson,
+  postJson,
+} from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction, useLeavingAction } from "../action.ts";
 import {
   clientName,
   dayOfInstant,
+  lineOf,
   timeOfDay,
   timeOfField,
-  upperFirst,
   screenWords,
 } from "../format.ts";
 import {
   AddOnList,
   DraftChangesBadge,
+  HoursRows,
   OptionFigures,
   OptionRows,
   PlanFigures,
@@ -122,12 +135,13 @@ import {
   AskedFacts,
   askedSummary,
   FoldedPrice,
+  PriceWorking,
   seeThePremises,
   WhichKindDialog,
   TurnDownQuote,
   turnDownLabel,
 } from "./QuoteAsked.tsx";
-import { PickFromSchedule, type Crew } from "./SchedulePicker.tsx";
+import { endsAt, PickOpenTime, type TimeProblem } from "./OpenTimePicker.tsx";
 import {
   BOOK_A_SITE_VISIT,
   BookSiteVisitDialog,
@@ -140,10 +154,11 @@ const {
   cleaners,
   conditionLabel,
   planName,
-  planRhythm,
   recurrenceLabel,
   quoteKindName,
   formatFloorArea,
+  revisionHeadline,
+  servicePrice,
 } = screenWords.en;
 
 const { adjustmentLabel } = messages.en;
@@ -151,11 +166,79 @@ const { adjustmentLabel } = messages.en;
 const {
   formatDate,
   formatDateTime,
+  formatClock,
   formatDay,
   formatMoney,
+  formatTime,
   weekdayName,
   formatList,
 } = formats.en;
+
+// the Deposit the Client is paying online while their bank asks them to
+// approve it, or finishes it, as the one rule's words name it (#534), if
+// they are
+const payingFor = (
+  quote: Pick<OfficeQuote, "paying" | "client">,
+): PayingFor | null =>
+  quote.paying && {
+    name: quote.client.name,
+    deposit: formatMoney(quote.paying.depositCents),
+    service: quote.paying.serviceName,
+    until: formatTime(quote.paying.until),
+    finishing: quote.paying.finishing,
+  };
+
+// how often a Quote's pages look again while its Client pays (#534), so
+// the Office sees it accepted, or free again, within seconds
+const PAYING_LOOK_MS = 15_000;
+
+// While the Client pays the Quote's Deposit online (#534), `look` again
+// every PAYING_LOOK_MS while the page is shown, and once the wait ends, as
+// then what was held is free again: the one rule's alert gone, its action
+// live. A second after `until`, as the server's clock may run behind ours,
+// and the looks go on till its answer comes; past it, while their bank
+// finishes it, every PAYING_LOOK_MS alone, as nothing says when that ends.
+// A look that fails says nothing on the page: the next tries again. One at
+// a time, as two at once would both tell of what they found, twice
+function useWhilePaying(
+  paying: OfficeQuote["paying"] | undefined,
+  look: () => Promise<unknown>,
+) {
+  const until = paying?.until;
+  const finishing = paying?.finishing ?? false;
+  const looking = useRef(false);
+  const lookNow = useEffectEvent(() => {
+    if (looking.current) return;
+    looking.current = true;
+    void look()
+      .catch(reportUnexpected)
+      .finally(() => {
+        looking.current = false;
+      });
+  });
+  useEffect(() => {
+    if (!until) return;
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") lookNow();
+    }, PAYING_LOOK_MS);
+    const end =
+      !finishing &&
+      setTimeout(lookNow, Math.max(0, Date.parse(until) - Date.now()) + 1000);
+    return () => {
+      clearInterval(timer);
+      if (end) clearTimeout(end);
+    };
+  }, [until, finishing]);
+}
+
+// the Service a Quote was accepted with, by name; none for a cleaning plan,
+// accepted whole
+const acceptedService = (quote: OfficeQuote) =>
+  quote.offer?.plan
+    ? null
+    : (quote.offer?.options.find(
+        (o) => o.serviceKey === quote.acceptedServiceKey,
+      )?.serviceName ?? null);
 
 // The Quote with one of its Revisions in hand: the one being drafted, or
 // else the offer, so it's edited while there's a Draft Revision and
@@ -193,6 +276,8 @@ export function QuoteScreen() {
   const kind = quoteKindName(quote.kind);
   const revising = quote.draft !== null && quote.offer !== null;
   const now = useNow(quote);
+  const router = useRouter();
+  useWhilePaying(quote.paying, () => router.invalidate());
 
   return (
     <RecordPage
@@ -233,7 +318,7 @@ export function QuoteScreen() {
             key={moment.key}
             icon={moment.icon}
             title={moment.title}
-            when={formatDate(moment.at)}
+            when={formatDateTime(moment.at)}
             description={moment.description}
           >
             {moment.details}
@@ -278,10 +363,15 @@ function useNow(quote: OfficeQuote): Now {
     offer !== null && quote.status === "sent" && quote.bookable.length > 0;
   const recordable =
     acceptable && (offer.changesPlan !== null || quote.paymentMethod !== null);
+  // the Client paying online holds it (the one rule): greyed, the alert
+  // saying until when
+  const paying = payingFor(quote);
 
   const recordAcceptance: PageAction | false = recordable && {
     label: "Record acceptance",
     icon: CircleCheck,
+    isDisabled: paying !== null,
+    why: clientPaying.item(firstNameOf(name)),
     dialog: (state) => (
       <RecordAcceptanceDialog
         quote={offer!}
@@ -290,7 +380,21 @@ function useNow(quote: OfficeQuote): Now {
       />
     ),
   };
-  const noCard: Alert | false = acceptable &&
+  // over everything else to say about taking the Deposit, which waits on it
+  const payingAlert: Alert | false = !!paying && {
+    key: "paying",
+    tone: "warning",
+    children: (
+      <p>
+        {clientPaying.page(paying, {
+          card: recordable,
+          drafting: quote.draft !== null && quote.offer !== null,
+        })}
+      </p>
+    ),
+  };
+  const noCard: Alert | false = !paying &&
+    acceptable &&
     !recordable && {
       key: "card",
       action: <EmailCardLink quote={quote} />,
@@ -335,7 +439,7 @@ function useNow(quote: OfficeQuote): Now {
         ? [recordAcceptance]
         : [mayBookVisit && bookVisit, turnDown],
       alerts: [
-        {
+        payingAlert || {
           key: "draft",
           tone: "warning",
           children: (
@@ -364,7 +468,7 @@ function useNow(quote: OfficeQuote): Now {
         ? {
             next: recordAcceptance || undefined,
             actions: [changeQuote],
-            alerts: [noCard],
+            alerts: [payingAlert, noCard],
           }
         : {
             next: changeQuote,
@@ -613,6 +717,16 @@ type Moment = {
   details?: ReactNode;
 };
 
+// why what the Client paid online wasn't booked: "Casey paid it as …", or
+// "accepted it as …" when nothing was charged
+const unbookedAs: Record<DepositRefundedWhy, string> = {
+  no_room: "the time filled",
+  closed: "the quote was closed",
+  revised: "changes were sent",
+  has_plan: "the home got another plan",
+  plan_changed: "the plan was changed",
+};
+
 // each thing that happened to the Quote, newest first
 const momentsOf = (quote: OfficeQuote): Moment[] => {
   const shown = shownFor(quote);
@@ -640,14 +754,16 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
       description: visit.visitor ? `By ${visit.visitor.name}` : undefined,
     });
   }
-  // oldest first, as they happened (quote.revisions is newest first)
-  for (const revision of [...quote.revisions].reverse()) {
+  // oldest first, as they happened (quote.revisions is newest first); a
+  // send after the first says so, as two sends can match word for word
+  for (const [i, revision] of [...quote.revisions].reverse().entries()) {
     moments.push({
       key: revision.id,
       at: revision.sentAt,
       icon: Send,
-      title: "Quote sent",
-      description: `${formatMoney(revision.headlineTotalCents)} · for ${formatDateTime(revision.proposedStartsAt)}`,
+      title: i === 0 ? "Quote sent" : "Quote sent again",
+      // what it was sent for, and when: "Standard Clean $194.89 · for …"
+      description: `${revisionHeadline(revision)} · for ${formatDateTime(revision.proposedStartsAt)}`,
     });
   }
   if (quote.status === "expired" && shown?.expiresAt) {
@@ -674,6 +790,28 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
       title: `${quote.client.name} accepted it`,
     });
   }
+  // what the Client paid online that couldn't be booked once their bank
+  // approved it (#534): a Deposit refunded, or a card saved with nothing
+  // charged, so Office Staff on the phone with them, or getting in touch,
+  // see it
+  quote.unbookedPayments.forEach((unbooked, i) => {
+    const name = firstNameOf(quote.client.name);
+    const as = unbookedAs[unbooked.why];
+    moments.push({
+      key: `unbooked-${i}`,
+      at: unbooked.endedAt,
+      icon: Undo2,
+      ...(unbooked.amountCents
+        ? {
+            title: "Deposit refunded",
+            description: `${formatMoney(unbooked.amountCents)} · ${name} paid it as ${as}`,
+          }
+        : {
+            title: "Acceptance not booked",
+            description: `Nothing charged · ${name} accepted it as ${as}`,
+          }),
+    });
+  });
   if (quote.turnedDownAt) {
     moments.push({
       key: "turned-down",
@@ -758,9 +896,15 @@ function Offer({ quote }: { quote: ShownQuote }) {
   // once a one-off is accepted, the Service booked alone: the other was
   // never taken
   const booked = quote.status === "accepted" && !plan;
+  // until then a one-off's own Service, the one asked for, as every Office
+  // screen leads with it, and the one recommended an aside under it, as the
+  // Draft has it (#493, after #527); a plan's weekdays in their order
   const options = booked
     ? quote.options.filter((o) => o.serviceKey === quote.acceptedServiceKey)
-    : quote.options;
+    : plan
+      ? quote.options
+      : [ownOption(quote)];
+  const aside = !booked && !plan ? recommendedOption(quote) : undefined;
   return (
     <Section
       title="Current quote"
@@ -785,7 +929,7 @@ function Offer({ quote }: { quote: ShownQuote }) {
             <Fact
               icon={Repeat}
               label="Then"
-              value={planRhythm(plan)}
+              value={recurrenceLabel[plan.recurrence]}
               line={`Then, priced for ${conditionLabel[plan.condition].toLowerCase()} condition`}
             />
           )}
@@ -817,26 +961,15 @@ function Offer({ quote }: { quote: ShownQuote }) {
               <OfferPrice
                 key={day?.startsAt ?? option.serviceKey}
                 title={day ? planDayTitle("en", day) : option.serviceName}
-                badge={
-                  day ? (
-                    <PlanSaving
-                      day={day}
-                      discountPercent={plan!.discountPercent}
-                    />
-                  ) : (
-                    option.recommended &&
-                    !booked && (
-                      <StatusBadge tone="success">Recommended</StatusBadge>
-                    )
-                  )
-                }
               >
                 {day ? (
                   <PlanFigures
                     option={option}
                     day={day}
                     discountPercent={plan!.discountPercent}
-                  />
+                  >
+                    <HoursRows option={option} crewSize={day.crewSize} />
+                  </PlanFigures>
                 ) : (
                   <OptionFigures
                     option={option}
@@ -849,6 +982,17 @@ function Offer({ quote }: { quote: ShownQuote }) {
               </OfferPrice>
             );
           })}
+          {aside && (
+            <AlsoOffered option={aside}>
+              <OptionRows
+                option={aside}
+                crewSize={quote.crewSize}
+                depositPercent={quote.depositPercent}
+              />
+              <AddOnList addOns={aside.addOns} />
+              <PricedFrom option={aside} />
+            </AlsoOffered>
+          )}
         </div>
         {plan && (
           <div className="border-t border-border pt-4">
@@ -867,10 +1011,12 @@ function Offer({ quote }: { quote: ShownQuote }) {
   );
 }
 
-// What the Draft comes to as last saved, beside it (#434): each option's or
-// plan weekday's price, read-only, its working folded under it, then a
-// plan's week. Faded and busy while a change is saved; each price is set
-// in the part it prices
+// What the Draft comes to as last saved, beside it (#434): a one-off
+// Quote's own price, the one asked for, and the Service recommended for a
+// first visit quiet under it (the user, on #527); or each plan weekday's
+// price, then the plan's week. Read-only, each working folded under its
+// price. Faded and busy while a change is saved; each price is set in the
+// part it prices
 function DraftPrices({
   quote,
   dayTitles,
@@ -882,73 +1028,127 @@ function DraftPrices({
   stale: boolean;
 }) {
   const { plan } = quote;
+  // a plan's week, what it comes to, first: below xl the prices lead the
+  // page, and three weekdays' pushed it off a laptop's screen
+  const week = plan && plan.days.length > 1 && (
+    <OfferPrice title="Each week">
+      <PlanTotals
+        plan={plan}
+        depositPercent={quote.depositPercent}
+        change={quote.changesPlan}
+      />
+    </OfferPrice>
+  );
+  const busy = `flex flex-col gap-5 [&>section+section]:border-t [&>section+section]:border-border [&>section+section]:pt-5 ${staleFade(stale)}`;
+  const version = (
+    <p className="text-sm text-fg-muted">
+      From your prices, version {quote.priceListVersion}.
+    </p>
+  );
+  if (!plan) {
+    const own = ownOption(quote);
+    const recommended = recommendedOption(quote);
+    const shared = sameNoRoom(own, recommended);
+    return (
+      <div aria-busy={stale} className={busy}>
+        <OfferPrice title={own.serviceName}>
+          <FoldedPrice
+            price={own}
+            working={own.suggested}
+            under={
+              <>
+                {own.overrideCents !== null && <PricedFrom option={own} />}
+                <NoRoomLine room={own.room} with={shared} />
+              </>
+            }
+          >
+            <OptionRows
+              option={own}
+              crewSize={quote.crewSize}
+              depositPercent={quote.depositPercent}
+            />
+            {version}
+          </FoldedPrice>
+        </OfferPrice>
+        {recommended && (
+          <AlsoOffered
+            option={recommended}
+            under={
+              // unfolded, as it changes what the client can do; the
+              // proposed time's part says how to fix it. Said once, under
+              // the own price, when they share it
+              shared === undefined && <NoRoomLine room={recommended.room} />
+            }
+          >
+            {recommended.overrideCents !== null && (
+              <PricedFrom option={recommended} />
+            )}
+            <PriceWorking breakdown={recommended.suggested} />
+            <OptionRows
+              option={recommended}
+              crewSize={quote.crewSize}
+              depositPercent={quote.depositPercent}
+            />
+            {version}
+          </AlsoOffered>
+        )}
+      </div>
+    );
+  }
   return (
-    <div
-      aria-busy={stale}
-      className={`flex flex-col gap-5 [&>section+section]:border-t [&>section+section]:border-border [&>section+section]:pt-5 ${staleFade(stale)}`}
-    >
-      {/* as the sent Quote's Offer draws them: a plan's weekday or an option */}
+    <div aria-busy={stale} className={busy}>
+      {week}
+      {/* as the sent Quote's Offer draws them, a weekday each */}
       {quote.options.map((option, i) => {
-        const day = plan?.days[i];
-        if (plan && !day) return null;
+        const day = plan.days[i];
+        if (!day) return null;
         return (
           <OfferPrice
             key={option.serviceKey + String(i)}
             title={
-              !plan
-                ? option.serviceName
-                : plan.days.length === 1
-                  ? `${option.serviceName}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`
-                  : `${dayTitles[i] ?? `Weekday ${i + 1}`}: ${option.serviceName}`
+              plan.days.length === 1
+                ? planName({
+                    recurrence: plan.recurrence,
+                    days: [{ startsAt: null, serviceName: option.serviceName }],
+                  })
+                : `${dayTitles[i] ?? `Weekday ${i + 1}`}: ${option.serviceName}`
             }
             badge={
-              day ? (
-                <PlanSaving day={day} discountPercent={plan!.discountPercent} />
-              ) : (
-                option.recommended && (
-                  <StatusBadge tone="success">Recommended</StatusBadge>
-                )
-              )
+              <PlanSaving day={day} discountPercent={plan.discountPercent} />
             }
           >
             <FoldedPrice
               price={option}
               working={option.suggested}
-              perClean={!!day}
+              perClean
               under={
-                option.overrideCents !== null && <PricedFrom option={option} />
+                <>
+                  {option.overrideCents !== null && (
+                    <PricedFrom option={option} />
+                  )}
+                  <NoRoomLine room={option.room} />
+                </>
               }
             >
-              {day && plan ? (
-                <>
-                  <PlanRows
-                    option={option}
-                    day={day}
-                    discountPercent={plan.discountPercent}
-                  />
-                  {plan.discountPercent > 0 && (
-                    <p className="text-sm text-fg-muted">
-                      The plan discount comes off the one-off price, whoever set
-                      it.
-                    </p>
-                  )}
-                </>
-              ) : (
-                <OptionRows
-                  option={option}
-                  crewSize={quote.crewSize}
-                  depositPercent={quote.depositPercent}
-                />
+              <PlanRows
+                option={option}
+                day={day}
+                discountPercent={plan.discountPercent}
+              >
+                <HoursRows option={option} crewSize={day.crewSize} />
+              </PlanRows>
+              {plan.discountPercent > 0 && (
+                <p className="text-sm text-fg-muted">
+                  The plan discount comes off the one-off price, whoever set it.
+                </p>
               )}
-              <p className="text-sm text-fg-muted">
-                From your prices, version {quote.priceListVersion}.
-              </p>
+              {version}
             </FoldedPrice>
           </OfferPrice>
         );
       })}
-      {plan && (
-        <OfferPrice title={plan.days.length > 1 ? "Each week" : "Deposit"}>
+      {!week && (
+        <OfferPrice title="Deposit">
           <PlanTotals
             plan={plan}
             depositPercent={quote.depositPercent}
@@ -990,6 +1190,38 @@ function OfferPrice({
   );
 }
 
+// The Service recommended for a first visit, which the sent Quote offers
+// beside the one asked for (ADR-0018): an aside to the own price, the
+// Draft's and the sent one's, one quiet line under it, its price and working
+// folded behind it (the user, on #527: "The recommendation is an aside").
+// `under` stays unfolded
+function AlsoOffered({
+  option,
+  under,
+  children,
+}: {
+  option: OfficeQuoteOption;
+  under?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section aria-label={option.serviceName} className="flex flex-col text-sm">
+      <Fold
+        label={`Also offered: ${servicePrice(option.serviceName, option.totalCents)}`}
+      >
+        <div className="flex flex-col gap-3">
+          <p className="flex flex-col gap-1 text-fg-muted">
+            <span>Shown to the client as recommended; they pick one.</span>
+            <span>Includes {formatMoney(option.taxCents)} tax</span>
+          </p>
+          {children}
+        </div>
+      </Fold>
+      {under}
+    </section>
+  );
+}
+
 // Office Staff never take card details: the Client adds a card from a link
 // emailed to them, before an acceptance by phone can be recorded
 function EmailCardLink({ quote }: { quote: OfficeQuote }) {
@@ -1023,7 +1255,12 @@ function EmailCardLink({ quote }: { quote: OfficeQuote }) {
 // confirms. While a new Revision is `drafting`, it's the offer standing
 // that's accepted, and accepting it discards the Draft. Offered once a yes
 // can be recorded (a card saved, or a plan change): the page's next step,
-// or behind the arrow while a change is drafted
+// or behind the arrow while a change is drafted. Refused as the Client
+// started paying online since the page loaded, or as their bank was found
+// finishing it past its end time (#534), the page reloads under it, and
+// it's greyed with the one rule's alert in place of the refusal; or, their
+// bank having approved it just before, the quote is accepted with what
+// they paid for, which a toast says
 function RecordAcceptanceDialog({
   quote,
   drafting,
@@ -1032,30 +1269,51 @@ function RecordAcceptanceDialog({
   quote: ShownQuote;
   drafting?: number;
 } & Partial<DialogState>) {
-  // the recommended Service, unless only the other still fits
+  // a one-off's own Service first, the one asked for, as the card it's
+  // recorded from leads with it, and picked unless only the other still
+  // fits (#493)
+  const recommended = recommendedOption(quote);
+  const choices = quote.plan
+    ? quote.options
+    : [ownOption(quote), ...(recommended ? [recommended] : [])];
   const [serviceKey, setServiceKey] = useState(
-    quote.options.find((o) => quote.bookable.includes(o.serviceKey))!
-      .serviceKey,
+    choices.find((o) => quote.bookable.includes(o.serviceKey))!.serviceKey,
   );
-  const action = useAction("That didn't work. Please try again.");
+  const action = useAction("That didn't work. Please try again.", {
+    reloadOnFailure: true,
+  });
   const chosen = quote.options.find((o) => o.serviceKey === serviceKey)!;
   const depositCents = quote.plan?.depositCents ?? chosen.depositCents;
+  const paying = payingFor(quote);
 
   const accept = async (close: () => void) => {
     const ok = await action.run(
       // a plan is accepted whole
       () =>
-        postJson<OfficeQuote>(
+        postJson<RecordedAcceptance>(
           `/api/quotes/${quote.id}/accept`,
           quote.plan
             ? { revisionId: quote.revisionId }
             : { revisionId: quote.revisionId, serviceKey },
         ),
-      quote.changesPlan
-        ? "Accepted: the cleaning plan has changed"
-        : quote.plan
-          ? "Accepted: the cleaning plan has started"
-          : "Accepted and booked",
+      ({ quote: accepted, paidOnline }) => {
+        if (paidOnline) {
+          showToast({
+            tone: "info",
+            title: clientPaying.recorded(
+              quote.client.name,
+              acceptedService(accepted),
+              quote.plan ? null : chosen.serviceName,
+            ),
+          });
+          return "";
+        }
+        return quote.changesPlan
+          ? "Accepted: the cleaning plan has changed"
+          : quote.plan
+            ? "Accepted: the cleaning plan has started"
+            : "Accepted and booked";
+      },
     );
     if (ok) close();
   };
@@ -1070,7 +1328,7 @@ function RecordAcceptanceDialog({
               value={serviceKey}
               onChange={setServiceKey}
             >
-              {quote.options.map((option) => (
+              {choices.map((option) => (
                 <Radio
                   key={option.serviceKey}
                   value={option.serviceKey}
@@ -1097,13 +1355,18 @@ function RecordAcceptanceDialog({
               : ""}{" "}
             Only do this if they've told you they accept.
           </p>
-          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          {paying ? (
+            <Notice tone="warning">{clientPaying.record(paying)}</Notice>
+          ) : (
+            action.problem && <Notice tone="danger">{action.problem}</Notice>
+          )}
           <Actions>
             <Button variant="quiet" onPress={close}>
               Cancel
             </Button>
             <Button
               isPending={action.isPending}
+              isDisabled={paying !== null}
               onPress={() => void accept(close)}
             >
               {quote.changesPlan ? "Change the plan" : "Charge and book"}
@@ -1249,59 +1512,81 @@ const toInput = (fields: Fields): QuoteDraftInput => {
 
 const dollars = { style: "currency", currency: "USD" } as const;
 
-// Whether the clean has room at its start, for each Service: each option's
-// room on the Draft as last saved, which the server works out by the rule
-// accepting asks (the Jobs a plan change replaces counting as gone). A
-// warning, not a rule: the Office may be about to add hours or a Cleaner. A
-// Quote sent for a full day or time can't be accepted, and goes straight
-// under Needs attention. Faded while a change is saved, as the prices are,
-// and not shown while what's on screen is another time or crew.
-function RoomOnDay({
-  day,
+// What's wrong with a clean's time, for the picker to say over its tile, of
+// the Draft as last saved and only while what's on screen is that time and
+// crew (`fits` when that time is all well, said while its tile is paged
+// off): what Send refuses it for (too soon, past midnight), alone, in
+// danger; else whether each option has room then, by the rule accepting
+// asks (the Jobs a plan change replaces counted as gone), a warning, not a
+// rule, as the Office may be about to add hours or a Cleaner and it can
+// still be sent (Jen's to answer, #206). The tile is marked when it's the
+// quote's own clean (`own`, its place in `options`) that has a problem,
+// not only the Service recommended beside it; when it isn't, the others are
+// named, for the picker to find a time with room for them too.
+const timeCheck = ({
+  options,
+  own,
+  untimely,
+  date,
   time,
   crewSize,
-  options,
-  stale,
 }: {
-  day: string;
+  options: OfficeQuoteOption[];
+  own: number;
+  untimely: Untimely[];
+  date: string | undefined;
   time: string | undefined;
   crewSize: number;
-  options: OfficeQuoteOption[];
-  stale: boolean;
-}) {
+}): { problem?: TimeProblem; fits: boolean } => {
   const rooms = options.map((o) => o.room);
   const onScreen = (room: DayCapacity | null): room is DayCapacity =>
-    room?.date === day &&
+    room !== null &&
+    room.date === date &&
     timeOfDay(room.startsAt) === time &&
     room.crewSize === crewSize;
-  if (!rooms.every(onScreen)) return null;
-  const problems = roomProblems(options, rooms);
-  return (
-    <div
-      aria-busy={stale}
-      className={`flex flex-col gap-3 ${staleFade(stale)}`}
-    >
-      {problems.length === 0 ? (
-        <p className="flex items-center gap-2 text-sm text-success-strong">
-          <CircleCheck aria-hidden size={16} className="shrink-0" />
-          {formatDay(day)} has room for{" "}
-          {options.length === 1 ? "it" : "either clean"}.
-        </p>
-      ) : (
-        problems.map((problem) => (
-          <Notice key={problem} tone="danger">
-            {problem}
-          </Notice>
-        ))
-      )}
-    </div>
-  );
-}
+  if (!rooms.every(onScreen)) return { fits: false };
+  const refused = untimely.find((u) => u.reason !== "no_time");
+  if (refused) {
+    // past midnight, it may be only the Service beside it that runs on,
+    // which the server's line names
+    const flags =
+      refused.reason !== "past_midnight" || !rooms[own]!.endsByMidnight;
+    const late = options.filter((_, i) => !rooms[i]!.endsByMidnight);
+    return {
+      problem: {
+        tone: "danger",
+        lines: [refused.message],
+        flags,
+        // a time ending by midnight being room it lacks, the picker's
+        // nearest time with room for it too
+        ...(!flags && { alsoFor: formatList(late.map(describeOption)) }),
+      },
+      fits: false,
+    };
+  }
+  const lines = roomProblems(options, rooms);
+  if (lines.length === 0) return { fits: true };
+  if (!rooms[own]!.hasRoom) {
+    return { problem: { tone: "warning", lines, flags: true }, fits: false };
+  }
+  const others = options.filter((_, i) => !rooms[i]!.hasRoom);
+  return {
+    problem: {
+      tone: "warning",
+      lines,
+      flags: false,
+      alsoFor: formatList(others.map(describeOption)),
+    },
+    fits: false,
+  };
+};
 
 // What's wrong with these options' rooms, then how to fix it, a line for
 // each of a room's rules that fails; none when every one has room. With
-// none of them fitting, why, once for each reason; with one fitting, the
-// others named by what keeps them out.
+// none of them fitting, why, once for each reason, and that the client
+// can't accept the quote then; with one fitting, the others named by what
+// keeps them out, which the client sees but can't pick (PortalQuote's
+// `bookable`): the picker offers a time with room for them too.
 const roomProblems = (
   options: OfficeQuoteOption[],
   rooms: DayCapacity[],
@@ -1309,26 +1594,71 @@ const roomProblems = (
   const fitting = options.filter((_, i) => rooms[i]!.hasRoom);
   if (fitting.length === options.length) return [];
   if (fitting.length === 0) {
-    return [...new Set(rooms.map((r) => whyNoRoom(r)))];
+    return [
+      ...new Set(
+        rooms.map((r) =>
+          whyNoRoom(
+            r,
+            `So the client can't accept the quote: pick another time, or ${MORE_HOURS}.`,
+          ),
+        ),
+      ),
+    ];
   }
-  const missing = (rule: (room: DayCapacity) => boolean) =>
-    options.filter((_, i) => !rooms[i]!.hasRoom && rule(rooms[i]!));
-  const late = missing((r) => !r.endsByMidnight);
-  const full = missing((r) => r.endsByMidnight && !r.hasHours);
-  const crewless = missing((r) => r.endsByMidnight && r.hasHours);
-  const them = (some: OfficeQuoteOption[]) =>
-    some.length === 1 ? "it" : "them";
-  const names = (some: OfficeQuoteOption[]) =>
-    formatList(some.map(describeOption));
-  return [
-    late.length > 0 &&
-      `${upperFirst(formatList(late.map(describeOption)))} would run past midnight. Pick an earlier start time to offer ${them(late)} too.`,
-    full.length > 0 &&
-      `That day only has room for ${names(fitting)}. Pick another day to offer ${names(full)} too.`,
-    crewless.length > 0 &&
-      `Not enough cleaners are free then for ${formatList(crewless.map(describeOption), "or")}. Pick another time to offer ${them(crewless)} too.`,
-  ].filter((problem) => problem !== false);
+  // none runs past midnight here: that one can't be sent, which
+  // timeCheck says first
+  return (["full", "crew"] as const).flatMap((why) => {
+    const some = options.filter(
+      (_, i) => !rooms[i]!.hasRoom && noRoomOf(rooms[i]!) === why,
+    );
+    if (some.length === 0) return [];
+    const names = formatList(some.map(describeOption));
+    return [`The client can't pick ${names} at this time: ${NO_ROOM[why]}.`];
+  });
 };
+
+// Under each option's price, why the client can't pick it at the time
+// proposed, so the card, the client's view, doesn't read as if the others
+// can be (#493's UX review round 2, U1): a warning, as the quote can still
+// be sent, but danger when it would run past midnight, which Send refuses.
+// Nothing while it has room, or before it has a time.
+// `with` names the Service offered beside it when it has the same problem,
+// said once in this line and not again under its price (round 3, U7).
+function NoRoomLine({
+  room,
+  with: other,
+}: {
+  room: DayCapacity | null;
+  with?: string;
+}) {
+  if (!room || room.hasRoom) return null;
+  const why = noRoomOf(room);
+  return why === "past_midnight" ? (
+    <p className="text-sm text-danger-strong">
+      {runsPastMidnight(other ? `it and ${other}` : "it")}
+    </p>
+  ) : (
+    <p className="text-sm text-warning-strong">
+      The client can't pick {other ? `it or ${other}` : "it"} at this time:{" "}
+      {NO_ROOM[why]}.
+    </p>
+  );
+}
+
+// the Service offered beside the own one, when its time has the own one's
+// problem, so the card says it once
+const sameNoRoom = (
+  own: OfficeQuoteOption,
+  other: OfficeQuoteOption | undefined,
+) =>
+  other &&
+  own.room &&
+  other.room &&
+  !own.room.hasRoom &&
+  !other.room.hasRoom &&
+  noRoomOf(own.room) === noRoomOf(other.room)
+    ? describeOption(other)
+    : undefined;
 
 const describeOption = (o: OfficeQuoteOption) => `the ${o.serviceName}`;
 
@@ -1352,7 +1682,6 @@ function PlanTerms({
       <Select
         label="Service"
         name="plan.serviceKey"
-        description="Every clean on the plan is of it."
         selectedKey={plan.serviceKey}
         onSelectionChange={(key) => onChange({ serviceKey: String(key) })}
       >
@@ -1473,17 +1802,37 @@ const saveStateLabel: Record<SaveState, string> = {
 // how long after the last change the Draft is saved and priced again
 const SAVE_DELAY_MS = 500;
 
-// the prices as last worked out, in a line: what the bar at the bottom shows
-const priceSummary = (quote: ShownQuote) => {
+// a one-off Quote's own option: its Service, the one asked for unless the
+// Office changed it, after any recommended for a first visit (ADR-0018)
+const ownOption = (quote: ShownQuote) =>
+  quote.options.find((o) => !o.recommended)!;
+// and the Service it recommends in its place for a first visit, if any
+const recommendedOption = (quote: ShownQuote) =>
+  quote.options.find((o) => o.recommended);
+
+// the price as last worked out: in a line, as a phone's foot shows it, and
+// in the fewest words, for the header that sticks on a wider screen. A
+// one-off Quote's is its own Service's, the one asked for unless the Office
+// changed it: the Service recommended for a first visit is an aside, in
+// neither (the user, on #527's U1)
+const priceOf = (quote: ShownQuote) => {
   const { plan } = quote;
   if (plan) {
+    const clean = formatMoney(quote.options[0]!.totalCents);
+    const week = formatMoney(plan.roundTotalCents);
     return plan.days.length === 1
-      ? `${planName(plan)}: ${formatMoney(quote.options[0]!.totalCents)} a clean`
-      : `${plan.days.length} cleans a week: ${formatMoney(plan.roundTotalCents)} a week`;
+      ? {
+          line: `${planName(plan)}: ${clean} a clean`,
+          short: `${clean} a clean`,
+        }
+      : {
+          line: `${plan.days.length} cleans a week: ${week} a week`,
+          short: `${week} a week`,
+        };
   }
-  return quote.options
-    .map((o) => `${o.serviceName} ${formatMoney(o.totalCents)}`)
-    .join(" · ");
+  const own = ownOption(quote);
+  const named = servicePrice(own.serviceName, own.totalCents);
+  return { line: named, short: named };
 };
 
 // The area a Service priced by area is priced on: typed, or left empty to
@@ -1517,8 +1866,9 @@ function AreaField({
 
 /**
  * A Draft, saved and priced again by the server a moment after each change,
- * so the prices always follow what's on screen; the bar at the foot keeps
- * them in view wherever the change was made. On a Service Plan Quote, the
+ * so the prices always follow what's on screen; a phone's bar at the foot,
+ * or a wider screen's header that sticks, keeps them in view wherever the
+ * change was made. On a Service Plan Quote, the
  * plan's Service is chosen from its price cards.
  */
 function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
@@ -1536,6 +1886,37 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
   // saved loads again
   const [saves, setSaves] = useState(0);
   const [isSending, setSending] = useState(false);
+
+  // the Client paying the quote sent holds Send (the one rule, #534), as
+  // the page loaded it last: it looks again while they pay, and once the
+  // payment accepts the quote, the draft is gone, so it goes to the quote
+  const paying = payingFor(loaded);
+  const until = loaded.paying?.until;
+  useWhilePaying(loaded.paying, async () => {
+    const now = await getJson<OfficeQuote>(`/api/quotes/${loaded.id}`);
+    if (now.draft) {
+      await router.invalidate();
+      return;
+    }
+    if (now.status === "accepted") {
+      showToast({
+        tone: "info",
+        title: clientPaying.draftGone(now.client.name),
+      });
+    }
+    await navigate({
+      to: "/office/quotes/$quoteId",
+      params: { quoteId: now.id },
+    });
+  });
+  // a refusal to send while they paid says nothing the alert doesn't, so
+  // the alert shows in its place (answering the press), and it's untrue
+  // once they're done, so it goes as the wait ends
+  const [failedWhile, setFailedWhile] = useState(until);
+  if (failedWhile !== until) {
+    setFailedWhile(until);
+    if (failedWhile) setFailure(undefined);
+  }
 
   // every change counts up; a save records the change it saved, so a save
   // started before a later change doesn't count as saving it
@@ -1559,6 +1940,22 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
   // an option new since the Service changed has none yet
   const overrideFor = (option: OfficeQuoteOption) =>
     fields.overrides[option.serviceKey] ?? overrideOf(option);
+  // each option's own, so its "Why this price" is told apart from the other's
+  const overrideGroup = (option: OfficeQuoteOption) => (
+    <div
+      role="group"
+      aria-label={option.serviceName}
+      className="flex flex-col gap-4"
+    >
+      <OverrideFields
+        override={overrideFor(option)}
+        label={option.serviceName}
+        name={`overrides.${option.serviceKey}`}
+        onChange={(change) => setOverride(option, change)}
+      />
+    </div>
+  );
+  const recommended = recommendedOption(quote);
   const setOverride = (option: OfficeQuoteOption, change: Partial<Override>) =>
     update(({ overrides }) => ({
       overrides: {
@@ -1643,11 +2040,17 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
     setFailure(undefined);
     try {
       if (!(await saveNow())) return;
-      await postJson<OfficeQuote>(`/api/quotes/${quote.id}/send`);
-      showToast({
-        tone: "success",
-        title: `Quote sent to ${quote.client.email}`,
-      });
+      const sent = await postJson<OfficeQuote>(`/api/quotes/${quote.id}/send`);
+      // the Client's payment, approved just before, accepted the quote
+      // sent instead (#534)
+      showToast(
+        sent.status === "accepted"
+          ? {
+              tone: "info",
+              title: clientPaying.sent(sent.client.name, acceptedService(sent)),
+            }
+          : { tone: "success", title: `Quote sent to ${quote.client.email}` },
+      );
       await navigate({
         to: "/office/quotes/$quoteId",
         params: { quoteId: quote.id },
@@ -1658,8 +2061,10 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
         setFieldErrors(e.fieldErrors);
       } else if (e instanceof ApiError && e.status === 409) {
         // refused for new prices, saving again shows them; refused as the
-        // Quote has closed, the page shows how
-        if (!(await saveNow(true))) await router.invalidate();
+        // Quote has closed, or its Client is paying it (#534), the page
+        // shows how, as it loads again
+        await saveNow(true);
+        await router.invalidate();
         setFailure(e.message);
       } else {
         setFailure("That didn't work. Please try again.");
@@ -1671,11 +2076,6 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
 
   const stale = saveState === "changed" || saveState === "saving";
   const plan = fields.plan;
-  // a one-off's longest clean, as last saved, which its picker shows
-  const longest = quote.options.reduce<OfficeQuoteOption | undefined>(
-    (most, o) => (most && most.hoursOnSite >= o.hoursOnSite ? most : o),
-    undefined,
-  );
   const areaPriced =
     quote.serviceChoices.find(
       (s) => s.key === (plan?.serviceKey ?? fields.serviceKey),
@@ -1692,8 +2092,14 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
     .filter((a) => fields.addOns.includes(a.key))
     .map((a) => a.name);
   const problems = [
-    failure && (
-      <Notice key="failure" tone="danger">
+    failure && !paying && (
+      <Notice
+        key="failure"
+        // in view wherever Send was pressed (#534 UX U4); refused as the
+        // Client is paying, the paying alert answers instead
+        answers
+        tone="danger"
+      >
         {failure}
       </Notice>
     ),
@@ -1754,8 +2160,8 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
           },
           { label: "Draft quote" },
         ]}
+        // the title says it's a draft, not sent: no badge to say it again
         title={`Draft quote for ${clientName(draft.client)}`}
-        status={<StatusBadge tone="neutral">Not sent yet</StatusBadge>}
         actions={[
           {
             label: "Delete draft",
@@ -1767,10 +2173,20 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
           },
         ]}
         alerts={[
-          draft.offer && {
-            key: "sees",
-            children: stillSees(draft.client.name),
-          },
+          paying
+            ? {
+                key: "paying",
+                tone: "warning",
+                // Send refused as the Client is paying: the page loads
+                // again into this alert, which answers the press in its
+                // place (`failure` below), in view wherever Send was
+                answers: !!failure,
+                children: clientPaying.draft(paying.name, paying),
+              }
+            : draft.offer && {
+                key: "sees",
+                children: stillSees(draft.client.name),
+              },
           draft.changesPlan && {
             key: "plan",
             children: (
@@ -1779,32 +2195,40 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
           },
         ]}
         aside={{
-          title: "Prices",
+          // the quote the client will see (the user, on #527)
+          title: "Quote",
           leads: true,
           children: (
             <DraftPrices quote={quote} dayTitles={dayTitles} stale={stale} />
           ),
         }}
         end={problems.length > 0 && problems}
-        // the prices stay in view wherever the change was made, in the
-        // app's one bar at a page's foot, clear of a phone's tab bar (#425)
-        footer={{
-          label: "Send the quote",
-          summary: priceSummary(quote),
-          status: saveStateLabel[saveState],
-          children: (
-            <Button
-              isPending={isSending}
-              isDisabled={!quote.client.email || quote.needsSiteVisit}
-              onPress={() => void onSend()}
-            >
-              {/* just Send, so a long name doesn't squeeze the prices; the
-                  heading names who it goes to, and so does this for a
-                  screen reader */}
-              Send<span className="sr-only"> to {quote.client.name}</span>
-            </Button>
-          ),
+        // the page's next step; the prices and whether they're saved stay
+        // in view wherever the change was made: a phone's bar at the foot,
+        // a wider screen's header that sticks (#425, #493 D1)
+        next={{
+          // just Send, so a long name doesn't squeeze the prices; the
+          // heading names who it goes to, and so does this for a screen
+          // reader
+          label: "Send",
+          srLabel: `to ${quote.client.name}`,
+          icon: Send,
+          isPending: isSending,
+          // and while the Client is paying or a time can't be sent, which
+          // the line beside it says (noteOf)
+          isDisabled:
+            !!paying ||
+            !quote.client.email ||
+            quote.needsSiteVisit ||
+            quote.untimely.length > 0,
+          onAction: () => void onSend(),
         }}
+        price={priceOf(quote)}
+        note={noteOf(
+          saveState,
+          liveHold(quote, !!paying),
+          sendHold(quote, dayTitles),
+        )}
       >
         {draft.asked && (
           <FormPart title="What was asked" summary={askedSummary(draft)}>
@@ -1848,13 +2272,19 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
                 index={i}
                 title={dayTitles[i]!}
                 day={day}
-                plan={plan}
                 stale={stale}
+                quoteId={quote.id}
+                saves={saves}
                 // as last saved, at the same place
                 option={quote.options[i]}
-                crew={
-                  quote.options[i] && { quoteId: quote.id, weekday: i, saves }
-                }
+                untimely={quote.untimely.filter((u) => u.weekday === i)}
+                // the plan's other weekdays, which this one can't be on
+                taken={plan.days.flatMap((d) =>
+                  d.key !== day.key && d.date
+                    ? [weekdayOf(d.date.toString())]
+                    : [],
+                )}
+                weekdays={plan.days.length}
                 onChange={(change) => setDay(day.key, change)}
                 onRemove={
                   plan.days.length > 1
@@ -1867,14 +2297,11 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
           </>
         ) : (
           <FormPart title="Service">
+            {/* "Type", as the part already says Service (the user, on
+                #527); its region names it Service to a screen reader */}
             <Select
-              label="Service"
+              label="Type"
               name="serviceKey"
-              description={
-                quote.options.length > 1
-                  ? `With a ${quote.options[0]!.serviceName} recommended for a first visit`
-                  : undefined
-              }
               selectedKey={fields.serviceKey}
               onSelectionChange={(key) => set({ serviceKey: String(key) })}
             >
@@ -1885,23 +2312,17 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
               ))}
             </Select>
             {areaField}
-            {quote.options.map((option) => (
-              // each option's own, so its "Why this price" is told apart
-              // from the other's
-              <div
-                key={option.serviceKey}
-                role="group"
-                aria-label={option.serviceName}
-                className="flex flex-col gap-4"
+            {overrideGroup(ownOption(quote))}
+            {recommended && (
+              // an aside, as beside the form (the user, on #527): its own
+              // price set behind a fold, open while it's set
+              <Fold
+                label={`${recommended.serviceName}, also offered for a first visit`}
+                defaultOpen={overrideFor(recommended).on}
               >
-                <OverrideFields
-                  override={overrideFor(option)}
-                  label={option.serviceName}
-                  name={`overrides.${option.serviceKey}`}
-                  onChange={(change) => setOverride(option, change)}
-                />
-              </div>
-            ))}
+                {overrideGroup(recommended)}
+              </Fold>
+            )}
           </FormPart>
         )}
 
@@ -1930,14 +2351,12 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
 
         <FormPart
           title="Terms"
-          summary={[
+          summary={lineOf([
             // each of a plan's weekdays has its own
             !plan && cleaners(fields.crewSize),
             `${fields.depositPercent}% deposit`,
             `valid ${fields.validityDays} days`,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
+          ])}
         >
           <FieldRow>
             {!plan && (
@@ -1969,42 +2388,15 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
           </FieldRow>
         </FormPart>
 
-        {/* a plan's weekdays each have their own, above; a time too soon
-            is the date's error when it's sent, the server's (WEB-D) */}
+        {/* a plan's weekdays each have their own, above */}
         {!plan && (
-          <FormPart title="Proposed time">
-            <FieldRow>
-              <DatePicker
-                label="Date"
-                name="proposedStart"
-                value={fields.date}
-                onChange={(date) => set({ date })}
-              />
-              <TimeField
-                label="Start time"
-                value={fields.time}
-                onChange={(time) => set({ time })}
-              />
-            </FieldRow>
-            <PickFromSchedule
-              date={fields.date?.toString()}
-              time={timeOfField(fields.time)}
-              hoursOnSite={longest?.hoursOnSite ?? 0}
-              crew={longest && { quoteId: quote.id, saves }}
-              onPick={({ date, time }) =>
-                set({ date: parseDate(date), time: parseTime(time) })
-              }
-            />
-            {fields.date && (
-              <RoomOnDay
-                day={fields.date.toString()}
-                time={timeOfField(fields.time)}
-                crewSize={fields.crewSize}
-                options={quote.options}
-                stale={stale}
-              />
-            )}
-          </FormPart>
+          <ProposedTime
+            quote={quote}
+            fields={fields}
+            saves={saves}
+            stale={stale}
+            onChange={set}
+          />
         )}
       </FormPage>
     </Form>
@@ -2016,55 +2408,211 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
 const dayTitle = (day: DayFields, index: number) =>
   day.date ? `${weekdayName(day.date.toString())}s` : `Weekday ${index + 1}`;
 
-// A new weekday for a Service Plan Draft: like the last, on the day after
-// it if that's still within a week of the first, at the same time
-const anotherDay = (days: DayFields[]): DayFields => {
-  const last = days.at(-1)!;
-  const dates = days.flatMap((d) => (d.date ? [d.date] : []));
-  const first = dates.reduce<CalendarDate | undefined>(
-    (min, d) => (!min || d.compare(min) < 0 ? d : min),
-    undefined,
+// A new weekday for a Service Plan Draft: its Cleaners like the last's, and
+// no time yet, for Office Staff to pick the weekday the client asked for
+// (a guess at it would lock its strip to the guessed weekday's dates)
+const anotherDay = (days: DayFields[]): DayFields => ({
+  key: nextKey(),
+  date: null,
+  time: null,
+  crewSize: days.at(-1)!.crewSize,
+  override: { on: false, price: 0, reason: "" },
+});
+
+// A one-off Draft's proposed time, picked from the open times in its part
+// as the asked-for Service's clean (folded as `timeFold` says)
+function ProposedTime({
+  quote,
+  fields,
+  saves,
+  stale,
+  onChange,
+}: {
+  quote: ShownQuote;
+  fields: Fields;
+  saves: number;
+  stale: boolean;
+  onChange: (change: Partial<Fields>) => void;
+}) {
+  const own = ownOption(quote);
+  const date = fields.date?.toString();
+  const time = timeOfField(fields.time);
+  const untimely = quote.untimely.filter((u) => u.weekday === null);
+  const { problem, fits } = timeCheck({
+    options: quote.options,
+    own: quote.options.indexOf(own),
+    untimely,
+    date,
+    time,
+    crewSize: fields.crewSize,
+  });
+  return (
+    <FormPart
+      title="Proposed time"
+      {...timeFold({
+        date,
+        time,
+        hoursOnSite: own.hoursOnSite,
+        problem,
+        untimely,
+      })}
+    >
+      <PickOpenTime
+        quoteId={quote.id}
+        saves={saves}
+        hoursOnSite={own.hoursOnSite}
+        date={fields.date}
+        time={fields.time}
+        problem={problem}
+        fits={fits}
+        stale={stale}
+        name="proposedStart"
+        onChange={onChange}
+        onPick={(picked) =>
+          onChange({
+            date: parseDate(picked.date),
+            time: parseTime(picked.time),
+          })
+        }
+      />
+    </FormPart>
   );
-  const next = last.date?.add({ days: 1 });
-  const taken = (d: CalendarDate) =>
-    dates.some((t) => weekdayOf(t.toString()) === weekdayOf(d.toString()));
+}
+
+// A Proposed time part's fold, as the other parts fold to what's set: its
+// line, the time set ("Fri, Dec 4 · 11:30 AM to 2:00 PM", when it ends once
+// priced) or that there's none; and folded on load only when that time is
+// set, has room and can be sent, open otherwise, where there's something
+// to do. Folded by hand, its line follows the time picked since.
+const timeFold = ({
+  date,
+  time,
+  hoursOnSite,
+  problem,
+  untimely,
+}: {
+  date: string | undefined;
+  time: string | undefined;
+  hoursOnSite: number | undefined;
+  problem: TimeProblem | undefined;
+  untimely: Untimely[];
+}) => {
+  if (!date || !time) return { summary: "Not picked yet", defaultOpen: true };
+  const ends =
+    hoursOnSite === undefined ? undefined : endsAt(time, hoursOnSite);
   return {
-    key: nextKey(),
-    date:
-      next && first && next.compare(first.add({ days: 7 })) < 0 && !taken(next)
-        ? next
-        : null,
-    time: last.time,
-    crewSize: last.crewSize,
-    override: { on: false, price: 0, reason: "" },
+    summary: `${formatDay(date)} · ${formatClock(time)}${ends ? ` to ${ends}` : ""}`,
+    defaultOpen:
+      hoursOnSite === undefined || problem !== undefined || untimely.length > 0,
   };
 };
 
+// What Send waits on whatever's typed, said beside it in every save
+// state: the Client paying the quote sent (the one rule, #534), or their
+// email to add. None when neither holds it.
+const liveHold = (quote: ShownQuote, paying: boolean) => {
+  const name = firstNameOf(quote.client.name);
+  if (paying) return clientPaying.send(name);
+  if (!quote.client.email) return `Add ${name}'s email first`;
+  return undefined;
+};
+
+// What else Send waits on, said beside it after "Saved", of the Draft as
+// last saved: a site visit first, a time to pick, a later or an earlier
+// one, or that the one picked has no room, named, as the picker may be out
+// of view. None when it can go.
+const sendHold = (quote: ShownQuote, dayTitles: string[]) => {
+  if (quote.needsSiteVisit)
+    return quote.bookedSiteVisit
+      ? "Record what the site visit found first"
+      : "Book the site visit first";
+  const untimed = quote.untimely.filter((u) => u.reason === "no_time");
+  if (untimed.length > 0) {
+    if (!quote.plan) return "Pick a time to send";
+    return untimed.length === dayTitles.length && untimed.length > 1
+      ? "Pick a time for each weekday"
+      : `Pick a time for ${formatList(untimed.map((u) => dayTitles[u.weekday!]!))}`;
+  }
+  const [refused] = quote.untimely;
+  if (refused) {
+    const which =
+      refused.weekday === null ? "" : ` for ${dayTitles[refused.weekday]}`;
+    return refused.reason === "too_soon"
+      ? `Pick a later time${which}`
+      : `Pick an earlier start time${which}`;
+  }
+  // a one-off's own clean, or any plan weekday's
+  const rooms = quote.plan
+    ? quote.options.map((o) => o.room)
+    : [ownOption(quote).room];
+  const full = rooms.find((room) => room && !room.hasRoom);
+  return full
+    ? `No room on ${formatDay(full.date)} at ${formatClock(timeOfDay(full.startsAt))}`
+    : undefined;
+};
+
+// the line beside Send: whether it's saved, then what Send waits on: a
+// live hold always, the Draft's own once it's saved
+const noteOf = (
+  state: SaveState,
+  live: string | undefined,
+  saved: string | undefined,
+) => {
+  const hold = live ?? (state === "saved" ? saved : undefined);
+  return hold ? `${saveStateLabel[state]} · ${hold}` : saveStateLabel[state];
+};
+
+// A plan's weekday: its Cleaners, then its proposed time, picked from the
+// open times as the Draft's one-off's is, then its price set by hand. Its
+// time folds as on load again when a weekday's added or removed, so a
+// finished one steps out of the way of the new one: once that saves, as
+// whether it's finished is the Draft's as last saved, and a time typed just
+// before the press may still be saving.
 function PlanDayFields({
   index,
   title,
   day,
-  plan,
   stale,
+  quoteId,
+  saves,
   option,
-  crew,
+  untimely,
+  taken,
+  weekdays,
   onChange,
   onRemove,
 }: {
   index: number;
   title: string;
   day: DayFields;
-  plan: PlanFields;
   stale: boolean;
+  quoteId: string;
+  saves: number;
+  // as last saved, none until it's priced
   option: OfficeQuoteOption | undefined;
-  // whose crew its picker marks, once it's priced
-  crew: Crew | undefined;
+  untimely: Untimely[];
+  taken: number[];
+  // how many the plan has
+  weekdays: number;
   onChange: (change: Partial<DayFields>) => void;
   // none while it's the plan's only weekday
   onRemove: (() => void) | undefined;
 }) {
+  const [foldFor, setFoldFor] = useState(weekdays);
+  if (foldFor !== weekdays && !stale) setFoldFor(weekdays);
   const name = `plan.days.${index}`;
+  const date = day.date?.toString();
   const time = timeOfField(day.time);
+  const { problem, fits } = option
+    ? timeCheck({
+        options: [option],
+        own: 0,
+        untimely,
+        date,
+        time,
+        crewSize: day.crewSize,
+      })
+    : { fits: false };
   return (
     <FormPart
       title={title}
@@ -2079,44 +2627,7 @@ function PlanDayFields({
         )
       }
     >
-      <FieldRow>
-        <DatePicker
-          label="Date"
-          name={`${name}.start`}
-          value={day.date}
-          onChange={(date) => onChange({ date })}
-        />
-        <TimeField
-          label="Start time"
-          value={day.time}
-          onChange={(time) => onChange({ time })}
-        />
-      </FieldRow>
-      <PickFromSchedule
-        date={day.date?.toString()}
-        time={time}
-        hoursOnSite={option?.hoursOnSite ?? 0}
-        crew={crew}
-        repeats={{
-          everyDays: recurrenceDays[plan.recurrence],
-          label: recurrenceLabel[plan.recurrence],
-        }}
-        onPick={(picked) =>
-          onChange({
-            date: parseDate(picked.date),
-            time: parseTime(picked.time),
-          })
-        }
-      />
-      {day.date && option && (
-        <RoomOnDay
-          day={day.date.toString()}
-          time={time}
-          crewSize={day.crewSize}
-          options={[option]}
-          stale={stale}
-        />
-      )}
+      {/* first, as its open times are for this many */}
       <FieldRow>
         <NumberField
           label="Cleaners"
@@ -2127,7 +2638,9 @@ function PlanDayFields({
           onChange={(crewSize) => onChange({ crewSize })}
         />
       </FieldRow>
-      {/* its price is beside the form, with the rest */}
+      {/* its price is beside the form, with the rest; over the time, as
+          the one-off's is in its Service, not under a long picker where it
+          reads as one of the picker's (#493's UX review round 2, U5) */}
       {option && (
         <OverrideFields
           override={day.override}
@@ -2138,6 +2651,40 @@ function PlanDayFields({
           }
         />
       )}
+      <FormPart
+        key={foldFor}
+        title="Proposed time"
+        headingLevel={3}
+        {...timeFold({
+          date,
+          time,
+          hoursOnSite: option?.hoursOnSite,
+          problem,
+          untimely,
+        })}
+      >
+        <PickOpenTime
+          quoteId={quoteId}
+          weekday={index}
+          title={title}
+          saves={saves}
+          hoursOnSite={option?.hoursOnSite}
+          date={day.date}
+          time={day.time}
+          taken={taken}
+          problem={problem}
+          fits={fits}
+          stale={stale}
+          name={`${name}.start`}
+          onChange={onChange}
+          onPick={(picked) =>
+            onChange({
+              date: parseDate(picked.date),
+              time: parseTime(picked.time),
+            })
+          }
+        />
+      </FormPart>
     </FormPart>
   );
 }

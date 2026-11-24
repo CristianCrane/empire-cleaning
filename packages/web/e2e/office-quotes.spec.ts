@@ -6,9 +6,11 @@ import {
   expect,
   expectAccessible,
   listRows,
+  proposeNextMonday,
   requestQuoteAsGuest,
   requestQuoteForPremises,
   serviceKey,
+  saved,
   signedInAs,
   test,
   pageAction,
@@ -81,7 +83,7 @@ test(
     await page.getByRole("button", { name: "New client" }).click();
     // who's calling comes first
     await page.getByRole("textbox", { name: "Full name" }).fill("Pat Phoner");
-    const price = page.getByRole("region", { name: "What it comes to" });
+    const price = page.getByRole("region", { name: "Quote" });
     await expect(price).toContainText("Pick what they need");
     await chooseService(page);
     await describeNewHome(page);
@@ -106,6 +108,9 @@ test(
     await expect(
       page.getByRole("region", { name: "Standard Clean" }),
     ).toContainText("$194.89");
+    // a time picked, so only the missing email holds Send
+    await proposeNextMonday(page);
+    await saved(page);
     await expect(
       page.getByText(
         "Pat Phoner has no email yet, so this quote can't be sent.",

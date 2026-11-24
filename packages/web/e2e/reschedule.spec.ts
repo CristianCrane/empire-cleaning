@@ -6,6 +6,8 @@ import {
   emailsTo,
   expect,
   expectAccessible,
+  expectNextStep,
+  expectNothingNext,
   offerJob,
   requestReschedule,
   setClock,
@@ -15,6 +17,7 @@ import {
   addCleaner,
   pageAction,
   openTile,
+  titleBadge,
 } from "./harness.ts";
 
 // the API's clock is at 4am on Monday 5 January 2026 in New York. The Job
@@ -60,7 +63,9 @@ test(
       page.getByRole("region", { name: "Clean details" }),
     ).toContainText("Free to move or cancelUntil Sun, Jan 11, 9:00 AM");
 
-    // what it costs, said in its dialog
+    // moving it is the next step, cancelling it behind the arrow; what it
+    // costs, said in its dialog
+    await expectNextStep(page, "Pick a new time");
     await pageAction(page, "Pick a new time");
     const dialog = page.getByRole("dialog", { name: "Pick a new time" });
     await expect(dialog).toContainText("There's no charge for moving it.");
@@ -74,10 +79,7 @@ test(
 
     await expect(page.getByText("Request sent")).toBeVisible();
     // the badge says what's waiting, as the Cleans list does, not Booked
-    const titleLine = page
-      .getByRole("heading", { level: 1 })
-      .locator("xpath=..");
-    await expect(titleLine).toHaveText(/Move asked$/);
+    await expect(titleBadge(page, "Move asked")).toBeVisible();
     const pending = page
       .getByRole("status")
       .filter({ hasText: "You've asked to move it" });
@@ -87,11 +89,13 @@ test(
     expect((await emailsTo(olive.email)).at(-1)!.subject).toBe(
       "Casey Client asked to move a job",
     );
+    // it waits on us now: nothing next, Withdraw the alert's own action
+    await expectNothingNext(page);
 
     await pending.getByRole("button", { name: "Withdraw request" }).click();
     await expect(page.getByText("Request withdrawn")).toBeVisible();
     await expect(pending).toHaveCount(0);
-    await expect(titleLine).toHaveText(/Booked$/);
+    await expect(titleBadge(page, "Booked")).toBeVisible();
   },
 );
 

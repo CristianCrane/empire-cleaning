@@ -78,12 +78,12 @@ describe("where a Client's home stands", () => {
     ).toBe("Nothing booked");
   });
 
-  test("a Quote to answer comes before a clean booked", () => {
+  test("a Quote ready comes before a clean booked", () => {
     expect(
       standingOf("en", home, data({ quotes: [quote()], jobs: [job] })),
     ).toEqual({
       tone: "warning",
-      label: "Quote to answer",
+      label: "Quote ready",
       line: "Deep Clean, sent Oct 28",
     });
   });

@@ -6,6 +6,8 @@ import type {
 } from "@empire-cleaning/models";
 import {
   moneyNow as moneyNowIn,
+  owedAnswer as owedAnswerIn,
+  pausedLine as pausedLineIn,
   paymentRow as paymentRowIn,
   type PaymentsData,
 } from "./payments.ts";
@@ -14,6 +16,10 @@ import {
 const moneyNow = (data: PaymentsData) => moneyNowIn(data, "en");
 const paymentRow = (p: Parameters<typeof paymentRowIn>[0]) =>
   paymentRowIn(p, "en");
+const pausedLine = (plans: Parameters<typeof pausedLineIn>[0], asks = true) =>
+  pausedLineIn(plans, "en", asks);
+const owedAnswer = (data: PaymentsData) =>
+  owedAnswerIn(moneyNow(data).owed!, "en", data.plans);
 
 // Tuesday 20 October 2026, 9am in New York
 const CLEAN = "2026-10-20T13:00:00.000Z";
@@ -44,6 +50,7 @@ const bill = (over: Partial<BillSummary> = {}): BillSummary =>
   }) as BillSummary;
 
 const data = (over: Partial<PaymentsData> = {}): PaymentsData => ({
+  plans: [],
   pastJobs: [],
   bills: [],
   paymentMethod: card,
@@ -78,7 +85,7 @@ describe("what a Client owes now", () => {
     );
 
     expect(owed).toMatchObject({
-      text: "Your payment for your Oct 20 clean hasn't gone through yet",
+      text: "Your Oct 20 clean",
       // so their Home leads with what's next, not this, and Payments
       // says it calmly
       asks: false,
@@ -97,9 +104,14 @@ describe("what a Client owes now", () => {
     expect(moneyNow(data({ bills: [waiting] })).owed).toMatchObject({
       asks: false,
       late: false,
-      text: "Your payment for bill EC-000041 hasn't gone through yet",
+      text: "Bill EC-000041",
+      action: {
+        label: "See the bill",
+        href: href("/portal/bills/$billId", { billId: "bill" }),
+      },
     });
-    // the declined one leads, though the waiting one came first
+    // the declined one leads, though the waiting one came first, and is
+    // the card alone: the waiting one can't be paid
     expect(
       moneyNow(
         data({
@@ -114,9 +126,10 @@ describe("what a Client owes now", () => {
         }),
       ).owed,
     ).toMatchObject({
+      cents: 125350,
       asks: true,
       late: true,
-      text: "We couldn't take payment for bill EC-000042, and 1 more",
+      text: "We couldn't take payment for bill EC-000042",
     });
   });
 
@@ -180,6 +193,31 @@ describe("what a Client owes now", () => {
   });
 });
 
+describe("the owed card", () => {
+  const waiting = bill({ unpaid: { since: "", kind: "waiting", why: null } });
+
+  test("one we try again ourselves is calm: pending, one short line, a way to see it", () => {
+    expect(owedAnswer(data({ bills: [waiting] }))).toEqual({
+      hero: expect.objectContaining({
+        label: "Payment pending",
+        tone: "info",
+        headline: "$1,253.50",
+        lines: ["Bill EC-000041 · Nothing you need to do."],
+        action: expect.objectContaining({
+          label: "See the bill",
+          secondary: true,
+        }),
+      }),
+    });
+  });
+
+  test("one that asks is to pay, its Button the page's primary", () => {
+    const { hero } = owedAnswer(data({ bills: [bill()] }));
+    expect(hero).toMatchObject({ label: "To pay", tone: "warning" });
+    expect(hero.action?.secondary).toBeUndefined();
+  });
+});
+
 const job = {
   id: "job",
   serviceName: "Standard Clean",
@@ -199,6 +237,29 @@ const payment = (over: Partial<ClientPayment> = {}): ClientPayment => ({
   ...over,
 });
 const jobHref = href("/portal/jobs/$jobId", { jobId: "job" });
+
+// the owed card's line, on Home and Payments alike, while money owed
+// pauses a plan
+describe("what a paused plan means, under what's owed", () => {
+  test("nothing while no plan is paused", () => {
+    expect(pausedLine([])).toEqual([]);
+    expect(pausedLine([{ status: "active" }])).toEqual([]);
+  });
+
+  // what the pause does, true whether or not its cleans are booked, so
+  // it never says booked cleans go ahead when none are (#532's U5)
+  test("a paused plan books no more cleans until it's paid", () => {
+    expect(pausedLine([{ status: "active" }, { status: "on_hold" }])).toEqual([
+      "Until it's paid, we won't book more cleans on your plan.",
+    ]);
+  });
+
+  test("asking nothing of them, until it goes through", () => {
+    expect(pausedLine([{ status: "on_hold" }], false)).toEqual([
+      "Until it goes through, we won't book more cleans on your plan.",
+    ]);
+  });
+});
 
 describe("how a payment reads", () => {
   test("a clean's charge is just the clean, on its day", () => {

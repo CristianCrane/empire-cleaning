@@ -16,6 +16,7 @@ const REFUND_TAKES_DAYS = "It can take a few days to reach you.";
 const UPDATE_AND_RETRY = "update your card and we'll try again straight away";
 const BOOKED_GO_AHEAD =
   "Cleans already booked still go ahead, but we won't book any more.";
+const PAUSED_TILL_PAID = "Until it's paid, your cleaning plan is paused.";
 
 const moreHoursEn = (a: Changed) =>
   `${a.hours} ${formats.en.plural(a.hours!, { one: "more hour", other: "more hours" })}`;
@@ -25,6 +26,8 @@ const UPDATE_AND_RETRY_ES =
   "actualice su tarjeta y lo volvemos a intentar enseguida";
 const BOOKED_GO_AHEAD_ES =
   "Las limpiezas ya reservadas siguen en pie, pero no reservaremos más.";
+const PAUSED_TILL_PAID_ES =
+  "Hasta que se pague, su plan de limpieza está en pausa.";
 
 const moreHoursEs = (a: Changed) =>
   `${a.hours} ${formats.es.plural(a.hours!, { one: "hora más", other: "horas más" })}`;
@@ -54,6 +57,9 @@ export const payments = catalog({
       why: string | null = null,
     ) =>
       `We couldn't take ${amount}${card ? ` from your ${card}` : ""}${why ? ` (${why})` : ""}.`,
+    // a payment we try again ourselves, pending, as each screen says it
+    // under its "Payment pending": all a Client needs (#536)
+    NOTHING_TO_DO: "Nothing you need to do.",
     // a clean's payment that didn't go through, as its Client is told, for
     // a sentence to end: `day` already formatted
     cleanNotPaid: (day: string) =>
@@ -70,9 +76,16 @@ export const payments = catalog({
       late: "Please pay it on its page.",
     } satisfies Record<UnpaidKind, string>,
     // a Client's cleaning plan, paused while a payment on it is Unpaid, and
-    // back on once it's paid
+    // back on once it's paid: as a rule (the terms, a Bill that would
+    // pause it if late), where booked cleans going ahead is a promise
     BOOKED_GO_AHEAD,
-    PLAN_PAUSED: `Until it's paid, your cleaning plan is paused. ${BOOKED_GO_AHEAD}`,
+    PLAN_PAUSED: `${PAUSED_TILL_PAID} ${BOOKED_GO_AHEAD}`,
+    // a plan paused now, wherever it's said: what the pause does, true
+    // whether or not any of its cleans are booked (#532's U5), "until it's
+    // paid" only when it asks them to pay, else "until it goes through", as
+    // Home says it, since "paid" read as theirs to do (#536)
+    noMoreCleans: (asks: boolean) =>
+      `${asks ? "Until it's paid" : "Until it goes through"}, we won't book more cleans on your plan.`,
     PLAN_BACK_ON:
       "Your cleaning plan is back on, and we'll book your cleans as usual.",
     // a fee for a clean that didn't happen, by the Job's status
@@ -107,6 +120,7 @@ export const payments = catalog({
       why: string | null = null,
     ) =>
       `No pudimos cobrar ${amount}${card ? ` de su ${card}` : ""}${why ? ` (${why})` : ""}.`,
+    NOTHING_TO_DO: "No tiene que hacer nada.",
     cleanNotPaid: (day: string) =>
       `No pudimos cobrar el pago de su limpieza del ${day}`,
     UPDATE_AND_RETRY: UPDATE_AND_RETRY_ES,
@@ -120,7 +134,9 @@ export const payments = catalog({
       late: "Por favor, páguela en su página.",
     },
     BOOKED_GO_AHEAD: BOOKED_GO_AHEAD_ES,
-    PLAN_PAUSED: `Hasta que se pague, su plan de limpieza está en pausa. ${BOOKED_GO_AHEAD_ES}`,
+    PLAN_PAUSED: `${PAUSED_TILL_PAID_ES} ${BOOKED_GO_AHEAD_ES}`,
+    noMoreCleans: (asks: boolean) =>
+      `Hasta que ${asks ? "se pague" : "el pago pase"}, no reservaremos más limpiezas de su plan.`,
     PLAN_BACK_ON:
       "Su plan de limpieza está activo de nuevo, y reservaremos sus limpiezas como siempre.",
     feeName: {

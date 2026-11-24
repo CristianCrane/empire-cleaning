@@ -39,7 +39,7 @@ import { useHomeUrl } from "../home-search.ts";
 import { CrewBadge } from "../JobBadges.tsx";
 import { JobIcon, NeedsCleanersIcon, QuoteIcon } from "../icons.ts";
 import { billWeek } from "../BillParts.tsx";
-import { addressOf, clientName } from "../format.ts";
+import { addressOf, clientName, lineOf } from "../format.ts";
 import { QUOTE_A_PLAN } from "./StartDraft.tsx";
 
 // a tile's hint: how many of its Jobs are Unassigned, their crew not yet
@@ -105,13 +105,11 @@ export function Dashboard() {
         id: job.id,
         at: job.startsAt,
         title: clientName(job.client),
-        description: [
+        description: lineOf([
           job.serviceName,
           addressOf(job.property),
           formatList(job.crew.map((c) => c.name)),
-        ]
-          .filter(Boolean)
-          .join(" · "),
+        ]),
         status: {
           badge: <CrewBadge assignment={job.assignment} />,
           plain: job.assignment === "assigned",

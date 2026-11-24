@@ -1,5 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { CalendarClock, CalendarSync, CalendarX, Ellipsis } from "lucide-react";
+import {
+  Ban,
+  Banknote,
+  CalendarClock,
+  CalendarSync,
+  CalendarX,
+  Ellipsis,
+  Printer,
+} from "lucide-react";
 import { Button } from "./Button.tsx";
 import { Heading } from "./Heading.tsx";
 import { Menu, MenuItem, MenuSeparator } from "./Menu.tsx";
@@ -38,5 +46,31 @@ export const AtTheEndOfATitle: Story = {
         </MenuItem>
       </Menu>
     </div>
+  ),
+};
+
+// what the page's goal needs but can't be done yet: greyed, each saying
+// why under it, as the open menu may cover the page's alert that says so
+export const SomeNotYet: Story = {
+  render: (args) => (
+    <Menu {...args}>
+      <MenuItem
+        icon={Banknote}
+        isDisabled
+        description="Not while its card payment is going through"
+      >
+        Record a payment
+      </MenuItem>
+      <MenuItem icon={Printer}>Print</MenuItem>
+      <MenuSeparator />
+      <MenuItem
+        icon={Ban}
+        danger
+        isDisabled
+        description="Not while its card payment is going through"
+      >
+        Cancel bill
+      </MenuItem>
+    </Menu>
   ),
 };

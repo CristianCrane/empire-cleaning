@@ -1,8 +1,8 @@
 import { catalog } from "@empire-cleaning/models";
 import type { Key } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import { CalendarClock, FileText, KeyRound } from "lucide-react";
-import { homeIcon } from "../icons.ts";
+import { CalendarClock, KeyRound } from "lucide-react";
+import { homeIcon, QuoteIcon } from "../icons.ts";
 import type { PropertyView } from "@empire-cleaning/models";
 import {
   ActionRow,
@@ -28,7 +28,7 @@ import { accessHelp } from "@empire-cleaning/quote-request";
 import { patchJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { addressOf } from "../format.ts";
+import { addressOf, lineOf } from "../format.ts";
 import { useSaid } from "../words.ts";
 import { AccessFact, ConditionFact, FloorAreaFact } from "../Fact.tsx";
 import { planWhen, quoteTitle, standingOf } from "./properties.ts";
@@ -42,7 +42,7 @@ const words = catalog({
     businessDetails: "Business details",
     homeDetails: "Home details",
     yourBusiness: "Your business",
-    conditionLine: "Condition, at the last visit",
+    conditionLine: "Condition, as last reported",
     accessLine: "How we get in: only your cleaners see it",
     sizeNote:
       "To change its size or rooms, ask us for a new quote. They set the price.",
@@ -63,7 +63,7 @@ const words = catalog({
     businessDetails: "Datos del negocio",
     homeDetails: "Datos de la casa",
     yourBusiness: "Su negocio",
-    conditionLine: "Estado, en la última visita",
+    conditionLine: "Estado, según lo último informado",
     accessLine: "Cómo entramos: solo sus limpiadores lo ven",
     sizeNote:
       "Para cambiar su tamaño o habitaciones, pídanos una nueva cotización: de eso depende el precio.",
@@ -155,13 +155,11 @@ export function PortalProperty() {
                 id={plan.id}
                 start={<IconTile icon={CalendarClock} />}
                 title={`${t.recurrenceLabel[plan.recurrence]}, ${planWhen(t.lang, plan)}`}
-                description={[
+                description={lineOf([
                   [...new Set(plan.days.map((d) => d.serviceName))].join(", "),
                   plan.nextStartsAt &&
                     w.nextClean(t.formatDateTime(plan.nextStartsAt)),
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
+                ])}
                 end={<PlanStatusBadge status={plan.status} />}
               />
             ))}
@@ -196,7 +194,7 @@ export function PortalProperty() {
               <ListItem
                 key={q.id}
                 id={q.id}
-                start={<IconTile icon={FileText} />}
+                start={<IconTile icon={QuoteIcon} />}
                 title={quoteTitle(t.lang, q)}
                 description={
                   q.sentAt

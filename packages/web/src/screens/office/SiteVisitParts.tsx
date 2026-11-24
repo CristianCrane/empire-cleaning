@@ -52,6 +52,7 @@ import {
   clientName,
   dayOfInstant,
   formatMinutes,
+  lineOf,
   siteVisitStatusLabel,
   timeOfDay,
   timeOfField,
@@ -107,13 +108,11 @@ export function SiteVisitBadge({
 // with no visit, when they were
 export const visitSummary = (visit: SiteVisitView) =>
   visit.startsAt
-    ? [
+    ? lineOf([
         formatDateTime(visit.startsAt),
         formatMinutes(visit.minutes),
         visit.visitor?.name,
-      ]
-        .filter(Boolean)
-        .join(" · ")
+      ])
     : `Findings recorded ${formatDateTime(visit.doneAt!)}, with no visit`;
 
 // everyone active on the Staff, who can make a Site Visit
@@ -190,7 +189,7 @@ function BookingForm({
           </SelectItem>
         ))}
       </Select>
-      <FieldRow>
+      <FieldRow packed>
         <DatePicker label="Day" name="date" value={date} onChange={setDate} />
         <TimeField
           label="Start time"
