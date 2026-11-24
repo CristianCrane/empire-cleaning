@@ -98,11 +98,10 @@ test(
 
     await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
     await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
+    // how often; each weekday's card names its day and time
     await expect(
       page.getByRole("region", { name: "Current quote" }),
-    ).toContainText(
-      "Every week, on Mondays at 9:00 AM and Wednesdays at 1:00 PM",
-    );
+    ).toContainText("Every week");
     await expect(
       page.getByRole("region", { name: "Mondays at 9:00 AM: Standard Clean" }),
     ).toContainText("On site, with 2 cleaners");

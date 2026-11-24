@@ -375,6 +375,8 @@ test(
     // the Service asked for, not the one recommended
     await expect(row).toContainText(/Standard Clean.*\$\d/);
     await expect(row).not.toContainText("Deep Clean");
+    // a phone's row says what its age is, as the Table's header does
+    if (isMobile) await expect(row).toContainText("waiting since today");
     // found by the Service, as a search for another isn't
     await searchList(page, "Search quotes", "Deep");
     await expect(row).toBeHidden();
@@ -445,6 +447,11 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
     1,
   );
   await expect(offer).toContainText("Sent ");
+  // its own Service first, the one recommended beside it
+  await expect(offer.getByRole("heading", { level: 3 })).toHaveText([
+    "Standard Clean",
+    "Deep Clean",
+  ]);
 
   // Sent and waiting, with no card to record a yes by phone: nothing is
   // next, and Change quote is the page's one action
@@ -486,7 +493,11 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
   await pageAction(page, "Carry on with the draft");
   await send(page);
   await expect(page.getByText("Being updated")).toBeHidden();
-  await expect(sent).toHaveText(["Quote sent", "Quote sent"]);
+  // the second send says so, newest first
+  await expect(page.getByText(/^Quote sent( again)?$/)).toHaveText([
+    "Quote sent again",
+    "Quote sent",
+  ]);
   await expect(offer).toContainText("Sent ");
 });
 

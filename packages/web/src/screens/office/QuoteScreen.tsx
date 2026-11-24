@@ -143,7 +143,6 @@ const {
   cleaners,
   conditionLabel,
   planName,
-  planRhythm,
   recurrenceLabel,
   quoteKindName,
   formatFloorArea,
@@ -239,7 +238,7 @@ export function QuoteScreen() {
             key={moment.key}
             icon={moment.icon}
             title={moment.title}
-            when={formatDate(moment.at)}
+            when={formatDateTime(moment.at)}
             description={moment.description}
           >
             {moment.details}
@@ -646,13 +645,14 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
       description: visit.visitor ? `By ${visit.visitor.name}` : undefined,
     });
   }
-  // oldest first, as they happened (quote.revisions is newest first)
-  for (const revision of [...quote.revisions].reverse()) {
+  // oldest first, as they happened (quote.revisions is newest first); a
+  // send after the first says so, as two sends can match word for word
+  for (const [i, revision] of [...quote.revisions].reverse().entries()) {
     moments.push({
       key: revision.id,
       at: revision.sentAt,
       icon: Send,
-      title: "Quote sent",
+      title: i === 0 ? "Quote sent" : "Quote sent again",
       // what it was sent for, and when: "Standard Clean $194.89 · for …"
       description: `${revisionHeadline(revision)} · for ${formatDateTime(revision.proposedStartsAt)}`,
     });
@@ -765,9 +765,16 @@ function Offer({ quote }: { quote: ShownQuote }) {
   // once a one-off is accepted, the Service booked alone: the other was
   // never taken
   const booked = quote.status === "accepted" && !plan;
+  // a one-off's own Service first, the one asked for, the one recommended
+  // beside it, as every Office screen leads with it (#493); a plan's
+  // weekdays in their order
   const options = booked
     ? quote.options.filter((o) => o.serviceKey === quote.acceptedServiceKey)
-    : quote.options;
+    : plan
+      ? quote.options
+      : [...quote.options].sort(
+          (a, b) => Number(a.recommended) - Number(b.recommended),
+        );
   return (
     <Section
       title="Current quote"
@@ -792,7 +799,7 @@ function Offer({ quote }: { quote: ShownQuote }) {
             <Fact
               icon={Repeat}
               label="Then"
-              value={planRhythm(plan)}
+              value={recurrenceLabel[plan.recurrence]}
               line={`Then, priced for ${conditionLabel[plan.condition].toLowerCase()} condition`}
             />
           )}

@@ -229,9 +229,13 @@ test("a Service Plan of Deep Cleans", async ({ page, browser }) => {
   await startOn19th(page);
   await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
   await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
+  // how often, the weekday's card under it naming the day and time
+  const current = page.getByRole("region", { name: "Current quote" });
+  await expect(current).toContainText("Every 2 weeks");
+  await expect(current).not.toContainText("Every 2 weeks, on");
   await expect(
-    page.getByRole("region", { name: "Current quote" }),
-  ).toContainText("Every 2 weeks, on Mondays at 9:00 AM");
+    current.getByRole("region", { name: "Mondays at 9:00 AM: Deep Clean" }),
+  ).toBeVisible();
   // its story names the plan's Service, and the round's unit
   await expect(
     page.getByText(/^Deep Clean plan \$[\d,.]+ a clean · for /),

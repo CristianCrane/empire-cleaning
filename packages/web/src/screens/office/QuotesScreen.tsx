@@ -26,18 +26,12 @@ type SortColumn = "client" | "status" | "total" | "waiting";
 type Sort = { column: SortColumn; direction: "ascending" | "descending" };
 
 // how long since it was asked for (or offered): "today", "3 days", or on
-// a phone's row, with nothing over it to say what that is, "new today",
-// "3 days waiting"
+// a phone's row, with no column over it, the Table's header with its cell,
+// "waiting since today", "waiting 3 days"
 const waiting = (quote: QuoteSummary, row = false) => {
   const days = Math.floor((Date.now() - Date.parse(quote.createdAt)) / DAY_MS);
-  const since = days === 1 ? "1 day" : `${days} days`;
-  return days === 0
-    ? row
-      ? "new today"
-      : "today"
-    : row
-      ? `${since} waiting`
-      : since;
+  const since = days === 0 ? "today" : days === 1 ? "1 day" : `${days} days`;
+  return !row ? since : days === 0 ? "waiting since today" : `waiting ${since}`;
 };
 
 // what it's a Quote of: a Service Plan of the Service its cleans are, or
@@ -136,7 +130,8 @@ export function QuotesScreen() {
       row={(quote) => ({
         id: quote.id,
         title: clientName(quote.client),
-        // the Table's cells, in its order, as one line
+        // the Table's cells, in its order, as one line, a wrap never
+        // starting a line with its dot
         description: [
           addressOf(quote.property),
           serviceOf(quote),
@@ -144,7 +139,7 @@ export function QuotesScreen() {
           waiting(quote, true),
         ]
           .filter(Boolean)
-          .join(" · "),
+          .join("\u00a0· "),
         // its Tab says it, but a search across them doesn't
         status: {
           badge: <QuoteStatusBadge status={quote.status} />,
