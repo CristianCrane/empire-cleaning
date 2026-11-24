@@ -206,13 +206,25 @@ export const ownOption = <T extends { serviceKey: string }>(
   rows: T[],
 ) => rows.find((row) => isOwnOption(revision, row))!;
 
-// what a Revision leads with, tax included: a one-off Quote's first option,
-// the recommended one where there is one, or a Service Plan Quote's round, a
-// clean on each weekday. The options are in order.
-const headlineOf = (kind: Quote["kind"], options: RevisionOptionRow[]) =>
-  kind === "service_plan"
-    ? options.reduce((total, o) => total + o.totalCents, 0)
-    : options[0]!.totalCents;
+// what a Revision leads with, tax included: a Service Plan Quote's round, a
+// clean on each weekday, or a one-off Quote's option for the Service `lead`
+// names: the Office's, the one asked for or booked. With none, its first
+// option, the recommended one where there is one, as its Client sees it
+// (ADR-0018). The options are in order.
+const headlineOf = (
+  kind: Quote["kind"],
+  options: RevisionOptionRow[],
+  lead?: string,
+) => {
+  if (kind === "service_plan")
+    return {
+      totalCents: options.reduce((total, o) => total + o.totalCents, 0),
+      serviceName: null,
+    };
+  const row =
+    lead === undefined ? options[0]! : ownOption({ serviceKey: lead }, options);
+  return { totalCents: row.totalCents, serviceName: row.suggested.serviceName };
+};
 
 // the Quotes open at these Properties, for the "Request a Quote" form
 export const openQuotesAt = async (
@@ -441,6 +453,18 @@ const summaries = async (
         offer ?? (forClient ? null : (draft ?? null));
       const offered = shown ? (options.get(shown.id) ?? []) : [];
       const plan = quote.kind === "service_plan";
+      // the Office leads with the Service asked for, or once Accepted the
+      // one booked; the Client with the recommended one (ADR-0018)
+      const headline =
+        shown && offered.length > 0
+          ? headlineOf(
+              quote.kind,
+              offered,
+              forClient
+                ? undefined
+                : (quote.acceptedServiceKey ?? shown.serviceKey),
+            )
+          : null;
       return {
         id: quote.id,
         kind: quote.kind,
@@ -454,12 +478,8 @@ const summaries = async (
         client,
         property: toPropertyView(property, list),
         homePlanId,
-        headlineTotalCents:
-          offered.length > 0 ? headlineOf(quote.kind, offered) : null,
-        headlineServiceName:
-          !plan && offered.length > 0
-            ? offered[0]!.suggested.serviceName
-            : null,
+        headlineTotalCents: headline?.totalCents ?? null,
+        headlineServiceName: headline?.serviceName ?? null,
         plan:
           plan && shown
             ? {
@@ -489,7 +509,8 @@ const summaries = async (
   );
 };
 
-// Every Sent Revision of a Quote, newest first
+// Every Sent Revision of a Quote, newest first, for the Office: each leads
+// with the price of the Service it was sent for
 export const revisionHistory = async (
   quote: Pick<Quote, "id" | "kind">,
 ): Promise<RevisionSummary[]> => {
@@ -504,14 +525,22 @@ export const revisionHistory = async (
     )
     .orderBy(desc(quoteRevisions.number));
   const options = await optionsOfRevisions(sent.map((r) => r.id));
-  return sent.map((r) => ({
-    id: r.id,
-    number: r.number,
-    headlineTotalCents: headlineOf(quote.kind, options.get(r.id) ?? []),
-    proposedStartsAt: r.proposedStartsAt!.toISOString(),
-    sentAt: r.sentAt!.toISOString(),
-    expiresAt: r.expiresAt!.toISOString(),
-  }));
+  return sent.map((r) => {
+    const headline = headlineOf(
+      quote.kind,
+      options.get(r.id) ?? [],
+      r.serviceKey,
+    );
+    return {
+      id: r.id,
+      number: r.number,
+      headlineTotalCents: headline.totalCents,
+      headlineServiceName: headline.serviceName,
+      proposedStartsAt: r.proposedStartsAt!.toISOString(),
+      sentAt: r.sentAt!.toISOString(),
+      expiresAt: r.expiresAt!.toISOString(),
+    };
+  });
 };
 
 // A Client's own Quotes, newest first: those they asked for (by phone too),

@@ -1,16 +1,21 @@
 import { useState } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type { QuoteSummary } from "@empire-cleaning/models";
-import { DAY_MS, formats } from "@empire-cleaning/models";
+import { DAY_MS } from "@empire-cleaning/models";
 import { QuoteIcon } from "../icons.ts";
 import { ListPage, StatusBadge } from "@empire-cleaning/ui";
 import { DraftChangesBadge, QuoteStatusBadge } from "../QuoteParts.tsx";
-import { addressOf, clientName, quoteStatusLabel } from "../format.ts";
+import {
+  addressOf,
+  clientName,
+  quoteStatusLabel,
+  screenWords,
+} from "../format.ts";
 import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
 import { linkTo } from "../../links.ts";
 import { tabShown, useListUrl } from "../list-search.ts";
 
-const { formatMoney } = formats.en;
+const { quoteTotal } = screenWords.en;
 
 // the statuses the list holds, a Tab each, in the order a Quote moves
 // through them
@@ -20,15 +25,24 @@ type ListStatus = (typeof quoteTabs)[number];
 type SortColumn = "client" | "status" | "total" | "waiting";
 type Sort = { column: SortColumn; direction: "ascending" | "descending" };
 
-// how long since it was asked for (or offered): "today", "3 days"
-const waiting = (quote: QuoteSummary) => {
+// how long since it was asked for (or offered): "today", "3 days", or on
+// a phone's row, with nothing over it to say what that is, "new today",
+// "3 days waiting"
+const waiting = (quote: QuoteSummary, row = false) => {
   const days = Math.floor((Date.now() - Date.parse(quote.createdAt)) / DAY_MS);
-  return days === 0 ? "today" : days === 1 ? "1 day" : `${days} days`;
+  const since = days === 1 ? "1 day" : `${days} days`;
+  return days === 0
+    ? row
+      ? "new today"
+      : "today"
+    : row
+      ? `${since} waiting`
+      : since;
 };
 
 // what it's a Quote of: a Service Plan of its Service, or the Service its
-// total is for, the option it leads with (a Deep Clean recommended for a
-// Standard Clean asked), until it has one the Service asked for
+// total is for, the one asked for or, once Accepted, the one booked; the
+// Service asked for until it has a total
 const serviceOf = (quote: QuoteSummary) =>
   quote.kind === "service_plan"
     ? `${quote.service.name} plan`
@@ -120,7 +134,15 @@ export function QuotesScreen() {
       row={(quote) => ({
         id: quote.id,
         title: clientName(quote.client),
-        description: `${addressOf(quote.property)} · ${serviceOf(quote)}`,
+        // the Table's cells, in its order, as one line
+        description: [
+          addressOf(quote.property),
+          serviceOf(quote),
+          quoteTotal(quote),
+          waiting(quote, true),
+        ]
+          .filter(Boolean)
+          .join(" · "),
         // its Tab says it, but a search across them doesn't
         status: {
           badge: <QuoteStatusBadge status={quote.status} />,
@@ -157,22 +179,25 @@ export function QuotesScreen() {
         },
         {
           id: "property",
-          label: "Property",
+          label: "Address",
           cell: (quote) => addressOf(quote.property),
         },
         { id: "service", label: "Service", from: "lg", cell: serviceOf },
-        {
-          id: "total",
-          label: "Total",
-          allowsSorting: true,
-          cell: (quote) => (
-            <span className="whitespace-nowrap">
-              {quote.headlineTotalCents === null
-                ? "—"
-                : formatMoney(quote.headlineTotalCents)}
-            </span>
-          ),
-        },
+        // none is priced until it's drafted
+        ...(tab === "requested" && !url.q
+          ? []
+          : [
+              {
+                id: "total",
+                label: "Total",
+                allowsSorting: true,
+                cell: (quote: QuoteSummary) => (
+                  <span className="whitespace-nowrap">
+                    {quoteTotal(quote) ?? "—"}
+                  </span>
+                ),
+              },
+            ]),
         {
           id: "waiting",
           label: "Waiting",

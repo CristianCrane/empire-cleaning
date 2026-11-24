@@ -358,24 +358,53 @@ test("the Client Declines a Quote from the portal", async ({
   await expectNoPageAction(page, "Change quote");
 });
 
-test("the Quotes list names the Service its total is for", async ({ page }) => {
-  // a Standard Clean asked for, quoted leading with the Deep Clean
-  // recommended for a first visit
+// a Standard Clean asked for, sent with a Deep Clean recommended beside it
+// for a first visit
+const sentWithDeepCleanRecommended = async (page: Page) => {
   await requestQuoteAsGuest(casey);
   await signInAsOffice(page);
   await startDraft(page);
   await proposeNextMonday(page);
   await send(page);
+};
+
+test("the Quotes list names the Service its total is for", async ({ page }) => {
+  await sentWithDeepCleanRecommended(page);
 
   await page.goto("/office/quotes");
   const row = page.getByRole("row", { name: new RegExp(casey.name) });
-  await expect(row).toContainText("Deep Clean");
-  await expect(row).not.toContainText("Standard Clean");
-  // still found by the Service asked for, as a search for another isn't
-  await searchList(page, "Search quotes", "Painting");
+  // the Service asked for, not the one recommended
+  await expect(row).toContainText(/Standard Clean.*\$\d/);
+  await expect(row).not.toContainText("Deep Clean");
+  // found by the Service, as a search for another isn't
+  await searchList(page, "Search quotes", "Deep");
   await expect(row).toBeHidden();
   await page.getByRole("searchbox", { name: "Search quotes" }).fill("Standard");
   await expect(row).toBeVisible();
+  await page.getByRole("searchbox", { name: "Search quotes" }).fill("");
+  await expect(row).toBeVisible();
+});
+
+test("a home's History names the Service a Quote was sent for", async ({
+  page,
+}) => {
+  await sentWithDeepCleanRecommended(page);
+
+  await page.goto("/office/clients");
+  await page.getByRole("row", { name: new RegExp(casey.name) }).click();
+  await page
+    .getByRole("grid", { name: /properties/ })
+    .getByRole("row", { name: /41-12 Austin St/ })
+    .click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "41-12 Austin St, 4B, 11375",
+  );
+  await expect(
+    page
+      .getByRole("list", { name: /^History/ })
+      .getByRole("listitem")
+      .filter({ hasText: "Quote ·" }),
+  ).toContainText([/Standard Clean \$\d/]);
 });
 
 test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as history", async ({
@@ -392,6 +421,10 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
   const sent = page.getByText("Quote sent", { exact: true });
   const offer = page.getByRole("region", { name: "Current quote" });
   await expect(sent).toHaveText(["Quote sent"]);
+  // for the Service asked for, not the Deep Clean recommended beside it
+  await expect(page.getByText(/^Standard Clean \$[\d,.]+ · for /)).toHaveCount(
+    1,
+  );
   await expect(offer).toContainText("Sent ");
 
   // Sent and waiting, with no card to record a yes by phone: nothing is

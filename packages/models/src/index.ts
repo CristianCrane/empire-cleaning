@@ -1156,8 +1156,11 @@ export type Untimely = {
 export type RevisionSummary = {
   id: string;
   number: number;
-  // what it led with, tax included, as QuoteSummary's headlineTotalCents
+  // what it led with, tax included, as QuoteSummary's for the Office: the
+  // price of the Service it was sent for
   headlineTotalCents: number;
+  // that Service; null for a Service Plan Quote
+  headlineServiceName: string | null;
   proposedStartsAt: string;
   sentAt: string;
   expiresAt: string;
@@ -1293,12 +1296,14 @@ export type QuoteSummary = {
   // its home's Service Plan, unless it has none or it has Ended: a Service
   // Plan Quote, or one asked for, may change it
   homePlanId: string | null;
-  // the total it leads with, tax included: a one-off Quote's first option
-  // (the recommended one, if any), or a Service Plan Quote's round, a clean
-  // on each weekday; null with no Revision
+  // the total it leads with, tax included: a Service Plan Quote's round, a
+  // clean on each weekday, or a one-off Quote's option: to the Office the
+  // Service asked for, or once Accepted the one booked; to its Client the
+  // first, the recommended one where there is one (ADR-0018). Null with no
+  // Revision
   headlineTotalCents: number | null;
-  // the Service a one-off Quote leads with, its first option's; null for a
-  // Service Plan Quote, or with no Revision
+  // the Service that one-off option is for; null for a Service Plan Quote, or
+  // with no Revision
   headlineServiceName: string | null;
   // a Service Plan Quote's; null otherwise
   plan: { recurrence: Recurrence; days: PlanDaySummary[] } | null;

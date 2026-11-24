@@ -7,6 +7,7 @@ import type {
   ClientJob,
   ClientUpcomingJob,
   OfficeClientView,
+  OfficePropertyView,
   OfficeQuote,
   PaymentMethodView,
   QuoteDraftInput,
@@ -428,6 +429,24 @@ describe("accepting a First Clean Quote", () => {
     expect(properties.map((p) => p.status)).toEqual([
       { kind: "job_booked", startsAt: "2026-01-12T14:00:00.000Z" },
     ]);
+  });
+
+  test("leads the home's history with the Service booked, not the one asked for", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+    expect(quote.service.name).toBe("Standard Clean");
+
+    await accept(client, quote, "deep").expect(200);
+
+    const { quotes } = (
+      await office.get(`/api/properties/${quote.property.id}`).expect(200)
+    ).body as OfficePropertyView;
+    expect(
+      quotes.map((q) => [q.headlineServiceName, q.headlineTotalCents]),
+    ).toEqual([["Deep Clean", option(quote, "deep").totalCents]]);
   });
 
   test("needs the signed-in Client whose Quote it is", async () => {

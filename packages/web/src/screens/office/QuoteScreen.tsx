@@ -651,7 +651,8 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
       at: revision.sentAt,
       icon: Send,
       title: "Quote sent",
-      description: `${formatMoney(revision.headlineTotalCents)} · for ${formatDateTime(revision.proposedStartsAt)}`,
+      // what it was sent for, and when: "Standard Clean $194.89 · for …"
+      description: `${[revision.headlineServiceName, formatMoney(revision.headlineTotalCents)].filter(Boolean).join(" ")} · for ${formatDateTime(revision.proposedStartsAt)}`,
     });
   }
   if (quote.status === "expired" && shown?.expiresAt) {

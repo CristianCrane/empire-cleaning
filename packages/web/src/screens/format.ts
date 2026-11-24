@@ -240,8 +240,10 @@ const words = catalog({
     everyWeekOn: (what: string, days: string) =>
       `${what}, every week${days ? ` on ${days}` : ""}`,
     notPriced: "Not priced yet",
-    planHeadline: (plan: string, price: string, perWeek: boolean) =>
-      `Cleaning plan, ${plan}: ${price} ${perWeek ? "a week" : "a clean"}`,
+    planPrice: (price: string, perWeek: boolean) =>
+      `${price} ${perWeek ? "a week" : "a clean"}`,
+    planHeadline: (plan: string, price: string) =>
+      `Cleaning plan, ${plan}: ${price}`,
     rhythm: (often: string, when: string) => `${often}, on ${when}`,
     skipped: "Skipped",
     // where someone stands on a Job's crew: the Office's, and a Cleaner's
@@ -281,8 +283,10 @@ const words = catalog({
     everyWeekOn: (what: string, days: string) =>
       `${what}, cada semana${days ? ` los ${days}` : ""}`,
     notPriced: "Aún sin precio",
-    planHeadline: (plan: string, price: string, perWeek: boolean) =>
-      `Plan de limpieza, ${plan}: ${price} ${perWeek ? "por semana" : "por limpieza"}`,
+    planPrice: (price: string, perWeek: boolean) =>
+      `${price} ${perWeek ? "por semana" : "por limpieza"}`,
+    planHeadline: (plan: string, price: string) =>
+      `Plan de limpieza, ${plan}: ${price}`,
     rhythm: (often: string, when: string) => `${often}, ${when}`,
     skipped: "Saltada",
     // a trabajo, as a Cleaner reads it
@@ -340,6 +344,20 @@ const screenWordsIn = (lang: Language) => {
       ? `${what}, ${recurrence[plan]}`
       : w.everyWeekOn(what, on.length > 0 ? formatList(on) : "");
   };
+
+  // a Quote's headline price: "$194.89", or a plan's "$201.85 a clean", or
+  // for several weekdays "$650.10 a week"; null with no Revision
+  const quoteTotal = (
+    quote: Pick<QuoteSummary, "headlineTotalCents" | "plan">,
+  ) =>
+    quote.headlineTotalCents === null
+      ? null
+      : quote.plan
+        ? w.planPrice(
+            formatMoney(quote.headlineTotalCents),
+            quote.plan.days.length > 1,
+          )
+        : formatMoney(quote.headlineTotalCents);
 
   return {
     // "Tue, Oct 20" and "Oct 20" for an instant: New York's day
@@ -417,7 +435,8 @@ const screenWordsIn = (lang: Language) => {
     ) as Record<ServicePlanStatus, { tone: StatusTone; label: string }>,
     recurrenceLabel,
     planName,
-    // how a Quote reads in a list: "Deep Clean $391.04", the Service it
+    quoteTotal,
+    // how a Quote reads in a list: "Standard Clean $194.89", the Service it
     // leads with, or "Cleaning plan, Standard Clean, every 2 weeks: $201.85
     // a clean", or for several weekdays "...: $650.10 a week"
     quoteHeadline: (
@@ -429,12 +448,8 @@ const screenWordsIn = (lang: Language) => {
       quote.headlineTotalCents === null
         ? w.notPriced
         : quote.plan
-          ? w.planHeadline(
-              planName(quote.plan),
-              formatMoney(quote.headlineTotalCents),
-              quote.plan.days.length > 1,
-            )
-          : `${quote.headlineServiceName} ${formatMoney(quote.headlineTotalCents)}`,
+          ? w.planHeadline(planName(quote.plan), quoteTotal(quote)!)
+          : `${quote.headlineServiceName} ${quoteTotal(quote)}`,
     // when a Service Plan's cleans come round, each weekday from its first:
     // "Every week, on Mondays at 9:00 AM", or "Every week, on Mondays at
     // 9:00 AM and Wednesdays at 1:00 PM"
