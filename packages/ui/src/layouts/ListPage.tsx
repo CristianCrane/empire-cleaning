@@ -7,7 +7,7 @@ import {
 } from "react";
 import type { SortDescriptor } from "react-aria-components";
 import { Search, type LucideIcon } from "lucide-react";
-import { dayOf, formats, type Language } from "@empire-cleaning/models";
+import { dayOf, formats, lineOf, type Language } from "@empire-cleaning/models";
 import { Button } from "../Button.tsx";
 import { DateTile } from "../DateTile.tsx";
 import { EmptyState } from "../EmptyState.tsx";
@@ -315,7 +315,8 @@ export function DatedItem({
       id={id}
       textValue={`${formatDateTime(at)} · ${title}`}
       heard={formatDate(at)}
-      title={`${dateTile(at).weekday} ${formatTime(at)} · ${title}`}
+      // its dot glued, so a wrap never leaves it at a line's end
+      title={lineOf([`${dateTile(at).weekday} ${formatTime(at)}`, title])}
       start={<DateTile date={at} size="sm" />}
       description={description}
       end={end}
