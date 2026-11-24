@@ -17,8 +17,10 @@ import {
   type UnpaidKind,
   asksTheClient,
   catalog,
+  dayOf,
   howLong,
   officeFix,
+  weekdayOf,
   oneStop,
 } from "@empire-cleaning/models";
 import {
@@ -370,6 +372,64 @@ export function EndPlan({
   );
 }
 
+// a plan's weekdays, those that read alike together, in the order they
+// come: one kind when every clean reads alike
+const alike = <T,>(days: T[], key: (day: T) => string) => {
+  const kinds = new Map<string, T[]>();
+  for (const day of days)
+    kinds.set(key(day), [...(kinds.get(key(day)) ?? []), day]);
+  return [...kinds.values()];
+};
+
+// whether a Client's list of cleans says each one's length: only once one
+// isn't what the plan's card says for its weekday (booked longer, or moved
+// to another day), and then every row, so the eye compares like with like;
+// while each runs as its weekday's, the card says it and a row would repeat
+export const cleansSayLength = (
+  t: Parameters<typeof howLong>[0],
+  days: { startsAt: string; hoursOnSite: number }[],
+  cleans: { startsAt: string; hoursOnSite: number }[],
+) => {
+  const weekday = (startsAt: string) => weekdayOf(dayOf(new Date(startsAt)));
+  return cleans.some((clean) => {
+    const usual = days.find(
+      (d) => weekday(d.startsAt) === weekday(clean.startsAt),
+    );
+    return (
+      !usual || howLong(t, usual.hoursOnSite) !== howLong(t, clean.hoursOnSite)
+    );
+  });
+};
+
+// how long a Client's cleans run, to the quarter hour, on their plan and on
+// the quote that offers it: one fact while every clean reads alike, else one
+// for each length, naming its weekdays, so none is read as a sum or matched
+// to a weekday by its place
+export function HowLongFacts({
+  days,
+}: {
+  days: { startsAt: string; hoursOnSite: number }[];
+}) {
+  const t = useSaid(words);
+  return (
+    <>
+      {alike(days, (d) => howLong(t, d.hoursOnSite)).map((these, _, kinds) => (
+        <Fact
+          key={these[0]!.startsAt}
+          icon={Clock}
+          label={t.howLong}
+          value={howLong(t, these[0]!.hoursOnSite)}
+          line={
+            kinds.length > 1
+              ? t.howLongOn(t.planDays(these.map((d) => d.startsAt)))
+              : undefined
+          }
+        />
+      ))}
+    </>
+  );
+}
+
 // The plan as its Client and the Office read it, its details card: when,
 // large, every weekday of it (one answer to "when is my clean?"), then its
 // facts (UX pass, #96), and anything else below
@@ -432,39 +492,31 @@ export function PlanCard({
         />
         {/* how long: the Client's to the quarter hour, the Office's to
             the minute, with its crew, as the Schedule books it; once a
-            plan's weekdays differ in either, each weekday's on its own,
-            named, so nothing is matched by position: "On site Mondays, with
-            2 cleaners" */}
+            plan's weekdays differ in what the reader reads, each kind is
+            its own fact, naming its days, so nothing is matched by position
+            or read as a sum: "On site Mondays and Fridays, with 2 cleaners" */}
         {forClient ? (
-          <Fact
-            icon={Clock}
-            label={t.howLong}
-            value={howLong(t, ...plan.days.map((d) => d.hoursOnSite))}
-          />
-        ) : plan.days.some(
-            (d) =>
-              d.hoursOnSite !== one!.hoursOnSite ||
-              d.crewSize !== one!.crewSize,
-          ) ? (
-          plan.days.map((d) => (
+          <HowLongFacts days={plan.days} />
+        ) : (
+          alike(
+            plan.days,
+            (d) => `${formatHours(d.hoursOnSite)} ${d.crewSize}`,
+          ).map((days, _, kinds) => (
             <Fact
-              key={d.startsAt}
+              key={days[0]!.startsAt}
               icon={Clock}
               label={t.onSite}
-              value={formatHours(d.hoursOnSite)}
-              line={t.onSiteOnWith(
-                t.planDay(d.startsAt),
-                t.cleaners(d.crewSize),
-              )}
+              value={formatHours(days[0]!.hoursOnSite)}
+              line={
+                kinds.length > 1
+                  ? t.onSiteOnWith(
+                      t.planDays(days.map((d) => d.startsAt)),
+                      t.cleaners(days[0]!.crewSize),
+                    )
+                  : t.onSiteWith(t.cleaners(days[0]!.crewSize))
+              }
             />
           ))
-        ) : (
-          <Fact
-            icon={Clock}
-            label={t.onSite}
-            value={formatHours(one!.hoursOnSite)}
-            line={t.onSiteWith(t.cleaners(one!.crewSize))}
-          />
         )}
         <Fact
           icon={CirclePlus}

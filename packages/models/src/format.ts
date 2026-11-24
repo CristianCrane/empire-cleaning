@@ -153,23 +153,18 @@ export const quarterHoursText = (hours: number) => {
 
 // how long a clean runs, as a Client or a Cleaner reads it (the Office
 // reads it to the minute): to the quarter hour, and "About" only when that
-// rounded it: 6 -> "6 h", 3.3 -> "About 3¼ h"; several, a plan's weekdays,
-// joined, "About" said once: 1.9, 3.75 -> "About 2 h + 3¾ h"; the same on
-// each, once, so it isn't read as a sum: 3.75, 3.75 -> "3¾ h". `hours`
-// writes the unit, "h" unless an email spells it out ("3 hours")
+// rounded it: 6 -> "6 h", 3.3 -> "About 3¼ h". `hours` writes the unit,
+// "h" unless an email spells it out ("3 hours")
 export const howLong = (
   t: {
     about: (hours: string) => string;
     hours?: (hours: string, quarters: number) => string;
   },
-  ...hours: number[]
+  hours: number,
 ) => {
   const unit = t.hours ?? ((text: string) => `${text} h`);
-  const each = hours.map((h) =>
-    unit(quarterHoursText(quarterHours(h)), quarterHours(h)),
-  );
-  const text = each.every((e) => e === each[0]) ? each[0]! : each.join(" + ");
-  return hours.every((h) => quarterHours(h) === h) ? text : t.about(text);
+  const text = unit(quarterHoursText(quarterHours(hours)), quarterHours(hours));
+  return quarterHours(hours) === hours ? text : t.about(text);
 };
 
 // a part of a row's line after its first, which reads on from the dot

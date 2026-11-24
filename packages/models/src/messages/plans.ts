@@ -38,7 +38,9 @@ export const plans = catalog({
       fortnightly: "every 2 weeks",
       four_weekly: "every 4 weeks",
     } satisfies Record<Recurrence, string>,
-    planDay: planDayEn,
+    // weekdays alike in some way, together: "Mondays and Fridays"
+    planDays: (startsAts: (string | Date)[]) =>
+      en.formatList(startsAts.map(planDayEn)),
     planDayWhen: planDayWhenEn,
     // each weekday's: "Mondays at 9:00 AM and Wednesdays at 1:00 PM"
     planDaysWhen: (startsAts: (string | Date)[]) =>
@@ -50,7 +52,8 @@ export const plans = catalog({
       fortnightly: "cada 2 semanas",
       four_weekly: "cada 4 semanas",
     },
-    planDay: planDayEs,
+    planDays: (startsAts: (string | Date)[]) =>
+      es.formatList(startsAts.map(planDayEs)),
     planDayWhen: planDayWhenEs,
     planDaysWhen: (startsAts: (string | Date)[]) =>
       es.formatList(startsAts.map(planDayWhenEs)),

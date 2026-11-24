@@ -137,8 +137,10 @@ test(
     );
     await expect(quote).toContainText("One clean a day.");
     // how long each weekday's crew is there, in the facts as a clean says
-    // it: not the Office's cleaning hours and crew, on each weekday's card
-    await expect(quote).toContainText("About 2 h + 3¾ hHow long");
+    // it, each length naming its weekdays: not the Office's cleaning hours
+    // and crew, on each weekday's card
+    await expect(quote).toContainText("About 2 hHow long on Mondays");
+    await expect(quote).toContainText("3¾ hHow long on Wednesdays");
     for (const name of [
       "Mondays at 9:00 AM: Standard Clean",
       "Wednesdays at 1:00 PM: Standard Clean",
@@ -171,15 +173,18 @@ test(
         .getByRole("grid", { name: "Your upcoming cleans" })
         .getByRole("row"),
     ).toHaveText([
-      // each says how long, as the two weekdays differ
-      /Mon, Jan 19, 9:00 AMAbout 2 h/,
-      /Wed, Jan 21, 1:00 PM3¾ h/,
-      /Mon, Jan 26, 9:00 AMAbout 2 h/,
-      /Wed, Jan 28, 1:00 PM3¾ h/,
-      /Mon, Feb 2, 9:00 AMAbout 2 h/,
-      /Wed, Feb 4, 1:00 PM3¾ h/,
-      /Mon, Feb 9, 9:00 AMAbout 2 h/,
+      // how long is the card's to say, each weekday named, as no clean
+      // runs other than its weekday's
+      /^Mon, Jan 19, 9:00 AM\D*$/,
+      /^Wed, Jan 21, 1:00 PM\D*$/,
+      /^Mon, Jan 26, 9:00 AM\D*$/,
+      /^Wed, Jan 28, 1:00 PM\D*$/,
+      /^Mon, Feb 2, 9:00 AM\D*$/,
+      /^Wed, Feb 4, 1:00 PM\D*$/,
+      /^Mon, Feb 9, 9:00 AM\D*$/,
     ]);
+    await expect(details).toContainText("About 2 hHow long on Mondays");
+    await expect(details).toContainText("3¾ hHow long on Wednesdays");
     await noViolations(client);
 
     // the Office's plan says each weekday's time there and crew, each

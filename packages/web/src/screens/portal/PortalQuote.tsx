@@ -54,6 +54,7 @@ import {
   PlanTotals,
   ClientQuoteStatusBadge,
 } from "../QuoteParts.tsx";
+import { HowLongFacts } from "../PlanParts.tsx";
 import { ConsentNote, usePaymentForm } from "./CardForm.tsx";
 import { catalog, howLong, inLine, oneStop } from "@empire-cleaning/models";
 import { requestQuoteHref } from "./whats-next.ts";
@@ -532,18 +533,22 @@ function QuoteDetails({
           value={addressOf(quote.property)}
           line={t.p.yourHome}
         />
-        <Fact
-          icon={Clock}
-          label={t.howLong}
-          value={
-            plan
-              ? howLong(
-                  t,
-                  ...plan.days.map((_, i) => quote.options[i]!.hoursOnSite),
-                )
-              : howLong(t, chosen.hoursOnSite)
-          }
-        />
+        {plan ? (
+          <HowLongFacts
+            days={plan.days.map((day, i) => ({
+              // a weekday's time is unset only on a Draft, which no Client
+              // sees
+              startsAt: day.startsAt!,
+              hoursOnSite: quote.options[i]!.hoursOnSite,
+            }))}
+          />
+        ) : (
+          <Fact
+            icon={Clock}
+            label={t.howLong}
+            value={howLong(t, chosen.hoursOnSite)}
+          />
+        )}
       </Facts>
 
       {choosing && (
