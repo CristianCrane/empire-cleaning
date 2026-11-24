@@ -781,12 +781,14 @@ function DayJobs({
             </BlockName>
             <BlockTime compact={compact}>{formatTime(job.startsAt)}</BlockTime>
             <span className="sr-only">, {tone.label}</span>
-            {job.crew.length > 0 && (
-              <span className={compact ? "sr-only" : "truncate text-fg-muted"}>
+            {/* a name to a line, so the lines that fit whole are whole
+                names, never one cut short */}
+            {job.crew.map((member) => (
+              <BlockLine key={member.id} compact={compact} muted>
                 <span className="sr-only">, </span>
-                {crewOf(job.crew)}
-              </span>
-            )}
+                {member.name}
+              </BlockLine>
+            ))}
           </ScheduleBlock>
         );
       })}
@@ -817,15 +819,15 @@ function DayJobs({
             <BlockTime compact={compact}>
               {formatTime(visit.startsAt)}
             </BlockTime>
-            <span className={compact ? "sr-only" : "truncate"}>
+            <BlockLine compact={compact}>
               <span className="sr-only">, </span>
               {lineOf(["Site visit", formatMinutes(visit.minutes)])}
-            </span>
+            </BlockLine>
             {visit.visitor && (
-              <span className={compact ? "sr-only" : "truncate text-fg-muted"}>
+              <BlockLine compact={compact} muted>
                 <span className="sr-only">, </span>
                 {visit.visitor.name}
-              </span>
+              </BlockLine>
             )}
           </ScheduleBlock>
         );
@@ -939,7 +941,32 @@ function BlockTime({
   children: ReactNode;
 }) {
   return compact ? null : (
-    <span aria-hidden className="truncate text-fg-muted">
+    <span aria-hidden className="[overflow-wrap:anywhere] text-fg-muted">
+      {children}
+    </span>
+  );
+}
+
+// a block's line under its name and time: wrapped where the lane is
+// narrow rather than cut short, as the block draws only the lines that fit
+// whole; on a block of one line, read out only
+function BlockLine({
+  compact,
+  muted = false,
+  children,
+}: {
+  compact: boolean;
+  muted?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <span
+      className={
+        compact
+          ? "sr-only"
+          : `[overflow-wrap:anywhere] ${muted ? "text-fg-muted" : ""}`
+      }
+    >
       {children}
     </span>
   );
