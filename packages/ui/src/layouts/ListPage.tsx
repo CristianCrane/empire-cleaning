@@ -88,8 +88,9 @@ export type ListSearch = {
 // - Its PageHeader: the title, in a phone's top bar, and at most one
 //   primary, for making a new one.
 // - Its Tabs, the one way it splits, each with its count.
-// - A search, at the end of the Tabs' line from md and behind an icon on a
-//   phone, that looks through every Tab while the Tabs step aside.
+// - A search at the end of the Tabs' line: a field from md, an icon that
+//   opens one on a phone (so it never takes a row of its own once the bar
+//   holds the title); it looks through every Tab while the Tabs step aside.
 // - Its rows: a Table from md when it has columns (an Office list), by
 //   month when they're dated, 50 at a time, then Show more.
 // - With nothing in it at all, its empty state: the primary, moved there
@@ -205,7 +206,19 @@ export function ListPage<T>({
               </TabList>
             )}
           </div>
-          {wide && field}
+          {wide
+            ? field
+            : search && (
+                <Button
+                  variant="quiet"
+                  size="icon"
+                  aria-label={search.label}
+                  aria-expanded={opened || searching}
+                  onPress={() => setOpened((o) => !o)}
+                >
+                  <Search aria-hidden size={20} />
+                </Button>
+              )}
           {searching && (
             <Button variant="text" onPress={clear}>
               {words.clearSearch}
@@ -231,21 +244,6 @@ export function ListPage<T>({
         inBar
         // with nothing in it, the empty state holds it instead
         primary={nothing ? undefined : primary}
-        tools={
-          search &&
-          !wide &&
-          !nothing && (
-            <Button
-              variant="quiet"
-              size="icon"
-              aria-label={search.label}
-              aria-expanded={opened || searching}
-              onPress={() => setOpened((o) => !o)}
-            >
-              <Search aria-hidden size={20} />
-            </Button>
-          )
-        }
       />
       {!wide && (opened || searching) && field}
       {list}

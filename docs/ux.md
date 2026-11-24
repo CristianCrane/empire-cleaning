@@ -124,8 +124,9 @@ order:
   opens on the first Tab that holds anything, or, where the server pages
   it (Jobs, Clients), on its first Tab, asked for before the counts are
   known.
-- **A search**, on an Office work list only: at the end of the Tabs' line
-  from `md`, behind an icon on a phone. It looks through every Tab: the Tabs
+- **A search**, on an Office work list only: at the end of the Tabs' line,
+  a field from `md` and an icon that opens one on a phone, so it never
+  takes a row of its own under the bar that names the list. It looks through every Tab: the Tabs
   step aside for "N found in every tab", every row then says where it
   stands, and Clear search brings them back. One that matches nothing says
   so, with Clear search.
