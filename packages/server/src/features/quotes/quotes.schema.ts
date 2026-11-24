@@ -21,7 +21,7 @@ import type {
   HomeRooms,
   PriceBreakdown,
 } from "@empire-cleaning/models";
-import { timestamps } from "../../db/timestamps.ts";
+import { madeAt, timestamps } from "../../db/timestamps.ts";
 import { accounts } from "../auth/auth.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { services } from "../services/services.schema.ts";
@@ -140,6 +140,7 @@ export const quotes = pgTable(
     createdBy: uuid("created_by").references(() => accounts.id, {
       onDelete: "set null",
     }),
+    ...madeAt,
     ...timestamps,
   },
   (t) => [

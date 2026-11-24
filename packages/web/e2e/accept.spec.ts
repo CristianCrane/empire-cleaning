@@ -405,7 +405,6 @@ test("a Client's bank approving the Deposit while Office Staff draft changes acc
   browser,
 }) => {
   const { client, accept } = await payingOnline(page, browser);
-  await page.clock.install();
   await page.reload();
   await expect(
     page.getByRole("status").filter({ hasText: paying }),

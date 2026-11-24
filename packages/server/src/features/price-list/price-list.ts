@@ -107,7 +107,7 @@ const toPriceList = (
   id: row.id,
   version: row.version,
   placeholder: row.placeholder,
-  createdAt: row.createdAt.toISOString(),
+  createdAt: row.madeAt.toISOString(),
   createdByName: author.name,
   conditionLight: row.conditionLight,
   conditionModerate: row.conditionModerate,

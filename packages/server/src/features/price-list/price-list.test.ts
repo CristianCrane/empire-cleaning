@@ -7,7 +7,7 @@ import type {
   OfficeQuote,
   RoomHours,
 } from "@empire-cleaning/models";
-import { type Agent, api, signIn } from "../../../tests/harness.ts";
+import { type Agent, api, signIn, testClock } from "../../../tests/harness.ts";
 import {
   casey,
   guestAsk,
@@ -170,9 +170,10 @@ describe("the Price List", () => {
     );
   });
 
-  test("every save is a new version, recording who made it", async () => {
+  test("every save is a new version, recording who made it and when, by the server's Clock", async () => {
     const office = await signInAsOffice();
     await getList(office);
+    testClock().set(new Date("2026-01-06T14:00:00Z"));
 
     const saved = await save(office, { depositPercent: 30 }, 200);
 
@@ -181,6 +182,7 @@ describe("the Price List", () => {
       placeholder: false,
       depositPercent: 30,
       createdByName: "Olive Owner",
+      createdAt: "2026-01-06T14:00:00.000Z",
     });
     expect(await getList(office)).toMatchObject({ version: 2 });
   });

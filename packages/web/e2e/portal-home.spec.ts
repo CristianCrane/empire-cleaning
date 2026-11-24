@@ -177,8 +177,6 @@ test("the morning a crew couldn't get in, Home says what happened and leads with
   const { job, cory } = await booked();
   await setClock(MONDAY_9_30AM);
   await recordNoAccess(job.id, cory.id, "The code didn't open the door");
-  // that morning in the browser too, as Home tells the day by its clock
-  await page.clock.install({ time: new Date("2026-01-12T15:00:00Z") });
   await home(page);
   await expect(why(page)).toContainText(
     "The crew came at 9:30 AM today, but couldn't get in: \"The code didn't open the door\".",

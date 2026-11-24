@@ -6,6 +6,7 @@ import type {
   BillSummary,
   BillView,
   ClientBillingSaved,
+  ClientPayment,
   OfficeClientView,
   CompletionInput,
   NeedsAttentionItem,
@@ -352,6 +353,31 @@ describe("making Bills", () => {
     }).expect(200);
     expect(testPayments().charges).toHaveLength(2);
     expect(testPayments().refunds).toEqual([]);
+  });
+
+  test("a bank debit on its way is in the Client's history from when they paid, by the server's Clock", async () => {
+    const { clientId, office } = await billedJob({ payment: "on_page" });
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const [{ id }] = (await billsOf(office, clientId)) as [BillSummary];
+    const client = await signIn(casey.email);
+    const form = (
+      await client.post(`/api/bills/mine/${id}/payment-form`).expect(200)
+    ).body as BillPaymentForm;
+    testPayments().payBill(form.ref, "bank");
+    await client
+      .post(`/api/bills/mine/${id}/payment`)
+      .send({ ref: form.ref })
+      .expect(200);
+    testClock().advance({ hours: 2 });
+
+    const history = (await client.get("/api/payments/mine").expect(200))
+      .body as ClientPayment[];
+
+    expect(history.find((p) => p.bill?.id === id)).toMatchObject({
+      clearing: true,
+      at: NEXT_MONDAY.toISOString(),
+    });
   });
 
   test("a bank debit is processing until it clears, or due again if it fails", async () => {

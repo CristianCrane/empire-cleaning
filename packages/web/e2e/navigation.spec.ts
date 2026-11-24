@@ -294,7 +294,6 @@ test(
   "a page that takes a moment fades the one on show under a bar, and a quick one shows nothing",
   { tag: "@desktop" },
   async ({ page }) => {
-    await page.clock.install();
     await signInWithAJob(page);
 
     let letGo = await holdApi(page, aJob);
@@ -339,7 +338,6 @@ test("a search that takes a moment leaves the list as it is, still typed in", as
 }) => {
   // a list with no one in it has no search
   await createClient(casey);
-  await page.clock.install();
   await createStaff(olive);
   await signedInAs(page, olive.email);
   await goTo(page, "Clients");
@@ -365,7 +363,6 @@ test("a search that takes a moment leaves the list as it is, still typed in", as
 // minute, never puts it out of reach, even for a moment, as it reloads
 // (PR #503 review F7)
 test("Today's own refresh never puts it out of reach", async ({ page }) => {
-  await page.clock.install();
   await signInWithAJob(page);
   await expect(page.getByRole("heading", { name: "Hi, Olive" })).toBeVisible();
   // each time the page on show goes out of reach or back

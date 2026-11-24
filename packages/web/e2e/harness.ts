@@ -8,10 +8,23 @@ import {
   type Page,
 } from "@playwright/test";
 import type { Me, QuoteSource, StaffRole } from "@empire-cleaning/models";
+import { API_CLOCK_HEADER } from "@empire-cleaning/server/api-clock";
 import type { Approval } from "@empire-cleaning/server/fake-payments";
 import { THEME_STORAGE_KEY } from "@empire-cleaning/ui/theme-boot";
 import { apiUrl, controlUrl } from "../playwright.config.ts";
 import { tourIds } from "../src/screens/tours.ts";
+
+// the API's clock as its control server's last answer left it, and every
+// browser the test has open: each keeps to the API's clock, so a page shows
+// the same day and time the API stamps its records with, wherever a test
+// moves it (#520). Set by a clean slate, before any browser opens (browsers)
+let apiNow = new Date(0);
+const clocked = new Set<BrowserContext>();
+const keepToApiClock = async (context: BrowserContext) => {
+  await context.clock.install({ time: apiNow });
+  clocked.add(context);
+  context.on("close", () => clocked.delete(context));
+};
 
 // talks to the e2e API's control server (packages/server/tests/e2e/server.ts)
 const control = async (path: string, init?: RequestInit) => {
@@ -20,6 +33,11 @@ const control = async (path: string, init?: RequestInit) => {
     headers: { "content-type": "application/json" },
   });
   if (!res.ok) throw new Error(`${path}: ${res.status} ${await res.text()}`);
+  const at = new Date(res.headers.get(API_CLOCK_HEADER)!);
+  if (at.getTime() !== apiNow.getTime()) {
+    apiNow = at;
+    for (const context of clocked) await context.clock.setSystemTime(at);
+  }
   return res.json();
 };
 
@@ -294,7 +312,8 @@ export const payBillsBy = (by: "card" | "bank") =>
     method: "POST",
     body: JSON.stringify({ by }),
   });
-// moves the API's clock (it starts at 9:00 UTC on Monday 5 January 2026)
+// moves the API's clock (it starts at 9:00 UTC on Monday 5 January 2026),
+// and every open browser's with it (control)
 export const setClock = (at: string) =>
   control("/clock", { method: "POST", body: JSON.stringify({ at }) });
 
@@ -398,8 +417,8 @@ export const setLanguage = async (page: Page, language: "en" | "es") => {
 // Content-Security-Policy (vite.config.ts) blocked anything a page loads.
 // First-time help's tours dim the page and take every press, so a test meets
 // none, as if each had been seen, unless it asks to in its own page
-// (showTours, tours.spec.ts); a browser it opens beside its own closes as it
-// ends (browsers). Under `pnpm pr:shots`, each test ends on a
+// (showTours, tours.spec.ts); every browser it uses keeps to the API's clock,
+// and one it opens beside its own closes as it ends (browsers). Under `pnpm pr:shots`, each test ends on a
 // picture of its screen at rest (prShot)
 export const test = base.extend<{
   cleanSlate: void;
@@ -490,13 +509,14 @@ export const test = base.extend<{
     { auto: true },
   ],
   showTours: [false, { option: true }],
-  // every browser a test uses: tours seen in each, and those it opened
-  // beside its own closed as it ends. Left open, Playwright's end-of-test
+  // every browser a test uses: on the API's clock, from the clean slate's
+  // (control), tours seen in each, and those it opened beside its own closed
+  // as it ends. Left open, Playwright's end-of-test
   // screenshot shoots their pages in every later test of the worker, and a
   // test with no page of its own got one of those as its pr:shots picture
   // (#488)
   browsers: [
-    async ({ browser, context, showTours }, use) => {
+    async ({ browser, context, showTours, cleanSlate: _ }, use) => {
       const routed: BrowserContext[] = [];
       const allSeen = (on: BrowserContext) => {
         routed.push(on);
@@ -510,6 +530,7 @@ export const test = base.extend<{
           });
         });
       };
+      await keepToApiClock(context);
       if (!showTours) await allSeen(context);
       // and in every browser a test opens beside its own, e.g. the Client's
       // while the Office's is open, tours shown in its own or not
@@ -519,6 +540,7 @@ export const test = base.extend<{
       browser.newContext = async (...options) => {
         const beside = await newContext(...options);
         opened.push(beside);
+        await keepToApiClock(beside);
         await allSeen(beside);
         return beside;
       };

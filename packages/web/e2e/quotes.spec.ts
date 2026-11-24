@@ -182,8 +182,6 @@ test("prices follow the Draft as it changes, and an override waits for its reaso
 test("a Quote waits on a proposed time to be sent, picked in a tap", async ({
   page,
 }) => {
-  // the API's now, so the days the picker starts on are the API's
-  await page.clock.setFixedTime("2026-01-05T09:00:00Z");
   await requestQuoteAsGuest(casey);
   await signInAsOffice(page);
   await startDraft(page);

@@ -762,6 +762,7 @@ export const finishBillPayment = async (
           paidAt: now,
           paidVia: "page",
           paymentRef: null,
+          clearingSince: null,
           unpaidSince: null,
           unpaidReason: null,
         })
@@ -775,7 +776,7 @@ export const finishBillPayment = async (
     if (outcome.status === "processing" && bill.status === "due") {
       await tx
         .update(bills)
-        .set({ status: "processing", paymentRef: ref })
+        .set({ status: "processing", paymentRef: ref, clearingSince: now })
         .where(eq(bills.id, bill.id));
       await holdOrResumePlansOf(bill.id, tx);
     }
@@ -786,7 +787,7 @@ export const finishBillPayment = async (
     ) {
       await tx
         .update(bills)
-        .set({ status: "due", paymentRef: null })
+        .set({ status: "due", paymentRef: null, clearingSince: null })
         .where(eq(bills.id, bill.id));
       return {
         kind: "debit_failed",
