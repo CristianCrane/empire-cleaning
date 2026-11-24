@@ -931,6 +931,54 @@ describe("a Bill payment going through", () => {
       paying: { status: "failed" },
     });
   });
+
+  // #534's critical review C7: the attempt's end is written apart from the
+  // Bill's, so a run that fails between them leaves the Bill processing
+  // with its debit ended, for the next run to settle
+  test("a failed bank debit is told the Client though the run that found it failed", async () => {
+    const { office, clientId } = await billedJob({ payment: "on_page" });
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const [{ id }] = (await billsOf(office, clientId)) as [BillSummary];
+    const client = await signIn(casey.email);
+    await client
+      .post(`/api/bills/mine/${id}/payment`)
+      .send({ token: testPayments().bankToken() })
+      .expect(200);
+    testPayments().clearBankDebit(testPayments().lastBankDebit(), false);
+    testClock().advance({ days: 3 });
+
+    // the first run's write of the Bill fails, once (a sequence, as it
+    // isn't rolled back with it)
+    await db.execute(sql`create sequence c7_runs`);
+    await db.execute(sql`
+      create function c7_fail_once() returns trigger language plpgsql as $$
+      begin
+        if nextval('c7_runs') = 1 then raise exception 'the run failed'; end if;
+        return new;
+      end $$`);
+    await db.execute(sql`
+      create trigger c7_fail_once before update on bills for each row
+      when (old.status = 'processing' and new.status = 'due')
+      execute function c7_fail_once()`);
+    try {
+      await settleOpenPayments().catch(() => undefined);
+      expect((await billOf(office, id)).status).toBe("processing");
+      await settleOpenPayments();
+    } finally {
+      await db.execute(sql`drop trigger c7_fail_once on bills`);
+      await db.execute(sql`drop function c7_fail_once`);
+      await db.execute(sql`drop sequence c7_runs`);
+    }
+
+    expect(await billOf(office, id)).toMatchObject({
+      status: "due",
+      paying: { status: "failed" },
+    });
+    expect(testEmail().lastTo(BILLING_EMAIL).subject).toBe(
+      "Your payment for bill EC-000001 didn't go through",
+    );
+  });
 });
 
 // #241, finding 8

@@ -831,6 +831,9 @@ export const finishBillPayment = async (
   return billView(billId, client.id);
 };
 
+// a payment on a Bill, as attemptsFor reads it
+type Attempted = Awaited<ReturnType<typeof attemptsFor>>[number];
+
 /**
  * Settles what the payments on a Bill came to (ADR-0022), as the provider's
  * webhook, the Client's browser after their bank's check, the Clock, or
@@ -885,14 +888,19 @@ export const settleBill = async (
     // one they were told was going through, or left with their bank
     // finishing it, that failed: not one they saw refused in the dialog,
     // nor one never approved, nor called off as the Bill was paid
-    // another way or cancelled
-    const failed = ended.find(
-      ({ before: b, now }) =>
-        now.call === "bill" &&
-        !waitOf(b.attempt).onClient &&
-        now.attempt.status === "failed" &&
-        !NOT_APPROVED(now.attempt.reason),
-    )?.now.attempt.reason;
+    // another way or cancelled. A stale Bill's is its debit, which ended
+    // in a run that failed before it told them: the newest that ended
+    // (#534's critical review C7)
+    const failing = (was: Attempted, now: Attempted) =>
+      now.call === "bill" &&
+      !waitOf(was.attempt).onClient &&
+      now.attempt.status === "failed" &&
+      !NOT_APPROVED(now.attempt.reason);
+    const debit = [...after.values()].find((a) => a.call === "bill" && !a.open);
+    const failed = (
+      ended.find(({ before: was, now }) => failing(was, now))?.now ??
+      (stale && debit && failing(debit, debit) ? debit : undefined)
+    )?.attempt.reason;
 
     if (!("unknown" in taken) && taken.length > 0) {
       if (bill.status === "paid" || bill.status === "void") {
