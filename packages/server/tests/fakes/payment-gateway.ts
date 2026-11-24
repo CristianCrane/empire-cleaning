@@ -560,10 +560,13 @@ export class FakePaymentGateway implements PaymentGateway {
     if (!this.waiting.has(ref) || this.canceled.has(ref)) {
       throw new Error(`no Deposit ${ref} to call off`);
     }
-    if (this.approval === "processing") {
+    // read as depositOutcome says it, so the two never disagree (#534
+    // review F29)
+    const said = await this.depositOutcome(ref);
+    if (said.status === "needs_approval" && said.processing) {
       throw new Error(`Deposit ${ref} is processing`);
     }
-    if ((await this.depositOutcome(ref)).status === "succeeded") {
+    if (said.status === "succeeded") {
       throw new Error(`Deposit ${ref} was taken`);
     }
     this.canceled.add(ref);

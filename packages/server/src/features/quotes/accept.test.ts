@@ -1,4 +1,7 @@
-import { formats } from "@empire-cleaning/models";
+import {
+  clientPaying as clientPayingWords,
+  formats,
+} from "@empire-cleaning/models";
 import { describe, expect, test, vi } from "vitest";
 import { sql } from "drizzle-orm";
 import type {
@@ -1406,6 +1409,74 @@ describe("while the Client's bank is approving the Deposit", () => {
       again: again.status,
       calledOff: testPayments().canceled.size,
     }).toEqual({ finishing: false, again: 200, calledOff: 1 });
+  });
+
+  // critical review C9: Send calls off a payment past 15 minutes first; a
+  // call-off that didn't reach the provider leaves it open, so the changes
+  // wait, as Record acceptance does, rather than close the offer Casey's
+  // bank may still approve (C2's charge and then refund)
+  test("a call-off that failed before Send leaves the changes unsent while their bank still asks them", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+    testClock().advance({ minutes: 15 });
+    await office.post(`/api/quotes/${quote.id}/revisions`).send({}).expect(201);
+    vi.spyOn(testPayments(), "cancelDeposit").mockRejectedValueOnce(
+      new Error("Stripe is down"),
+    );
+
+    const sent = await office.post(`/api/quotes/${quote.id}/send`);
+    // Casey approves it in their bank app, still open at Stripe
+    testPayments().requireApproval(null);
+    await finalize(client, quote);
+
+    expect({
+      send: sent.status,
+      message: sent.body.message,
+      charges: testPayments().charges.length,
+      refunds: testPayments().refunds.length,
+    }).toEqual({
+      send: 409,
+      message: clientPayingWords.UNSURE,
+      charges: 1,
+      refunds: 0,
+    });
+  });
+
+  // critical review C9: the same when Send's first read of it doesn't reach
+  // the provider, so it's never called off at all
+  test("a read that failed before Send leaves the changes unsent while their bank still asks them", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+    testClock().advance({ minutes: 15 });
+    await office.post(`/api/quotes/${quote.id}/revisions`).send({}).expect(201);
+    vi.spyOn(testPayments(), "depositOutcome").mockRejectedValueOnce(
+      new Error("Stripe is down"),
+    );
+
+    const sent = await office.post(`/api/quotes/${quote.id}/send`);
+    // Casey approves it in their bank app, still open at Stripe
+    testPayments().requireApproval(null);
+    await finalize(client, quote);
+
+    expect({
+      send: sent.status,
+      message: sent.body.message,
+      charges: testPayments().charges.length,
+      refunds: testPayments().refunds.length,
+    }).toEqual({
+      send: 409,
+      message: clientPayingWords.UNSURE,
+      charges: 1,
+      refunds: 0,
+    });
   });
 
   // critical review C3: a payment that's ended (approved, the day full, its

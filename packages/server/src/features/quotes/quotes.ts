@@ -718,6 +718,33 @@ export const payingOf = async (
   };
 };
 
+// Whether a Deposit the Client's bank was asked to approve is still open on
+// the Quote past payingOf's window: settling it (settleQuotePayments)
+// couldn't reach the provider to call it off or read it, so it may yet pay
+// the offer sent (#534 review F28, critical review C9). Settled, it's
+// booked or ended, as in payingOf (C3)
+const stillPaying = async (quoteId: string, tx: Tx) => {
+  const [open] = await tx
+    .select({ ref: pendingDeposits.gatewayRef })
+    .from(pendingDeposits)
+    .innerJoin(
+      chargeAttempts,
+      and(
+        eq(chargeAttempts.kind, "deposit"),
+        eq(chargeAttempts.gatewayRef, pendingDeposits.gatewayRef),
+      ),
+    )
+    .where(
+      and(
+        eq(pendingDeposits.quoteId, quoteId),
+        isNull(pendingDeposits.settledAt),
+        eq(chargeAttempts.status, "approving"),
+      ),
+    )
+    .limit(1);
+  return open !== undefined;
+};
+
 // what the Client's bank approved on a Quote that couldn't be booked,
 // oldest first: what Office Staff on the phone with them see. A Deposit
 // once it's been given back (its charge is the pending row's ref), and a
@@ -1847,6 +1874,9 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
           finishing: paying.finishing,
         }),
       );
+    }
+    if (await stillPaying(current.id, tx)) {
+      throw new ConflictError(clientPayingWords.UNSURE);
     }
     const saved = await optionsOf(draft.id, tx);
     const options = repriced(

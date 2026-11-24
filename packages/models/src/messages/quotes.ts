@@ -161,6 +161,10 @@ export const clientPaying = {
   // or found it approved, but then it couldn't be booked
   refunded: (name: string) =>
     `${name}'s online payment went through just before you pressed, but the quote couldn't be booked with it, so their deposit is being refunded.`,
+  // or couldn't learn where it stands, the provider unreached: it may
+  // still be paying the quote sent, so the changes wait (#534 review F28)
+  UNSURE:
+    "We couldn't reach the payment service to check on an online payment for this quote, so your changes weren't sent. Please try again in a few minutes.",
   // sending changes found it approved, and accepted the quote with it
   sent: (name: string, paid: string | null) =>
     `${wentThrough(name)}${paid ? ` with the ${paid} they paid for` : " and their cleaning plan is started as they chose it"}, and your changes weren't sent.`,
