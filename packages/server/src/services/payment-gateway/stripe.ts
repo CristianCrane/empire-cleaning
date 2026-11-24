@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 import type { CardForm, Language, PaymentForm } from "@empire-cleaning/models";
 import { stripeLocales } from "@empire-cleaning/models";
-import { MINUTE_MS } from "@empire-cleaning/models";
+import { MINUTE_MS, upperFirst } from "@empire-cleaning/models";
 import { monitoring } from "#services/monitoring";
 import {
   PaymentMethodError,
@@ -487,7 +487,7 @@ const idOf = (ref: string | { id: string } | null | undefined) =>
 const cardOf = (method: Stripe.PaymentMethod) => ({
   brand: (method.card?.display_brand ?? method.card?.brand ?? "card")
     .split("_")
-    .map((word) => `${word[0]!.toUpperCase()}${word.slice(1)}`)
+    .map(upperFirst)
     .join(" "),
   last4: method.card?.last4 ?? "????",
 });

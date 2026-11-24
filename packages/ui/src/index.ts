@@ -28,6 +28,7 @@ export {
   type CrewMember,
 } from "./Crew.tsx";
 export { DateTile } from "./DateTile.tsx";
+export { TimeTiles } from "./TimeTiles.tsx";
 export { Chip, ChipGroup } from "./ChipGroup.tsx";
 export { ChoiceTile, ChoiceTiles, ChoiceTilesLoading } from "./ChoiceTiles.tsx";
 export { DatePicker, TimeField } from "./DateField.tsx";
@@ -61,6 +62,7 @@ export {
 } from "./layouts/PageActions.tsx";
 export { type Alert } from "./layouts/Alerts.tsx";
 export { FormPage, FormPart } from "./layouts/FormPage.tsx";
+export { useOpenOnInvalid } from "./openOnInvalid.ts";
 export { PageFrame } from "./layouts/PageFrame.tsx";
 export {
   AnswerCard,
@@ -86,6 +88,8 @@ export { Section } from "./Section.tsx";
 export { Segment, SegmentedControl } from "./SegmentedControl.tsx";
 export { Select, SelectItem } from "./Select.tsx";
 export { StatusBadge, type StatusTone } from "./StatusBadge.tsx";
+export { Stepper } from "./Stepper.tsx";
+export { focusRing } from "./utils.ts";
 export { readStored, store } from "./stored.ts";
 export { useSettled } from "./settled.ts";
 export { staleFade } from "./stale.ts";

@@ -427,7 +427,6 @@ test("a Client's bank approving the Deposit while Office Staff draft changes acc
 test("the draft of a Quote its Client is paying waits to be sent", async ({
   page,
   browser,
-  isMobile,
 }) => {
   await payingOnline(page, browser);
   await page.reload();
@@ -439,10 +438,10 @@ test("the draft of a Quote its Client is paying waits to be sent", async ({
   await expect(
     page.getByRole("button", { name: "Send to Casey Client" }).first(),
   ).toBeDisabled();
-  if (isMobile)
-    await expect(
-      page.getByText("Not while Casey is paying the deposit"),
-    ).toBeVisible();
+  // said beside Send at every width, as what Send waits on is
+  await expect(
+    page.getByRole("status").filter({ hasText: /saved/i }),
+  ).toHaveText("Saved · Not while Casey is paying the deposit");
 });
 
 // past the 15 minutes, a payment their bank is finishing can't be called

@@ -50,7 +50,17 @@ export {
   type CancelCost,
   type OfficeCancelCost,
 } from "./cancellation.ts";
-export { ADD_HOURS, DAY_FULL, MORE_HOURS, NO_CREW, whyNoRoom } from "./jobs.ts";
+export {
+  ADD_HOURS,
+  DAY_FULL,
+  MORE_HOURS,
+  NO_CREW,
+  NO_ROOM,
+  noRoomOf,
+  runsPastMidnight,
+  whyNoRoom,
+  type NoRoom,
+} from "./jobs.ts";
 export { asksTheClient, officeFix } from "./payments.ts";
 export {
   clientPaying,

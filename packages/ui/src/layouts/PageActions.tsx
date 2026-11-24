@@ -201,11 +201,14 @@ export function SplitButton({
   const { press, dialogs } = useDialogs(more);
   const joined = more.length > 0 ? "rounded-r-none" : "";
   const Chevron = opens === "menu" ? ChevronDown : ChevronUp;
+  // outlined while the primary can't be pressed, so the one control
+  // doesn't show two ranks at once
   const arrow = (
     <Button
       aria-label={words.moreActions}
+      variant={next.isDisabled ? "secondary" : "primary"}
       isPending={more.some((a) => a.isPending)}
-      className="shrink-0 rounded-l-none border-l border-primary-fg/40 px-3"
+      className={`shrink-0 rounded-l-none px-3 ${next.isDisabled ? "" : "border-l border-primary-fg/40"}`}
     >
       <Chevron aria-hidden size={20} />
     </Button>

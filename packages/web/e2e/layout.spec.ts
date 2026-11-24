@@ -460,6 +460,37 @@ test("a Sent Quote fits every width, for the Office and the Client", async ({
   );
 });
 
+// the picker's longest words: a line saying the Service offered beside it
+// has no room, and the nearest time that has, a tap away. As one button
+// they ran past a phone's edge
+test("a Draft whose time has no room for the Service beside it fits every width", async ({
+  page,
+}) => {
+  for (const name of ["Cory Cleaner", "Dee Cleaner"]) {
+    await addCleaner(name, [4, 4, 4, 4, 4, 0, 0]);
+  }
+  // Monday half booked: room for the Standard Clean, not the Deep Clean
+  await bookJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 4 });
+  await requestQuoteAsGuest(casey);
+  await createStaff(olive);
+  await signedInAs(page, olive.email);
+  await page.goto("/office/quotes");
+  await page.getByText("Casey Client").click();
+  await draftTheQuote(page);
+  const draft = new URL(page.url()).pathname;
+  await proposeNextMonday(page);
+  await saved(page);
+
+  await page.goto(draft);
+  const proposed = page.getByRole("region", { name: "Proposed time" });
+  await expect(proposed).toContainText("can't pick the Deep Clean");
+  // the nearest time with room for it is found once the times have loaded
+  await expect(
+    proposed.getByRole("button", { name: "7:00 AM", exact: true }),
+  ).toBeVisible();
+  expect.soft(await problemsAtEveryWidth(page, draft)).toEqual([]);
+});
+
 test("an Accepted Quote and the Client's upcoming Jobs fit every width", async ({
   page,
   browser,

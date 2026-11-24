@@ -175,7 +175,10 @@ export function PageHeader({
 // state wraps to a few short lines there, rather than squeezing the title
 function Note({ children }: { children: ReactNode }) {
   return (
-    <span role="status" className="max-w-48 text-right text-sm text-fg-muted">
+    <span
+      role="status"
+      className="max-w-48 text-right text-sm text-balance text-fg-muted"
+    >
       {children}
     </span>
   );
@@ -270,14 +273,18 @@ function useScrolledAway() {
   const [away, setAway] = useState(false);
   useEffect(() => {
     if (!element) return setAway(false);
+    // a busy browser can hand over several reports at once, oldest first:
+    // the newest is where the element is now (#539)
     const watch = new IntersectionObserver(
-      ([entry]) =>
+      (entries) => {
+        const entry = entries.at(-1);
         setAway(
           !!entry &&
             entry.intersectionRatio < 1 &&
             entry.boundingClientRect.height > 0 &&
             entry.boundingClientRect.top < 0,
-        ),
+        );
+      },
       { threshold: 1 },
     );
     watch.observe(element);

@@ -7,10 +7,10 @@ import { useLayoutEffect, useRef, type ReactNode } from "react";
 // wider screen keeps them in the header): a Record's next step, and a Quote
 // Draft's or New quote's price and button.
 // What it sums up goes first (`summary`, then `status`, a line that's
-// read out as it changes: a save's state), the main action last. Its main
-// action greyed, `why` says why in short on a line above it all, as a
-// greyed menu item's line does, as the page's alert saying it may have
-// scrolled away (#534). While shown, its
+// read out as it changes: a save's state, and what the button waits on),
+// the main action last. A Record's next step greyed, `why` says why in
+// short on a line above it all, as a greyed menu item's line does, as the
+// page's alert saying it may have scrolled away (#534). While shown, its
 // height (taller when its actions wrap) is `--action-footer-height` on the
 // page: the room it leaves below the page, so nothing hides under it, and
 // for what floats above it (the test site's feedback button).
@@ -64,7 +64,10 @@ export function ActionFooter({
               {summary && (
                 <span className="font-semibold tabular-nums">{summary}</span>
               )}
-              <span role="status" className="text-sm text-fg-muted">
+              <span
+                role="status"
+                className="text-sm text-balance text-fg-muted"
+              >
                 {status}
               </span>
             </div>
