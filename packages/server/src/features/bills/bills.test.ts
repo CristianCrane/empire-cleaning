@@ -269,6 +269,7 @@ describe("making Bills", () => {
         number: "EC-000001",
         status: "paid",
         unpaid: null,
+        paying: null,
         totalCents: priceCents - depositCents,
         cents: priceCents - depositCents,
         refundedCents: 0,
@@ -480,7 +481,7 @@ describe("making Bills", () => {
   });
 
   test("a card declined on the page says why in plain words, never its code, and the Bill's pages say so", async () => {
-    const { office, clientId } = await billedJob({ payment: "on_page" });
+    const { office, clientId, jobId } = await billedJob({ payment: "on_page" });
     testClock().set(NEXT_MONDAY);
     await makeDueBills();
     const [{ id }] = (await billsOf(office, clientId)) as [BillSummary];
@@ -506,6 +507,19 @@ describe("making Bills", () => {
     });
     // the dialog said so: no email
     expect(testEmail().sent).toHaveLength(emails);
+    // and the clean it billed says where the Bill stands as its pages do
+    const [row] = await db.select().from(jobs).where(eq(jobs.id, jobId));
+    expect((await paymentOf(row!)).bills).toEqual([
+      expect.objectContaining({
+        id,
+        unpaid: null,
+        paying: {
+          status: "failed",
+          at: NEXT_MONDAY.toISOString(),
+          why: "the card has expired",
+        },
+      }),
+    ]);
   });
 
   test("two payments pressed at once take the Bill once", async () => {

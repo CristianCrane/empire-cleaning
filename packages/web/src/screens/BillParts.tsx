@@ -106,7 +106,7 @@ type T = Said & { w: (typeof words)["en"] };
 export function BillStatusBadge({
   bill,
 }: {
-  bill: Pick<BillSummary, "status" | "unpaid" | "totalCents">;
+  bill: Pick<BillSummary, "status" | "unpaid" | "paying" | "totalCents">;
 }) {
   const { w, unpaid, clearing, paymentPending } = useSaid(words);
   if (bill.status === "void") return <StatusBadge>{w.cancelled}</StatusBadge>;
@@ -115,7 +115,11 @@ export function BillStatusBadge({
   // one we try again ourselves waits on us (ADR-0022), as a clean's does
   if (bill.unpaid && !asksTheClient(bill.unpaid.kind))
     return <StatusBadge tone="info">{paymentPending}</StatusBadge>;
-  if (bill.unpaid) return <StatusBadge tone="danger">{unpaid}</StatusBadge>;
+  // the Client's last payment on its page didn't go through, as a card we
+  // charged that was declined: one event, one badge, however it's paid.
+  // One their bank asks them to approve is still Due, theirs to finish
+  if (bill.unpaid || bill.paying?.status === "failed")
+    return <StatusBadge tone="danger">{unpaid}</StatusBadge>;
   if (bill.status === "due")
     return <StatusBadge tone="warning">{w.due}</StatusBadge>;
   if (bill.totalCents < 0) return <StatusBadge>{w.credit}</StatusBadge>;

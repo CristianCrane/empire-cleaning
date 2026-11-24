@@ -46,6 +46,7 @@ test("a Bill we try again ourselves says the same as a clean", async () => {
           status: "due",
           totalCents: 100,
           unpaid: { kind, why: null, since: "" },
+          paying: null,
         }}
       />,
     );

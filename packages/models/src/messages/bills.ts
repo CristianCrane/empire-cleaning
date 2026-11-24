@@ -39,6 +39,13 @@ export const bills = catalog({
       `We couldn't take payment for bill ${number}`,
     // a bank payment on its way, as the Client is told
     BANK_CLEARING: "It usually takes a few working days to clear.",
+    // the Client's last payment on a Bill's page, as its page says it:
+    // `amount` already formatted, `why` as whyNotPaid gives it (#534)
+    payingFailed: (amount: string, why: string | null) =>
+      `Your payment of ${amount} didn't go through${why ? ` (${why})` : ""}.`,
+    // what to do once a payment on a Bill's page took nothing, true whichever
+    // way they paid: the page's alert, and the server's refusal in its dialog
+    PAY_AGAIN: "Please try again, or use another card or bank account.",
   },
   es: {
     ON_WEEKS_BILL: "va en su factura de esa semana",
@@ -51,6 +58,9 @@ export const bills = catalog({
     billNotPaid: (number: string) =>
       `No pudimos cobrar el pago de la factura ${number}`,
     BANK_CLEARING: "Normalmente tarda unos días hábiles en hacerse efectivo.",
+    payingFailed: (amount: string, why: string | null) =>
+      `Su pago de ${amount} no pasó${why ? ` (${why})` : ""}.`,
+    PAY_AGAIN: "Vuelva a intentarlo, o use otra tarjeta o cuenta bancaria.",
   },
 });
 

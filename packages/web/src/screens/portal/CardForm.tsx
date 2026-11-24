@@ -19,7 +19,6 @@ import {
   type StripeError,
 } from "@stripe/stripe-js";
 import {
-  type BillPaymentForm,
   type CardForm,
   type PaymentForm,
   type PaymentMethodView,
@@ -53,7 +52,6 @@ const words = catalog({
     formNotLoaded: "The payment form didn't load.",
     bankDidnt: "Your bank didn't approve the payment.",
     notSetUp: "Your card couldn't be set up.",
-    didntGo: "Your payment didn't go through.",
   },
   es: {
     NOT_LOADED: "No se cargó el formulario. Vuelva a cargar la página.",
@@ -73,7 +71,6 @@ const words = catalog({
     formNotLoaded: "No se cargó el formulario de pago.",
     bankDidnt: "Su banco no aprobó el pago.",
     notSetUp: "No se pudo guardar su tarjeta.",
-    didntGo: "Su pago no pasó.",
   },
 });
 
@@ -204,9 +201,28 @@ const FONTS = [
   },
 ];
 
-// cards only: they settle at once, as a Deposit must (ADR-0008). Not Link,
-// which also offers bank payments.
-const ALLOWED_PAYMENT_METHOD_TYPES = ["card"];
+// what the form takes. Cards only: they settle at once, as a Deposit must
+// (ADR-0008). Or, for a Bill paid on its page, a US bank account too, linked
+// at once by signing in to the bank in the form, never by microdeposits,
+// whose code step takes days and runs a weekly bill past its due date
+// (ADR-0016; https://docs.stripe.com/payments/ach-direct-debit/accept-a-payment).
+// Not Link, which also offers bank payments (useStripeElement)
+type Methods = "card" | "cardOrBank";
+const methodsOf = (methods: Methods) =>
+  methods === "card"
+    ? { allowedPaymentMethodTypes: ["card"] }
+    : {
+        allowedPaymentMethodTypes: ["card", "us_bank_account"],
+        paymentMethodOptions: {
+          us_bank_account: { verification_method: "instant" as const },
+        },
+      };
+
+// what a payment the server started waits on: the Client's bank approving
+// it here (e.g. 3D Secure)
+type NeedsApproval = { status: "needs_approval"; secret: string };
+const needsApproval = (outcome: unknown): outcome is NeedsApproval =>
+  (outcome as { status?: unknown }).status === "needs_approval";
 
 // Mounts the Payment Element into a box once Stripe has loaded, and tears it
 // down when the form changes or goes away. It follows the screen's language
@@ -299,13 +315,14 @@ const formField = (
   form: PaymentForm | undefined,
   box: RefObject<HTMLDivElement | null>,
   problem: string | undefined,
+  methods: Methods = "card",
 ): ReactNode =>
   form?.form === "test" ? (
-    <Notice>{t.w.testPay}</Notice>
+    <Notice>{methods === "card" ? t.w.testPay : t.w.testBill}</Notice>
   ) : (
     <EmbeddedField
-      label={t.w.card}
-      description={t.NEVER_SEE_CARD}
+      label={methods === "card" ? t.w.card : t.w.payment}
+      description={methods === "card" ? t.NEVER_SEE_CARD : t.w.cardOrBank}
       errorMessage={problem}
       framed={false}
     >
@@ -314,19 +331,25 @@ const formField = (
   );
 
 /**
- * The form a Deposit is paid with: a card entered here is saved by the same
- * payment, for later Charges. `token()` hands what was entered to our server
- * (which takes the Deposit); if the Client's bank then wants them to approve
- * it, `approve(secret)` runs that approval (e.g. 3D Secure) here. That can
- * happen paying with a saved card too, so the card box is only shown with
- * `showCard`, but approval always works.
+ * The form a payment is made with: a Deposit's, a card entered here saved by
+ * the same payment for later Charges (`saves`), or a Bill's on its page, by
+ * card or bank account (`methods`), nothing saved. Our server takes the
+ * payment, from what was entered (`token()`); if the Client's bank then
+ * wants them to approve it, `approve(secret)` runs that approval (e.g. 3D
+ * Secure) here. That can happen paying with a saved card too, so the card
+ * box is only shown with `showCard`, but approval always works. `pay` runs
+ * the whole of it, the one way each payment goes.
  */
 export function usePaymentForm({
   amountCents,
   showCard = true,
+  methods = "card",
+  saves = true,
 }: {
   amountCents: number;
   showCard?: boolean;
+  methods?: Methods;
+  saves?: boolean;
 }) {
   const t = useCardWords();
   const { w, locale } = t;
@@ -347,8 +370,9 @@ export function usePaymentForm({
       stripe.elements({
         ...modeFor(amountCents),
         currency: "usd",
-        setupFutureUsage: "off_session",
-        allowedPaymentMethodTypes: ALLOWED_PAYMENT_METHOD_TYPES,
+        // the server's PaymentIntent says the same, or Stripe refuses it
+        ...(saves && { setupFutureUsage: "off_session" as const }),
+        ...methodsOf(methods),
         appearance: appearance(),
         fonts: FONTS,
         locale,
@@ -397,10 +421,39 @@ export function usePaymentForm({
     [form, mounted, w],
   );
 
+  // A payment, start to end: what was entered (none paying with a saved
+  // card) goes to our server, which takes it (`start`); if the Client's bank
+  // wants them to approve it, they do, here, and `finish` tells the server
+  // how that went: given the CardProblem when it wasn't approved, which it
+  // may throw, its own refusal (the server's words for it), or a payment the
+  // server finds was taken all the same. What `finish` gives back, or
+  // `start` when nothing needed approving, is how the payment ended
+  const pay = useCallback(
+    async <T,>({
+      start,
+      finish,
+    }: {
+      start: (token: string | undefined) => Promise<T | NeedsApproval>;
+      finish: (refused?: CardProblem) => Promise<T>;
+    }): Promise<T> => {
+      const outcome = await start(showCard ? await token() : undefined);
+      if (!needsApproval(outcome)) return outcome;
+      try {
+        await approve(outcome.secret);
+      } catch (e) {
+        if (e instanceof CardProblem) return finish(e);
+        throw e;
+      }
+      return finish();
+    },
+    [showCard, token, approve],
+  );
+
   return {
-    field: formField(t, form, box, failed ? w.NOT_LOADED : problem),
+    field: formField(t, form, box, failed ? w.NOT_LOADED : problem, methods),
     token,
     approve,
+    pay,
     isReady: Boolean(form),
   };
 }
@@ -469,79 +522,6 @@ export function useCardForm() {
         formField(t, form, box, failed ? w.NOT_LOADED : problem)
       ),
     save,
-    reset,
-    isReady: Boolean(form),
-  };
-}
-
-/**
- * The form a Bill is paid with on its page (ADR-0016), by card or by ACH
- * Direct Debit from a US bank account: nothing is saved for later. Each form
- * is a payment started with the provider, so one is only started when it's
- * shown. `pay()` completes it there and hands back what our server then asks
- * the provider about. After a payment is refused, `reset()` starts afresh.
- */
-export function useBillPaymentForm(billId: string) {
-  const { w, locale } = useCardWords();
-  const [attempt, setAttempt] = useState(0);
-  const [problem, setProblem] = useState<string>();
-
-  const { value: form, failed } = useLoaded(`${billId}:${attempt}`, () =>
-    postJson<BillPaymentForm>(`/api/bills/mine/${billId}/payment-form`),
-  );
-
-  const { box, ready } = useStripeElement(
-    form,
-    (stripe) =>
-      form?.form === "stripe"
-        ? stripe.elements({
-            clientSecret: form.secret,
-            appearance: appearance(),
-            fonts: FONTS,
-            locale,
-          })
-        : null,
-    setProblem,
-    locale,
-  );
-
-  const pay = useCallback(async () => {
-    if (!form) throw new CardProblem(w.LOADING);
-    if (form.form === "stripe") {
-      const { stripe, elements } = ready();
-      const result = await stripe.confirmPayment({
-        elements,
-        redirect: "if_required",
-        confirmParams: { return_url: window.location.href },
-      });
-      if (result.error) {
-        setProblem(result.error.message);
-        throw cardProblem(result.error, w.didntGo);
-      }
-    }
-    return form.ref;
-  }, [form, ready, w]);
-
-  const reset = useCallback(() => {
-    setProblem(undefined);
-    setAttempt((n) => n + 1);
-  }, []);
-
-  return {
-    field:
-      form?.form === "test" ? (
-        <Notice>{w.testBill}</Notice>
-      ) : (
-        <EmbeddedField
-          label={w.payment}
-          description={w.cardOrBank}
-          errorMessage={failed ? w.NOT_LOADED : problem}
-          framed={false}
-        >
-          <div ref={box} className="min-h-24" />
-        </EmbeddedField>
-      ),
-    pay,
     reset,
     isReady: Boolean(form),
   };

@@ -20,6 +20,12 @@ const words = catalog({
     toPay: "To pay",
     billDue: (n: string, day: string) => `Bill ${n} is due by ${day}`,
     andMore: (first: string, n: number) => `${first}, and ${n} more`,
+    // their last payment on a Bill's page, for a sentence to end (#534)
+    failedFor: (n: string, why: string | null) =>
+      `Your payment for bill ${n} didn't go through${why ? ` (${why})` : ""}`,
+    failedMany: (n: number) => `Payments for ${n} bills didn't go through`,
+    billsUnpaid: (n: number) =>
+      `${n} bills aren't paid yet. Each one's page says why`,
     onPage: "You pay each bill on its page",
     noCard: "No card saved yet",
     refundOnBill: (n: string) => `Refund on bill ${n}`,
@@ -43,6 +49,11 @@ const words = catalog({
     toPay: "Por pagar",
     billDue: (n: string, day: string) => `La factura ${n} vence el ${day}`,
     andMore: (first: string, n: number) => `${first}, y ${n} más`,
+    failedFor: (n: string, why: string | null) =>
+      `Su pago de la factura ${n} no pasó${why ? ` (${why})` : ""}`,
+    failedMany: (n: number) => `No pasaron los pagos de ${n} facturas`,
+    billsUnpaid: (n: number) =>
+      `${n} facturas aún no están pagadas. La página de cada una dice por qué`,
     onPage: "Paga cada factura en su página",
     noCard: "Aún no hay tarjeta guardada",
     refundOnBill: (n: string) => `Devolución de la factura ${n}`,
@@ -86,10 +97,28 @@ type Owed = {
   // ourselves (a Bill's or a clean's), which waits on us, and the card
   // says so calmly (owedAnswer)
   asks: boolean;
-  // why, the most pressing first; for one pending, what it's for (the
-  // card's label says it's pending)
-  text: string;
+  // the card's line: what's owed and by when, or, for one pending, what
+  // it's for (the card's label says it's pending); null when its alert says
+  // why instead, as one is past its due date or couldn't be taken
+  line: string | null;
+  // the alert above the card: what went wrong, as a sentence; null when
+  // nothing did
+  why: string | null;
   action: { label: string; href: AppHref };
+};
+
+// one thing owed, as the card is made of it: its line, or its news (what
+// went wrong, for a sentence to end), or both, while a Bill their last
+// payment on didn't go through is still before its due date (`failed`)
+type Owing = {
+  cents: number;
+  late: boolean;
+  asks: boolean;
+  line?: string;
+  news?: string;
+  failed?: boolean;
+  bill?: boolean;
+  action: Owed["action"];
 };
 
 export type MoneyNow = {
@@ -111,49 +140,62 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
   const t = saidWith(lang, words);
   const { w, billNotPaid, cleanNotPaid, formatShortDay, payBill, shortDayOf } =
     t;
-  const owing: Owed[] = [
-    // a Bill that couldn't be taken, or is past its due date
+  const failedFor = (b: BillSummary) =>
+    b.paying?.status === "failed" ? w.failedFor(b.number, b.paying.why) : null;
+  const owing: Owing[] = [
+    // a Bill that couldn't be taken, or is past its due date: its alert
+    // says which, its last payment on its page first when that didn't go
+    // through
     ...data.bills
       .filter((b) => b.unpaid && b.status === "due")
-      .map((b) => ({
-        cents: b.totalCents,
-        // one the payment service is trying again asks nothing yet, and
-        // isn't late: it waits on us
-        late: asksTheClient(b.unpaid!.kind),
-        asks: asksTheClient(b.unpaid!.kind),
-        text: asksTheClient(b.unpaid!.kind)
-          ? billNotPaid(b.number)
-          : t.p.bill(b.number),
-        // nothing to pay on its page while it's ours (#533)
-        action: {
-          label: asksTheClient(b.unpaid!.kind)
-            ? payBill(b.number)
-            : t.p.seeTheBill,
-          href: billLink(b.id),
-        },
-      })),
+      .map((b): Owing => {
+        const asks = asksTheClient(b.unpaid!.kind);
+        return {
+          cents: b.totalCents,
+          // one the payment service is trying again asks nothing yet, and
+          // isn't late: it waits on us
+          late: asks,
+          asks,
+          bill: true,
+          ...(asks
+            ? {
+                news: failedFor(b) ?? billNotPaid(b.number),
+                failed: !!failedFor(b),
+              }
+            : { line: t.p.bill(b.number) }),
+          // nothing to pay on its page while it's ours (#533)
+          action: {
+            label: asks ? payBill(b.number) : t.p.seeTheBill,
+            href: billLink(b.id),
+          },
+        };
+      }),
     // a clean, or its fee, that couldn't be charged
     ...data.pastJobs
       .filter((j) => j.unpaid)
-      .map((j) => ({
-        cents: j.owedCents,
-        late: asksTheClient(j.unpaid!),
-        asks: asksTheClient(j.unpaid!),
-        text: asksTheClient(j.unpaid!)
-          ? cleanNotPaid(shortDayOf(j.startsAt))
-          : t.p.yourClean(shortDayOf(j.startsAt)),
-        // we try one waiting on the payment service again ourselves
-        action: !asksTheClient(j.unpaid!)
-          ? {
-              label: t.p.seeTheClean,
-              href: linkTo({
-                to: "/portal/jobs/$jobId",
-                params: { jobId: j.id },
-              }),
-            }
-          : { label: t.UPDATE_CARD, href: cardLink },
-      })),
-    // a Bill to pay on its page, not yet late
+      .map((j): Owing => {
+        const asks = asksTheClient(j.unpaid!);
+        return {
+          cents: j.owedCents,
+          late: asks,
+          asks,
+          ...(asks
+            ? { news: cleanNotPaid(shortDayOf(j.startsAt)) }
+            : { line: t.p.yourClean(shortDayOf(j.startsAt)) }),
+          // we try one waiting on the payment service again ourselves
+          action: !asks
+            ? {
+                label: t.p.seeTheClean,
+                href: linkTo({
+                  to: "/portal/jobs/$jobId",
+                  params: { jobId: j.id },
+                }),
+              }
+            : { label: t.UPDATE_CARD, href: cardLink },
+        };
+      }),
+    // a Bill to pay on its page, not yet late: when by in its line, and,
+    // when their last payment on it didn't go through, that in the alert
     ...data.bills
       .filter(
         (b) =>
@@ -162,11 +204,15 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
           b.payment === "on_page" &&
           b.totalCents > 0,
       )
-      .map((b) => ({
+      // the one that didn't go through first, as it's what's news
+      .sort((a, b) => Number(!!failedFor(b)) - Number(!!failedFor(a)))
+      .map((b): Owing => ({
         cents: b.totalCents,
-        late: false,
+        late: !!failedFor(b),
         asks: true,
-        text: w.billDue(b.number, formatShortDay(b.dueOn)),
+        bill: true,
+        line: w.billDue(b.number, formatShortDay(b.dueOn)),
+        ...(failedFor(b) && { news: failedFor(b)!, failed: true }),
         action: { label: payBill(b.number), href: billLink(b.id) },
       })),
   ];
@@ -176,15 +222,19 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
   // the card is the one that leads, and what's like it: one we try again
   // ourselves isn't added to what asks to be paid, as it can't be (#533)
   const alike = owing.filter((o) => o.asks === first?.asks);
+  const line =
+    first?.line && alike.every((o) => o.line)
+      ? alike.length === 1
+        ? first.line
+        : w.andMore(first.line, alike.length - 1)
+      : null;
   const owed: Owed | null = first
     ? {
         cents: alike.reduce((sum, o) => sum + o.cents, 0),
         late: alike.some((o) => o.late),
         asks: first.asks,
-        text:
-          alike.length === 1
-            ? first.text
-            : w.andMore(first.text, alike.length - 1),
+        line,
+        why: whyOf(alike, line !== null, w),
         action: first.action,
       }
     : null;
@@ -204,6 +254,39 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
   };
 }
 
+// the alert above the card, one for all that's owed (the app shows two
+// alerts at most): what went wrong with each, as few words as say it, the
+// late first, as the card's action is for it; each Bill's page says the
+// rest. While the card's line says what's owed and by when, only what
+// didn't go through is news. Null when nothing went wrong
+function whyOf(
+  alike: Owing[],
+  lineShown: boolean,
+  w: (typeof words)["en"],
+): string | null {
+  const failed = alike.filter((o) => o.failed);
+  const news = alike.filter((o) => o.news);
+  const sentence = (() => {
+    if (news.length === 0) return null;
+    if (lineShown || failed.length === alike.length) {
+      return failed.length === 1
+        ? failed[0]!.news!
+        : w.failedMany(failed.length);
+    }
+    if (alike.length === 1) return alike[0]!.news!;
+    if (alike.length === 2 && news.length === 2 && failed.length === 1) {
+      const other = news.find((o) => !o.failed)!;
+      return `${other.news}. ${failed[0]!.news}`;
+    }
+    if (alike.length >= 3 && alike.every((o) => o.bill)) {
+      return w.billsUnpaid(alike.length);
+    }
+    const [lead] = alike;
+    return w.andMore(lead!.news ?? lead!.line!, alike.length - 1);
+  })();
+  return sentence && `${sentence}.`;
+}
+
 // a Client's plan as the owed card reads it: paused or not
 type PlanNow = Pick<ServicePlanSummary, "status">;
 
@@ -221,8 +304,9 @@ export function pausedLine(
 }
 
 // what's owed as a Home's answer (AnswerCard): Payments' card, and the
-// Client's Home's when it asks something of them. One that's late says
-// why above the card (whyAlert); one simply due, in its line. One that
+// Client's Home's when it asks something of them. What went wrong says
+// itself above the card (whyAlert); what's simply due, and by when, in its
+// line, kept while a payment on it didn't go through before then. One that
 // asks nothing, a payment we try again ourselves, is calm: Payment
 // pending, one short line, what it's for and that there's nothing to do,
 // and a way to see it rather than a primary (#493, #536). Either says a
@@ -241,7 +325,7 @@ export function owedAnswer(
         tone: "info",
         headline: t.formatMoney(owed.cents),
         lines: [
-          `${owed.text} · ${t.NOTHING_TO_DO}`,
+          owed.line ? `${owed.line} · ${t.NOTHING_TO_DO}` : t.NOTHING_TO_DO,
           ...pausedLine(plans, lang, false),
         ],
         action: { ...owed.action, secondary: true },
@@ -256,12 +340,12 @@ export function owedAnswer(
       tone: owed.late ? "danger" : "warning",
       headline: t.formatMoney(owed.cents),
       lines: [
-        ...(owed.late ? [] : [owed.text]),
+        ...(owed.line ? [owed.line] : []),
         ...pausedLine(plans, lang, true),
       ],
       action: owed.action,
     },
-    ...(owed.late && { why: { tone: "danger", lead: `${owed.text}.` } }),
+    ...(owed.why && { why: { tone: "danger", lead: owed.why } }),
   };
 }
 

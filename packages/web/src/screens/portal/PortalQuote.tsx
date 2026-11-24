@@ -784,25 +784,27 @@ function Accept({
     action.run(
       async () => {
         setStill(undefined);
-        const paymentToken = newCard ? await payment.token() : undefined;
-        const outcome = await postJson<AcceptOutcome>(
-          `/api/quotes/mine/${quote.id}/accept`,
-          // a plan is accepted whole
-          quote.plan
-            ? { revisionId: quote.revisionId, paymentToken }
-            : {
-                revisionId: quote.revisionId,
-                serviceKey: chosen.serviceKey,
-                paymentToken,
-              },
-        );
-        let done = outcome;
-        if (outcome.status === "needs_approval") {
-          await payment.approve(outcome.secret);
-          done = await postJson<AcceptOutcome>(
-            `/api/quotes/mine/${quote.id}/accept/finalize`,
-          );
-        }
+        const done = await payment.pay({
+          start: (paymentToken) =>
+            postJson<AcceptOutcome>(
+              `/api/quotes/mine/${quote.id}/accept`,
+              // a plan is accepted whole
+              quote.plan
+                ? { revisionId: quote.revisionId, paymentToken }
+                : {
+                    revisionId: quote.revisionId,
+                    serviceKey: chosen.serviceKey,
+                    paymentToken,
+                  },
+            ),
+          // not approved: nothing is booked, and the bank's words say why
+          finish: (refused) => {
+            if (refused) throw refused;
+            return postJson<AcceptOutcome>(
+              `/api/quotes/mine/${quote.id}/accept/finalize`,
+            );
+          },
+        });
         if (done.status === "processing" || done.status === "waiting") {
           setStill({
             tone: done.status === "waiting" ? "warning" : "info",

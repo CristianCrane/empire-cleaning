@@ -58,6 +58,7 @@ import {
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { officeClientView } from "../clients/clients.ts";
 import { counts, paymentOf, settleAfterChange } from "../completion/balance.ts";
+import { payingOn, standing, type PayingOn } from "./standing.ts";
 import {
   adjustments,
   reportedChange,
@@ -66,7 +67,6 @@ import { NO_QUOTE } from "../completion/pricing.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { REMINDER_TIME } from "../jobs/reminders.ts";
 import {
-  APPROVAL_MS,
   attemptsFor,
   chargeOpen,
   chargeSaved,
@@ -81,13 +81,7 @@ import {
   paymentMethods,
   refunds,
 } from "../payments/payments.schema.ts";
-import {
-  LATE,
-  nowTheirs,
-  unpaidKind,
-  unpaidOf,
-  whyNotPaid,
-} from "../payments/unpaid.ts";
+import { LATE, nowTheirs, unpaidKind, whyNotPaid } from "../payments/unpaid.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { currentPriceList, namedByKey } from "../price-list/price-list.ts";
 import { changedOf } from "../completion/emails.ts";
@@ -672,62 +666,6 @@ export const retryUnpaidBillsFor = async (clientId: string) => {
 
 // ---- on its page ----
 
-// Where the payments on a Bill stand, as its pages say it (#534): one going
-// through since `goingSince`, which may still take the money (ours to the
-// saved card, or the Client's on its page: a bank debit, or one nobody
-// heard the end of yet); the Client's bank asking them to approve theirs,
-// until `approvingUntil`, when it's called off; or their latest payment on
-// its page, which failed, and why. One never approved isn't a failure:
-// nothing was taken, and the dialog said so
-type PayingOn = {
-  goingSince: Date | null;
-  approvingUntil: Date | null;
-  failed: { at: Date; reason: string } | null;
-};
-
-const NOT_PAYING: PayingOn = {
-  goingSince: null,
-  approvingUntil: null,
-  failed: null,
-};
-
-// each Bill's, by its id, in one query for a list
-const payingOn = async (billIds: string[], tx: Tx | typeof db = db) => {
-  const now = clock.now().getTime();
-  const on = new Map<string, PayingOn>();
-  const decided = new Set<string>();
-  // newest first
-  for (const { attempt, open, call } of await attemptsFor(
-    "bill",
-    billIds,
-    tx,
-  )) {
-    const paying = on.get(attempt.forId) ?? { ...NOT_PAYING };
-    on.set(attempt.forId, paying);
-    if (open) {
-      const until = attempt.askedAt.getTime() + APPROVAL_MS;
-      if (attempt.status !== "approving" || attempt.bankFinishingAt) {
-        paying.goingSince ??= attempt.askedAt;
-      }
-      // past it, the next try calls it off, or the Clock does
-      else if (until > now) paying.approvingUntil ??= new Date(until);
-      continue;
-    }
-    if (decided.has(attempt.forId)) continue;
-    if (attempt.status === "failed" && NOT_APPROVED(attempt.reason)) continue;
-    // the latest that ended decides: taken, or ours to the saved card,
-    // which the Bill's Unpaid tells
-    decided.add(attempt.forId);
-    if (attempt.status === "failed" && call === "bill") {
-      paying.failed = {
-        at: attempt.endedAt ?? attempt.askedAt,
-        reason: attempt.reason ?? "",
-      };
-    }
-  }
-  return (billId: string) => on.get(billId) ?? NOT_PAYING;
-};
-
 // why the Client can't pay a Bill on its page now, or null when they can:
 // a bank debit of theirs on its way, or a payment going through, or one we
 // try again ourselves (ADR-0022); or nothing owed. One their bank asks
@@ -760,18 +698,16 @@ export const payWords = catalog({
     ours: `This bill's payment is pending. ${messages.en.NOTHING_TO_DO}`,
     nothingToPay: "There's nothing to pay on this bill.",
     notThrough: (because: string) =>
-      `Your payment didn't go through${because}, so nothing was taken. Please try again, or use another card or bank account.`,
-    notApproved:
-      "The payment wasn't approved, so nothing was taken. Please try again, or use another card or bank account.",
+      `Your payment didn't go through${because}, so nothing was taken. ${messages.en.PAY_AGAIN}`,
+    notApproved: `The payment wasn't approved, so nothing was taken. ${messages.en.PAY_AGAIN}`,
   },
   es: {
     onItsWay: "Su pago bancario de esta factura ya está en camino.",
     ours: `El pago de esta factura está pendiente. ${messages.es.NOTHING_TO_DO}`,
     nothingToPay: "No hay nada que pagar en esta factura.",
     notThrough: (because: string) =>
-      `Su pago no pasó${because}, así que no se cobró nada. Vuelva a intentarlo, o use otra tarjeta o cuenta bancaria.`,
-    notApproved:
-      "El pago no se aprobó, así que no se cobró nada. Vuelva a intentarlo, o use otra tarjeta o cuenta bancaria.",
+      `Su pago no pasó${because}, así que no se cobró nada. ${messages.es.PAY_AGAIN}`,
+    notApproved: `El pago no se aprobó, así que no se cobró nada. ${messages.es.PAY_AGAIN}`,
   },
 });
 
@@ -1521,17 +1457,13 @@ const sendBillReminders = async () => {
 
 // ---- views ----
 
-// what a Bill's pages say of its payments (payingOn): one going through is
-// Unpaid only in that it's pending (ADR-0022); the Client's bank asking them
-// to approve theirs, or their last payment on its page, which failed
+// a Bill as its pages and lists show it, where it stands as each says it
+// (standing)
 const toSummary = (
   bill: Bill,
   client: Pick<Client, "id" | "name" | "businessName">,
   on: PayingOn,
 ): BillSummary => {
-  const lang = currentLanguage();
-  const due = bill.status === "due";
-  const recorded = unpaidOf(lang, bill.unpaidSince, bill.unpaidReason);
   return {
     id: bill.id,
     number: billNumber(bill.number),
@@ -1548,22 +1480,7 @@ const toSummary = (
     status: bill.status,
     totalCents: bill.totalCents,
     taxCents: bill.taxCents,
-    // a payment going through: waiting, unless it already was, which says why
-    unpaid:
-      due && on.goingSince && recorded?.kind !== "waiting"
-        ? { since: on.goingSince.toISOString(), kind: "waiting", why: null }
-        : recorded,
-    paying: !due
-      ? null
-      : on.approvingUntil
-        ? { status: "approving", until: on.approvingUntil.toISOString() }
-        : on.failed && !on.goingSince
-          ? {
-              status: "failed",
-              at: on.failed.at.toISOString(),
-              why: whyNotPaid(lang, on.failed.reason).why,
-            }
-          : null,
+    ...standing(bill, on),
     paidAt: bill.paidAt?.toISOString() ?? null,
     paidVia: bill.paidVia,
   };

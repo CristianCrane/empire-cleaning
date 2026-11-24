@@ -1725,10 +1725,10 @@ export type JobPayment = {
   // what weekly Bills have billed for it (ADR-0016), which they now owe
   billedCents: number;
   // those Bills, oldest first, each with what it billed for it and what
-  // its Charges gave back for it
+  // its Charges gave back for it, and where it stands as its own page says
   bills: (Pick<
     BillSummary,
-    "id" | "number" | "status" | "unpaid" | "totalCents"
+    "id" | "number" | "status" | "unpaid" | "paying" | "totalCents"
   > & {
     cents: number;
     refundedCents: number;
