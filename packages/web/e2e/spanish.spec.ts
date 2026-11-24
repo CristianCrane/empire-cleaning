@@ -334,7 +334,7 @@ test("a Cleaner reading in Spanish takes an open job and marks it done, in tú",
   const form = page.getByRole("dialog", {
     name: "Marcar este trabajo como terminado",
   });
-  await expect(form).toContainText("¿Cómo estaba la casa?");
+  await expect(form).toContainText("¿Cómo estaba el lugar?");
   await expectAccessible(page);
   await form.getByText("Ligera", { exact: true }).click();
   await form.getByRole("button", { name: "Marcar como terminado" }).click();
@@ -342,7 +342,8 @@ test("a Cleaner reading in Spanish takes an open job and marks it done, in tú",
   await expect(page.getByText("Trabajo marcado como terminado")).toBeVisible();
   const done = page.getByRole("region", { name: "Terminado" });
   await expect(done).toContainText("Ligera");
-  await expect(done).toContainText("Nada que informar");
+  // nothing reported, no row: the condition above shows it settled
+  await expect(done).not.toContainText("Lo que se informó");
   await expect(done).toContainText("Lo marcaste como terminado");
   await expectAccessible(page);
 });

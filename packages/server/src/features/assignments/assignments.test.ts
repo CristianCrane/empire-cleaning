@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import type {
   CleanerJob,
@@ -8,10 +8,12 @@ import type {
   OfficeQuote,
   CleanerNeeded,
   ScheduleDay,
+  SignedInAccount,
 } from "@empire-cleaning/models";
-import { apart } from "#db";
+import { apart, db } from "#db";
 import { assignments } from "#features/assignments";
 import { jobs } from "#features/jobs";
+import { charges, refunds } from "#features/payments";
 import { siteVisits } from "#features/site-visits";
 import { createStaff } from "#features/staff";
 import {
@@ -22,6 +24,7 @@ import {
   testEmail,
 } from "../../../tests/harness.ts";
 import {
+  acceptedJob,
   bookedJob,
   casey,
   guestAsk,
@@ -275,6 +278,26 @@ describe("removing an Assignment", () => {
     await office
       .delete(`/api/jobs/${job.id}/assignments/${assignmentId}`)
       .expect(404);
+  });
+
+  // #493: the Job's menu offers no Take off then; the rule is the server's
+  test("is refused once the Job has started", async () => {
+    const job = await thursdayJob();
+    const cory = await staffMember("Cory Cleaner");
+    const office = await signInAsOffice();
+    const assignmentId = await offered(office, job.id, cory.id);
+    testClock().set(new Date(THURSDAY_9AM));
+
+    expect(
+      (
+        await office
+          .delete(`/api/jobs/${job.id}/assignments/${assignmentId}`)
+          .expect(409)
+      ).body.message,
+    ).toBe("This clean has already started, so you can't take anyone off it.");
+    expect((await jobFor(office, job.id)).assignments).toMatchObject([
+      { staff: { id: cory.id }, status: "offered" },
+    ]);
   });
 });
 
@@ -559,6 +582,14 @@ describe("Unassigned Jobs in Needs attention", () => {
       job: { assignment: "unassigned", client: { name: expect.any(String) } },
     });
     expect(items[1]!.since).toBe("2026-01-05T14:00:00.000Z");
+
+    // once today's has started, no one can be offered it: it leaves (#493)
+    testClock().set(new Date("2026-01-05T20:00:00Z"));
+    expect(
+      (await needsAttention(office))
+        .filter((i) => i.kind === "job_unassigned")
+        .map((i) => i.job.id),
+    ).toEqual([wednesday.id]);
   });
 });
 
@@ -783,5 +814,149 @@ describe("Releasing an Assignment while its Job is being moved (#242)", () => {
 
     expect(await released).toBe(204);
     expect(await statusOf(assignmentId)).toBe("released");
+  });
+});
+
+describe("The Office's Job (#493)", () => {
+  test("says when it was booked, whether it's today and has started, how we get in, and its price and Deposit while it's booked", async () => {
+    const office = await signInAsOffice();
+    // free that day, so it fits
+    await staffMember("Cory Cleaner");
+    const me = (await office.get("/api/me").expect(200))
+      .body as SignedInAccount;
+    const { id } = await acceptedJob({
+      startsAt: THURSDAY_9AM,
+      byAccountId: me.id,
+    });
+
+    const job = await jobFor(office, id);
+    expect(job).toMatchObject({
+      bookedAt: "2026-01-05T09:00:00.000Z",
+      today: false,
+      started: false,
+      property: { accessInstructions: "Ring 4B; the doorman has a key." },
+    });
+    // its price, and the Deposit taken for it, before it's done
+    const [deposit] = job.payment!.charges;
+    expect(job.payment!.charges).toHaveLength(1);
+    expect(deposit).toMatchObject({ kind: "deposit", refundedCents: 0 });
+    expect(job.payment).toMatchObject({
+      totalCents: job.payment!.quotedCents,
+      paidCents: deposit!.amountCents,
+      owedCents: 0,
+    });
+
+    // its day, by the Clock: an hour before it, then as it starts
+    testClock().set(new Date("2026-01-08T13:00:00Z"));
+    expect(await jobFor(office, id)).toMatchObject({
+      today: true,
+      started: false,
+    });
+    testClock().set(new Date(THURSDAY_9AM));
+    expect(await jobFor(office, id)).toMatchObject({
+      today: true,
+      started: true,
+    });
+  });
+
+  test("carries its payment once, at its top, once it has ended", async () => {
+    const office = await signInAsOffice();
+    // free that day, so it fits
+    await staffMember("Cory Cleaner");
+    const me = (await office.get("/api/me").expect(200))
+      .body as SignedInAccount;
+    const { id } = await acceptedJob({
+      startsAt: THURSDAY_9AM,
+      byAccountId: me.id,
+    });
+    await office
+      .post(`/api/jobs/${id}/cancel`)
+      .send({ by: "empire", feeCents: 0, reason: "Our crew is unwell." })
+      .expect(200);
+
+    const job = await jobFor(office, id);
+    expect(job.cancellation).not.toHaveProperty("payment");
+    // the Deposit, refunded in full
+    expect(job.payment!.charges).toEqual([
+      expect.objectContaining({
+        kind: "deposit",
+        refundedCents: job.payment!.charges[0]!.amountCents,
+      }),
+    ]);
+    expect(job.payment!.paidCents).toBe(0);
+  });
+
+  // its History tells each refund apart, when and how much (#493)
+  test("lists each refund of a charge, oldest first", async () => {
+    const office = await signInAsOffice();
+    await staffMember("Cory Cleaner");
+    const me = (await office.get("/api/me").expect(200))
+      .body as SignedInAccount;
+    const { id } = await acceptedJob({
+      startsAt: THURSDAY_9AM,
+      byAccountId: me.id,
+    });
+    const [deposit] = await db
+      .select()
+      .from(charges)
+      .where(eq(charges.jobId, id));
+    // two given back in the provider's dashboard, a day apart, and one that
+    // failed, which counts for nothing
+    await db.insert(refunds).values([
+      {
+        chargeId: deposit!.id,
+        amountCents: 500,
+        gatewayRef: "re_later",
+        refundedAt: new Date("2026-01-07T09:00:00Z"),
+        atProvider: true,
+      },
+      {
+        chargeId: deposit!.id,
+        amountCents: 300,
+        gatewayRef: "re_first",
+        refundedAt: new Date("2026-01-06T09:00:00Z"),
+        atProvider: true,
+      },
+      {
+        chargeId: deposit!.id,
+        amountCents: 100,
+        gatewayRef: "re_failed",
+        refundedAt: new Date("2026-01-06T10:00:00Z"),
+        atProvider: true,
+        failedAt: new Date("2026-01-06T11:00:00Z"),
+      },
+    ]);
+
+    const [charge] = (await jobFor(office, id)).payment!.charges;
+    expect(charge).toMatchObject({
+      refundedCents: 800,
+      refunds: [
+        { amountCents: 300, refundedAt: "2026-01-06T09:00:00.000Z" },
+        { amountCents: 500, refundedAt: "2026-01-07T09:00:00.000Z" },
+      ],
+    });
+  });
+
+  // its History tells Booked, then the Deposit that booked it (#493)
+  test("is booked the moment its Deposit is taken", async () => {
+    const office = await signInAsOffice();
+    await staffMember("Cory Cleaner");
+    const me = (await office.get("/api/me").expect(200))
+      .body as SignedInAccount;
+    // a clock that moves on each time it's read, as a real one does
+    const fake = testClock();
+    const read = fake.now.bind(fake);
+    const ticking = vi.spyOn(fake, "now").mockImplementation(() => {
+      fake.advance({ minutes: 1 });
+      return read();
+    });
+    const { id } = await acceptedJob({
+      startsAt: THURSDAY_9AM,
+      byAccountId: me.id,
+    });
+    ticking.mockRestore();
+
+    const job = await jobFor(office, id);
+    expect(job.bookedAt).toBe(job.payment!.charges[0]!.chargedAt);
   });
 });

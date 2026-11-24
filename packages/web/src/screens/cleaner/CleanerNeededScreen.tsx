@@ -10,7 +10,7 @@ import { howLong } from "../format.ts";
 import { reportUnexpected } from "../../monitoring.ts";
 import { type Said, useSaid } from "../words.ts";
 import { AvailableBadge } from "./CleanerHome.tsx";
-import { JobLead } from "./JobLead.tsx";
+import { JobLead } from "../JobLead.tsx";
 
 const words = catalog({
   en: {

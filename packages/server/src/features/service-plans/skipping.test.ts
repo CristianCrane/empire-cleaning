@@ -269,11 +269,11 @@ describe("No Access on a plan Job", () => {
     );
     const job = await officeJob(office, jobId);
     expect(job.status).toBe("no_access");
-    expect(job.noAccess!.payment.unpaid).not.toBeNull();
+    expect(job.payment!.unpaid).not.toBeNull();
 
     await office.post(`/api/jobs/${jobId}/balance/retry`).expect(200);
     expect(chargesAfterDeposit().map((c) => c.amount)).toEqual([PLAN_DEPOSIT]);
-    expect((await officeJob(office, jobId)).noAccess!.payment).toMatchObject({
+    expect((await officeJob(office, jobId)).payment).toMatchObject({
       owedCents: 0,
       unpaid: null,
     });

@@ -7,7 +7,7 @@ import {
   NotFoundError,
   RequestBodyError,
 } from "../../middleware/errors.ts";
-import { byId, keepUnder, validate } from "../../middleware/validation.ts";
+import { byId, validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { clients } from "../clients/clients.schema.ts";
 import {
@@ -16,6 +16,7 @@ import {
   offersPremisesType,
 } from "../price-list/price-list.ts";
 import {
+  accessInstructions,
   checkRooms,
   homeCorrectionSchema,
   premisesCorrectionSchema,
@@ -45,13 +46,7 @@ router.patch(
   authorize("client", "office_staff"),
   validate({
     params: byId,
-    body: z.object({
-      accessInstructions: z
-        .string()
-        .trim()
-        .max(2000, keepUnder(2000))
-        .nullable(),
-    }),
+    body: z.object({ accessInstructions }),
   }),
   async (req, res) => {
     const account = signedInAccount(res);
@@ -71,13 +66,13 @@ router.patch(
 
     const [updated] = await db
       .update(properties)
-      .set({ accessInstructions: req.body.accessInstructions || null })
+      .set({ accessInstructions: req.body.accessInstructions })
       .where(owned)
       .returning({ id: properties.id });
     if (!updated) throw new NotFoundError("Property not found");
     res.json({
       id: updated.id,
-      accessInstructions: req.body.accessInstructions || null,
+      accessInstructions: req.body.accessInstructions,
     });
   },
 );

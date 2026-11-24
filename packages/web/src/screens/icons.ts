@@ -16,6 +16,11 @@ export { ClipboardPenLine as QuoteIcon } from "lucide-react";
 // the one icon for a Job, wherever Jobs show: nav, rows
 export { BrushCleaning as JobIcon } from "lucide-react";
 
+// the one icon for a place's condition, wherever it shows: a Quote's facts,
+// a done Job's, and Correct the condition. A gauge, as it's how dirty on a
+// scale; the sparkles are the nav's Services and Cleans
+export { Gauge as ConditionIcon } from "lucide-react";
+
 // the one icon for a Property, by its kind, wherever one shows: a house for
 // a home, a building for business premises
 export const homeIcon = (kind: PropertyKind) =>

@@ -83,7 +83,7 @@ export const moveCostForOffice = ({
 }: MoveCost) => {
   switch (cost) {
     case "free":
-      return "Free.";
+      return "Free for the client.";
     case "free_late":
       return `A late move, free as this job's first.${onPlan ? "" : " The deposit still counts toward the price."}`;
     case "late_cancellation":
