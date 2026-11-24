@@ -297,10 +297,13 @@ export const revisionOptions = pgTable(
 );
 
 // A Client's Deposit waiting on their bank's approval (e.g. 3D Secure) in the
-// browser. Nothing is booked yet: once the payment succeeds it's booked by
-// whichever comes first, the browser's finalize call or the provider's
-// webhook. Kept once settled, so a late success for a Quote that was accepted
-// some other way meanwhile is recognised, and refunded.
+// browser. Nothing is booked yet, and nothing else moves money on its Quote
+// meanwhile (the one rule, ADR-0022): once the payment succeeds it's booked
+// by whichever comes first, the browser's finalize call, the provider's
+// webhook, the Clock, or the Office's recording acceptance or sending
+// changes (finalizeDeposit); one whose time filled or Quote closed while
+// the bank asked is refunded. Settled once booked, refunded, refused or
+// called off, and kept, so a later call finds it settled.
 export const pendingDeposits = pgTable(
   "pending_deposits",
   {

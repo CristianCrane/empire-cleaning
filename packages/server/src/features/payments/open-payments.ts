@@ -24,7 +24,11 @@ import { charges } from "./payments.schema.ts";
  * end of, and each Job or Bill Unpaid only because the provider couldn't be
  * reached (or its payment was still processing). A Job is settled again, a
  * due Bill charged again; a Bill paid another way meanwhile gives back what
- * its lost Charge took, and so does a Quote nobody booked. Each holds what
+ * its lost Charge took, and so does a Quote nobody booked. A Quote's
+ * Deposit waiting on the Client's bank longer than APPROVAL_MS is called
+ * off, the Client emailed, or, approved, booked (settleQuotePayments,
+ * finalizeDeposit), in case neither the browser nor the webhook came back
+ * (#534). Each holds what
  * it's for while it tries, so it's safe to run as often as you like, and on
  * more than one server, alongside the Client trying again themselves.
  */
