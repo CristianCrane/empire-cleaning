@@ -83,9 +83,10 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   went, as they're what happened there (a list on a phone, a table wider).
 - **Its History**, a `Timeline` in a Card, newest first: last, at every
   width: one column, as a side column competed with the page (#493). Each
-  entry says what happened on one line, any more there is after a colon in
-  it (a cancellation's reason), and when on the line under it, every entry
-  alike (`TimelineItem`, a Quote's story too). What happened (a drop-out, a Cleaner taken off) is told there, not
+  entry says what happened on one line and when on the line under it, every
+  entry alike (`TimelineItem`, a Quote's story too); on a Job's, any more
+  there is goes after a colon in that line (a cancellation's reason), not
+  on a third. What happened (a drop-out, a Cleaner taken off) is told there, not
   kept as a row elsewhere. A Quote's story is its
   body, **Now** on top holding it as it stands; its Draft is a Form page.
 - **On a phone, the page's next step pinned at the foot**, above the tab
