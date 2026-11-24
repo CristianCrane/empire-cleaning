@@ -342,7 +342,8 @@ test("a Cleaner reading in Spanish takes an open job and marks it done, in tú",
   await expect(page.getByText("Trabajo marcado como terminado")).toBeVisible();
   const done = page.getByRole("region", { name: "Terminado" });
   await expect(done).toContainText("Ligera");
-  await expect(done).toContainText("Nada que informar");
+  // nothing reported, no row: the condition above shows it settled
+  await expect(done).not.toContainText("Lo que se informó");
   await expect(done).toContainText("Lo marcaste como terminado");
   await expectAccessible(page);
 });

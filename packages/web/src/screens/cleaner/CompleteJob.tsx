@@ -53,7 +53,6 @@ const words = catalog({
       `${name} marked it done at ${time}. Thanks!`,
     markedAt: (time: string) => `Marked done at ${time}. Thanks!`,
     reported: "Reported",
-    nothingToReport: "Nothing to report",
   },
   es: {
     notMarked: "El trabajo no se marcó como terminado. Vuelve a intentarlo.",
@@ -78,7 +77,6 @@ const words = catalog({
     markedAt: (time: string) =>
       oneStop(`Marcado como terminado a ${theTimeEs(time)}. ¡Gracias!`),
     reported: "Lo que se informó",
-    nothingToReport: "Nada que informar",
   },
 });
 
@@ -273,7 +271,8 @@ function AddOnReports({
 
 // what was reported once it's Completed, first on the page, never with
 // prices: who marked it done, as the reader calls them, then the place and
-// what was different. Its badge says Done, so no title says it again
+// what was different, when anything was: nothing, no row. Its badge says
+// Done, so no title says it again
 export function Completed({ job }: { job: CleanerJob }) {
   const completion = job.completion!;
   const t = useSaid(words);
@@ -290,13 +289,11 @@ export function Completed({ job }: { job: CleanerJob }) {
       </p>
       <Facts>
         <ConditionFact property={completion} found />
-        <Fact
-          icon={MessageSquareText}
-          label={w.reported}
-          value={
-            completion.reports.length === 0 ? (
-              w.nothingToReport
-            ) : (
+        {completion.reports.length > 0 && (
+          <Fact
+            icon={MessageSquareText}
+            label={w.reported}
+            value={
               <ul>
                 {completion.reports.map((r, i) => (
                   <li key={i}>
@@ -304,9 +301,9 @@ export function Completed({ job }: { job: CleanerJob }) {
                   </li>
                 ))}
               </ul>
-            )
-          }
-        />
+            }
+          />
+        )}
       </Facts>
     </Card>
   );
