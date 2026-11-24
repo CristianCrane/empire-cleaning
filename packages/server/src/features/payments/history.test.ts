@@ -53,8 +53,8 @@ describe("a Client's payment history", () => {
       .from(charges)
       .where(and(eq(charges.jobId, job.id), eq(charges.kind, "balance")));
     // a Balance for an increase approved later, at the same moment by the
-    // clock (a test's stands still). The clean's own was made first, but is
-    // written again after it, so Postgres hands it back second
+    // clock (a test's stands still): only the write order (created_at) tells
+    // which came first, as the money reads lean on it (#520's critical review)
     const {
       id: _id,
       createdAt: _createdAt,
@@ -73,8 +73,6 @@ describe("a Client's payment history", () => {
       },
       gatewayRef: "fake_extra",
     });
-    await db.delete(charges).where(eq(charges.id, own!.id));
-    await db.insert(charges).values(own!);
 
     const history = await historyOf(casey.email);
 
@@ -97,46 +95,6 @@ describe("a Client's payment history", () => {
     expect(theirs.find((p) => p.kind === "adjustment")).toMatchObject({
       item: "1 hora más",
       job: { serviceName: "Limpieza profunda" },
-    });
-  });
-
-  test("tells a clean's own Balance from a later one made at the same moment, in the order they were made", async () => {
-    // the write order (created_at) breaks the Clock's tie, as the money
-    // reads do (latestDepositFor, refundFrom, the ledgers): red if
-    // created_at were put on the Clock (#520's critical review, C2)
-    const me = await officeAccount();
-    const { job } = await completedFirstClean({ byAccountId: me.id });
-    const [own] = await db
-      .select()
-      .from(charges)
-      .where(and(eq(charges.jobId, job.id), eq(charges.kind, "balance")));
-    const {
-      id: _id,
-      createdAt: _createdAt,
-      updatedAt: _updatedAt,
-      ...rest
-    } = own!;
-    await db.insert(charges).values({
-      ...rest,
-      amountCents: 5988,
-      item: {
-        kind: "extra_time",
-        addOnKey: null,
-        addOnName: null,
-        hours: 1,
-        how: "approved",
-      },
-      gatewayRef: "fake_extra",
-    });
-
-    const history = await historyOf(casey.email);
-
-    expect(history.find((p) => p.kind === "balance")).toMatchObject({
-      amountCents: own!.amountCents,
-      item: null,
-    });
-    expect(history.find((p) => p.kind === "adjustment")).toMatchObject({
-      amountCents: 5988,
     });
   });
 
