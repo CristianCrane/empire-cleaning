@@ -29,6 +29,8 @@ import {
   Link,
   Notice,
   Fact,
+  Figure,
+  Figures,
   RecordPage,
   DetailsCard,
   Facts,
@@ -870,96 +872,98 @@ function Receipt({ job }: { job: ClientJobDetail }) {
       title={t.w.receipt}
       description={`${t.w.doneAt(t.formatDateTime(completedAt))} ${t.PRICES_INCLUDE_TAX}`}
     >
-      <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-2">
+      <Figures size="md">
         {/* what was quoted, only where a change makes the total differ */}
         {counted.length > 0 && (
-          <>
-            <dt>{t.w.quoted}</dt>
-            <dd className="text-end">{t.formatMoney(payment.quotedCents)}</dd>
-          </>
+          <Figure
+            label={t.w.quoted}
+            value={t.formatMoney(payment.quotedCents)}
+          />
         )}
         {counted.map((a) => (
-          <div key={a.id} className="contents">
-            <dt>{t.adjustmentLabel(a)}</dt>
-            <dd className="text-end">{t.formatMoney(a.totalCents)}</dd>
-          </div>
+          <Figure
+            key={a.id}
+            label={t.adjustmentLabel(a)}
+            value={t.formatMoney(a.totalCents)}
+          />
         ))}
-        <dt className="font-semibold">{t.total}</dt>
-        <dd className="text-end font-semibold">
-          {t.formatMoney(payment.totalCents)}
-        </dd>
+        <Figure
+          label={t.total}
+          value={t.formatMoney(payment.totalCents)}
+          strong
+        />
         {payment.rescheduleFeeCents > 0 && (
-          <>
-            <dt>
-              {t.LATE_MOVE_FEE}
-              {!job.servicePlanId && t.w.depositKept}
-            </dt>
-            <dd className="text-end">
-              {t.formatMoney(payment.rescheduleFeeCents)}
-            </dd>
-          </>
+          <Figure
+            label={
+              <>
+                {t.LATE_MOVE_FEE}
+                {!job.servicePlanId && t.w.depositKept}
+              </>
+            }
+            value={t.formatMoney(payment.rescheduleFeeCents)}
+          />
         )}
         {payment.charges.map((c, i) => (
-          <div key={i} className="contents">
-            <dt>
-              {{ deposit: t.deposit, ...t.w.charge }[c.kind]}{" "}
-              {t.formatDate(c.chargedAt)}
-              {c.refundedCents > 0 &&
-                `, ${t.w.refunded(t.formatMoney(c.refundedCents))}`}
-            </dt>
-            <dd className="text-end">
-              {t.formatMoney(c.amountCents - c.refundedCents)}
-            </dd>
-          </div>
+          <Figure
+            key={i}
+            label={
+              <>
+                {{ deposit: t.deposit, ...t.w.charge }[c.kind]}{" "}
+                {t.formatDate(c.chargedAt)}
+                {c.refundedCents > 0 &&
+                  `, ${t.w.refunded(t.formatMoney(c.refundedCents))}`}
+              </>
+            }
+            value={t.formatMoney(c.amountCents - c.refundedCents)}
+          />
         ))}
         {/* each weekly Bill it went on, by its number and where it stands
             (ADR-0016); what's paid in all only when no Bill has a share */}
         {payment.bills.map((bill) => (
-          <div key={bill.id} className="contents">
-            <dt className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <Link
-                href={linkTo({
-                  to: "/portal/bills/$billId",
-                  params: { billId: bill.id },
-                })}
-              >
-                {t.p.bill(bill.number)}
-              </Link>
-              <BillStatusBadge bill={bill} />
-              {bill.refundedCents > 0 && (
-                <span className="text-sm text-fg-muted">
-                  {t.w.refunded(t.formatMoney(bill.refundedCents))}
-                </span>
-              )}
-            </dt>
-            <dd className="text-end">
-              {t.formatMoney(bill.cents - bill.refundedCents)}
-            </dd>
-          </div>
+          <Figure
+            key={bill.id}
+            label={
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <Link
+                  href={linkTo({
+                    to: "/portal/bills/$billId",
+                    params: { billId: bill.id },
+                  })}
+                >
+                  {t.p.bill(bill.number)}
+                </Link>
+                <BillStatusBadge bill={bill} />
+                {bill.refundedCents > 0 && (
+                  <span className="text-sm text-fg-muted">
+                    {t.w.refunded(t.formatMoney(bill.refundedCents))}
+                  </span>
+                )}
+              </span>
+            }
+            value={t.formatMoney(bill.cents - bill.refundedCents)}
+          />
         ))}
         {payment.bills.length === 0 && (
-          <>
-            <dt className="font-semibold">{t.w.paid}</dt>
-            <dd className="text-end font-semibold">
-              {t.formatMoney(payment.paidCents)}
-            </dd>
-          </>
+          <Figure
+            label={t.w.paid}
+            value={t.formatMoney(payment.paidCents)}
+            strong
+          />
         )}
         {/* what's still to come, in the badge's word for it: Paid and it
             make up the total (the merge's UX review U4, U11) */}
         {owed && (
-          <>
-            <dt className="font-semibold">
-              {payment.unpaid && asksTheClient(payment.unpaid.kind)
+          <Figure
+            label={
+              payment.unpaid && asksTheClient(payment.unpaid.kind)
                 ? t.unpaid
-                : t.paymentPending}
-            </dt>
-            <dd className="text-end font-semibold">
-              {t.formatMoney(payment.owedCents)}
-            </dd>
-          </>
+                : t.paymentPending
+            }
+            value={t.formatMoney(payment.owedCents)}
+            strong
+          />
         )}
-      </dl>
+      </Figures>
       {notCharged.length > 0 && (
         <p className="text-sm text-fg-muted">
           {t.w.notChargedFor}{" "}

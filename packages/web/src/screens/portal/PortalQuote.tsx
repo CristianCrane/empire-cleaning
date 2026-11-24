@@ -32,6 +32,8 @@ import {
   RadioGroup,
   StatusBadge,
   Fact,
+  Figure,
+  Figures,
   RecordPage,
   DetailsCard,
   Facts,
@@ -612,22 +614,21 @@ function QuoteDetails({
             />
           </>
         ) : (
-          <dl className="flex flex-col gap-1 text-sm">
-            <Line
+          <Figures>
+            <Figure
               label={chosen.serviceName}
               value={t.formatMoney(chosen.priceCents)}
             />
-            {extras && <p className="text-fg-muted">{t.w.includes(extras)}</p>}
-            <Line label={t.w.tax} value={t.formatMoney(chosen.taxCents)} />
-            <div className="mt-1 flex justify-between gap-4 border-t border-border pt-2 text-base font-semibold text-fg">
-              <dt>{t.total}</dt>
-              <dd className="tabular-nums">
-                {t.formatMoney(chosen.totalCents)}
-              </dd>
-            </div>
+            {extras && <Figure label={t.w.includes(extras)} value="" />}
+            <Figure label={t.w.tax} value={t.formatMoney(chosen.taxCents)} />
+            <Figure
+              label={t.total}
+              value={t.formatMoney(chosen.totalCents)}
+              total
+            />
             {chosen.depositCents > 0 && (
               <>
-                <Line
+                <Figure
                   label={t.w.deposit(
                     quote.depositPercent,
                     quote.status === "accepted",
@@ -635,37 +636,16 @@ function QuoteDetails({
                   value={t.formatMoney(chosen.depositCents)}
                   strong
                 />
-                <Line
+                <Figure
                   label={quote.weeklyBill ? t.w.restOnBill : t.w.restWhenDone}
                   value={t.formatMoney(chosen.totalCents - chosen.depositCents)}
                 />
               </>
             )}
-          </dl>
+          </Figures>
         )}
       </div>
     </DetailsCard>
-  );
-}
-
-function Line({
-  label,
-  value,
-  strong = false,
-}: {
-  label: string;
-  value: string;
-  strong?: boolean;
-}) {
-  return (
-    <div className="flex justify-between gap-4">
-      <dt className={strong ? "font-semibold text-fg" : "text-fg-muted"}>
-        {label}
-      </dt>
-      <dd className={`tabular-nums ${strong ? "font-semibold" : ""}`}>
-        {value}
-      </dd>
-    </div>
   );
 }
 

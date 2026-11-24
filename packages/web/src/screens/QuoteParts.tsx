@@ -8,7 +8,14 @@ import type {
   QuoteStatus,
   ServicePlanTerms,
 } from "@empire-cleaning/models";
-import { Card, Fact, StatusBadge, useLanguage } from "@empire-cleaning/ui";
+import {
+  Card,
+  Fact,
+  Figure,
+  Figures,
+  StatusBadge,
+  useLanguage,
+} from "@empire-cleaning/ui";
 import { Building2, CirclePlus, NotebookPen, Repeat } from "lucide-react";
 import { catalog, type Language, messages } from "@empire-cleaning/models";
 import { formatHours, quoteStatusLabel, quoteStatusTone } from "./format.ts";
@@ -116,8 +123,9 @@ export function AskedRows({
   );
 }
 
-// an option's hours, in a dl: its cleaning hours, and how long its crew is
-// there; the Office's, as the Client reads one how long on the Quote's facts
+// an option's hours, as Figures: its cleaning hours, and how long its crew
+// is there; the Office's, as the Client reads one how long on the Quote's
+// facts
 export function HoursRows({
   option,
   crewSize,
@@ -128,14 +136,11 @@ export function HoursRows({
   const { w, cleaners } = useWords();
   return (
     <>
-      <dt className="text-fg-muted">{w.cleaningHours}</dt>
-      <dd className="text-right tabular-nums">
-        {formatHours(option.labourHours)}
-      </dd>
-      <dt className="text-fg-muted">{w.onSiteWith(cleaners(crewSize))}</dt>
-      <dd className="text-right tabular-nums">
-        {formatHours(option.hoursOnSite)}
-      </dd>
+      <Figure label={w.cleaningHours} value={formatHours(option.labourHours)} />
+      <Figure
+        label={w.onSiteWith(cleaners(crewSize))}
+        value={formatHours(option.hoursOnSite)}
+      />
     </>
   );
 }
@@ -229,13 +234,13 @@ export function OptionRows({
 }) {
   const { w, formatMoney } = useWords();
   return (
-    <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
+    <Figures>
       <HoursRows option={option} crewSize={crewSize} />
-      <dt className="text-fg-muted">{w.deposit(depositPercent)}</dt>
-      <dd className="text-right tabular-nums">
-        {formatMoney(option.depositCents)}
-      </dd>
-    </dl>
+      <Figure
+        label={w.deposit(depositPercent)}
+        value={formatMoney(option.depositCents)}
+      />
+    </Figures>
   );
 }
 
@@ -332,27 +337,21 @@ export function PlanRows({
 }) {
   const { w, formatMoney } = useWords();
   return (
-    <>
-      <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
-        <dt className="text-fg-muted">{w.asOneOff}</dt>
-        <dd className="text-right tabular-nums">
-          {formatMoney(day.oneOffTotalCents)}
-        </dd>
-        {discountPercent > 0 && (
-          <>
-            <dt className="text-fg-muted">{w.planDiscount(discountPercent)}</dt>
-            <dd className="text-right tabular-nums">
-              −{formatMoney(day.savingCents)}
-            </dd>
-          </>
-        )}
-        <dt className="font-semibold">{w.onThePlan}</dt>
-        <dd className="text-right font-semibold tabular-nums">
-          {formatMoney(option.totalCents)}
-        </dd>
-        {children}
-      </dl>
-    </>
+    <Figures>
+      <Figure label={w.asOneOff} value={formatMoney(day.oneOffTotalCents)} />
+      {discountPercent > 0 && (
+        <Figure
+          label={w.planDiscount(discountPercent)}
+          value={`−${formatMoney(day.savingCents)}`}
+        />
+      )}
+      <Figure
+        label={w.onThePlan}
+        value={formatMoney(option.totalCents)}
+        strong
+      />
+      {children}
+    </Figures>
   );
 }
 
@@ -370,24 +369,23 @@ export function PlanTotals({
 }) {
   const { w, formatMoney } = useWords();
   return (
-    <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1">
+    <Figures size="md">
       {plan.days.length > 1 && (
-        <>
-          <dt>{w.aWeek}</dt>
-          <dd className="text-right font-semibold tabular-nums">
-            {formatMoney(plan.roundTotalCents)}
-          </dd>
-        </>
+        <Figure
+          label={w.aWeek}
+          value={formatMoney(plan.roundTotalCents)}
+          strong
+        />
       )}
-      <dt>
-        {change
-          ? w.depositCarried
-          : w.depositHeld(depositPercent, plan.days.length > 1)}
-      </dt>
-      <dd className="text-right tabular-nums">
-        {formatMoney(change ? change.depositCents : plan.depositCents)}
-      </dd>
-    </dl>
+      <Figure
+        label={
+          change
+            ? w.depositCarried
+            : w.depositHeld(depositPercent, plan.days.length > 1)
+        }
+        value={formatMoney(change ? change.depositCents : plan.depositCents)}
+      />
+    </Figures>
   );
 }
 
@@ -397,15 +395,14 @@ export function AddOnList({ addOns }: { addOns: QuoteAddOn[] }) {
   const { formatMoney } = useWords();
   if (addOns.length === 0) return null;
   return (
-    <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
+    <Figures>
       {addOns.map((addOn) => (
-        <div key={addOn.key} className="contents">
-          <dt className="text-fg-muted">{addOn.name}</dt>
-          <dd className="text-right tabular-nums">
-            +{formatMoney(addOn.totalCents)}
-          </dd>
-        </div>
+        <Figure
+          key={addOn.key}
+          label={addOn.name}
+          value={`+${formatMoney(addOn.totalCents)}`}
+        />
       ))}
-    </dl>
+    </Figures>
   );
 }

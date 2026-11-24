@@ -25,6 +25,8 @@ import {
   RadioGroup,
   Facts,
   Fact,
+  Figure,
+  Figures,
   Fold,
   type Alert,
   type DialogState,
@@ -332,68 +334,50 @@ export function PriceWorking({ breakdown: b }: { breakdown: PriceBreakdown }) {
   // breakdowns from before #72 have no kind: they're all homes
   const premises = b.propertyKind === "commercial";
   return (
-    <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
+    <Figures>
       {b.homeHours.map((part) => (
-        <Row
+        <Figure
           key={part.label}
           label={part.label}
           value={formatHours(part.hours)}
         />
       ))}
-      <Row
+      <Figure
         label={premises ? "The business" : "The home"}
         value={formatHours(homeHours)}
         strong
       />
-      <Row label={working.condition(null, b.conditionMultiplier)} value="" />
+      <Figure label={working.condition(null, b.conditionMultiplier)} value="" />
       {/* saved before each Service had its own hours (ADR-0018) */}
       {b.cleanTypeMultiplier !== undefined && !premises && (
-        <Row label={`× ${b.serviceName} (${b.cleanTypeMultiplier})`} value="" />
+        <Figure
+          label={`× ${b.serviceName} (${b.cleanTypeMultiplier})`}
+          value=""
+        />
       )}
       {b.addOns.map((addOn) => (
-        <Row
+        <Figure
           key={addOn.key}
           label={working.addOn(addOn)}
           value={formatHours(addOn.hours)}
         />
       ))}
-      <Row label={working.hours} value={formatHours(b.labourHours)} strong />
-      <Row
+      <Figure label={working.hours} value={formatHours(b.labourHours)} strong />
+      <Figure
         label={working.rate(b.hourlyRateCents, premises)}
         value={formatMoney(b.workedOutCents)}
       />
       {b.minimumApplied && (
-        <Row
+        <Figure
           label={working.minimum(b.minimumChargeCents)}
           value={formatMoney(b.minimumChargeCents)}
         />
       )}
-      <Row
+      <Figure
         label="Suggested price, before tax"
         value={formatMoney(b.priceCents)}
         strong
       />
-    </dl>
-  );
-}
-
-function Row({
-  label,
-  value,
-  strong = false,
-}: {
-  label: string;
-  value: string;
-  strong?: boolean;
-}) {
-  return (
-    <>
-      <dt className={strong ? "font-semibold" : "text-fg-muted"}>{label}</dt>
-      <dd
-        className={`text-right tabular-nums ${strong ? "font-semibold" : ""}`}
-      >
-        {value}
-      </dd>
-    </>
+    </Figures>
   );
 }

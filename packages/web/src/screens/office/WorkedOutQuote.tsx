@@ -1,7 +1,7 @@
 import { formats } from "@empire-cleaning/models";
 import { FileText } from "lucide-react";
 import type { PriceBreakdown } from "@empire-cleaning/models";
-import { IconTile } from "@empire-cleaning/ui";
+import { Figure, Figures, IconTile } from "@empire-cleaning/ui";
 import { formatHours, formatMinutes, screenWords } from "../format.ts";
 
 const { cleaners } = screenWords.en;
@@ -96,56 +96,55 @@ export function WorkedOutQuote({
       </div>
 
       {/* how it's worked out */}
-      <dl className="flex flex-col gap-1 border-t border-border pt-4 text-sm">
-        {parts.map((part) => (
-          <Line
-            key={part.label}
-            label={part.label}
-            value={formatHours(part.hours)}
-            was={was && hoursOf(was, part.label, now)}
+      <div className="border-t border-border pt-4">
+        <Figures>
+          {parts.map((part) => (
+            <Figure
+              key={part.label}
+              label={part.label}
+              value={formatHours(part.hours)}
+              was={was && hoursOf(was, part.label, now)}
+            />
+          ))}
+          {condition && (
+            <Figure
+              label={working.condition(condition, now.conditionMultiplier)}
+              value=""
+            />
+          )}
+          {now.addOns.map((addOn) => (
+            <Figure
+              key={addOn.key}
+              label={working.addOn(addOn)}
+              value={formatHours(addOn.hours)}
+            />
+          ))}
+          <Figure
+            label={working.hours}
+            value={formatHours(now.labourHours)}
+            was={was && formatHours(was.labourHours)}
+            strong
           />
-        ))}
-        {condition && (
-          <Line
-            label={working.condition(condition, now.conditionMultiplier)}
-            value=""
+          <Figure
+            label={working.rate(now.hourlyRateCents)}
+            value={formatMoney(now.workedOutCents)}
+            was={was && formatMoney(was.workedOutCents)}
           />
-        )}
-        {now.addOns.map((addOn) => (
-          <Line
-            key={addOn.key}
-            label={working.addOn(addOn)}
-            value={formatHours(addOn.hours)}
+          {(now.minimumApplied || was?.minimumApplied) && (
+            <Figure
+              label={working.minimum(now.minimumChargeCents)}
+              value={formatMoney(now.priceCents)}
+              was={was && formatMoney(was.priceCents)}
+            />
+          )}
+          <Figure
+            label={`Sales tax (${now.taxPercent}%)`}
+            value={formatMoney(now.taxCents)}
+            was={was && formatMoney(was.taxCents)}
           />
-        ))}
-        <Line
-          label={working.hours}
-          value={formatHours(now.labourHours)}
-          was={was && formatHours(was.labourHours)}
-          strong
-        />
-        <Line
-          label={working.rate(now.hourlyRateCents)}
-          value={formatMoney(now.workedOutCents)}
-          was={was && formatMoney(was.workedOutCents)}
-        />
-        {(now.minimumApplied || was?.minimumApplied) && (
-          <Line
-            label={working.minimum(now.minimumChargeCents)}
-            value={formatMoney(now.priceCents)}
-            was={was && formatMoney(was.priceCents)}
-          />
-        )}
-        <Line
-          label={`Sales tax (${now.taxPercent}%)`}
-          value={formatMoney(now.taxCents)}
-          was={was && formatMoney(was.taxCents)}
-        />
-        <div className="mt-2 flex justify-between gap-4 border-t border-border pt-2 text-base font-semibold text-fg">
-          <dt>Total</dt>
-          <dd className="tabular-nums">{formatMoney(now.totalCents)}</dd>
-        </div>
-      </dl>
+          <Figure label="Total" value={formatMoney(now.totalCents)} total />
+        </Figures>
+      </div>
     </>
   );
 }
@@ -156,38 +155,3 @@ const hoursOf = (was: PriceBreakdown, label: string, now: PriceBreakdown) => {
   const part = was.homeHours[i];
   return part ? formatHours(part.hours) : null;
 };
-
-function Line({
-  label,
-  value,
-  was,
-  strong = false,
-}: {
-  label: string;
-  value: string;
-  // the other working-out's value: struck through beside it where it differs
-  was?: string | null;
-  strong?: boolean;
-}) {
-  const differs = was != null && was !== value;
-  return (
-    <div className="flex justify-between gap-4">
-      <dt className={strong ? "font-semibold text-fg" : "text-fg-muted"}>
-        {label}
-      </dt>
-      <dd
-        className={`flex shrink-0 gap-2 tabular-nums text-fg ${strong ? "font-semibold" : ""}`}
-      >
-        {differs && (
-          <s className="text-fg-muted">
-            <span className="sr-only">was </span>
-            {was}
-          </s>
-        )}
-        <span className={differs ? "font-semibold text-primary" : ""}>
-          {value}
-        </span>
-      </dd>
-    </div>
-  );
-}
