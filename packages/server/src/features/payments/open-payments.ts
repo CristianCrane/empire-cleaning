@@ -7,9 +7,8 @@ import { retryBill } from "../bills/bills.ts";
 import { NOT_SETTLED } from "./unpaid.ts";
 import { retryJob } from "../completion/completion.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
-import { quotes } from "../quotes/quotes.schema.ts";
+import { settleQuotePayments, tellNotApproved } from "../quotes/accept.ts";
 import {
-  giveBackUnbookedDeposits,
   openBefore,
   refundFrom,
   SETTLED_AFTER_MS,
@@ -25,7 +24,11 @@ import { charges } from "./payments.schema.ts";
  * end of, and each Job or Bill Unpaid only because the provider couldn't be
  * reached (or its payment was still processing). A Job is settled again, a
  * due Bill charged again; a Bill paid another way meanwhile gives back what
- * its lost Charge took, and so does a Quote nobody booked. Each holds what
+ * its lost Charge took, and so does a Quote nobody booked. A Quote's
+ * Deposit waiting on the Client's bank longer than APPROVAL_MS is called
+ * off, or found refused, the Client emailed, or, approved, booked (settleQuotePayments,
+ * finalizeDeposit), in case neither the browser nor the webhook came back
+ * (#534). Each holds what
  * it's for while it tries, so it's safe to run as often as you like, and on
  * more than one server, alongside the Client trying again themselves.
  */
@@ -73,17 +76,12 @@ export const settleOpenPayments = async () => {
     [...open.bills, ...unpaidBills.map((b) => b.id)],
     retryBill,
   );
-  await each("Quote", open.quotes, (quoteId) =>
-    db.transaction(async (tx) => {
-      // as accepting it does, so the two never both have its Deposit
-      await tx
-        .select({ id: quotes.id })
-        .from(quotes)
-        .where(eq(quotes.id, quoteId))
-        .for("update");
-      await giveBackUnbookedDeposits(tx, quoteId);
-    }),
-  );
+  // a Deposit left waiting on the Client's bank is called off, or booked
+  // once approved, and they're told
+  await each("Quote", open.quotes, async (quoteId) => {
+    const { notApproved } = await settleQuotePayments(quoteId);
+    await tellNotApproved(notApproved, false);
+  });
   // a payment made twice, given back whole
   await each("Charge", open.charges, async (chargeId) => {
     const [charge] = await db

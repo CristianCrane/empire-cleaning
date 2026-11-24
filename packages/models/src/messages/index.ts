@@ -62,7 +62,14 @@ export {
   type NoRoom,
 } from "./jobs.ts";
 export { asksTheClient, officeFix } from "./payments.ts";
-export { needsVisit, noEmailYet, notSeenYet, placeOwner } from "./quotes.ts";
+export {
+  clientPaying,
+  needsVisit,
+  noEmailYet,
+  notSeenYet,
+  placeOwner,
+  type PayingFor,
+} from "./quotes.ts";
 export {
   LATE_RESCHEDULE_HOURS,
   moveCostForOffice,

@@ -772,10 +772,18 @@ function Accept({
     amountCents: depositCents,
     showCard: newCard,
   });
+  // nothing booked, as a payment is still out (#534): an earlier one their
+  // bank is finishing, info as it waits on us, or this one they haven't
+  // approved yet, a warning as it waits on them; the server says what next
+  const [still, setStill] = useState<{
+    tone: "info" | "warning";
+    message: string;
+  }>();
 
   const accept = () =>
     action.run(
       async () => {
+        setStill(undefined);
         const paymentToken = newCard ? await payment.token() : undefined;
         const outcome = await postJson<AcceptOutcome>(
           `/api/quotes/mine/${quote.id}/accept`,
@@ -788,14 +796,27 @@ function Accept({
                 paymentToken,
               },
         );
+        let done = outcome;
         if (outcome.status === "needs_approval") {
           await payment.approve(outcome.secret);
-          await postJson<AcceptOutcome>(
+          done = await postJson<AcceptOutcome>(
             `/api/quotes/mine/${quote.id}/accept/finalize`,
           );
         }
+        if (done.status === "processing" || done.status === "waiting") {
+          setStill({
+            tone: done.status === "waiting" ? "warning" : "info",
+            message: done.message,
+          });
+        }
+        return done;
       },
-      quote.plan ? t.w.planStartedToast : t.w.bookedToast,
+      (done) =>
+        done.status !== "accepted"
+          ? ""
+          : quote.plan
+            ? t.w.planStartedToast
+            : t.w.bookedToast,
     );
 
   return (
@@ -844,6 +865,7 @@ function Accept({
         </p>
         {newCard && <ConsentNote action="paying" />}
         {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+        {still && <Notice tone={still.tone}>{still.message}</Notice>}
         <Actions>
           <Decline quote={quote} />
           <Button

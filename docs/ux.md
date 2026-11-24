@@ -88,7 +88,9 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   body, **Now** on top holding it as it stands; its Draft is a Form page.
 - **On a phone, the page's next step pinned at the foot**, above the tab
   bar, after the facts, the rest behind its arrow in a sheet; a wider
-  screen keeps it in the header (`RecordPage`'s `next`).
+  screen keeps it in the header (`RecordPage`'s `next`). Greyed, it says
+  why in a line above it there (its `why`, `ActionFooter`), as the alert
+  that says so has scrolled away (#534).
 
 ("Layout / RecordPage", "Next Step At A Phones Foot"; "A Record: its header, two alerts, its details, its
 parts"; "A record's History last, one column"; "Records as stories")
@@ -247,7 +249,10 @@ for a dialog. It renders through `FormPage`
   draft alone on the title row. The sticky header's total slides in with
   it, once the title row's button has scrolled away, and never from `xl`,
   where the prices beside the form stick too. What's said
-  before the button (a refusal, a warning) comes after the card. Such a
+  before the button (a refusal, a warning) comes after the card; one
+  that answers its press takes the focus as it shows, mid-screen, so
+  it's in view and read out wherever the button was, a page above it in
+  the header (Notice's `answers`, #534). Such a
   form has an aside, its price, and the page is the content's width; a
   form alone keeps a form's width and its button in its card (FormPage's
   type holds it).

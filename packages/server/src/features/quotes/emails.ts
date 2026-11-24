@@ -1,6 +1,7 @@
 import type {
   BillPayment,
   Card,
+  DepositRefundedWhy,
   Named,
   Recurrence,
 } from "@empire-cleaning/models";
@@ -750,6 +751,256 @@ export const bookingConfirmationEmail = (
       paragraph(bookingPrice(lang, paid)),
       paragraph(w.REMIND),
       accessButton(lang),
+    ],
+  };
+};
+
+// ---- a Deposit paid online, once the Client's bank asked them to approve
+// it (#534) ----
+
+// what the Deposit was for, as its emails name it: the Service, or null on
+// a cleaning plan, which it started or `changing` changed; where, and from
+// when
+export type DepositFor = {
+  name: string;
+  address: string;
+  quoteId: string;
+  service: Named | null;
+  changing: boolean;
+  startsAt: Date;
+  amountCents: number;
+};
+
+// what the emails about it say, in each language. They're read away from
+// the Quote's page, so each says which clean, where, when and how much,
+// and links back
+const depositWords = catalog({
+  en: {
+    refunded: {
+      subject: "We've refunded your deposit",
+      // with nothing to give back: what couldn't be done
+      unbooked: {
+        clean: "We couldn't book your clean",
+        plan: "We couldn't start your cleaning plan",
+        change: "We couldn't change your cleaning plan",
+      },
+      book: (service: string, address: string, when: string) =>
+        `We couldn't book your ${service} at ${address} on ${when}`,
+      bookAt: (service: string, address: string) =>
+        `We couldn't book your ${service} at ${address}`,
+      start: (address: string) =>
+        `We couldn't start your cleaning plan at ${address}`,
+      change: (address: string) =>
+        `We couldn't change your cleaning plan at ${address}`,
+      // what their bank was approving: a payment, or at 0% their card
+      PAYMENT: "the payment",
+      CARD: "your card",
+      no_room: (what: string) =>
+        `: that time got booked up while your bank was approving ${what}.`,
+      revised: (what: string) =>
+        `: we updated your quote while your bank was approving ${what}.`,
+      closed: (what: string) =>
+        `: your quote closed while your bank was approving ${what}.`,
+      has_plan: (address: string, what: string) =>
+        `We couldn't start the cleaning plan in your quote: ${address} got a different cleaning plan while your bank was approving ${what}. That plan stays as it is.`,
+      plan_changed: (address: string, what: string) =>
+        `We couldn't change your cleaning plan at ${address}: it was changed another way while your bank was approving ${what}. Your plan stays as it is now.`,
+      refunded: (amount: string, card: string, takes: string) =>
+        `We've refunded your ${amount} deposit to your ${card}. ${takes}`,
+      NOTHING_CHARGED: "Nothing was charged to your card.",
+      ANOTHER_TIME: "We'll be in touch with another time.",
+      WHATS_CHANGED: "Take a look at what's changed:",
+    },
+    calledOff: {
+      subject: "Your payment wasn't approved in time",
+      calledOff: (deposit: string, minutes: number) =>
+        `Your bank asked you to approve ${deposit}, and ${minutes} minutes went by without an approval, so we called the payment off. Nothing was charged, and nothing is booked yet.`,
+      // their bank turned down a payment it was still finishing
+      refusedSubject: "Your bank didn't approve your payment",
+      refused: (deposit: string) =>
+        `Your bank didn't approve ${deposit}, so nothing was charged, and nothing is booked yet.`,
+      // a card saved with nothing charged (no Deposit)
+      yourCard: "your card",
+      forClean: (amount: string, service: string) =>
+        `the ${amount} deposit for your ${service}`,
+      forPlan: (amount: string) =>
+        `the ${amount} deposit to start your cleaning plan`,
+      forChange: (amount: string) =>
+        `the ${amount} deposit to change your cleaning plan`,
+      clean: (address: string, when: string) =>
+        `The clean: ${address}, ${when}.`,
+      plan: (address: string, when: string) =>
+        `The plan: ${address}, starting ${when}.`,
+      open: (until: string) =>
+        `Your quote is still open until ${until}, so you can pay again before then.`,
+      sent: (until: string) =>
+        `We've since sent you an updated quote, open until ${until}, so you can pay on that one before then.`,
+      expired:
+        "Your quote has expired, so reply to this email and we'll send you a new one.",
+    },
+  },
+  es: {
+    refunded: {
+      subject: "Le devolvimos su depósito",
+      unbooked: {
+        clean: "No pudimos reservar su limpieza",
+        plan: "No pudimos empezar su plan de limpieza",
+        change: "No pudimos cambiar su plan de limpieza",
+      },
+      book: (service: string, address: string, when: string) =>
+        `No pudimos reservar su ${service} en ${address} el ${when}`,
+      bookAt: (service: string, address: string) =>
+        `No pudimos reservar su ${service} en ${address}`,
+      start: (address: string) =>
+        `No pudimos empezar su plan de limpieza en ${address}`,
+      change: (address: string) =>
+        `No pudimos cambiar su plan de limpieza en ${address}`,
+      PAYMENT: "el pago",
+      CARD: "su tarjeta",
+      no_room: (what: string) =>
+        `: esa hora se llenó mientras su banco aprobaba ${what}.`,
+      revised: (what: string) =>
+        `: actualizamos su cotización mientras su banco aprobaba ${what}.`,
+      closed: (what: string) =>
+        `: su cotización se cerró mientras su banco aprobaba ${what}.`,
+      has_plan: (address: string, what: string) =>
+        `No pudimos empezar el plan de limpieza de su cotización: ${address} recibió otro plan de limpieza mientras su banco aprobaba ${what}. Ese plan sigue igual.`,
+      plan_changed: (address: string, what: string) =>
+        `No pudimos cambiar su plan de limpieza en ${address}: se cambió de otra forma mientras su banco aprobaba ${what}. Su plan sigue como está ahora.`,
+      refunded: (amount: string, card: string, takes: string) =>
+        `Le devolvimos su depósito de ${amount} a su ${card}. ${takes}`,
+      NOTHING_CHARGED: "No se cobró nada a su tarjeta.",
+      ANOTHER_TIME: "Le contactaremos con otra hora.",
+      WHATS_CHANGED: "Revise lo que cambió:",
+    },
+    calledOff: {
+      subject: "Su pago no se aprobó a tiempo",
+      calledOff: (deposit: string, minutes: number) =>
+        `Su banco le pidió aprobar ${deposit}, y pasaron ${minutes} minutos sin aprobarlo, así que cancelamos el pago. No se cobró nada, y aún no hay nada reservado.`,
+      refusedSubject: "Su banco no aprobó su pago",
+      refused: (deposit: string) =>
+        `Su banco no aprobó ${deposit}, así que no se cobró nada, y aún no hay nada reservado.`,
+      yourCard: "su tarjeta",
+      forClean: (amount: string, service: string) =>
+        `el depósito de ${amount} para su ${service}`,
+      forPlan: (amount: string) =>
+        `el depósito de ${amount} para empezar su plan de limpieza`,
+      forChange: (amount: string) =>
+        `el depósito de ${amount} para cambiar su plan de limpieza`,
+      clean: (address: string, when: string) =>
+        `La limpieza: ${address}, ${when}.`,
+      plan: (address: string, when: string) =>
+        `El plan: ${address}, a partir del ${when}.`,
+      open: (until: string) =>
+        `Su cotización sigue abierta hasta el ${until}, así que puede volver a pagar antes de esa fecha.`,
+      sent: (until: string) =>
+        `Desde entonces le enviamos una cotización actualizada, abierta hasta el ${until}, así que puede pagar con esa antes de esa fecha.`,
+      expired:
+        "Su cotización venció, así que responda a este correo y le enviaremos una nueva.",
+    },
+  },
+});
+
+// what the Client's bank approved that couldn't be booked, a Deposit given
+// back or (amountCents 0) a card saved with nothing charged: the Client's
+// record of it, wherever they are, and the only word for one who never came
+// back to the Quote's page
+export const depositUnbookedEmail = (
+  lang: Language,
+  deposit: DepositFor & { why: DepositRefundedWhy; card: Card | null },
+): Email => {
+  const w = depositWords[lang].refunded;
+  const { formatMoney, formatWhen } = formats[lang];
+  const { address, why } = deposit;
+  const service = deposit.service && inLanguage(lang, deposit.service).name;
+  const couldnt = service
+    ? why === "no_room"
+      ? w.book(service, address, formatWhen(deposit.startsAt))
+      : w.bookAt(service, address)
+    : deposit.changing
+      ? w.change(address)
+      : w.start(address);
+  const charged = deposit.amountCents > 0;
+  const what = charged ? w.PAYMENT : w.CARD;
+  const first =
+    why === "has_plan" || why === "plan_changed"
+      ? w[why](address, what)
+      : `${couldnt}${w[why](what)}`;
+  return {
+    lang,
+    subject: charged
+      ? w.subject
+      : w.unbooked[service ? "clean" : deposit.changing ? "change" : "plan"],
+    blocks: [
+      greeting(firstNameOf(deposit.name)),
+      paragraph(first),
+      paragraph(
+        charged
+          ? w.refunded(
+              formatMoney(deposit.amountCents),
+              cardOf(lang, deposit.card),
+              messages[lang].REFUND_TAKES_DAYS,
+            )
+          : w.NOTHING_CHARGED,
+      ),
+      ...(why === "no_room" ? [paragraph(w.ANOTHER_TIME)] : []),
+      ...(why === "revised" ? [paragraph(w.WHATS_CHANGED)] : []),
+      button(words[lang].SEE_QUOTE, `/portal/quotes/${deposit.quoteId}`),
+    ],
+  };
+};
+
+// what's become of the Quote since: still open, changes sent, or Expired
+export type QuoteSince = "open" | "sent" | "expired";
+
+// a Deposit left unapproved past APPROVAL_MS, called off by the Clock or by
+// Office Staff sending changes: without it, a Client told to approve it in
+// their bank's app, and approving too late, would hear nothing
+export const depositNotApprovedEmail = (
+  lang: Language,
+  // calledOffAfter: the minutes it waited before we called it off; null
+  // when their bank refused it
+  // openUntil: the Quote's expiry, or the updated one's once sent
+  deposit: DepositFor & {
+    calledOffAfter: number | null;
+    since: QuoteSince;
+    openUntil: Date;
+  },
+): Email => {
+  const w = depositWords[lang].calledOff;
+  const { formatMoney, formatWhen } = formats[lang];
+  const amount = formatMoney(deposit.amountCents);
+  const when = formatWhen(deposit.startsAt);
+  const service = deposit.service && inLanguage(lang, deposit.service).name;
+  const what = !deposit.amountCents
+    ? w.yourCard
+    : service
+      ? w.forClean(amount, service)
+      : deposit.changing
+        ? w.forChange(amount)
+        : w.forPlan(amount);
+  const { calledOffAfter } = deposit;
+  return {
+    lang,
+    subject: calledOffAfter === null ? w.refusedSubject : w.subject,
+    blocks: [
+      greeting(firstNameOf(deposit.name)),
+      paragraph(
+        calledOffAfter === null
+          ? w.refused(what)
+          : w.calledOff(what, calledOffAfter),
+      ),
+      paragraph(
+        service
+          ? w.clean(deposit.address, when)
+          : w.plan(deposit.address, when),
+      ),
+      paragraph(
+        deposit.since === "expired"
+          ? w.expired
+          : w[deposit.since](formatWhen(deposit.openUntil)),
+      ),
+      button(words[lang].SEE_QUOTE, `/portal/quotes/${deposit.quoteId}`),
     ],
   };
 };

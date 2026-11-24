@@ -20,6 +20,7 @@ import {
   Send,
   Trash2,
   CalendarPlus,
+  Undo2,
   type LucideIcon,
   CircleX,
   CalendarClock,
@@ -42,11 +43,13 @@ import type {
   OfficeRevision,
   PlanChange,
   QuoteDraftInput,
+  RecordedAcceptance,
   Recurrence,
   ServiceChoice,
   ServicePlanInput,
 } from "@empire-cleaning/models";
 import {
+  clientPaying,
   firstNameOf,
   noEmailYet,
   notSeenYet,
@@ -59,6 +62,8 @@ import {
   runsPastMidnight,
   formats,
   messages,
+  type DepositRefundedWhy,
+  type PayingFor,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -95,7 +100,13 @@ import {
   type PageAction,
   type PageActions,
 } from "@empire-cleaning/ui";
-import { ApiError, deleteJson, patchJson, postJson } from "../../api.ts";
+import {
+  ApiError,
+  deleteJson,
+  getJson,
+  patchJson,
+  postJson,
+} from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction, useLeavingAction } from "../action.ts";
 import {
@@ -158,9 +169,76 @@ const {
   formatClock,
   formatDay,
   formatMoney,
+  formatTime,
   weekdayName,
   formatList,
 } = formats.en;
+
+// the Deposit the Client is paying online while their bank asks them to
+// approve it, or finishes it, as the one rule's words name it (#534), if
+// they are
+const payingFor = (
+  quote: Pick<OfficeQuote, "paying" | "client">,
+): PayingFor | null =>
+  quote.paying && {
+    name: quote.client.name,
+    deposit: formatMoney(quote.paying.depositCents),
+    service: quote.paying.serviceName,
+    until: formatTime(quote.paying.until),
+    finishing: quote.paying.finishing,
+  };
+
+// how often a Quote's pages look again while its Client pays (#534), so
+// the Office sees it accepted, or free again, within seconds
+const PAYING_LOOK_MS = 15_000;
+
+// While the Client pays the Quote's Deposit online (#534), `look` again
+// every PAYING_LOOK_MS while the page is shown, and once the wait ends, as
+// then what was held is free again: the one rule's alert gone, its action
+// live. A second after `until`, as the server's clock may run behind ours,
+// and the looks go on till its answer comes; past it, while their bank
+// finishes it, every PAYING_LOOK_MS alone, as nothing says when that ends.
+// A look that fails says nothing on the page: the next tries again. One at
+// a time, as two at once would both tell of what they found, twice
+function useWhilePaying(
+  paying: OfficeQuote["paying"] | undefined,
+  look: () => Promise<unknown>,
+) {
+  const until = paying?.until;
+  const finishing = paying?.finishing ?? false;
+  const looking = useRef(false);
+  const lookNow = useEffectEvent(() => {
+    if (looking.current) return;
+    looking.current = true;
+    void look()
+      .catch(reportUnexpected)
+      .finally(() => {
+        looking.current = false;
+      });
+  });
+  useEffect(() => {
+    if (!until) return;
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") lookNow();
+    }, PAYING_LOOK_MS);
+    const end =
+      !finishing &&
+      setTimeout(lookNow, Math.max(0, Date.parse(until) - Date.now()) + 1000);
+    return () => {
+      clearInterval(timer);
+      if (end) clearTimeout(end);
+    };
+  }, [until, finishing]);
+}
+
+// the Service a Quote was accepted with, by name; none for a cleaning plan,
+// accepted whole
+const acceptedService = (quote: OfficeQuote) =>
+  quote.offer?.plan
+    ? null
+    : (quote.offer?.options.find(
+        (o) => o.serviceKey === quote.acceptedServiceKey,
+      )?.serviceName ?? null);
 
 // The Quote with one of its Revisions in hand: the one being drafted, or
 // else the offer, so it's edited while there's a Draft Revision and
@@ -198,6 +276,8 @@ export function QuoteScreen() {
   const kind = quoteKindName(quote.kind);
   const revising = quote.draft !== null && quote.offer !== null;
   const now = useNow(quote);
+  const router = useRouter();
+  useWhilePaying(quote.paying, () => router.invalidate());
 
   return (
     <RecordPage
@@ -283,10 +363,15 @@ function useNow(quote: OfficeQuote): Now {
     offer !== null && quote.status === "sent" && quote.bookable.length > 0;
   const recordable =
     acceptable && (offer.changesPlan !== null || quote.paymentMethod !== null);
+  // the Client paying online holds it (the one rule): greyed, the alert
+  // saying until when
+  const paying = payingFor(quote);
 
   const recordAcceptance: PageAction | false = recordable && {
     label: "Record acceptance",
     icon: CircleCheck,
+    isDisabled: paying !== null,
+    why: clientPaying.item(firstNameOf(name)),
     dialog: (state) => (
       <RecordAcceptanceDialog
         quote={offer!}
@@ -295,7 +380,21 @@ function useNow(quote: OfficeQuote): Now {
       />
     ),
   };
-  const noCard: Alert | false = acceptable &&
+  // over everything else to say about taking the Deposit, which waits on it
+  const payingAlert: Alert | false = !!paying && {
+    key: "paying",
+    tone: "warning",
+    children: (
+      <p>
+        {clientPaying.page(paying, {
+          card: recordable,
+          drafting: quote.draft !== null && quote.offer !== null,
+        })}
+      </p>
+    ),
+  };
+  const noCard: Alert | false = !paying &&
+    acceptable &&
     !recordable && {
       key: "card",
       action: <EmailCardLink quote={quote} />,
@@ -340,7 +439,7 @@ function useNow(quote: OfficeQuote): Now {
         ? [recordAcceptance]
         : [mayBookVisit && bookVisit, turnDown],
       alerts: [
-        {
+        payingAlert || {
           key: "draft",
           tone: "warning",
           children: (
@@ -369,7 +468,7 @@ function useNow(quote: OfficeQuote): Now {
         ? {
             next: recordAcceptance || undefined,
             actions: [changeQuote],
-            alerts: [noCard],
+            alerts: [payingAlert, noCard],
           }
         : {
             next: changeQuote,
@@ -618,6 +717,16 @@ type Moment = {
   details?: ReactNode;
 };
 
+// why what the Client paid online wasn't booked: "Casey paid it as …", or
+// "accepted it as …" when nothing was charged
+const unbookedAs: Record<DepositRefundedWhy, string> = {
+  no_room: "the time filled",
+  closed: "the quote was closed",
+  revised: "changes were sent",
+  has_plan: "the home got another plan",
+  plan_changed: "the plan was changed",
+};
+
 // each thing that happened to the Quote, newest first
 const momentsOf = (quote: OfficeQuote): Moment[] => {
   const shown = shownFor(quote);
@@ -681,6 +790,28 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
       title: `${quote.client.name} accepted it`,
     });
   }
+  // what the Client paid online that couldn't be booked once their bank
+  // approved it (#534): a Deposit refunded, or a card saved with nothing
+  // charged, so Office Staff on the phone with them, or getting in touch,
+  // see it
+  quote.unbookedPayments.forEach((unbooked, i) => {
+    const name = firstNameOf(quote.client.name);
+    const as = unbookedAs[unbooked.why];
+    moments.push({
+      key: `unbooked-${i}`,
+      at: unbooked.endedAt,
+      icon: Undo2,
+      ...(unbooked.amountCents
+        ? {
+            title: "Deposit refunded",
+            description: `${formatMoney(unbooked.amountCents)} · ${name} paid it as ${as}`,
+          }
+        : {
+            title: "Acceptance not booked",
+            description: `Nothing charged · ${name} accepted it as ${as}`,
+          }),
+    });
+  });
   if (quote.turnedDownAt) {
     moments.push({
       key: "turned-down",
@@ -1124,7 +1255,12 @@ function EmailCardLink({ quote }: { quote: OfficeQuote }) {
 // confirms. While a new Revision is `drafting`, it's the offer standing
 // that's accepted, and accepting it discards the Draft. Offered once a yes
 // can be recorded (a card saved, or a plan change): the page's next step,
-// or behind the arrow while a change is drafted
+// or behind the arrow while a change is drafted. Refused as the Client
+// started paying online since the page loaded, or as their bank was found
+// finishing it past its end time (#534), the page reloads under it, and
+// it's greyed with the one rule's alert in place of the refusal; or, their
+// bank having approved it just before, the quote is accepted with what
+// they paid for, which a toast says
 function RecordAcceptanceDialog({
   quote,
   drafting,
@@ -1143,25 +1279,41 @@ function RecordAcceptanceDialog({
   const [serviceKey, setServiceKey] = useState(
     choices.find((o) => quote.bookable.includes(o.serviceKey))!.serviceKey,
   );
-  const action = useAction("That didn't work. Please try again.");
+  const action = useAction("That didn't work. Please try again.", {
+    reloadOnFailure: true,
+  });
   const chosen = quote.options.find((o) => o.serviceKey === serviceKey)!;
   const depositCents = quote.plan?.depositCents ?? chosen.depositCents;
+  const paying = payingFor(quote);
 
   const accept = async (close: () => void) => {
     const ok = await action.run(
       // a plan is accepted whole
       () =>
-        postJson<OfficeQuote>(
+        postJson<RecordedAcceptance>(
           `/api/quotes/${quote.id}/accept`,
           quote.plan
             ? { revisionId: quote.revisionId }
             : { revisionId: quote.revisionId, serviceKey },
         ),
-      quote.changesPlan
-        ? "Accepted: the cleaning plan has changed"
-        : quote.plan
-          ? "Accepted: the cleaning plan has started"
-          : "Accepted and booked",
+      ({ quote: accepted, paidOnline }) => {
+        if (paidOnline) {
+          showToast({
+            tone: "info",
+            title: clientPaying.recorded(
+              quote.client.name,
+              acceptedService(accepted),
+              quote.plan ? null : chosen.serviceName,
+            ),
+          });
+          return "";
+        }
+        return quote.changesPlan
+          ? "Accepted: the cleaning plan has changed"
+          : quote.plan
+            ? "Accepted: the cleaning plan has started"
+            : "Accepted and booked";
+      },
     );
     if (ok) close();
   };
@@ -1203,13 +1355,18 @@ function RecordAcceptanceDialog({
               : ""}{" "}
             Only do this if they've told you they accept.
           </p>
-          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          {paying ? (
+            <Notice tone="warning">{clientPaying.record(paying)}</Notice>
+          ) : (
+            action.problem && <Notice tone="danger">{action.problem}</Notice>
+          )}
           <Actions>
             <Button variant="quiet" onPress={close}>
               Cancel
             </Button>
             <Button
               isPending={action.isPending}
+              isDisabled={paying !== null}
               onPress={() => void accept(close)}
             >
               {quote.changesPlan ? "Change the plan" : "Charge and book"}
@@ -1730,6 +1887,37 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
   const [saves, setSaves] = useState(0);
   const [isSending, setSending] = useState(false);
 
+  // the Client paying the quote sent holds Send (the one rule, #534), as
+  // the page loaded it last: it looks again while they pay, and once the
+  // payment accepts the quote, the draft is gone, so it goes to the quote
+  const paying = payingFor(loaded);
+  const until = loaded.paying?.until;
+  useWhilePaying(loaded.paying, async () => {
+    const now = await getJson<OfficeQuote>(`/api/quotes/${loaded.id}`);
+    if (now.draft) {
+      await router.invalidate();
+      return;
+    }
+    if (now.status === "accepted") {
+      showToast({
+        tone: "info",
+        title: clientPaying.draftGone(now.client.name),
+      });
+    }
+    await navigate({
+      to: "/office/quotes/$quoteId",
+      params: { quoteId: now.id },
+    });
+  });
+  // a refusal to send while they paid says nothing the alert doesn't, so
+  // the alert shows in its place (answering the press), and it's untrue
+  // once they're done, so it goes as the wait ends
+  const [failedWhile, setFailedWhile] = useState(until);
+  if (failedWhile !== until) {
+    setFailedWhile(until);
+    if (failedWhile) setFailure(undefined);
+  }
+
   // every change counts up; a save records the change it saved, so a save
   // started before a later change doesn't count as saving it
   const latest = useRef(fields);
@@ -1852,11 +2040,17 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
     setFailure(undefined);
     try {
       if (!(await saveNow())) return;
-      await postJson<OfficeQuote>(`/api/quotes/${quote.id}/send`);
-      showToast({
-        tone: "success",
-        title: `Quote sent to ${quote.client.email}`,
-      });
+      const sent = await postJson<OfficeQuote>(`/api/quotes/${quote.id}/send`);
+      // the Client's payment, approved just before, accepted the quote
+      // sent instead (#534)
+      showToast(
+        sent.status === "accepted"
+          ? {
+              tone: "info",
+              title: clientPaying.sent(sent.client.name, acceptedService(sent)),
+            }
+          : { tone: "success", title: `Quote sent to ${quote.client.email}` },
+      );
       await navigate({
         to: "/office/quotes/$quoteId",
         params: { quoteId: quote.id },
@@ -1867,8 +2061,10 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
         setFieldErrors(e.fieldErrors);
       } else if (e instanceof ApiError && e.status === 409) {
         // refused for new prices, saving again shows them; refused as the
-        // Quote has closed, the page shows how
-        if (!(await saveNow(true))) await router.invalidate();
+        // Quote has closed, or its Client is paying it (#534), the page
+        // shows how, as it loads again
+        await saveNow(true);
+        await router.invalidate();
         setFailure(e.message);
       } else {
         setFailure("That didn't work. Please try again.");
@@ -1896,8 +2092,14 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
     .filter((a) => fields.addOns.includes(a.key))
     .map((a) => a.name);
   const problems = [
-    failure && (
-      <Notice key="failure" tone="danger">
+    failure && !paying && (
+      <Notice
+        key="failure"
+        // in view wherever Send was pressed (#534 UX U4); refused as the
+        // Client is paying, the paying alert answers instead
+        answers
+        tone="danger"
+      >
         {failure}
       </Notice>
     ),
@@ -1971,10 +2173,20 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
           },
         ]}
         alerts={[
-          draft.offer && {
-            key: "sees",
-            children: stillSees(draft.client.name),
-          },
+          paying
+            ? {
+                key: "paying",
+                tone: "warning",
+                // Send refused as the Client is paying: the page loads
+                // again into this alert, which answers the press in its
+                // place (`failure` below), in view wherever Send was
+                answers: !!failure,
+                children: clientPaying.draft(paying.name, paying),
+              }
+            : draft.offer && {
+                key: "sees",
+                children: stillSees(draft.client.name),
+              },
           draft.changesPlan && {
             key: "plan",
             children: (
@@ -2002,15 +2214,21 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
           srLabel: `to ${quote.client.name}`,
           icon: Send,
           isPending: isSending,
-          // and while a time can't be sent, which the line beside it says
+          // and while the Client is paying or a time can't be sent, which
+          // the line beside it says (noteOf)
           isDisabled:
+            !!paying ||
             !quote.client.email ||
             quote.needsSiteVisit ||
             quote.untimely.length > 0,
           onAction: () => void onSend(),
         }}
         price={priceOf(quote)}
-        note={noteOf(saveState, sendHold(quote, dayTitles))}
+        note={noteOf(
+          saveState,
+          liveHold(quote, !!paying),
+          sendHold(quote, dayTitles),
+        )}
       >
         {draft.asked && (
           <FormPart title="What was asked" summary={askedSummary(draft)}>
@@ -2289,10 +2507,25 @@ const timeFold = ({
   };
 };
 
-// What Send waits on, said beside it after "Saved", of the Draft as last
-// saved: a time to pick, a later or an earlier one, or that the one picked
-// has no room, named, as the picker may be out of view. None when it can go.
+// What Send waits on whatever's typed, said beside it in every save
+// state: the Client paying the quote sent (the one rule, #534), or their
+// email to add. None when neither holds it.
+const liveHold = (quote: ShownQuote, paying: boolean) => {
+  const name = firstNameOf(quote.client.name);
+  if (paying) return clientPaying.send(name);
+  if (!quote.client.email) return `Add ${name}'s email first`;
+  return undefined;
+};
+
+// What else Send waits on, said beside it after "Saved", of the Draft as
+// last saved: a site visit first, a time to pick, a later or an earlier
+// one, or that the one picked has no room, named, as the picker may be out
+// of view. None when it can go.
 const sendHold = (quote: ShownQuote, dayTitles: string[]) => {
+  if (quote.needsSiteVisit)
+    return quote.bookedSiteVisit
+      ? "Record what the site visit found first"
+      : "Book the site visit first";
   const untimed = quote.untimely.filter((u) => u.reason === "no_time");
   if (untimed.length > 0) {
     if (!quote.plan) return "Pick a time to send";
@@ -2318,12 +2551,16 @@ const sendHold = (quote: ShownQuote, dayTitles: string[]) => {
     : undefined;
 };
 
-// the line beside Send: whether it's saved, then once it is, what Send
-// waits on
-const noteOf = (state: SaveState, hold: string | undefined) =>
-  state === "saved" && hold
-    ? `${saveStateLabel.saved} · ${hold}`
-    : saveStateLabel[state];
+// the line beside Send: whether it's saved, then what Send waits on: a
+// live hold always, the Draft's own once it's saved
+const noteOf = (
+  state: SaveState,
+  live: string | undefined,
+  saved: string | undefined,
+) => {
+  const hold = live ?? (state === "saved" ? saved : undefined);
+  return hold ? `${saveStateLabel[state]} · ${hold}` : saveStateLabel[state];
+};
 
 // A plan's weekday: its Cleaners, then its proposed time, picked from the
 // open times as the Draft's one-off's is, then its price set by hand. Its
