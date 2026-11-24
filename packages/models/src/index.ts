@@ -547,7 +547,6 @@ export type StaffMember = {
   imageUrl: string | null;
   // the language of the Cleaner area and their emails (ADR-0025)
   preferredLanguage: Language;
-  createdAt: string;
 };
 
 // a day that differs from a Staff member's usual week, e.g. a holiday (0 h)
