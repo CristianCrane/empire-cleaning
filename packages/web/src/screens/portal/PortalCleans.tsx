@@ -15,8 +15,10 @@ import { cleanBadge, upcomingBadge } from "./clean-badge.tsx";
 // in the Client's language (ADR-0025)
 const words = catalog({
   en: {
-    visit: (visitor: string, length: string) =>
-      `${visitor}, about ${length}, free`,
+    // a Site Visit's parts: who comes, for how long, and that it costs
+    // nothing, "with Cory · about 30 min · no charge"
+    visitWith: (visitor: string) => `with ${visitor}`,
+    about: (length: string) => `about ${length}`,
     fee: (amount: string) => `${amount} fee`,
     noCharge: "No charge",
     upcoming: "Upcoming",
@@ -24,8 +26,8 @@ const words = catalog({
     noneYet: "No cleans yet",
   },
   es: {
-    visit: (visitor: string, length: string) =>
-      `${visitor}, cerca de ${length}, gratis`,
+    visitWith: (visitor: string) => `con ${visitor}`,
+    about: (length: string) => `cerca de ${length}`,
     fee: (amount: string) => `cargo de ${amount}`,
     noCharge: "Sin cargo",
     upcoming: "Próximas",
@@ -75,7 +77,9 @@ const visitRow =
       <Line
         parts={[
           homes > 1 && addressOf(visit.property),
-          t.w.visit(visit.visitorName, formatMinutes(visit.minutes)),
+          t.w.visitWith(visit.visitorName),
+          t.w.about(formatMinutes(visit.minutes)),
+          inLine(t.w.noCharge),
         ]}
       />
     ),

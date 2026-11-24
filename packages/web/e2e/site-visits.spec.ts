@@ -240,9 +240,10 @@ test("a Site Visit shows on the Schedule, in the Client's portal and in the visi
   ).toBeVisible();
   // and on their cleans, its title read on from the time before it
   await page.goto("/portal/cleans");
-  await expect(page.getByRole("row").first()).toContainText(
-    /3:00 PM\s·\ssite visit/,
-  );
+  const row = page.getByRole("row").first();
+  await expect(row).toContainText(/3:00 PM\s·\ssite visit/);
+  // its line in parts, saying who comes and what it costs
+  await expect(row).toContainText(/with Cory\s·\sabout 30 min\s·\sno charge/);
 });
 
 test("a home's Quote for a Service seen first asks for a site visit as a home's", async ({
