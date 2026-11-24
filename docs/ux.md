@@ -774,10 +774,20 @@ stays as it is (#336).
   to 10:38 AM"). A Client or a Cleaner plans their day around it, so they
   read it to the quarter hour, "About" only when that rounded it: "About
   1¾ h", "3 h" (models' `howLong`, the emails too), and "until about
-  10:45 AM". The Office's working-out of a price keeps the decimal hours
-  typed on the Price list, each row's running total too ("2.3375 h"), so
-  it adds up against what was typed; its result, the cleaning hours,
-  reads as a length again on the price card.
+  10:45 AM". Hours she types or prices at a rate aren't a length on the
+  clock, so they read as she types them, decimal (`typedHours`): the
+  Price list's figures, the working-out of a price, each row's running
+  total too ("2.3375 h"), so it adds up against what was typed; the
+  cleaning hours it comes to, on the price card and the Job ("3.25 h",
+  a crew's hours together, priced at a rate), shown only for a crew of
+  more than one, as a crew of one's are its time on site, said once;
+  extra time on the day ("+1.5 h"); and a cleaner's working hours on their
+  Staff page ("7.5 h", where she types 7.5), while the Schedule reads
+  what's booked and free of them as lengths. A plan on several weekdays
+  says each one's length in turn ("1 h 38 min + 2 h"), with each crew
+  where they differ ("On site, with 2 cleaners + 1 cleaner"), and once
+  any two of its cleans differ in length, every row of its list says its
+  own, not only the odd one out.
 
 ### Status and colour
 
