@@ -32,6 +32,7 @@ import {
   DetailsCard,
   Facts,
   type DialogState,
+  Line,
 } from "@empire-cleaning/ui";
 import { patchJson } from "../../api.ts";
 import { linkTo, type AppHref } from "../../links.ts";
@@ -339,8 +340,11 @@ function VisitPart({
               : "Findings recorded, with no visit"
           }
           description={
-            visit.startsAt &&
-            lineOf([visit.visitor?.name, formatMinutes(visit.minutes)])
+            visit.startsAt && (
+              <Line
+                parts={[visit.visitor?.name, formatMinutes(visit.minutes)]}
+              />
+            )
           }
           end={<SiteVisitBadge visit={visit} />}
         />

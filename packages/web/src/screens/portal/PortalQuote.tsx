@@ -40,11 +40,12 @@ import {
   type Alert,
   type DialogState,
   ButtonLink,
+  Line,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { addressOf, formatMinutes, howLong, lineOf } from "../format.ts";
+import { addressOf, formatMinutes, howLong } from "../format.ts";
 import { QuoteIcon } from "../icons.ts";
 import { type Said, useSaid } from "../words.ts";
 import {
@@ -291,11 +292,16 @@ function QuotePage({
   "next" | "actions" | "alerts" | "details" | "children"
 >) {
   const t = useSaid(words);
-  const subtitle = lineOf([
-    // a resend replaced the offer they may have seen before
-    updatedAt && t.w.updated(t.formatDate(updatedAt)),
-    openUntil && t.p.openUntil(t.formatDateTime(openUntil)),
-  ]);
+  // none when there's nothing to say, so the header draws no empty line
+  const subtitle = (updatedAt || openUntil) && (
+    <Line
+      parts={[
+        // a resend replaced the offer they may have seen before
+        updatedAt && t.w.updated(t.formatDate(updatedAt)),
+        openUntil && t.p.openUntil(t.formatDateTime(openUntil)),
+      ]}
+    />
+  );
   return (
     <RecordPage
       trail={[
@@ -304,7 +310,7 @@ function QuotePage({
       ]}
       title={title}
       status={badge}
-      subtitle={subtitle || undefined}
+      subtitle={subtitle}
       {...page}
     />
   );

@@ -6,8 +6,8 @@ import type {
   ClientUpcomingJob,
 } from "@empire-cleaning/models";
 import { catalog } from "@empire-cleaning/models";
-import { ListPage, type ListRow } from "@empire-cleaning/ui";
-import { addressOf, formatMinutes, howLong, lineOf } from "../format.ts";
+import { Line, ListPage, type ListRow } from "@empire-cleaning/ui";
+import { addressOf, formatMinutes, howLong } from "../format.ts";
 import { tabShown, useListUrl } from "../list-search.ts";
 import { type Said, useSaid } from "../words.ts";
 import { cleanBadge, upcomingBadge } from "./clean-badge.tsx";
@@ -49,10 +49,14 @@ const upcomingRow =
     id: job.id,
     at: job.startsAt,
     title: job.serviceName,
-    description: lineOf([
-      homes > 1 && addressOf(job.property),
-      howLong(t, job.hoursOnSite),
-    ]),
+    description: (
+      <Line
+        parts={[
+          homes > 1 && addressOf(job.property),
+          howLong(t, job.hoursOnSite),
+        ]}
+      />
+    ),
     badges: [upcomingBadge(t, job)],
     onOpen: () => open(job.id),
   });
@@ -63,10 +67,14 @@ const visitRow =
     id: visit.id,
     at: visit.startsAt,
     title: t.siteVisit,
-    description: lineOf([
-      homes > 1 && addressOf(visit.property),
-      t.w.visit(visit.visitorName, formatMinutes(visit.minutes)),
-    ]),
+    description: (
+      <Line
+        parts={[
+          homes > 1 && addressOf(visit.property),
+          t.w.visit(visit.visitorName, formatMinutes(visit.minutes)),
+        ]}
+      />
+    ),
   });
 
 const pastRow =
@@ -75,14 +83,18 @@ const pastRow =
     id: job.id,
     at: job.startsAt,
     title: job.serviceName,
-    description: lineOf([
-      homes > 1 && addressOf(job.property),
-      job.status === "completed"
-        ? t.formatMoney(job.totalCents)
-        : job.feeCents > 0
-          ? t.w.fee(t.formatMoney(job.feeCents))
-          : t.w.noCharge,
-    ]),
+    description: (
+      <Line
+        parts={[
+          homes > 1 && addressOf(job.property),
+          job.status === "completed"
+            ? t.formatMoney(job.totalCents)
+            : job.feeCents > 0
+              ? t.w.fee(t.formatMoney(job.feeCents))
+              : t.w.noCharge,
+        ]}
+      />
+    ),
     badges: [
       cleanBadge(t, {
         status: job.status,

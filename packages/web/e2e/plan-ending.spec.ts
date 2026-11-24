@@ -283,7 +283,7 @@ test(
     const held = (await openTile(page, "Money"))
       .getByRole("row")
       .filter({ hasText: "Collect what's owed to resume the plan" });
-    await expect(held).toContainText("Cleaning plan paused: $50.46 unpaid");
+    await expect(held).toContainText("cleaning plan paused: $50.46 unpaid");
     await held.click();
     // the plan is on its home's page
     await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);

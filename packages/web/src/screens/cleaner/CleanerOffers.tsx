@@ -5,7 +5,7 @@ import {
 } from "@empire-cleaning/models";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import { Inbox } from "lucide-react";
-import { ListPage, type ListRow } from "@empire-cleaning/ui";
+import { Line, ListPage, type ListRow } from "@empire-cleaning/ui";
 import { formatHours } from "../format.ts";
 import { tabShown, useListUrl } from "../list-search.ts";
 import { useSaid } from "../words.ts";
@@ -68,11 +68,15 @@ export function CleanerOffers() {
           id: job.jobId,
           at: job.startsAt,
           title: job.postcode,
-          description: [
-            job.serviceName,
-            c.hoursOnSite(formatHours(job.hoursOnSite)),
-            crewSizeOf(t, job),
-          ].join(" · "),
+          description: (
+            <Line
+              parts={[
+                job.serviceName,
+                c.hoursOnSite(formatHours(job.hoursOnSite)),
+                crewSizeOf(t, job),
+              ]}
+            />
+          ),
           onOpen: () =>
             void navigate({
               to: "/cleaner/open/$jobId",
@@ -83,7 +87,14 @@ export function CleanerOffers() {
           id: job.id,
           at: job.startsAt,
           title: job.property.postcode,
-          description: `${job.serviceName} · ${c.hoursOnSite(formatHours(job.hoursOnSite))}`,
+          description: (
+            <Line
+              parts={[
+                job.serviceName,
+                c.hoursOnSite(formatHours(job.hoursOnSite)),
+              ]}
+            />
+          ),
           onOpen: () =>
             void navigate({
               to: "/cleaner/jobs/$jobId",

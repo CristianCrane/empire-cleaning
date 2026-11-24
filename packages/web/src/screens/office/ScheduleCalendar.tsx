@@ -1,5 +1,4 @@
 import {
-  Fragment,
   useLayoutEffect,
   useRef,
   useState,
@@ -34,6 +33,7 @@ import {
   List,
   ListItem,
   StatusBadge,
+  Line,
 } from "@empire-cleaning/ui";
 import { linkTo, type AppHref } from "../../links.ts";
 import {
@@ -609,23 +609,19 @@ function DayHeader({
         />
       </div>
       <p className="text-xs text-fg-muted">
-        {nobody && day.bookedHours === 0
-          ? "Nobody working"
-          : // each figure kept whole on its line, not "7.5 h" over "free"
-            [
+        {nobody && day.bookedHours === 0 ? (
+          "Nobody working"
+        ) : (
+          <Line
+            parts={[
               `${formatHours(day.bookedHours)} booked`,
-              ...(day.heldHours > 0
-                ? [`${formatHours(day.heldHours)} held`]
-                : []),
+              day.heldHours > 0 && `${formatHours(day.heldHours)} held`,
               day.freeHours < 0
                 ? `${formatHours(-day.freeHours)} over`
                 : `${formatHours(day.freeHours)} free`,
-            ].map((part, i) => (
-              <Fragment key={part}>
-                {i > 0 && " · "}
-                <span className="whitespace-nowrap">{part}</span>
-              </Fragment>
-            ))}
+            ]}
+          />
+        )}
       </p>
       {more}
     </header>

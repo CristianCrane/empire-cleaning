@@ -219,7 +219,7 @@ const ruled = (level: 2 | 3) =>
 // wrong.
 export function FormPart(
   props: { title: string; children: ReactNode; headingLevel?: 2 | 3 } & (
-    | { summary: string; defaultOpen?: boolean }
+    | { summary: NonNullable<ReactNode>; defaultOpen?: boolean }
     | { summary?: never; actions?: ReactNode }
   ),
 ) {
@@ -255,7 +255,7 @@ function Folded({
   children,
 }: {
   title: string;
-  summary: string;
+  summary: ReactNode;
   defaultOpen: boolean;
   level: 2 | 3;
   children: ReactNode;

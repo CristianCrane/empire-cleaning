@@ -32,16 +32,15 @@ import {
 import { conditions, formWords } from "@empire-cleaning/quote-request";
 import { labels } from "./labels.ts";
 import { jobStatusIcon, NeedsCleanersIcon } from "./icons.ts";
-import type { StatusTone } from "@empire-cleaning/ui";
+import { lineOf, type StatusTone } from "@empire-cleaning/ui";
 
 export const addressOf = (
   p: Pick<PropertyView, "street" | "unit" | "postcode">,
 ) => [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
 
-// a row's line, from the parts it has: "12 Elm St · $184.50". A wrap never
-// starts a line with its dot
-export const lineOf = (parts: (string | false | null | undefined)[]) =>
-  parts.filter(Boolean).join("\u00a0· ");
+// a row's line of parts as text, where a slot takes only text; a row's
+// own line is the kit's Line
+export { lineOf };
 
 // a Job's crew, or that it has none yet
 export const crewOf = (crew: { name: string }[]) =>

@@ -15,6 +15,7 @@ import {
   Notice,
   StatusBadge,
   TextField,
+  Line,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
@@ -73,7 +74,7 @@ export function StaffScreen() {
         id: member.id,
         title: member.name,
         start: <Avatar src={member.imageUrl} />,
-        description: `${rolesOf(member)} · ${member.email}`,
+        description: <Line parts={[rolesOf(member), member.email]} />,
         status:
           member.active && member.signedUp
             ? undefined

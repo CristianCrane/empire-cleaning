@@ -22,6 +22,7 @@ import {
   IconTile,
   StatusBadge,
   type ListRow,
+  Line,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
 import { useHomeUrl } from "../home-search.ts";
@@ -33,7 +34,6 @@ import {
   formatHours,
   formatMinutes,
   jobStatusTone,
-  lineOf,
 } from "../format.ts";
 import { type Said, useSaid, useShared } from "../words.ts";
 
@@ -267,14 +267,22 @@ function NextUp({
               )
         }`,
         address,
-        job
-          ? [
-              job.serviceName,
-              t.c.hoursOnSite(formatHours(job.hoursOnSite)),
-              // the Job's crew size, not who's confirmed so far
-              ...(job.crewSize > 1 ? [w.crewOf(job.crewSize)] : []),
-            ].join(" · ")
-          : `${w.siteVisitFor(clientName(visit!.client))} · ${w.toSeeIt(formatMinutes(visit!.minutes))}`,
+        <Line
+          key="what"
+          parts={
+            job
+              ? [
+                  job.serviceName,
+                  t.c.hoursOnSite(formatHours(job.hoursOnSite)),
+                  // the Job's crew size, not who's confirmed so far
+                  job.crewSize > 1 && w.crewOf(job.crewSize),
+                ]
+              : [
+                  w.siteVisitFor(clientName(visit!.client)),
+                  w.toSeeIt(formatMinutes(visit!.minutes)),
+                ]
+          }
+        />,
       ]}
       actions={
         <>
@@ -314,10 +322,14 @@ const rowOf = (t: Said, item: Item, openJob: (id: string) => void): ListRow =>
         id: item.visit.id,
         at: item.startsAt,
         title: addressOf(item.visit.property),
-        description: lineOf([
-          `${clientName(item.visit.client)}, ${item.visit.client.phone}`,
-          item.visit.property.accessInstructions,
-        ]),
+        description: (
+          <Line
+            parts={[
+              `${clientName(item.visit.client)}, ${item.visit.client.phone}`,
+              item.visit.property.accessInstructions,
+            ]}
+          />
+        ),
         badges: [
           <StatusBadge key="visit" tone="info">
             {t.siteVisit}

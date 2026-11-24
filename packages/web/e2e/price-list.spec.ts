@@ -140,7 +140,7 @@ test(
     ).toBeVisible();
     await expect(part(page, "Condition")).toContainText("Heavy 1.5×");
     await expect(page.getByRole("row", { name: "Steam clean" })).toContainText(
-      "Tax-exempt",
+      "tax-exempt",
     );
     // retired, it's folded after those offered
     await page.getByText("Retired (1)").click();

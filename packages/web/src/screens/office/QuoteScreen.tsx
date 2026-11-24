@@ -99,6 +99,7 @@ import {
   type DialogState,
   type PageAction,
   type PageActions,
+  Line,
 } from "@empire-cleaning/ui";
 import {
   ApiError,
@@ -112,7 +113,6 @@ import { useAction, useLeavingAction } from "../action.ts";
 import {
   clientName,
   dayOfInstant,
-  lineOf,
   timeOfDay,
   timeOfField,
   screenWords,
@@ -713,7 +713,7 @@ type Moment = {
   at: string;
   icon: LucideIcon;
   title: string;
-  description?: string;
+  description?: ReactNode;
   details?: ReactNode;
 };
 
@@ -763,7 +763,14 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
       icon: Send,
       title: i === 0 ? "Quote sent" : "Quote sent again",
       // what it was sent for, and when: "Standard Clean $194.89 · for …"
-      description: `${revisionHeadline(revision)} · for ${formatDateTime(revision.proposedStartsAt)}`,
+      description: (
+        <Line
+          parts={[
+            revisionHeadline(revision),
+            `for ${formatDateTime(revision.proposedStartsAt)}`,
+          ]}
+        />
+      ),
     });
   }
   if (quote.status === "expired" && shown?.expiresAt) {
@@ -804,11 +811,22 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
       ...(unbooked.amountCents
         ? {
             title: "Deposit refunded",
-            description: `${formatMoney(unbooked.amountCents)} · ${name} paid it as ${as}`,
+            description: (
+              <Line
+                parts={[
+                  formatMoney(unbooked.amountCents),
+                  `${name} paid it as ${as}`,
+                ]}
+              />
+            ),
           }
         : {
             title: "Acceptance not booked",
-            description: `Nothing charged · ${name} accepted it as ${as}`,
+            description: (
+              <Line
+                parts={["Nothing charged", `${name} accepted it as ${as}`]}
+              />
+            ),
           }),
     });
   });
@@ -2351,12 +2369,16 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
 
         <FormPart
           title="Terms"
-          summary={lineOf([
-            // each of a plan's weekdays has its own
-            !plan && cleaners(fields.crewSize),
-            `${fields.depositPercent}% deposit`,
-            `valid ${fields.validityDays} days`,
-          ])}
+          summary={
+            <Line
+              parts={[
+                // each of a plan's weekdays has its own
+                !plan && cleaners(fields.crewSize),
+                `${fields.depositPercent}% deposit`,
+                `valid for ${fields.validityDays} days`,
+              ]}
+            />
+          }
         >
           <FieldRow>
             {!plan && (
@@ -2501,7 +2523,14 @@ const timeFold = ({
   const ends =
     hoursOnSite === undefined ? undefined : endsAt(time, hoursOnSite);
   return {
-    summary: `${formatDay(date)} · ${formatClock(time)}${ends ? ` to ${ends}` : ""}`,
+    summary: (
+      <Line
+        parts={[
+          formatDay(date),
+          `${formatClock(time)}${ends ? ` to ${ends}` : ""}`,
+        ]}
+      />
+    ),
     defaultOpen:
       hoursOnSite === undefined || problem !== undefined || untimely.length > 0,
   };
@@ -2691,13 +2720,16 @@ function PlanDayFields({
 
 // what the home's first clean found, in a line: "The home was heavy · 2
 // price changes"
-const firstCleanSummary = ({ condition, adjustments }: FirstCleanFindings) =>
-  [
-    `The home was ${conditionLabel[condition].toLowerCase()}`,
-    adjustments.length === 0
-      ? "no price changes"
-      : `${adjustments.length} price change${adjustments.length > 1 ? "s" : ""}`,
-  ].join(" · ");
+const firstCleanSummary = ({ condition, adjustments }: FirstCleanFindings) => (
+  <Line
+    parts={[
+      `The home was ${conditionLabel[condition].toLowerCase()}`,
+      adjustments.length === 0
+        ? "no price changes"
+        : `${adjustments.length} price change${adjustments.length > 1 ? "s" : ""}`,
+    ]}
+  />
+);
 
 function FirstCleanFacts({ firstClean }: { firstClean: FirstCleanFindings }) {
   const { job } = firstClean;

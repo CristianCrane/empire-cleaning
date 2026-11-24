@@ -152,7 +152,7 @@ test("the Office records a plan's acceptance, then books a visit its day had no 
     await openTile(page, "Jobs")
   )
     .getByRole("row")
-    .filter({ hasText: "Cleaning plan visit on Mon, Feb 2" })
+    .filter({ hasText: "cleaning plan visit on Mon, Feb 2" })
     .click();
   // the plan is on its home's page
   await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);

@@ -17,6 +17,7 @@ import {
   PageFrame,
   TextField,
   ExternalButtonLink,
+  Line,
 } from "@empire-cleaning/ui";
 import { authClient, signOut } from "../session.ts";
 
@@ -185,5 +186,6 @@ export function PeopleScreen() {
   );
 }
 
-const about = (person: DemoPerson) =>
-  `${roleLabels[person.role]} · ${person.shows}`;
+const about = (person: DemoPerson) => (
+  <Line parts={[roleLabels[person.role], person.shows]} />
+);

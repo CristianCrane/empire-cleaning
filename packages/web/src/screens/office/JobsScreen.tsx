@@ -5,7 +5,7 @@ import {
 } from "@empire-cleaning/models";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import { BrushCleaning } from "lucide-react";
-import { ListPage, type ListRow } from "@empire-cleaning/ui";
+import { Line, ListPage, type ListRow } from "@empire-cleaning/ui";
 import { clientName } from "../format.ts";
 import { JobBadge } from "../JobBadges.tsx";
 import { tabShown, useListUrl } from "../list-search.ts";
@@ -48,7 +48,7 @@ export function JobsScreen() {
     id: job.id,
     at: job.startsAt,
     title: clientName(job.client),
-    description: `${homeOf(job)} · ${job.serviceName}`,
+    description: <Line parts={[homeOf(job), job.serviceName]} />,
     status: {
       badge: <JobBadge job={job} />,
       // as it should be: booked with a whole crew, done, or called off

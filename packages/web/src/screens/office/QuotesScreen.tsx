@@ -3,12 +3,11 @@ import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type { QuoteSummary } from "@empire-cleaning/models";
 import { DAY_MS } from "@empire-cleaning/models";
 import { QuoteIcon } from "../icons.ts";
-import { ListPage, StatusBadge } from "@empire-cleaning/ui";
+import { Line, ListPage, StatusBadge } from "@empire-cleaning/ui";
 import { DraftChangesBadge, QuoteStatusBadge } from "../QuoteParts.tsx";
 import {
   addressOf,
   clientName,
-  lineOf,
   quoteStatusLabel,
   screenWords,
 } from "../format.ts";
@@ -132,12 +131,16 @@ export function QuotesScreen() {
         id: quote.id,
         title: clientName(quote.client),
         // the Table's cells, in its order, as one line
-        description: lineOf([
-          addressOf(quote.property),
-          serviceOf(quote),
-          quoteTotal(quote),
-          waiting(quote, true),
-        ]),
+        description: (
+          <Line
+            parts={[
+              addressOf(quote.property),
+              // a Service and its price, one part: "Standard Clean $194.89"
+              [serviceOf(quote), quoteTotal(quote)].filter(Boolean).join(" "),
+              waiting(quote, true),
+            ]}
+          />
+        ),
         // its Tab says it, but a search across them doesn't
         status: {
           badge: <QuoteStatusBadge status={quote.status} />,
