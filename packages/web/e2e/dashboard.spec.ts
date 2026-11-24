@@ -54,7 +54,6 @@ test(
 test("a Quote asked for while the Dashboard is open shows within a minute", async ({
   page,
 }) => {
-  await page.clock.install();
   await signInAsOffice(page);
   await expect(page.getByText("Nothing needs you")).toBeVisible();
 

@@ -388,6 +388,7 @@ export type PriceList = Omit<PriceListInput, "addOns" | "premisesTypes"> & {
   version: number;
   // the starting figures, until Office Staff save their own
   placeholder: boolean;
+  // when this version was saved, on the server's Clock
   createdAt: string;
   createdByName: string | null;
   addOns: (PriceListAddOn & { key: string })[];
@@ -514,6 +515,7 @@ export type Service = ServiceInput & {
   // this version's id, which a Revision records
   id: string;
   version: number;
+  // when this version was saved, on the server's Clock
   createdAt: string;
   createdByName: string | null;
 };
@@ -545,7 +547,6 @@ export type StaffMember = {
   imageUrl: string | null;
   // the language of the Cleaner area and their emails (ADR-0025)
   preferredLanguage: Language;
-  createdAt: string;
 };
 
 // a day that differs from a Staff member's usual week, e.g. a holiday (0 h)
@@ -1076,6 +1077,7 @@ export type AskedQuoteView = {
   status: "requested" | "turned_down";
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
   asked: QuoteAsked;
+  // when it was asked, on the server's Clock
   createdAt: string;
   sentAt: null;
   // the Site Visit booked to see the premises before they're quoted
@@ -1181,6 +1183,7 @@ export type OfficeQuote = {
   asked: QuoteAsked | null;
   // where a Guest asked from on the landing site; null on any other
   source: QuoteSource | null;
+  // when it was asked or started, on the server's Clock
   createdAt: string;
   // no email until the Office adds one: then it can't be Sent (#34)
   client: OfficeContactDetails & { id: string };
@@ -1346,6 +1349,7 @@ export type QuoteSummary = {
   siteVisit: SiteVisitStage;
   // why Office Staff closed it, once Turned Down
   turnDownReason: TurnDownReason | null;
+  // when it was asked or started, on the server's Clock
   createdAt: string;
 };
 

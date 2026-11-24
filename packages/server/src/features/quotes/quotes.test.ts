@@ -894,6 +894,24 @@ describe("the Office's Quotes", () => {
       ]),
     ).toEqual([["Standard Clean", standard.totalCents, null]]);
   });
+
+  // the time the server's Clock says, as every other moment of its story
+  // is, so a Quote never reads as asked after it was sent (#520)
+  test("say when each was asked, by the server's Clock", async () => {
+    testClock().set(new Date("2026-01-05T15:30:00Z"));
+    const quoteId = await asked();
+    testClock().advance({ hours: 2 });
+    const office = await signInAsOffice();
+
+    const listed = (await office.get("/api/quotes").expect(200))
+      .body as QuoteSummary[];
+    expect(listed.map((q) => q.createdAt)).toEqual([
+      "2026-01-05T15:30:00.000Z",
+    ]);
+    expect((await quoteOf(office, quoteId)).createdAt).toBe(
+      "2026-01-05T15:30:00.000Z",
+    );
+  });
 });
 
 describe("a Client's Quotes", () => {

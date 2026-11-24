@@ -505,7 +505,7 @@ const summaries = async (
           ]),
         ),
         turnDownReason: quote.turnDownReason,
-        createdAt: quote.createdAt.toISOString(),
+        createdAt: quote.madeAt.toISOString(),
       };
     },
   );

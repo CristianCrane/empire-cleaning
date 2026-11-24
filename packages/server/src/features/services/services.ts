@@ -169,7 +169,7 @@ const toService = (row: ServiceRow, authorName: string | null): Service => ({
   key: row.key,
   id: row.id,
   version: row.version,
-  createdAt: row.createdAt.toISOString(),
+  createdAt: row.madeAt.toISOString(),
   createdByName: authorName,
   name: row.name,
   description: row.description,
