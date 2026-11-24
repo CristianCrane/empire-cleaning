@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import { render } from "vitest-browser-react";
+import { lineOf } from "@empire-cleaning/models";
 import { Line } from "./Line.tsx";
 
 const parts = [
@@ -47,4 +48,24 @@ test("a Line's dots sit only between two parts on one line", async () => {
 test("a Line of no parts draws nothing", async () => {
   const screen = await render(<Line parts={[undefined, false, ""]} />);
   expect(screen.container.textContent).toBe("");
+});
+
+// a Line beside a text slot's lineOf reads as the one line: its dot's gap is
+// lineOf's glued " · ", not wider (#548, U20); drawn large, so a pixel's
+// rounding is a hundredth of the text
+test("a Line's dot gap is lineOf's", async () => {
+  const shown = ["Standard Clean $194.89", "2 cleaners"];
+  const screen = await render(
+    <div style={{ fontSize: 100, width: 5000 }}>
+      <span id="text" className="inline-block whitespace-pre">
+        {lineOf(shown)}
+      </span>
+      <span id="line" className="inline-block">
+        <Line parts={shown} />
+      </span>
+    </div>,
+  );
+  const width = (id: string) =>
+    screen.container.querySelector(`#${id}`)!.getBoundingClientRect().width;
+  expect(Math.abs(width("line") - width("text"))).toBeLessThan(1);
 });
