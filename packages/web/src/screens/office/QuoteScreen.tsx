@@ -2200,7 +2200,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
           icon: Send,
           isPending: isSending,
           // and while the Client is paying or a time can't be sent, which
-          // the line beside it says (sendHold)
+          // the line beside it says (noteOf)
           isDisabled:
             !!paying ||
             !quote.client.email ||
