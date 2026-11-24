@@ -206,11 +206,12 @@ export const ownOption = <T extends { serviceKey: string }>(
   rows: T[],
 ) => rows.find((row) => isOwnOption(revision, row))!;
 
-// what a Revision leads with, tax included: a Service Plan Quote's round, a
-// clean on each weekday, or a one-off Quote's option for the Service `lead`
-// names: the Office's, the one asked for or booked. With none, its first
-// option, the recommended one where there is one, as its Client sees it
-// (ADR-0018). The options are in order.
+// what a Revision leads with, tax included, and its Service: a Service Plan
+// Quote's round, a clean on each weekday, all of one Service, or a one-off
+// Quote's option for the Service `lead`
+// names: the Office's, its Revision's own or the one booked. With none, its
+// first option, the recommended one where there is one, as its Client sees
+// it (ADR-0018). The options are in order.
 const headlineOf = (
   kind: Quote["kind"],
   options: RevisionOptionRow[],
@@ -219,7 +220,7 @@ const headlineOf = (
   if (kind === "service_plan")
     return {
       totalCents: options.reduce((total, o) => total + o.totalCents, 0),
-      serviceName: null,
+      serviceName: options[0]!.suggested.serviceName,
     };
   const row =
     lead === undefined ? options[0]! : ownOption({ serviceKey: lead }, options);
@@ -453,8 +454,9 @@ const summaries = async (
         offer ?? (forClient ? null : (draft ?? null));
       const offered = shown ? (options.get(shown.id) ?? []) : [];
       const plan = quote.kind === "service_plan";
-      // the Office leads with the Service asked for, or once Accepted the
-      // one booked; the Client with the recommended one (ADR-0018)
+      // the Office leads with its Revision's own Service (the one asked
+      // for, unless the Office changed it), or once Accepted the one booked;
+      // the Client with the recommended one (ADR-0018)
       const headline =
         shown && offered.length > 0
           ? headlineOf(
@@ -526,16 +528,14 @@ export const revisionHistory = async (
     .orderBy(desc(quoteRevisions.number));
   const options = await optionsOfRevisions(sent.map((r) => r.id));
   return sent.map((r) => {
-    const headline = headlineOf(
-      quote.kind,
-      options.get(r.id) ?? [],
-      r.serviceKey,
-    );
+    const offered = options.get(r.id) ?? [];
+    const headline = headlineOf(quote.kind, offered, r.serviceKey);
     return {
       id: r.id,
       number: r.number,
       headlineTotalCents: headline.totalCents,
       headlineServiceName: headline.serviceName,
+      planDays: quote.kind === "service_plan" ? offered.length : null,
       proposedStartsAt: r.proposedStartsAt!.toISOString(),
       sentAt: r.sentAt!.toISOString(),
       expiresAt: r.expiresAt!.toISOString(),

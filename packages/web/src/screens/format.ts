@@ -11,6 +11,7 @@ import type {
   QuoteSummary,
   QuoteStatus,
   Recurrence,
+  RevisionSummary,
   ServicePlanStatus,
   Weekday,
 } from "@empire-cleaning/models";
@@ -242,6 +243,7 @@ const words = catalog({
     notPriced: "Not priced yet",
     planPrice: (price: string, perWeek: boolean) =>
       `${price} ${perWeek ? "a week" : "a clean"}`,
+    planOf: (service: string) => `${service} plan`,
     planHeadline: (plan: string, price: string) =>
       `Cleaning plan, ${plan}: ${price}`,
     rhythm: (often: string, when: string) => `${often}, on ${when}`,
@@ -285,6 +287,7 @@ const words = catalog({
     notPriced: "Aún sin precio",
     planPrice: (price: string, perWeek: boolean) =>
       `${price} ${perWeek ? "por semana" : "por limpieza"}`,
+    planOf: (service: string) => `Plan de ${service}`,
     planHeadline: (plan: string, price: string) =>
       `Plan de limpieza, ${plan}: ${price}`,
     rhythm: (often: string, when: string) => `${often}, ${when}`,
@@ -345,19 +348,21 @@ const screenWordsIn = (lang: Language) => {
       : w.everyWeekOn(what, on.length > 0 ? formatList(on) : "");
   };
 
-  // a Quote's headline price: "$194.89", or a plan's "$201.85 a clean", or
-  // for several weekdays "$650.10 a week"; null with no Revision
+  // a headline price with its unit: "$194.89", or a Service Plan's round,
+  // given its weekdays, "$201.85 a clean", or for several "$650.10 a week"
+  // (several weekdays are only ever weekly)
+  const priceOf = (cents: number, planDays: number | null) =>
+    planDays === null
+      ? formatMoney(cents)
+      : w.planPrice(formatMoney(cents), planDays > 1);
+
+  // a Quote's headline price, as priceOf says; null with no Revision
   const quoteTotal = (
     quote: Pick<QuoteSummary, "headlineTotalCents" | "plan">,
   ) =>
     quote.headlineTotalCents === null
       ? null
-      : quote.plan
-        ? w.planPrice(
-            formatMoney(quote.headlineTotalCents),
-            quote.plan.days.length > 1,
-          )
-        : formatMoney(quote.headlineTotalCents);
+      : priceOf(quote.headlineTotalCents, quote.plan?.days.length ?? null);
 
   return {
     // "Tue, Oct 20" and "Oct 20" for an instant: New York's day
@@ -436,6 +441,18 @@ const screenWordsIn = (lang: Language) => {
     recurrenceLabel,
     planName,
     quoteTotal,
+    planOf: w.planOf,
+    // what a Sent Revision led with: "Standard Clean $194.89", or a Service
+    // Plan's "Standard Clean plan $650.10 a week"
+    revisionHeadline: ({
+      headlineServiceName: service,
+      headlineTotalCents: cents,
+      planDays,
+    }: Pick<
+      RevisionSummary,
+      "headlineTotalCents" | "headlineServiceName" | "planDays"
+    >) =>
+      `${planDays === null ? service : w.planOf(service)} ${priceOf(cents, planDays)}`,
     // how a Quote reads in a list: "Standard Clean $194.89", the Service it
     // leads with, or "Cleaning plan, Standard Clean, every 2 weeks: $201.85
     // a clean", or for several weekdays "...: $650.10 a week"

@@ -232,6 +232,10 @@ test("a Service Plan of Deep Cleans", async ({ page, browser }) => {
   await expect(
     page.getByRole("region", { name: "Current quote" }),
   ).toContainText("Every 2 weeks, on Mondays at 9:00 AM");
+  // its story names the plan's Service, and the round's unit
+  await expect(
+    page.getByText(/^Deep Clean plan \$[\d,.]+ a clean · for /),
+  ).toHaveCount(1);
 
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);

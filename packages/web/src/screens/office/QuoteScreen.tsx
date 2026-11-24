@@ -147,6 +147,7 @@ const {
   recurrenceLabel,
   quoteKindName,
   formatFloorArea,
+  revisionHeadline,
 } = screenWords.en;
 
 const { adjustmentLabel } = messages.en;
@@ -652,7 +653,7 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
       icon: Send,
       title: "Quote sent",
       // what it was sent for, and when: "Standard Clean $194.89 · for …"
-      description: `${[revision.headlineServiceName, formatMoney(revision.headlineTotalCents)].filter(Boolean).join(" ")} · for ${formatDateTime(revision.proposedStartsAt)}`,
+      description: `${revisionHeadline(revision)} · for ${formatDateTime(revision.proposedStartsAt)}`,
     });
   }
   if (quote.status === "expired" && shown?.expiresAt) {

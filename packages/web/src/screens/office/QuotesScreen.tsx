@@ -15,7 +15,7 @@ import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
 import { linkTo } from "../../links.ts";
 import { tabShown, useListUrl } from "../list-search.ts";
 
-const { quoteTotal } = screenWords.en;
+const { planOf, quoteTotal } = screenWords.en;
 
 // the statuses the list holds, a Tab each, in the order a Quote moves
 // through them
@@ -40,13 +40,14 @@ const waiting = (quote: QuoteSummary, row = false) => {
       : since;
 };
 
-// what it's a Quote of: a Service Plan of its Service, or the Service its
-// total is for, the one asked for or, once Accepted, the one booked; the
-// Service asked for until it has a total
-const serviceOf = (quote: QuoteSummary) =>
-  quote.kind === "service_plan"
-    ? `${quote.service.name} plan`
-    : (quote.headlineServiceName ?? quote.service.name);
+// what it's a Quote of: a Service Plan of the Service its cleans are, or
+// the Service its total is for, its Revision's own (the one asked for, unless the Office
+// changed it) or, once Accepted, the one booked; the Service asked for until
+// it has a total
+const serviceOf = (quote: QuoteSummary) => {
+  const service = quote.headlineServiceName ?? quote.service.name;
+  return quote.kind === "service_plan" ? planOf(service) : service;
+};
 
 // the words a search looks through: who, where, and what, both the
 // Service it's for and the one asked, as the caller may name it
@@ -180,9 +181,12 @@ export function QuotesScreen() {
         {
           id: "property",
           label: "Address",
+          // a laptop window at half width keeps what the list is judged by,
+          // the clean, its price and its wait, before where
+          from: "lg",
           cell: (quote) => addressOf(quote.property),
         },
-        { id: "service", label: "Service", from: "lg", cell: serviceOf },
+        { id: "service", label: "Service", cell: serviceOf },
         // none is priced until it's drafted
         ...(tab === "requested" && !url.q
           ? []
@@ -201,7 +205,6 @@ export function QuotesScreen() {
         {
           id: "waiting",
           label: "Waiting",
-          from: "lg",
           allowsSorting: true,
           cell: (quote) => (
             <span className="whitespace-nowrap">{waiting(quote)}</span>

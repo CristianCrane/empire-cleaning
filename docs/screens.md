@@ -171,7 +171,8 @@ Keeps: Table + filters (#109). Renders through `ListPage` (#433).
   (primary).
 - Body: Tabs Requested · Draft · Sent · Expired, the search at the end of
   their line from md; a sortable Table from md (Client · Address · Service
-  · Total · Waiting, no Total on Requested until a search spans the Tabs),
+  · Total · Waiting, Address from lg, no Total on Requested until a search
+  spans the Tabs),
   rows on a phone, the Table's cells as one line under the Client; Show
   more (N left).
 

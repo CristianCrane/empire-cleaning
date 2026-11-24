@@ -886,9 +886,13 @@ describe("the Office's Quotes", () => {
       listed.map((q) => [q.headlineServiceName, q.headlineTotalCents]),
     ).toEqual([["Standard Clean", standard.totalCents]]);
     // and its story's Sent Revision
-    expect(sent.revisions.map((r) => r.headlineTotalCents)).toEqual([
-      standard.totalCents,
-    ]);
+    expect(
+      sent.revisions.map((r) => [
+        r.headlineServiceName,
+        r.headlineTotalCents,
+        r.planDays,
+      ]),
+    ).toEqual([["Standard Clean", standard.totalCents, null]]);
   });
 });
 
