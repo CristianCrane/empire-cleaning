@@ -78,6 +78,13 @@ export const shortClientName = (c: Pick<ClientName, "name" | "businessName">) =>
 export const formatHours = (hours: number) =>
   formatMinutes(Math.round(hours * 60)) || "0 h";
 
+// a clock time held together in running words, so a narrow screen never
+// ends a line on "9:00" with "AM" under it: "Accepting books your clean
+// for Mon, Jan 12, 9:00 AM." (formatTime spaces it plainly, for exact
+// checks and emails)
+export const timesHeld = (text: string) =>
+  text.replace(/(\d) (?=AM|PM|a\.m\.|p\.m\.)/g, "$1\u00a0");
+
 // hours the Office types or prices at a rate, as she types them: the Price
 // list's, a working-out's sums, cleaning hours, extra time, a cleaner's
 // working day: 1.125 -> "1.125 h" (docs/ux.md, "A length of time")

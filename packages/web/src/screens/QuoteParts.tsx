@@ -22,6 +22,7 @@ import {
   formatHours,
   quoteStatusLabel,
   quoteStatusTone,
+  timesHeld,
   typedHours,
 } from "./format.ts";
 import { useSaid } from "./words.ts";
@@ -45,10 +46,10 @@ const words = catalog({
     asOneOff: "As a one-off clean",
     planDiscount: (percent: number) => `Plan discount (${percent}%)`,
     onThePlan: "On the plan",
-    aWeek: "A week, with a clean on each day",
+    aWeek: "A week's cleans",
     depositCarried: "Deposit, carried over from the plan",
     depositHeld: (percent: number, eachDay: boolean) =>
-      `Deposit (${percent}%${eachDay ? " of a clean on each day" : ""}), held while the plan runs`,
+      `Deposit (${percent}%${eachDay ? " of a week's cleans" : ""}), held while the plan runs`,
   },
   es: {
     cleaningWanted: "Limpieza que quiere",
@@ -66,10 +67,10 @@ const words = catalog({
     asOneOff: "Como una sola limpieza",
     planDiscount: (percent: number) => `Descuento del plan (${percent}%)`,
     onThePlan: "Con el plan",
-    aWeek: "Una semana, con una limpieza cada día",
+    aWeek: "Las limpiezas de una semana",
     depositCarried: "Depósito, traspasado del plan",
     depositHeld: (percent: number, eachDay: boolean) =>
-      `Depósito (${percent}%${eachDay ? " de una limpieza cada día" : ""}), retenido mientras dure el plan`,
+      `Depósito (${percent}%${eachDay ? " de las limpiezas de una semana" : ""}), retenido mientras dure el plan`,
   },
 });
 
@@ -268,7 +269,7 @@ export function PlanDayCard({
     <Card
       title={planDayTitle(useLanguage(), day)}
       headingLevel={3}
-      actions={<PlanSaving day={day} discountPercent={discountPercent} />}
+      description={<PlanSaving day={day} discountPercent={discountPercent} />}
     >
       <PlanFigures
         option={option}
@@ -283,7 +284,9 @@ export function PlanDayCard({
 // yet, "Standard Clean"
 export const planDayTitle = (lang: Language, day: PlanDayTerms) =>
   day.startsAt
-    ? `${messages[lang].planDayWhen(day.startsAt)}: ${day.serviceName}`
+    ? timesHeld(
+        `${messages[lang].planDayWhen(day.startsAt)}: ${day.serviceName}`,
+      )
     : day.serviceName;
 
 // what a plan clean saves, said only when the plan has a discount: a plan

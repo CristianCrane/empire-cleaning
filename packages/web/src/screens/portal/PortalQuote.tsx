@@ -45,7 +45,7 @@ import {
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { addressOf, formatMinutes, lineOf } from "../format.ts";
+import { addressOf, formatMinutes, lineOf, timesHeld } from "../format.ts";
 import { QuoteIcon } from "../icons.ts";
 import { type Said, useSaid } from "../words.ts";
 import {
@@ -78,11 +78,12 @@ const words = catalog({
     bookedUp: (planDays: boolean, when: string) =>
       `Sorry, ${planDays ? "one of the days your plan starts on has" : `${when} has`} been fully booked since we sent this quote, so it can't be accepted. We'll send you a new quote for another time.`,
     details: "Quote details",
-    aWeekTax: "A week, with a clean on each day, tax included",
+    aWeekTax: "A week's cleans, tax included",
     aCleanTax: (service: string) => `${service}, a clean, tax included`,
     when: "When",
     from: (when: string) => `From ${when}`,
     yourClean: "Your clean",
+    chooseClean: "Choose your clean",
     where: "Where",
     recommend: (recommended: string, own: string) =>
       `We recommend a ${recommended} for a first visit: it brings your home up to standard. A ${own} costs less.`,
@@ -92,7 +93,6 @@ const words = catalog({
       lineOf([hours, `${deposit} deposit`]),
     noLongerFits:
       "No longer fits on that day: it's been booked up since we sent this quote",
-    oneADay: "One clean a day. ",
     eachOff: (percent: number) =>
       `Each clean is ${percent}% off what it would cost as a one-off.`,
     onEvery: (extras: string) => `On every clean, included: ${extras}`,
@@ -131,13 +131,14 @@ const words = catalog({
     takeAndKeep: (amount: string) =>
       `We take the ${amount} deposit now and keep it for as long as your plan runs. It comes off your last clean when the plan ends. `,
     firstOn: (when: string) => ` The first is on ${when}.`,
-    bookedFor: (when: string) => ` Booked for ${when}.`,
+    bookedFor: (when: string) => ` Accepting books your clean for ${when}.`,
     acceptPay: (amount: string) => `Accept and pay ${amount}`,
     acceptBook: "Accept and book",
-    takeRestBilled: (deposit: string, rest: string, billed: string) =>
-      `We take the ${deposit} deposit now, and the rest, ${rest}, ${billed}.`,
-    takeRestDone: (deposit: string, rest: string) =>
-      `We take the ${deposit} deposit now and the rest, ${rest}, when the clean is done.`,
+    // the Deposit and the rest are the figures just above
+    takeRestBilled: (billed: string) =>
+      `We take the deposit now, and the rest ${billed}.`,
+    takeRestDone:
+      "We take the deposit now, and the rest when the clean is done.",
     nothingNow: (total: string, how: string) =>
       `Nothing is taken now. The ${total} ${how}.`,
     eachIs: (price: string) => `Each clean is ${price}. `,
@@ -172,12 +173,13 @@ const words = catalog({
     bookedUp: (planDays: boolean, when: string) =>
       `Lo sentimos, ${planDays ? "uno de los días en que empieza su plan se llenó" : `el ${when} se llenó`} después de que le enviamos esta cotización, así que no se puede aceptar. Le enviaremos una nueva cotización para otra hora.`,
     details: "Detalles de la cotización",
-    aWeekTax: "Una semana, con una limpieza cada día, impuestos incluidos",
+    aWeekTax: "Las limpiezas de una semana, impuestos incluidos",
     aCleanTax: (service: string) =>
       `${service}, por limpieza, impuestos incluidos`,
     when: "Cuándo",
     from: (when: string) => `Desde el ${when}`,
     yourClean: "Su limpieza",
+    chooseClean: "Elija su limpieza",
     where: "Dónde",
     recommend: (recommended: string, own: string) =>
       `Le recomendamos una ${recommended} para la primera visita: deja su casa en buen estado. Una ${own} cuesta menos.`,
@@ -186,7 +188,6 @@ const words = catalog({
       lineOf([hours, `${deposit} de depósito`]),
     noLongerFits:
       "Ya no cabe ese día: se llenó después de que le enviamos esta cotización",
-    oneADay: "Una limpieza por día. ",
     eachOff: (percent: number) =>
       `Cada limpieza cuesta un ${percent}% menos que como una sola limpieza.`,
     onEvery: (extras: string) => `En cada limpieza, incluido: ${extras}`,
@@ -228,13 +229,14 @@ const words = catalog({
     takeAndKeep: (amount: string) =>
       `Cobramos ahora el depósito de ${amount} y lo guardamos mientras dure su plan. Se descuenta de su última limpieza cuando el plan termine. `,
     firstOn: (when: string) => oneStop(` La primera es el ${when}.`),
-    bookedFor: (when: string) => oneStop(` Reservada para el ${when}.`),
+    bookedFor: (when: string) =>
+      oneStop(` Al aceptar, su limpieza queda reservada para el ${when}.`),
     acceptPay: (amount: string) => `Aceptar y pagar ${amount}`,
     acceptBook: "Aceptar y reservar",
-    takeRestBilled: (deposit: string, rest: string, billed: string) =>
-      `Cobramos ahora el depósito de ${deposit}, y el resto, ${rest}, ${billed}.`,
-    takeRestDone: (deposit: string, rest: string) =>
-      `Cobramos ahora el depósito de ${deposit} y el resto, ${rest}, cuando la limpieza esté terminada.`,
+    takeRestBilled: (billed: string) =>
+      `Cobramos ahora el depósito, y el resto ${billed}.`,
+    takeRestDone:
+      "Cobramos ahora el depósito, y el resto cuando la limpieza esté terminada.",
     nothingNow: (total: string, how: string) =>
       `No se cobra nada ahora. El total de ${total} ${how}.`,
     eachIs: (price: string) => `Cada limpieza cuesta ${price}. `,
@@ -554,7 +556,7 @@ function QuoteDetails({
       {choosing && (
         <div className="border-t border-border pt-4">
           <RadioGroup
-            label={t.w.yourClean}
+            label={t.w.chooseClean}
             description={t.w.recommend(
               recommended!.serviceName,
               own!.serviceName,
@@ -594,10 +596,9 @@ function QuoteDetails({
 
       {plan && (
         <div className="flex flex-col gap-3 border-t border-border pt-4">
-          {(plan.days.length > 1 || plan.discountPercent > 0) && (
+          {plan.discountPercent > 0 && (
             <p className="text-sm text-fg-muted">
-              {plan.days.length > 1 ? t.w.oneADay : ""}
-              {plan.discountPercent > 0 && t.w.eachOff(plan.discountPercent)}
+              {t.w.eachOff(plan.discountPercent)}
             </p>
           )}
           <div className="grid gap-4 lg:grid-cols-2">
@@ -766,7 +767,6 @@ function Accept({
   const action = useAction(t.p.didntWork, {
     reloadOnFailure: true,
   });
-  const balance = chosen.totalCents - chosen.depositCents;
   const depositCents = quote.plan?.depositCents ?? chosen.depositCents;
   const payment = usePaymentForm({
     amountCents: depositCents,
@@ -860,8 +860,8 @@ function Accept({
 
         <p className="text-sm text-fg-muted">
           {quote.plan
-            ? `${depositCents > 0 ? t.w.takeAndKeep(t.formatMoney(depositCents)) : ""}${eachClean(t, quote, chosen)}${t.w.firstOn(t.formatDateTime(quote.proposedStartsAt))}`
-            : `${oneOffPayment(t, quote, chosen, balance)}${t.w.bookedFor(t.formatDateTime(quote.proposedStartsAt))}`}
+            ? `${depositCents > 0 ? t.w.takeAndKeep(t.formatMoney(depositCents)) : ""}${eachClean(t, quote, chosen)}${t.w.firstOn(timesHeld(t.formatDateTime(quote.proposedStartsAt)))}`
+            : `${oneOffPayment(t, quote, chosen)}${t.w.bookedFor(timesHeld(t.formatDateTime(quote.proposedStartsAt)))}`}
         </p>
         {newCard && <ConsentNote action="paying" />}
         {action.problem && <Notice tone="danger">{action.problem}</Notice>}
@@ -889,21 +889,13 @@ const oneOffPayment = (
   t: Said & { w: (typeof words)["en"] },
   quote: QuoteView,
   chosen: QuoteOption,
-  balance: number,
 ) => {
   const billed =
     quote.weeklyBill && `${t.ON_WEEKS_BILL}, ${t.billPaid[quote.weeklyBill]}`;
   return chosen.depositCents > 0
     ? billed
-      ? t.w.takeRestBilled(
-          t.formatMoney(chosen.depositCents),
-          t.formatMoney(balance),
-          billed,
-        )
-      : t.w.takeRestDone(
-          t.formatMoney(chosen.depositCents),
-          t.formatMoney(balance),
-        )
+      ? t.w.takeRestBilled(billed)
+      : t.w.takeRestDone
     : t.w.nothingNow(
         t.formatMoney(chosen.totalCents),
         billed || t.CHARGED_WHEN_DONE,
