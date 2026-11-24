@@ -333,9 +333,9 @@ export const pendingDeposits = pgTable(
     }),
     // when it was booked, failed or refunded
     settledAt: timestamp("settled_at", { withTimezone: true }),
-    // why a card saved with nothing charged (no Deposit) couldn't be booked
-    // once the Client's bank approved it: the Office's record of it, as a
-    // refunded Deposit's is its charge attempt (#534 critical review C5)
+    // why what the Client's bank approved couldn't be booked: a Deposit,
+    // given back once its attempt says so, or a card saved with nothing
+    // charged. The Office's record of it (#534 critical review C5, F19)
     unbookedWhy: text("unbooked_why").$type<DepositRefundedWhy>(),
     ...timestamps,
   },

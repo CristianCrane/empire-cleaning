@@ -129,7 +129,7 @@ export const clientPaying = {
   // more charged, as their card is being (the PR's UX review U1); an info
   // Notice, as it waits on their bank, as the Bill's does (U2)
   finishing: (name: string, doing: "record" | "send") =>
-    `${name}'s online payment is still going through with their bank, which usually takes a few minutes, so you can't ${doing === "record" ? "record acceptance" : "send your changes"} yet. Nothing more was charged.`,
+    `${name}'s online payment is still going through with their bank, which usually takes a few minutes, so you can't ${doing === "record" ? "record acceptance yet. Nothing more was charged." : "send your changes yet."}`,
   // or found it approved, and accepted the quote with it: what the Client
   // paid for, `paid`, which may not be what was picked, `picked`
   recorded: (name: string, paid: string | null, picked: string | null) =>

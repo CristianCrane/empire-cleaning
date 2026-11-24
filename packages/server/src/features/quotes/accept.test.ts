@@ -1,5 +1,5 @@
 import { formats } from "@empire-cleaning/models";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { sql } from "drizzle-orm";
 import type {
   AcceptOutcome,
@@ -958,7 +958,7 @@ describe("while the Client's bank is approving the Deposit", () => {
       "so nothing was charged, and nothing is booked yet.",
     );
     expect(email.text).toContain(
-      "Your quote is still open, so you can pay again whenever you're ready.",
+      "Your quote is still open until Sunday, January 11 at 9:00 AM, so you can pay again before then.",
     );
     expect((await quoteOf(office, quote.id)).paying).toBeNull();
     testPayments().requireApproval(null);
@@ -966,6 +966,48 @@ describe("while the Client's bank is approving the Deposit", () => {
     await payNow(client, quote).expect(200);
     expect(testPayments().charges).toHaveLength(1);
     expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
+  });
+
+  test("a refused payment whose call-off fails is called off on the next read", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+
+    testPayments().requireApproval("refused");
+    testClock().advance({ minutes: 15 });
+    vi.spyOn(testPayments(), "cancelDeposit").mockRejectedValueOnce(
+      new Error("Stripe is down"),
+    );
+    await settleOpenPayments();
+
+    // else Casey could still pay it with its secret in the browser
+    expect(testPayments().canceled.size).toBe(1);
+    expect(testEmail().lastTo(casey.email).subject).toBe(
+      "Your bank didn't approve your payment",
+    );
+  });
+
+  // the Clock runs on more than one server, and Office Staff send changes
+  // meanwhile (#534 critical C7)
+  test("a payment their bank refused is emailed once, however many settle it at once", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+    testPayments().requireApproval("refused");
+    testClock().advance({ minutes: 15 });
+
+    await Promise.all([settleOpenPayments(), settleOpenPayments()]);
+
+    const refused = testEmail()
+      .to(casey.email)
+      .filter((e) => e.subject === "Your bank didn't approve your payment");
+    expect(refused).toHaveLength(1);
   });
 
   test("the Office can't record acceptance meanwhile, and sees why", async () => {
@@ -1066,7 +1108,7 @@ describe("while the Client's bank is approving the Deposit", () => {
       `Your bank asked you to approve the ${formatMoney(option(quote, "deep").depositCents)} deposit for your ${option(quote, "deep").serviceName}, and 15 minutes went by without an approval, so we called the payment off. Nothing was charged, and nothing is booked yet.`,
     );
     expect(email.text).toContain(
-      "Your quote is still open, so you can pay again whenever you're ready.",
+      "Your quote is still open until Sunday, January 11 at 9:00 AM, so you can pay again before then.",
     );
     // they approve it in the bank's pop-up, too late
     testPayments().requireApproval(null);
@@ -1109,6 +1151,8 @@ describe("while the Client's bank is approving the Deposit", () => {
     testPayments().failRefunds();
     await finalize(client, quote).expect(409);
     expect(testPayments().refunds).toEqual([]);
+    // not on the Office's record until it's back
+    expect((await quoteOf(office, quote.id)).unbookedPayments).toEqual([]);
     testPayments().failRefunds(null);
 
     // the webhook, after, books nothing
@@ -1125,7 +1169,19 @@ describe("while the Client's bank is approving the Deposit", () => {
     expect(testPayments().refunds).toEqual([
       expect.objectContaining({ chargeId: charge!.chargeId }),
     ]);
-    expect((await quoteOf(office, quote.id)).status).toBe("sent");
+    const sent = await quoteOf(office, quote.id);
+    expect(sent.status).toBe("sent");
+    // told why once it's back, as when it went back at once (#534 F19)
+    expect(testEmail().lastTo(casey.email).subject).toBe(
+      "We've refunded your deposit",
+    );
+    expect(sent.unbookedPayments).toEqual([
+      {
+        amountCents: charge!.amount,
+        endedAt: "2026-01-05T09:15:00.000Z",
+        why: "no_room",
+      },
+    ]);
   });
 
   test("nothing is refunded if finishing it fails before it's marked done, so a later try books it", async () => {
@@ -1195,7 +1251,7 @@ describe("while the Client's bank is approving the Deposit", () => {
       .to(casey.email)
       .find((m) => m.subject === "Your payment wasn't approved in time");
     expect(calledOff?.text).toContain(
-      "We've since sent you an updated quote, so you can pay on that one whenever you're ready.",
+      "We've since sent you an updated quote, open until Sunday, January 11 at 9:00 AM, so you can pay on that one before then.",
     );
     // approved too late, it books nothing
     testPayments().requireApproval(null);
@@ -1276,7 +1332,7 @@ describe("while the Client's bank is approving the Deposit", () => {
     }).toEqual({
       send: 409,
       message:
-        "Casey Client's online payment is still going through with their bank, which usually takes a few minutes, so you can't send your changes yet. Nothing more was charged.",
+        "Casey Client's online payment is still going through with their bank, which usually takes a few minutes, so you can't send your changes yet.",
       charges: 1,
       refunds: 0,
     });
@@ -1333,7 +1389,7 @@ describe("while the Client's bank is approving the Deposit", () => {
     const email = testEmail().lastTo(casey.email);
     expect(email.subject).toBe("We couldn't book your clean");
     expect(email.text).toContain(
-      "that time got booked up while your bank was approving the payment.",
+      "that time got booked up while your bank was approving your card.",
     );
     expect(email.text).toContain("Nothing was charged to your card.");
     expect(email.text).toContain("We'll be in touch with another time.");

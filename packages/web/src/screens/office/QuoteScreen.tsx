@@ -2000,6 +2000,8 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
     failure && !paying && (
       <Notice
         key="failure"
+        // in view wherever Send was pressed (#534 UX U4)
+        answers
         // past the end time, their bank still finishing it: it waits on
         // the bank, so info, as Record acceptance's (#534 critical C2)
         tone={

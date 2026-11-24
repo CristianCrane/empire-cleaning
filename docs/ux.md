@@ -241,7 +241,10 @@ for a dialog. It renders through `FormPage`
   draft alone on the title row. The sticky header's total slides in with
   it, once the title row's button has scrolled away, and never from `xl`,
   where the prices beside the form stick too. What's said
-  before the button (a refusal, a warning) comes after the card. Such a
+  before the button (a refusal, a warning) comes after the card; one
+  that answers its press takes the focus as it shows, mid-screen, so
+  it's in view and read out wherever the button was, a page above it in
+  the header (Notice's `answers`, #534). Such a
   form has an aside, its price, and the page is the content's width; a
   form alone keeps a form's width and its button in its card (FormPage's
   type holds it).

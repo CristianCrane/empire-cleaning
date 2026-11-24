@@ -1,5 +1,5 @@
 import { CircleAlert, CircleCheck, Info, TriangleAlert } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { tv } from "./utils.ts";
 
 // a message shown in the page itself, e.g. why a sign-in link didn't work.
@@ -7,7 +7,9 @@ import { tv } from "./utils.ts";
 // is passing news, never the page's main action: it holds at most one
 // action, a text Button on the right of its text. Two things to say or do
 // are two notices. Its tone means what a status's does: info just so,
-// warning someone needs to act, success done, danger went wrong.
+// warning someone needs to act, success done, danger went wrong. One that
+// answers a press (`answers`) takes the focus as it shows, mid-screen, so
+// it's in view and read out wherever the button was (#534 UX U4).
 const notice = tv({
   base: "flex items-start gap-3 rounded-md p-4",
   variants: {
@@ -30,18 +32,29 @@ const icons = {
 export function Notice({
   tone = "info",
   action,
+  answers = false,
   children,
 }: {
   tone?: "info" | "warning" | "success" | "danger";
+  answers?: boolean;
   // what to do about it: one Button, variant "text" (or "danger-text")
   action?: ReactNode;
   children: ReactNode;
 }) {
   const Icon = icons[tone];
+  const self = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!answers) return;
+    self.current?.focus({ preventScroll: true });
+    // mid-screen, clear of a bar pinned at the top or the foot
+    self.current?.scrollIntoView({ block: "center" });
+  }, [answers]);
   return (
     <div
+      ref={self}
       role={tone === "danger" ? "alert" : "status"}
-      className={notice({ tone })}
+      tabIndex={answers ? -1 : undefined}
+      className={notice({ tone, class: answers && "outline-none" })}
     >
       {/* a line's height, so the icon centres on the first line of text */}
       <span className="flex h-6 shrink-0 items-center">

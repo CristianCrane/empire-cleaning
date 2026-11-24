@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "873c8d43-5c5a-4adc-af70-f3079edba7b0",
+  "id": "f6500a0d-dad2-41aa-b471-3eace08cdb7e",
   "prevIds": [
     "a34a608c-9b43-47a8-9979-5f6f842bc2ea"
   ],
@@ -2770,19 +2770,6 @@
       "table": "charge_attempts"
     },
     {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "given_back_why",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "charge_attempts"
-    },
-    {
       "type": "timestamp",
       "typeSchema": null,
       "notNull": true,
@@ -4191,6 +4178,19 @@
       "generated": null,
       "identity": null,
       "name": "settled_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "pending_deposits"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "unbooked_why",
       "entityType": "columns",
       "schema": "public",
       "table": "pending_deposits"

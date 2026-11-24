@@ -834,7 +834,9 @@ export type Finalized =
   | { status: "accepted"; job: Job }
   // their bank is still asking them, or finishing it
   | { status: "waiting"; paying: Paying }
-  | { status: "failed"; reason: string }
+  // their bank refused it; `endedHere` when this call settled it, so the
+  // Client is emailed it once however many settle at once (#534 critical C7)
+  | { status: "failed"; reason: string; endedHere: boolean }
   // not approved within APPROVAL_MS, so called off
   | { status: "called_off" }
   // the provider couldn't be reached
@@ -868,7 +870,7 @@ const settledAs = (attempt: ChargeAttempt | undefined): Finalized =>
     ? { status: "settled" }
     : attempt.reason === "canceled"
       ? { status: "called_off" }
-      : { status: "failed", reason: attempt.reason ?? "" };
+      : { status: "failed", reason: attempt.reason ?? "", endedHere: false };
 
 /**
  * Finishes a Deposit that waited on the Client's bank: once their bank has
@@ -950,7 +952,7 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
           await settle(ref, tx);
           return reason === "canceled"
             ? ({ status: "called_off" } as const)
-            : ({ status: "failed", reason } as const);
+            : ({ status: "failed", reason, endedHere: true } as const);
         }
         case "approved":
           break;
@@ -958,10 +960,9 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
 
       approved = standing;
       if (hold.unbookable) {
-        // a card saved with nothing charged has no attempt to keep why, so
-        // its pending row does, for the Office (#534 critical review C5)
-        const why = standing.chargeId ? null : hold.unbookable.reason;
-        await settle(ref, tx, why);
+        // why, in the same write that ends it, so the Office's record and
+        // the Client's email can't lose it (#534 C5, review F19)
+        await settle(ref, tx, hold.unbookable.reason);
         return { status: "refunded", unbookable: hold.unbookable } as const;
       }
       await settle(ref, tx);
@@ -1001,7 +1002,7 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
       await tellUnbooked(pending, why, saved?.card ?? null);
       return { status: "unbooked", unbookable: result.unbookable } as const;
     }
-    if (await giveBackDeposit(chargeId, pending.depositCents, quote.id, why)) {
+    if (await giveBackDeposit(chargeId, pending.depositCents, quote.id)) {
       await tellUnbooked(pending, why, saved?.card ?? null);
     }
     return result;
@@ -1086,16 +1087,16 @@ export const settleQuotePayments = async (quoteId: string) => {
   // each apart, holding the day, never inside the Quote's lock
   const refused: string[] = [];
   for (const ref of await unsettledDeposits(quoteId)) {
-    if ((await finalizeDeposit(ref)).status === "failed") refused.push(ref);
+    const finalized = await finalizeDeposit(ref);
+    if (finalized.status === "failed" && finalized.endedHere) refused.push(ref);
   }
   for (const ref of givenBack) {
     const [pending] = await db
       .select()
       .from(pendingDeposits)
       .where(eq(pendingDeposits.gatewayRef, ref));
-    const attempt = await depositAttemptOf(ref);
-    if (pending && attempt?.givenBackWhy) {
-      await tellUnbooked(pending, attempt.givenBackWhy, null);
+    if (pending?.unbookedWhy) {
+      await tellUnbooked(pending, pending.unbookedWhy, null);
     }
   }
   const pendingsOf = async (refs: string[]) =>
@@ -1217,6 +1218,8 @@ export const tellNotApproved = async (
           ...deposit,
           calledOffAfter: refused ? null : APPROVAL_MS / MINUTE_MS,
           since,
+          // set on sending
+          openUntil: quote.expiresAt!,
         }),
       });
     } catch (error) {

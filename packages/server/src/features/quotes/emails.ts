@@ -792,15 +792,19 @@ const depositWords = catalog({
         `We couldn't start your cleaning plan at ${address}`,
       change: (address: string) =>
         `We couldn't change your cleaning plan at ${address}`,
-      no_room:
-        ": that time got booked up while your bank was approving the payment.",
-      revised:
-        ": we updated your quote while your bank was approving the payment.",
-      closed: ": your quote closed while your bank was approving the payment.",
-      has_plan: (address: string) =>
-        `We couldn't start the cleaning plan in your quote: ${address} got a different cleaning plan while your bank was approving the payment. That plan stays as it is.`,
-      plan_changed: (address: string) =>
-        `We couldn't change your cleaning plan at ${address}: it was changed another way while your bank was approving the payment. Your plan stays as it is now.`,
+      // what their bank was approving: a payment, or at 0% their card
+      PAYMENT: "the payment",
+      CARD: "your card",
+      no_room: (what: string) =>
+        `: that time got booked up while your bank was approving ${what}.`,
+      revised: (what: string) =>
+        `: we updated your quote while your bank was approving ${what}.`,
+      closed: (what: string) =>
+        `: your quote closed while your bank was approving ${what}.`,
+      has_plan: (address: string, what: string) =>
+        `We couldn't start the cleaning plan in your quote: ${address} got a different cleaning plan while your bank was approving ${what}. That plan stays as it is.`,
+      plan_changed: (address: string, what: string) =>
+        `We couldn't change your cleaning plan at ${address}: it was changed another way while your bank was approving ${what}. Your plan stays as it is now.`,
       refunded: (amount: string, card: string, takes: string) =>
         `We've refunded your ${amount} deposit to your ${card}. ${takes}`,
       NOTHING_CHARGED: "Nothing was charged to your card.",
@@ -827,8 +831,10 @@ const depositWords = catalog({
         `The clean: ${address}, ${when}.`,
       plan: (address: string, when: string) =>
         `The plan: ${address}, starting ${when}.`,
-      open: "Your quote is still open, so you can pay again whenever you're ready.",
-      sent: "We've since sent you an updated quote, so you can pay on that one whenever you're ready.",
+      open: (until: string) =>
+        `Your quote is still open until ${until}, so you can pay again before then.`,
+      sent: (until: string) =>
+        `We've since sent you an updated quote, open until ${until}, so you can pay on that one before then.`,
       expired:
         "Your quote has expired, so reply to this email and we'll send you a new one.",
     },
@@ -849,14 +855,18 @@ const depositWords = catalog({
         `No pudimos empezar su plan de limpieza en ${address}`,
       change: (address: string) =>
         `No pudimos cambiar su plan de limpieza en ${address}`,
-      no_room: ": esa hora se llenó mientras su banco aprobaba el pago.",
-      revised:
-        ": actualizamos su cotización mientras su banco aprobaba el pago.",
-      closed: ": su cotización se cerró mientras su banco aprobaba el pago.",
-      has_plan: (address: string) =>
-        `No pudimos empezar el plan de limpieza de su cotización: ${address} recibió otro plan de limpieza mientras su banco aprobaba el pago. Ese plan sigue igual.`,
-      plan_changed: (address: string) =>
-        `No pudimos cambiar su plan de limpieza en ${address}: se cambió de otra forma mientras su banco aprobaba el pago. Su plan sigue como está ahora.`,
+      PAYMENT: "el pago",
+      CARD: "su tarjeta",
+      no_room: (what: string) =>
+        `: esa hora se llenó mientras su banco aprobaba ${what}.`,
+      revised: (what: string) =>
+        `: actualizamos su cotización mientras su banco aprobaba ${what}.`,
+      closed: (what: string) =>
+        `: su cotización se cerró mientras su banco aprobaba ${what}.`,
+      has_plan: (address: string, what: string) =>
+        `No pudimos empezar el plan de limpieza de su cotización: ${address} recibió otro plan de limpieza mientras su banco aprobaba ${what}. Ese plan sigue igual.`,
+      plan_changed: (address: string, what: string) =>
+        `No pudimos cambiar su plan de limpieza en ${address}: se cambió de otra forma mientras su banco aprobaba ${what}. Su plan sigue como está ahora.`,
       refunded: (amount: string, card: string, takes: string) =>
         `Le devolvimos su depósito de ${amount} a su ${card}. ${takes}`,
       NOTHING_CHARGED: "No se cobró nada a su tarjeta.",
@@ -881,8 +891,10 @@ const depositWords = catalog({
         `La limpieza: ${address}, ${when}.`,
       plan: (address: string, when: string) =>
         `El plan: ${address}, a partir del ${when}.`,
-      open: "Su cotización sigue abierta, así que puede volver a pagar cuando quiera.",
-      sent: "Desde entonces le enviamos una cotización actualizada, así que puede pagar con esa cuando quiera.",
+      open: (until: string) =>
+        `Su cotización sigue abierta hasta el ${until}, así que puede volver a pagar antes de esa fecha.`,
+      sent: (until: string) =>
+        `Desde entonces le enviamos una cotización actualizada, abierta hasta el ${until}, así que puede pagar con esa antes de esa fecha.`,
       expired:
         "Su cotización venció, así que responda a este correo y le enviaremos una nueva.",
     },
@@ -908,11 +920,12 @@ export const depositUnbookedEmail = (
     : deposit.changing
       ? w.change(address)
       : w.start(address);
+  const charged = deposit.amountCents > 0;
+  const what = charged ? w.PAYMENT : w.CARD;
   const first =
     why === "has_plan" || why === "plan_changed"
-      ? w[why](address)
-      : `${couldnt}${w[why]}`;
-  const charged = deposit.amountCents > 0;
+      ? w[why](address, what)
+      : `${couldnt}${w[why](what)}`;
   return {
     lang,
     subject: charged
@@ -947,7 +960,12 @@ export const depositNotApprovedEmail = (
   lang: Language,
   // calledOffAfter: the minutes it waited before we called it off; null
   // when their bank refused it
-  deposit: DepositFor & { calledOffAfter: number | null; since: QuoteSince },
+  // openUntil: the Quote's expiry, or the updated one's once sent
+  deposit: DepositFor & {
+    calledOffAfter: number | null;
+    since: QuoteSince;
+    openUntil: Date;
+  },
 ): Email => {
   const w = depositWords[lang].calledOff;
   const { formatMoney, formatWhen } = formats[lang];
@@ -977,7 +995,11 @@ export const depositNotApprovedEmail = (
           ? w.clean(deposit.address, when)
           : w.plan(deposit.address, when),
       ),
-      paragraph(w[deposit.since]),
+      paragraph(
+        deposit.since === "expired"
+          ? w.expired
+          : w[deposit.since](formatWhen(deposit.openUntil)),
+      ),
       button(words[lang].SEE_QUOTE, `/portal/quotes/${deposit.quoteId}`),
     ],
   };

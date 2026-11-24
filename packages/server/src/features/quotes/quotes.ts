@@ -49,8 +49,9 @@ import { email } from "../../services/email/index.ts";
 import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { officeCompletionOf } from "../completion/completion.ts";
-import { clientPaying, depositsGivenBack } from "../payments/money.ts";
+import { clientPaying } from "../payments/money.ts";
 import { paymentMethodOf, toPaymentMethodView } from "../payments/payments.ts";
+import { chargeAttempts } from "../payments/payments.schema.ts";
 import {
   choiceOf,
   currentPricing,
@@ -716,37 +717,46 @@ export const payingOf = async (
   };
 };
 
-// what the Client's bank approved on a Quote that couldn't be booked: each
-// Deposit given back, and each card saved with nothing charged (no
-// Deposit), oldest first: what Office Staff on the phone with them see
-const unbookedPaymentsOf = async (quoteId: string) => {
-  const [refunded, saved] = await Promise.all([
-    depositsGivenBack(quoteId),
-    db
-      .select()
+// what the Client's bank approved on a Quote that couldn't be booked,
+// oldest first: what Office Staff on the phone with them see. A Deposit
+// once it's been given back (its charge is the pending row's ref), and a
+// card saved with nothing charged (no Deposit, so no attempt)
+const unbookedPaymentsOf = async (quoteId: string) =>
+  (
+    await db
+      .select({ pending: pendingDeposits, attempt: chargeAttempts })
       .from(pendingDeposits)
+      .leftJoin(
+        chargeAttempts,
+        and(
+          eq(chargeAttempts.kind, "deposit"),
+          eq(chargeAttempts.gatewayRef, pendingDeposits.gatewayRef),
+        ),
+      )
       .where(
         and(
           eq(pendingDeposits.quoteId, quoteId),
           isNotNull(pendingDeposits.unbookedWhy),
         ),
-      ),
-  ]);
-  return [
-    ...refunded.map((d) => ({
-      amountCents: d.amountCents,
-      endedAt: d.givenBackAt,
-      why: d.why,
-    })),
-    ...saved.map((p) => ({
-      amountCents: 0,
-      endedAt: p.settledAt!,
-      why: p.unbookedWhy!,
-    })),
-  ]
-    .sort((a, b) => a.endedAt.getTime() - b.endedAt.getTime())
+      )
+  )
+    .flatMap(({ pending, attempt }) => {
+      const why = pending.unbookedWhy!;
+      if (!attempt) {
+        return [{ amountCents: 0, endedAt: pending.settledAt!, why }];
+      }
+      return attempt.status === "given_back"
+        ? [
+            {
+              amountCents: attempt.amountCents,
+              endedAt: attempt.givenBackAt!,
+              why,
+            },
+          ]
+        : [];
+    })
+    .sort((x, y) => x.endedAt.getTime() - y.endedAt.getTime())
     .map((u) => ({ ...u, endedAt: u.endedAt.toISOString() }));
-};
 
 // A Quote in full, for the Office (ADR-0017): what was asked, with the
 // Suggested Price for the Service being worked on (the Draft's, else the

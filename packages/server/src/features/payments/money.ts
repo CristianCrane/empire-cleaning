@@ -4,18 +4,13 @@ import {
   eq,
   gt,
   inArray,
-  isNotNull,
   isNull,
   lte,
   notExists,
   or,
   sql,
 } from "drizzle-orm";
-import {
-  DAY_MS,
-  MINUTE_MS,
-  type DepositRefundedWhy,
-} from "@empire-cleaning/models";
+import { DAY_MS, MINUTE_MS } from "@empire-cleaning/models";
 import { apart, db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
@@ -349,21 +344,22 @@ export const approvalOf = async (
       };
     case "failed":
       if (!attempt) return { status: "ended", reason: said.reason };
+      // its first answer stands: one refused, then called off by us so it
+      // can't be paid later, still ended refused (#534 review F17)
+      const reason =
+        attempt.status === "approving"
+          ? said.reason
+          : (attempt.reason ?? said.reason);
       if (attempt.status === "approving") {
-        await update(attempt, { status: "failed", reason: said.reason });
-      } else if (attempt.reason && !calledOff) {
-        // its first answer stands: one refused, then called off by us so it
-        // can't be paid later, still ended refused (#534 review F17)
-        return { status: "ended", reason: attempt.reason };
+        await update(attempt, { status: "failed", reason });
       }
+      // a call-off that failed is tried again on each read (#534 review F20)
       if (said.reason !== "canceled") {
         await paymentGateway
           .cancelDeposit(ref, "abandoned")
           .catch(() => undefined);
       }
-      return calledOff
-        ? { status: "called_off" }
-        : { status: "ended", reason: said.reason };
+      return calledOff ? { status: "called_off" } : { status: "ended", reason };
   }
 };
 
@@ -419,28 +415,6 @@ export const clientPaying = async (
       }
     : null;
 };
-
-// the Deposits given back for a Quote whose booking couldn't be made once
-// the Client's bank approved them, and why: the Office's record of each
-export const depositsGivenBack = async (quoteId: string) =>
-  (
-    await db
-      .select()
-      .from(chargeAttempts)
-      .where(
-        and(
-          eq(chargeAttempts.kind, "deposit"),
-          eq(chargeAttempts.forId, quoteId),
-          eq(chargeAttempts.status, "given_back"),
-          isNotNull(chargeAttempts.givenBackWhy),
-        ),
-      )
-      .orderBy(chargeAttempts.givenBackAt)
-  ).map((a) => ({
-    amountCents: a.amountCents,
-    givenBackAt: a.givenBackAt!,
-    why: a.givenBackWhy!,
-  }));
 
 // a new attempt, committed, then asked
 const attempt = async (
@@ -705,23 +679,16 @@ export const takeDepositOnce = async (
   }
 };
 
-// A Deposit was taken but nothing was booked: give it back. `why` is
-// why it couldn't be booked once the Client's bank approved it
-// (Unbookable's reason), kept for the Office's record of it even if giving
-// it back fails, for the Clock to try again. Whether it was given back:
-// one that only saved a card, at 0%, has no charge, and nothing to give
-// (#534 critical review C1)
+// A Deposit was taken but nothing was booked: give it back. Whether it
+// was given back: one that only saved a card, at 0%, has no charge, and
+// nothing to give (#534 critical review C1)
 export const giveBackDeposit = async (
   chargeId: string | null,
   amount: number,
   quoteId: string,
-  why: DepositRefundedWhy | null = null,
 ) => {
   if (!chargeId) return true;
   const ofIt = eq(chargeAttempts.gatewayRef, chargeId);
-  if (why) {
-    await apart.update(chargeAttempts).set({ givenBackWhy: why }).where(ofIt);
-  }
   const refunded = await paymentGateway
     .refund({
       chargeId,

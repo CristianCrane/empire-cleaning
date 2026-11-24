@@ -15,7 +15,7 @@ import {
 import { timestamps } from "../../db/timestamps.ts";
 import { bills } from "../bills/bills.schema.ts";
 import { clients } from "../clients/clients.schema.ts";
-import type { Card, DepositRefundedWhy } from "@empire-cleaning/models";
+import type { Card } from "@empire-cleaning/models";
 import type { ReportedChange } from "../completion/completion.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { servicePlans } from "../service-plans/service-plans.schema.ts";
@@ -186,9 +186,6 @@ export const chargeAttempts = pgTable(
     // when a Deposit taken but not booked was given back, by the Clock's
     // time: the Office's record of it (#534)
     givenBackAt: timestamp("given_back_at", { withTimezone: true }),
-    // why one the Client's bank approved couldn't be booked, so was given
-    // back: the Office's record of it says so
-    givenBackWhy: text("given_back_why").$type<DepositRefundedWhy>(),
     ...timestamps,
   },
   (t) => [index("charge_attempts_for_idx").on(t.kind, t.forId)],
