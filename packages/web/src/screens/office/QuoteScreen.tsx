@@ -148,6 +148,7 @@ const {
   quoteKindName,
   formatFloorArea,
   revisionHeadline,
+  servicePrice,
 } = screenWords.en;
 
 const { adjustmentLabel } = messages.en;
@@ -1056,7 +1057,7 @@ function AlsoOffered({
   return (
     <section aria-label={option.serviceName} className="flex flex-col text-sm">
       <Fold
-        label={`Also offered: ${option.serviceName} ${formatMoney(option.totalCents)}`}
+        label={`Also offered: ${servicePrice(option.serviceName, option.totalCents)}`}
       >
         <div className="flex flex-col gap-3">
           <p className="flex flex-col gap-1 text-fg-muted">
@@ -1653,7 +1654,7 @@ const priceOf = (quote: ShownQuote) => {
         };
   }
   const own = ownOption(quote);
-  const named = `${own.serviceName} ${formatMoney(own.totalCents)}`;
+  const named = servicePrice(own.serviceName, own.totalCents);
   return { line: named, short: named };
 };
 

@@ -39,7 +39,7 @@ import { OnSite } from "./WorkedOutQuote.tsx";
 import { reportUnexpected } from "../../monitoring.ts";
 import { QuoteIcon } from "../icons.ts";
 
-const { formatFloorArea } = screenWords.en;
+const { formatFloorArea, servicePrice } = screenWords.en;
 const { formatMoney } = formats.en;
 
 export type NewQuoteSearch = { clientId?: string };
@@ -132,7 +132,10 @@ export function NewQuoteScreen() {
             price={
               price?.now
                 ? {
-                    line: `${price.now.serviceName} ${formatMoney(price.now.totalCents)}`,
+                    line: servicePrice(
+                      price.now.serviceName,
+                      price.now.totalCents,
+                    ),
                     short: formatMoney(price.now.totalCents),
                   }
                 : { missing: price?.missing ?? PICK_FIRST }

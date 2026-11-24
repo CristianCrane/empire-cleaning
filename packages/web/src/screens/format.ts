@@ -356,6 +356,11 @@ const screenWordsIn = (lang: Language) => {
       ? formatMoney(cents)
       : w.planPrice(formatMoney(cents), planDays > 1);
 
+  // a Service with its price, as every Office screen names an option:
+  // "Standard Clean $194.89"
+  const servicePrice = (service: string, cents: number) =>
+    `${service} ${formatMoney(cents)}`;
+
   // a Quote's headline price, as priceOf says; null with no Revision
   const quoteTotal = (
     quote: Pick<QuoteSummary, "headlineTotalCents" | "plan">,
@@ -441,6 +446,7 @@ const screenWordsIn = (lang: Language) => {
     recurrenceLabel,
     planName,
     quoteTotal,
+    servicePrice,
     planOf: w.planOf,
     // what a Sent Revision led with: "Standard Clean $194.89", or a Service
     // Plan's "Standard Clean plan $650.10 a week"
@@ -452,7 +458,9 @@ const screenWordsIn = (lang: Language) => {
       RevisionSummary,
       "headlineTotalCents" | "headlineServiceName" | "planDays"
     >) =>
-      `${planDays === null ? service : w.planOf(service)} ${priceOf(cents, planDays)}`,
+      planDays === null
+        ? servicePrice(service, cents)
+        : `${w.planOf(service)} ${priceOf(cents, planDays)}`,
     // how a Quote reads in a list: "Standard Clean $194.89", the Service it
     // leads with, or "Cleaning plan, Standard Clean, every 2 weeks: $201.85
     // a clean", or for several weekdays "...: $650.10 a week"
@@ -466,7 +474,7 @@ const screenWordsIn = (lang: Language) => {
         ? w.notPriced
         : quote.plan
           ? w.planHeadline(planName(quote.plan), quoteTotal(quote)!)
-          : `${quote.headlineServiceName} ${quoteTotal(quote)}`,
+          : servicePrice(quote.headlineServiceName!, quote.headlineTotalCents),
     // when a Service Plan's cleans come round, each weekday from its first:
     // "Every week, on Mondays at 9:00 AM", or "Every week, on Mondays at
     // 9:00 AM and Wednesdays at 1:00 PM"
