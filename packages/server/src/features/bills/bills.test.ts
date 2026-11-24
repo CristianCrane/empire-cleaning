@@ -2198,3 +2198,66 @@ describe("a Bill's lines", () => {
     expect(ours.lines[0]!.label).toMatch(/^Deep Clean at 41-12 Austin St, /);
   });
 });
+
+// Critical review C5 (bill-pay-once, diff): a payment the Client made on a
+// Bill's page before its due date, still going through when the date
+// passes (its reply lost, and the provider not reached since: an outage, or
+// a key it refuses, which now waits, N8), was told them as "going through,
+// nothing to do". The Clock's late sweep doesn't know of it: it makes the
+// Bill late, pauses their plan, and emails them, and the Office, that it's
+// unpaid, while its page says Payment pending and offers no Pay.
+describe("a Bill paid on its page before its due date, still going through after it (critical review C5)", () => {
+  test("isn't made late, nor its plan paused, nor its Client chased", async () => {
+    const office = await signInAsOffice();
+    const me = (await office.get("/api/me").expect(200))
+      .body as SignedInAccount;
+    const { billId, planId } = await billedWeek({
+      byAccountId: me.id,
+      payment: "on_page",
+      billingEmail: BILLING_EMAIL,
+      plan: true,
+    });
+    const { dueOn } = await billOf(office, billId!);
+    const planStatus = async () =>
+      (
+        await db
+          .select({ status: servicePlans.status })
+          .from(servicePlans)
+          .where(eq(servicePlans.id, planId!))
+      )[0]!.status;
+
+    // the afternoon it's due, the Client pays it on its page; the reply is
+    // lost, and the provider isn't reached again for a while
+    testClock().set(new Date(`${dueOn}T20:00:00Z`));
+    const client = await signIn(casey.email);
+    testPayments().loseNextReply();
+    await client
+      .post(`/api/bills/mine/${billId}/payment`)
+      .send({ token: testPayments().paymentToken() })
+      .expect(200);
+    testPayments().goDown();
+    const emails = testEmail().sent.length;
+
+    // the next morning, the Clock's sweeps run
+    const [y, m, d] = dueOn.split("-").map(Number);
+    const next = new Date(Date.UTC(y!, m! - 1, d! + 1, 15));
+    testClock().set(next);
+    await settleOpenPayments();
+    await chaseBills();
+
+    const view = await billOf(office, billId!);
+    // its page says it's pending, nothing to do
+    expect(view.unpaid).toMatchObject({ kind: "waiting" });
+    // so it isn't made late, its plan isn't paused, and nobody is chased
+    const [row] = await db.select().from(bills).where(eq(bills.id, billId!));
+    expect.soft(row!.unpaidReason).toBeNull();
+    expect.soft(await planStatus()).toBe("active");
+    expect
+      .soft(
+        testEmail()
+          .sent.slice(emails)
+          .map((e) => e.subject),
+      )
+      .toEqual([]);
+  });
+});

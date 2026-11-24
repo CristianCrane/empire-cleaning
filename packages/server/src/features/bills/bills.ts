@@ -1345,8 +1345,12 @@ const onPageToPay = () =>
 /**
  * Makes each Bill paid on its page and not paid by its due date Unpaid,
  * from the day after, so the Client's Service Plans with Jobs on it are On
- * Hold until it's paid; then sends the reminders such Bills are owed. Safe
- * to run as often as you like, and on more than one server.
+ * Hold until it's paid; then sends the reminders such Bills are owed. One
+ * with a payment on it that may still take the money waits (ADR-0022's one
+ * rule): its page says Payment pending, nothing to do, so it's neither
+ * late nor chased till that's ended, and if it failed, it's late from the
+ * day after its due date, as ever (#534's critical review C5). Safe to run
+ * as often as you like, and on more than one server.
  *
  * Nothing calls this but the timer in src/scheduler.ts (and tests).
  */
@@ -1379,6 +1383,7 @@ const markLate = (billId: string) =>
       .where(eq(bills.id, billId))
       .for("update");
     if (bill?.status !== "due" || bill.unpaidSince) return;
+    if (await chargeOpen(billId, tx)) return;
     await tx
       .update(bills)
       .set({
@@ -1417,6 +1422,8 @@ const sendBillReminders = async () => {
     const day = reminderDayOf(bill.dueOn, today)!;
     if (day <= dayOf(bill.sentAt!)) continue;
     if (bill.remindedOn && bill.remindedOn >= day) continue;
+    // one going through waits, as markLate does
+    if (await chargeOpen(bill.id)) continue;
     const [claimed] = await db
       .update(bills)
       .set({ remindedOn: day })
