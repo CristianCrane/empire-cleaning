@@ -121,10 +121,12 @@ function useStanding(bill: BillView): Alert | null {
   const isPaused = pausedPlans(bill.plans).length > 0;
   const paused = isPaused ? ` ${t.noMoreCleans(true)}` : "";
   if (bill.status === "processing") {
-    // its badge and the line under its total say it's on its way
+    // its badge says it's pending and the line under its total since
+    // when; this says what it is, first, and how long it takes (#534's UX
+    // review U2, U3)
     return {
       key: "processing",
-      children: `${t.BANK_CLEARING} ${t.w.emailOnce}`,
+      children: `${t.w.bankOnWay}. ${t.BANK_CLEARING} ${t.w.emailOnce}`,
     };
   }
   if (bill.status !== "due") return null;
@@ -144,7 +146,7 @@ function useStanding(bill: BillView): Alert | null {
     return {
       key: "failed",
       tone: "danger",
-      children: `${t.payingFailed(t.formatMoney(bill.totalCents), bill.paying.why)} ${t.PAY_AGAIN}${bill.unpaid ? paused : ""}`,
+      children: `${t.payingFailed(bill.paying.why)}. ${t.PAY_AGAIN}${bill.unpaid ? paused : ""}`,
     };
   }
   if (bill.unpaid?.kind === "late") {

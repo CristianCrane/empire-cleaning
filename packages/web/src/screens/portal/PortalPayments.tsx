@@ -192,7 +192,7 @@ function Rows({
           end={
             <span className="flex items-center gap-3">
               {p.clearing && (
-                <StatusBadge tone="info">{t.clearing}</StatusBadge>
+                <StatusBadge tone="info">{t.paymentPending}</StatusBadge>
               )}
               <span className="font-semibold text-fg tabular-nums">
                 {signedMoney(t.lang, p.amountCents)}

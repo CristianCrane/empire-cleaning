@@ -311,10 +311,13 @@ Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432
   payment is going through", or "Not while Casey is paying this bill" while
   the Client's bank asks them to approve theirs.
 - Alerts: that, while a payment is going through (info), or the Client's
-  bank asks them to approve theirs (warning: who, how much, and when it's
-  called off); the Client's payment on its page that didn't go through, when
-  and why; why it's unpaid; or its bank payment on its way.
-- Body: the Bill (`DetailsCard`: what it comes to, icon facts, the lines).
+  bank asks them to approve theirs (warning: who, and when it's called
+  off), its dialogs' refusal in the same tone; the Client's payment on its
+  page that didn't go through, when and why; why it's unpaid; or its bank
+  payment on its way. None gives the amount, which is the total below.
+- Body: the Bill (`DetailsCard`: what it comes to, where that stands, a
+  payment going through started to the minute; icon facts; the lines, each
+  clean short, its home only when the Bill's cleans are at more than one).
 
 #### Office > Staff
 
@@ -450,7 +453,7 @@ Keeps: what you owe first, fixed header Button (ux-portal). Renders through
 `HomePage` (#435).
 
 - Header: "Payments" in the bar; Your card (secondary), standing aside while the card asks something of them (its tile stays).
-- Body: what you owe (`AnswerCard`: `IconTile`, the primary; for a payment we try again ourselves, Payment pending, one line (and one while it pauses a plan), its link outlined; a Bill whose payment on its page didn't go through leads, in red, saying why) or all paid;
+- Body: what you owe (`AnswerCard`: `IconTile`, the primary; for a payment we try again ourselves, Payment pending, one line (and one while it pauses a plan), its link outlined; a Bill whose payment on its page didn't go through leads, in red, saying why, and naming the Bill when the card's line doesn't) or all paid;
   Notices of payments clearing; tiles All payments (`?open=history`, the
   Statement by month in place) and Your card (a link).
 
@@ -563,7 +566,9 @@ Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432
 - Alerts: their bank asking them to approve their payment (warning); their
   payment on its page that didn't go through, and why (danger, the badge
   Unpaid); why it's unpaid (Update your card, a text Button); or its bank
-  payment on its way.
+  payment on its way, named, and how long it usually takes (the badge
+  Payment pending, as for any payment going through, and the line under the
+  total when it started).
 - Body: the Bill (`DetailsCard`).
 
 ### Signed out and signed in

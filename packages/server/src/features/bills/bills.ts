@@ -1485,6 +1485,12 @@ const toSummary = (
     totalCents: bill.totalCents,
     taxCents: bill.taxCents,
     ...standing(bill, on),
+    // one made processing before clearing_since was kept is dated by its
+    // last change, as the payment history dates it
+    clearingSince:
+      bill.status === "processing"
+        ? (bill.clearingSince ?? bill.updatedAt).toISOString()
+        : null,
     paidAt: bill.paidAt?.toISOString() ?? null,
     paidVia: bill.paidVia,
   };
@@ -1558,12 +1564,16 @@ export const billView = async (
   if (!found) throw new NotFoundError("Bill not found");
   const { bill, client } = found;
   const on = (await payingOn([bill.id]))(bill.id);
+  const lines = await linesToSay(bill);
+  // each clean's home only when they're at more than one
+  const home =
+    new Set(lines.flatMap((l) => (l.clean ? [l.clean.address] : []))).size > 1;
   return {
     ...toSummary(bill, client, on),
     // worded in the reply's language: the Office's English, the Client's own
-    lines: (await linesToSay(bill)).map((l) => ({
+    lines: lines.map((l) => ({
       jobId: l.jobId,
-      label: lineLabel(currentLanguage(), l),
+      label: lineLabel(currentLanguage(), l, { home }),
       amountCents: l.amountCents,
       taxCents: l.taxCents,
     })),

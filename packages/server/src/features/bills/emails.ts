@@ -90,20 +90,26 @@ const lineWords = catalog({
   },
 });
 
-// A line in `lang`, for the Bill's page and its email: "Deep Clean at 41-12
-// Austin St, 4B, 11375, Monday, January 12 at 9:00 AM", "Inside the oven,
-// not done: …", "Corrected: Late cancellation fee: …", "Credit from
-// EC-000011"
-export const lineLabel = (lang: Language, line: LineToSay) => {
+// A line in `lang`, for the Bill's email: "Deep Clean at 41-12 Austin St,
+// 4B, 11375, Monday, January 12 at 9:00 AM", "Inside the oven, not done:
+// …", "Corrected: Late cancellation fee: …", "Credit from EC-000011". On
+// its page (`onPage`), a row, a Job's are short: "Deep Clean, Mon, Jan 12,
+// 9:00 AM", its home only when the Bill's cleans are at more than one
+// (docs/ux.md, a Client's rows; #534's UX review U8)
+export const lineLabel = (
+  lang: Language,
+  line: LineToSay,
+  onPage?: { home: boolean },
+) => {
   const w = lineWords[lang];
   const kind = line.key.startsWith("adjustment:") ? "adjustment" : line.key;
-  const what = () => jobNamed(lang, { clean: line.clean!, fee: null });
+  const what = () => jobNamed(lang, { clean: line.clean!, fee: null }, onPage);
   const said: Record<string, () => string> = {
     price: what,
     adjustment: () => `${changeLabel(lang, line.change!)}: ${what()}`,
     floor: () => w.floor(what()),
     reschedule_fee: () => `${messages[lang].LATE_MOVE_FEE}: ${what()}`,
-    fee: () => jobNamed(lang, { clean: line.clean!, fee: line.fee }),
+    fee: () => jobNamed(lang, { clean: line.clean!, fee: line.fee }, onPage),
     deposit: () => w.deposit(what()),
     paid: () => w.paid(what()),
     credit: () => w.credit(line.creditFrom!),
@@ -171,6 +177,7 @@ const words = catalog({
     // a Job, as its Bill's lines name it
     jobAt: (service: string, address: string, when: string) =>
       `${service} at ${address}, ${when}`,
+    jobOn: (service: string, when: string) => `${service}, ${when}`,
     // what settling a Job moved
     chargedCents: (amount: string) => `charged ${amount}`,
     refundedCents: (amount: string) => `refunded ${amount}`,
@@ -252,6 +259,7 @@ const words = catalog({
     SEE_BILL: "Ver su factura",
     jobAt: (service: string, address: string, when: string) =>
       `${service} en ${address}, ${when}`,
+    jobOn: (service: string, when: string) => `${service}, ${when}`,
     chargedCents: (amount: string) => `se cobraron ${amount}`,
     refundedCents: (amount: string) => `se reembolsaron ${amount}`,
     couldntTake: (amount: string) => `no se pudieron cobrar ${amount}`,
@@ -464,16 +472,20 @@ export type SettledJob = {
 
 // a Job, as its lines on a Bill name it, and a fee for one that didn't
 // happen: "Deep Clean at 41-12 Austin St, 4B, 11375, Monday, January 12 at
-// 9:00 AM"
+// 9:00 AM"; on the Bill's page (`onPage`), short, as lineLabel says
 export const jobNamed = (
   lang: Language,
   { clean, fee }: { clean: Clean; fee: SettledJob["fee"] },
+  onPage?: { home: boolean },
 ) => {
-  const what = words[lang].jobAt(
-    inLanguage(lang, clean.service).name,
-    clean.address,
-    formats[lang].formatWhen(clean.startsAt),
-  );
+  const w = words[lang];
+  const service = inLanguage(lang, clean.service).name;
+  const { formatDateTime, formatWhen } = formats[lang];
+  const what = !onPage
+    ? w.jobAt(service, clean.address, formatWhen(clean.startsAt))
+    : onPage.home
+      ? w.jobAt(service, clean.address, formatDateTime(clean.startsAt))
+      : w.jobOn(service, formatDateTime(clean.startsAt));
   return fee ? `${messages[lang].feeName[fee]}: ${what}` : what;
 };
 

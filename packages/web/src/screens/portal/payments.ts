@@ -118,6 +118,9 @@ type Owing = {
   line?: string;
   news?: string;
   failed?: boolean;
+  // its news when its line already names the Bill, as the card's alone
+  // (#534's UX review U6)
+  alone?: string;
   bill?: boolean;
   action: Owed["action"];
 };
@@ -139,8 +142,15 @@ const billLink = (billId: string) =>
 
 export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
   const t = saidWith(lang, words);
-  const { w, billNotPaid, cleanNotPaid, formatShortDay, payBill, shortDayOf } =
-    t;
+  const {
+    w,
+    billNotPaid,
+    cleanNotPaid,
+    formatShortDay,
+    payBill,
+    payingFailed,
+    shortDayOf,
+  } = t;
   const failedFor = (b: BillSummary) =>
     b.paying?.status === "failed" ? w.failedFor(b.number, b.paying.why) : null;
   const owing: Owing[] = [
@@ -213,7 +223,11 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         asks: true,
         bill: true,
         line: w.billDue(b.number, formatShortDay(b.dueOn)),
-        ...(failedFor(b) && { news: failedFor(b)!, failed: true }),
+        ...(b.paying?.status === "failed" && {
+          news: failedFor(b)!,
+          alone: payingFailed(b.paying.why),
+          failed: true,
+        }),
         action: { label: payBill(b.number), href: billLink(b.id) },
       })),
   ];
@@ -270,9 +284,12 @@ function whyOf(
   const sentence = (() => {
     if (news.length === 0) return null;
     if (lineShown || failed.length === alike.length) {
-      return failed.length === 1
-        ? failed[0]!.news!
-        : w.failedMany(failed.length);
+      if (failed.length > 1) return w.failedMany(failed.length);
+      // the card's line names the one Bill, so its alert needn't
+      return (
+        (lineShown && alike.length === 1 && failed[0]!.alone) ||
+        failed[0]!.news!
+      );
     }
     if (alike.length === 1) return alike[0]!.news!;
     if (alike.length === 2 && news.length === 2 && failed.length === 1) {

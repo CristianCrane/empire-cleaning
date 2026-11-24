@@ -202,7 +202,8 @@ describe("what a Client owes now", () => {
 
 // the Client's last payment on a Bill's page that didn't go through (#534):
 // news in the alert above the card, with why, while the card's line keeps
-// when it's due by, as that's still ahead; one alert for all that's owed
+// when it's due by, as that's still ahead; one alert for all that's owed,
+// naming the Bill only when the card's line doesn't (#534's UX review U6)
 describe("a payment on a Bill's page that didn't go through", () => {
   const WHY = "there wasn't enough money in the account";
   const failed = (over: Partial<BillSummary> = {}) =>
@@ -214,7 +215,7 @@ describe("a payment on a Bill's page that didn't go through", () => {
     totalCents: 100000,
   });
 
-  test("before its due date: red, its line kept, the alert says why", () => {
+  test("before its due date: red, its line kept and naming it, the alert says why", () => {
     const answer = owedAnswer(data({ bills: [failed()] }));
     expect(answer.hero).toMatchObject({
       label: "To pay",
@@ -225,7 +226,7 @@ describe("a payment on a Bill's page that didn't go through", () => {
     });
     expect(answer.why).toEqual({
       tone: "danger",
-      lead: `Your payment for bill EC-000041 didn't go through (${WHY}).`,
+      lead: `Your payment didn't go through (${WHY}).`,
     });
     // with no reason known, the sentence ends without one
     expect(
@@ -236,7 +237,7 @@ describe("a payment on a Bill's page that didn't go through", () => {
           ],
         }),
       ).why?.lead,
-    ).toBe("Your payment for bill EC-000041 didn't go through.");
+    ).toBe("Your payment didn't go through.");
   });
 
   test("with another Bill due, it leads, and the alert names only it", () => {

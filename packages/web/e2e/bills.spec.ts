@@ -144,7 +144,8 @@ test(
     await expectNothingNext(page);
     const lines = page.getByRole("region", { name: "Bill details" });
     await expect(
-      lines.getByRole("link", { name: /^Deep Clean at 41-12 Austin St/ }),
+      // one home, so its line names the clean, not where
+      lines.getByRole("link", { name: /^Deep Clean, \w{3}, \w{3} \d+, / }),
     ).toBeVisible();
     await expect(lines).toContainText("Tax included");
     await expect(lines).toContainText("Total");
@@ -338,8 +339,20 @@ test("a Bill paid from a bank account is processing until it clears", async ({
   await page.goto(`/portal/bills/${billId}`);
   await (await payThisBill(page)).pay.click();
 
-  await expect(page.getByText("Your bank payment is on its way")).toBeVisible();
-  await expect(titleBadge(page, "Clearing")).toBeVisible();
+  // one word for the wait, since when, and what it is and how long it takes
+  // (#534's UX review U1-U3)
+  await expect(titleBadge(page, "Payment pending")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Bill details" }),
+  ).toContainText("Payment started Jan 12, 2026");
+  await expect(
+    page
+      .getByRole("main")
+      .getByText(
+        "Your bank payment is on its way. It usually takes a few working days to go through. We'll email you once it has.",
+        { exact: true },
+      ),
+  ).toBeVisible();
   await expectNoPageAction(page, "Pay this bill");
 });
 
@@ -370,7 +383,8 @@ test("a Client's payment on a Bill's page that didn't go through says why, there
     page
       .getByRole("main")
       .getByText(
-        /^Your payment of \$[\d.,]+ didn't go through \(there wasn't enough money in the account\)\. Please try again, or use another card or bank account\.$/,
+        "Your payment didn't go through (there wasn't enough money in the account). Please try again, or use another card or bank account.",
+        { exact: true },
       ),
   ).toBeVisible();
   // its due date still ahead
@@ -381,7 +395,7 @@ test("a Client's payment on a Bill's page that didn't go through says why, there
 
   await page.getByRole("link", { name: "Payments" }).first().click();
   await expect(page.getByRole("main").getByRole("alert").first()).toHaveText(
-    "Your payment for bill EC-000001 didn't go through (there wasn't enough money in the account).",
+    "Your payment didn't go through (there wasn't enough money in the account).",
   );
   await expect(page.getByRole("region", { name: "To pay" })).toContainText(
     "Bill EC-000001 is due by Jan 26",
@@ -395,7 +409,8 @@ test("a Client's payment on a Bill's page that didn't go through says why, there
     office
       .getByRole("main")
       .getByText(
-        /^The client's payment of \$[\d.,]+ didn't go through on Jan 12 \(there wasn't enough money in the account\)\. They can try again on its page\.$/,
+        "The client's payment didn't go through on Jan 12 (there wasn't enough money in the account). They can try again on its page.",
+        { exact: true },
       ),
   ).toBeVisible();
   await expectNextStep(office, "Record a payment");
@@ -454,7 +469,7 @@ test("a Client's payment their bank asks them to approve: refused, left waiting,
     office
       .getByRole("main")
       .getByText(
-        /^Casey Client is paying this bill online, \$[\d.,]+, waiting on their bank to approve it\. If it isn't approved by \d+:\d\d [AP]M, it's called off and you can cancel the bill or record a payment\.$/,
+        /^Casey Client is paying this bill online, waiting on their bank to approve it\. If it isn't approved by \d+:\d\d [AP]M, it's called off and you can cancel the bill or record a payment\.$/,
       ),
   ).toBeVisible();
   await expectGreyedPageActions(

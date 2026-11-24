@@ -2148,6 +2148,9 @@ export type BillSummary = {
   // (ADR-0022's one rule); or their last payment, which didn't go through
   // `at`, and why (a clause, as Unpaid's, or null); null when neither
   paying: BillPaying | null;
+  // since when a bank debit on it has been on its way, while one is
+  // (status processing); else null
+  clearingSince: string | null;
   paidAt: string | null;
   paidVia: BillPaidVia | null;
 };

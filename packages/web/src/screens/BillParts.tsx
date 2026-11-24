@@ -41,11 +41,11 @@ const words = catalog({
     paidAnother: "Paid another way",
     creditOffYour: "Nothing to pay: the credit comes off your next bill",
     wasCancelled: "Nothing to pay: it was cancelled",
-    bankOnWay: "A bank payment is on its way",
     notPaidBy: (day: string) => `Not paid by ${day}`,
     didntGo: (day: string) => `Payment didn't go through ${day}`,
-    // one the payment service is trying again, which we see to
-    // the badge says it's pending; "started", as "tried" reads as failed
+    // one the payment service is trying again, which we see to, or a bank
+    // debit on its way: the badge says it's pending; "started", as "tried"
+    // reads as failed
     notYet: (day: string) => `Payment started ${day}`,
     toPayBy: (day: string) => `To pay by ${day}`,
     toBeCharged: "To be charged to your card",
@@ -78,7 +78,6 @@ const words = catalog({
     creditOffYour:
       "Nada que pagar: el crédito se descuenta de su próxima factura",
     wasCancelled: "Nada que pagar: se canceló",
-    bankOnWay: "Hay un pago bancario en camino",
     notPaidBy: (day: string) => `No se pagó antes del ${day}`,
     didntGo: (day: string) => `El pago no pasó el ${day}`,
     notYet: (day: string) => `Pago iniciado el ${day}`,
@@ -108,12 +107,15 @@ export function BillStatusBadge({
 }: {
   bill: Pick<BillSummary, "status" | "unpaid" | "paying" | "totalCents">;
 }) {
-  const { w, unpaid, clearing, paymentPending } = useSaid(words);
+  const { w, unpaid, paymentPending } = useSaid(words);
   if (bill.status === "void") return <StatusBadge>{w.cancelled}</StatusBadge>;
-  if (bill.status === "processing")
-    return <StatusBadge tone="info">{clearing}</StatusBadge>;
-  // one we try again ourselves waits on us (ADR-0022), as a clean's does
-  if (bill.unpaid && !asksTheClient(bill.unpaid.kind))
+  // a bank debit on its way, and one we try again ourselves, wait on us
+  // (ADR-0022), as a clean's does: one word for one wait, however long it
+  // takes, as the Client does nothing in either (#534's UX review U1)
+  if (
+    bill.status === "processing" ||
+    (bill.unpaid && !asksTheClient(bill.unpaid.kind))
+  )
     return <StatusBadge tone="info">{paymentPending}</StatusBadge>;
   // the Client's last payment on its page didn't go through, as a card we
   // charged that was declined: one event, one badge, however it's paid.
@@ -180,13 +182,22 @@ const paidHow = (t: T, bill: BillView, forClient: boolean) => {
 const nowLine = (t: T, bill: BillView, forClient: boolean) => {
   const { w } = t;
   if (bill.status === "void") return w.wasCancelled;
-  if (bill.status === "processing") return w.bankOnWay;
+  // since when, as its alert says how long it usually takes (U2)
+  if (bill.status === "processing")
+    return w.notYet(t.formatDate(bill.clearingSince!));
   if (bill.unpaid)
     return bill.unpaid.kind === "late"
       ? w.notPaidBy(t.formatDay(bill.dueOn))
       : asksTheClient(bill.unpaid.kind)
         ? w.didntGo(t.formatDate(bill.unpaid.since))
-        : w.notYet(t.formatDate(bill.unpaid.since));
+        : // to the minute for the Office, whose alert says it usually
+          // takes under half an hour, so Olive can tell when it's stuck
+          // (#534's UX review U9)
+          w.notYet(
+            forClient
+              ? t.formatDate(bill.unpaid.since)
+              : t.formatDateTime(bill.unpaid.since),
+          );
   if (bill.status === "due")
     return bill.payment === "on_page"
       ? w.toPayBy(t.formatDay(bill.dueOn))

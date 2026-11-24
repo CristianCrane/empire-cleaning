@@ -53,6 +53,7 @@ import {
   testPayments,
 } from "../../../tests/harness.ts";
 import { FAKE_SIGNATURE } from "../../../tests/fakes/payment-gateway.ts";
+import { lineLabel } from "./emails.ts";
 import {
   acceptedJob,
   addPremises,
@@ -226,7 +227,12 @@ describe("making Bills", () => {
       priceCents,
       -depositCents,
     ]);
-    expect(bill.lines[0]!.label).toContain("Deep Clean at 41-12 Austin St");
+    // on its page, short, as its cleans are at one home (#534's UX review
+    // U8); its email names it in full, below
+    expect(bill.lines.map((l) => l.label)).toEqual([
+      "Deep Clean, Wed, Jan 7, 9:00 AM",
+      "Deposit paid: Deep Clean, Wed, Jan 7, 9:00 AM",
+    ]);
     expect(bill.taxCents).toBeGreaterThan(0);
     expect(testPayments().charges.at(-1)!.amount).toBe(
       priceCents - depositCents,
@@ -237,7 +243,9 @@ describe("making Bills", () => {
     expect(receipt.text).toContain(
       "Week: Monday, January 5 to Sunday, January 11",
     );
-    expect(receipt.text).toContain("Deposit paid:");
+    expect(receipt.text).toMatch(
+      /Deposit paid: Deep Clean at 41-12 Austin St, .*Wednesday, January 7 at 9:00 AM/,
+    );
     expect(receipt.text).toMatch(
       /Prices include tax: \$[\d,.]+ of the total\./,
     );
@@ -1750,9 +1758,9 @@ describe("putting Bills right", () => {
     ).body as BillView;
     expect(theirs.lines.map((l) => l.label).sort()).toEqual([
       expect.stringMatching(
-        /^Corrección: Depósito pagado: Limpieza profunda en /,
+        /^Corrección: Depósito pagado: Limpieza profunda, /,
       ),
-      expect.stringMatching(/^Corrección: Limpieza profunda en /),
+      expect.stringMatching(/^Corrección: Limpieza profunda, /),
     ]);
     expect(testEmail().lastTo(BILLING_EMAIL).subject).toBe(
       "Your bill EC-000002: a credit",
@@ -2133,5 +2141,35 @@ describe("switching weekly billing off", () => {
       "Here's what we've done about each clean on it instead",
     );
     expect(notice.text).toContain(`charged ${formatMoney(owed)}`);
+  });
+});
+
+// a Bill's page names each clean short, its home only when the Bill's
+// cleans are at more than one (#534's UX review U8); its email in full
+describe("a Bill's lines", () => {
+  const line = {
+    key: "price",
+    corrected: false,
+    fee: null,
+    change: null,
+    clean: {
+      service: { name: "Deep Clean", nameEs: "Limpieza profunda" },
+      address: "41-12 Austin St, 4B, 11375",
+      startsAt: new Date(WEDNESDAY_9AM),
+    },
+    creditFrom: null,
+    amountCents: 26947,
+  };
+
+  test("name a clean's home on its page only when the Bill's cleans are at more than one", () => {
+    expect(lineLabel("en", line, { home: false })).toBe(
+      "Deep Clean, Wed, Jan 7, 9:00 AM",
+    );
+    expect(lineLabel("en", line, { home: true })).toBe(
+      "Deep Clean at 41-12 Austin St, 4B, 11375, Wed, Jan 7, 9:00 AM",
+    );
+    expect(lineLabel("en", line)).toBe(
+      "Deep Clean at 41-12 Austin St, 4B, 11375, Wednesday, January 7 at 9:00 AM",
+    );
   });
 });

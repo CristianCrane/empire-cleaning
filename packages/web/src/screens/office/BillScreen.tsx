@@ -125,7 +125,7 @@ function standing(bill: BillView): Alert | null {
   if (bill.status === "processing") {
     return {
       key: "processing",
-      children: `The client's bank payment of ${formatMoney(bill.totalCents)} is on its way. It's paid once it clears, usually in a few working days.`,
+      children: `The client's bank payment is on its way. It's paid once it goes through, usually in a few working days.`,
     };
   }
   if (bill.status !== "due") return null;
@@ -135,7 +135,7 @@ function standing(bill: BillView): Alert | null {
     return {
       key: "approving",
       tone: "warning",
-      children: `${clientPayingBill.page(bill.client.name, formatMoney(bill.totalCents), formatTime(bill.paying.until))}${plansPaused(bill)}`,
+      children: `${clientPayingBill.page(bill.client.name, formatTime(bill.paying.until))}${plansPaused(bill)}`,
     };
   }
   // over why it's unpaid, if it is: it's being tried now, and Office Staff
@@ -157,7 +157,7 @@ function standing(bill: BillView): Alert | null {
     return {
       key: "failed",
       tone: "danger",
-      children: `The client's payment of ${formatMoney(bill.totalCents)} didn't go through on ${formatShortDay(dayOfInstant(at))}${because(why)}. ${late ? `${officeFix.late}${plansPaused(bill)}` : "They can try again on its page."}`,
+      children: `The client's payment didn't go through on ${formatShortDay(dayOfInstant(at))}${because(why)}. ${late ? `${officeFix.late}${plansPaused(bill)}` : "They can try again on its page."}`,
     };
   }
   if (bill.unpaid) {
@@ -298,7 +298,9 @@ function VoidBill({ bill, ...state }: { bill: BillView } & DialogState) {
 
 // why a dialog's action can't be done: while a payment may still take the
 // money, or the Client's bank asks them to approve theirs, the server's
-// words for it, info as it waits on that (UX review U4), whether a press
+// words for it, in the tone of the page's alert for the same wait: info
+// for one on us (UX review U4), warning for one on the Client (#534's UX
+// review U4), whether a press
 // was refused or the page caught up first (it reloads when its tab is
 // shown again, and looks again while the Client approves theirs); else why
 // a press was refused, but not a refusal for what held it once that's
@@ -318,7 +320,11 @@ function WhyNot({
   const [said, setSaid] = useState<string>();
   if (!bill.canCancelOrRecord && said !== held) setSaid(held);
   if (!bill.canCancelOrRecord) {
-    return <Notice tone="info">{held}</Notice>;
+    return (
+      <Notice tone={bill.paying?.status === "approving" ? "warning" : "info"}>
+        {held}
+      </Notice>
+    );
   }
   return problem && problem !== held && problem !== said ? (
     <Notice tone="danger">{problem}</Notice>

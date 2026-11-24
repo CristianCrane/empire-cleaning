@@ -38,12 +38,15 @@ export const bills = catalog({
     // for a sentence to end
     billNotPaid: (number: string) =>
       `We couldn't take payment for bill ${number}`,
-    // a bank payment on its way, as the Client is told
-    BANK_CLEARING: "It usually takes a few working days to clear.",
-    // the Client's last payment on a Bill's page, as its page says it:
-    // `amount` already formatted, `why` as whyNotPaid gives it (#534)
-    payingFailed: (amount: string, why: string | null) =>
-      `Your payment of ${amount} didn't go through${because(why)}.`,
+    // a bank payment on its way, as the Client is told, after a sentence
+    // that names it
+    BANK_CLEARING: "It usually takes a few working days to go through.",
+    // the Client's last payment on a Bill's page, for a sentence to end,
+    // as its page says it, and Payments' card when its line names the Bill:
+    // `why` as whyNotPaid gives it (#534). No amount: a Bill is paid
+    // whole, and its total is right below (#534's UX review U5)
+    payingFailed: (why: string | null) =>
+      `Your payment didn't go through${because(why)}`,
     // what to do once a payment on a Bill's page took nothing, true whichever
     // way they paid: the page's alert, and the server's refusal in its dialog
     PAY_AGAIN: "Please try again, or use another card or bank account.",
@@ -58,9 +61,8 @@ export const bills = catalog({
         : `Las limpiezas de cada semana van en una sola factura, ${billPaidEs[how]}.`,
     billNotPaid: (number: string) =>
       `No pudimos cobrar el pago de la factura ${number}`,
-    BANK_CLEARING: "Normalmente tarda unos días hábiles en hacerse efectivo.",
-    payingFailed: (amount: string, why: string | null) =>
-      `Su pago de ${amount} no pasó${because(why)}.`,
+    BANK_CLEARING: "Normalmente tarda unos días hábiles en pasar.",
+    payingFailed: (why: string | null) => `Su pago no pasó${because(why)}`,
     PAY_AGAIN: "Vuelva a intentarlo, o use otra tarjeta o cuenta bancaria.",
   },
 });
@@ -94,10 +96,11 @@ export const paymentNotDone = {
 // starts till it's approved, refused or called off (ADR-0022's one rule),
 // so they can't cancel it or record a payment until `until` (formatted),
 // when it's called off. `name` is the Client's whole name; `first`, its
-// first word, where room is short or it's said again
+// first word, where room is short or it's said again. No amount: a Bill is
+// paid whole, and its total is right below (#534's UX review U5)
 export const clientPayingBill = {
-  page: (name: string, total: string, until: string) =>
-    `${name} is paying this bill online, ${total}, waiting on their bank to approve it. If it isn't approved by ${until}, it's called off and you can cancel the bill or record a payment.`,
+  page: (name: string, until: string) =>
+    `${name} is paying this bill online, waiting on their bank to approve it. If it isn't approved by ${until}, it's called off and you can cancel the bill or record a payment.`,
   // each dialog's, and the server's refusal from a page opened before
   cancel: (first: string, until: string) =>
     `You can't cancel this bill while ${first} is paying it online. If their bank hasn't approved it by ${until}, you can then.`,
