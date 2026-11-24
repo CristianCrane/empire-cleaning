@@ -10,6 +10,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { accounts } from "../auth/auth.schema.ts";
+import { madeAt } from "../../db/timestamps.ts";
 import { offeredFor } from "../price-list/price-list.schema.ts";
 
 // how a Service is priced (ADR-0018): from a home's rooms, or by area
@@ -55,6 +56,7 @@ export const services = pgTable(
     active: boolean("active").notNull().default(true),
     // where it sits in the list, kept from its first version
     position: integer("position").notNull(),
+    ...madeAt,
     createdAt: timestamp("created_at").defaultNow().notNull(),
     createdBy: uuid("created_by").references(() => accounts.id, {
       onDelete: "set null",

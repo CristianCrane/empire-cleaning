@@ -11,6 +11,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { accounts } from "../auth/auth.schema.ts";
+import { madeAt } from "../../db/timestamps.ts";
 
 // hours, multipliers and percentages: small decimals, read back as numbers
 const decimal = (name: string, precision = 6, scale = 2) =>
@@ -37,6 +38,7 @@ export const priceLists = pgTable("price_lists", {
 
   taxFeePercent: decimal("tax_fee_percent", 6, 3),
 
+  ...madeAt,
   createdAt: timestamp("created_at").defaultNow().notNull(),
   createdBy: uuid("created_by").references(() => accounts.id, {
     onDelete: "set null",

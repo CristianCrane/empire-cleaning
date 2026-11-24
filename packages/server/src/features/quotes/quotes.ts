@@ -864,7 +864,7 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     origin: quote.origin,
     asked: askedOf(quote, asked, list.services),
     source: sourceOf(quote),
-    createdAt: quote.createdAt.toISOString(),
+    createdAt: quote.madeAt.toISOString(),
     client: {
       id: client.id,
       name: client.name,
@@ -1017,7 +1017,7 @@ export const clientQuoteView = async (
       postcode: property.postcode,
     },
     asked: askedOf(quote, addOns.get(id) ?? [], list.services)!,
-    createdAt: quote.createdAt.toISOString(),
+    createdAt: quote.madeAt.toISOString(),
     sentAt: null,
     siteVisit:
       quote.status === "turned_down"
