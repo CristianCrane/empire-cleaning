@@ -1,16 +1,4 @@
-import {
-  and,
-  desc,
-  eq,
-  gt,
-  inArray,
-  isNotNull,
-  isNull,
-  lte,
-  notExists,
-  or,
-  sql,
-} from "drizzle-orm";
+import { and, eq, inArray, isNull, lte, notExists, or, sql } from "drizzle-orm";
 import { DAY_MS, MINUTE_MS } from "@empire-cleaning/models";
 import { apart, db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
@@ -408,39 +396,6 @@ export const keepTaken = (tx: Tx, attempt: ChargeAttempt) =>
     .update(chargeAttempts)
     .set({ status: "taken" })
     .where(eq(chargeAttempts.id, attempt.id));
-
-// the Deposit the Client's bank is asking them to approve, within
-// APPROVAL_MS of their pressing, or after it, found too far on to call off
-// (`finishing`): until when, and what it's for; null when there's none,
-// and Office Staff may act on the Quote
-export const clientPaying = async (
-  quoteId: string,
-  tx: Tx | typeof db = db,
-) => {
-  const after = new Date(clock.now().getTime() - APPROVAL_MS);
-  const [paying] = await tx
-    .select()
-    .from(chargeAttempts)
-    .where(
-      and(
-        eq(chargeAttempts.kind, "deposit"),
-        eq(chargeAttempts.forId, quoteId),
-        eq(chargeAttempts.status, "approving"),
-        or(
-          gt(chargeAttempts.askedAt, after),
-          isNotNull(chargeAttempts.bankFinishingAt),
-        ),
-      ),
-    )
-    .orderBy(desc(chargeAttempts.askedAt));
-  return paying
-    ? {
-        ref: paying.gatewayRef!,
-        until: new Date(paying.askedAt.getTime() + APPROVAL_MS),
-        finishing: paying.bankFinishingAt !== null,
-      }
-    : null;
-};
 
 // a new attempt, committed, then asked
 const attempt = async (

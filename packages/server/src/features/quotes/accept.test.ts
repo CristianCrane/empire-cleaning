@@ -1309,38 +1309,64 @@ describe("while the Client's bank is approving the Deposit", () => {
     );
   });
 
-  // critical review C2: survey Design 6, past 15 minutes a Deposit that
-  // can't be called off (the bank finishing it) refuses the changes
-  test("changes can't be sent after 15 minutes while their bank is still finishing the payment", async () => {
-    await cleaners();
-    const office = await signInAsOffice();
-    const quote = await sentQuote(office);
-    const client = await signIn(casey.email);
-    testPayments().requireApproval("pending");
-    await payNow(client, quote).expect(200);
-    testClock().advance({ minutes: 15 });
-    // approved, and the bank is finishing it: it can't be called off
-    testPayments().requireApproval("processing");
-    await office.post(`/api/quotes/${quote.id}/revisions`).send({}).expect(201);
+  // past 15 minutes, Send calls the payment off first; one it can't, as
+  // their bank is finishing it (critical review C2) or the provider wasn't
+  // reached for its call-off or its first read (C9, review F28), leaves the
+  // changes unsent, rather than close the offer Casey's bank may still
+  // approve, charging them and then refunding them
+  test.each([
+    {
+      when: "their bank is still finishing the payment",
+      fails: null,
+      says: "Casey Client's online payment on the quote you sent is still going through with their bank, which usually takes a few minutes. If it books that quote, this draft is deleted; if not, you can send your changes then.",
+    },
+    {
+      when: "calling it off can't reach the provider",
+      fails: "cancelDeposit",
+      says: clientPayingWords.unsure(casey.name),
+    },
+    {
+      when: "reading it can't reach the provider",
+      fails: "depositOutcome",
+      says: clientPayingWords.unsure(casey.name),
+    },
+  ] as const)(
+    "changes can't be sent after 15 minutes while $when",
+    async ({ fails, says }) => {
+      await cleaners();
+      const office = await signInAsOffice();
+      const quote = await sentQuote(office);
+      const client = await signIn(casey.email);
+      testPayments().requireApproval("pending");
+      await payNow(client, quote).expect(200);
+      testClock().advance({ minutes: 15 });
+      await office
+        .post(`/api/quotes/${quote.id}/revisions`)
+        .send({})
+        .expect(201);
+      if (fails) {
+        vi.spyOn(testPayments(), fails).mockRejectedValueOnce(
+          new Error("Stripe is down"),
+        );
+      } else {
+        // approved, and the bank is finishing it: it can't be called off
+        testPayments().requireApproval("processing");
+      }
 
-    const sent = await office.post(`/api/quotes/${quote.id}/send`);
+      const sent = await office.post(`/api/quotes/${quote.id}/send`);
 
-    // it goes through: what Casey paid for is booked, nothing refunded
-    testPayments().requireApproval(null);
-    await finalize(client, quote);
-    expect({
-      send: sent.status,
-      message: sent.body.message,
-      charges: testPayments().charges.length,
-      refunds: testPayments().refunds.length,
-    }).toEqual({
-      send: 409,
-      message:
-        "Casey Client's online payment on the quote you sent is still going through with their bank, which usually takes a few minutes. If it books that quote, this draft is deleted; if not, you can send your changes then.",
-      charges: 1,
-      refunds: 0,
-    });
-  });
+      // Casey approves it in their bank app: what they paid for is booked,
+      // nothing refunded
+      testPayments().requireApproval(null);
+      await finalize(client, quote);
+      expect({
+        send: sent.status,
+        message: sent.body.message,
+        charges: testPayments().charges.length,
+        refunds: testPayments().refunds.length,
+      }).toEqual({ send: 409, message: says, charges: 1, refunds: 0 });
+    },
+  );
 
   // UX review U8: what a press found stays on the Quote's pages, so Record
   // acceptance and Send stay greyed till their bank's done, not live again
@@ -1409,74 +1435,6 @@ describe("while the Client's bank is approving the Deposit", () => {
       again: again.status,
       calledOff: testPayments().canceled.size,
     }).toEqual({ finishing: false, again: 200, calledOff: 1 });
-  });
-
-  // critical review C9: Send calls off a payment past 15 minutes first; a
-  // call-off that didn't reach the provider leaves it open, so the changes
-  // wait, as Record acceptance does, rather than close the offer Casey's
-  // bank may still approve (C2's charge and then refund)
-  test("a call-off that failed before Send leaves the changes unsent while their bank still asks them", async () => {
-    await cleaners();
-    const office = await signInAsOffice();
-    const quote = await sentQuote(office);
-    const client = await signIn(casey.email);
-    testPayments().requireApproval("pending");
-    await payNow(client, quote).expect(200);
-    testClock().advance({ minutes: 15 });
-    await office.post(`/api/quotes/${quote.id}/revisions`).send({}).expect(201);
-    vi.spyOn(testPayments(), "cancelDeposit").mockRejectedValueOnce(
-      new Error("Stripe is down"),
-    );
-
-    const sent = await office.post(`/api/quotes/${quote.id}/send`);
-    // Casey approves it in their bank app, still open at Stripe
-    testPayments().requireApproval(null);
-    await finalize(client, quote);
-
-    expect({
-      send: sent.status,
-      message: sent.body.message,
-      charges: testPayments().charges.length,
-      refunds: testPayments().refunds.length,
-    }).toEqual({
-      send: 409,
-      message: clientPayingWords.unsure(casey.name),
-      charges: 1,
-      refunds: 0,
-    });
-  });
-
-  // critical review C9: the same when Send's first read of it doesn't reach
-  // the provider, so it's never called off at all
-  test("a read that failed before Send leaves the changes unsent while their bank still asks them", async () => {
-    await cleaners();
-    const office = await signInAsOffice();
-    const quote = await sentQuote(office);
-    const client = await signIn(casey.email);
-    testPayments().requireApproval("pending");
-    await payNow(client, quote).expect(200);
-    testClock().advance({ minutes: 15 });
-    await office.post(`/api/quotes/${quote.id}/revisions`).send({}).expect(201);
-    vi.spyOn(testPayments(), "depositOutcome").mockRejectedValueOnce(
-      new Error("Stripe is down"),
-    );
-
-    const sent = await office.post(`/api/quotes/${quote.id}/send`);
-    // Casey approves it in their bank app, still open at Stripe
-    testPayments().requireApproval(null);
-    await finalize(client, quote);
-
-    expect({
-      send: sent.status,
-      message: sent.body.message,
-      charges: testPayments().charges.length,
-      refunds: testPayments().refunds.length,
-    }).toEqual({
-      send: 409,
-      message: clientPayingWords.unsure(casey.name),
-      charges: 1,
-      refunds: 0,
-    });
   });
 
   // critical review C3: a payment that's ended (approved, the day full, its
