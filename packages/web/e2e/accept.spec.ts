@@ -452,6 +452,11 @@ test("the draft of a Quote its Client is paying waits to be sent", async ({
   await expect(status).toHaveText(
     "Give a reason for the new price to update the prices · Not while Casey is paying the deposit",
   );
+  // and it ends at rest, as Jen opens it, for its shot
+  await standard.getByText("Set the Standard Clean price yourself").click();
+  await expect(status).toHaveText(
+    "Saved · Not while Casey is paying the deposit",
+  );
 });
 
 // past the 15 minutes, a payment their bank is finishing can't be called
