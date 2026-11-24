@@ -148,7 +148,7 @@ describe("what a Client owes now", () => {
       line: "Bill EC-000041 is due by Nov 3",
       why: null,
       action: {
-        label: "Pay bill EC-000041",
+        label: "Pay the bill",
         href: href("/portal/bills/$billId", { billId: "bill" }),
       },
     });
@@ -222,7 +222,7 @@ describe("a payment on a Bill's page that didn't go through", () => {
       tone: "danger",
       headline: "$1,253.50",
       lines: ["Bill EC-000041 is due by Nov 3"],
-      action: { label: "Pay bill EC-000041" },
+      action: { label: "Pay the bill" },
     });
     expect(answer.why).toEqual({
       tone: "danger",
@@ -247,7 +247,7 @@ describe("a payment on a Bill's page that didn't go through", () => {
       late: true,
       line: "Bill EC-000041 is due by Nov 3, and 1 more",
       why: `Your payment for bill EC-000041 didn't go through (${WHY}).`,
-      action: { label: "Pay bill EC-000041" },
+      action: { label: "Pay the bill" },
     });
   });
 

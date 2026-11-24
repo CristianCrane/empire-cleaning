@@ -35,6 +35,9 @@ export const portalWords = catalog({
     seeTheClean: "See the clean",
     // a Bill its card already names, which asks nothing of them
     seeTheBill: "See the bill",
+    // a Bill its card's line already names, to pay on its page (#534's UX
+    // review U6)
+    payTheBill: "Pay the bill",
     anotherTime: "Need another time?",
     // its Welcome page's heading, and its first tour's title
     cleaningPlan: "Cleaning plan",
@@ -83,6 +86,7 @@ export const portalWords = catalog({
     seeYourCleaningPlan: "Ver su plan de limpieza",
     seeTheClean: "Ver la limpieza",
     seeTheBill: "Ver la factura",
+    payTheBill: "Pagar la factura",
     anotherTime: "¿Necesita otra hora?",
     cleaningPlan: "Plan de limpieza",
     bill: (n: string) => `Factura ${n}`,

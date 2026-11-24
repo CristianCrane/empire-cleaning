@@ -453,7 +453,7 @@ Keeps: what you owe first, fixed header Button (ux-portal). Renders through
 `HomePage` (#435).
 
 - Header: "Payments" in the bar; Your card (secondary), standing aside while the card asks something of them (its tile stays).
-- Body: what you owe (`AnswerCard`: `IconTile`, the primary; for a payment we try again ourselves, Payment pending, one line (and one while it pauses a plan), its link outlined; a Bill whose payment on its page didn't go through leads, in red, saying why, and naming the Bill when the card's line doesn't) or all paid;
+- Body: what you owe (`AnswerCard`: `IconTile`, the primary; for a payment we try again ourselves, Payment pending, one line (and one while it pauses a plan), its link outlined; a Bill whose payment on its page didn't go through leads, in red, saying why, and naming the Bill when the card's line doesn't; Pay the bill when its line names it) or all paid;
   Notices of payments clearing; tiles All payments (`?open=history`, the
   Statement by month in place) and Your card (a link).
 

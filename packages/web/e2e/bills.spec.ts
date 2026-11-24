@@ -209,7 +209,7 @@ test(
     const owed = page.getByRole("region", { name: "To pay" });
     await expect(owed).toContainText("Bill EC-000001 is due by Jan 26");
     await expect(
-      owed.getByRole("link", { name: "Pay bill EC-000001" }),
+      owed.getByRole("link", { name: "Pay the bill" }),
     ).toBeVisible();
     // and so do their Payments, which lead to it
     await page.getByRole("link", { name: "Payments" }).click();
@@ -654,7 +654,7 @@ test("Payments says a Bill we try again ourselves needs nothing from them", asyn
   await expect(see).toHaveAttribute("href", `/portal/bills/${billId}`);
   await expect(see).toHaveClass(/(^|\s)border-primary(\s|$)/);
   await expect(see).not.toHaveClass(/(^|\s)bg-primary(\s|$)/);
-  await expect(page.getByRole("link", { name: /^Pay bill/ })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /^Pay/ })).toHaveCount(0);
 });
 
 test("a late Bill with no cleaning plan on it says no plan is paused, to the Client or the Office", async ({

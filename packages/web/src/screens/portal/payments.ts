@@ -228,7 +228,8 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
           alone: payingFailed(b.paying.why),
           failed: true,
         }),
-        action: { label: payBill(b.number), href: billLink(b.id) },
+        // its line names it, so its button needn't
+        action: { label: t.p.payTheBill, href: billLink(b.id) },
       })),
   ];
   // what asks something of them leads (the sort keeps the order otherwise)
