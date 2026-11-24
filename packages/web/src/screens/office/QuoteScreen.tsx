@@ -150,7 +150,7 @@ import {
   visitSummary,
 } from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
-import { sentAgain } from "./sent-again.ts";
+import { sentAgain, sentWith } from "./sent-again.ts";
 import { reportUnexpected } from "../../monitoring.ts";
 
 const {
@@ -765,11 +765,13 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
       at: revision.sentAt,
       icon: Send,
       title: i === 0 ? "Quote sent" : sentAgain(revision),
-      // what it was sent for, and when: "Standard Clean $194.89 · for …"
+      // what it was sent for, with whom, and when: "Standard Clean
+      // $194.89 · 2 cleaners · for …"
       description: (
         <Line
           parts={[
             revisionHeadline(revision),
+            sentWith(revision.crew),
             `for ${formatDateTime(revision.proposedStartsAt)}`,
           ]}
         />

@@ -1175,6 +1175,10 @@ export type RevisionSummary = {
   // a one-off Quote's other Service, offered beside its own, whose price
   // changed: "Deep Clean price changed"; null otherwise
   offeredServiceName: string | null;
+  // the crew it was sent with, which with its price and time decides
+  // whether the clean fits: a one-off's, at its time, or a Service Plan
+  // Quote's on each weekday, by its first clean, in the order they come
+  crew: { startsAt: string; crewSize: number }[];
 };
 
 // what a Sent Revision can change of the one before it: its terms, as the

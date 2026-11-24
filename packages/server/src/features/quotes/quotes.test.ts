@@ -874,6 +874,15 @@ describe("a new Revision", () => {
       [2, ["cleaners"], null],
       [1, null, null],
     ]);
+    // each with the crew it went with, at its time
+    expect(last.revisions.map((r) => r.crew)).toEqual(
+      [3, 3, 3, 2]
+        .map((crewSize, i) => ({
+          startsAt: last.revisions[i]!.proposedStartsAt,
+          crewSize,
+        }))
+        .map((d) => [d]),
+    );
   });
 
   test("can't be started once the Quote is Accepted, Declined or Turned Down", async () => {

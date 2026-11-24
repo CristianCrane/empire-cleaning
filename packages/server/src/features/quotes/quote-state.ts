@@ -538,6 +538,22 @@ export const revisionHistory = async (
       expiresAt: r.expiresAt!.toISOString(),
       changed,
       offeredServiceName,
+      crew:
+        quote.kind === "service_plan"
+          ? offered
+              .flatMap((o) =>
+                o.startsAt
+                  ? [{ startsAt: o.startsAt, crewSize: o.crewSize }]
+                  : [],
+              )
+              .sort((x, y) => x.startsAt.getTime() - y.startsAt.getTime())
+              .map((d) => ({ ...d, startsAt: d.startsAt.toISOString() }))
+          : [
+              {
+                startsAt: r.proposedStartsAt!.toISOString(),
+                crewSize: r.crewSize,
+              },
+            ],
     };
   });
 };

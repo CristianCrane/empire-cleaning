@@ -84,14 +84,15 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   width: one column, as a side column competed with the page (#493). Each
   entry says what happened on one line and when on the line under it, then
   what it was about, where it has a line of its own, under that ("Standard
-  Clean $194.89 · for Mon, Jan 12, 9:00 AM"), every entry alike
+  Clean $194.89 · 2 cleaners · for Mon, Jan 12, 9:00 AM"), every entry alike
   (`TimelineItem`, a Quote's story too). A Quote sent again names what it
   changed of the send before it, in the Draft's words for its fields and in
   the Draft's order: "Quote sent again · cleaners changed", "· Deep Clean
   price changed" where only the Service offered beside it moved, "· nothing
   changed". It names what changed, not what to: the entry's own line holds
-  the price and time it was sent for, so two entries show a before and an
-  after, and **Now** the rest. The server works it out (`revisionChanges`),
+  what decides whether the clean fits, the price, the crew and the time it
+  was sent for (a plan's crews each with their weekdays once they differ),
+  so two entries show a before and an after, and **Now** the rest. The server works it out (`revisionChanges`),
   field by field, so a price the Price list moved between sends reads
   "price changed" (#548). What happened (a drop-out, a Cleaner taken off) is told there, not
   kept as a row elsewhere. A Quote's story is its
