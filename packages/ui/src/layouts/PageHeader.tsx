@@ -177,7 +177,7 @@ function Note({ children }: { children: ReactNode }) {
   return (
     <span
       role="status"
-      className="max-w-48 text-right text-sm text-balance text-fg-muted"
+      className="max-w-48 text-right text-sm text-balance text-fg-muted xl:max-w-72"
     >
       {children}
     </span>

@@ -11,6 +11,8 @@ export type Alert = {
   tone?: "info" | "warning" | "success" | "danger";
   children: ReactNode;
   action?: ReactNode;
+  // it answers a press, so it comes into view and takes the focus (Notice)
+  answers?: boolean;
 };
 
 // how many show before "Show N more"
@@ -39,7 +41,12 @@ export function Alerts({
   return (
     <div className="flex flex-col gap-3 print:hidden">
       {shown.slice(0, hidden > 0 ? SHOWN : undefined).map((alert) => (
-        <Notice key={alert.key} tone={alert.tone} action={alert.action}>
+        <Notice
+          key={alert.key}
+          tone={alert.tone}
+          action={alert.action}
+          answers={alert.answers}
+        >
           {alert.children}
         </Notice>
       ))}
