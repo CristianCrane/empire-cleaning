@@ -280,7 +280,7 @@ describe("removing an Assignment", () => {
       .expect(404);
   });
 
-  // #493: the screen hides its ✕ then; the rule is the server's
+  // #493: the Job's menu offers no Take off then; the rule is the server's
   test("is refused once the Job has started", async () => {
     const job = await thursdayJob();
     const cory = await staffMember("Cory Cleaner");
