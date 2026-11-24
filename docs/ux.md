@@ -784,10 +784,12 @@ stays as it is (#336).
   extra time on the day ("+1.5 h"); and a cleaner's working hours on their
   Staff page ("7.5 h", where she types 7.5), while the Schedule reads
   what's booked and free of them as lengths. A plan on several weekdays
-  says each one's length in turn ("1 h 38 min + 2 h"), with each crew
-  where they differ ("On site, with 2 cleaners + 1 cleaner"), and once
-  any two of its cleans differ in length, every row of its list says its
-  own, not only the odd one out.
+  whose cleans are all alike says it once, as a one-weekday plan does;
+  once they differ, the Office's card gives each weekday its own line,
+  named ("1 h 38 min", "On site Mondays, with 2 cleaners"), as a "+"
+  between crews reads as a sum and leaves her matching days by position,
+  and every row of the Client's list of cleans says its own length, not
+  only the odd one out.
 
 ### Status and colour
 
