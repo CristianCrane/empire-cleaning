@@ -771,9 +771,6 @@ export type DepositFor = {
   amountCents: number;
 };
 
-// why one couldn't be booked once approved, as Unbookable's reasons name it
-export type RefundedWhy = DepositRefundedWhy;
-
 // what the emails about it say, in each language. They're read away from
 // the Quote's page, so each says which clean, where, when and how much,
 // and links back
@@ -874,7 +871,7 @@ const depositWords = catalog({
 // Quote's page
 export const depositRefundedEmail = (
   lang: Language,
-  deposit: DepositFor & { why: RefundedWhy; card: Card | null },
+  deposit: DepositFor & { why: DepositRefundedWhy; card: Card | null },
 ): Email => {
   const w = depositWords[lang].refunded;
   const { formatMoney, formatWhen } = formats[lang];

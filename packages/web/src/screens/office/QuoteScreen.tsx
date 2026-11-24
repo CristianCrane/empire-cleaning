@@ -1299,7 +1299,19 @@ function RecordAcceptanceDialog({
           {paying ? (
             <Notice tone="warning">{clientPaying.record(paying)}</Notice>
           ) : (
-            action.problem && <Notice tone="danger">{action.problem}</Notice>
+            action.problem && (
+              // past the end time, their bank still finishing it: it
+              // waits on the bank, so info, as the Bill's (UX review U2)
+              <Notice
+                tone={
+                  action.problem === clientPaying.finishing(quote.client.name)
+                    ? "info"
+                    : "danger"
+                }
+              >
+                {action.problem}
+              </Notice>
+            )
           )}
           <Actions>
             <Button variant="quiet" onPress={close}>

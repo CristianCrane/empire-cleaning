@@ -11,7 +11,11 @@ import {
   or,
   sql,
 } from "drizzle-orm";
-import { DAY_MS, MINUTE_MS } from "@empire-cleaning/models";
+import {
+  DAY_MS,
+  MINUTE_MS,
+  type DepositRefundedWhy,
+} from "@empire-cleaning/models";
 import { apart, db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
@@ -272,8 +276,10 @@ const openAttempts = (tx: Tx | typeof db, forId: string) =>
 // rule makes sense"): while a payment we asked for a Job, Bill or Quote may
 // still take the money, nothing else that moves money on it starts, by us,
 // by the Client paying a Bill on its page, or by Office Staff cancelling a
-// Bill or recording a payment made another way. Two at once would take it
-// twice, or leave money to give back (ADR-0022)
+// Bill or recording a payment made another way. On a Quote, that's a
+// Deposit, waiting on the Client's bank too (`approving`): Office Staff
+// can't record acceptance or send changes meanwhile (payingOf). Two at
+// once would take it twice, or leave money to give back (ADR-0022)
 export const chargeOpen = async (forId: string, tx: Tx | typeof db = db) =>
   (await openAttempts(tx, forId)).length > 0;
 
@@ -302,16 +308,17 @@ export type Approval =
   | { status: "unknown"; reason: string };
 
 /**
- * Where a Deposit waiting on the Client's bank stands, asking the provider;
- * one that ended is written so. `callOff` calls off one still waiting,
- * saying why. One the bank refused is called off too, so it can't be paid
- * later on the same payment with another card.
+ * Where a Deposit waiting on the Client's bank, `ref`, stands, asking the
+ * provider; one that ended is written so on its `attempt`. One that only
+ * saves a card, no money moving, has none. `callOff` calls off one still
+ * waiting, saying why. One the bank refused is called off too, so it can't
+ * be paid later on the same payment with another card.
  */
 export const approvalOf = async (
-  attempt: ChargeAttempt,
+  ref: string,
+  attempt: ChargeAttempt | undefined,
   callOff: CallingOff | null,
 ): Promise<Approval> => {
-  const ref = attempt.gatewayRef!;
   const read = () => paymentGateway.depositOutcome(ref).catch(() => undefined);
   let said = await read();
   let calledOff = false;
@@ -335,6 +342,7 @@ export const approvalOf = async (
         saved: said.saved,
       };
     case "failed":
+      if (!attempt) return { status: "ended", reason: said.reason };
       if (attempt.status === "approving") {
         await update(attempt, { status: "failed", reason: said.reason });
       }
@@ -414,14 +422,14 @@ export const depositsGivenBack = async (quoteId: string) =>
           eq(chargeAttempts.kind, "deposit"),
           eq(chargeAttempts.forId, quoteId),
           eq(chargeAttempts.status, "given_back"),
-          isNotNull(chargeAttempts.reason),
+          isNotNull(chargeAttempts.givenBackWhy),
         ),
       )
       .orderBy(chargeAttempts.givenBackAt)
   ).map((a) => ({
     amountCents: a.amountCents,
     givenBackAt: a.givenBackAt!,
-    why: a.reason!,
+    why: a.givenBackWhy!,
   }));
 
 // a new attempt, committed, then asked
@@ -615,7 +623,7 @@ export const takeDepositOnce = async (
 ): Promise<DepositTaken> => {
   for (const earlier of await openAttempts(tx, quoteId)) {
     if (earlier.status === "approving") {
-      const approval = await approvalOf(earlier, callOff);
+      const approval = await approvalOf(earlier.gatewayRef!, earlier, callOff);
       if (approval.status === "ended" || approval.status === "called_off") {
         continue;
       }
@@ -695,11 +703,11 @@ export const giveBackDeposit = async (
   chargeId: string,
   amount: number,
   quoteId: string,
-  why: string | null = null,
+  why: DepositRefundedWhy | null = null,
 ) => {
   const ofIt = eq(chargeAttempts.gatewayRef, chargeId);
   if (why) {
-    await apart.update(chargeAttempts).set({ reason: why }).where(ofIt);
+    await apart.update(chargeAttempts).set({ givenBackWhy: why }).where(ofIt);
   }
   const refunded = await paymentGateway
     .refund({
@@ -747,7 +755,11 @@ export const giveBackUnbookedDeposits = async (
   for (const earlier of await openAttempts(tx, quoteId)) {
     if (earlier.status === "approving") {
       if (earlier.askedAt.getTime() > after) continue;
-      const approval = await approvalOf(earlier, "abandoned");
+      const approval = await approvalOf(
+        earlier.gatewayRef!,
+        earlier,
+        "abandoned",
+      );
       if (approval.status === "called_off") calledOff.push(earlier.gatewayRef!);
       if (
         approval.status === "approved" &&

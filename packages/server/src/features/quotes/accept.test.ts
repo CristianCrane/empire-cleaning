@@ -721,7 +721,7 @@ describe("paying the Deposit with a card entered just now", () => {
     // they may have closed the bank's pop-up: pressing again starts over
     expect(early.body.status).toBe("waiting");
     expect(early.body.message).toBe(
-      "Your bank hasn't approved the payment yet. Approve it in your bank's app and we'll book your clean. Or press Accept and pay to start over: the first payment is called off, so you're only charged once.",
+      "Your bank hasn't approved the payment yet. Approve it in your bank's app to book your clean. Or press Accept and pay to start over: the first payment is called off, so you're only charged once.",
     );
 
     testPayments().requireApproval("refused");
@@ -929,7 +929,7 @@ describe("while the Client's bank is approving the Deposit", () => {
     expect(again.body).toEqual({
       status: "processing",
       message:
-        "Your first payment is still going through, so nothing more was charged. We'll email you as soon as it's through.",
+        "Your first payment is still going through with your bank, so nothing more was charged. It usually takes a few minutes: reload this page then to see how it went.",
     });
     expect(testPayments().paymentAttempts).toHaveLength(1);
     expect(testPayments().charges).toEqual([]);
@@ -1142,7 +1142,7 @@ describe("while the Client's bank is approving the Deposit", () => {
       .expect(409);
 
     expect(refused.body.message).toBe(
-      "Casey Client is paying the deposit on the quote you sent. Once their bank approves it, that quote is accepted and this draft is deleted. If it isn't approved by 4:15 AM, you can send your changes then.",
+      "Casey Client is paying the deposit on the quote you sent. If it books that quote, this draft is deleted. If it isn't approved by 4:15 AM, you can send your changes then.",
     );
     expect((await quoteOf(office, quote.id)).draft).not.toBeNull();
   });

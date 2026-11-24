@@ -4,7 +4,6 @@ import { and, asc, eq, inArray, isNull, max, ne } from "drizzle-orm";
 import type {
   AddOnChoice,
   ClientQuoteView,
-  DepositRefundedWhy,
   Condition,
   DayCapacity,
   FirstCleanFindings,
@@ -715,26 +714,14 @@ export const payingOf = async (
   };
 };
 
-// why a Deposit was given back, as the Office's record of it says: one the
-// Client's bank approved but that couldn't be booked
-const REFUNDED_WHY: string[] = [
-  "no_room",
-  "revised",
-  "closed",
-  "has_plan",
-  "plan_changed",
-] satisfies DepositRefundedWhy[];
-
 // the Deposits the Client's bank approved on a Quote that couldn't be
 // booked, given back: what Office Staff on the phone with them see
 const refundedDepositsOf = async (quoteId: string) =>
-  (await depositsGivenBack(quoteId))
-    .filter((d) => REFUNDED_WHY.includes(d.why))
-    .map((d) => ({
-      amountCents: d.amountCents,
-      refundedAt: d.givenBackAt.toISOString(),
-      why: d.why as DepositRefundedWhy,
-    }));
+  (await depositsGivenBack(quoteId)).map((d) => ({
+    amountCents: d.amountCents,
+    refundedAt: d.givenBackAt.toISOString(),
+    why: d.why,
+  }));
 
 // A Quote in full, for the Office (ADR-0017): what was asked, with the
 // Suggested Price for the Service being worked on (the Draft's, else the
@@ -1756,7 +1743,7 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
     const { client, property } = (await homeOf(current.propertyId, tx))!;
     // The one rule (ADR-0022): changes sent now would close the offer the
     // Client's bank is approving, for APPROVAL_MS at most
-    const paying = await clientPaying(id, tx);
+    const paying = await payingOf(current, tx);
     if (paying) {
       throw new ConflictError(
         clientPayingWords.draft(

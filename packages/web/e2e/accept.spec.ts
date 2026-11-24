@@ -374,7 +374,7 @@ test("Office Staff can't record acceptance while the Client's bank approves thei
   // the page says until when, its next step greyed
   await expect(
     page.getByRole("status").filter({ hasText: paying }),
-  ).toContainText("the payment is called off and you can record acceptance.");
+  ).toContainText("it's called off and you can record acceptance.");
   await expect(
     page
       .getByRole("group", { name: "What to do" })
@@ -454,6 +454,6 @@ test("a Client back from their bank before approving the Deposit is told how it 
   await requireApproval("pending");
   await accept.click();
   await expect(form.getByRole("status").last()).toHaveText(
-    "Your bank hasn't approved the payment yet. Approve it in your bank's app and we'll book your clean. Or press Accept and pay to start over: the first payment is called off, so you're only charged once.",
+    "Your bank hasn't approved the payment yet. Approve it in your bank's app to book your clean. Or press Accept and pay to start over: the first payment is called off, so you're only charged once.",
   );
 });

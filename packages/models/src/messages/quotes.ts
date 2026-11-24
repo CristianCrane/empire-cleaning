@@ -112,22 +112,24 @@ export const clientPaying = {
     { card, drafting }: { card: boolean; drafting: boolean },
   ) =>
     drafting
-      ? `${payingWhat(p)} Once it's approved, the quote you sent is accepted and your draft is deleted. Until ${p.until}, you can't send your changes or record acceptance.`
-      : `${payingWhat(p)} Once it's approved, ${p.service ? "the quote is accepted" : "the plan starts"}. If it isn't by ${p.until}, the payment is called off${card ? " and you can record acceptance" : ""}.`,
+      ? `${payingWhat(p)} If it books the quote you sent, your draft is deleted. Until ${p.until}, you can't send your changes or record acceptance.`
+      : `${payingWhat(p)} If it isn't approved by ${p.until}, it's called off${card ? " and you can record acceptance" : ""}.`,
   // the Record acceptance dialog's, and the server's refusal of it from a
   // page opened before the Client started paying
   record: (p: PayingFor) =>
     `${payingWhat(p)} If it isn't approved by ${p.until}, it's called off and you can record acceptance.`,
   // the draft's, and the server's refusal of sending it
   draft: (name: string, until: string) =>
-    `${name} is paying the deposit on the quote you sent. Once their bank approves it, that quote is accepted and this draft is deleted. If it isn't approved by ${until}, you can send your changes then.`,
+    `${name} is paying the deposit on the quote you sent. If it books that quote, this draft is deleted. If it isn't approved by ${until}, you can send your changes then.`,
   // under the greyed action, short, as the menu or a phone's foot may hide
   // the alert
   item: (firstName: string) => `Not while ${firstName} is paying the deposit`,
   // past `until`, recording acceptance found the Client's bank approving it
-  // still, too far on to be called off
+  // still, too far on to be called off: nothing more charged, as their
+  // card is being (the PR's UX review U1); an info Notice, as it waits on
+  // their bank, as the Bill's does (U2)
   finishing: (name: string) =>
-    `${name}'s online payment is still going through with their bank, so nothing was charged. Once it's through, the quote is accepted.`,
+    `${name}'s online payment is still going through with their bank, which usually takes a few minutes, so you can't record acceptance yet. Nothing more was charged.`,
   // or found it approved, and accepted the quote with it: what the Client
   // paid for, `paid`, which may not be what was picked, `picked`
   recorded: (name: string, paid: string | null, picked: string | null) =>
