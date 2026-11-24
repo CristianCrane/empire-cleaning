@@ -785,11 +785,17 @@ stays as it is (#336).
   Staff page ("7.5 h", where she types 7.5), while the Schedule reads
   what's booked and free of them as lengths. A plan on several weekdays
   whose cleans are all alike says it once, as a one-weekday plan does;
-  once they differ, the Office's card gives each weekday its own line,
-  named ("1 h 38 min", "On site Mondays, with 2 cleaners"), as a "+"
-  between crews reads as a sum and leaves her matching days by position,
-  and every row of the Client's list of cleans says its own length, not
-  only the odd one out.
+  once they differ, its card, the Office's and the Client's, and the
+  Client's quote give each kind of clean its own fact, naming its
+  weekdays: "On site Mondays and Fridays, with 2 cleaners" beside "On
+  site Wednesdays, with 1 cleaner", and "About 2 h, How long on Mondays".
+  A "+" between them reads as a sum and leaves the reader matching days
+  by position. Weekdays alike to their reader go together, so a Client
+  may read one where the Office reads two ("About 2 h" for 1 h 57 min and
+  2 h 3 min). The Client's list of cleans leaves how long to the card
+  while each runs as its weekday's there; once one doesn't (booked
+  longer, or moved to another day), every row says its own length, so
+  the eye compares like with like.
 
 ### Status and colour
 
