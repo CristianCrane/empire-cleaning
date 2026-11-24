@@ -364,22 +364,49 @@ test("the Client Declines a Quote from the portal", async ({
   await expectNoPageAction(page, "Change quote");
 });
 
-test("the Quotes list names the Service its total is for", async ({ page }) => {
-  await sentQuote(page);
+test(
+  "the Quotes list names the Service its total is for",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    await sentQuote(page);
 
-  await page.goto("/office/quotes");
-  const row = page.getByRole("row", { name: new RegExp(casey.name) });
-  // the Service asked for, not the one recommended
-  await expect(row).toContainText(/Standard Clean.*\$\d/);
-  await expect(row).not.toContainText("Deep Clean");
-  // found by the Service, as a search for another isn't
-  await searchList(page, "Search quotes", "Deep");
-  await expect(row).toBeHidden();
-  await page.getByRole("searchbox", { name: "Search quotes" }).fill("Standard");
-  await expect(row).toBeVisible();
-  await page.getByRole("searchbox", { name: "Search quotes" }).fill("");
-  await expect(row).toBeVisible();
-});
+    await page.goto("/office/quotes");
+    const row = page.getByRole("row", { name: new RegExp(casey.name) });
+    // the Service asked for, not the one recommended
+    await expect(row).toContainText(/Standard Clean.*\$\d/);
+    await expect(row).not.toContainText("Deep Clean");
+    // found by the Service, as a search for another isn't
+    await searchList(page, "Search quotes", "Deep");
+    await expect(row).toBeHidden();
+    await page
+      .getByRole("searchbox", { name: "Search quotes" })
+      .fill("Standard");
+    await expect(row).toBeVisible();
+    await page.getByRole("searchbox", { name: "Search quotes" }).fill("");
+    await expect(row).toBeVisible();
+
+    if (!isMobile) {
+      // a laptop window at half width keeps the clean, its price and its
+      // wait, and gives up the address first
+      const columns = page.getByRole("columnheader");
+      await page.setViewportSize({ width: 900, height: 720 });
+      await expect(columns).toHaveText([
+        "Client",
+        "Service",
+        "Total",
+        "Waiting",
+      ]);
+      await page.setViewportSize({ width: 1280, height: 720 });
+      await expect(columns).toHaveText([
+        "Client",
+        "Address",
+        "Service",
+        "Total",
+        "Waiting",
+      ]);
+    }
+  },
+);
 
 test("a home's History names the Service a Quote was sent for", async ({
   page,

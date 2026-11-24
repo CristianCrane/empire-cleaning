@@ -356,10 +356,20 @@ const screenWordsIn = (lang: Language) => {
       ? formatMoney(cents)
       : w.planPrice(formatMoney(cents), planDays > 1);
 
-  // a Service with its price, as every Office screen names an option:
-  // "Standard Clean $194.89"
-  const servicePrice = (service: string, cents: number) =>
-    `${service} ${formatMoney(cents)}`;
+  // what a Quote is of: its Service, or a Service Plan of it, "Standard
+  // Clean plan"
+  const serviceNamed = (service: string, plan: boolean) =>
+    plan ? w.planOf(service) : service;
+
+  // a Service with its price, as every Office screen names an option or a
+  // Quote's headline: "Standard Clean $194.89", or given a Service Plan's
+  // weekdays, "Standard Clean plan $650.10 a week"
+  const servicePrice = (
+    service: string,
+    cents: number,
+    planDays: number | null = null,
+  ) =>
+    `${serviceNamed(service, planDays !== null)} ${priceOf(cents, planDays)}`;
 
   // a Quote's headline price, as priceOf says; null with no Revision
   const quoteTotal = (
@@ -447,20 +457,19 @@ const screenWordsIn = (lang: Language) => {
     planName,
     quoteTotal,
     servicePrice,
-    planOf: w.planOf,
-    // what a Sent Revision led with: "Standard Clean $194.89", or a Service
-    // Plan's "Standard Clean plan $650.10 a week"
-    revisionHeadline: ({
-      headlineServiceName: service,
-      headlineTotalCents: cents,
-      planDays,
-    }: Pick<
-      RevisionSummary,
-      "headlineTotalCents" | "headlineServiceName" | "planDays"
-    >) =>
-      planDays === null
-        ? servicePrice(service, cents)
-        : `${w.planOf(service)} ${priceOf(cents, planDays)}`,
+    serviceNamed,
+    // what a Sent Revision led with, as servicePrice says
+    revisionHeadline: (
+      revision: Pick<
+        RevisionSummary,
+        "headlineTotalCents" | "headlineServiceName" | "planDays"
+      >,
+    ) =>
+      servicePrice(
+        revision.headlineServiceName,
+        revision.headlineTotalCents,
+        revision.planDays,
+      ),
     // how a Quote reads in a list: "Standard Clean $194.89", the Service it
     // leads with, or "Cleaning plan, Standard Clean, every 2 weeks: $201.85
     // a clean", or for several weekdays "...: $650.10 a week"

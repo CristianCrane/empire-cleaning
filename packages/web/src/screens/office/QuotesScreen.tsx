@@ -15,7 +15,7 @@ import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
 import { linkTo } from "../../links.ts";
 import { tabShown, useListUrl } from "../list-search.ts";
 
-const { planOf, quoteTotal } = screenWords.en;
+const { quoteTotal, serviceNamed } = screenWords.en;
 
 // the statuses the list holds, a Tab each, in the order a Quote moves
 // through them
@@ -44,10 +44,11 @@ const waiting = (quote: QuoteSummary, row = false) => {
 // the Service its total is for, its Revision's own (the one asked for, unless the Office
 // changed it) or, once Accepted, the one booked; the Service asked for until
 // it has a total
-const serviceOf = (quote: QuoteSummary) => {
-  const service = quote.headlineServiceName ?? quote.service.name;
-  return quote.kind === "service_plan" ? planOf(service) : service;
-};
+const serviceOf = (quote: QuoteSummary) =>
+  serviceNamed(
+    quote.headlineServiceName ?? quote.service.name,
+    quote.kind === "service_plan",
+  );
 
 // the words a search looks through: who, where, and what, both the
 // Service it's for and the one asked, as the caller may name it
