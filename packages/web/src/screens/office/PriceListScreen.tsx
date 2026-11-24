@@ -30,7 +30,7 @@ import {
 import { putJson } from "../../api.ts";
 import { useAction } from "../action.ts";
 import { useDraftOf } from "./draft.ts";
-import { dayOfInstant, formatHours, screenWords } from "../format.ts";
+import { dayOfInstant, screenWords, typedHours } from "../format.ts";
 
 const { cleaners, conditionLabel } = screenWords.en;
 
@@ -227,7 +227,7 @@ function AddOns({ list, services }: { list: PriceList; services: Service[] }) {
           description: (
             <Line
               parts={[
-                formatHours(addOn.hours),
+                typedHours(addOn.hours),
                 goesWith(addOn),
                 addOn.taxExempt && "tax-exempt",
               ]}

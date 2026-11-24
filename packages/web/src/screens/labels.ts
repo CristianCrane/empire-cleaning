@@ -23,7 +23,7 @@ export const labels = catalog({
     about: (hours: string) => `About ${hours}`,
     // how long a Job runs, asked from the reader's side (howLong)
     howLong: "How long",
-    onSiteWith: (cleaners: string) => `On site, ${cleaners}`,
+    onSiteWith: (cleaners: string) => `On site, with ${cleaners}`,
     extras: "Extras",
     none: "None",
     deposit: "Deposit",
@@ -66,7 +66,7 @@ export const labels = catalog({
     // "cerca de", not "unas", which would say "unas 1 h"
     about: (hours: string) => `Cerca de ${hours}`,
     howLong: "Cuánto dura",
-    onSiteWith: (cleaners: string) => `En el lugar, ${cleaners}`,
+    onSiteWith: (cleaners: string) => `En el lugar, con ${cleaners}`,
     extras: "Adicionales",
     none: "Ninguno",
     deposit: "Depósito",

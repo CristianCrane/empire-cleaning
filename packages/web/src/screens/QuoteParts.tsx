@@ -31,7 +31,6 @@ const words = catalog({
     notAsked: "Not asked for",
     notes: "Notes",
     cleaningHours: "Cleaning hours",
-    onSiteWith: (cleaners: string) => `On site, with ${cleaners}`,
     quoteRequested: "Quote requested",
     beingUpdated: "Being updated",
     includesTax: (tax: string) => `Includes ${tax} tax`,
@@ -53,7 +52,6 @@ const words = catalog({
     notAsked: "No las pidió",
     notes: "Notas",
     cleaningHours: "Horas de limpieza",
-    onSiteWith: (cleaners: string) => `En el lugar, con ${cleaners}`,
     quoteRequested: "Cotización solicitada",
     beingUpdated: "Se está actualizando",
     includesTax: (tax: string) => `Incluye ${tax} de impuestos`,
@@ -133,12 +131,12 @@ export function HoursRows({
   option: QuoteOption;
   crewSize: number;
 }) {
-  const { w, cleaners } = useWords();
+  const { w, cleaners, onSiteWith } = useWords();
   return (
     <>
       <Figure label={w.cleaningHours} value={formatHours(option.labourHours)} />
       <Figure
-        label={w.onSiteWith(cleaners(crewSize))}
+        label={onSiteWith(cleaners(crewSize))}
         value={formatHours(option.hoursOnSite)}
       />
     </>

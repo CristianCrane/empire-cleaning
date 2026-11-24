@@ -10,7 +10,7 @@ const shown = <T,>(parts: T[]) =>
 // tables). Each part stays whole where it fits, and a wrap never leaves a dot
 // at a line's end or start: each dot sits in the gap before its part, and
 // the gap of a part that starts a line falls in the margin this line hides.
-// Its text reads "A · B · C". Where a slot takes only text, lineOf.
+// Its text reads "A · B · C". Where a slot takes only text, models' lineOf.
 export function Line({ parts }: { parts: Part[] }) {
   if (shown(parts).length === 0) return null;
   return (
@@ -34,10 +34,3 @@ export function Line({ parts }: { parts: Part[] }) {
     </span>
   );
 }
-
-// a Line as text, for a slot that takes only text (a card's title, a
-// Fact's value, a label): its dots glued to both neighbours, so a wrap never
-// leaves one at a line's end or start, though a long part may break inside
-// itself
-export const lineOf = (parts: (string | false | null | undefined)[]) =>
-  shown(parts).join("\u00a0·\u00a0");

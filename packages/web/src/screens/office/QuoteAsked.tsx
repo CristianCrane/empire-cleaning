@@ -36,7 +36,7 @@ import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { useStartDraft } from "./StartDraft.tsx";
-import { addressOf, formatHours, roomsText, screenWords } from "../format.ts";
+import { addressOf, roomsText, screenWords, typedHours } from "../format.ts";
 import { homeIcon } from "../icons.ts";
 import { AskedRows, PriceHead } from "../QuoteParts.tsx";
 import { working } from "./WorkedOutQuote.tsx";
@@ -328,7 +328,6 @@ export function FoldedPrice({
 // a first visit, where that's offered too) and how each was worked out,
 // how a Suggested Price is worked out, from the home's or premises' hours
 export function PriceWorking({ breakdown: b }: { breakdown: PriceBreakdown }) {
-  const homeHours = b.homeHours.reduce((sum, part) => sum + part.hours, 0);
   // breakdowns from before #72 have no kind: they're all homes
   const premises = b.propertyKind === "commercial";
   return (
@@ -337,30 +336,36 @@ export function PriceWorking({ breakdown: b }: { breakdown: PriceBreakdown }) {
         <Figure
           key={part.label}
           label={part.label}
-          value={formatHours(part.hours)}
+          value={typedHours(part.hours)}
         />
       ))}
       <Figure
         label={premises ? "The business" : "The home"}
-        value={formatHours(homeHours)}
+        value={working.homeTimes(b, 1)}
         strong
       />
-      <Figure label={working.condition(null, b.conditionMultiplier)} value="" />
+      <Figure
+        label={working.condition(null, b.conditionMultiplier)}
+        value={working.homeTimes(b, b.conditionMultiplier)}
+      />
       {/* saved before each Service had its own hours (ADR-0018) */}
       {b.cleanTypeMultiplier !== undefined && !premises && (
         <Figure
           label={`× ${b.serviceName} (${b.cleanTypeMultiplier})`}
-          value=""
+          value={working.homeTimes(
+            b,
+            b.conditionMultiplier * b.cleanTypeMultiplier,
+          )}
         />
       )}
       {b.addOns.map((addOn) => (
         <Figure
           key={addOn.key}
           label={working.addOn(addOn)}
-          value={formatHours(addOn.hours)}
+          value={typedHours(addOn.hours)}
         />
       ))}
-      <Figure label={working.hours} value={formatHours(b.labourHours)} strong />
+      <Figure label={working.hours} value={typedHours(b.labourHours)} strong />
       <Figure
         label={working.rate(b.hourlyRateCents, premises)}
         value={formatMoney(b.workedOutCents)}

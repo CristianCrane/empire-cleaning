@@ -2,15 +2,11 @@ import { formats } from "@empire-cleaning/models";
 import { FileText } from "lucide-react";
 import type { PriceBreakdown } from "@empire-cleaning/models";
 import { Figure, Figures, IconTile } from "@empire-cleaning/ui";
-import { formatHours, formatMinutes, screenWords } from "../format.ts";
+import { formatHours, screenWords, typedHours } from "../format.ts";
 
 const { cleaners } = screenWords.en;
 
 const { formatMoney } = formats.en;
-
-// About 1 h 38 min, shared by the Crew
-const onSite = (labourHours: number, crew: number) =>
-  formatMinutes(Math.round((labourHours / crew) * 60));
 
 // a working-out's lines, as a Quote's override and this both say them
 export const working = {
@@ -20,14 +16,20 @@ export const working = {
   addOn: (addOn: { name: string; taxExempt: boolean }) =>
     `+ ${addOn.name}${addOn.taxExempt ? " (no tax)" : ""}`,
   hours: "Cleaning hours, rounded up to the quarter-hour",
+  // the home's hours, times what multiplies them (its Condition), as the
+  // rows under add to them: "2.3375 h"
+  homeTimes: (b: PriceBreakdown, multiplier: number) =>
+    typedHours(
+      b.homeHours.reduce((sum, part) => sum + part.hours, 0) * multiplier,
+    ),
   rate: (cents: number, business = false) =>
     `× ${formatMoney(cents)} an hour${business ? " for a business" : ""}, to the whole dollar`,
   minimum: (cents: number) =>
     `At least the minimum price (${formatMoney(cents)})`,
 };
 
-// how long a Suggested Price's clean takes on site, for its Crew: "About
-// 1 h 38 min on site for 2 cleaners"
+// how long a Suggested Price's clean takes on site, for its Crew, to the
+// minute as the Schedule books it: "1 h 38 min on site, with 2 cleaners"
 export function OnSite({
   labourHours,
   crewSize,
@@ -39,7 +41,7 @@ export function OnSite({
   if (labourHours <= 0) return null;
   return (
     <span className="text-sm text-fg-muted">
-      About {onSite(labourHours, crewSize)} on site for {cleaners(crewSize)}
+      {formatHours(labourHours / crewSize)} on site, with {cleaners(crewSize)}
     </span>
   );
 }
@@ -102,27 +104,28 @@ export function WorkedOutQuote({
             <Figure
               key={part.label}
               label={part.label}
-              value={formatHours(part.hours)}
+              value={typedHours(part.hours)}
               was={was && hoursOf(was, part.label, now)}
             />
           ))}
           {condition && (
             <Figure
               label={working.condition(condition, now.conditionMultiplier)}
-              value=""
+              value={working.homeTimes(now, now.conditionMultiplier)}
+              was={was && working.homeTimes(was, was.conditionMultiplier)}
             />
           )}
           {now.addOns.map((addOn) => (
             <Figure
               key={addOn.key}
               label={working.addOn(addOn)}
-              value={formatHours(addOn.hours)}
+              value={typedHours(addOn.hours)}
             />
           ))}
           <Figure
             label={working.hours}
-            value={formatHours(now.labourHours)}
-            was={was && formatHours(was.labourHours)}
+            value={typedHours(now.labourHours)}
+            was={was && typedHours(was.labourHours)}
             strong
           />
           <Figure
@@ -153,5 +156,5 @@ export function WorkedOutQuote({
 const hoursOf = (was: PriceBreakdown, label: string, now: PriceBreakdown) => {
   const i = now.homeHours.findIndex((part) => part.label === label);
   const part = was.homeHours[i];
-  return part ? formatHours(part.hours) : null;
+  return part ? typedHours(part.hours) : null;
 };

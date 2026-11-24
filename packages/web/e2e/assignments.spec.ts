@@ -533,7 +533,7 @@ test(
     await expect(row).toContainText("Jan 8");
     // roughly where, then what
     await expect(row).toContainText("Thu 9:00 AM · 11375");
-    await expect(row).toContainText("Deep Clean · 6 h on site · Just you");
+    await expect(row).toContainText("Deep Clean · 6 h · just you");
 
     await row.click();
     await expect(page).toHaveURL(`/cleaner/open/${job.id}`);

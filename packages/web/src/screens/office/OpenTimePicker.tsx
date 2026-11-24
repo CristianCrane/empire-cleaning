@@ -7,7 +7,6 @@ import {
   daysIn,
   formats,
   mondayOf,
-  quarterHours,
   weekdayOf,
   type OpenDay,
 } from "@empire-cleaning/models";
@@ -79,10 +78,10 @@ type Props = {
   onPick: (picked: { date: string; time: string }) => void;
 };
 
-// when a clean starting at `time` ends, "2:30 PM", by its time on site as
-// it's booked (to the quarter hour); none past midnight
+// when a clean starting at `time` ends, "10:38 AM", by its time on site as
+// the Schedule books it, to the minute; none past midnight
 export const endsAt = (time: string, hoursOnSite: number) => {
-  const minutes = (hoursOf(time) + quarterHours(hoursOnSite)) * 60;
+  const minutes = Math.round((hoursOf(time) + hoursOnSite) * 60);
   return minutes < 24 * 60 ? formatClock(clockTime(minutes)) : undefined;
 };
 

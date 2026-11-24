@@ -5,6 +5,7 @@ import {
   type ClientView,
   type ServicePlanView,
   catalog,
+  howLong,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -22,7 +23,6 @@ import {
 import { getJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { formatHours } from "../format.ts";
 import { useSaid } from "../words.ts";
 import { upcomingBadge } from "./clean-badge.tsx";
 import {
@@ -42,7 +42,6 @@ const words = catalog({
     noneBooked: "No cleans booked.",
     noneJustNow:
       "No cleans booked just now. We'll be in touch about your next one.",
-    aboutOnSite: (hours: string) => `About ${hours} on site`,
     didntSend: "That didn't send. Please try again.",
     sent: "Sent. We'll send you a new cleaning plan quote.",
     askToChange: "Ask to change",
@@ -59,7 +58,6 @@ const words = catalog({
     noneBooked: "No hay limpiezas reservadas.",
     noneJustNow:
       "Por ahora no hay limpiezas reservadas. Le contactaremos sobre la próxima.",
-    aboutOnSite: (hours: string) => `Cerca de ${hours} en el lugar`,
     didntSend: "No se envió. Vuelva a intentarlo.",
     sent: "Enviado. Le enviaremos una nueva cotización de plan de limpieza.",
     askToChange: "Pedir un cambio",
@@ -145,7 +143,8 @@ export function PortalPlan() {
               key={job.id}
               id={job.id}
               title={t.formatDateTime(job.startsAt)}
-              description={t.w.aboutOnSite(formatHours(job.hoursOnSite))}
+              // how long, as the clean's own page says it
+              description={howLong(t, job.hoursOnSite)}
               // as the Cleans list badges it (#507)
               end={upcomingBadge(t, job)}
             />

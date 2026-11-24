@@ -45,7 +45,7 @@ import {
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { addressOf, formatMinutes, howLong } from "../format.ts";
+import { addressOf, formatMinutes } from "../format.ts";
 import { QuoteIcon } from "../icons.ts";
 import { type Said, useSaid } from "../words.ts";
 import {
@@ -55,7 +55,7 @@ import {
   ClientQuoteStatusBadge,
 } from "../QuoteParts.tsx";
 import { ConsentNote, usePaymentForm } from "./CardForm.tsx";
-import { catalog, oneStop } from "@empire-cleaning/models";
+import { catalog, howLong, oneStop } from "@empire-cleaning/models";
 import { requestQuoteHref } from "./whats-next.ts";
 
 // in the Client's language (ADR-0025)

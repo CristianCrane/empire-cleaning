@@ -333,7 +333,13 @@ describe("Releasing a Confirmed Assignment", () => {
     const toDee = testEmail().lastTo(dee.email);
     expect(toDee.subject).toBe("An open job, soon");
     expect(toDee.text).toContain(
-      "Deep Clean, Tuesday, January 6 at 9:00 AM, 11375, about 3 hours on site, on your own",
+      [
+        "Deep Clean",
+        "Tuesday, January 6 at 9:00 AM",
+        "ZIP code 11375",
+        "3 hours",
+        "on your own",
+      ].join("\u00a0·\u00a0"),
     );
     expect(toDee.text).toContain(
       `http://localhost:5173/cleaner/open/${job.id}`,
@@ -358,7 +364,13 @@ describe("The morning email of Cleaners Needed", () => {
     expect(first.subject).toBe("Open jobs for you");
     expect(first.text).toContain("Hi Cory,");
     expect(first.text).toContain(
-      "Deep Clean, Thursday, January 8 at 9:00 AM, 11375, about 3 hours on site, with 2 cleaners",
+      [
+        "Deep Clean",
+        "Thursday, January 8 at 9:00 AM",
+        "ZIP code 11375",
+        "3 hours",
+        "with 2 cleaners",
+      ].join("\u00a0·\u00a0"),
     );
     expect(first.text).toContain(
       `http://localhost:5173/cleaner/open/${thursday.id}`,

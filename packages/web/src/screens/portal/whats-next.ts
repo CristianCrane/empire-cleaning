@@ -24,6 +24,7 @@ import {
   type QuoteSummary,
   type ServicePlanSummary,
   catalog,
+  howLong,
   oneStop,
   sameDay,
   theTimeEs,
@@ -32,7 +33,7 @@ import {
 import type { HomeTile } from "@empire-cleaning/ui";
 import { linkTo, sameHref } from "../../links.ts";
 import { QuoteIcon, SiteVisitIcon } from "../icons.ts";
-import { addressOf, formatMinutes, howLong, pausedPlans } from "../format.ts";
+import { addressOf, formatMinutes, pausedPlans } from "../format.ts";
 import { saidWith } from "../words.ts";
 import type { Hero, Why } from "./HeroCard.tsx";
 import { moneyNow, owedAnswer, yourCardTile } from "./payments.ts";

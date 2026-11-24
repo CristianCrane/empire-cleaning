@@ -23,16 +23,16 @@ import {
   formats,
   HOUR_MS,
   type Language,
+  lineOf,
   messages,
   quarterHours,
-  quarterHoursText,
   timeOf,
   upperFirst,
 } from "@empire-cleaning/models";
 import { conditions, formWords } from "@empire-cleaning/quote-request";
 import { labels } from "./labels.ts";
 import { jobStatusIcon, NeedsCleanersIcon } from "./icons.ts";
-import { lineOf, type StatusTone } from "@empire-cleaning/ui";
+import type { StatusTone } from "@empire-cleaning/ui";
 
 export const addressOf = (
   p: Pick<PropertyView, "street" | "unit" | "postcode">,
@@ -70,22 +70,16 @@ export const clientName = (c: Pick<ClientName, "name" | "businessName">) =>
 export const shortClientName = (c: Pick<ClientName, "name" | "businessName">) =>
   c.businessName ?? c.name;
 
-// 3.75 -> "3.75 h", 4 -> "4 h"
-export const formatHours = (hours: number) => `${hours} h`;
+// a length as the Office reads it, to the minute, as the Schedule books
+// it: 1.63 -> "1 h 38 min", 3 -> "3 h", 0.75 -> "45 min" (a Client or a
+// Cleaner reads it to the quarter hour: howLong)
+export const formatHours = (hours: number) =>
+  formatMinutes(Math.round(hours * 60)) || "0 h";
 
-// how long a Job runs, as a person says it: to the quarter hour, and
-// "About" only when that rounded it: 6 -> "6 h", 3.3 -> "About 3¼ h";
-// several, a plan's weekdays, joined, "About" said once: 1.9, 3.75 ->
-// "About 2 h + 3¾ h"; the same on each, once, so it isn't read as a sum:
-// 3.75, 3.75 -> "3¾ h"
-export const howLong = (
-  t: { about: (hours: string) => string },
-  ...hours: number[]
-) => {
-  const each = hours.map((h) => `${quarterHoursText(quarterHours(h))} h`);
-  const text = each.every((e) => e === each[0]) ? each[0]! : each.join(" + ");
-  return hours.every((h) => quarterHours(h) === h) ? text : t.about(text);
-};
+// hours as the Office types them on the Price list, and as its working-out
+// of a price adds them up: 1.125 -> "1.125 h"
+export const typedHours = (hours: number) =>
+  `${Math.round(hours * 10000) / 10000} h`;
 
 // when a Job is over: its start and its hours, to the quarter hour as
 // howLong says them

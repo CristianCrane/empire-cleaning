@@ -151,6 +151,41 @@ export const quarterHoursText = (hours: number) => {
   return whole === 0 && part ? part : `${whole}${part}`;
 };
 
+// how long a clean runs, as a Client or a Cleaner reads it (the Office
+// reads it to the minute): to the quarter hour, and "About" only when that
+// rounded it: 6 -> "6 h", 3.3 -> "About 3¼ h"; several, a plan's weekdays,
+// joined, "About" said once: 1.9, 3.75 -> "About 2 h + 3¾ h"; the same on
+// each, once, so it isn't read as a sum: 3.75, 3.75 -> "3¾ h". `hours`
+// writes the unit, "h" unless an email spells it out ("3 hours")
+export const howLong = (
+  t: {
+    about: (hours: string) => string;
+    hours?: (hours: string, quarters: number) => string;
+  },
+  ...hours: number[]
+) => {
+  const unit = t.hours ?? ((text: string) => `${text} h`);
+  const each = hours.map((h) =>
+    unit(quarterHoursText(quarterHours(h)), quarterHours(h)),
+  );
+  const text = each.every((e) => e === each[0]) ? each[0]! : each.join(" + ");
+  return hours.every((h) => quarterHours(h) === h) ? text : t.about(text);
+};
+
+// a part of a row's line after its first, which reads on from the dot
+// before it as a sentence does, in lower case: "Deep Clean · about 1¾ h"
+export const inLine = (part: string) =>
+  part.charAt(0).toLocaleLowerCase() + part.slice(1);
+
+// a row's line of parts as text, where only text goes (a card's title, a
+// Fact's value, an email's line): set apart by dots, each glued to both its
+// neighbours, so a wrap never leaves one at a line's end or start, though a
+// long part may break inside itself. A screen's row takes the kit's Line
+export const lineOf = (parts: (string | false | null | undefined)[]) =>
+  parts
+    .filter((p) => p != null && p !== false && p !== "")
+    .join("\u00a0·\u00a0");
+
 // a person's first name, as a greeting says it ("Hi, Casey")
 export const firstNameOf = (name: string) => name.split(" ")[0]!;
 

@@ -1,12 +1,13 @@
 import {
   catalog,
+  howLong,
+  inLine,
   type CleanerJobs,
   type CleanerNeeded,
 } from "@empire-cleaning/models";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import { Inbox } from "lucide-react";
 import { Line, ListPage, type ListRow } from "@empire-cleaning/ui";
-import { formatHours } from "../format.ts";
 import { tabShown, useListUrl } from "../list-search.ts";
 import { useSaid } from "../words.ts";
 import { crewSizeOf } from "./CleanerNeededScreen.tsx";
@@ -72,8 +73,8 @@ export function CleanerOffers() {
             <Line
               parts={[
                 job.serviceName,
-                c.hoursOnSite(formatHours(job.hoursOnSite)),
-                crewSizeOf(t, job),
+                inLine(howLong(t, job.hoursOnSite)),
+                inLine(crewSizeOf(t, job)),
               ]}
             />
           ),
@@ -89,10 +90,7 @@ export function CleanerOffers() {
           title: job.property.postcode,
           description: (
             <Line
-              parts={[
-                job.serviceName,
-                c.hoursOnSite(formatHours(job.hoursOnSite)),
-              ]}
+              parts={[job.serviceName, inLine(howLong(t, job.hoursOnSite))]}
             />
           ),
           onOpen: () =>

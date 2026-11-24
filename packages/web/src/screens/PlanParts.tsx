@@ -18,6 +18,7 @@ import {
   type UnpaidKind,
   asksTheClient,
   catalog,
+  howLong,
   officeFix,
   oneStop,
 } from "@empire-cleaning/models";
@@ -429,7 +430,15 @@ export function PlanCard({
               : t.taxIncludedOf(each)
           }
         />
-        {several ? (
+        {/* how long: the Client's to the quarter hour, the Office's to
+            the minute, with its crew, as the Schedule books it */}
+        {forClient ? (
+          <Fact
+            icon={Clock}
+            label={t.howLong}
+            value={howLong(t, ...plan.days.map((d) => d.hoursOnSite))}
+          />
+        ) : several ? (
           <Fact
             icon={Users}
             label={t.onSite}
@@ -440,7 +449,7 @@ export function PlanCard({
           <Fact
             icon={Clock}
             label={t.onSite}
-            value={t.about(formatHours(one!.hoursOnSite))}
+            value={formatHours(one!.hoursOnSite)}
             line={t.onSiteWith(t.cleaners(one!.crewSize))}
           />
         )}

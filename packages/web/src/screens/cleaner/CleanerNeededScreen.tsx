@@ -1,4 +1,4 @@
-import { catalog } from "@empire-cleaning/models";
+import { catalog, howLong } from "@empire-cleaning/models";
 import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
 import type { CleanerNeeded } from "@empire-cleaning/models";
 import { Check, Clock, Users, X } from "lucide-react";
@@ -6,7 +6,6 @@ import { Fact, Facts, RecordPage } from "@empire-cleaning/ui";
 import { getJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useLeavingAction } from "../action.ts";
-import { howLong } from "../format.ts";
 import { reportUnexpected } from "../../monitoring.ts";
 import { type Said, useSaid } from "../words.ts";
 import { AvailableBadge } from "./CleanerHome.tsx";

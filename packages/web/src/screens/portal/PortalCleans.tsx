@@ -5,9 +5,9 @@ import type {
   ClientSiteVisit,
   ClientUpcomingJob,
 } from "@empire-cleaning/models";
-import { catalog } from "@empire-cleaning/models";
+import { catalog, howLong, inLine } from "@empire-cleaning/models";
 import { Line, ListPage, type ListRow } from "@empire-cleaning/ui";
-import { addressOf, formatMinutes, howLong } from "../format.ts";
+import { addressOf, formatMinutes } from "../format.ts";
 import { tabShown, useListUrl } from "../list-search.ts";
 import { type Said, useSaid } from "../words.ts";
 import { cleanBadge, upcomingBadge } from "./clean-badge.tsx";
@@ -53,7 +53,10 @@ const upcomingRow =
       <Line
         parts={[
           homes > 1 && addressOf(job.property),
-          howLong(t, job.hoursOnSite),
+          // after the address, it reads on from the dot
+          homes > 1
+            ? inLine(howLong(t, job.hoursOnSite))
+            : howLong(t, job.hoursOnSite),
         ]}
       />
     ),

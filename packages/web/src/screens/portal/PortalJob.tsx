@@ -46,11 +46,12 @@ import { linkTo } from "../../links.ts";
 import { requestQuoteHref } from "./whats-next.ts";
 import { PickAvailableTime } from "../AvailabilityPicker.tsx";
 import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
-import { addressOf, howLong, wasSkipped } from "../format.ts";
+import { addressOf, wasSkipped } from "../format.ts";
 import { type Said, useSaid } from "../words.ts";
 import {
   asksTheClient,
   catalog,
+  howLong,
   oneStop,
   stopAfter,
 } from "@empire-cleaning/models";

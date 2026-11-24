@@ -11,7 +11,7 @@ import {
   Phone,
 } from "lucide-react";
 import type { CleanerJob, CleanerSiteVisit } from "@empire-cleaning/models";
-import { catalog, MINUTE_MS } from "@empire-cleaning/models";
+import { catalog, howLong, inLine, MINUTE_MS } from "@empire-cleaning/models";
 import {
   AnswerCard,
   Button,
@@ -31,7 +31,6 @@ import {
   clientName,
   dayOfInstant,
   endOf,
-  formatHours,
   formatMinutes,
   jobStatusTone,
 } from "../format.ts";
@@ -49,7 +48,6 @@ const words = catalog({
     comingUp: "Coming up",
     doneToday: "Done today",
     now: "Now",
-    crewOf: (n: number) => `crew of ${n}`,
     siteVisitFor: (client: string) => `Site visit for ${client}`,
     toSeeIt: (minutes: string) => `${minutes} to see it`,
     call: (client: string) => `Call ${client}`,
@@ -68,7 +66,6 @@ const words = catalog({
     comingUp: "Próximos",
     doneToday: "Terminados hoy",
     now: "Ahora",
-    crewOf: (n: number) => `equipo de ${n}`,
     siteVisitFor: (client: string) => `Visita previa para ${client}`,
     toSeeIt: (minutes: string) => `${minutes} para verla`,
     call: (client: string) => `Llamar a ${client}`,
@@ -273,9 +270,10 @@ function NextUp({
             job
               ? [
                   job.serviceName,
-                  t.c.hoursOnSite(formatHours(job.hoursOnSite)),
+                  // to the quarter hour, as the Job's page says it
+                  inLine(howLong(t, job.hoursOnSite)),
                   // the Job's crew size, not who's confirmed so far
-                  job.crewSize > 1 && w.crewOf(job.crewSize),
+                  job.crewSize > 1 && t.cleaners(job.crewSize),
                 ]
               : [
                   w.siteVisitFor(clientName(visit!.client)),
@@ -312,7 +310,14 @@ const rowOf = (t: Said, item: Item, openJob: (id: string) => void): ListRow =>
         id: item.job.id,
         at: item.startsAt,
         title: addressOf(item.job.property),
-        description: `${item.job.serviceName}, ${formatHours(item.job.hoursOnSite)}`,
+        description: (
+          <Line
+            parts={[
+              item.job.serviceName,
+              inLine(howLong(t, item.job.hoursOnSite)),
+            ]}
+          />
+        ),
         badges: [
           item.job.outcome && <CleanerJobBadge key="outcome" job={item.job} />,
         ],
