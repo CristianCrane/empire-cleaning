@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import { currentLanguage } from "#services/request";
-import { and, asc, eq, inArray, isNull, max, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, max, ne } from "drizzle-orm";
 import type {
   AddOnChoice,
   ClientQuoteView,
@@ -716,14 +716,37 @@ export const payingOf = async (
   };
 };
 
-// the Deposits the Client's bank approved on a Quote that couldn't be
-// booked, given back: what Office Staff on the phone with them see
-const refundedDepositsOf = async (quoteId: string) =>
-  (await depositsGivenBack(quoteId)).map((d) => ({
-    amountCents: d.amountCents,
-    refundedAt: d.givenBackAt.toISOString(),
-    why: d.why,
-  }));
+// what the Client's bank approved on a Quote that couldn't be booked: each
+// Deposit given back, and each card saved with nothing charged (no
+// Deposit), oldest first: what Office Staff on the phone with them see
+const unbookedPaymentsOf = async (quoteId: string) => {
+  const [refunded, saved] = await Promise.all([
+    depositsGivenBack(quoteId),
+    db
+      .select()
+      .from(pendingDeposits)
+      .where(
+        and(
+          eq(pendingDeposits.quoteId, quoteId),
+          isNotNull(pendingDeposits.unbookedWhy),
+        ),
+      ),
+  ]);
+  return [
+    ...refunded.map((d) => ({
+      amountCents: d.amountCents,
+      endedAt: d.givenBackAt,
+      why: d.why,
+    })),
+    ...saved.map((p) => ({
+      amountCents: 0,
+      endedAt: p.settledAt!,
+      why: p.unbookedWhy!,
+    })),
+  ]
+    .sort((a, b) => a.endedAt.getTime() - b.endedAt.getTime())
+    .map((u) => ({ ...u, endedAt: u.endedAt.toISOString() }));
+};
 
 // A Quote in full, for the Office (ADR-0017): what was asked, with the
 // Suggested Price for the Service being worked on (the Draft's, else the
@@ -756,7 +779,7 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     anyCompleted,
     shownRows,
     paying,
-    refundedDeposits,
+    unbookedPayments,
   ] = await Promise.all([
     paymentMethodOf(client.id),
     quote.kind === "service_plan" ? findingsOf(propertyId) : null,
@@ -775,7 +798,7 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     hasCompletedJob(propertyId),
     draft || offer ? optionsOf((draft ?? offer)!.id) : [],
     payingOf(quote),
-    refundedDepositsOf(id),
+    unbookedPaymentsOf(id),
   ]);
   const asked = addOns.get(id) ?? [];
   const chosen = list.addOns.filter((a) => asked.some((c) => c.key === a.key));
@@ -859,7 +882,7 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     turnDownReason: quote.turnDownReason,
     paymentMethod: toPaymentMethodView(paymentMethod),
     paying: paying && { ...paying, until: paying.until.toISOString() },
-    refundedDeposits,
+    unbookedPayments,
   };
 };
 

@@ -777,10 +777,10 @@ describe("paying the Deposit with a card entered just now", () => {
       `We've refunded your ${formatMoney(charge!.amount)} deposit to your Test card ending 4242. It can take a few days to reach you.`,
     );
     // and the Office sees it, on the phone with them
-    expect((await quoteOf(office, quote.id)).refundedDeposits).toEqual([
+    expect((await quoteOf(office, quote.id)).unbookedPayments).toEqual([
       {
         amountCents: charge!.amount,
-        refundedAt: "2026-01-05T09:00:00.000Z",
+        endedAt: "2026-01-05T09:00:00.000Z",
         why: "no_room",
       },
     ]);
@@ -934,6 +934,38 @@ describe("while the Client's bank is approving the Deposit", () => {
     expect(testPayments().paymentAttempts).toHaveLength(1);
     expect(testPayments().charges).toEqual([]);
     expect((await scheduleOn(office, MONDAY)).jobs).toEqual([]);
+  });
+
+  // review F17: told "we'll email you", they're emailed whichever way it
+  // ends, and can pay again on the same page
+  test("a payment their bank refuses after finishing it emails them, and they can pay again", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+    testPayments().requireApproval("processing");
+    await payNow(client, quote).expect(200);
+
+    testPayments().requireApproval("refused");
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+
+    const email = testEmail().lastTo(casey.email);
+    expect(email.subject).toBe("Your bank didn't approve your payment");
+    expect(email.text).toContain(
+      "so nothing was charged, and nothing is booked yet.",
+    );
+    expect(email.text).toContain(
+      "Your quote is still open, so you can pay again whenever you're ready.",
+    );
+    expect((await quoteOf(office, quote.id)).paying).toBeNull();
+    testPayments().requireApproval(null);
+    await addCard(client);
+    await payNow(client, quote).expect(200);
+    expect(testPayments().charges).toHaveLength(1);
+    expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
   });
 
   test("the Office can't record acceptance meanwhile, and sees why", async () => {
@@ -1273,6 +1305,43 @@ describe("while the Client's bank is approving the Deposit", () => {
       send: sent.status,
       message: sent.body.message,
     }).toEqual({ paying: null, send: 200, message: undefined });
+  });
+
+  // critical review C5: approved in their bank's app, and they never came
+  // back to the page; the day filled meanwhile, so they're told, as a paid
+  // Deposit's Client is
+  test("a 0% Deposit approved after the day filled tells them, when only the webhook comes back", async () => {
+    // 8 hours on Monday
+    await cleaners(2, 4);
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office, guestAsk(), { depositPercent: 0 });
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("approved");
+    const waiting = await payNow(client, quote).expect(200);
+    await bookedJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 7 });
+    const before = testEmail().to(casey.email).length;
+
+    await webhook({
+      kind: "deposit_succeeded",
+      ref: refOf(waiting.body),
+    }).expect(200);
+
+    expect(testPayments().refunds).toEqual([]);
+    const sent = await quoteOf(office, quote.id);
+    expect(sent.status).toBe("sent");
+    expect(testEmail().to(casey.email)).toHaveLength(before + 1);
+    const email = testEmail().lastTo(casey.email);
+    expect(email.subject).toBe("We couldn't book your clean");
+    expect(email.text).toContain(
+      "that time got booked up while your bank was approving the payment.",
+    );
+    expect(email.text).toContain("Nothing was charged to your card.");
+    expect(email.text).toContain("We'll be in touch with another time.");
+    expect(email.text).not.toContain("refunded");
+    // and the Office sees it, to be in touch
+    expect(sent.unbookedPayments).toEqual([
+      { amountCents: 0, endedAt: "2026-01-05T09:00:00.000Z", why: "no_room" },
+    ]);
   });
 });
 

@@ -1218,9 +1218,9 @@ export type OfficeQuote = {
     serviceName: string | null;
     depositCents: number;
   } | null;
-  // Deposits the Client paid online that couldn't be booked once their bank
-  // approved them, so were refunded, and why, oldest first
-  refundedDeposits: RefundedDeposit[];
+  // what the Client paid online that couldn't be booked once their bank
+  // approved it, and why, oldest first
+  unbookedPayments: UnbookedPayment[];
 };
 
 // why a Deposit paid online couldn't be booked, once the Client's bank
@@ -1228,9 +1228,11 @@ export type OfficeQuote = {
 // cleaning plan started or changed another way meanwhile
 export type DepositRefundedWhy =
   "no_room" | "revised" | "closed" | "has_plan" | "plan_changed";
-export type RefundedDeposit = {
+// a Deposit refunded, or, with amountCents 0, a card saved with nothing
+// charged (no Deposit); endedAt is when it was refunded, or ended
+export type UnbookedPayment = {
   amountCents: number;
-  refundedAt: string;
+  endedAt: string;
   why: DepositRefundedWhy;
 };
 

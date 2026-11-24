@@ -7,7 +7,7 @@ import { retryBill } from "../bills/bills.ts";
 import { NOT_SETTLED } from "./unpaid.ts";
 import { retryJob } from "../completion/completion.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
-import { settleQuotePayments, tellCalledOff } from "../quotes/accept.ts";
+import { settleQuotePayments, tellNotApproved } from "../quotes/accept.ts";
 import {
   openBefore,
   refundFrom,
@@ -26,7 +26,7 @@ import { charges } from "./payments.schema.ts";
  * due Bill charged again; a Bill paid another way meanwhile gives back what
  * its lost Charge took, and so does a Quote nobody booked. A Quote's
  * Deposit waiting on the Client's bank longer than APPROVAL_MS is called
- * off, the Client emailed, or, approved, booked (settleQuotePayments,
+ * off, or found refused, the Client emailed, or, approved, booked (settleQuotePayments,
  * finalizeDeposit), in case neither the browser nor the webhook came back
  * (#534). Each holds what
  * it's for while it tries, so it's safe to run as often as you like, and on
@@ -79,8 +79,8 @@ export const settleOpenPayments = async () => {
   // a Deposit left waiting on the Client's bank is called off, or booked
   // once approved, and they're told
   await each("Quote", open.quotes, async (quoteId) => {
-    const { calledOff } = await settleQuotePayments(quoteId);
-    await tellCalledOff(calledOff, false);
+    const { notApproved } = await settleQuotePayments(quoteId);
+    await tellNotApproved(notApproved, false);
   });
   // a payment made twice, given back whole
   await each("Charge", open.charges, async (chargeId) => {

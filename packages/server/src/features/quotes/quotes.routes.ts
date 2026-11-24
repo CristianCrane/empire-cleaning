@@ -19,7 +19,7 @@ import {
   finalizeProblem,
   latestDepositFor,
   settleQuotePayments,
-  tellCalledOff,
+  tellNotApproved,
 } from "./accept.ts";
 import { askForQuote, enterCallerAsk } from "./asking.ts";
 import { openQuoteList, quotesForClient } from "./quote-state.ts";
@@ -255,13 +255,13 @@ router.post(
       res.json(await officeQuote(id));
       return;
     }
-    // the Client told of those called off once it's known whether the
-    // changes went
+    // the Client told of those called off or refused once it's known
+    // whether the changes went
     let sent: OfficeQuote | undefined;
     try {
       sent = await sendQuote(id, { bankFinishing: settled.finishing });
     } finally {
-      await tellCalledOff(settled.calledOff, sent !== undefined);
+      await tellNotApproved(settled.notApproved, sent !== undefined);
     }
     res.json(sent);
   },

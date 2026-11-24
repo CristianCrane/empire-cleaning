@@ -1,0 +1,1 @@
+ALTER TABLE "pending_deposits" ADD COLUMN "unbooked_why" text;

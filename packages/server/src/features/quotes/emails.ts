@@ -778,6 +778,12 @@ const depositWords = catalog({
   en: {
     refunded: {
       subject: "We've refunded your deposit",
+      // with nothing to give back: what couldn't be done
+      unbooked: {
+        clean: "We couldn't book your clean",
+        plan: "We couldn't start your cleaning plan",
+        change: "We couldn't change your cleaning plan",
+      },
       book: (service: string, address: string, when: string) =>
         `We couldn't book your ${service} at ${address} on ${when}`,
       bookAt: (service: string, address: string) =>
@@ -797,6 +803,7 @@ const depositWords = catalog({
         `We couldn't change your cleaning plan at ${address}: it was changed another way while your bank was approving the payment. Your plan stays as it is now.`,
       refunded: (amount: string, card: string, takes: string) =>
         `We've refunded your ${amount} deposit to your ${card}. ${takes}`,
+      NOTHING_CHARGED: "Nothing was charged to your card.",
       ANOTHER_TIME: "We'll be in touch with another time.",
       WHATS_CHANGED: "Take a look at what's changed:",
     },
@@ -804,6 +811,12 @@ const depositWords = catalog({
       subject: "Your payment wasn't approved in time",
       calledOff: (deposit: string, minutes: number) =>
         `Your bank asked you to approve ${deposit}, and ${minutes} minutes went by without an approval, so we called the payment off. Nothing was charged, and nothing is booked yet.`,
+      // their bank turned down a payment it was still finishing
+      refusedSubject: "Your bank didn't approve your payment",
+      refused: (deposit: string) =>
+        `Your bank didn't approve ${deposit}, so nothing was charged, and nothing is booked yet.`,
+      // a card saved with nothing charged (no Deposit)
+      yourCard: "your card",
       forClean: (amount: string, service: string) =>
         `the ${amount} deposit for your ${service}`,
       forPlan: (amount: string) =>
@@ -823,6 +836,11 @@ const depositWords = catalog({
   es: {
     refunded: {
       subject: "Le devolvimos su depósito",
+      unbooked: {
+        clean: "No pudimos reservar su limpieza",
+        plan: "No pudimos empezar su plan de limpieza",
+        change: "No pudimos cambiar su plan de limpieza",
+      },
       book: (service: string, address: string, when: string) =>
         `No pudimos reservar su ${service} en ${address} el ${when}`,
       bookAt: (service: string, address: string) =>
@@ -841,6 +859,7 @@ const depositWords = catalog({
         `No pudimos cambiar su plan de limpieza en ${address}: se cambió de otra forma mientras su banco aprobaba el pago. Su plan sigue como está ahora.`,
       refunded: (amount: string, card: string, takes: string) =>
         `Le devolvimos su depósito de ${amount} a su ${card}. ${takes}`,
+      NOTHING_CHARGED: "No se cobró nada a su tarjeta.",
       ANOTHER_TIME: "Le contactaremos con otra hora.",
       WHATS_CHANGED: "Revise lo que cambió:",
     },
@@ -848,6 +867,10 @@ const depositWords = catalog({
       subject: "Su pago no se aprobó a tiempo",
       calledOff: (deposit: string, minutes: number) =>
         `Su banco le pidió aprobar ${deposit}, y pasaron ${minutes} minutos sin aprobarlo, así que cancelamos el pago. No se cobró nada, y aún no hay nada reservado.`,
+      refusedSubject: "Su banco no aprobó su pago",
+      refused: (deposit: string) =>
+        `Su banco no aprobó ${deposit}, así que no se cobró nada, y aún no hay nada reservado.`,
+      yourCard: "su tarjeta",
       forClean: (amount: string, service: string) =>
         `el depósito de ${amount} para su ${service}`,
       forPlan: (amount: string) =>
@@ -866,10 +889,11 @@ const depositWords = catalog({
   },
 });
 
-// a Deposit approved but not booked, given back: the Client's record of it,
-// wherever they are, and the only word for one who never came back to the
-// Quote's page
-export const depositRefundedEmail = (
+// what the Client's bank approved that couldn't be booked, a Deposit given
+// back or (amountCents 0) a card saved with nothing charged: the Client's
+// record of it, wherever they are, and the only word for one who never came
+// back to the Quote's page
+export const depositUnbookedEmail = (
   lang: Language,
   deposit: DepositFor & { why: DepositRefundedWhy; card: Card | null },
 ): Email => {
@@ -888,18 +912,23 @@ export const depositRefundedEmail = (
     why === "has_plan" || why === "plan_changed"
       ? w[why](address)
       : `${couldnt}${w[why]}`;
+  const charged = deposit.amountCents > 0;
   return {
     lang,
-    subject: w.subject,
+    subject: charged
+      ? w.subject
+      : w.unbooked[service ? "clean" : deposit.changing ? "change" : "plan"],
     blocks: [
       greeting(firstNameOf(deposit.name)),
       paragraph(first),
       paragraph(
-        w.refunded(
-          formatMoney(deposit.amountCents),
-          cardOf(lang, deposit.card),
-          messages[lang].REFUND_TAKES_DAYS,
-        ),
+        charged
+          ? w.refunded(
+              formatMoney(deposit.amountCents),
+              cardOf(lang, deposit.card),
+              messages[lang].REFUND_TAKES_DAYS,
+            )
+          : w.NOTHING_CHARGED,
       ),
       ...(why === "no_room" ? [paragraph(w.ANOTHER_TIME)] : []),
       ...(why === "revised" ? [paragraph(w.WHATS_CHANGED)] : []),
@@ -914,29 +943,34 @@ export type QuoteSince = "open" | "sent" | "expired";
 // a Deposit left unapproved past APPROVAL_MS, called off by the Clock or by
 // Office Staff sending changes: without it, a Client told to approve it in
 // their bank's app, and approving too late, would hear nothing
-export const depositCalledOffEmail = (
+export const depositNotApprovedEmail = (
   lang: Language,
-  deposit: DepositFor & { minutes: number; since: QuoteSince },
+  // calledOffAfter: the minutes it waited before we called it off; null
+  // when their bank refused it
+  deposit: DepositFor & { calledOffAfter: number | null; since: QuoteSince },
 ): Email => {
   const w = depositWords[lang].calledOff;
   const { formatMoney, formatWhen } = formats[lang];
   const amount = formatMoney(deposit.amountCents);
   const when = formatWhen(deposit.startsAt);
   const service = deposit.service && inLanguage(lang, deposit.service).name;
+  const what = !deposit.amountCents
+    ? w.yourCard
+    : service
+      ? w.forClean(amount, service)
+      : deposit.changing
+        ? w.forChange(amount)
+        : w.forPlan(amount);
+  const { calledOffAfter } = deposit;
   return {
     lang,
-    subject: w.subject,
+    subject: calledOffAfter === null ? w.refusedSubject : w.subject,
     blocks: [
       greeting(firstNameOf(deposit.name)),
       paragraph(
-        w.calledOff(
-          service
-            ? w.forClean(amount, service)
-            : deposit.changing
-              ? w.forChange(amount)
-              : w.forPlan(amount),
-          deposit.minutes,
-        ),
+        calledOffAfter === null
+          ? w.refused(what)
+          : w.calledOff(what, calledOffAfter),
       ),
       paragraph(
         service

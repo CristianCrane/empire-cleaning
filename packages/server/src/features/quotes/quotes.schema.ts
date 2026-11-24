@@ -16,7 +16,11 @@ import {
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-import type { HomeRooms, PriceBreakdown } from "@empire-cleaning/models";
+import type {
+  DepositRefundedWhy,
+  HomeRooms,
+  PriceBreakdown,
+} from "@empire-cleaning/models";
 import { timestamps } from "../../db/timestamps.ts";
 import { accounts } from "../auth/auth.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
@@ -329,6 +333,10 @@ export const pendingDeposits = pgTable(
     }),
     // when it was booked, failed or refunded
     settledAt: timestamp("settled_at", { withTimezone: true }),
+    // why a card saved with nothing charged (no Deposit) couldn't be booked
+    // once the Client's bank approved it: the Office's record of it, as a
+    // refunded Deposit's is its charge attempt (#534 critical review C5)
+    unbookedWhy: text("unbooked_why").$type<DepositRefundedWhy>(),
     ...timestamps,
   },
   (t) => [index("pending_deposits_quote_id_idx").on(t.quoteId)],

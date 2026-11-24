@@ -710,8 +710,9 @@ type Moment = {
   details?: ReactNode;
 };
 
-// why a Deposit paid online was refunded: "Casey paid it as …"
-const refundedAs: Record<DepositRefundedWhy, string> = {
+// why what the Client paid online wasn't booked: "Casey paid it as …", or
+// "accepted it as …" when nothing was charged
+const unbookedAs: Record<DepositRefundedWhy, string> = {
   no_room: "the time filled",
   closed: "the quote was closed",
   revised: "changes were sent",
@@ -780,17 +781,28 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
       title: `${quote.client.name} accepted it`,
     });
   }
-  // a Deposit the Client paid online that couldn't be booked once their
-  // bank approved it (#534), so Office Staff on the phone with them see it
-  quote.refundedDeposits.forEach((refund, i) =>
+  // what the Client paid online that couldn't be booked once their bank
+  // approved it (#534): a Deposit refunded, or a card saved with nothing
+  // charged, so Office Staff on the phone with them, or getting in touch,
+  // see it
+  quote.unbookedPayments.forEach((unbooked, i) => {
+    const name = firstNameOf(quote.client.name);
+    const as = unbookedAs[unbooked.why];
     moments.push({
-      key: `refunded-${i}`,
-      at: refund.refundedAt,
+      key: `unbooked-${i}`,
+      at: unbooked.endedAt,
       icon: Undo2,
-      title: "Deposit refunded",
-      description: `${formatMoney(refund.amountCents)} · ${firstNameOf(quote.client.name)} paid it as ${refundedAs[refund.why]}`,
-    }),
-  );
+      ...(unbooked.amountCents
+        ? {
+            title: "Deposit refunded",
+            description: `${formatMoney(unbooked.amountCents)} · ${name} paid it as ${as}`,
+          }
+        : {
+            title: "Acceptance not booked",
+            description: `Nothing charged · ${name} accepted it as ${as}`,
+          }),
+    });
+  });
   if (quote.turnedDownAt) {
     moments.push({
       key: "turned-down",

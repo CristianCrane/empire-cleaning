@@ -351,6 +351,10 @@ export const approvalOf = async (
       if (!attempt) return { status: "ended", reason: said.reason };
       if (attempt.status === "approving") {
         await update(attempt, { status: "failed", reason: said.reason });
+      } else if (attempt.reason && !calledOff) {
+        // its first answer stands: one refused, then called off by us so it
+        // can't be paid later, still ended refused (#534 review F17)
+        return { status: "ended", reason: attempt.reason };
       }
       if (said.reason !== "canceled") {
         await paymentGateway

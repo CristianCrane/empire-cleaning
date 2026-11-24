@@ -70,8 +70,8 @@ import type { ServicePlan } from "../service-plans/service-plans.schema.ts";
 import { cleanOf, serviceVersions } from "../services/services.ts";
 import {
   bookingConfirmationEmail,
-  depositCalledOffEmail,
-  depositRefundedEmail,
+  depositNotApprovedEmail,
+  depositUnbookedEmail,
   planChangeEmail,
   planConfirmationEmail,
   type DepositFor,
@@ -145,8 +145,9 @@ const words = catalog({
     // words, as only here has the Client paid already, so "nothing more"
     // (PAYMENT_DOWN is the provider unreachable, the Bill's `ours` a
     // payment we take). The email it names is the booking's own, sent once
-    // it books, so nothing to come back for; it promises no booking, as one
-    // whose time filled meanwhile is refunded (#534 review F5, F15, UX U3)
+    // it books; one refunded or refused is emailed too (tellUnbooked,
+    // tellNotApproved), so nothing to come back for. It promises no
+    // booking (#534 review F5, F15, F17, UX U3)
     processing: (what: Paying) =>
       `Your first payment is still going through with your bank, so nothing more was charged. It usually takes a few minutes, and we'll email you as soon as ${{ clean: "your clean is booked", plan: "your plan starts", change: "your plan is changed" }[what]}.`,
     calledOff: (minutes: number) =>
@@ -845,10 +846,14 @@ export type Finalized =
   // not one of ours, or already finished by the browser or the webhook
   | { status: "settled" };
 
-const settle = (ref: string, tx: Tx | typeof db = db) =>
+const settle = (
+  ref: string,
+  tx: Tx | typeof db = db,
+  unbookedWhy: DepositRefundedWhy | null = null,
+) =>
   tx
     .update(pendingDeposits)
-    .set({ settledAt: clock.now() })
+    .set({ settledAt: clock.now(), unbookedWhy })
     .where(
       and(
         eq(pendingDeposits.gatewayRef, ref),
@@ -952,10 +957,14 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
       }
 
       approved = standing;
-      await settle(ref, tx);
       if (hold.unbookable) {
+        // a card saved with nothing charged has no attempt to keep why, so
+        // its pending row does, for the Office (#534 critical review C5)
+        const why = standing.chargeId ? null : hold.unbookable.reason;
+        await settle(ref, tx, why);
         return { status: "refunded", unbookable: hold.unbookable } as const;
       }
+      await settle(ref, tx);
       const booked = await recordAcceptance(
         tx,
         booking,
@@ -984,12 +993,16 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
   }
   if (result.status === "refunded") {
     const { chargeId, saved } = approved!;
+    const why = result.unbookable.reason;
     if (!chargeId) {
+      // nothing to give back, but they're told as one given back is: the
+      // only word for one who approved in their bank's app and never came
+      // back to the page (#534 critical review C5)
+      await tellUnbooked(pending, why, saved?.card ?? null);
       return { status: "unbooked", unbookable: result.unbookable } as const;
     }
-    const why = result.unbookable.reason;
     if (await giveBackDeposit(chargeId, pending.depositCents, quote.id, why)) {
-      await tellRefunded(pending, why, saved?.card ?? null);
+      await tellUnbooked(pending, why, saved?.card ?? null);
     }
     return result;
   }
@@ -1048,8 +1061,9 @@ export const finalizeProblem = (finalized: Finalized) => {
  * sending changes: those still waiting are called off, those approved are
  * booked (finalizeDeposit), or given back if they can't be; and whatever
  * else an earlier try took unbooked is given back. Emails the Client of
- * each given back; those called off are returned, for the caller to say
- * what's become of the Quote. Whether the Quote is now Accepted, and
+ * each given back; those called off, and those their bank refused after
+ * all, are returned, for the caller to say what's become of the Quote
+ * (tellNotApproved, #534 review F17). Whether the Quote is now Accepted, and
  * whether a Deposit is one their bank is still finishing, too far on to
  * call off, so nothing else may change the Quote yet (#534 critical C2).
  */
@@ -1070,8 +1084,9 @@ export const settleQuotePayments = async (quoteId: string) => {
     },
   );
   // each apart, holding the day, never inside the Quote's lock
+  const refused: string[] = [];
   for (const ref of await unsettledDeposits(quoteId)) {
-    await finalizeDeposit(ref);
+    if ((await finalizeDeposit(ref)).status === "failed") refused.push(ref);
   }
   for (const ref of givenBack) {
     const [pending] = await db
@@ -1080,18 +1095,22 @@ export const settleQuotePayments = async (quoteId: string) => {
       .where(eq(pendingDeposits.gatewayRef, ref));
     const attempt = await depositAttemptOf(ref);
     if (pending && attempt?.givenBackWhy) {
-      await tellRefunded(pending, attempt.givenBackWhy, null);
+      await tellUnbooked(pending, attempt.givenBackWhy, null);
     }
   }
-  const pendings = calledOff.length
-    ? await db
-        .select()
-        .from(pendingDeposits)
-        .where(inArray(pendingDeposits.gatewayRef, calledOff))
-    : [];
+  const pendingsOf = async (refs: string[]) =>
+    refs.length
+      ? await db
+          .select()
+          .from(pendingDeposits)
+          .where(inArray(pendingDeposits.gatewayRef, refs))
+      : [];
   return {
     accepted: (await acceptedJobOf(quoteId)) !== null,
-    calledOff: pendings,
+    notApproved: {
+      calledOff: await pendingsOf(calledOff),
+      refused: await pendingsOf(refused),
+    },
     finishing: finishing.length > 0,
   };
 };
@@ -1140,10 +1159,11 @@ const savedCardOf = async (clientId: string) => {
   return saved ? cardIn(saved) : null;
 };
 
-// The Client's record of a Deposit their bank approved but that couldn't
-// be booked, given back: the only word for one who never came back to the
-// Quote's page. An email that can't go mustn't undo the refund
-const tellRefunded = async (
+// The Client's record of what their bank approved that couldn't be booked,
+// a Deposit given back or a card saved with nothing charged: the only word
+// for one who never came back to the Quote's page. An email that can't go
+// mustn't undo the refund
+const tellUnbooked = async (
   pending: PendingDeposit,
   why: DepositRefundedWhy,
   card: Card | null,
@@ -1152,7 +1172,7 @@ const tellRefunded = async (
     const { client, deposit } = await depositFor(pending);
     await email.send({
       to: client.email,
-      ...depositRefundedEmail(client.preferredLanguage, {
+      ...depositUnbookedEmail(client.preferredLanguage, {
         ...deposit,
         why,
         card: card ?? (await savedCardOf(client.id)),
@@ -1166,14 +1186,20 @@ const tellRefunded = async (
 };
 
 // Tells the Client their Deposits left unapproved past APPROVAL_MS were
-// called off, and what's become of the Quote `since`: still open, Expired,
-// or changes sent (by whoever called them off). Nothing for one otherwise
-// closed: they closed it, or it's booked
-export const tellCalledOff = async (
-  calledOff: PendingDeposit[],
+// called off, or that their bank refused after all one it was finishing
+// (as they were told "we'll email you", #534 review F17), and what's become
+// of the Quote `since`: still open, Expired, or changes sent (by whoever
+// settled them). Nothing for one otherwise closed: they closed it, or it's
+// booked
+export const tellNotApproved = async (
+  { calledOff, refused }: Record<"calledOff" | "refused", PendingDeposit[]>,
   sent: boolean,
 ) => {
-  for (const pending of calledOff) {
+  const ended = [
+    ...calledOff.map((pending) => ({ pending, refused: false })),
+    ...refused.map((pending) => ({ pending, refused: true })),
+  ];
+  for (const { pending, refused } of ended) {
     try {
       const { client, quote, deposit } = await depositFor(pending);
       const status = statusOf(quote);
@@ -1187,15 +1213,15 @@ export const tellCalledOff = async (
       if (!since) continue;
       await email.send({
         to: client.email,
-        ...depositCalledOffEmail(client.preferredLanguage, {
+        ...depositNotApprovedEmail(client.preferredLanguage, {
           ...deposit,
-          minutes: APPROVAL_MS / MINUTE_MS,
+          calledOffAfter: refused ? null : APPROVAL_MS / MINUTE_MS,
           since,
         }),
       });
     } catch (error) {
       monitoring.error(error, {
-        what: `called-off email for Deposit ${pending.gatewayRef} not sent`,
+        what: `not-approved email for Deposit ${pending.gatewayRef} not sent`,
       });
     }
   }
