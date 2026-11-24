@@ -25,6 +25,7 @@ import {
   Line,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
+import { crewSizeOf } from "./CleanerNeededScreen.tsx";
 import { useHomeUrl } from "../home-search.ts";
 import {
   addressOf,
@@ -272,8 +273,9 @@ function NextUp({
                   job.serviceName,
                   // to the quarter hour, as the Job's page says it
                   inLine(howLong(t, job.hoursOnSite)),
-                  // the Job's crew size, not who's confirmed so far
-                  job.crewSize > 1 && t.cleaners(job.crewSize),
+                  // the Job's crew size, not who's confirmed so far, in the
+                  // Offers row's words: "just you", "2 cleaners"
+                  inLine(crewSizeOf(t, job)),
                 ]
               : [
                   w.siteVisitFor(clientName(visit!.client)),

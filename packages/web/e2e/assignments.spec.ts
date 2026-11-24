@@ -239,6 +239,8 @@ test(
     // only what's theirs: today's, large; the offered Job is under Offers
     const next = page.getByRole("region", { name: "Next up" });
     await expect(next).toContainText("3:00 PM");
+    // a crew of one in the Offers row's words, as a crew of two is "2 cleaners"
+    await expect(next).toContainText(/2 h\s·\sjust you/);
     // nothing else coming up for them
     await expect(
       page.getByRole("button", { name: /^Coming up/ }),
@@ -532,7 +534,7 @@ test(
     await expect(row).toHaveCount(1);
     await expect(row).toContainText("Jan 8");
     // roughly where, then what
-    await expect(row).toContainText("Thu 9:00 AM · 11375");
+    await expect(row).toContainText("Thu 9:00 AM · ZIP code 11375");
     await expect(row).toContainText("Deep Clean · 6 h · just you");
 
     await row.click();

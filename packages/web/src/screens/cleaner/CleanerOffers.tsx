@@ -68,7 +68,8 @@ export function CleanerOffers() {
       ? {
           id: job.jobId,
           at: job.startsAt,
-          title: job.postcode,
+          // read on from the time before it: "código postal 11375"
+          title: inLine(c.zip(job.postcode)),
           description: (
             <Line
               parts={[
@@ -87,7 +88,7 @@ export function CleanerOffers() {
       : {
           id: job.id,
           at: job.startsAt,
-          title: job.property.postcode,
+          title: inLine(c.zip(job.property.postcode)),
           description: (
             <Line
               parts={[job.serviceName, inLine(howLong(t, job.hoursOnSite))]}

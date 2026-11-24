@@ -173,9 +173,12 @@ export const howLong = (
 };
 
 // a part of a row's line after its first, which reads on from the dot
-// before it as a sentence does, in lower case: "Deep Clean · about 1¾ h"
+// before it as a sentence does, in lower case: "Deep Clean · about 1¾ h";
+// an initialism keeps its capitals, as a name does: "ZIP code 11375"
 export const inLine = (part: string) =>
-  part.charAt(0).toLocaleLowerCase() + part.slice(1);
+  /^\p{Lu}{2}/u.test(part)
+    ? part
+    : part.charAt(0).toLocaleLowerCase() + part.slice(1);
 
 // the parts of a row's line that show: a part left out is false, null,
 // undefined or empty. Both lineOf and the kit's Line keep only these

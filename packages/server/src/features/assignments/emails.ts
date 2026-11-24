@@ -58,7 +58,7 @@ const words = catalog({
       hours: (hours: string, n: number) =>
         `${hours} ${n <= 1 ? "hour" : "hours"}`,
       zip: (postcode: string) => `ZIP code ${postcode}`,
-      crew: (n: number) => (n === 1 ? "on your own" : `with ${n} cleaners`),
+      crew: (n: number) => (n === 1 ? "just you" : `with ${n} cleaners`),
       FIRST_TO_CONFIRM: "Each goes to the first cleaner to confirm.",
       SEE_THE_JOBS: "See the jobs",
     },

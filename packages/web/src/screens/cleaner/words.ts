@@ -21,6 +21,8 @@ export const cleanerWords = catalog({
     directions: "Directions",
     crew: "Crew",
     justYou: "Just you",
+    // roughly where, before they've taken it
+    zip: (postcode: string) => `ZIP code ${postcode}`,
     // the reader, on a crew they're in
     you: "You",
     goBack: "Go back",
@@ -55,6 +57,7 @@ export const cleanerWords = catalog({
     directions: "Cómo llegar",
     crew: "Equipo",
     justYou: "Solo tú",
+    zip: (postcode: string) => `Código postal ${postcode}`,
     you: "Tú",
     goBack: "Volver",
     callOffice: "Llamar a la oficina",

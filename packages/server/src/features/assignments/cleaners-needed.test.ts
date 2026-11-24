@@ -338,7 +338,7 @@ describe("Releasing a Confirmed Assignment", () => {
         "Tuesday, January 6 at 9:00 AM",
         "ZIP code 11375",
         "3 hours",
-        "on your own",
+        "just you",
       ].join("\u00a0·\u00a0"),
     );
     expect(toDee.text).toContain(

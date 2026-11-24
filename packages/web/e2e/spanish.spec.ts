@@ -313,7 +313,9 @@ test("a Cleaner reading in Spanish takes an open job and marks it done, in tú",
     page.getByRole("tab", { name: /Disponibles para ti/ }),
   ).toHaveAttribute("aria-selected", "true");
   const open = listRows(page, "Ofertas");
-  await expect(open).toContainText("vie 9:00 a.m.");
+  // its ZIP code read on from the time, in lower case: "ZIP code" keeps its
+  // capitals in English
+  await expect(open).toContainText(/vie 9:00 a\.m\.\s·\scódigo postal \d{5}/);
   // the Service by its Spanish name
   await expect(open).toContainText("Limpieza profunda");
   await open.click();

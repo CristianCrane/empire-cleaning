@@ -13,11 +13,9 @@ import { JobLead } from "./JobLead.tsx";
 
 const words = catalog({
   en: {
-    zip: (postcode: string) => `ZIP code ${postcode}`,
     didntWork: "That didn't work. Please try again.",
   },
   es: {
-    zip: (postcode: string) => `Código postal ${postcode}`,
     didntWork: "No funcionó. Vuelve a intentarlo.",
   },
 });
@@ -103,7 +101,7 @@ export function CleanerNeededScreen() {
         },
       ]}
     >
-      <JobLead job={job} where={w.zip(job.postcode)}>
+      <JobLead job={job} where={c.zip(job.postcode)}>
         <Facts>
           <Fact
             icon={Clock}

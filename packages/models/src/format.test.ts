@@ -156,4 +156,6 @@ test("inLine reads a part on from the dot before it", () => {
   expect(inLine("About 1¾ h")).toBe("about 1¾ h");
   expect(inLine("Cerca de 1¾ h")).toBe("cerca de 1¾ h");
   expect(inLine("3 h")).toBe("3 h");
+  expect(inLine("ZIP code 11375")).toBe("ZIP code 11375");
+  expect(inLine("Código postal 11375")).toBe("código postal 11375");
 });
