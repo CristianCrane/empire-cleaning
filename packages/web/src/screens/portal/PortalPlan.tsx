@@ -90,6 +90,11 @@ export function PortalPlan() {
     forClient: true,
     endPath: `/api/service-plans/mine/${plan.id}/end`,
   });
+  // the plan's card says how long a clean runs; a clean's row says it too
+  // only where they differ, as on two weekdays of different lengths
+  const lengths = new Set(
+    [...plan.days, ...plan.upcoming].map((c) => howLong(t, c.hoursOnSite)),
+  );
 
   return (
     <RecordPage
@@ -144,7 +149,9 @@ export function PortalPlan() {
               id={job.id}
               title={t.formatDateTime(job.startsAt)}
               // how long, as the clean's own page says it
-              description={howLong(t, job.hoursOnSite)}
+              description={
+                lengths.size > 1 ? howLong(t, job.hoursOnSite) : undefined
+              }
               // as the Cleans list badges it (#507)
               end={upcomingBadge(t, job)}
             />

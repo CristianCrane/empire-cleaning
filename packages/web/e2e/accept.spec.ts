@@ -451,7 +451,7 @@ test("the draft of a Quote its Client is paying waits to be sent", async ({
   // while what's typed waits to save (review F22)
   const status = page.getByRole("status").filter({ hasText: /prices|saved/i });
   await expect(status).toHaveText(
-    "Saved · Send waits on Casey's deposit payment",
+    "Saved · send waits on Casey's deposit payment",
   );
   const standard = page.getByRole("group", { name: "Standard Clean" });
   await standard.getByText("Set the Standard Clean price yourself").click();
@@ -459,12 +459,12 @@ test("the draft of a Quote its Client is paying waits to be sent", async ({
     .getByRole("textbox", { name: "Standard Clean price before tax" })
     .fill("250");
   await expect(status).toHaveText(
-    "Give a reason for the new price to update the prices · Send waits on Casey's deposit payment",
+    "Give a reason for the new price to update the prices · send waits on Casey's deposit payment",
   );
   // and it ends at rest, as Jen opens it, for its shot
   await standard.getByText("Set the Standard Clean price yourself").click();
   await expect(status).toHaveText(
-    "Saved · Send waits on Casey's deposit payment",
+    "Saved · send waits on Casey's deposit payment",
   );
 });
 
@@ -498,7 +498,7 @@ test(
     ).toBeDisabled();
     await expect(
       page.getByRole("status").filter({ hasText: /prices|saved/i }),
-    ).toHaveText("Saved · Send waits on Casey's deposit payment");
+    ).toHaveText("Saved · send waits on Casey's deposit payment");
     const alert = page.getByRole("status").filter({
       hasText:
         "Casey Client's online payment is still going through with their bank, which usually takes a few minutes. If it books the quote you sent, your draft is deleted. If not, you can send your changes then.",

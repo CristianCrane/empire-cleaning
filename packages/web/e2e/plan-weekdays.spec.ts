@@ -98,18 +98,28 @@ test(
 
     await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
     await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
-    // how often; each weekday's card names its day and time
+    // how often; each weekday's card names its day and time, and its
+    // cleaning hours only for a crew of more than one: a crew of one's are
+    // its time on site
     await expect(
       page.getByRole("region", { name: "Current quote" }),
     ).toContainText("Every week");
+    const mondayCard = page.getByRole("region", {
+      name: "Mondays at 9:00 AM: Standard Clean",
+    });
+    await expect(mondayCard.getByRole("term")).toContainText([
+      "Cleaning hours",
+      "On site, with 2 cleaners",
+    ]);
+    const wednesdayCard = page.getByRole("region", {
+      name: "Wednesdays at 1:00 PM: Standard Clean",
+    });
+    await expect(wednesdayCard.getByRole("term")).toContainText([
+      "On site, with 1 cleaner",
+    ]);
     await expect(
-      page.getByRole("region", { name: "Mondays at 9:00 AM: Standard Clean" }),
-    ).toContainText("On site, with 2 cleaners");
-    await expect(
-      page.getByRole("region", {
-        name: "Wednesdays at 1:00 PM: Standard Clean",
-      }),
-    ).toContainText("On site, with 1 cleaner");
+      wednesdayCard.getByRole("term").filter({ hasText: "Cleaning hours" }),
+    ).toHaveCount(0);
     // the Current Quote ends with the plan's Deposit
     const deposit = (await page
       .getByRole("region", { name: "Current quote" })
@@ -161,15 +171,24 @@ test(
         .getByRole("grid", { name: "Your upcoming cleans" })
         .getByRole("row"),
     ).toHaveText([
-      /Mon, Jan 19, 9:00 AM/,
-      /Wed, Jan 21, 1:00 PM/,
-      /Mon, Jan 26, 9:00 AM/,
-      /Wed, Jan 28, 1:00 PM/,
-      /Mon, Feb 2, 9:00 AM/,
-      /Wed, Feb 4, 1:00 PM/,
-      /Mon, Feb 9, 9:00 AM/,
+      // each says how long, as the two weekdays differ
+      /Mon, Jan 19, 9:00 AMAbout 2 h/,
+      /Wed, Jan 21, 1:00 PM3¾ h/,
+      /Mon, Jan 26, 9:00 AMAbout 2 h/,
+      /Wed, Jan 28, 1:00 PM3¾ h/,
+      /Mon, Feb 2, 9:00 AMAbout 2 h/,
+      /Wed, Feb 4, 1:00 PM3¾ h/,
+      /Mon, Feb 9, 9:00 AMAbout 2 h/,
     ]);
     await noViolations(client);
+
+    // the Office's plan says each weekday's time there, and each crew
+    // where they differ
+    const planId = new URL(client.url()).pathname.split("/").pop();
+    await page.goto(`/office/service-plans/${planId}`);
+    await expect(
+      page.getByRole("region", { name: "Cleaning plan" }),
+    ).toContainText("On site, with 2 cleaners + 1 cleaner");
   },
 );
 

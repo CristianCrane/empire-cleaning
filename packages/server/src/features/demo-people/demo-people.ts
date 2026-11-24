@@ -6,24 +6,25 @@ import { staff } from "../staff/staff.schema.ts";
 
 // the people of the seed's demo (tests/seed.ts) worth signing in as on the
 // test site, found by name, and what being each one shows. The guided tours
-// link to them, so the seed checks every one is there.
+// link to them, so the seed checks every one is there. What each shows reads
+// after their role, "Client · on a weekly plan", in lower case but for a name.
 export const DEMO_PEOPLE = {
   staff: [
-    { name: "Jennifer", shows: "Runs the business" },
+    { name: "Jennifer", shows: "runs the business" },
     {
       name: "Maria Gonzalez",
       shows: "Helen's cleaner, with a job offered to her",
     },
-    { name: "Luz Herrera", shows: "Cleans Bell Blvd Pediatrics every week" },
-    { name: "Daniela Cruz", shows: "Dropped out of a two-person clean" },
+    { name: "Luz Herrera", shows: "cleans Bell Blvd Pediatrics every week" },
+    { name: "Daniela Cruz", shows: "dropped out of a two-person clean" },
   ],
   clients: [
-    { name: "Helen Kowalski", shows: "On a weekly plan" },
-    { name: "Sam Ng", shows: "A quote that runs out tomorrow" },
-    { name: "Max Rivera", shows: "Offered a plan after a first clean" },
-    { name: "Grace Lee", shows: "A price change to approve" },
-    { name: "Rosa Diaz", shows: "Asked to move a clean" },
-    { name: "Tia Moore", shows: "A payment that failed" },
+    { name: "Helen Kowalski", shows: "on a weekly plan" },
+    { name: "Sam Ng", shows: "a quote that runs out tomorrow" },
+    { name: "Max Rivera", shows: "offered a plan after a first clean" },
+    { name: "Grace Lee", shows: "a price change to approve" },
+    { name: "Rosa Diaz", shows: "asked to move a clean" },
+    { name: "Tia Moore", shows: "a payment that failed" },
     { name: "Rachel Bell", shows: "Bell Blvd Pediatrics, billed weekly" },
   ],
 };

@@ -82,7 +82,7 @@ export const askedSummary = ({ asked, property }: OfficeQuote) => (
   <Line
     parts={[
       asked?.service.name,
-      propertySummary(property),
+      propertySummary(property, !!asked),
       property.condition && conditionText(property.condition).toLowerCase(),
     ]}
   />
@@ -358,13 +358,14 @@ export function PriceWorking({ breakdown: b }: { breakdown: PriceBreakdown }) {
           )}
         />
       )}
-      {b.addOns.map((addOn) => (
-        <Figure
-          key={addOn.key}
-          label={working.addOn(addOn)}
-          value={typedHours(addOn.hours)}
-        />
-      ))}
+      {working
+        .addOns(
+          b,
+          b.conditionMultiplier * (premises ? 1 : (b.cleanTypeMultiplier ?? 1)),
+        )
+        .map((row) => (
+          <Figure key={row.key} label={row.label} value={row.value} />
+        ))}
       <Figure label={working.hours} value={typedHours(b.labourHours)} strong />
       <Figure
         label={working.rate(b.hourlyRateCents, premises)}

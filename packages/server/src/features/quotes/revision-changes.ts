@@ -5,7 +5,7 @@ import {
   type RevisionChange,
 } from "@empire-cleaning/models";
 import type { Revision, RevisionOptionRow } from "./quotes.schema.ts";
-import { ownOption } from "./quote-state.ts";
+import { isOwnOption, ownOption } from "./own-option.ts";
 
 // a Sent Revision as the History compares it: its terms, its options, and
 // the price it led with
@@ -30,15 +30,17 @@ const addOnKeys = (o: RevisionOptionRow) =>
  * What a Sent Revision changed of the one sent before it, in the order the
  * Office reads them: its terms, as the Draft names them, and its price.
  * Compared field by field, so two sends alike read "nothing changed", and a
- * price that moved with no term ("price", "offeredPrice") is the Price List's
- * between the two sends. A one-off Quote's options pair up by Service; a
+ * price that moved with no term ("price", the one it leads with, or
+ * "offeredPrice", the other Service's, or both) is the Price List's between
+ * the two sends. A one-off Quote's options pair up by Service; a
  * Service Plan Quote's by weekday, and those on one weekday only are
- * "weekdays".
+ * "weekdays". With "offeredPrice", the other Service's name, for its words:
+ * "Deep Clean price changed".
  */
 export const revisionChanges = (
   before: SentRevision,
   after: SentRevision,
-): RevisionChange[] => {
+): { changed: RevisionChange[]; offeredServiceName: string | null } => {
   const a = before.revision;
   const b = after.revision;
   const changed = new Set<RevisionChange>();
@@ -66,10 +68,19 @@ export const revisionChanges = (
       changed.add("time");
   }
   if (a.serviceKey !== b.serviceKey) changed.add("service");
-  if (before.headline.totalCents !== after.headline.totalCents)
+  const priced = ([x, y]: [RevisionOptionRow, RevisionOptionRow]) =>
+    x.totalCents !== y.totalCents;
+  // a Service Plan Quote's price is its round's, every weekday's clean in it
+  if (
+    before.headline.totalCents !== after.headline.totalCents ||
+    (plan && pairs.some(priced))
+  )
     changed.add("price");
-  else if (pairs.some(([x, y]) => x.totalCents !== y.totalCents))
-    changed.add("offeredPrice");
+  // a one-off Quote's other Service, offered beside its own
+  const offered = plan
+    ? undefined
+    : pairs.find((p) => !isOwnOption(b, p[1]) && priced(p));
+  if (offered) changed.add("offeredPrice");
   if (
     a.crewSize !== b.crewSize ||
     pairs.some(([x, y]) => x.crewSize !== y.crewSize)
@@ -90,5 +101,8 @@ export const revisionChanges = (
     changed.add("planDiscount");
   if (a.recurrence !== b.recurrence) changed.add("recurrence");
   if (a.validityDays !== b.validityDays) changed.add("validity");
-  return REVISION_CHANGES.filter((c) => changed.has(c));
+  return {
+    changed: REVISION_CHANGES.filter((c) => changed.has(c)),
+    offeredServiceName: offered?.[1].suggested.serviceName ?? null,
+  };
 };

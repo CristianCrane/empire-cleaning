@@ -8,20 +8,34 @@ const { cleaners } = screenWords.en;
 
 const { formatMoney } = formats.en;
 
+// the home's hours, times what multiplies them (its Condition)
+const homeTimes = (b: PriceBreakdown, multiplier: number) =>
+  b.homeHours.reduce((sum, part) => sum + part.hours, 0) * multiplier;
+
 // a working-out's lines, as a Quote's override and this both say them
 export const working = {
   // the level, where it's known
   condition: (level: string | null, multiplier: number) =>
     `× ${level ? `${level.toLowerCase()} ` : ""}condition (${multiplier})`,
-  addOn: (addOn: { name: string; taxExempt: boolean }) =>
-    `+ ${addOn.name}${addOn.taxExempt ? " (no tax)" : ""}`,
+  // each extra's row: what it adds, then the hours with it and the rows
+  // above, as the condition's row says them, so the last is what's rounded
+  // up: "+ Inside the oven (0.5 h)", "2.8375 h"
+  addOns: (b: PriceBreakdown, multiplier: number) => {
+    let hours = homeTimes(b, multiplier);
+    return b.addOns.map((addOn) => {
+      hours += addOn.hours;
+      return {
+        key: addOn.key,
+        label: `+ ${addOn.name} (${typedHours(addOn.hours)}${addOn.taxExempt ? ", no tax" : ""})`,
+        value: typedHours(hours),
+      };
+    });
+  },
   hours: "Cleaning hours, rounded up to the quarter-hour",
-  // the home's hours, times what multiplies them (its Condition), as the
-  // rows under add to them: "2.3375 h"
+  // the home's hours, times what multiplies them, as the rows under add to
+  // them: "2.3375 h"
   homeTimes: (b: PriceBreakdown, multiplier: number) =>
-    typedHours(
-      b.homeHours.reduce((sum, part) => sum + part.hours, 0) * multiplier,
-    ),
+    typedHours(homeTimes(b, multiplier)),
   rate: (cents: number, business = false) =>
     `× ${formatMoney(cents)} an hour${business ? " for a business" : ""}, to the whole dollar`,
   minimum: (cents: number) =>
@@ -115,12 +129,8 @@ export function WorkedOutQuote({
               was={was && working.homeTimes(was, was.conditionMultiplier)}
             />
           )}
-          {now.addOns.map((addOn) => (
-            <Figure
-              key={addOn.key}
-              label={working.addOn(addOn)}
-              value={typedHours(addOn.hours)}
-            />
+          {working.addOns(now, now.conditionMultiplier).map((row) => (
+            <Figure key={row.key} label={row.label} value={row.value} />
           ))}
           <Figure
             label={working.hours}

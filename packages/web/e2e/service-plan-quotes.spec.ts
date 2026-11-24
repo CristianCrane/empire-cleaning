@@ -238,7 +238,7 @@ test("a Service Plan of Deep Cleans", async ({ page, browser }) => {
   ).toBeVisible();
   // its story names the plan's Service, and the round's unit
   await expect(
-    page.getByText(/^Deep Clean plan \$[\d,.]+ a clean · for /),
+    page.getByText(/^Deep Clean plan \$[\d,.]+ a clean\s·\sfor /),
   ).toHaveCount(1);
 
   const client = await (await browser.newContext()).newPage();
@@ -417,6 +417,12 @@ test("a plan quoted at no discount says no saving, on its quote and on the plan"
   const details = client.getByRole("region", { name: "Plan details" });
   await expect(details).toContainText("$224.28Each clean, tax included");
   await expect(details).not.toContainText("% off");
+  // how long a clean runs is said once, on the plan, as every clean on its
+  // one weekday runs as long
+  await expect(details).toContainText(/[\d¼½¾] hHow long/);
+  const cleans = client.getByRole("grid", { name: "Your upcoming cleans" });
+  await expect(cleans.getByRole("row").first()).toContainText("9:00 AM");
+  await expect(cleans).not.toContainText(/[\d¼½¾] h/);
 });
 
 test("the Client Declines a Service Plan Quote", async ({ page, browser }) => {

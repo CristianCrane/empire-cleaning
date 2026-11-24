@@ -50,6 +50,7 @@ import {
   formatHours,
   formatMinutes,
   jobLabelOf,
+  lineOf,
   shortClientName,
   timeOfDay,
   today,
@@ -612,6 +613,7 @@ function DayHeader({
         {nobody && day.bookedHours === 0 ? (
           "Nobody working"
         ) : (
+          // each figure kept whole on its line, not "7 h 30 min" over "free"
           <Line
             parts={[
               `${formatHours(day.bookedHours)} booked`,
@@ -619,7 +621,14 @@ function DayHeader({
               day.freeHours < 0
                 ? `${formatHours(-day.freeHours)} over`
                 : `${formatHours(day.freeHours)} free`,
-            ]}
+            ].map(
+              (part) =>
+                part && (
+                  <span key={part} className="whitespace-nowrap">
+                    {part}
+                  </span>
+                ),
+            )}
           />
         )}
       </p>
@@ -810,7 +819,7 @@ function DayJobs({
             </BlockTime>
             <span className={compact ? "sr-only" : "truncate"}>
               <span className="sr-only">, </span>
-              Site visit · {formatMinutes(visit.minutes)}
+              {lineOf(["Site visit", formatMinutes(visit.minutes)])}
             </span>
             {visit.visitor && (
               <span className={compact ? "sr-only" : "truncate text-fg-muted"}>

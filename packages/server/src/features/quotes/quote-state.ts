@@ -51,6 +51,7 @@ import {
 } from "../services/services.ts";
 import { siteVisitStages } from "../site-visits/site-visits.ts";
 import { askedAddOns } from "./asked-add-ons.ts";
+import { ownOption } from "./own-option.ts";
 import { revisionChanges } from "./revision-changes.ts";
 import {
   quoteRevisions,
@@ -192,20 +193,6 @@ const optionsOfRevisions = async (revisionIds: string[]) => {
     (o) => o.revisionId,
   );
 };
-
-// whether an option is its Revision's own, for the Service it was drafted
-// for, which has every Add-on it chose: a one-off Quote's recommended
-// Service prices only those that go with it
-export const isOwnOption = (
-  revision: Pick<Revision, "serviceKey">,
-  row: { serviceKey: string },
-) => row.serviceKey === revision.serviceKey;
-
-// a Revision's option for its own Service
-export const ownOption = <T extends { serviceKey: string }>(
-  revision: Pick<Revision, "serviceKey">,
-  rows: T[],
-) => rows.find((row) => isOwnOption(revision, row))!;
 
 // what a Revision leads with, tax included, and its Service: a Service Plan
 // Quote's round, a clean on each weekday, all of one Service, or a one-off
@@ -537,9 +524,9 @@ export const revisionHistory = async (
     const { revision: r, options: offered, headline } = after;
     // newest first: the one sent before it is next
     const before = compared[i + 1];
-    const changed = before ? revisionChanges(before, after) : null;
-    // a one-off Quote's other Service, offered beside its own
-    const other = offered.find((o) => !isOwnOption(r, o));
+    const { changed, offeredServiceName } = before
+      ? revisionChanges(before, after)
+      : { changed: null, offeredServiceName: null };
     return {
       id: r.id,
       number: r.number,
@@ -550,10 +537,7 @@ export const revisionHistory = async (
       sentAt: r.sentAt!.toISOString(),
       expiresAt: r.expiresAt!.toISOString(),
       changed,
-      offeredServiceName:
-        other && changed?.includes("offeredPrice")
-          ? other.suggested.serviceName
-          : null,
+      offeredServiceName,
     };
   });
 };

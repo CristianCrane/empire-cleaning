@@ -45,7 +45,13 @@ import {
 import { deleteJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { addressOf, clientName, formatHours, screenWords } from "../format.ts";
+import {
+  addressOf,
+  clientName,
+  formatHours,
+  screenWords,
+  typedHours,
+} from "../format.ts";
 import { jobStatusIcon } from "../icons.ts";
 import { costForOffice } from "../RescheduleParts.tsx";
 import { CancelJob, howItEnded } from "./JobCancellation.tsx";
@@ -273,11 +279,15 @@ function JobDetails({ job }: { job: OfficeJob }) {
           label="Extras"
           value={job.addOns.length > 0 ? job.addOns.join(", ") : "None"}
         />
-        <Fact
-          icon={Clock}
-          label="Cleaning hours"
-          value={formatHours(job.labourHours)}
-        />
+        {/* priced at a rate, as its quote's working-out says them: "3.25 h";
+            a crew of one's are its time on site, said above */}
+        {job.crewSize > 1 && (
+          <Fact
+            icon={Clock}
+            label="Cleaning hours"
+            value={typedHours(job.labourHours)}
+          />
+        )}
         <Fact icon={Users} label="Cleaners" value={job.crewSize} />
         {job.rescheduleTerms && (
           <Fact

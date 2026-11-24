@@ -45,7 +45,7 @@ import {
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { addressOf, formatMinutes } from "../format.ts";
+import { addressOf, formatMinutes, lineOf } from "../format.ts";
 import { QuoteIcon } from "../icons.ts";
 import { type Said, useSaid } from "../words.ts";
 import {
@@ -55,7 +55,7 @@ import {
   ClientQuoteStatusBadge,
 } from "../QuoteParts.tsx";
 import { ConsentNote, usePaymentForm } from "./CardForm.tsx";
-import { catalog, howLong, oneStop } from "@empire-cleaning/models";
+import { catalog, howLong, inLine, oneStop } from "@empire-cleaning/models";
 import { requestQuoteHref } from "./whats-next.ts";
 
 // in the Client's language (ADR-0025)
@@ -88,7 +88,7 @@ const words = catalog({
     recommended: "Recommended",
     // how long it runs, as the clean's page says it
     hoursDeposit: (hours: string, deposit: string) =>
-      `${hours} · ${deposit} deposit`,
+      lineOf([hours, `${deposit} deposit`]),
     noLongerFits:
       "No longer fits on that day: it's been booked up since we sent this quote",
     oneADay: "One clean a day. ",
@@ -182,7 +182,7 @@ const words = catalog({
       `Le recomendamos una ${recommended} para la primera visita: deja su casa en buen estado. Una ${own} cuesta menos.`,
     recommended: "Recomendada",
     hoursDeposit: (hours: string, deposit: string) =>
-      `${hours} · ${deposit} de depósito`,
+      lineOf([hours, `${deposit} de depósito`]),
     noLongerFits:
       "Ya no cabe ese día: se llenó después de que le enviamos esta cotización",
     oneADay: "Una limpieza por día. ",
@@ -293,12 +293,14 @@ function QuotePage({
 >) {
   const t = useSaid(words);
   // none when there's nothing to say, so the header draws no empty line
+  const open = openUntil && t.p.openUntil(t.formatDateTime(openUntil));
   const subtitle = (updatedAt || openUntil) && (
     <Line
       parts={[
         // a resend replaced the offer they may have seen before
         updatedAt && t.w.updated(t.formatDate(updatedAt)),
-        openUntil && t.p.openUntil(t.formatDateTime(openUntil)),
+        // after it, reading on from the dot
+        updatedAt && open ? inLine(open) : open,
       ]}
     />
   );
@@ -622,10 +624,17 @@ function QuoteDetails({
         ) : (
           <Figures>
             <Figure
-              label={chosen.serviceName}
+              // the extras its price includes, under its name
+              label={
+                <>
+                  {chosen.serviceName}
+                  {extras && (
+                    <span className="block">{t.w.includes(extras)}</span>
+                  )}
+                </>
+              }
               value={t.formatMoney(chosen.priceCents)}
             />
-            {extras && <Figure label={t.w.includes(extras)} value="" />}
             <Figure label={t.w.tax} value={t.formatMoney(chosen.taxCents)} />
             <Figure
               label={t.total}

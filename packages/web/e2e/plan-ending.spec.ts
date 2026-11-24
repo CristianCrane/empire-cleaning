@@ -76,7 +76,7 @@ test(
     await dialog.getByRole("button", { name: "End plan" }).click();
 
     await expect(page.getByText("Your cleaning plan has ended")).toBeVisible();
-    await expect(page.getByText(/Ended Jan 18/)).toBeVisible();
+    await expect(page.getByText(/ended Jan 18/)).toBeVisible();
     await expect(
       page.getByRole("grid", { name: "Your upcoming cleans" }).getByRole("row"),
     ).toHaveCount(1);

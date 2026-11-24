@@ -134,7 +134,7 @@ export function ClientDetail() {
               title={addressOf(home)}
               description={
                 <Line
-                  parts={[statusLine(home.status), propertySummary(home)]}
+                  parts={[statusLine(home.status), propertySummary(home, true)]}
                 />
               }
               onAction={() =>

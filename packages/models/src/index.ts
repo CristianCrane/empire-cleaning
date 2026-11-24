@@ -1173,13 +1173,14 @@ export type RevisionSummary = {
   // reads them; empty when it was sent again as it was, null on the first
   changed: RevisionChange[] | null;
   // a one-off Quote's other Service, offered beside its own, whose price
-  // alone changed: "Deep Clean price changed"; null otherwise
+  // changed: "Deep Clean price changed"; null otherwise
   offeredServiceName: string | null;
 };
 
 // what a Sent Revision can change of the one before it: its terms, as the
-// Draft names them, and "price", its headline's, or "offeredPrice", only
-// the other Service's, as when the Price List moved between the two sends
+// Draft names them, and "price", its headline's (a Service Plan Quote's, any
+// weekday's), and "offeredPrice", a one-off Quote's other Service's, as when
+// the Price List moved between the two sends
 export const REVISION_CHANGES = [
   "service",
   "price",

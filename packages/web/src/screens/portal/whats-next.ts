@@ -33,7 +33,7 @@ import {
 import type { HomeTile } from "@empire-cleaning/ui";
 import { linkTo, sameHref } from "../../links.ts";
 import { QuoteIcon, SiteVisitIcon } from "../icons.ts";
-import { addressOf, formatMinutes, pausedPlans } from "../format.ts";
+import { addressOf, formatMinutes, lineOf, pausedPlans } from "../format.ts";
 import { saidWith } from "../words.ts";
 import type { Hero, Why } from "./HeroCard.tsx";
 import { moneyNow, owedAnswer, yourCardTile } from "./payments.ts";
@@ -63,7 +63,7 @@ const words = catalog({
     cameToday: (time: string, reason: string) =>
       `The crew came at ${time} today, but couldn't get in: "${reason}".`,
     // a waiting tile's hint, when there are several
-    andMore: (first: string, more: number) => `${first} · ${more} more`,
+    andMore: (first: string, more: number) => lineOf([first, `${more} more`]),
     seeQuotes: (n: number) => `See your ${n} quotes`,
     quoteReadyLabel: "Your quote is ready",
     askedToMove: (day: string, to: string) =>
@@ -133,7 +133,7 @@ const words = catalog({
       `${amount}, responda antes del ${day}`,
     cameToday: (time: string, reason: string) =>
       `El equipo llegó hoy a ${theTimeEs(time)}, pero no pudo entrar: "${reason}".`,
-    andMore: (first: string, more: number) => `${first} · ${more} más`,
+    andMore: (first: string, more: number) => lineOf([first, `${more} más`]),
     seeQuotes: (n: number) => `Ver sus ${n} cotizaciones`,
     quoteReadyLabel: "Su cotización está lista",
     askedToMove: (day: string, to: string) =>

@@ -82,33 +82,38 @@ const visitRow =
 
 const pastRow =
   (t: T, homes: number, open: (jobId: string) => void) =>
-  (job: ClientPastJob): ListRow => ({
-    id: job.id,
-    at: job.startsAt,
-    title: job.serviceName,
-    description: (
-      <Line
-        parts={[
-          homes > 1 && addressOf(job.property),
-          job.status === "completed"
-            ? t.formatMoney(job.totalCents)
-            : job.feeCents > 0
-              ? t.w.fee(t.formatMoney(job.feeCents))
-              : t.w.noCharge,
-        ]}
-      />
-    ),
-    badges: [
-      cleanBadge(t, {
-        status: job.status,
-        unpaid: job.unpaid,
-        priceChange: job.waiting.length > 0,
-        skipped: job.skipped,
-        moveAsked: false,
-      }),
-    ],
-    onOpen: () => open(job.id),
-  });
+  (job: ClientPastJob): ListRow => {
+    const cost =
+      job.status === "completed"
+        ? t.formatMoney(job.totalCents)
+        : job.feeCents > 0
+          ? t.w.fee(t.formatMoney(job.feeCents))
+          : t.w.noCharge;
+    return {
+      id: job.id,
+      at: job.startsAt,
+      title: job.serviceName,
+      description: (
+        <Line
+          parts={[
+            homes > 1 && addressOf(job.property),
+            // after the address, it reads on from the dot
+            homes > 1 ? inLine(cost) : cost,
+          ]}
+        />
+      ),
+      badges: [
+        cleanBadge(t, {
+          status: job.status,
+          unpaid: job.unpaid,
+          priceChange: job.waiting.length > 0,
+          skipped: job.skipped,
+          moveAsked: false,
+        }),
+      ],
+      onOpen: () => open(job.id),
+    };
+  };
 
 export function PortalCleans() {
   const { client, jobs, pastJobs, siteVisits } = useLoaderData({

@@ -45,14 +45,13 @@ import type {
   QuoteDraftInput,
   RecordedAcceptance,
   Recurrence,
-  RevisionChange,
-  RevisionSummary,
   ServiceChoice,
   ServicePlanInput,
 } from "@empire-cleaning/models";
 import {
   clientPaying,
   firstNameOf,
+  inLine,
   noEmailYet,
   notSeenYet,
   placeOwner,
@@ -63,7 +62,6 @@ import {
   noRoomOf,
   runsPastMidnight,
   formats,
-  lineOf,
   messages,
   type DepositRefundedWhy,
   type PayingFor,
@@ -116,6 +114,7 @@ import { useAction, useLeavingAction } from "../action.ts";
 import {
   clientName,
   dayOfInstant,
+  lineOf,
   timeOfDay,
   timeOfField,
   screenWords,
@@ -151,6 +150,7 @@ import {
   visitSummary,
 } from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
+import { sentAgain } from "./sent-again.ts";
 import { reportUnexpected } from "../../monitoring.ts";
 
 const {
@@ -718,38 +718,6 @@ type Moment = {
   title: string;
   description?: ReactNode;
   details?: ReactNode;
-};
-
-// what a send changed, as words in a sentence, each the Draft's name for it
-const changeWords: Record<RevisionChange, string> = {
-  service: "service",
-  price: "price",
-  offeredPrice: "price",
-  time: "time",
-  weekdays: "weekdays",
-  cleaners: "cleaners",
-  extras: "extras",
-  area: "area",
-  condition: "condition",
-  deposit: "deposit",
-  planDiscount: "plan discount",
-  recurrence: "how often",
-  validity: "how long it's valid",
-};
-
-// a send after the first and what it changed: "Quote sent again · cleaners
-// changed", "· nothing changed" when sent as it was, and "· Deep Clean price
-// changed" when only the Service offered beside its own got dearer or cheaper
-const sentAgain = (revision: RevisionSummary) => {
-  const changed = (revision.changed ?? []).map((c) =>
-    c === "offeredPrice"
-      ? `${revision.offeredServiceName} ${changeWords[c]}`
-      : changeWords[c],
-  );
-  return lineOf([
-    "Quote sent again",
-    `${changed.length > 0 ? formatList(changed) : "nothing"} changed`,
-  ]);
 };
 
 // why what the Client paid online wasn't booked: "Casey paid it as …", or
@@ -2623,7 +2591,7 @@ const noteOf = (
   saved: string | undefined,
 ) => {
   const hold = live ?? (state === "saved" ? saved : undefined);
-  return hold ? `${saveStateLabel[state]} · ${hold}` : saveStateLabel[state];
+  return lineOf([saveStateLabel[state], hold && inLine(hold)]);
 };
 
 // A plan's weekday: its Cleaners, then its proposed time, picked from the

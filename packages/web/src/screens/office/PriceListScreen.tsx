@@ -1,4 +1,4 @@
-import { firstNameOf, formats } from "@empire-cleaning/models";
+import { firstNameOf, formats, inLine } from "@empire-cleaning/models";
 import { useState, type ReactNode } from "react";
 import { useLoaderData } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
@@ -595,9 +595,11 @@ const condition = (list: PriceList) =>
     title: "Condition",
     summary: (
       <Line
-        parts={conditionFigures.map(
-          ([c, name]) => `${conditionLabel[c]} ${times(list[name])}`,
-        )}
+        parts={conditionFigures.map(([c, name], i) => {
+          const figure = `${conditionLabel[c]} ${times(list[name])}`;
+          // each after the first reads on from its dot
+          return i > 0 ? inLine(figure) : figure;
+        })}
       />
     ),
     explain:

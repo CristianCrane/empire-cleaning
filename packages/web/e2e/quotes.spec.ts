@@ -187,7 +187,7 @@ test("a Quote waits on a proposed time to be sent, picked in a tap", async ({
   await startDraft(page);
   const status = page.getByRole("status").filter({ hasText: /saved/i });
   const sendTo = page.getByRole("button", { name: `Send to ${casey.name}` });
-  await expect(status).toHaveText("Saved · Pick a time to send");
+  await expect(status).toHaveText("Saved · pick a time to send");
   await expect(sendTo).toBeDisabled();
 
   // it starts on the first day with room, Tuesday: Monday is within 24
@@ -292,7 +292,7 @@ test("Office Staff pick a Draft's proposed time from its open times", async ({
   await page.reload();
   await expect(
     page.getByRole("button", {
-      name: /^Proposed time\s*Tue, Jan 13 · 10:30 AM to /,
+      name: /^Proposed time\s*Tue, Jan 13\s·\s10:30 AM to /,
     }),
   ).toHaveAttribute("aria-expanded", "false");
   await send(page);
@@ -441,9 +441,9 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
   const offer = page.getByRole("region", { name: "Current quote" });
   await expect(sent).toHaveText(["Quote sent"]);
   // for the Service asked for, not the Deep Clean recommended beside it
-  await expect(page.getByText(/^Standard Clean \$[\d,.]+ · for /)).toHaveCount(
-    1,
-  );
+  await expect(
+    page.getByText(/^Standard Clean \$[\d,.]+\s·\sfor /),
+  ).toHaveCount(1);
   await expect(offer).toContainText("Sent ");
   // its own Service, the one recommended an aside under it, as the Draft
   await expect(offer.getByRole("heading", { level: 3 })).toHaveText([
@@ -491,18 +491,31 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
 
   await page.goto(quote);
   await pageAction(page, "Carry on with the draft");
-  // a third cleaner, and nothing else
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    `Draft quote for ${casey.name}`,
+  );
+});
+
+// sent again with only its crew changed, the price and time under each send
+// the same: what the entry says it changed is sentAgain's, pinned in
+// sent-again.test.tsx, so this reads the story as it ends, either way
+test("a Quote sent again with only its cleaners changed", async ({ page }) => {
+  await sentQuote(page);
+  await pageAction(page, "Change quote");
   const terms = page.getByRole("region", { name: "Terms" });
   await terms.getByRole("button", { name: /^Terms/ }).click();
   await terms.getByRole("textbox", { name: "Cleaners" }).fill("3");
   await send(page);
   await expect(page.getByText("Being updated")).toBeHidden();
-  // the second send says so, and what it changed, newest first
-  await expect(page.getByText(/^Quote sent/)).toHaveText([
-    "Quote sent again · cleaners changed",
-    "Quote sent",
-  ]);
-  await expect(offer).toContainText("Sent ");
+  // newest first, in the story, not the toast's "Quote sent to …"
+  await expect(
+    page
+      .getByRole("list", { name: "This quote's story, newest first" })
+      .getByText(/^Quote sent/),
+  ).toHaveText([/^Quote sent again/, "Quote sent"]);
+  await expect(
+    page.getByRole("region", { name: "Current quote" }),
+  ).toContainText("Sent ");
 });
 
 test("the Client sees only the latest Revision, from any of its emails", async ({
@@ -709,7 +722,7 @@ test("the draft says when the proposed time has no room for a clean", async ({
   await expect(proposed).toContainText(
     "Not enough cleaners are free then. So the client can't accept the quote: pick another time, or give a cleaner more working hours that day.",
   );
-  await expect(status).toHaveText("Saved · No room on Tue, Jan 13 at 9:00 AM");
+  await expect(status).toHaveText("Saved · no room on Tue, Jan 13 at 9:00 AM");
   await expect(sendIt).toBeEnabled();
   // the card says so of the clean asked for too, not of the Deep Clean
   // alone, and once for both
@@ -766,7 +779,7 @@ test("the draft says when the proposed time has no room for a clean", async ({
   await expect(deep).toContainText(
     "It would run past midnight at this time, so the quote can't be sent. Pick an earlier start time.",
   );
-  await expect(status).toHaveText("Saved · Pick an earlier start time");
+  await expect(status).toHaveText("Saved · pick an earlier start time");
   await expect(sendIt).toBeDisabled();
 
   // the nearest time the Deep Clean ends by midnight, with room for both,

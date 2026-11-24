@@ -37,7 +37,7 @@ import {
 import { deleteJson, patchJson, postJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { dayOfInstant, formatHours, roleLabel, today } from "../format.ts";
+import { dayOfInstant, roleLabel, today, typedHours } from "../format.ts";
 import { MemberStatus, StaffFields } from "./StaffScreen.tsx";
 
 const {
@@ -52,8 +52,8 @@ const {
 const hoursFormat = { maximumFractionDigits: 2 } as const;
 
 // a day's hours as a calendar cell says them
-const hoursLabel = (hours: number) =>
-  hours === 0 ? "Off" : formatHours(hours);
+// a day's hours as she types them in its dialog: "7.5 h"
+const hoursLabel = (hours: number) => (hours === 0 ? "Off" : typedHours(hours));
 
 // One Staff member (UX pass, #96), a Record (docs/ux.md): who they are,
 // changed in a dialog; a Cleaner's availability as a month calendar, a day

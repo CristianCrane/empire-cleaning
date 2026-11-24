@@ -177,14 +177,17 @@ export const howLong = (
 export const inLine = (part: string) =>
   part.charAt(0).toLocaleLowerCase() + part.slice(1);
 
+// the parts of a row's line that show: a part left out is false, null,
+// undefined or empty. Both lineOf and the kit's Line keep only these
+export const partsShown = <T>(parts: (T | false | null | undefined)[]) =>
+  parts.filter((p): p is T => p != null && p !== false && p !== "");
+
 // a row's line of parts as text, where only text goes (a card's title, a
 // Fact's value, an email's line): set apart by dots, each glued to both its
 // neighbours, so a wrap never leaves one at a line's end or start, though a
 // long part may break inside itself. A screen's row takes the kit's Line
 export const lineOf = (parts: (string | false | null | undefined)[]) =>
-  parts
-    .filter((p) => p != null && p !== false && p !== "")
-    .join("\u00a0·\u00a0");
+  partsShown(parts).join("\u00a0·\u00a0");
 
 // a person's first name, as a greeting says it ("Hi, Casey")
 export const firstNameOf = (name: string) => name.split(" ")[0]!;

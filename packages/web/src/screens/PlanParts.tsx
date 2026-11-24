@@ -9,7 +9,6 @@ import {
   Clock,
   PiggyBank,
   Receipt,
-  Users,
 } from "lucide-react";
 import {
   CANCELLATION_CUTOFF_HOURS,
@@ -33,6 +32,7 @@ import {
   Fact,
   DetailsCard,
   Facts,
+  Line,
   type Alert,
   type DialogState,
   type PageAction,
@@ -75,11 +75,10 @@ const words = catalog({
     eachClean: "Each clean",
     taxOff: (each: string, percent: number) =>
       `${each}, tax included, ${percent}% off`,
-    onSiteEachDay: "On site, each day",
     towardsLast: "Deposit, put towards the last clean",
     offLast: "Deposit, comes off your last clean",
     started: (day: string) => `Started ${day}`,
-    endedAt: (day: string) => ` · Ended ${day}`,
+    endedAt: (day: string) => `ended ${day}`,
   },
   es: {
     cleanOn: (when: string, amount: string) =>
@@ -112,11 +111,10 @@ const words = catalog({
     eachClean: "Cada limpieza",
     taxOff: (each: string, percent: number) =>
       `${each}, impuestos incluidos, ${percent}% de descuento`,
-    onSiteEachDay: "En el lugar, cada día",
     towardsLast: "Depósito, aplicado a la última limpieza",
     offLast: "Depósito, se descuenta de su última limpieza",
     started: (day: string) => `Empezó el ${day}`,
-    endedAt: (day: string) => ` · Finalizó el ${day}`,
+    endedAt: (day: string) => `finalizó el ${day}`,
   },
 });
 type T = Said & { w: (typeof words)["en"] };
@@ -405,15 +403,17 @@ export function PlanCard({
         </span>
       }
       title={plan.days.map((day) => (
-        <span key={day.startsAt} className="block">
-          {t.planDayWhen(day.startsAt)}
-          {several && (
-            <span className="font-normal text-fg-muted">
-              {" "}
-              · {day.serviceName}
-            </span>
-          )}
-        </span>
+        <Line
+          key={day.startsAt}
+          parts={[
+            t.planDayWhen(day.startsAt),
+            several && (
+              <span key="service" className="font-normal text-fg-muted">
+                {day.serviceName}
+              </span>
+            ),
+          ]}
+        />
       ))}
       line={!several && one!.serviceName}
     >
@@ -431,7 +431,9 @@ export function PlanCard({
           }
         />
         {/* how long: the Client's to the quarter hour, the Office's to
-            the minute, with its crew, as the Schedule books it */}
+            the minute, with its crew, as the Schedule books it; each
+            weekday's in turn, and each crew where they differ: "1 h 38 min
+            + 2 h", "On site, with 2 cleaners + 1 cleaner" */}
         {forClient ? (
           <Fact
             icon={Clock}
@@ -440,10 +442,14 @@ export function PlanCard({
           />
         ) : several ? (
           <Fact
-            icon={Users}
+            icon={Clock}
             label={t.onSite}
             value={plan.days.map((d) => formatHours(d.hoursOnSite)).join(" + ")}
-            line={t.w.onSiteEachDay}
+            line={t.onSiteWith(
+              new Set(plan.days.map((d) => d.crewSize)).size === 1
+                ? t.cleaners(one!.crewSize)
+                : plan.days.map((d) => t.cleaners(d.crewSize)).join(" + "),
+            )}
           />
         ) : (
           <Fact
@@ -476,8 +482,12 @@ export function PlanCard({
         />
       </Facts>
       <p className="text-sm text-fg-muted">
-        {t.w.started(t.formatDate(plan.startedAt))}
-        {plan.endedAt && t.w.endedAt(t.formatDate(plan.endedAt))}
+        <Line
+          parts={[
+            t.w.started(t.formatDate(plan.startedAt)),
+            plan.endedAt && t.w.endedAt(t.formatDate(plan.endedAt)),
+          ]}
+        />
       </p>
       {children}
     </DetailsCard>

@@ -18,7 +18,12 @@ import {
 } from "@empire-cleaning/ui";
 import { Building2, CirclePlus, NotebookPen, Repeat } from "lucide-react";
 import { catalog, type Language, messages } from "@empire-cleaning/models";
-import { formatHours, quoteStatusLabel, quoteStatusTone } from "./format.ts";
+import {
+  formatHours,
+  quoteStatusLabel,
+  quoteStatusTone,
+  typedHours,
+} from "./format.ts";
 import { useSaid } from "./words.ts";
 
 // in the screen's language: the Office's English, the portal's its
@@ -122,7 +127,7 @@ export function AskedRows({
 }
 
 // an option's hours, as Figures: its cleaning hours, and how long its crew
-// is there; the Office's, as the Client reads one how long on the Quote's
+// is there; for a crew of one those are one fact, so its time there alone; the Office's, as the Client reads one how long on the Quote's
 // facts
 export function HoursRows({
   option,
@@ -134,7 +139,13 @@ export function HoursRows({
   const { w, cleaners, onSiteWith } = useWords();
   return (
     <>
-      <Figure label={w.cleaningHours} value={formatHours(option.labourHours)} />
+      {/* hours priced at a rate, as its working-out says them: "3.25 h" */}
+      {crewSize > 1 && (
+        <Figure
+          label={w.cleaningHours}
+          value={typedHours(option.labourHours)}
+        />
+      )}
       <Figure
         label={onSiteWith(cleaners(crewSize))}
         value={formatHours(option.hoursOnSite)}

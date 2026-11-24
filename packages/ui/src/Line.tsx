@@ -1,9 +1,7 @@
 import type { ReactNode } from "react";
+import { partsShown } from "@empire-cleaning/models";
 
 type Part = ReactNode | false | null | undefined;
-
-const shown = <T,>(parts: T[]) =>
-  parts.filter((p) => p != null && p !== false && p !== "");
 
 // A row's line of parts, set apart by dots: "41-12 Austin St, 4B, 11375 ·
 // Standard Clean $194.89 · waiting since today" (docs/ux.md, Lists and
@@ -12,11 +10,12 @@ const shown = <T,>(parts: T[]) =>
 // the gap of a part that starts a line falls in the margin this line hides.
 // Its text reads "A · B · C". Where a slot takes only text, models' lineOf.
 export function Line({ parts }: { parts: Part[] }) {
-  if (shown(parts).length === 0) return null;
+  const shown = partsShown(parts);
+  if (shown.length === 0) return null;
   return (
     <span className="block overflow-hidden">
       <span className="-ml-[1.25em] flex flex-wrap">
-        {shown(parts).map((part, i) => (
+        {shown.map((part, i) => (
           <span
             key={i}
             className="relative min-w-0 pl-[1.25em] [overflow-wrap:anywhere]"

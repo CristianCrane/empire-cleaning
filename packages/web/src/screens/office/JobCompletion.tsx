@@ -46,7 +46,7 @@ import {
 } from "@empire-cleaning/ui";
 import { deleteJson, patchJson, postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
-import { dollars, formatHours, screenWords } from "../format.ts";
+import { dollars, screenWords, typedHours } from "../format.ts";
 
 const { conditionLabel } = screenWords.en;
 
@@ -174,7 +174,8 @@ const whatOf = (a: AdjustmentView) =>
 // it's opened
 const changeOf = (a: AdjustmentView) =>
   a.kind === "extra_time"
-    ? `+${formatHours(a.hours!)}`
+    ? // as typed, and as the full line says them: "+1.5 h"
+      `+${typedHours(a.hours!)}`
     : a.kind === "add_on_done"
       ? "Done on the day"
       : "Not done";

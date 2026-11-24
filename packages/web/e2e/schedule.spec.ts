@@ -706,7 +706,7 @@ test(
         .filter({ hasNotText: "Cory Cleaner" }),
     ).toHaveAccessibleName(/^9:00 AM Robin \d+ ?, Needs cleaners$/);
     await expect(blocks.filter({ hasText: "Site visit" })).toHaveAccessibleName(
-      /^3:00 PM Acme Dental ?, Site visit · 30 min ?, Cory Cleaner$/,
+      /^3:00 PM Acme Dental ?, Site visit\s·\s30 min ?, Cory Cleaner$/,
     );
     // a Site Visit is told from a Staffed Job by its mark, not its colour
     // alone
@@ -720,7 +720,7 @@ test(
         .locator("svg"),
     ).toHaveCount(0);
     // the day's hours keep each figure whole on its line
-    const free = day(page, "Tue, Mar 2").getByText(/^[\d.]+ h free$/);
+    const free = day(page, "Tue, Mar 2").getByText(/^\d+ h( \d+ min)? free$/);
     expect((await free.boundingBox())!.height).toBeLessThan(20);
     const short = blocks.filter({ hasText: "1:00 PM" });
     await expect(short).toHaveAccessibleName(

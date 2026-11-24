@@ -22,6 +22,7 @@ import {
   dayOf,
   formats,
   HOUR_MS,
+  inLine,
   type Language,
   lineOf,
   messages,
@@ -76,8 +77,9 @@ export const shortClientName = (c: Pick<ClientName, "name" | "businessName">) =>
 export const formatHours = (hours: number) =>
   formatMinutes(Math.round(hours * 60)) || "0 h";
 
-// hours as the Office types them on the Price list, and as its working-out
-// of a price adds them up: 1.125 -> "1.125 h"
+// hours the Office types or prices at a rate, as she types them: the Price
+// list's, a working-out's sums, cleaning hours, extra time, a cleaner's
+// working day: 1.125 -> "1.125 h" (docs/ux.md, "A length of time")
 export const typedHours = (hours: number) =>
   `${Math.round(hours * 10000) / 10000} h`;
 
@@ -401,8 +403,11 @@ const screenWordsIn = (lang: Language) => {
     formatFloorArea,
     // what a Property is: "Apartment · 2 bedrooms · 1.5 bathrooms"
     // ("Apartment · rooms not known yet" before they're given), or "Office ·
-    // 4,500 sq ft" for business premises
-    propertySummary: (p: PropertyView) =>
+    // 4,500 sq ft" for business premises. `after` a part of a row's line,
+    // a home's kind reads on from the dot ("Quote sent · apartment · …"); a
+    // Premises Type's name, typed on the Price List as a Service's is, keeps
+    // its capitals
+    propertySummary: (p: PropertyView, after = false) =>
       p.kind === "commercial"
         ? lineOf([
             p.premisesType.name,
@@ -411,7 +416,7 @@ const screenWordsIn = (lang: Language) => {
               : formatFloorArea(p.floorArea),
           ])
         : lineOf([
-            form[p.type],
+            after ? inLine(form[p.type]) : form[p.type],
             ...(p.bedrooms === null
               ? [w.roomsNotKnown]
               : [
