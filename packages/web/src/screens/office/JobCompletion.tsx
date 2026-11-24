@@ -1,4 +1,9 @@
-import { formats, messages } from "@empire-cleaning/models";
+import {
+  formats,
+  messages,
+  ON_THAT_WEEKS_BILL,
+  upperFirst,
+} from "@empire-cleaning/models";
 import { useState, type ReactNode } from "react";
 import {
   CreditCard,
@@ -49,12 +54,16 @@ import {
 import { deleteJson, patchJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { dollars, formatHours } from "../format.ts";
+import { dollars, formatHours, lineOf } from "../format.ts";
 import { ConditionField } from "./PropertyFields.tsx";
 
 const { formatDate, formatMoney } = formats.en;
 
 const { feeName } = messages.en;
+
+// where what a weekly-billed Job still owes goes, once its week's Bill is
+// made: the price changes' note and Money's To bill both say it
+const ON_THE_NEXT_BILL = "goes on the client's next bill";
 
 // a price change the Cleaner reported, waiting on the Office: the Job's
 // badge and its row's both say so
@@ -262,7 +271,7 @@ export function Adjustments({ job }: { job: OfficeJob }) {
             <ListItem
               id={a.id}
               title={whatOf(a)}
-              description={`${changeOf(a)}, ${signed(a.totalCents)}`}
+              description={lineOf([changeOf(a), signed(a.totalCents)])}
               end={statusBadge[a.status]}
             />
           )}
@@ -461,9 +470,7 @@ function ReviewForm({
 // where a change to a Completed Job's price goes: charged or refunded now,
 // or on the Client's next weekly Bill (ADR-0016)
 const settledHow = (job: OfficeJob) =>
-  job.weeklyBill
-    ? "goes on the client's next bill"
-    : "is charged or refunded straight away";
+  job.weeklyBill ? ON_THE_NEXT_BILL : "is charged or refunded straight away";
 
 // an Adjustment that counts: change its price, charging or refunding the
 // difference, or remove it
@@ -743,8 +750,8 @@ export function JobMoney({ job }: { job: OfficeJob }) {
               value={formatMoney(owed)}
               line={
                 payment.bills.length === 0
-                  ? "Goes on that week's bill"
-                  : "Goes on the next bill"
+                  ? upperFirst(ON_THAT_WEEKS_BILL)
+                  : upperFirst(ON_THE_NEXT_BILL)
               }
             />
           ) : (
