@@ -1876,7 +1876,7 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
       );
     }
     if (await stillPaying(current.id, tx)) {
-      throw new ConflictError(clientPayingWords.UNSURE);
+      throw new ConflictError(clientPayingWords.unsure(client.name));
     }
     const saved = await optionsOf(draft.id, tx);
     const options = repriced(

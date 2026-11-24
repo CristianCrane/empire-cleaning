@@ -1440,7 +1440,7 @@ describe("while the Client's bank is approving the Deposit", () => {
       refunds: testPayments().refunds.length,
     }).toEqual({
       send: 409,
-      message: clientPayingWords.UNSURE,
+      message: clientPayingWords.unsure(casey.name),
       charges: 1,
       refunds: 0,
     });
@@ -1473,7 +1473,7 @@ describe("while the Client's bank is approving the Deposit", () => {
       refunds: testPayments().refunds.length,
     }).toEqual({
       send: 409,
-      message: clientPayingWords.UNSURE,
+      message: clientPayingWords.unsure(casey.name),
       charges: 1,
       refunds: 0,
     });
