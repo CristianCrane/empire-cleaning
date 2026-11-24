@@ -79,6 +79,9 @@ export const bills = pgTable(
     // the payment the Client last started on its page, while a bank debit
     // clears
     paymentRef: text("payment_ref"),
+    // and since when, by the Clock: the Client's payment history dates it by
+    // this until it clears
+    clearingSince: timestamp("clearing_since", { withTimezone: true }),
     // when it went to the Client: once made, and charged if it's charged
     // automatically
     sentAt: timestamp("sent_at", { withTimezone: true }),

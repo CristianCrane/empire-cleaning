@@ -35,9 +35,8 @@ const signInAsOffice = async (page: Page) => {
 };
 
 // a week far from today: Monday 1 March 2027 to Sunday 7 March. The API's
-// clock is in January 2026, so every Job in it is still to come. A test
-// whose screen judges a time passed (a Site Visit's drag) sets the
-// browser's clock too, so it doesn't depend on the date it runs.
+// clock is in January 2026, so every Job in it is still to come, and the
+// browser keeps to it (`browsers` in harness.ts).
 const week = "/office/schedule?from=2027-03-01&to=2027-03-07";
 const TUESDAY_9AM = "2027-03-02T14:00:00Z";
 
