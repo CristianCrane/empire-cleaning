@@ -910,6 +910,7 @@ function DraftPrices({
   if (!plan) {
     const own = ownOption(quote);
     const recommended = recommendedOption(quote);
+    const shared = sameNoRoom(own, recommended);
     return (
       <div aria-busy={stale} className={busy}>
         <OfferPrice title={own.serviceName}>
@@ -919,7 +920,7 @@ function DraftPrices({
             under={
               <>
                 {own.overrideCents !== null && <PricedFrom option={own} />}
-                <NoRoomLine room={own.room} />
+                <NoRoomLine room={own.room} with={shared} />
               </>
             }
           >
@@ -932,7 +933,7 @@ function DraftPrices({
           </FoldedPrice>
         </OfferPrice>
         {recommended && (
-          <AlsoOffered option={recommended}>
+          <AlsoOffered option={recommended} roomSaid={shared !== undefined}>
             <OptionRows
               option={recommended}
               crewSize={quote.crewSize}
@@ -1042,9 +1043,12 @@ function OfferPrice({
 // #527: "The recommendation is an aside")
 function AlsoOffered({
   option,
+  roomSaid,
   children,
 }: {
   option: OfficeQuoteOption;
+  // its no-room line is said under the own price, with the own one's
+  roomSaid: boolean;
   children: ReactNode;
 }) {
   return (
@@ -1064,7 +1068,7 @@ function AlsoOffered({
       </Fold>
       {/* unfolded, as it changes what the client can do; the proposed
           time's part says how to fix it */}
-      <NoRoomLine room={option.room} />
+      {!roomSaid && <NoRoomLine room={option.room} />}
     </section>
   );
 }
@@ -1438,17 +1442,43 @@ const roomProblems = (
 // can be (#493's UX review round 2, U1): a warning, as the quote can still
 // be sent, but danger when it would run past midnight, which Send refuses.
 // Nothing while it has room, or before it has a time.
-function NoRoomLine({ room }: { room: DayCapacity | null }) {
+// `with` names the Service offered beside it when it has the same problem,
+// said once in this line and not again under its price (round 3, U7).
+function NoRoomLine({
+  room,
+  with: other,
+}: {
+  room: DayCapacity | null;
+  with?: string;
+}) {
   if (!room || room.hasRoom) return null;
   const why = noRoomOf(room);
   return why === "past_midnight" ? (
-    <p className="text-sm text-danger-strong">{runsPastMidnight("it")}</p>
+    <p className="text-sm text-danger-strong">
+      {runsPastMidnight(other ? `it and ${other}` : "it")}
+    </p>
   ) : (
     <p className="text-sm text-warning-strong">
-      The client can't pick it at this time: {NO_ROOM[why]}.
+      The client can't pick {other ? `it or ${other}` : "it"} at this time:{" "}
+      {NO_ROOM[why]}.
     </p>
   );
 }
+
+// the Service offered beside the own one, when its time has the own one's
+// problem, so the card says it once
+const sameNoRoom = (
+  own: OfficeQuoteOption,
+  other: OfficeQuoteOption | undefined,
+) =>
+  other &&
+  own.room &&
+  other.room &&
+  !own.room.hasRoom &&
+  !other.room.hasRoom &&
+  noRoomOf(own.room) === noRoomOf(other.room)
+    ? describeOption(other)
+    : undefined;
 
 const describeOption = (o: OfficeQuoteOption) => `the ${o.serviceName}`;
 

@@ -229,7 +229,10 @@ for a dialog. It renders through `FormPage`
   each option's price, unfolded, the one asked for and that line both,
   why the client can't pick it at the time proposed ("The client can't
   pick it at this time: that day is too full."), a warning; in danger
-  when it would run past midnight, which Send refuses.
+  when it would run past midnight, which Send refuses. When the Service
+  offered has the same problem, the line under the one asked for names it
+  ("The client can't pick it or the Deep Clean at this time: …"), said
+  once.
 - **Its button at the card's foot**, after what saving agrees to (a
   card's consent), in view. A form with a price or a Send (the Draft, New
   quote) makes its button the page's next step instead (FormPage's
@@ -712,7 +715,8 @@ stays as it is (#336).
   user's pick B): a strip of a week's days, each saying why it's shut
   ("No cleaners" when no Cleaner works it, as its fix is more hours, "No
   room" when it's full), over the viewed day's start times that have room
-  for the clean asked for, under its name ("Open times on Tue, Jan 6"),
+  for the clean asked for, under its name ("Open times on Tue, Jan 6", and ", and the time picked"
+  when its tile there is marked with a problem),
   those without left out; the time picked fills
   its tile with when it ends, or is marked with its problem, which a line
   over it says, naming the Service offered beside it when it's that one's

@@ -42,7 +42,7 @@ export const NO_CREW = `${upperFirst(NO_ROOM.crew)}.`;
 // the quote for it. `subject` names it, "the Deep Clean" where Send says
 // so, "it" in the line under each option's price
 export const runsPastMidnight = (subject: string) =>
-  `${upperFirst(subject)} would run past midnight at this time, so the quote can't be sent with it. Pick an earlier start time.`;
+  `${upperFirst(subject)} would run past midnight at this time, so the quote can't be sent. Pick an earlier start time.`;
 
 // the Office's way to make room, after what else they can do
 export const MORE_HOURS = "give a cleaner more working hours that day";

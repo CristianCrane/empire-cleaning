@@ -652,11 +652,17 @@ test("the draft says when the proposed time has no room for a clean", async ({
   );
   await expect(status).toHaveText("Saved · No room on Tue, Jan 13 at 9:00 AM");
   await expect(sendIt).toBeEnabled();
-  // the card says so of the clean asked for too, not of the Deep Clean alone
+  // the card says so of the clean asked for too, not of the Deep Clean
+  // alone, and once for both
   await expect(
     page.getByRole("region", { name: "Standard Clean", exact: true }),
   ).toContainText(
-    "The client can't pick it at this time: not enough cleaners are free then.",
+    "The client can't pick it or the Deep Clean at this time: not enough cleaners are free then.",
+  );
+  await expect(deep).not.toContainText("can't pick");
+  // the tiles' heading doesn't call the picked time open
+  await expect(proposed).toContainText(
+    "Open times on Tue, Jan 13, and the time picked",
   );
   // and paged off its week, what's wrong with it is still said
   await proposed.getByRole("button", { name: "Next week" }).click();
@@ -696,10 +702,10 @@ test("the draft says when the proposed time has no room for a clean", async ({
     .click();
   await page.keyboard.type("1000PM");
   await expect(proposed).toContainText(
-    "The Deep Clean would run past midnight at this time, so the quote can't be sent with it. Pick an earlier start time.",
+    "The Deep Clean would run past midnight at this time, so the quote can't be sent. Pick an earlier start time.",
   );
   await expect(deep).toContainText(
-    "It would run past midnight at this time, so the quote can't be sent with it. Pick an earlier start time.",
+    "It would run past midnight at this time, so the quote can't be sent. Pick an earlier start time.",
   );
   await expect(status).toHaveText("Saved · Pick an earlier start time");
   await expect(sendIt).toBeDisabled();

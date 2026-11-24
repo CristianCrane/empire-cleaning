@@ -396,9 +396,12 @@ export function PickOpenTime({
             ) : (
               <>
                 {/* the day they're for in words, as the strip's mark for
-                    it is a fill (#493's UX review round 2, U6) */}
+                    it is a fill (#493's UX review round 2, U6); a picked
+                    time marked with its problem isn't open, so it's named
+                    apart (round 3, U8) */}
                 <p className="font-semibold">
                   Open times on {formatDay(viewed)}
+                  {onViewed && problem?.flags && ", and the time picked"}
                 </p>
                 {groups.map((group) => (
                   <TimeTiles

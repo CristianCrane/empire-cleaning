@@ -646,7 +646,7 @@ describe("sending a Quote", () => {
         weekday: null,
         reason: "past_midnight",
         message:
-          "The Deep Clean would run past midnight at this time, so the quote can't be sent with it. Pick an earlier start time.",
+          "The Deep Clean would run past midnight at this time, so the quote can't be sent. Pick an earlier start time.",
       },
     ]);
 
