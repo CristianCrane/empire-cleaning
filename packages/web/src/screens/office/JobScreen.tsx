@@ -136,7 +136,7 @@ export function JobScreen() {
         <>
           <HowItWent job={job} />
           <Adjustments job={job} />
-          <JobMoney job={job} />
+          <JobMoney job={job} columns={factColumnsOf(job)} />
           <JobFold label="The job">
             <Card hiddenTitle="Job facts">
               <JobFacts job={job} />
@@ -147,7 +147,7 @@ export function JobScreen() {
       ) : (
         <>
           {parts}
-          <JobMoney job={job} />
+          <JobMoney job={job} columns={factColumnsOf(job)} />
         </>
       )}
     </RecordPage>
@@ -392,9 +392,25 @@ function WhereAndWho({ job }: { job: OfficeJob }) {
 // a fact each: how long; the cleaning hours, for a crew of more than one
 // (for one, they're how long); how many extras, the signpost to their list;
 // while it's free to move or cancel, until when (one row when the two
-// agree, freeUntilOf); and how we get in, last and the card's width. Four
-// short ones sit two and two, not three and one
+// agree, freeUntilOf); and how we get in, last and the card's width
 function JobFacts({ job }: { job: OfficeJob }) {
+  return (
+    <Facts columns={factColumnsOf(job)}>
+      {shortFactsOf(job)}
+      {job.property.accessInstructions && (
+        <AccessFact property={job.property} className="col-span-full" />
+      )}
+    </Facts>
+  );
+}
+
+// the Job's facts grid's columns: four short facts sit two and two, not
+// three and one (U15); Money's grid, one card down, follows it, so the
+// page's columns line up (U34)
+const factColumnsOf = (job: OfficeJob) =>
+  shortFactsOf(job).length === 4 ? 2 : 3;
+
+function shortFactsOf(job: OfficeJob) {
   const { move, cancel } = freeUntilOf(
     job.rescheduleTerms,
     job.cancelTerms?.client,
@@ -408,7 +424,7 @@ function JobFacts({ job }: { job: OfficeJob }) {
       line={`Free for the client to ${label} until`}
     />
   );
-  const short = [
+  return [
     <Fact
       key="how-long"
       icon={Clock}
@@ -436,14 +452,6 @@ function JobFacts({ job }: { job: OfficeJob }) {
       ? [free("move or cancel", move)]
       : [move && free("move", move), cancel && free("cancel", cancel)]),
   ].filter(Boolean);
-  return (
-    <Facts columns={short.length === 4 ? 2 : 3}>
-      {short}
-      {job.property.accessInstructions && (
-        <AccessFact property={job.property} className="col-span-full" />
-      )}
-    </Facts>
-  );
 }
 
 // once it's over, only what History doesn't say: done, the place's condition

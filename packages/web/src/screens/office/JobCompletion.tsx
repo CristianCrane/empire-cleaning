@@ -624,8 +624,11 @@ export function UndoCompletion({
 // weekly Bill it's on, linked; what's still to go on a Bill; refunded;
 // still owed or to refund; how it's worked out, folded. Once it didn't
 // happen, its fee and what was refunded. Nothing, no part. Each charge is
-// in its History, and a failed one an alert above
-export function JobMoney({ job }: { job: OfficeJob }) {
+// in its History, and a failed one an alert above. Its grids take the
+// Job's facts' `columns`, so the page's columns line up, and a lone fact
+// the whole row, so its line isn't squeezed into a third (U29, U34)
+export function JobMoney({ job, columns }: { job: OfficeJob; columns: 2 | 3 }) {
+  const across = (facts: number) => (facts === 1 ? 1 : columns);
   const payment = job.payment;
   if (!payment) return null;
   const { paidCents: paid, owedCents: owed } = payment;
@@ -770,10 +773,10 @@ export function JobMoney({ job }: { job: OfficeJob }) {
   return (
     <Section title="Money">
       <Card>
-        <Facts>{shown}</Facts>
+        <Facts columns={across(shown.length)}>{shown}</Facts>
         {job.completion && payment.totalCents !== payment.quotedCents && (
           <Fold label="How it's worked out">
-            <Facts>
+            <Facts columns={across(payment.adjustmentsCents !== 0 ? 2 : 1)}>
               <Fact
                 icon={FileText}
                 label="Quoted"
