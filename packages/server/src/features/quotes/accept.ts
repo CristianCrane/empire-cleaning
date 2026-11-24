@@ -235,12 +235,12 @@ const refuseUnlessOpen = (
     },
     revisionId,
   );
-  if (closed) throw new ConflictError(unbookableMessage(closed, acceptor));
+  if (closed) throw new ConflictError(unbookableMessage(closed, acceptor.by));
 };
 
-const unbookableMessage = (unbookable: Unbookable, acceptor: Acceptor) => {
+const unbookableMessage = (unbookable: Unbookable, by: Acceptor["by"]) => {
   if (unbookable.reason === "closed") {
-    return closedMessage(unbookable.status, acceptor.by);
+    return closedMessage(unbookable.status, by);
   }
   if (unbookable.reason === "revised") {
     return said().revised;
@@ -249,11 +249,11 @@ const unbookableMessage = (unbookable: Unbookable, acceptor: Acceptor) => {
     unbookable.reason === "has_plan" ||
     unbookable.reason === "plan_changed"
   ) {
-    return acceptor.by === "client"
+    return by === "client"
       ? said().planChanged
       : "This home's cleaning plan changed just now, so nothing was booked. Reload the page and try again.";
   }
-  return acceptor.by === "client"
+  return by === "client"
     ? said().bookedUp
     : "That day is now too full for this job, so nothing was charged. Send a quote for another time.";
 };
@@ -678,7 +678,9 @@ export const acceptQuote = async (
     outcome = await db.transaction(async (tx) => {
       const hold = await holdForBooking(tx, quote, revision, offer, changing);
       if (hold.unbookable) {
-        throw new ConflictError(unbookableMessage(hold.unbookable, acceptor));
+        throw new ConflictError(
+          unbookableMessage(hold.unbookable, acceptor.by),
+        );
       }
       // The one rule (ADR-0022): while the Client's bank asks them to
       // approve a Deposit, Office Staff wait, for APPROVAL_MS at most; the
@@ -709,7 +711,9 @@ export const acceptQuote = async (
             ),
           } as const;
         }
-        throw new ConflictError(clientPayingWords.finishing(client.name));
+        throw new ConflictError(
+          clientPayingWords.finishing(client.name, "record"),
+        );
       }
       if (attempt.status === "failed") {
         // the Client is told only that their card wasn't charged
@@ -759,7 +763,9 @@ export const acceptQuote = async (
         : (finalized) =>
             finalized.status === "refunded"
               ? clientPayingWords.refunded(client.name)
-              : said().PAYMENT_DOWN,
+              : finalized.status === "unbooked"
+                ? unbookableMessage(finalized.unbookable, "office")
+                : said().PAYMENT_DOWN,
     );
   }
   if (outcome.status !== "accepted") return outcome;
@@ -833,6 +839,9 @@ export type Finalized =
   // the provider couldn't be reached
   | { status: "unknown" }
   | { status: "refunded"; unbookable: Unbookable }
+  // approved, but it only saved their card (0%): nothing to refund
+  // (#534 critical review C1)
+  | { status: "unbooked"; unbookable: Unbookable }
   // not one of ours, or already finished by the browser or the webhook
   | { status: "settled" };
 
@@ -975,6 +984,9 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
   }
   if (result.status === "refunded") {
     const { chargeId, saved } = approved!;
+    if (!chargeId) {
+      return { status: "unbooked", unbookable: result.unbookable } as const;
+    }
     const why = result.unbookable.reason;
     if (await giveBackDeposit(chargeId, pending.depositCents, quote.id, why)) {
       await tellRefunded(pending, why, saved?.card ?? null);
@@ -1012,6 +1024,8 @@ export const finalizeProblem = (finalized: Finalized) => {
       return said().PAYMENT_DOWN;
     case "failed":
       return said().bankFailed;
+    case "unbooked":
+      return unbookableMessage(finalized.unbookable, "client");
     case "refunded":
       return finalized.unbookable.reason === "no_room"
         ? said().refundedNoRoom
@@ -1035,22 +1049,26 @@ export const finalizeProblem = (finalized: Finalized) => {
  * booked (finalizeDeposit), or given back if they can't be; and whatever
  * else an earlier try took unbooked is given back. Emails the Client of
  * each given back; those called off are returned, for the caller to say
- * what's become of the Quote. Whether the Quote is now Accepted.
+ * what's become of the Quote. Whether the Quote is now Accepted, and
+ * whether a Deposit is one their bank is still finishing, too far on to
+ * call off, so nothing else may change the Quote yet (#534 critical C2).
  */
 export const settleQuotePayments = async (quoteId: string) => {
-  const { givenBack, calledOff } = await db.transaction(async (tx) => {
-    // as accepting it does, so the two never both have its Deposit
-    await tx
-      .select({ id: quotes.id })
-      .from(quotes)
-      .where(eq(quotes.id, quoteId))
-      .for("update");
-    return giveBackUnbookedDeposits(
-      tx,
-      quoteId,
-      await unsettledDeposits(quoteId, tx),
-    );
-  });
+  const { givenBack, calledOff, finishing } = await db.transaction(
+    async (tx) => {
+      // as accepting it does, so the two never both have its Deposit
+      await tx
+        .select({ id: quotes.id })
+        .from(quotes)
+        .where(eq(quotes.id, quoteId))
+        .for("update");
+      return giveBackUnbookedDeposits(
+        tx,
+        quoteId,
+        await unsettledDeposits(quoteId, tx),
+      );
+    },
+  );
   // each apart, holding the day, never inside the Quote's lock
   for (const ref of await unsettledDeposits(quoteId)) {
     await finalizeDeposit(ref);
@@ -1074,6 +1092,7 @@ export const settleQuotePayments = async (quoteId: string) => {
   return {
     accepted: (await acceptedJobOf(quoteId)) !== null,
     calledOff: pendings,
+    finishing: finishing.length > 0,
   };
 };
 

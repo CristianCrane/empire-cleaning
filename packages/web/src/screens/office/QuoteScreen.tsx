@@ -1304,7 +1304,8 @@ function RecordAcceptanceDialog({
               // waits on the bank, so info, as the Bill's (UX review U2)
               <Notice
                 tone={
-                  action.problem === clientPaying.finishing(quote.client.name)
+                  action.problem ===
+                  clientPaying.finishing(quote.client.name, "record")
                     ? "info"
                     : "danger"
                 }
@@ -1985,7 +1986,16 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
     .map((a) => a.name);
   const problems = [
     failure && !paying && (
-      <Notice key="failure" tone="danger">
+      <Notice
+        key="failure"
+        // past the end time, their bank still finishing it: it waits on
+        // the bank, so info, as Record acceptance's (#534 critical C2)
+        tone={
+          failure === clientPaying.finishing(quote.client.name, "send")
+            ? "info"
+            : "danger"
+        }
+      >
         {failure}
       </Notice>
     ),

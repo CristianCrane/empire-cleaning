@@ -1194,6 +1194,86 @@ describe("while the Client's bank is approving the Deposit", () => {
     expect(testPayments().refunds).toEqual([]);
     expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
   });
+
+  // critical review C1: a card saved with nothing to pay has no charge to
+  // give back, so no one is told to refund it by hand
+  test("a 0% Deposit approved for a day that's since filled gives nothing back, and raises no alarm", async () => {
+    // 8 hours on Monday
+    await cleaners(2, 4);
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office, guestAsk(), { depositPercent: 0 });
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("approved");
+    await payNow(client, quote).expect(200);
+    await bookedJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 7 });
+
+    const finalized = await finalize(client, quote).expect(409);
+
+    expect(testPayments().charges).toEqual([]);
+    expect(testMonitoring().signalled("refund_failed")).toEqual([]);
+    // nothing was paid, so nothing's said to be refunded
+    expect(finalized.body.message).toBe(
+      "Sorry, that time just got booked up, so nothing was charged. We'll be in touch with another time.",
+    );
+  });
+
+  // critical review C2: survey Design 6, past 15 minutes a Deposit that
+  // can't be called off (the bank finishing it) refuses the changes
+  test("changes can't be sent after 15 minutes while their bank is still finishing the payment", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+    testClock().advance({ minutes: 15 });
+    // approved, and the bank is finishing it: it can't be called off
+    testPayments().requireApproval("processing");
+    await office.post(`/api/quotes/${quote.id}/revisions`).send({}).expect(201);
+
+    const sent = await office.post(`/api/quotes/${quote.id}/send`);
+
+    // it goes through: what Casey paid for is booked, nothing refunded
+    testPayments().requireApproval(null);
+    await finalize(client, quote);
+    expect({
+      send: sent.status,
+      message: sent.body.message,
+      charges: testPayments().charges.length,
+      refunds: testPayments().refunds.length,
+    }).toEqual({
+      send: 409,
+      message:
+        "Casey Client's online payment is still going through with their bank, which usually takes a few minutes, so you can't send your changes yet. Nothing more was charged.",
+      charges: 1,
+      refunds: 0,
+    });
+  });
+
+  // critical review C3: a payment that's ended (approved, the day full, its
+  // refund failed) isn't one the Client is still making
+  test("the Office isn't told the Client is paying once the payment's ended unbooked", async () => {
+    // 8 hours on Monday
+    await cleaners(2, 4);
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("approved");
+    await payNow(client, quote).expect(200);
+    await bookedJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 7 });
+    testPayments().failRefunds();
+    await finalize(client, quote).expect(409);
+    // Jen calls to offer them another time, as the page promised
+    await office.post(`/api/quotes/${quote.id}/revisions`).send({}).expect(201);
+
+    const sent = await office.post(`/api/quotes/${quote.id}/send`);
+
+    expect({
+      paying: (await quoteOf(office, quote.id)).paying,
+      send: sent.status,
+      message: sent.body.message,
+    }).toEqual({ paying: null, send: 200, message: undefined });
+  });
 });
 
 describe("when something goes wrong mid-way", () => {

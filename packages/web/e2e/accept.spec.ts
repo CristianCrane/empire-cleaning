@@ -16,6 +16,7 @@ import {
   pageAction,
   expectNoPageAction,
   expectNextStep,
+  setClock,
 } from "./harness.ts";
 import type { Browser, Page } from "@playwright/test";
 
@@ -442,6 +443,35 @@ test("the draft of a Quote its Client is paying waits to be sent", async ({
     await expect(
       page.getByText("Not while Casey is paying the deposit"),
     ).toBeVisible();
+});
+
+// past the 15 minutes, a payment their bank is finishing can't be called
+// off, so the changes wait on it, as Record acceptance does (#534
+// critical review C2)
+test("changes wait to be sent while the Client's bank finishes their Deposit", async ({
+  page,
+  browser,
+}) => {
+  await payingOnline(page, browser);
+  await page.reload();
+  await pageAction(page, "Change quote");
+  await expect(page).toHaveURL(/\/draft$/);
+  // approved in their bank's app at 15 minutes, the bank finishing it
+  await setClock("2026-01-05T09:16:00Z");
+  await requireApproval("processing");
+  await page.reload();
+
+  await page
+    .getByRole("button", { name: "Send to Casey Client" })
+    .first()
+    .click();
+
+  await expect(
+    page.getByText(
+      "Casey Client's online payment is still going through with their bank, which usually takes a few minutes, so you can't send your changes yet. Nothing more was charged.",
+    ),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/\/draft$/);
 });
 
 test("a Client back from their bank before approving the Deposit is told how it goes on", async ({

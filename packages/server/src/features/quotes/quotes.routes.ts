@@ -259,7 +259,7 @@ router.post(
     // changes went
     let sent: OfficeQuote | undefined;
     try {
-      sent = await sendQuote(id);
+      sent = await sendQuote(id, { bankFinishing: settled.finishing });
     } finally {
       await tellCalledOff(settled.calledOff, sent !== undefined);
     }

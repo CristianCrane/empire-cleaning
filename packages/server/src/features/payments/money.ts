@@ -295,8 +295,13 @@ export const chargeOpen = async (forId: string, tx: Tx | typeof db = db) =>
 
 // where a Deposit waiting on the Client's bank stands
 export type Approval =
-  // their bank approved it: the Deposit, taken
-  | { status: "approved"; chargeId: string; saved: SavedPaymentMethod | null }
+  // their bank approved it: the Deposit, taken; no charge when it only
+  // saved their card, at 0%
+  | {
+      status: "approved";
+      chargeId: string | null;
+      saved: SavedPaymentMethod | null;
+    }
   // still asking them, and not called off
   | { status: "waiting" }
   // their bank is finishing it, so it can't be called off
@@ -338,7 +343,7 @@ export const approvalOf = async (
     case "succeeded":
       return {
         status: "approved",
-        chargeId: said.chargeId!,
+        chargeId: said.chargeId,
         saved: said.saved,
       };
     case "failed":
@@ -698,13 +703,16 @@ export const takeDepositOnce = async (
 // A Deposit was taken but nothing was booked: give it back. `why` is
 // why it couldn't be booked once the Client's bank approved it
 // (Unbookable's reason), kept for the Office's record of it even if giving
-// it back fails, for the Clock to try again. Whether it was given back
+// it back fails, for the Clock to try again. Whether it was given back:
+// one that only saved a card, at 0%, has no charge, and nothing to give
+// (#534 critical review C1)
 export const giveBackDeposit = async (
-  chargeId: string,
+  chargeId: string | null,
   amount: number,
   quoteId: string,
   why: DepositRefundedWhy | null = null,
 ) => {
+  if (!chargeId) return true;
   const ofIt = eq(chargeAttempts.gatewayRef, chargeId);
   if (why) {
     await apart.update(chargeAttempts).set({ givenBackWhy: why }).where(ofIt);
@@ -742,7 +750,9 @@ export const giveBackDeposit = async (
  * One their bank approved is left to its pending Deposit to book, while
  * it's among the `unsettled` refs; once that's settled without booking it
  * (giving it back failed), it's given back here. The refs of those given
- * back, and of those it called off, for the Client to be told.
+ * back, and of those it called off, for the Client to be told; and of
+ * those their bank is finishing, too far on to call off, which the Quote
+ * waits on (#534 critical review C2).
  */
 export const giveBackUnbookedDeposits = async (
   tx: Tx,
@@ -752,6 +762,7 @@ export const giveBackUnbookedDeposits = async (
   const after = clock.now().getTime() - APPROVAL_MS;
   const givenBack: string[] = [];
   const calledOff: string[] = [];
+  const finishing: string[] = [];
   for (const earlier of await openAttempts(tx, quoteId)) {
     if (earlier.status === "approving") {
       if (earlier.askedAt.getTime() > after) continue;
@@ -761,6 +772,7 @@ export const giveBackUnbookedDeposits = async (
         "abandoned",
       );
       if (approval.status === "called_off") calledOff.push(earlier.gatewayRef!);
+      if (approval.status === "finishing") finishing.push(earlier.gatewayRef!);
       if (
         approval.status === "approved" &&
         !unsettled.has(earlier.gatewayRef!) &&
@@ -778,7 +790,7 @@ export const giveBackUnbookedDeposits = async (
       quoteId,
     );
   }
-  return { givenBack, calledOff };
+  return { givenBack, calledOff, finishing };
 };
 
 // ---- giving back once (#241) ----

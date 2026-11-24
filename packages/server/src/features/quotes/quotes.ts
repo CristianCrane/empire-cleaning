@@ -699,8 +699,10 @@ export const payingOf = async (
     .select()
     .from(pendingDeposits)
     .where(eq(pendingDeposits.gatewayRef, paying.ref));
-  // its pending Deposit is saved as the Client's try lets go of the Quote
-  if (!pending) return null;
+  // its pending Deposit is saved as the Client's try lets go of the Quote;
+  // once settled, it's booked or ended, as its attempt waits on giving it
+  // back (#534 critical review C3)
+  if (!pending || pending.settledAt) return null;
   const row =
     quote.kind === "one_off"
       ? (await optionsOf(pending.revisionId, tx)).find(
@@ -1730,7 +1732,12 @@ const refuseUntimely = (revision: KindedRevision, rows: PricedOption[]) => {
 // takes the Draft's Service, refused while another Quote for that one is
 // open here. Sending one on an Expired Quote revives it, unless a newer
 // Quote of its kind is open for the Property.
-export const sendQuote = async (id: string): Promise<OfficeQuote> => {
+// `bankFinishing`: a Deposit on it is one the Client's bank is finishing,
+// past APPROVAL_MS, too far on to be called off (settleQuotePayments)
+export const sendQuote = async (
+  id: string,
+  { bankFinishing = false }: { bankFinishing?: boolean } = {},
+): Promise<OfficeQuote> => {
   const quote = await findQuote(id);
   const list = await currentPricing();
   const now = clock.now();
@@ -1751,6 +1758,10 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
           formats.en.formatTime(paying.until),
         ),
       );
+    }
+    // and after it, until their bank's done (#534 critical review C2)
+    if (bankFinishing) {
+      throw new ConflictError(clientPayingWords.finishing(client.name, "send"));
     }
     const saved = await optionsOf(draft.id, tx);
     const options = repriced(
