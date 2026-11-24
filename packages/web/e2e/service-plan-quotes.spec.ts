@@ -428,7 +428,7 @@ test("a plan quoted at no discount says no saving, on its quote and on the plan"
   // how long a clean runs is said once, on the plan, as every clean on its
   // one weekday runs as long
   await expect(details).toContainText(/[\d¼½¾] hHow long/);
-  const cleans = client.getByRole("grid", { name: "Your upcoming cleans" });
+  const cleans = client.getByRole("region", { name: "Your upcoming cleans" });
   await expect(cleans.getByRole("row").first()).toContainText("9:00 AM");
   await expect(cleans).not.toContainText(/[\d¼½¾] h/);
 });

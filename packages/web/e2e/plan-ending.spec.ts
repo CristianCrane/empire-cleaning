@@ -78,7 +78,9 @@ test(
     await expect(page.getByText("Your cleaning plan has ended")).toBeVisible();
     await expect(page.getByText(/ended Jan 18/)).toBeVisible();
     await expect(
-      page.getByRole("grid", { name: "Your upcoming cleans" }).getByRole("row"),
+      page
+        .getByRole("region", { name: "Your upcoming cleans" })
+        .getByRole("row"),
     ).toHaveCount(1);
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
       "Your cleaning plan has ended",
@@ -122,7 +124,7 @@ test("a plan's clean with a move asked is badged so, as the Cleans list badges i
   await signedInAs(page, casey.email);
   await page.goto(`/portal/plans/${planId}`);
 
-  const cleans = page.getByRole("grid", { name: "Your upcoming cleans" });
+  const cleans = page.getByRole("region", { name: "Your upcoming cleans" });
   await expect(
     cleans.getByRole("row").filter({ hasText: "Mon, Jan 19" }),
   ).toContainText("Move asked");
@@ -195,7 +197,7 @@ test(
     // the next week's clean, skipped late too
     await page.goto(`/portal/plans/${planId}`);
     await page
-      .getByRole("grid", { name: "Your upcoming cleans" })
+      .getByRole("region", { name: "Your upcoming cleans" })
       .getByRole("row")
       .filter({ hasText: "Mon, Jan 26" })
       .click();

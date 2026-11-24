@@ -172,18 +172,18 @@ test(
     );
     await expect(
       client
-        .getByRole("grid", { name: "Your upcoming cleans" })
+        .getByRole("region", { name: "Your upcoming cleans" })
         .getByRole("row"),
     ).toHaveText([
       // how long is the card's to say, each weekday named, as no clean
       // runs other than its weekday's
-      /^Mon, Jan 19, 9:00 AM\D*$/,
-      /^Wed, Jan 21, 1:00 PM\D*$/,
-      /^Mon, Jan 26, 9:00 AM\D*$/,
-      /^Wed, Jan 28, 1:00 PM\D*$/,
-      /^Mon, Feb 2, 9:00 AM\D*$/,
-      /^Wed, Feb 4, 1:00 PM\D*$/,
-      /^Mon, Feb 9, 9:00 AM\D*$/,
+      /^Mon, Jan 19, [^,]*9:00 AM\D*$/,
+      /^Wed, Jan 21, [^,]*1:00 PM\D*$/,
+      /^Mon, Jan 26, [^,]*9:00 AM\D*$/,
+      /^Wed, Jan 28, [^,]*1:00 PM\D*$/,
+      /^Mon, Feb 2, [^,]*9:00 AM\D*$/,
+      /^Wed, Feb 4, [^,]*1:00 PM\D*$/,
+      /^Mon, Feb 9, [^,]*9:00 AM\D*$/,
     ]);
     await expect(details).toContainText("About 2 hHow long on Mondays");
     await expect(details).toContainText("3¾ hHow long on Wednesdays");

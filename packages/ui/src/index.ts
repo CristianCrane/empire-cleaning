@@ -50,6 +50,7 @@ export {
   LIST_PAGE,
   ListPage,
   DatedItem,
+  DatedLists,
   byMonth,
   type ListColumn,
   type ListRow,

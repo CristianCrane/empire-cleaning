@@ -289,7 +289,8 @@ export function byMonth<X>(lang: Language, items: X[], at: (x: X) => string) {
 
 // A dated row (docs/ux.md, "Dated things a person scans are grouped by
 // month"): a small DateTile, then the weekday and time, then `title`, what
-// the person looking tells it apart by. The tile is decorative, so its date
+// the person looking tells it apart by, left out when the page above says
+// it for every row (a plan's cleans). The tile is decorative, so its date
 // is said to a screen reader before the time
 export function DatedItem({
   id,
@@ -301,7 +302,7 @@ export function DatedItem({
 }: {
   id: string;
   at: string;
-  title: string;
+  title?: string;
   description?: ReactNode;
   end?: ReactNode;
   onAction?: () => void;
@@ -311,7 +312,7 @@ export function DatedItem({
   return (
     <ListItem
       id={id}
-      textValue={`${formatDateTime(at)} · ${title}`}
+      textValue={lineOf([formatDateTime(at), title])}
       heard={formatDate(at)}
       // its dot glued, so a wrap never leaves it at a line's end
       title={lineOf([`${dateTile(at).weekday} ${formatTime(at)}`, title])}
@@ -320,6 +321,34 @@ export function DatedItem({
       end={end}
       onAction={onAction}
     />
+  );
+}
+
+// dated things by month, each month a List under its name: a dated
+// ListPage's rows, or a Section's (a plan's cleans)
+export function DatedLists<X>({
+  label,
+  items,
+  at,
+  item,
+  level = 2,
+}: {
+  // the list's name; each month's List is named for it and the month
+  label: string;
+  items: X[];
+  at: (x: X) => string;
+  item: (x: X) => ReactNode;
+  // the months' place in the page outline: 3 inside a Section
+  level?: 2 | 3;
+}) {
+  return (
+    <div className="flex flex-col gap-6">
+      {byMonth(useLanguage(), items, at).map(({ month, items: xs }) => (
+        <Month key={month} month={month} level={level}>
+          <List aria-label={`${label}, ${month}`}>{xs.map(item)}</List>
+        </Month>
+      ))}
+    </div>
   );
 }
 
@@ -400,10 +429,7 @@ function ListBody<T>({
   if (rows.length === 0)
     return none && <p className="p-6 text-center text-fg-muted">{none}</p>;
   // a dated list by month, at every width
-  const months = rows.every((r) => r.row.at)
-    ? byMonth(lang, rows, (r) => r.row.at!)
-    : null;
-  const named = (month: string) => `${label}, ${month}`;
+  const dated = rows.every((r) => r.row.at);
 
   let list: ReactNode;
   if (columns) {
@@ -415,7 +441,7 @@ function ListBody<T>({
       <Table
         aria-label={name}
         // a month's Table lines up with the next one's
-        className={months ? "table-fixed" : undefined}
+        className={dated ? "table-fixed" : undefined}
         sortDescriptor={sort?.descriptor}
         onSortChange={sort?.onChange}
       >
@@ -455,22 +481,23 @@ function ListBody<T>({
         </TableBody>
       </Table>
     );
-    list = months
-      ? months.map(({ month, items: rs }) => (
+    list = dated
+      ? byMonth(lang, rows, (r) => r.row.at!).map(({ month, items: rs }) => (
           <Month key={month} month={month}>
-            {table(named(month), rs)}
+            {table(`${label}, ${month}`, rs)}
           </Month>
         ))
       : table(label, rows);
   } else {
     const item = ({ row: r }: (typeof rows)[number]) =>
       listRowItem(r, searching);
-    list = months ? (
-      months.map(({ month, items: rs }) => (
-        <Month key={month} month={month}>
-          <List aria-label={named(month)}>{rs.map(item)}</List>
-        </Month>
-      ))
+    list = dated ? (
+      <DatedLists
+        label={label}
+        items={rows}
+        at={(r) => r.row.at!}
+        item={item}
+      />
     ) : (
       <List aria-label={label}>{rows.map(item)}</List>
     );
@@ -493,10 +520,18 @@ function ListBody<T>({
 }
 
 // a month of a dated list, under its name
-function Month({ month, children }: { month: string; children: ReactNode }) {
+function Month({
+  month,
+  level = 2,
+  children,
+}: {
+  month: string;
+  level?: 2 | 3;
+  children: ReactNode;
+}) {
   return (
     <section className="flex flex-col gap-2">
-      <Heading level={2} size={4} className="text-fg-muted">
+      <Heading level={level} size={4} className="text-fg-muted">
         {month}
       </Heading>
       {children}

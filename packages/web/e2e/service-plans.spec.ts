@@ -90,14 +90,18 @@ test(
     await expect(
       client.getByText(/^Each clean is charged to your card when it's done\./),
     ).toBeVisible();
-    const upcoming = client
-      .getByRole("grid", { name: "Your upcoming cleans" })
-      .getByRole("row");
+    const cleans = client.getByRole("region", { name: "Your upcoming cleans" });
+    // by month, as the Cleans list draws them
+    await expect(cleans.getByRole("heading", { level: 3 })).toHaveText([
+      "January 2026",
+      "February 2026",
+    ]);
+    const upcoming = cleans.getByRole("row");
     await expect(upcoming).toHaveText([
-      /Mon, Jan 19, 9:00 AM/,
-      /Mon, Jan 26, 9:00 AM/,
-      /Mon, Feb 2, 9:00 AM/,
-      /Mon, Feb 9, 9:00 AM/,
+      /^Mon, Jan 19, .*9:00 AM/,
+      /^Mon, Jan 26, .*9:00 AM/,
+      /^Mon, Feb 2, .*9:00 AM/,
+      /^Mon, Feb 9, .*9:00 AM/,
     ]);
     await noViolations(client);
 

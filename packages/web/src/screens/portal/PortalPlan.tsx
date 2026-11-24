@@ -1,5 +1,4 @@
 import { MessageSquarePlus } from "lucide-react";
-import type { Key } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
   type ClientView,
@@ -10,10 +9,10 @@ import {
 import {
   Actions,
   Button,
+  DatedItem,
+  DatedLists,
   Dialog,
   Form,
-  List,
-  ListItem,
   Notice,
   Section,
   TextField,
@@ -77,8 +76,8 @@ export function PortalPlan() {
   const t = useSaid(words);
   const plan = useLoaderData({ from: "/portal/plans/$planId" });
   const navigate = useNavigate();
-  const openJob = (id: Key) =>
-    navigate({ to: "/portal/jobs/$jobId", params: { jobId: String(id) } });
+  const openJob = (jobId: string) =>
+    void navigate({ to: "/portal/jobs/$jobId", params: { jobId } });
   const onHold = useOnHold(plan, {
     forClient: true,
     jobHref: (jobId) =>
@@ -131,29 +130,36 @@ export function PortalPlan() {
         // none is booked while it's paused, as its alert says
         description={plan.status === "on_hold" ? undefined : t.w.ahead}
       >
-        <List
-          aria-label={t.w.upcoming}
-          onAction={openJob}
-          renderEmptyState={() => (
-            <p className="p-6 text-center text-fg-muted">
-              {plan.status === "ended" ? t.w.noneBooked : t.w.noneJustNow}
-            </p>
-          )}
-        >
-          {plan.upcoming.map((job) => (
-            <ListItem
-              key={job.id}
-              id={job.id}
-              title={t.formatDateTime(job.startsAt)}
-              // how long, as the clean's own page says it
-              description={
-                sayingLength.has(job) ? howLong(t, job.hoursOnSite) : undefined
-              }
-              // as the Cleans list badges it (#507)
-              end={upcomingBadge(t, job)}
-            />
-          ))}
-        </List>
+        {plan.upcoming.length > 0 ? (
+          // by month, as the Cleans list draws them; the plan's card names
+          // the kind of clean, so a row is its day and time
+          <DatedLists
+            label={t.w.upcoming}
+            level={3}
+            items={plan.upcoming}
+            at={(job) => job.startsAt}
+            item={(job) => (
+              <DatedItem
+                key={job.id}
+                id={job.id}
+                at={job.startsAt}
+                // how long, as the clean's own page says it
+                description={
+                  sayingLength.has(job)
+                    ? howLong(t, job.hoursOnSite)
+                    : undefined
+                }
+                // as the Cleans list badges it (#507)
+                end={upcomingBadge(t, job)}
+                onAction={() => openJob(job.id)}
+              />
+            )}
+          />
+        ) : (
+          <p className="p-6 text-center text-fg-muted">
+            {plan.status === "ended" ? t.w.noneBooked : t.w.noneJustNow}
+          </p>
+        )}
       </Section>
     </RecordPage>
   );

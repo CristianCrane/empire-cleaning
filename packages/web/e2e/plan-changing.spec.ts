@@ -93,11 +93,11 @@ test(
       ),
     ).toBeVisible();
     await client.getByRole("link", { name: "See your cleaning plan" }).click();
-    const cleans = client.getByRole("grid", { name: "Your upcoming cleans" });
+    const cleans = client.getByRole("region", { name: "Your upcoming cleans" });
     await expect(cleans.getByRole("row")).toHaveText([
-      /Mon, Jan 19, 9:00 AM/,
-      /Mon, Jan 26, 9:00 AM/,
-      /Wed, Jan 28, 9:00 AM/,
+      /^Mon, Jan 19, .*9:00 AM/,
+      /^Mon, Jan 26, .*9:00 AM/,
+      /^Wed, Jan 28, .*9:00 AM/,
     ]);
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
       "Your cleaning plan with Empire Cleaning has changed",
