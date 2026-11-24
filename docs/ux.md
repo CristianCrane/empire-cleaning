@@ -793,9 +793,12 @@ stays as it is (#336).
   by position. Weekdays alike to their reader go together, so a Client
   may read one where the Office reads two ("About 2 h" for 1 h 57 min and
   2 h 3 min). The Client's list of cleans leaves how long to the card
-  while each runs as its weekday's there; once one doesn't (booked
-  longer, or moved to another day), every row says its own length, so
-  the eye compares like with like.
+  while each runs as its weekday's there. Once one doesn't (booked
+  longer, or moved to a day the card has no length for), a plan of one
+  length gives every row its own, so the one that differs sits among
+  neighbours alike; a plan of several lengths gives it to that clean
+  alone, as its neighbours are other weekdays, unlike to compare, and
+  every row's length would hide it.
 
 ### Status and colour
 
