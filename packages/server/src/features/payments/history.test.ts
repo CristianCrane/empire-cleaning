@@ -100,6 +100,46 @@ describe("a Client's payment history", () => {
     });
   });
 
+  test("tells a clean's own Balance from a later one made at the same moment, in the order they were made", async () => {
+    // the write order (created_at) breaks the Clock's tie, as the money
+    // reads do (latestDepositFor, refundFrom, the ledgers): red if
+    // created_at were put on the Clock (#520's critical review, C2)
+    const me = await officeAccount();
+    const { job } = await completedFirstClean({ byAccountId: me.id });
+    const [own] = await db
+      .select()
+      .from(charges)
+      .where(and(eq(charges.jobId, job.id), eq(charges.kind, "balance")));
+    const {
+      id: _id,
+      createdAt: _createdAt,
+      updatedAt: _updatedAt,
+      ...rest
+    } = own!;
+    await db.insert(charges).values({
+      ...rest,
+      amountCents: 5988,
+      item: {
+        kind: "extra_time",
+        addOnKey: null,
+        addOnName: null,
+        hours: 1,
+        how: "approved",
+      },
+      gatewayRef: "fake_extra",
+    });
+
+    const history = await historyOf(casey.email);
+
+    expect(history.find((p) => p.kind === "balance")).toMatchObject({
+      amountCents: own!.amountCents,
+      item: null,
+    });
+    expect(history.find((p) => p.kind === "adjustment")).toMatchObject({
+      amountCents: 5988,
+    });
+  });
+
   test("holds a Service Plan's Deposit, for the plan", async () => {
     const me = await officeAccount();
     const { propertyId } = await completedFirstClean({ byAccountId: me.id });
