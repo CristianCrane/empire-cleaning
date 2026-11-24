@@ -640,14 +640,17 @@ describe("a Bill payment the Client's bank asks them to approve", () => {
 
   // ux design review U23 and U25: one never approved, however it ends,
   // took nothing and failed nothing, so the pages read as before it
-  test("one never approved takes nothing, started over or left, and the pages read as before it", async () => {
+  // its pages say what became of the latest, not an older failure (#534's
+  // UX review U12)
+  test("one never approved takes nothing, started over or left, and the pages say it wasn't approved", async () => {
     const { office, id, pay, finish } = await onPageBill();
     // an earlier payment, declined
     testPayments().failCharges("insufficient_funds");
     await pay().expect(409);
     testPayments().failCharges(null);
-    const before = (await billOf(office, id)).paying;
-    expect(before).toMatchObject({ status: "failed" });
+    expect((await billOf(office, id)).paying).toMatchObject({
+      status: "failed",
+    });
     const taken = testPayments().charges.length;
 
     testPayments().requireApproval("pending");
@@ -656,13 +659,14 @@ describe("a Bill payment the Client's bank asks them to approve", () => {
     await pay().expect(200);
     // they closed their bank's box
     expect((await finish(false).expect(409)).body.message).toBe(
-      "The payment wasn't approved, so nothing was taken. Please try again, or use another card or bank account.",
+      "Your payment wasn't approved, so nothing was taken. Please try again, or use another card or bank account.",
     );
+    const notApproved = { status: "notApproved" };
     expect(await billOf(office, id)).toMatchObject({
       status: "due",
       payable: true,
       canCancelOrRecord: true,
-      paying: before,
+      paying: notApproved,
     });
 
     // one more, left open past the 15 minutes: the Clock calls it off
@@ -672,7 +676,7 @@ describe("a Bill payment the Client's bank asks them to approve", () => {
     expect(await billOf(office, id)).toMatchObject({
       status: "due",
       canCancelOrRecord: true,
-      paying: before,
+      paying: notApproved,
     });
 
     // approved too late, nothing is taken

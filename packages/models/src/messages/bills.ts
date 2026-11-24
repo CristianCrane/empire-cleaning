@@ -47,6 +47,10 @@ export const bills = catalog({
     // whole, and its total is right below (#534's UX review U5)
     payingFailed: (why: string | null) =>
       `Your payment didn't go through${because(why)}`,
+    // the Client's last payment on a Bill's page, never approved with their
+    // bank (they left its check, failed it, or let it run out), as the
+    // dialog and the page say it: nothing was taken (#534's UX review U12)
+    NOT_APPROVED: "Your payment wasn't approved, so nothing was taken.",
     // what to do once a payment on a Bill's page took nothing, true whichever
     // way they paid: the page's alert, and the server's refusal in its dialog
     PAY_AGAIN: "Please try again, or use another card or bank account.",
@@ -63,6 +67,7 @@ export const bills = catalog({
       `No pudimos cobrar el pago de la factura ${number}`,
     BANK_CLEARING: "Normalmente tarda unos días hábiles en pasar.",
     payingFailed: (why: string | null) => `Su pago no pasó${because(why)}`,
+    NOT_APPROVED: "Su pago no se aprobó, así que no se cobró nada.",
     PAY_AGAIN: "Vuelva a intentarlo, o use otra tarjeta o cuenta bancaria.",
   },
 });

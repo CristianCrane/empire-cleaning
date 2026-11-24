@@ -149,6 +149,16 @@ function useStanding(bill: BillView): Alert | null {
       children: `${t.payingFailed(bill.paying.why)}. ${t.PAY_AGAIN}${bill.unpaid ? paused : ""}`,
     };
   }
+  // their last one here they never approved with their bank: no failure,
+  // as nothing was taken, but what became of it, in the dialog's words, to
+  // one who left it and comes back (#534's UX review U12)
+  if (bill.paying?.status === "notApproved" && !bill.unpaid) {
+    return {
+      key: "notApproved",
+      tone: "info",
+      children: `${t.NOT_APPROVED} ${t.PAY_AGAIN}`,
+    };
+  }
   if (bill.unpaid?.kind === "late") {
     return {
       key: "late",

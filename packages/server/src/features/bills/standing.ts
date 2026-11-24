@@ -10,12 +10,13 @@ import type { Bill } from "./bills.schema.ts";
 // saved card, or the Client's on its page: a bank debit, or one nobody
 // heard the end of yet); the Client's bank asking them to approve theirs,
 // until `approvingUntil`, when it's called off; or their latest payment on
-// its page, which failed, and why. One never approved isn't a failure:
-// nothing was taken, and the dialog said so
+// its page, which failed, and why, or which they never approved: no
+// failure, as nothing was taken, but the page says so to one who comes back
+// to it (#534's UX review U12)
 export type PayingOn = {
   goingSince: Date | null;
   approvingUntil: Date | null;
-  failed: { at: Date; reason: string } | null;
+  failed: { at: Date; reason: string; approved: boolean } | null;
 };
 
 // whether a payment on it holds the Bill (ADR-0022's one rule), as its
@@ -53,7 +54,6 @@ export const payingOn = async (billIds: string[], tx: Tx | typeof db = db) => {
       continue;
     }
     if (decided.has(attempt.forId)) continue;
-    if (attempt.status === "failed" && NOT_APPROVED(attempt.reason)) continue;
     // the latest that ended decides: taken, or ours to the saved card,
     // which the Bill's Unpaid tells
     decided.add(attempt.forId);
@@ -61,6 +61,7 @@ export const payingOn = async (billIds: string[], tx: Tx | typeof db = db) => {
       paying.failed = {
         at: attempt.endedAt ?? attempt.askedAt,
         reason: attempt.reason ?? "",
+        approved: !NOT_APPROVED(attempt.reason),
       };
     }
   }
@@ -71,7 +72,8 @@ export const payingOn = async (billIds: string[], tx: Tx | typeof db = db) => {
 // payments stand (payingOn), in the reply's language: a payment going
 // through is Unpaid only in that it's pending (ADR-0022), unless it already
 // was, which says why; and the Client's bank asking them to approve
-// theirs, or their last payment on its page, which failed
+// theirs, or their last payment on its page, which failed or was never
+// approved
 export const standing = (
   bill: Pick<Bill, "status" | "unpaidSince" | "unpaidReason">,
   on: PayingOn,
@@ -89,11 +91,13 @@ export const standing = (
       : on.approvingUntil
         ? { status: "approving", until: on.approvingUntil.toISOString() }
         : on.failed && !on.goingSince
-          ? {
-              status: "failed",
-              at: on.failed.at.toISOString(),
-              why: whyNotPaid(lang, on.failed.reason).why,
-            }
+          ? on.failed.approved
+            ? {
+                status: "failed",
+                at: on.failed.at.toISOString(),
+                why: whyNotPaid(lang, on.failed.reason).why,
+              }
+            : { status: "notApproved", at: on.failed.at.toISOString() }
           : null,
   };
 };

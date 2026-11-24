@@ -432,7 +432,8 @@ test("a Client's payment on a Bill's page that didn't go through says why, there
 });
 
 // the Client's bank asking them to approve their payment (#534): refused,
-// nothing was taken and the page reads as before; left waiting, both
+// nothing was taken, and the page says so once the dialog's closed (#534's
+// UX review U12); left waiting, both
 // pages say so, the Office can't cancel or record a payment meanwhile, and
 // paying again calls the first off
 test("a Client's payment their bank asks them to approve: refused, left waiting, then paid at once", async ({
@@ -448,14 +449,21 @@ test("a Client's payment their bank asks them to approve: refused, left waiting,
   await pay.click();
   await expect(
     form.getByText(
-      "The payment wasn't approved, so nothing was taken. Please try again, or use another card or bank account.",
+      "Your payment wasn't approved, so nothing was taken. Please try again, or use another card or bank account.",
       { exact: true },
     ),
   ).toBeVisible();
   await form.getByRole("button", { name: "Cancel" }).click();
-  // never approved, nothing failed: as before they pressed Pay
+  // never approved, nothing failed: Due, and what became of it
   await expect(titleBadge(page, "Due")).toBeVisible();
-  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  await expect(
+    page
+      .getByRole("main")
+      .getByText(
+        "Your payment wasn't approved, so nothing was taken. Please try again, or use another card or bank account.",
+        { exact: true },
+      ),
+  ).toBeVisible();
 
   await requireApproval("pending");
   await (await payThisBill(page)).pay.click();

@@ -2162,7 +2162,8 @@ export type BillSummary = {
   // the Client paying it on its page, as its pages tell it (#534): their
   // bank asking them to approve it, which holds the Bill `until`
   // (ADR-0022's one rule); or their last payment, which didn't go through
-  // `at`, and why (a clause, as Unpaid's, or null); null when neither
+  // `at`, and why (a clause, as Unpaid's, or null), or which they never
+  // approved with their bank, so it took nothing; null when none
   paying: BillPaying | null;
   // since when a bank debit on it has been on its way, while one is
   // (status processing); else null
@@ -2173,7 +2174,8 @@ export type BillSummary = {
 
 export type BillPaying =
   | { status: "approving"; until: string }
-  | { status: "failed"; at: string; why: string | null };
+  | { status: "failed"; at: string; why: string | null }
+  | { status: "notApproved"; at: string };
 
 export type BillView = BillSummary & {
   lines: BillLineView[];

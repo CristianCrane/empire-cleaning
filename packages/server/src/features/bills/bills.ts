@@ -702,7 +702,7 @@ const payWords = catalog({
     nothingToPay: "There's nothing to pay on this bill.",
     notThrough: (because: string) =>
       `Your payment didn't go through${because}, so nothing was taken. ${messages.en.PAY_AGAIN}`,
-    notApproved: `The payment wasn't approved, so nothing was taken. ${messages.en.PAY_AGAIN}`,
+    notApproved: `${messages.en.NOT_APPROVED} ${messages.en.PAY_AGAIN}`,
   },
   es: {
     onItsWay: "Su pago bancario de esta factura ya está en camino.",
@@ -710,7 +710,7 @@ const payWords = catalog({
     nothingToPay: "No hay nada que pagar en esta factura.",
     notThrough: (because: string) =>
       `Su pago no pasó${because}, así que no se cobró nada. ${messages.es.PAY_AGAIN}`,
-    notApproved: `El pago no se aprobó, así que no se cobró nada. ${messages.es.PAY_AGAIN}`,
+    notApproved: `${messages.es.NOT_APPROVED} ${messages.es.PAY_AGAIN}`,
   },
 });
 

@@ -160,6 +160,16 @@ function standing(bill: BillView): Alert | null {
       children: `The client's payment didn't go through on ${formatShortDay(dayOfInstant(at))}${because(why)}. ${late ? `${officeFix.late}${plansPaused(bill)}` : "They can try again on its page."}`,
     };
   }
+  // their last one on its page never approved (by their bank, or they
+  // left it), so it took nothing, as the Client's page says (#534's UX review U12); once
+  // late, that's the news
+  if (bill.paying?.status === "notApproved" && !bill.unpaid) {
+    return {
+      key: "notApproved",
+      tone: "info",
+      children: `The client's payment on ${formatShortDay(dayOfInstant(bill.paying.at))} wasn't approved, so nothing was taken. They can try again on its page.`,
+    };
+  }
   if (bill.unpaid) {
     const { kind, why } = bill.unpaid;
     // when is the line under its total's (UX review U5)
