@@ -2209,7 +2209,11 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
           onAction: () => void onSend(),
         }}
         price={priceOf(quote)}
-        note={noteOf(saveState, sendHold(quote, dayTitles, !!paying))}
+        note={noteOf(
+          saveState,
+          liveHold(quote, !!paying),
+          sendHold(quote, dayTitles),
+        )}
       >
         {draft.asked && (
           <FormPart title="What was asked" summary={askedSummary(draft)}>
@@ -2490,15 +2494,21 @@ const timeFold = ({
   };
 };
 
-// What Send waits on, said beside it after "Saved", of the Draft as last
-// saved: the Client paying the quote sent (the one rule, #534), an email
-// or a site visit first, a time to pick, a later or an earlier one, or that
-// the one picked has no room, named, as what says so may be out of view.
-// None when it can go.
-const sendHold = (quote: ShownQuote, dayTitles: string[], paying: boolean) => {
+// What Send waits on whatever's typed, said beside it in every save
+// state: the Client paying the quote sent (the one rule, #534), or their
+// email to add. None when neither holds it.
+const liveHold = (quote: ShownQuote, paying: boolean) => {
   const name = firstNameOf(quote.client.name);
   if (paying) return clientPaying.item(name);
   if (!quote.client.email) return `Add ${name}'s email first`;
+  return undefined;
+};
+
+// What else Send waits on, said beside it after "Saved", of the Draft as
+// last saved: a site visit first, a time to pick, a later or an earlier
+// one, or that the one picked has no room, named, as the picker may be out
+// of view. None when it can go.
+const sendHold = (quote: ShownQuote, dayTitles: string[]) => {
   if (quote.needsSiteVisit)
     return quote.bookedSiteVisit
       ? "Record what the site visit found first"
@@ -2528,12 +2538,16 @@ const sendHold = (quote: ShownQuote, dayTitles: string[], paying: boolean) => {
     : undefined;
 };
 
-// the line beside Send: whether it's saved, then once it is, what Send
-// waits on
-const noteOf = (state: SaveState, hold: string | undefined) =>
-  state === "saved" && hold
-    ? `${saveStateLabel.saved} · ${hold}`
-    : saveStateLabel[state];
+// the line beside Send: whether it's saved, then what Send waits on: a
+// live hold always, the Draft's own once it's saved
+const noteOf = (
+  state: SaveState,
+  live: string | undefined,
+  saved: string | undefined,
+) => {
+  const hold = live ?? (state === "saved" ? saved : undefined);
+  return hold ? `${saveStateLabel[state]} · ${hold}` : saveStateLabel[state];
+};
 
 // A plan's weekday: its Cleaners, then its proposed time, picked from the
 // open times as the Draft's one-off's is, then its price set by hand. Its

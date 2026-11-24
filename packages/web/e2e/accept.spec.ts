@@ -438,10 +438,20 @@ test("the draft of a Quote its Client is paying waits to be sent", async ({
   await expect(
     page.getByRole("button", { name: "Send to Casey Client" }).first(),
   ).toBeDisabled();
-  // said beside Send at every width, as what Send waits on is
-  await expect(
-    page.getByRole("status").filter({ hasText: /saved/i }),
-  ).toHaveText("Saved · Not while Casey is paying the deposit");
+  // said beside Send at every width, as what Send waits on is, and still
+  // while what's typed waits to save (review F22)
+  const status = page.getByRole("status").filter({ hasText: /prices|saved/i });
+  await expect(status).toHaveText(
+    "Saved · Not while Casey is paying the deposit",
+  );
+  const standard = page.getByRole("group", { name: "Standard Clean" });
+  await standard.getByText("Set the Standard Clean price yourself").click();
+  await standard
+    .getByRole("textbox", { name: "Standard Clean price before tax" })
+    .fill("250");
+  await expect(status).toHaveText(
+    "Give a reason for the new price to update the prices · Not while Casey is paying the deposit",
+  );
 });
 
 // past the 15 minutes, a payment their bank is finishing can't be called
