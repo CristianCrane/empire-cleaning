@@ -114,19 +114,23 @@ test(
     await expect(page.getByText("Mondays at 9:00 AM")).toBeVisible();
     await noViolations(page);
 
-    // and its Jobs in the home's History, newest first
+    // and its Jobs booked, soonest first, apart from its History of what
+    // has happened, which holds none of them yet
     const jobs = page
-      .getByRole("list", { name: /^History/ })
-      .getByRole("listitem")
-      .filter({ hasText: "Job · Standard Clean" });
+      .getByRole("grid", { name: "Booked jobs" })
+      .getByRole("row")
+      .filter({ hasText: "Standard Clean" });
     await expect(jobs).toHaveCount(4);
+    await expect(
+      page.getByRole("list", { name: /^History/ }).getByText(/^Job · /),
+    ).toHaveCount(0);
 
     // a week on, the next Job comes within reach
     await setClock("2026-01-19T16:00:00Z");
     await generatePlanJobs();
     await page.reload();
     await expect(jobs).toHaveCount(5);
-    await expect(jobs.first()).toContainText("Feb 16, 2026");
+    await expect(jobs.last()).toContainText("Mon, Feb 16");
   },
 );
 

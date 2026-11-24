@@ -37,7 +37,13 @@ import {
 import { patchJson } from "../../api.ts";
 import { linkTo, type AppHref } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { addressOf, formatMinutes, lineOf, screenWords } from "../format.ts";
+import {
+  addressOf,
+  crewOf,
+  formatMinutes,
+  lineOf,
+  screenWords,
+} from "../format.ts";
 import { AccessFact, ConditionFact, FloorAreaFact } from "../Fact.tsx";
 import { homeIcon, JobIcon, QuoteIcon, SiteVisitIcon } from "../icons.ts";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
@@ -60,15 +66,15 @@ import { useOnHold } from "../PlanParts.tsx";
 import { OfferServicePlan, QUOTE_A_PLAN } from "./StartDraft.tsx";
 import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
 import { clientTrail } from "./trails.ts";
-import { JobStatusBadge } from "../JobBadges.tsx";
+import { JobBadge, JobStatusBadge } from "../JobBadges.tsx";
 
 const { propertySummary, quoteHeadline } = screenWords.en;
 
 const { formatDate, formatDateTime } = formats.en;
 
 // A home for the Office (ADR-0011), a Record (docs/ux.md): what to know
-// first as alerts; then its details, its Service Plan and its Site Visit,
-// and its whole history last, newest first
+// first as alerts; then its details, its Service Plan, the Jobs booked
+// there and its Site Visit, and what has happened there last, newest first
 export function PropertyScreen() {
   const { home, premisesTypes, plan, visit } = useLoaderData({
     from: "/office/properties/$propertyId",
@@ -125,6 +131,7 @@ export function PropertyScreen() {
       history={<History home={home} events={historyOf(home)} />}
     >
       <PlanPart home={home} plan={plan} newTerms={!!newTerms} />
+      <BookedJobs home={home} />
       <VisitPart home={home} visit={visit} premisesTypes={premisesTypes} />
     </RecordPage>
   );
@@ -353,6 +360,49 @@ function VisitPart({
   );
 }
 
+// the Jobs booked at the home, soonest first, each opening its page: a
+// plan's cleans to come, and any one-off; badged only when it still needs
+// cleaners, as a crew in place is the usual case. Once one is done or
+// called off, it's in the History
+function BookedJobs({ home }: { home: OfficePropertyView }) {
+  const navigate = useNavigate();
+  const booked = home.jobs
+    .filter((job) => job.status === "booked")
+    .sort((a, b) => (a.startsAt < b.startsAt ? -1 : 1));
+  if (booked.length === 0) return null;
+  return (
+    <Section title="Booked jobs">
+      <List
+        aria-label="Booked jobs"
+        onAction={(jobId) =>
+          void navigate({
+            to: "/office/jobs/$jobId",
+            params: { jobId: String(jobId) },
+          })
+        }
+      >
+        {booked.map((job) => (
+          <ListItem
+            key={job.id}
+            id={job.id}
+            start={<IconTile icon={JobIcon} />}
+            title={formatDateTime(job.startsAt)}
+            description={
+              <Line
+                parts={[
+                  job.serviceName,
+                  job.crew.length > 0 && crewOf(job.crew),
+                ]}
+              />
+            }
+            end={job.assignment === "unassigned" && <JobBadge job={job} />}
+          />
+        ))}
+      </List>
+    </Section>
+  );
+}
+
 type HistoryEvent = {
   id: string;
   on: string;
@@ -363,8 +413,9 @@ type HistoryEvent = {
   href: AppHref;
 };
 
-// everything that's happened at the home, newest first: its Quotes (when
-// Sent, or asked for), Jobs and Site Visits
+// what has happened at the home, newest first: its Quotes (when Sent, or
+// asked for), its Jobs once done or called off, and its Site Visits once
+// they've been (a booked one is its own part, as booked Jobs are)
 const historyOf = (home: OfficePropertyView): HistoryEvent[] =>
   [
     ...home.quotes.map((quote) => ({
@@ -379,29 +430,33 @@ const historyOf = (home: OfficePropertyView): HistoryEvent[] =>
         params: { quoteId: quote.id },
       }),
     })),
-    ...home.jobs.map((job) => ({
-      id: `job ${job.id}`,
-      on: job.startsAt,
-      icon: JobIcon,
-      kind: "Job",
-      what: job.serviceName,
-      status: <JobStatusBadge status={job.status} />,
-      href: linkTo({ to: "/office/jobs/$jobId", params: { jobId: job.id } }),
-    })),
-    ...home.siteVisits.map((visit) => ({
-      id: `visit ${visit.id}`,
-      on: visit.startsAt ?? visit.doneAt ?? visit.bookedAt,
-      icon: SiteVisitIcon,
-      kind: "Site visit",
-      what: visit.startsAt
-        ? lineOf([visit.visitor?.name, formatMinutes(visit.minutes)])
-        : "Findings recorded, no visit",
-      status: <SiteVisitBadge visit={visit} />,
-      href: linkTo({
-        to: "/office/site-visits/$visitId",
-        params: { visitId: visit.id },
-      }),
-    })),
+    ...home.jobs
+      .filter((job) => job.status !== "booked")
+      .map((job) => ({
+        id: `job ${job.id}`,
+        on: job.startsAt,
+        icon: JobIcon,
+        kind: "Job",
+        what: job.serviceName,
+        status: <JobStatusBadge status={job.status} />,
+        href: linkTo({ to: "/office/jobs/$jobId", params: { jobId: job.id } }),
+      })),
+    ...home.siteVisits
+      .filter((visit) => visit.status !== "booked")
+      .map((visit) => ({
+        id: `visit ${visit.id}`,
+        on: visit.startsAt ?? visit.doneAt ?? visit.bookedAt,
+        icon: SiteVisitIcon,
+        kind: "Site visit",
+        what: visit.startsAt
+          ? lineOf([visit.visitor?.name, formatMinutes(visit.minutes)])
+          : "Findings recorded, no visit",
+        status: <SiteVisitBadge visit={visit} />,
+        href: linkTo({
+          to: "/office/site-visits/$visitId",
+          params: { visitId: visit.id },
+        }),
+      })),
   ].sort((a, b) => (a.on < b.on ? 1 : -1));
 
 // its story, newest first: each thing opens its page

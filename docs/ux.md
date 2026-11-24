@@ -82,7 +82,10 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   (`Fold`); a Job's price changes are a part of their own after How it
   went, as they're what happened there (a list on a phone, a table wider).
 - **Its History**, a `Timeline` in a Card, newest first: last, at every
-  width: one column, as a side column competed with the page (#493). Each
+  width: one column, as a side column competed with the page (#493). It
+  holds what has happened; what's booked to come is a part of its own (a
+  home's Booked jobs, soonest first, badged only when one needs cleaners),
+  so the log isn't mostly the future, each entry alike. Each
   entry says what happened on one line and when on the line under it, then
   what it was about, where it has a line of its own, under that ("Standard
   Clean $194.89 · 2 cleaners · for Mon, Jan 12, 9:00 AM"), every entry alike
