@@ -17,6 +17,7 @@ import {
   expectNoPageAction,
   expectNextStep,
 } from "./harness.ts";
+import type { Browser, Page } from "@playwright/test";
 
 const olive = {
   email: "olive@example.com",
@@ -298,4 +299,156 @@ test("a Client who backs out of declining keeps the Quote open", async ({
   await expect(
     page.getByRole("button", { name: "Decline this quote" }),
   ).toBeVisible();
+});
+
+// #534: while a Client's bank asks them to approve the Deposit, nothing
+// else that moves money on the Quote starts, so it's never taken twice
+
+// Casey, a card saved, pays with one typed in that their bank wants them to
+// approve, and comes back before they have: the Quote waits on them
+const payingOnline = async (page: Page, browser: Browser) => {
+  await quoteSent(page, olive, casey);
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  await client.goto("/portal/payment-method");
+  await saveACard(client).save.click();
+  await expect(
+    client.getByText("Your Test card ending 4242 is saved"),
+  ).toBeVisible();
+  await client.goto(
+    await linkIn(casey.email, "Your quote from Empire Cleaning"),
+  );
+  const { form, accept } = payAndBook(client);
+  await form.getByRole("button", { name: "Use a different card" }).click();
+  await requireApproval("pending");
+  await accept.click();
+  await expect(
+    form.getByText("Your bank hasn't approved the payment yet."),
+  ).toBeVisible();
+  return { client, form, accept };
+};
+
+const paying =
+  /^Casey Client is paying the \$[\d.]+ deposit online, for the Deep Clean, waiting on their bank to approve it\./;
+
+test("Office Staff can't record acceptance while the Client's bank approves their Deposit", async ({
+  page,
+  browser,
+}) => {
+  // opened before Casey pays, as on the phone with them
+  await quoteSent(page, olive, casey);
+  const quote = page.url();
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  await client.goto("/portal/payment-method");
+  await saveACard(client).save.click();
+  await expect(
+    client.getByText("Your Test card ending 4242 is saved"),
+  ).toBeVisible();
+  await page.goto(quote);
+  await pageAction(page, "Record acceptance");
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toContainText("Test card ending 4242");
+
+  await client.goto(
+    await linkIn(casey.email, "Your quote from Empire Cleaning"),
+  );
+  const { form, accept } = payAndBook(client);
+  await form.getByRole("button", { name: "Use a different card" }).click();
+  await requireApproval("pending");
+  await accept.click();
+  await expect(
+    form.getByText("Your bank hasn't approved the payment yet."),
+  ).toBeVisible();
+
+  // refused, the dialog says why in the page's words, greyed
+  await confirm.getByRole("button", { name: "Charge and book" }).click();
+  await expect(confirm.getByRole("status")).toHaveText(paying);
+  await expect(
+    confirm.getByRole("button", { name: "Charge and book" }),
+  ).toBeDisabled();
+  await confirm.getByRole("button", { name: "Cancel" }).click();
+  await expect(confirm).toBeHidden();
+
+  // the page says until when, its next step greyed
+  await expect(
+    page.getByRole("status").filter({ hasText: paying }),
+  ).toContainText("the payment is called off and you can record acceptance.");
+  await expect(
+    page
+      .getByRole("group", { name: "What to do" })
+      .getByRole("button", { name: "Record acceptance" })
+      .first(),
+  ).toBeDisabled();
+  // on a phone, its foot says why where the alert has scrolled away
+  await expect(
+    page.getByText("Not while Casey is paying the deposit"),
+  ).toBeVisible();
+});
+
+test("a Client's bank approving the Deposit while Office Staff draft changes accepts the quote sent, and the draft goes", async ({
+  page,
+  browser,
+}) => {
+  const { client, accept } = await payingOnline(page, browser);
+  await page.clock.install();
+  await page.reload();
+  await expect(
+    page.getByRole("status").filter({ hasText: paying }),
+  ).toBeVisible();
+  await pageAction(page, "Change quote");
+  await expect(page).toHaveURL(/\/draft$/);
+  await expect(
+    page.getByText("Casey Client is paying the deposit on the quote you sent."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Send to Casey Client" }).first(),
+  ).toBeDisabled();
+
+  // approved in their bank's app, then pressed again: booked with it
+  await requireApproval(null);
+  await accept.click();
+  await expect(client.getByText(/^You're booked: a Deep Clean/)).toBeVisible();
+
+  await page.clock.runFor(15_000);
+  await expect(page).not.toHaveURL(/\/draft$/);
+  await expect(
+    page.getByText(
+      "Casey Client accepted the quote you sent, so your draft was deleted.",
+    ),
+  ).toBeVisible();
+  await expect(page.getByText(/ accepted it$/)).toBeVisible();
+});
+
+test("the draft of a Quote its Client is paying waits to be sent", async ({
+  page,
+  browser,
+}) => {
+  await payingOnline(page, browser);
+  await page.reload();
+  await pageAction(page, "Change quote");
+  await expect(page).toHaveURL(/\/draft$/);
+  await expect(
+    page.getByText("Casey Client is paying the deposit on the quote you sent."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Send to Casey Client" }).first(),
+  ).toBeDisabled();
+  await expect(
+    page.getByText("Not while Casey is paying the deposit"),
+  ).toBeVisible();
+});
+
+test("a Client back from their bank before approving the Deposit is told how it goes on", async ({
+  page,
+}) => {
+  await quoteSent(page, olive, casey);
+  await signedInAs(page, casey.email);
+  await page.goto(await linkIn(casey.email, "Your quote from Empire Cleaning"));
+  const { form, accept } = payAndBook(page);
+  await requireApproval("pending");
+  await accept.click();
+  await expect(form.getByRole("status").last()).toHaveText(
+    "Your bank hasn't approved the payment yet. Approve it in your bank's app and we'll book your clean. Or press Accept and pay to start over: the first payment is called off, so you're only charged once.",
+  );
 });
