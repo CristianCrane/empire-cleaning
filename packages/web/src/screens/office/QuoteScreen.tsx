@@ -960,7 +960,10 @@ function DraftPrices({
             key={option.serviceKey + String(i)}
             title={
               plan.days.length === 1
-                ? `${option.serviceName}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`
+                ? planName({
+                    recurrence: plan.recurrence,
+                    days: [{ startsAt: null, serviceName: option.serviceName }],
+                  })
                 : `${dayTitles[i] ?? `Weekday ${i + 1}`}: ${option.serviceName}`
             }
             badge={
