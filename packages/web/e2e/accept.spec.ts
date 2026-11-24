@@ -334,6 +334,7 @@ const paying =
 test("Office Staff can't record acceptance while the Client's bank approves their Deposit", async ({
   page,
   browser,
+  isMobile,
 }) => {
   // opened before Casey pays, as on the phone with them
   await quoteSent(page, olive, casey);
@@ -380,10 +381,12 @@ test("Office Staff can't record acceptance while the Client's bank approves thei
       .getByRole("button", { name: "Record acceptance" })
       .first(),
   ).toBeDisabled();
-  // on a phone, its foot says why where the alert has scrolled away
-  await expect(
-    page.getByText("Not while Casey is paying the deposit"),
-  ).toBeVisible();
+  // on a phone, its foot says why, as the alert has scrolled away; a wider
+  // screen has it in the header, by the alert
+  if (isMobile)
+    await expect(
+      page.getByText("Not while Casey is paying the deposit"),
+    ).toBeVisible();
 });
 
 test("a Client's bank approving the Deposit while Office Staff draft changes accepts the quote sent, and the draft goes", async ({
@@ -423,6 +426,7 @@ test("a Client's bank approving the Deposit while Office Staff draft changes acc
 test("the draft of a Quote its Client is paying waits to be sent", async ({
   page,
   browser,
+  isMobile,
 }) => {
   await payingOnline(page, browser);
   await page.reload();
@@ -434,9 +438,10 @@ test("the draft of a Quote its Client is paying waits to be sent", async ({
   await expect(
     page.getByRole("button", { name: "Send to Casey Client" }).first(),
   ).toBeDisabled();
-  await expect(
-    page.getByText("Not while Casey is paying the deposit"),
-  ).toBeVisible();
+  if (isMobile)
+    await expect(
+      page.getByText("Not while Casey is paying the deposit"),
+    ).toBeVisible();
 });
 
 test("a Client back from their bank before approving the Deposit is told how it goes on", async ({
