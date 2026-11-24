@@ -611,6 +611,17 @@ export type ScheduledJob = {
 // some start times on a day, "09:30", New York time
 export type DayTimes = { date: IsoDate; times: string[] };
 
+// A day of a Draft quote's picker: its open starts, and when it has none,
+// why: it's gone, it's all too soon to send (Late Cancellation's 24 hours),
+// no Cleaner works it, or no start in the window has room for the clean.
+// `everyOption`: those of its starts every option offered has room at, a
+// one-off's Service recommended for a first visit with its own (a plan
+// weekday's, all of them)
+export type OpenDay = DayTimes & {
+  everyOption: string[];
+  closed: "past" | "soon" | "off" | "full" | null;
+};
+
 // a start is picked from the Schedule to the half hour, then fine-tuned in
 // the time field
 export const PICK_MINUTES = 30;
@@ -1127,6 +1138,18 @@ export type OfficeRevision = {
   proposedStartsAt: string | null;
   sentAt: string | null;
   expiresAt: string | null;
+  // what keeps a Draft from being Sent, each clean's time that Send refuses
+  // (a plan's weekday, counting from 0, or null for a one-off's), in the
+  // server's words; none on a Sent one
+  untimely: Untimely[];
+};
+
+// a clean's time that a Draft can't be Sent with: none yet, too soon (less
+// than a Late Cancellation's 24 hours away), or running past midnight
+export type Untimely = {
+  weekday: number | null;
+  reason: "no_time" | "too_soon" | "past_midnight";
+  message: string;
 };
 
 // a Sent Revision in a Quote's history

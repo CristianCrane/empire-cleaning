@@ -44,7 +44,7 @@ export function FieldError(props: FieldErrorProps) {
       {...props}
       className={composeTailwindRenderProps(
         props.className,
-        "text-sm font-medium text-danger-strong",
+        "text-sm font-medium text-balance text-danger-strong",
       )}
     />
   );

@@ -1,13 +1,6 @@
 import { useState } from "react";
 import { useLoaderData } from "@tanstack/react-router";
-import {
-  Ban,
-  ChevronLeft,
-  ChevronRight,
-  Languages,
-  SquarePen,
-  UserCheck,
-} from "lucide-react";
+import { Ban, Languages, SquarePen, UserCheck } from "lucide-react";
 import type {
   StaffDetail,
   StaffHolding,
@@ -32,6 +25,7 @@ import {
   Notice,
   NumberField,
   Section,
+  Stepper,
   TextField,
   Fact,
   RecordPage,
@@ -398,30 +392,13 @@ function Availability({ member }: { member: StaffDetail }) {
     >
       <Card>
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-3">
-            <p className="font-semibold text-fg">
-              {formatMonth(`${month}-01`)}
-            </p>
-            <div className="flex gap-1">
-              <Button
-                variant="quiet"
-                size="icon"
-                aria-label="Previous month"
-                isDisabled={month <= monthOf(now)}
-                onPress={() => setMonth(stepMonth(month, -1))}
-              >
-                <ChevronLeft aria-hidden size={18} />
-              </Button>
-              <Button
-                variant="quiet"
-                size="icon"
-                aria-label="Next month"
-                onPress={() => setMonth(stepMonth(month, 1))}
-              >
-                <ChevronRight aria-hidden size={18} />
-              </Button>
-            </div>
-          </div>
+          <Stepper
+            label={formatMonth(`${month}-01`)}
+            previous="Previous month"
+            next="Next month"
+            canGoBack={month > monthOf(now)}
+            onStep={(by) => setMonth(stepMonth(month, by))}
+          />
           <div
             aria-hidden
             className="grid grid-cols-7 gap-1 text-center text-sm text-fg-muted"

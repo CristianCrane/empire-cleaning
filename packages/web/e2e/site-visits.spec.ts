@@ -11,6 +11,7 @@ import {
   signedInAs,
   test,
   draftTheQuote,
+  proposeNextMonday,
   recordFindingsWithoutVisit,
   addCleaner,
   serviceKey,
@@ -196,6 +197,8 @@ test("a Quote for business premises can't be drafted until their findings are re
   await expect(
     page.getByText("This business hasn't had a site visit yet"),
   ).toHaveCount(0);
+  // a time is all Send waits on now
+  await proposeNextMonday(page);
   await expect(page.getByRole("button", { name: /^Send to/ })).toBeEnabled();
 });
 

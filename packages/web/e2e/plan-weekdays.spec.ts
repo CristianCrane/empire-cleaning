@@ -58,10 +58,20 @@ test(
     );
     await expect(page.getByRole("region", { name: "Mondays" })).toBeVisible();
 
-    // another weekday: the day after, to start with; Wednesdays instead
+    // another weekday, with no time yet for the one the client asked
+    // for: Mondays folds out of its way
     await page.getByRole("button", { name: "Add a weekday" }).click();
-    const tuesday = page.getByRole("region", { name: "Tuesdays" });
-    await startOn(page, tuesday, "01212026", "0100PM");
+    await expect(
+      page
+        .getByRole("region", { name: "Mondays" })
+        .getByRole("button", { name: /^Proposed time/, expanded: false }),
+    ).toContainText("Mon, Jan 19 · 9:00 AM");
+    await startOn(
+      page,
+      page.getByRole("region", { name: "Weekday 2" }),
+      "01212026",
+      "0100PM",
+    );
     const wednesday = page.getByRole("region", { name: "Wednesdays" });
     await wednesday.getByRole("textbox", { name: "Cleaners" }).fill("1");
     await wednesday.getByRole("textbox", { name: "Cleaners" }).blur();

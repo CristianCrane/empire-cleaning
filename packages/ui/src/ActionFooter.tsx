@@ -58,7 +58,10 @@ export function ActionFooter({
               {summary && (
                 <span className="font-semibold tabular-nums">{summary}</span>
               )}
-              <span role="status" className="text-sm text-fg-muted">
+              <span
+                role="status"
+                className="text-sm text-balance text-fg-muted"
+              >
                 {status}
               </span>
             </div>

@@ -21,6 +21,7 @@ import type {
   Service,
   ServicePlanTerms,
   TurnDownReason,
+  Untimely,
 } from "@empire-cleaning/models";
 import {
   addDays,
@@ -34,6 +35,7 @@ import {
   timeOf,
   weekdayOf,
   messages,
+  runsPastMidnight,
   endsByMidnight,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
@@ -87,11 +89,7 @@ import { siteVisitViews } from "../site-visits/views.ts";
 import { askedAddOns } from "./asked-add-ons.ts";
 import { quoteEmail, turnDownEmail } from "./emails.ts";
 import { percentOf } from "./plan-days.ts";
-import {
-  bookableFor,
-  draftStartsWithoutCrew,
-  optionRoomsOf,
-} from "./quote-room.ts";
+import { bookableFor, openTimesOf, optionRoomsOf } from "./quote-room.ts";
 import {
   askedOf,
   firstCleanCompleted,
@@ -664,6 +662,7 @@ const officeRevision = async (
     proposedStartsAt: iso(revision.proposedStartsAt),
     sentAt: iso(revision.sentAt),
     expiresAt: iso(revision.expiresAt),
+    untimely: sent ? [] : untimelyOf(revision, rows, clock.now()),
   };
 };
 
@@ -1434,15 +1433,17 @@ const planServiceOf = (
   return service;
 };
 
-// the starts on the days from `from` to `to` where the Quote's Draft, as
-// last saved, would have no crew free for a plan's weekday at `weekday` (in
-// the Draft's order), or for a one-off: see draftStartsWithoutCrew
-export const draftStarts = async (
+// the open starts on the days from `from` to `to` for the Quote's Draft,
+// as last saved: for a plan's weekday at `weekday` (in the Draft's order),
+// or for a one-off (openTimesOf). A weekday with a start shows only its own
+// weekday's days, as its picker does, so the weeks its strip spans load
+// once and only those days are worked out.
+export const draftOpenTimes = async (
   id: string,
   { from, to, weekday }: { from: string; to: string; weekday?: number },
 ) => {
   const { quote, draft } = await findDraftRevision(id);
-  const [rows, days] = await Promise.all([
+  const [rows, schedule] = await Promise.all([
     optionsOf(draft.id),
     scheduleFor(from, to),
   ]);
@@ -1455,12 +1456,26 @@ export const draftStarts = async (
   ) {
     throw fieldError(["weekday"], "Pick one of the plan's weekdays");
   }
-  return draftStartsWithoutCrew(
+  const options = inOrder(rows);
+  const dated = weekday === undefined ? null : options[weekday]!.startsAt;
+  const days = dated
+    ? schedule.filter((day) => weekdayOf(day.date) === weekdayOf(dayOf(dated)))
+    : schedule;
+  return openTimesOf(
     draft,
     quote.propertyId,
-    inOrder(rows),
-    weekday,
+    options,
+    {
+      // whose room decides: a one-off's own Service's option, or the one
+      // weekday that moves
+      own:
+        draft.kind === "one_off"
+          ? options.indexOf(ownOption(draft, options))
+          : 0,
+      ...(weekday === undefined ? {} : { weekday }),
+    },
     days,
+    clock.now(),
   );
 };
 
@@ -1628,48 +1643,91 @@ export const saveDraft = async (
   return officeQuote(id);
 };
 
-// Each clean a Draft Revision would book first, with the field that sets its
-// time: a one-off Quote's Job, the longest of its Services; a Service Plan
-// Quote's first on each weekday. Each must be more than a Late
+// Each clean a Draft Revision would book first whose time it can't be Sent
+// with: a one-off Quote's Job, the longest of its Services; a Service Plan
+// Quote's first on each weekday. Each must have a time more than a Late
 // Cancellation's 24 hours away, when the Quote would Expire, and end by
-// midnight.
-const refuseUntimely = (revision: KindedRevision, rows: PricedOption[]) => {
-  const now = clock.now();
+// midnight. The Draft says so as it's saved (officeRevision), and Send
+// refuses the first (refuseUntimely).
+const untimelyOf = (
+  revision: KindedRevision,
+  rows: PricedOption[],
+  now: Date,
+): Untimely[] => {
   const cleans =
     revision.kind === "service_plan"
       ? inOrder(rows).map((row, i) => ({
-          path: ["plan", "days", i, "start"],
+          weekday: i,
           startsAt: row.startsAt,
           option: toOption(revision, row),
         }))
       : [
           {
-            path: ["proposedStart"],
+            weekday: null,
             startsAt: revision.proposedStartsAt,
             option: rows
               .map((row) => toOption(revision, row))
               .sort((a, b) => b.hoursOnSite - a.hoursOnSite)[0]!,
           },
         ];
-  for (const { path, startsAt, option } of cleans) {
+  return cleans.flatMap(({ weekday, startsAt, option }): Untimely[] => {
     if (!startsAt) {
-      throw fieldError(
-        path,
-        revision.kind === "service_plan"
-          ? "Pick when this day's first clean is"
-          : "Pick a time",
-      );
+      return [
+        {
+          weekday,
+          reason: "no_time",
+          message:
+            revision.kind === "service_plan"
+              ? "Pick when this day's first clean is"
+              : "Pick a time",
+        },
+      ];
     }
     // it Expires from then (sendQuote)
     if (lateFrom(startsAt) <= now) {
-      throw fieldError(
-        path,
-        `Pick a time more than ${CANCELLATION_CUTOFF_HOURS} hours away`,
-      );
+      return [
+        {
+          weekday,
+          reason: "too_soon",
+          // what's wrong, then what to do, as the picker says it
+          message:
+            startsAt <= now
+              ? messages[currentLanguage()].PASSED
+              : `That's less than ${CANCELLATION_CUTOFF_HOURS} hours away. Pick a later time.`,
+        },
+      ];
     }
     if (!endsByMidnight(startsAt, option.hoursOnSite)) {
-      throw fieldError(path, messages[currentLanguage()].ENDS_BY_MIDNIGHT);
+      // a one-off's own clean ending in time, its longest being the
+      // Service recommended beside it: that one's named, as it's what to
+      // fix
+      const own = weekday === null && ownOption(revision, rows);
+      return [
+        {
+          weekday,
+          reason: "past_midnight",
+          message:
+            own && endsByMidnight(startsAt, toOption(revision, own).hoursOnSite)
+              ? runsPastMidnight(`the ${option.serviceName}`)
+              : messages[currentLanguage()].ENDS_BY_MIDNIGHT,
+        },
+      ];
     }
+    return [];
+  });
+};
+
+// Send refuses a Draft's first untimely clean, at the field that sets its
+// time
+const refuseUntimely = (revision: KindedRevision, rows: PricedOption[]) => {
+  const [first] = untimelyOf(revision, rows, clock.now());
+  if (first) {
+    throw fieldError(
+      first.weekday === null
+        ? ["proposedStart"]
+        : ["plan", "days", first.weekday, "start"],
+      first.message,
+    );
   }
 };
 

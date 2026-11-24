@@ -1,12 +1,4 @@
-import {
-  useContext,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
-import { FormValidationContext } from "react-aria-components";
+import { useId, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { ActionFooter } from "../ActionFooter.tsx";
 import { Actions } from "../Actions.tsx";
@@ -15,6 +7,8 @@ import { Card } from "../Card.tsx";
 import { Fold } from "../Fold.tsx";
 import { useUiWords } from "../language.ts";
 import { Section } from "../Section.tsx";
+import { useOpenOnInvalid } from "../openOnInvalid.ts";
+import { focusRing } from "../utils.ts";
 import { useWide } from "../wide.ts";
 import { Alerts, type Alert } from "./Alerts.tsx";
 import { PageFrame } from "./PageFrame.tsx";
@@ -209,70 +203,85 @@ export function FormPage({
   );
 }
 
-const rule = "border-t border-border pt-5 first:border-t-0 first:pt-0";
+// ruled off from the part before, when it's one of the card's own parts
+const ruled = (level: 2 | 3) =>
+  level === 2 ? "border-t border-border pt-5 first:border-t-0 first:pt-0" : "";
 
-// One part of a Form page's card, ruled off from the one before. Open, a
-// Section: its title over its fields, its text Buttons (`actions`) on the
-// title's line. Given `summary` (what's set, in a line), it's folded to that line, a tap
-// opening it in place. Folded, its fields stay in the form, hidden, so a
-// required one or the API's field error still counts, and the part opens
-// itself to show a field in it that's found wrong
+// One part of a Form page's card, ruled off from the one before; a part
+// within a part (a plan weekday's Proposed time) is `headingLevel` 3, with
+// no rule. Open, a Section: its title over its fields, its text Buttons
+// (`actions`) on the title's line. Given `summary` (what's set, in a
+// line, worked out as it changes), a tap folds it to that line and opens
+// it in place, the title a line's size either way; it loads folded unless
+// `defaultOpen` (where there's something to do). Folded, its fields stay
+// in the form, hidden, so a required one or the API's field error still
+// counts, and the part opens itself to show a field in it that's found
+// wrong.
 export function FormPart(
-  props: { title: string; children: ReactNode } & (
-    { summary: string } | { summary?: never; actions?: ReactNode }
+  props: { title: string; children: ReactNode; headingLevel?: 2 | 3 } & (
+    | { summary: string; defaultOpen?: boolean }
+    | { summary?: never; actions?: ReactNode }
   ),
 ) {
-  const { title, children } = props;
-  if (props.summary === undefined)
+  const { title, children, headingLevel = 2 } = props;
+  if (props.summary !== undefined)
     return (
-      <Section
+      <Folded
         title={title}
-        actions={props.actions}
-        className={`gap-4 ${rule}`}
+        summary={props.summary}
+        defaultOpen={props.defaultOpen ?? false}
+        level={headingLevel}
       >
         {children}
-      </Section>
+      </Folded>
     );
   return (
-    <Folded title={title} summary={props.summary}>
+    <Section
+      title={title}
+      headingLevel={headingLevel}
+      actions={props.actions}
+      className={`gap-4 ${ruled(headingLevel)}`}
+    >
       {children}
-    </Folded>
+    </Section>
   );
 }
 
 function Folded({
   title,
   summary,
+  defaultOpen,
+  level,
   children,
 }: {
   title: string;
   summary: string;
+  defaultOpen: boolean;
+  level: 2 | 3;
   children: ReactNode;
 }) {
   const bodyId = useId();
-  const body = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
-  // the API's field errors, given to the form after it's sent: once its
-  // fields have them, one in here marked invalid opens it
-  const errors = useContext(FormValidationContext);
-  useEffect(() => {
-    if (body.current?.querySelector("[data-invalid]")) setOpen(true);
-  }, [errors]);
+  // a field in it that's wrong opens it, so it can be shown
+  const {
+    ref: body,
+    open,
+    setOpen,
+    onInvalidCapture,
+  } = useOpenOnInvalid(defaultOpen);
+  const Title = level === 2 ? "h2" : "h3";
   return (
     <section
       aria-label={title}
-      className={`flex flex-col gap-4 ${rule}`}
-      // a field the browser finds wrong as the form's sent (a required one
-      // left empty) opens it, so it can be shown
-      onInvalidCapture={() => setOpen(true)}
+      className={`flex flex-col gap-4 ${ruled(level)}`}
+      onInvalidCapture={onInvalidCapture}
     >
-      <h2>
+      <Title>
         <button
           type="button"
           aria-expanded={open}
           aria-controls={bodyId}
           onClick={() => setOpen((o) => !o)}
-          className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-md px-2 py-1 text-left outline-offset-2 hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-focus"
+          className={`-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-md px-2 py-1 text-left hover:bg-surface-sunken ${focusRing()}`}
         >
           <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-3">
             <span className="font-semibold text-fg sm:w-40 sm:shrink-0">
@@ -290,7 +299,7 @@ function Folded({
             className={`shrink-0 text-fg-muted transition-transform ${open ? "rotate-180" : ""}`}
           />
         </button>
-      </h2>
+      </Title>
       <div
         ref={body}
         id={bodyId}

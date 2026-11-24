@@ -11,6 +11,11 @@ import { type Catalog, type Language, locales } from "./language.ts";
 // runs or the screen is (BUSINESS_TIME_ZONE). An instant is an ISO string
 // or a Date; a day is written "2026-01-12".
 
+// words that start a sentence or a label: "the Deep Clean" -> "The Deep
+// Clean", "falta 1" -> "Falta 1"
+export const upperFirst = (words: string) =>
+  words.charAt(0).toUpperCase() + words.slice(1);
+
 // a day as the instant its noon is in UTC, which every zone puts on that day
 const noonOf = (day: string) => new Date(`${day}T12:00:00Z`);
 const instant = (at: string | Date) =>

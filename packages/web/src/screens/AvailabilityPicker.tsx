@@ -1,6 +1,6 @@
 import { catalog } from "@empire-cleaning/models";
 import { parseDate, type CalendarDate } from "@internationalized/date";
-import { Calendar } from "@empire-cleaning/ui";
+import { Calendar, TimeTiles } from "@empire-cleaning/ui";
 import type { TimePickerProps } from "./CalendarGrid.tsx";
 import { useSaid } from "./words.ts";
 
@@ -67,38 +67,21 @@ export function PickAvailableTime({
         />
       </div>
       {date && times.length > 0 ? (
-        <div
-          role="group"
-          aria-label={w.openOn(formatDay(date))}
-          className="flex flex-col gap-2"
-        >
-          <span className="font-semibold">{w.openTimes(formatDay(date))}</span>
-          <div className="grid grid-cols-3 gap-2">
-            {times.map((t) => {
-              const isNow = date === current?.date && t === current?.time;
-              const chosen = t === time;
-              return (
-                <button
-                  key={t}
-                  type="button"
-                  disabled={isNow}
-                  aria-pressed={chosen}
-                  aria-label={w.time(formatDay(date), formatClock(t), isNow)}
-                  onClick={() => onPick({ date, time: t })}
-                  className={`min-h-touch rounded-md font-semibold tabular-nums ${
-                    isNow
-                      ? "border-2 border-dashed border-border-strong text-fg-muted"
-                      : chosen
-                        ? "bg-primary text-primary-fg"
-                        : "bg-primary/10 text-primary hover:bg-primary/20"
-                  }`}
-                >
-                  {formatClock(t)}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <TimeTiles
+          label={w.openOn(formatDay(date))}
+          heading={w.openTimes(formatDay(date))}
+          times={times}
+          chosen={time}
+          current={date === current?.date ? current.time : undefined}
+          tileLabel={(t) =>
+            w.time(
+              formatDay(date),
+              formatClock(t),
+              date === current?.date && t === current.time,
+            )
+          }
+          onPick={(t) => onPick({ date, time: t })}
+        />
       ) : (
         <p className="text-sm text-fg-muted">{w.onlyDays}</p>
       )}

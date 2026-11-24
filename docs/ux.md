@@ -225,13 +225,21 @@ for a dialog. It renders through `FormPage`
   which the sent Quote offers too (ADR-0018), is an aside: one quiet
   line under it ("Also offered: Deep Clean $299.41"), its price and
   working folded behind it, and in the Service part its own price behind
-  a fold (the user, on #527: "The recommendation is an aside").
+  a fold (the user, on #527: "The recommendation is an aside"). Under
+  each option's price, unfolded, the one asked for and that line both,
+  why the client can't pick it at the time proposed ("The client can't
+  pick it at this time: that day is too full."), a warning; in danger
+  when it would run past midnight, which Send refuses. When the Service
+  offered has the same problem, the line under the one asked for names it
+  ("The client can't pick it or the Deep Clean at this time: …"), said
+  once.
 - **Its button at the card's foot**, after what saving agrees to (a
   card's consent), in view. A form with a price or a Send (the Draft, New
   quote) makes its button the page's next step instead (FormPage's
   `next`, #493 D1): from md the header's primary, a Draft's Delete draft
   behind its arrow, whether it's saved beside it (shown from the start,
-  "Saved"), and once scrolled the header that sticks carries the title,
+  "Saved", then what Send waits on, if anything: "Saved · Pick a time to
+  send", "Saved · No room on Fri, Dec 4 at 11:30 AM"), and once scrolled the header that sticks carries the title,
   the total (below `xl`, where the prices beside the form don't stay in
   view; a one-off Draft's named, "Standard Clean $194.89", the
   recommendation in neither) and the button; on a phone the page's `ActionFooter`, its total
@@ -332,7 +340,9 @@ The `ui` skill's rules hold here too; these are this product's.
   again (each fact once: the `ui` skill); and the page's
   actions at the end of the title row, on the title's line: one split
   button, the page's next step its primary and the rest behind its arrow
-  ("More actions": a menu under it from md, a sheet from a phone's foot),
+  ("More actions": a menu under it from md, a sheet from a phone's foot;
+  the arrow outlined while the next step waits, disabled, so one control
+  doesn't show two ranks),
   or a quiet ⋯ ("More actions") when nothing is next. One action with
   nothing next stays a Button, as a menu of one would hide it; a page
   whose only action destroys has no primary, that action in the same
@@ -665,9 +675,10 @@ stays as it is (#336).
   wider one, one on a phone), so a short field's neighbour sits near it, not across a wide
   dialog; `ChoiceTiles` keep a form's width too. A date and its start time go in a
   `packed` `FieldRow`, each at its answer's width from the row's start, and
-  Pick from the schedule, which fills both, under them on the same left
-  edge: spread across a card's two columns, with the button centred under
-  them, they broke the form's one edge (the user, on #527: "breaking
+  in a dialog that moves a booked time, Pick from the schedule, which fills
+  both, under them on the same left edge (a Draft quote's are behind its
+  open times, Time and schedules): spread across a card's two columns, with
+  the button centred under them, they broke the form's one edge (the user, on #527: "breaking
   symmetry and balance"). On a phone every field is full width, a thumb's target.
   ("A form keeps a form's width")
 - **Every search field shows a magnifying glass.**
@@ -698,12 +709,31 @@ stays as it is (#336).
   Visit while booked, even once its time has passed, so a missed one moves
   to a time to come. Either move is confirmed first. ("Schedules As
   Calendars")
-- **Every place a time is chosen uses the calendar picker**, with the day
-  and time fields kept as the keyboard path. The Office picks on the
-  Schedule (`office/SchedulePicker.tsx`, inline in a wide dialog); a Client
-  picks a day on a month, then that day's open times
-  (`screens/AvailabilityPicker.tsx`). Clients never see the Schedule or
-  anyone else's Jobs.
+- **A time is picked from the times that are free**, with the day and
+  time fields kept as the keyboard's way. A Draft quote's proposed time is
+  picked in its part, in a tap (`office/OpenTimePicker.tsx`, #493, the
+  user's pick B): a strip of a week's days, each saying why it's shut
+  ("No cleaners" when no Cleaner works it, as its fix is more hours, "No
+  room" when it's full), over the viewed day's start times that have room
+  for the clean asked for, under its name ("Open times on Tue, Jan 6", and ", and the time picked"
+  when its tile there is marked with a problem),
+  those without left out; the time picked fills
+  its tile with when it ends, or is marked with its problem, which a line
+  over it says, naming the Service offered beside it when it's that one's
+  problem, and the nearest time that has room for it too (ending by
+  midnight among it), with "Pick that time"; paged off its tile, a line
+  says the time picked and its problem, and "Show it" goes back to it.
+  Back is off where the page before has no day to come. A plan's new weekday comes with no time, for the weekday the
+  client asked for, and once dated pages through its own weekday's dates.
+  The fields are behind "Type a date and time". The part folds to its time
+  on load when that's set, has room and can be sent, and again so when a
+  weekday's added or removed. It pages with the kit's `Stepper`, as the
+  Schedule and a Cleaner's working hours do. The Office's dialogs that move a booked time (a Job, a plan's
+  visit, a Site Visit) still pick on the Schedule
+  (`office/SchedulePicker.tsx`, inline in a wide dialog) until #543; a
+  Client picks a day on a month, then that day's open times
+  (`screens/AvailabilityPicker.tsx`). Both lists of times are the kit's
+  `TimeTiles`. Clients never see the Schedule or anyone else's Jobs.
 
 ### Status and colour
 

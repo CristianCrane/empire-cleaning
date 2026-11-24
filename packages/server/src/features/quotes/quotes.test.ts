@@ -6,6 +6,7 @@ import type {
   NeedsAttentionItem,
   OfficeQuote,
   OfficeQuoteOption,
+  OpenDay,
   PriceList,
   QuoteDraftInput,
   QuoteSummary,
@@ -26,6 +27,7 @@ import {
   home,
   setService,
   signInAsOffice,
+  staffMember,
   submit,
 } from "../../../tests/fixtures.ts";
 import { SEEDED } from "#features/services";
@@ -498,32 +500,175 @@ describe("drafting a First Clean Quote", () => {
   });
 });
 
+describe("a Draft's open times", () => {
+  const openTimes = async (office: Agent, id: string, range: string) =>
+    (
+      await office
+        .get(`/api/quotes/${id}/draft/open-times?${range}`)
+        .expect(200)
+    ).body as OpenDay[];
+
+  test("are the starts in the window more than 24 hours away, and a day with none says why", async () => {
+    // two Cleaners for its crew of 2, free all day
+    await staffMember("Cory Cleaner");
+    await staffMember("Dana Cleaner");
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    const draft = await startDraft(office, quoteId);
+
+    // the clock is at 4am on Monday 5 January
+    const days = await openTimes(
+      office,
+      draft.id,
+      "from=2026-01-04&to=2026-01-06",
+    );
+    expect(days.map(({ date, closed }) => ({ date, closed }))).toEqual([
+      { date: "2026-01-04", closed: "past" },
+      { date: "2026-01-05", closed: "soon" },
+      { date: "2026-01-06", closed: null },
+    ]);
+    expect(days[0]!.times).toEqual([]);
+    expect(days[1]!.times).toEqual([]);
+    // from 7am to 7pm, the half hours more than 24 hours away
+    expect(days[2]!.times[0]).toBe("07:00");
+    expect(days[2]!.times.at(-1)).toBe("19:00");
+    expect(days[2]!.times).toHaveLength(25);
+  });
+
+  test("leave out the starts with no room, and a day with none is full", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    const draft = await startDraft(office, quoteId);
+    expect(draft.draft!.crewSize).toBe(2);
+    // its crew of 2, and one Cleaner
+    await staffMember("Cory Cleaner");
+
+    const [day] = await openTimes(
+      office,
+      draft.id,
+      "from=2026-01-06&to=2026-01-06",
+    );
+    expect(day).toEqual({
+      date: "2026-01-06",
+      times: [],
+      everyOption: [],
+      closed: "full",
+    });
+  });
+
+  test("say a day no Cleaner works is off, not full", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    const draft = await startDraft(office, quoteId);
+    // Monday to Friday
+    await staffMember("Cory Cleaner");
+    await staffMember("Dana Cleaner");
+
+    const days = await openTimes(
+      office,
+      draft.id,
+      "from=2026-01-09&to=2026-01-10",
+    );
+    expect(days.map(({ date, closed }) => ({ date, closed }))).toEqual([
+      { date: "2026-01-09", closed: null },
+      { date: "2026-01-10", closed: "off" },
+    ]);
+  });
+
+  test("are the asked-for Service's, and say which have room for the one offered beside it too", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    const draft = await startDraft(office, quoteId);
+    const standard = option(draft, "standard").labourHours;
+    const deep = option(draft, "deep").labourHours;
+    // a crew of 2 with the hours for the Standard Clean, not the Deep
+    const hours = Math.ceil(standard / 2);
+    expect(hours * 2).toBeLessThan(deep);
+    await staffMember("Cory Cleaner", { usualWeek: [hours, 0, 0, 0, 0, 0, 0] });
+    await staffMember("Dana Cleaner", { usualWeek: [hours, 0, 0, 0, 0, 0, 0] });
+
+    const [day] = await openTimes(
+      office,
+      draft.id,
+      "from=2026-01-12&to=2026-01-12",
+    );
+    expect(day!.times.length).toBeGreaterThan(0);
+    expect(day!.everyOption).toEqual([]);
+  });
+});
+
 describe("sending a Quote", () => {
   test("needs a proposed time more than 24 hours away, or it would have Expired", async () => {
     const quoteId = await asked();
     const office = await signInAsOffice();
     const draft = await startDraft(office, quoteId);
 
-    // 24 hours from the clock's 4am on Monday 5 January
-    await save(office, draft, {
+    // 24 hours from the clock's 4am on Monday 5 January: the Draft says
+    // so as it's saved, and Send refuses it
+    const saved = await save(office, draft, {
       proposedStart: { date: "2026-01-06", time: "04:00" },
     });
+    expect(saved.draft!.untimely).toEqual([
+      {
+        weekday: null,
+        reason: "too_soon",
+        message: "That's less than 24 hours away. Pick a later time.",
+      },
+    ]);
     const soon = await office.post(`/api/quotes/${draft.id}/send`).expect(400);
     expect(soon.body.details[0]).toMatchObject({
       path: "proposedStart",
-      issue: "Pick a time more than 24 hours away",
+      issue: "That's less than 24 hours away. Pick a later time.",
     });
 
-    await save(office, draft, {
+    const later = await save(office, draft, {
       proposedStart: { date: "2026-01-06", time: "04:15" },
     });
+    expect(later.draft!.untimely).toEqual([]);
     await office.post(`/api/quotes/${draft.id}/send`).expect(200);
+  });
+
+  test("can't send a one-off whose Service offered beside it would run past midnight, and says which", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    const draft = await startDraft(office, quoteId);
+    // the latest quarter hour the Standard Clean ends by midnight from
+    const own = option(draft, "standard").hoursOnSite;
+    const start = Math.floor((24 - own) * 4) / 4;
+    expect(start + option(draft, "deep").hoursOnSite).toBeGreaterThan(24);
+    const time = `${String(Math.floor(start)).padStart(2, "0")}:${String((start % 1) * 60).padStart(2, "0")}`;
+
+    const saved = await save(office, draft, {
+      proposedStart: { date: "2026-01-12", time },
+    });
+    expect(saved.draft!.untimely).toEqual([
+      {
+        weekday: null,
+        reason: "past_midnight",
+        message:
+          "The Deep Clean would run past midnight at this time, so the quote can't be sent. Pick an earlier start time.",
+      },
+    ]);
+
+    // its own too: the usual line
+    const later = await save(office, draft, {
+      proposedStart: { date: "2026-01-12", time: "23:30" },
+    });
+    expect(later.draft!.untimely).toMatchObject([
+      {
+        reason: "past_midnight",
+        message: "This would run past midnight. Pick an earlier start time.",
+      },
+    ]);
   });
 
   test("needs a proposed time", async () => {
     const quoteId = await asked();
     const office = await signInAsOffice();
     const draft = await startDraft(office, quoteId);
+    expect(draft.draft!.untimely).toMatchObject([
+      { weekday: null, reason: "no_time", message: "Pick a time" },
+    ]);
 
     const none = await office.post(`/api/quotes/${draft.id}/send`).expect(400);
     expect(none.body.details[0]).toMatchObject({
@@ -536,7 +681,7 @@ describe("sending a Quote", () => {
     });
     const past = await office.post(`/api/quotes/${draft.id}/send`).expect(400);
     expect(past.body.details[0].issue).toBe(
-      "Pick a time more than 24 hours away",
+      "That time has passed. Pick a later time.",
     );
   });
 
