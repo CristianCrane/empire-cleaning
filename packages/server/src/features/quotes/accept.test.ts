@@ -1437,6 +1437,40 @@ describe("while the Client's bank is approving the Deposit", () => {
     }).toEqual({ finishing: false, again: 200, calledOff: 1 });
   });
 
+  // settling looks a moment before Send does, so a press as the 15 minutes
+  // end can find the payment inside them, left open, and Send past them,
+  // with nothing failing: Send refuses by the time alone, not by what
+  // settling tried (critical review C9, pass 7)
+  test("a Send pressed as the 15 minutes end leaves the changes unsent", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+    const asked = testClock().now().getTime();
+    await office.post(`/api/quotes/${quote.id}/revisions`).send({}).expect(201);
+    testClock().set(new Date(asked + 15 * 60_000 - 1));
+    // settling's read of it, inside the 15 minutes, takes a millisecond
+    const gateway = testPayments();
+    const read = gateway.depositOutcome.bind(gateway);
+    vi.spyOn(gateway, "depositOutcome").mockImplementationOnce(async (ref) => {
+      testClock().set(new Date(asked + 15 * 60_000));
+      return read(ref);
+    });
+
+    const sent = await office.post(`/api/quotes/${quote.id}/send`);
+    // Casey approves it in their bank app, still open at Stripe
+    testPayments().requireApproval(null);
+    await finalize(client, quote);
+
+    expect({
+      send: sent.status,
+      charges: testPayments().charges.length,
+      refunds: testPayments().refunds.length,
+    }).toEqual({ send: 409, charges: 1, refunds: 0 });
+  });
+
   // the wait ends with the outage, as nothing is stored of it: the next
   // press calls the payment off and sends (critical review C9, pass 7)
   test("Send refused for a call-off that didn't land sends on the next press", async () => {
