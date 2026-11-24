@@ -1468,7 +1468,13 @@ describe("while the Client's bank is approving the Deposit", () => {
       send: sent.status,
       charges: testPayments().charges.length,
       refunds: testPayments().refunds.length,
-    }).toEqual({ send: 409, charges: 1, refunds: 0 });
+      message: sent.body.message,
+    }).toEqual({
+      send: 409,
+      charges: 1,
+      refunds: 0,
+      message: clientPayingWords.unsure(casey.name),
+    });
   });
 
   // the wait ends with the outage, as nothing is stored of it: the next
