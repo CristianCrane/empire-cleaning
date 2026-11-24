@@ -218,7 +218,7 @@ test(
       page.getByText("Bill EC-000001 is due by Jan 26"),
     ).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "Pay Bill EC-000001" }),
+      page.getByRole("link", { name: "Pay the bill" }),
     ).toBeVisible();
 
     await page.goto(
@@ -654,7 +654,9 @@ test("Payments says a Bill we try again ourselves needs nothing from them", asyn
   await expect(see).toHaveAttribute("href", `/portal/bills/${billId}`);
   await expect(see).toHaveClass(/(^|\s)border-primary(\s|$)/);
   await expect(see).not.toHaveClass(/(^|\s)bg-primary(\s|$)/);
-  await expect(page.getByRole("link", { name: /^Pay/ })).toHaveCount(0);
+  await expect(
+    page.getByRole("main").getByRole("link", { name: /^Pay / }),
+  ).toHaveCount(0);
 });
 
 test("a late Bill with no cleaning plan on it says no plan is paused, to the Client or the Office", async ({
