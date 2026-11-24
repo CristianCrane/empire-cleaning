@@ -37,7 +37,6 @@ import {
   APPROVAL_MS,
   approvalOf,
   depositAttemptOf,
-  FINISHING,
   giveBackDeposit,
   giveBackUnbookedDeposits,
   keepTaken,
@@ -687,7 +686,7 @@ export const acceptQuote = async (
       // their bank approved an earlier one: it's the Deposit, booked as it
       // asked, once this lets go of the day (finalizeDeposit)
       if (attempt.status === "approved") return attempt;
-      if (attempt.status === "failed" && attempt.reason === FINISHING) {
+      if (attempt.status === "finishing") {
         // nothing more was taken, and nothing to do but wait
         if (acceptor.by === "client") {
           return { status: "processing", message: said().processing } as const;

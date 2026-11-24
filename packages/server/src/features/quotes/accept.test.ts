@@ -1506,7 +1506,9 @@ describe("trying again after the Deposit's reply was lost", () => {
     ]);
   });
 
-  test("a day later, once the provider has forgotten the key, a Deposit taken from a card entered then is given back", async () => {
+  // #534, review F8: given back, it would be the Client charged twice
+  // while the refund goes through
+  test("a day later, once the provider has forgotten the key, a Deposit taken from a card entered then is the Deposit, and saves that card", async () => {
     await cleaners();
     const office = await signInAsOffice();
     const quote = await sentQuote(office, guestAsk(), { validityDays: 7 });
@@ -1518,18 +1520,38 @@ describe("trying again after the Deposit's reply was lost", () => {
     testPayments().forgetKeys();
     await payNow(client, quote).expect(200);
 
-    // the first card's payment can't be told from a new one's, so the
-    // second card pays, and the first is given back
-    const [lost, paid] = depositsAtProvider();
-    expect(testPayments().refunds).toEqual([
-      expect.objectContaining({
-        chargeId: lost!.chargeId,
-        amount: lost!.amount,
-      }),
-    ]);
+    const [lost] = depositsAtProvider();
+    expect(depositsAtProvider()).toHaveLength(1);
+    expect(testPayments().refunds).toEqual([]);
     expect(await depositCharges()).toEqual([
-      expect.objectContaining({ gatewayRef: paid!.chargeId }),
+      expect.objectContaining({ gatewayRef: lost!.chargeId }),
     ]);
+    expect(
+      (await client.get("/api/payment-methods/mine").expect(200)).body,
+    ).toMatchObject({ label: "Test card ending 4242" });
+  });
+
+  // #534, review F9: a second taken while the first is still the
+  // Client's would be them charged twice
+  test("one for another option that can't be given back takes no second Deposit", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+    testPayments().loseNextReply();
+    await accept(client, quote, "deep").expect(409);
+    testPayments().failRefunds();
+
+    await accept(client, quote, "standard").expect(409);
+
+    expect(depositsAtProvider()).toHaveLength(1);
+    expect(await depositCharges()).toEqual([]);
+    // given back, the other option's Deposit is taken
+    testPayments().failRefunds(null);
+    await accept(client, quote, "standard").expect(200);
+    expect(testPayments().refunds).toHaveLength(1);
+    expect(depositsAtProvider()).toHaveLength(2);
   });
 });
 

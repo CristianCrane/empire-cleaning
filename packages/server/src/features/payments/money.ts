@@ -83,10 +83,6 @@ export const SETTLED_AFTER_MS = 15 * MINUTE_MS;
 // calls off one left longer, as it settles what's open this long
 export const APPROVAL_MS = SETTLED_AFTER_MS;
 
-// why nothing more was taken: an earlier payment is going through and
-// can't be called off, as the Client's bank is finishing it
-export const FINISHING = "an earlier payment is still going through";
-
 // the provider call an attempt makes, as asked but for its key
 type Asked =
   | { call: "charge"; input: Omit<ChargeInput, "idempotencyKey"> }
@@ -569,10 +565,32 @@ export const chargeSaved = async (
   return { ok: true, cents: cents + outcome.attempt.amountCents };
 };
 
-// what taking a Deposit came to: as the provider says, or an earlier
+// what taking a Deposit came to: as the provider says; or an earlier
 // Deposit the Client's bank approved, `ref`, which is the Deposit, for its
-// pending Deposit to book (finalizeDeposit)
-export type DepositTaken = DepositAttempt | { status: "approved"; ref: string };
+// pending Deposit to book (finalizeDeposit); or nothing more taken, as an
+// earlier one their bank is finishing can't be called off
+export type DepositTaken =
+  | DepositAttempt
+  | { status: "approved"; ref: string }
+  | { status: "finishing" };
+
+// The card a taken Deposit on a card typed in saved, as the provider has
+// it: a reply lost, or a booking rolled back, kept none (#534, B#1b), and
+// without it the Deposit would be given back and taken again
+const withSaved = async (outcome: Outcome): Promise<Outcome> => {
+  if (outcome.status !== "taken" || outcome.saved) return outcome;
+  const asked = outcome.attempt.request as Asked;
+  if (asked.call !== "deposit" || "paymentMethodId" in asked.input.source) {
+    return outcome;
+  }
+  const said = await paymentGateway
+    .depositOutcome(outcome.attempt.gatewayRef!)
+    .catch(() => undefined);
+  if (said === undefined) return { status: "unknown", reason: UNREACHABLE };
+  return said.status === "succeeded"
+    ? { ...outcome, saved: said.saved }
+    : outcome;
+};
 
 /**
  * Takes a Quote's Deposit once, however often accepting it is tried: a
@@ -585,7 +603,9 @@ export type DepositTaken = DepositAttempt | { status: "approved"; ref: string };
  * One still waiting on the Client's bank is called off first, as `callOff`
  * says why; one their bank approved is the Deposit while its pending
  * Deposit, among the `unsettled` refs, can still book it, and is given
- * back if not. One their bank is finishing takes nothing more (FINISHING).
+ * back if not. One their bank is finishing takes nothing more. One that
+ * can't be given back takes nothing more either, for the Clock to give it
+ * back: two at once would be the Client charged twice.
  */
 export const takeDepositOnce = async (
   tx: Tx,
@@ -603,18 +623,27 @@ export const takeDepositOnce = async (
         if (unsettled.has(earlier.gatewayRef!)) {
           return { status: "approved", ref: earlier.gatewayRef! };
         }
-        await giveBackDeposit(approval.chargeId, earlier.amountCents, quoteId);
+        if (
+          !(await giveBackDeposit(
+            approval.chargeId,
+            earlier.amountCents,
+            quoteId,
+          ))
+        ) {
+          return { status: "failed", reason: UNREACHABLE };
+        }
         continue;
       }
-      return {
-        status: "failed",
-        reason: approval.status === "unknown" ? approval.reason : FINISHING,
-      };
+      return approval.status === "unknown"
+        ? { status: "failed", reason: approval.reason }
+        : { status: "finishing" };
     }
-    const outcome = await outcomeOf(earlier, {
-      amount: asked.input.amount,
-      card: savedCardOf(asked),
-    });
+    const outcome = await withSaved(
+      await outcomeOf(earlier, {
+        amount: asked.input.amount,
+        card: savedCardOf(asked),
+      }),
+    );
     if (outcome.status === "unknown") {
       return { status: "failed", reason: outcome.reason };
     }
@@ -632,11 +661,15 @@ export const takeDepositOnce = async (
         saved: outcome.saved,
       };
     }
-    await giveBackDeposit(
-      outcome.attempt.gatewayRef!,
-      outcome.attempt.amountCents,
-      quoteId,
-    );
+    if (
+      !(await giveBackDeposit(
+        outcome.attempt.gatewayRef!,
+        outcome.attempt.amountCents,
+        quoteId,
+      ))
+    ) {
+      return { status: "failed", reason: UNREACHABLE };
+    }
   }
 
   const outcome = await attempt("deposit", quoteId, asked);
