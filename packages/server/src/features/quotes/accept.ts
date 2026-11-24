@@ -144,10 +144,11 @@ const words = catalog({
     // pressed again while their bank finishes the first payment: its own
     // words, as only here has the Client paid already, so "nothing more"
     // (PAYMENT_DOWN is the provider unreachable, the Bill's `ours` a
-    // payment we take). The page, not an email, as one that fails then
-    // sends none (#534 review F5, F15)
-    processing:
-      "Your first payment is still going through with your bank, so nothing more was charged. It usually takes a few minutes: reload this page then to see how it went.",
+    // payment we take). The email it names is the booking's own, sent once
+    // it books, so nothing to come back for; it promises no booking, as one
+    // whose time filled meanwhile is refunded (#534 review F5, F15, UX U3)
+    processing: (what: Paying) =>
+      `Your first payment is still going through with your bank, so nothing more was charged. It usually takes a few minutes, and we'll email you as soon as ${{ clean: "your clean is booked", plan: "your plan starts", change: "your plan is changed" }[what]}.`,
     calledOff: (minutes: number) =>
       `This payment was called off, as it wasn't approved within ${minutes} minutes, so nothing was charged. Please pay again.`,
     bankFailed:
@@ -181,8 +182,8 @@ const words = catalog({
     pick: (services: string) => `Elija ${services}`,
     waiting: (what: Paying) =>
       `Su banco aún no ha aprobado el pago. Apruébelo en la app de su banco para ${{ clean: "reservar su limpieza", plan: "empezar su plan", change: "cambiar su plan" }[what]}. O presione Aceptar y pagar para empezar de nuevo: el primer pago se cancela, así que solo se le cobra una vez.`,
-    processing:
-      "Su primer pago aún se está procesando con su banco, así que no se cobró nada más. Suele tardar unos minutos: vuelva a cargar esta página entonces para ver cómo fue.",
+    processing: (what: Paying) =>
+      `Su primer pago aún se está procesando con su banco, así que no se cobró nada más. Suele tardar unos minutos, y le enviaremos un correo en cuanto ${{ clean: "su limpieza quede reservada", plan: "su plan empiece", change: "su plan cambie" }[what]}.`,
     calledOff: (minutes: number) =>
       `Este pago se canceló porque no se aprobó en ${minutes} minutos, así que no se cobró nada. Vuelva a pagar.`,
     bankFailed:
@@ -701,7 +702,12 @@ export const acceptQuote = async (
       if (attempt.status === "finishing") {
         // nothing more was taken, and nothing to do but wait
         if (acceptor.by === "client") {
-          return { status: "processing", message: said().processing } as const;
+          return {
+            status: "processing",
+            message: said().processing(
+              quote.kind === "service_plan" ? "plan" : "clean",
+            ),
+          } as const;
         }
         throw new ConflictError(clientPayingWords.finishing(client.name));
       }

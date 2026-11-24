@@ -929,7 +929,7 @@ describe("while the Client's bank is approving the Deposit", () => {
     expect(again.body).toEqual({
       status: "processing",
       message:
-        "Your first payment is still going through with your bank, so nothing more was charged. It usually takes a few minutes: reload this page then to see how it went.",
+        "Your first payment is still going through with your bank, so nothing more was charged. It usually takes a few minutes, and we'll email you as soon as your clean is booked.",
     });
     expect(testPayments().paymentAttempts).toHaveLength(1);
     expect(testPayments().charges).toEqual([]);
