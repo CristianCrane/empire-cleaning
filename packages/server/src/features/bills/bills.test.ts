@@ -1282,39 +1282,63 @@ describe("Unpaid Bills", () => {
     expect(testPayments().refunds).toEqual([]);
   });
 
-  // #534, F9: billed, the Job is settled without chargeSaved, so its lost
-  // Balance is never found, and the Bill takes the Balance again for good
-  test("a Job whose Balance reply was lost, then billed weekly, isn't charged again on the Bill", async () => {
-    const office = await signInAsOffice();
-    const me = (await office.get("/api/me").expect(200))
-      .body as SignedInAccount;
-    const cleaner = await staffMember("Cory Cleaner");
-    const job = await acceptedJob({
-      startsAt: WEDNESDAY_9AM,
-      byAccountId: me.id,
-    });
-    const client = (await findClientByEmail(casey.email))!;
-    await addPremises(client.id);
-    const offered = await offerAssignment(job.id, cleaner.id, me.id);
-    await confirmAssignment(cleaner.id, offered.assignments[0]!.id);
-    testClock().set(WEDNESDAY_NOON);
-    testPayments().loseNextReply();
-    await completeJob(cleaner.id, job.id, {
-      condition: "moderate",
-      reports: [],
-    });
+  // #534, F9: a lost Balance never looked up was billed again for good, so
+  // it's looked up as weekly billing starts; and the 06:55 comment's #1: one
+  // still processing was billed too, so the Client was asked for it twice at
+  // once, and now waits for the next Bill
+  test.each([
+    ["whose reply was lost", () => testPayments().loseNextReply(), () => {}],
+    [
+      "still processing",
+      () => testPayments().failCharges("processing"),
+      () => testPayments().clearCharges(),
+    ],
+  ])(
+    "a Job whose Balance is going through (%s) as weekly billing starts is asked for once, and on no Bill once taken",
+    async (_, leave, goThrough) => {
+      const office = await signInAsOffice();
+      const me = (await office.get("/api/me").expect(200))
+        .body as SignedInAccount;
+      const cleaner = await staffMember("Cory Cleaner");
+      const job = await acceptedJob({
+        startsAt: WEDNESDAY_9AM,
+        byAccountId: me.id,
+      });
+      const client = (await findClientByEmail(casey.email))!;
+      await addPremises(client.id);
+      const offered = await offerAssignment(job.id, cleaner.id, me.id);
+      await confirmAssignment(cleaner.id, offered.assignments[0]!.id);
+      testClock().set(WEDNESDAY_NOON);
+      leave();
+      await completeJob(cleaner.id, job.id, {
+        condition: "moderate",
+        reports: [],
+      });
+      testPayments().failCharges(null);
+      const [row] = await db.select().from(jobs).where(eq(jobs.id, job.id));
+      const { totalCents } = await paymentOf(row!);
 
-    await setBilling(office, client.id).expect(200);
-    testClock().set(NEXT_MONDAY);
-    await makeDueBills();
-    await settleOpenPayments();
+      await setBilling(office, client.id).expect(200);
+      testClock().set(NEXT_MONDAY);
+      await makeDueBills();
+      // left off this week's Bill while its Balance may still be taken
+      expect(await billsOf(office, client.id)).toEqual([]);
+      const asked = [...testPayments().paymentAttempts];
+      expect(asked.reduce((s, a) => s + a.amount, 0)).toBe(totalCents);
 
-    const [row] = await db.select().from(jobs).where(eq(jobs.id, job.id));
-    const { totalCents } = await paymentOf(row!);
-    const taken = testPayments().charges.reduce((s, c) => s + c.amount, 0);
-    const given = testPayments().refunds.reduce((s, r) => s + r.amount, 0);
-    expect(taken - given).toBe(totalCents);
-  });
+      goThrough();
+      await settleOpenPayments();
+      testClock().set(new Date("2026-01-19T15:00:00Z"));
+      await makeDueBills();
+      // taken by its Balance, it's on no Bill
+      expect(await billsOf(office, client.id)).toEqual([]);
+      expect(testPayments().paymentAttempts).toEqual(asked);
+      expect(testPayments().charges.reduce((s, c) => s + c.amount, 0)).toBe(
+        totalCents,
+      );
+      expect(testPayments().refunds).toEqual([]);
+    },
+  );
 
   test("Office Staff can record a payment made another way, which settles it", async () => {
     const { office, clientId } = await billedJob();

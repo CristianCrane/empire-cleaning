@@ -330,8 +330,9 @@ const openCreditOf = async (clientId: string, tx: Tx | typeof db) => {
  * again makes nothing twice. It bills everything owed and not yet billed for
  * their Jobs, at all their Properties, from the week weekly billing was
  * switched on to the end of this one; anything settled since an earlier
- * Bill was made goes on this one. An open credit from an earlier Bill comes
- * off it. With nothing to bill, there's no Bill, and a credit waits.
+ * Bill was made goes on this one, and a Job whose own payment is still going
+ * through goes on the next. An open credit from an earlier Bill comes off
+ * it. With nothing to bill, there's no Bill, and a credit waits.
  */
 const makeBill = async (
   clientId: string,
@@ -369,6 +370,9 @@ const makeBill = async (
       .for("update", { of: jobs });
     const lines: NewLine[] = [];
     for (const { job } of candidates) {
+      // its own payment may still take the money (the one rule): it waits
+      // for the next Bill, so the Client isn't asked for it twice at once
+      if (await chargeOpen(job.id, tx)) continue;
       const before = await billLinesOf(job.id, tx);
       if (!isBilledWeekly(job, client, { lines: before.length })) continue;
       lines.push(...(await linesFor(job, before, tx)));
