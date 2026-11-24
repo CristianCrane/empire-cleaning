@@ -686,9 +686,10 @@ const homePlanIdOf = async (propertyId: string) => {
 };
 
 // The Deposit the Client's bank is asking them to approve, within
-// APPROVAL_MS of their pressing (clientPaying): until when, how much, and
-// for which Service (the Office's English; null for a cleaning plan);
-// null when there's none, and Office Staff may act on the Quote
+// APPROVAL_MS of their pressing, or after it, `finishing` (clientPaying):
+// until when, how much, and for which Service (the Office's English; null
+// for a cleaning plan); null when there's none, and Office Staff may act
+// on the Quote
 export const payingOf = async (
   quote: Pick<Quote, "id" | "kind">,
   tx: Tx | typeof db = db,
@@ -711,6 +712,7 @@ export const payingOf = async (
       : undefined;
   return {
     until: paying.until,
+    finishing: paying.finishing,
     serviceName: row ? await serviceNameOf("en", row.serviceId, tx) : null,
     depositCents: pending.depositCents,
   };
@@ -1823,12 +1825,7 @@ const refuseUntimely = (revision: KindedRevision, rows: PricedOption[]) => {
 // takes the Draft's Service, refused while another Quote for that one is
 // open here. Sending one on an Expired Quote revives it, unless a newer
 // Quote of its kind is open for the Property.
-// `bankFinishing`: a Deposit on it is one the Client's bank is finishing,
-// past APPROVAL_MS, too far on to be called off (settleQuotePayments)
-export const sendQuote = async (
-  id: string,
-  { bankFinishing = false }: { bankFinishing?: boolean } = {},
-): Promise<OfficeQuote> => {
+export const sendQuote = async (id: string): Promise<OfficeQuote> => {
   const quote = await findQuote(id);
   const list = await currentPricing();
   const now = clock.now();
@@ -1840,19 +1837,18 @@ export const sendQuote = async (
     const { quote: current, draft } = await findDraftRevision(id, tx);
     const { client, property } = (await homeOf(current.propertyId, tx))!;
     // The one rule (ADR-0022): changes sent now would close the offer the
-    // Client's bank is approving, for APPROVAL_MS at most
+    // Client's bank is approving, for APPROVAL_MS at most, and after it
+    // while their bank finishes it (#534 critical review C2)
     const paying = await payingOf(current, tx);
     if (paying) {
       throw new ConflictError(
-        clientPayingWords.draft(
-          client.name,
-          formats.en.formatTime(paying.until),
-        ),
+        paying.finishing
+          ? clientPayingWords.finishing(client.name, "send")
+          : clientPayingWords.draft(client.name, {
+              until: formats.en.formatTime(paying.until),
+              finishing: false,
+            }),
       );
-    }
-    // and after it, until their bank's done (#534 critical review C2)
-    if (bankFinishing) {
-      throw new ConflictError(clientPayingWords.finishing(client.name, "send"));
     }
     const saved = await optionsOf(draft.id, tx);
     const options = repriced(

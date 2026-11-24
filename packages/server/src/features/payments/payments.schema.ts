@@ -186,6 +186,10 @@ export const chargeAttempts = pgTable(
     // when a Deposit taken but not booked was given back, by the Clock's
     // time: the Office's record of it (#534)
     givenBackAt: timestamp("given_back_at", { withTimezone: true }),
+    // when, past APPROVAL_MS, a Deposit waiting on the Client's bank was
+    // found too far on to call off (the bank finishing it): it holds its
+    // Quote till it ends, as the Office's pages say (payingOf, #534)
+    bankFinishingAt: timestamp("bank_finishing_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [index("charge_attempts_for_idx").on(t.kind, t.forId)],

@@ -442,7 +442,7 @@ test("the draft of a Quote its Client is paying waits to be sent", async ({
   // while what's typed waits to save (review F22)
   const status = page.getByRole("status").filter({ hasText: /prices|saved/i });
   await expect(status).toHaveText(
-    "Saved · Not while Casey is paying the deposit",
+    "Saved · Send waits on Casey's deposit payment",
   );
   const standard = page.getByRole("group", { name: "Standard Clean" });
   await standard.getByText("Set the Standard Clean price yourself").click();
@@ -450,21 +450,22 @@ test("the draft of a Quote its Client is paying waits to be sent", async ({
     .getByRole("textbox", { name: "Standard Clean price before tax" })
     .fill("250");
   await expect(status).toHaveText(
-    "Give a reason for the new price to update the prices · Not while Casey is paying the deposit",
+    "Give a reason for the new price to update the prices · Send waits on Casey's deposit payment",
   );
   // and it ends at rest, as Jen opens it, for its shot
   await standard.getByText("Set the Standard Clean price yourself").click();
   await expect(status).toHaveText(
-    "Saved · Not while Casey is paying the deposit",
+    "Saved · Send waits on Casey's deposit payment",
   );
 });
 
 // past the 15 minutes, a payment their bank is finishing can't be called
 // off, so the changes wait on it, as Record acceptance does (#534
-// critical review C2)
+// critical review C2), and the page holds Send till it's done, as it did
+// before the 15 minutes (UX review U8, U9)
 test(
   "changes wait to be sent while the Client's bank finishes their Deposit",
-  // a laptop's Send is in the header, a page above the refusal
+  // a laptop's Send is in the header
   { tag: "@desktop" },
   async ({ page, browser }) => {
     await payingOnline(page, browser);
@@ -481,14 +482,19 @@ test(
       .first()
       .click();
 
-    const refusal = page.getByRole("status").filter({
-      hasText:
-        "Casey Client's online payment is still going through with their bank, which usually takes a few minutes, so you can't send your changes yet.",
-    });
-    // in view, though on a laptop Send is in the header, a page above it
-    // (#534 UX U4)
-    await expect(refusal).toBeFocused();
-    await expect(refusal).toBeInViewport({ ratio: 1 });
+    // the line beside Send says it waits, where Send was pressed, and the
+    // alert says on what, as the press found it
+    await expect(
+      page.getByRole("button", { name: "Send to Casey Client" }).first(),
+    ).toBeDisabled();
+    await expect(
+      page.getByRole("status").filter({ hasText: /prices|saved/i }),
+    ).toHaveText("Saved · Send waits on Casey's deposit payment");
+    await expect(
+      page.getByText(
+        "Casey Client's online payment on the quote you sent is still going through with their bank, which usually takes a few minutes. If it books that quote, this draft is deleted; if not, you can send your changes then.",
+      ),
+    ).toBeVisible();
     await expect(page).toHaveURL(/\/draft$/);
   },
 );

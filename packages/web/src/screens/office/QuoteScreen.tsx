@@ -174,7 +174,8 @@ const {
 } = formats.en;
 
 // the Deposit the Client is paying online while their bank asks them to
-// approve it, as the one rule's words name it (#534), if they are
+// approve it, or finishes it, as the one rule's words name it (#534), if
+// they are
 const payingFor = (
   quote: Pick<OfficeQuote, "paying" | "client">,
 ): PayingFor | null =>
@@ -183,6 +184,7 @@ const payingFor = (
     deposit: formatMoney(quote.paying.depositCents),
     service: quote.paying.serviceName,
     until: formatTime(quote.paying.until),
+    finishing: quote.paying.finishing,
   };
 
 // how often a Quote's pages look again while its Client pays (#534), so
@@ -193,13 +195,16 @@ const PAYING_LOOK_MS = 15_000;
 // every PAYING_LOOK_MS while the page is shown, and once the wait ends, as
 // then what was held is free again: the one rule's alert gone, its action
 // live. A second after `until`, as the server's clock may run behind ours,
-// and the looks go on till its answer comes. A look that fails says
-// nothing on the page: the next tries again. One at a time, as two at once
-// would both tell of what they found, twice
+// and the looks go on till its answer comes; past it, while their bank
+// finishes it, every PAYING_LOOK_MS alone, as nothing says when that ends.
+// A look that fails says nothing on the page: the next tries again. One at
+// a time, as two at once would both tell of what they found, twice
 function useWhilePaying(
-  until: string | undefined,
+  paying: OfficeQuote["paying"] | undefined,
   look: () => Promise<unknown>,
 ) {
+  const until = paying?.until;
+  const finishing = paying?.finishing ?? false;
   const looking = useRef(false);
   const lookNow = useEffectEvent(() => {
     if (looking.current) return;
@@ -215,15 +220,14 @@ function useWhilePaying(
     const timer = setInterval(() => {
       if (document.visibilityState === "visible") lookNow();
     }, PAYING_LOOK_MS);
-    const end = setTimeout(
-      lookNow,
-      Math.max(0, Date.parse(until) - Date.now()) + 1000,
-    );
+    const end =
+      !finishing &&
+      setTimeout(lookNow, Math.max(0, Date.parse(until) - Date.now()) + 1000);
     return () => {
       clearInterval(timer);
-      clearTimeout(end);
+      if (end) clearTimeout(end);
     };
-  }, [until]);
+  }, [until, finishing]);
 }
 
 // the Service a Quote was accepted with, by name; none for a cleaning plan,
@@ -272,7 +276,7 @@ export function QuoteScreen() {
   const revising = quote.draft !== null && quote.offer !== null;
   const now = useNow(quote);
   const router = useRouter();
-  useWhilePaying(quote.paying?.until, () => router.invalidate());
+  useWhilePaying(quote.paying, () => router.invalidate());
 
   return (
     <RecordPage
@@ -1234,9 +1238,9 @@ function EmailCardLink({ quote }: { quote: OfficeQuote }) {
 // that's accepted, and accepting it discards the Draft. Offered once a yes
 // can be recorded (a card saved, or a plan change): the page's next step,
 // or behind the arrow while a change is drafted. Refused as the Client
-// started paying online since the page loaded (#534), the page reloads
-// under it, and it's greyed with the one rule's alert in place of the
-// refusal; or, their bank having approved it just before, the quote is
+// started paying online since the page loaded, or as their bank was found
+// finishing it past its end time (#534), the page reloads under it, and
+// it's greyed with the one rule's alert in place of the refusal; or, their bank having approved it just before, the quote is
 // accepted with what they paid for, which a toast says
 function RecordAcceptanceDialog({
   quote,
@@ -1330,20 +1334,7 @@ function RecordAcceptanceDialog({
           {paying ? (
             <Notice tone="warning">{clientPaying.record(paying)}</Notice>
           ) : (
-            action.problem && (
-              // past the end time, their bank still finishing it: it
-              // waits on the bank, so info, as the Bill's (UX review U2)
-              <Notice
-                tone={
-                  action.problem ===
-                  clientPaying.finishing(quote.client.name, "record")
-                    ? "info"
-                    : "danger"
-                }
-              >
-                {action.problem}
-              </Notice>
-            )
+            action.problem && <Notice tone="danger">{action.problem}</Notice>
           )}
           <Actions>
             <Button variant="quiet" onPress={close}>
@@ -1877,7 +1868,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
   // payment accepts the quote, the draft is gone, so it goes to the quote
   const paying = payingFor(loaded);
   const until = loaded.paying?.until;
-  useWhilePaying(until, async () => {
+  useWhilePaying(loaded.paying, async () => {
     const now = await getJson<OfficeQuote>(`/api/quotes/${loaded.id}`);
     if (now.draft) {
       await router.invalidate();
@@ -2081,13 +2072,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
         key="failure"
         // in view wherever Send was pressed (#534 UX U4)
         answers
-        // past the end time, their bank still finishing it: it waits on
-        // the bank, so info, as Record acceptance's (#534 critical C2)
-        tone={
-          failure === clientPaying.finishing(quote.client.name, "send")
-            ? "info"
-            : "danger"
-        }
+        tone="danger"
       >
         {failure}
       </Notice>
@@ -2166,7 +2151,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
             ? {
                 key: "paying",
                 tone: "warning",
-                children: clientPaying.draft(paying.name, paying.until),
+                children: clientPaying.draft(paying.name, paying),
               }
             : draft.offer && {
                 key: "sees",
@@ -2499,7 +2484,7 @@ const timeFold = ({
 // email to add. None when neither holds it.
 const liveHold = (quote: ShownQuote, paying: boolean) => {
   const name = firstNameOf(quote.client.name);
-  if (paying) return clientPaying.item(name);
+  if (paying) return clientPaying.send(name);
   if (!quote.client.email) return `Add ${name}'s email first`;
   return undefined;
 };

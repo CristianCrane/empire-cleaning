@@ -1023,6 +1023,7 @@ describe("while the Client's bank is approving the Deposit", () => {
       until: "2026-01-05T09:15:00.000Z",
       serviceName: option(quote, "deep").serviceName,
       depositCents: option(quote, "deep").depositCents,
+      finishing: false,
     });
     // from a page loaded before Casey started paying
     const refused = await recordAccepted(office, quote).expect(409);
@@ -1335,6 +1336,48 @@ describe("while the Client's bank is approving the Deposit", () => {
         "Casey Client's online payment is still going through with their bank, which usually takes a few minutes, so you can't send your changes yet.",
       charges: 1,
       refunds: 0,
+    });
+  });
+
+  // UX review U8: what a press found stays on the Quote's pages, so Record
+  // acceptance and Send stay greyed till their bank's done, not live again
+  test("a payment their bank is finishing past 15 minutes holds the Quote till it ends", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+    testClock().advance({ minutes: 15 });
+    // approved, and the bank is finishing it: it can't be called off
+    testPayments().requireApproval("processing");
+
+    const recorded = await recordAccepted(office, quote).expect(409);
+    const held = (await quoteOf(office, quote.id)).paying;
+    await office.post(`/api/quotes/${quote.id}/revisions`).send({}).expect(201);
+    const sent = await office.post(`/api/quotes/${quote.id}/send`).expect(409);
+    testPayments().requireApproval(null);
+    await finalize(client, quote).expect(200);
+
+    expect({
+      recorded: recorded.body.message,
+      held,
+      sent: sent.body.message,
+      after: (await quoteOf(office, quote.id)).paying,
+      charges: testPayments().charges.length,
+    }).toEqual({
+      recorded:
+        "Casey Client's online payment is still going through with their bank, which usually takes a few minutes, so you can't record acceptance yet. Nothing more was charged.",
+      held: {
+        until: "2026-01-05T09:15:00.000Z",
+        serviceName: option(quote, "deep").serviceName,
+        depositCents: option(quote, "deep").depositCents,
+        finishing: true,
+      },
+      sent: "Casey Client's online payment is still going through with their bank, which usually takes a few minutes, so you can't send your changes yet.",
+      after: null,
+      charges: 1,
     });
   });
 

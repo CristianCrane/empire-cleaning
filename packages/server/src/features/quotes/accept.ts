@@ -684,17 +684,21 @@ export const acceptQuote = async (
         );
       }
       // The one rule (ADR-0022): while the Client's bank asks them to
-      // approve a Deposit, Office Staff wait, for APPROVAL_MS at most; the
-      // Client may pay again, calling it off
+      // approve a Deposit, Office Staff wait, for APPROVAL_MS at most, and
+      // after it while their bank finishes it; the Client may pay again,
+      // calling it off
       const paying = acceptor.by === "office" && (await payingOf(quote, tx));
       if (paying) {
         throw new ConflictError(
-          clientPayingWords.record({
-            name: client.name,
-            deposit: formats.en.formatMoney(paying.depositCents),
-            service: paying.serviceName,
-            until: formats.en.formatTime(paying.until),
-          }),
+          paying.finishing
+            ? clientPayingWords.finishing(client.name, "record")
+            : clientPayingWords.record({
+                name: client.name,
+                deposit: formats.en.formatMoney(paying.depositCents),
+                service: paying.serviceName,
+                until: formats.en.formatTime(paying.until),
+                finishing: false,
+              }),
         );
       }
 
@@ -1064,26 +1068,24 @@ export const finalizeProblem = (finalized: Finalized) => {
  * else an earlier try took unbooked is given back. Emails the Client of
  * each given back; those called off, and those their bank refused after
  * all, are returned, for the caller to say what's become of the Quote
- * (tellNotApproved, #534 review F17). Whether the Quote is now Accepted, and
- * whether a Deposit is one their bank is still finishing, too far on to
- * call off, so nothing else may change the Quote yet (#534 critical C2).
+ * (tellNotApproved, #534 review F17). Whether the Quote is now Accepted.
+ * One their bank is still finishing, too far on to call off, holds the
+ * Quote till it ends (payingOf; #534 critical C2).
  */
 export const settleQuotePayments = async (quoteId: string) => {
-  const { givenBack, calledOff, finishing } = await db.transaction(
-    async (tx) => {
-      // as accepting it does, so the two never both have its Deposit
-      await tx
-        .select({ id: quotes.id })
-        .from(quotes)
-        .where(eq(quotes.id, quoteId))
-        .for("update");
-      return giveBackUnbookedDeposits(
-        tx,
-        quoteId,
-        await unsettledDeposits(quoteId, tx),
-      );
-    },
-  );
+  const { givenBack, calledOff } = await db.transaction(async (tx) => {
+    // as accepting it does, so the two never both have its Deposit
+    await tx
+      .select({ id: quotes.id })
+      .from(quotes)
+      .where(eq(quotes.id, quoteId))
+      .for("update");
+    return giveBackUnbookedDeposits(
+      tx,
+      quoteId,
+      await unsettledDeposits(quoteId, tx),
+    );
+  });
   // each apart, holding the day, never inside the Quote's lock
   const refused: string[] = [];
   for (const ref of await unsettledDeposits(quoteId)) {
@@ -1112,7 +1114,6 @@ export const settleQuotePayments = async (quoteId: string) => {
       calledOff: await pendingsOf(calledOff),
       refused: await pendingsOf(refused),
     },
-    finishing: finishing.length > 0,
   };
 };
 

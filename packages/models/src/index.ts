@@ -1235,9 +1235,12 @@ export type OfficeQuote = {
   // the Deposit the Client is paying online while their bank asks them to
   // approve it (#534): what it's for (its Service, null on a cleaning plan),
   // and until when it holds the Quote, as nothing else that moves money on
-  // it starts meanwhile (ADR-0022); null when there's none
+  // it starts meanwhile (ADR-0022), or that it's past then and their bank
+  // is finishing it, holding it till it's done (`finishing`); null when
+  // there's none
   paying: {
     until: string;
+    finishing: boolean;
     serviceName: string | null;
     depositCents: number;
   } | null;

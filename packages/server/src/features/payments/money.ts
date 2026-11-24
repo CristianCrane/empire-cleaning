@@ -4,6 +4,7 @@ import {
   eq,
   gt,
   inArray,
+  isNotNull,
   isNull,
   lte,
   notExists,
@@ -130,7 +131,12 @@ const update = async (
   set: Partial<
     Pick<
       ChargeAttempt,
-      "status" | "gatewayRef" | "reason" | "sentAt" | "givenBackAt"
+      | "status"
+      | "gatewayRef"
+      | "reason"
+      | "sentAt"
+      | "givenBackAt"
+      | "bankFinishingAt"
     >
   >,
 ) => {
@@ -330,7 +336,13 @@ export const approvalOf = async (
       () => false,
     );
     said = await read();
-    if (said?.status === "needs_approval") return { status: "finishing" };
+    if (said?.status === "needs_approval") {
+      // so the Office's pages hold the Quote till it ends (payingOf)
+      if (attempt?.status === "approving" && !attempt.bankFinishingAt) {
+        await update(attempt, { bankFinishingAt: clock.now() });
+      }
+      return { status: "finishing" };
+    }
   }
   if (!said) return { status: "unknown", reason: UNREACHABLE };
   switch (said.status) {
@@ -389,8 +401,9 @@ export const keepTaken = (tx: Tx, attempt: ChargeAttempt) =>
     .where(eq(chargeAttempts.id, attempt.id));
 
 // the Deposit the Client's bank is asking them to approve, within
-// APPROVAL_MS of their pressing: until when, and what it's for; null when
-// there's none, and Office Staff may act on the Quote
+// APPROVAL_MS of their pressing, or after it, found too far on to call off
+// (`finishing`): until when, and what it's for; null when there's none,
+// and Office Staff may act on the Quote
 export const clientPaying = async (
   quoteId: string,
   tx: Tx | typeof db = db,
@@ -404,7 +417,10 @@ export const clientPaying = async (
         eq(chargeAttempts.kind, "deposit"),
         eq(chargeAttempts.forId, quoteId),
         eq(chargeAttempts.status, "approving"),
-        gt(chargeAttempts.askedAt, after),
+        or(
+          gt(chargeAttempts.askedAt, after),
+          isNotNull(chargeAttempts.bankFinishingAt),
+        ),
       ),
     )
     .orderBy(desc(chargeAttempts.askedAt));
@@ -412,6 +428,7 @@ export const clientPaying = async (
     ? {
         ref: paying.gatewayRef!,
         until: new Date(paying.askedAt.getTime() + APPROVAL_MS),
+        finishing: paying.bankFinishingAt !== null,
       }
     : null;
 };
@@ -722,9 +739,9 @@ export const giveBackDeposit = async (
  * One their bank approved is left to its pending Deposit to book, while
  * it's among the `unsettled` refs; once that's settled without booking it
  * (giving it back failed), it's given back here. The refs of those given
- * back, and of those it called off, for the Client to be told; and of
- * those their bank is finishing, too far on to call off, which the Quote
- * waits on (#534 critical review C2).
+ * back, and of those it called off, for the Client to be told. One their
+ * bank is finishing, too far on to call off, is left, and holds the Quote
+ * till it ends (approvalOf, payingOf; #534 critical review C2).
  */
 export const giveBackUnbookedDeposits = async (
   tx: Tx,
@@ -734,7 +751,6 @@ export const giveBackUnbookedDeposits = async (
   const after = clock.now().getTime() - APPROVAL_MS;
   const givenBack: string[] = [];
   const calledOff: string[] = [];
-  const finishing: string[] = [];
   for (const earlier of await openAttempts(tx, quoteId)) {
     if (earlier.status === "approving") {
       if (earlier.askedAt.getTime() > after) continue;
@@ -744,7 +760,6 @@ export const giveBackUnbookedDeposits = async (
         "abandoned",
       );
       if (approval.status === "called_off") calledOff.push(earlier.gatewayRef!);
-      if (approval.status === "finishing") finishing.push(earlier.gatewayRef!);
       if (
         approval.status === "approved" &&
         !unsettled.has(earlier.gatewayRef!) &&
@@ -762,7 +777,7 @@ export const giveBackUnbookedDeposits = async (
       quoteId,
     );
   }
-  return { givenBack, calledOff, finishing };
+  return { givenBack, calledOff };
 };
 
 // ---- giving back once (#241) ----

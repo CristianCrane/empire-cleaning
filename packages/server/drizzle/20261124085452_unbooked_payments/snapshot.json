@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "f6500a0d-dad2-41aa-b471-3eace08cdb7e",
+  "id": "cc61c402-c132-475b-a721-e0f35e23d3a4",
   "prevIds": [
     "a34a608c-9b43-47a8-9979-5f6f842bc2ea"
   ],
@@ -2765,6 +2765,19 @@
       "generated": null,
       "identity": null,
       "name": "given_back_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "charge_attempts"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "bank_finishing_at",
       "entityType": "columns",
       "schema": "public",
       "table": "charge_attempts"
