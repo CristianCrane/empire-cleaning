@@ -8,6 +8,7 @@ import { DraftChangesBadge, QuoteStatusBadge } from "../QuoteParts.tsx";
 import {
   addressOf,
   clientName,
+  lineOf,
   quoteStatusLabel,
   screenWords,
 } from "../format.ts";
@@ -130,16 +131,13 @@ export function QuotesScreen() {
       row={(quote) => ({
         id: quote.id,
         title: clientName(quote.client),
-        // the Table's cells, in its order, as one line, a wrap never
-        // starting a line with its dot
-        description: [
+        // the Table's cells, in its order, as one line
+        description: lineOf([
           addressOf(quote.property),
           serviceOf(quote),
           quoteTotal(quote),
           waiting(quote, true),
-        ]
-          .filter(Boolean)
-          .join("\u00a0· "),
+        ]),
         // its Tab says it, but a search across them doesn't
         status: {
           badge: <QuoteStatusBadge status={quote.status} />,

@@ -33,7 +33,13 @@ import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { useStartDraft } from "./StartDraft.tsx";
-import { addressOf, formatHours, roomsText, screenWords } from "../format.ts";
+import {
+  addressOf,
+  formatHours,
+  lineOf,
+  roomsText,
+  screenWords,
+} from "../format.ts";
 import { homeIcon } from "../icons.ts";
 import { AskedRows, PriceHead } from "../QuoteParts.tsx";
 import { working } from "./WorkedOutQuote.tsx";
@@ -76,13 +82,11 @@ const sourceText = ({
 // bathroom · moderate". A business's condition is left out until its Site
 // Visit finds one, as its facts say "Not known yet" where it's named
 export const askedSummary = ({ asked, property }: OfficeQuote) =>
-  [
+  lineOf([
     asked?.service.name,
     propertySummary(property),
     property.condition && conditionText(property.condition).toLowerCase(),
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  ]);
 
 // what the Client (or a caller) asked for, unchanged, and the home it's
 // for (WEB-8, WEB-A); none on a Quote the Office offered unprompted

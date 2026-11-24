@@ -80,7 +80,6 @@ import {
   Section,
   Select,
   SelectItem,
-  StatusBadge,
   TextField,
   Timeline,
   TimelineItem,
@@ -102,6 +101,7 @@ import { useAction, useLeavingAction } from "../action.ts";
 import {
   clientName,
   dayOfInstant,
+  lineOf,
   timeOfDay,
   timeOfField,
   screenWords,
@@ -765,16 +765,15 @@ function Offer({ quote }: { quote: ShownQuote }) {
   // once a one-off is accepted, the Service booked alone: the other was
   // never taken
   const booked = quote.status === "accepted" && !plan;
-  // a one-off's own Service first, the one asked for, the one recommended
-  // beside it, as every Office screen leads with it (#493); a plan's
-  // weekdays in their order
+  // until then a one-off's own Service, the one asked for, as every Office
+  // screen leads with it, and the one recommended an aside under it, as the
+  // Draft has it (#493, after #527); a plan's weekdays in their order
   const options = booked
     ? quote.options.filter((o) => o.serviceKey === quote.acceptedServiceKey)
     : plan
       ? quote.options
-      : [...quote.options].sort(
-          (a, b) => Number(a.recommended) - Number(b.recommended),
-        );
+      : [ownOption(quote)];
+  const aside = !booked && !plan ? recommendedOption(quote) : undefined;
   return (
     <Section
       title="Current quote"
@@ -831,19 +830,6 @@ function Offer({ quote }: { quote: ShownQuote }) {
               <OfferPrice
                 key={day?.startsAt ?? option.serviceKey}
                 title={day ? planDayTitle("en", day) : option.serviceName}
-                badge={
-                  day ? (
-                    <PlanSaving
-                      day={day}
-                      discountPercent={plan!.discountPercent}
-                    />
-                  ) : (
-                    option.recommended &&
-                    !booked && (
-                      <StatusBadge tone="success">Recommended</StatusBadge>
-                    )
-                  )
-                }
               >
                 {day ? (
                   <PlanFigures
@@ -865,6 +851,17 @@ function Offer({ quote }: { quote: ShownQuote }) {
               </OfferPrice>
             );
           })}
+          {aside && (
+            <AlsoOffered option={aside}>
+              <OptionRows
+                option={aside}
+                crewSize={quote.crewSize}
+                depositPercent={quote.depositPercent}
+              />
+              <AddOnList addOns={aside.addOns} />
+              <PricedFrom option={aside} />
+            </AlsoOffered>
+          )}
         </div>
         {plan && (
           <div className="border-t border-border pt-4">
@@ -943,7 +940,19 @@ function DraftPrices({
           </FoldedPrice>
         </OfferPrice>
         {recommended && (
-          <AlsoOffered option={recommended} roomSaid={shared !== undefined}>
+          <AlsoOffered
+            option={recommended}
+            under={
+              // unfolded, as it changes what the client can do; the
+              // proposed time's part says how to fix it. Said once, under
+              // the own price, when they share it
+              shared === undefined && <NoRoomLine room={recommended.room} />
+            }
+          >
+            {recommended.overrideCents !== null && (
+              <PricedFrom option={recommended} />
+            )}
+            <PriceWorking breakdown={recommended.suggested} />
             <OptionRows
               option={recommended}
               crewSize={quote.crewSize}
@@ -1051,17 +1060,17 @@ function OfferPrice({
 }
 
 // The Service recommended for a first visit, which the sent Quote offers
-// beside the one asked for (ADR-0018): an aside to the Draft's price, one
-// quiet line under it, its price and working folded behind it (the user, on
-// #527: "The recommendation is an aside")
+// beside the one asked for (ADR-0018): an aside to the own price, the
+// Draft's and the sent one's, one quiet line under it, its price and working
+// folded behind it (the user, on #527: "The recommendation is an aside").
+// `under` stays unfolded
 function AlsoOffered({
   option,
-  roomSaid,
+  under,
   children,
 }: {
   option: OfficeQuoteOption;
-  // its no-room line is said under the own price, with the own one's
-  roomSaid: boolean;
+  under?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -1074,14 +1083,10 @@ function AlsoOffered({
             <span>Shown to the client as recommended; they pick one.</span>
             <span>Includes {formatMoney(option.taxCents)} tax</span>
           </p>
-          {option.overrideCents !== null && <PricedFrom option={option} />}
-          <PriceWorking breakdown={option.suggested} />
           {children}
         </div>
       </Fold>
-      {/* unfolded, as it changes what the client can do; the proposed
-          time's part says how to fix it */}
-      {!roomSaid && <NoRoomLine room={option.room} />}
+      {under}
     </section>
   );
 }
@@ -1128,10 +1133,15 @@ function RecordAcceptanceDialog({
   quote: ShownQuote;
   drafting?: number;
 } & Partial<DialogState>) {
-  // the recommended Service, unless only the other still fits
+  // a one-off's own Service first, the one asked for, as the card it's
+  // recorded from leads with it, and picked unless only the other still
+  // fits (#493)
+  const recommended = recommendedOption(quote);
+  const choices = quote.plan
+    ? quote.options
+    : [ownOption(quote), ...(recommended ? [recommended] : [])];
   const [serviceKey, setServiceKey] = useState(
-    quote.options.find((o) => quote.bookable.includes(o.serviceKey))!
-      .serviceKey,
+    choices.find((o) => quote.bookable.includes(o.serviceKey))!.serviceKey,
   );
   const action = useAction("That didn't work. Please try again.");
   const chosen = quote.options.find((o) => o.serviceKey === serviceKey)!;
@@ -1166,7 +1176,7 @@ function RecordAcceptanceDialog({
               value={serviceKey}
               onChange={setServiceKey}
             >
-              {quote.options.map((option) => (
+              {choices.map((option) => (
                 <Radio
                   key={option.serviceKey}
                   value={option.serviceKey}
@@ -2123,14 +2133,12 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
 
         <FormPart
           title="Terms"
-          summary={[
+          summary={lineOf([
             // each of a plan's weekdays has its own
             !plan && cleaners(fields.crewSize),
             `${fields.depositPercent}% deposit`,
             `valid ${fields.validityDays} days`,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
+          ])}
         >
           <FieldRow>
             {!plan && (

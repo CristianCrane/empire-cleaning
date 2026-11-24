@@ -16,7 +16,7 @@ import {
 } from "@empire-cleaning/ui";
 import { patchJson } from "../../api.ts";
 import { useAction } from "../action.ts";
-import { addressOf } from "../format.ts";
+import { addressOf, lineOf } from "../format.ts";
 import { useSaid } from "../words.ts";
 import { standingOf } from "./properties.ts";
 
@@ -103,9 +103,7 @@ export function PortalDetails() {
             id: p.id,
             title: addressOf(p),
             start: <IconTile icon={homeIcon(p.kind)} />,
-            description: [t.propertySummary(p), standing.line]
-              .filter(Boolean)
-              .join(" · "),
+            description: lineOf([t.propertySummary(p), standing.line]),
             badges: [
               <StatusBadge key="standing" tone={standing.tone}>
                 {standing.label}

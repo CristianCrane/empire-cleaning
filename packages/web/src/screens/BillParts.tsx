@@ -19,6 +19,7 @@ import {
   type PageAction,
 } from "@empire-cleaning/ui";
 import type { AppHref } from "../links.ts";
+import { lineOf } from "./format.ts";
 import { type Said, saidWith, useSaid } from "./words.ts";
 
 // in the screen's language: the Office's English, the portal's its
@@ -137,7 +138,7 @@ export const billWeek = (
 // how a Bill reads in a list: its total, and when it's due or how it was paid
 export const billLine = (lang: Language, bill: BillSummary) => {
   const { w, formatDay, formatMoney } = saidWith(lang, words);
-  return [
+  return lineOf([
     billWeek(lang, bill),
     bill.totalCents < 0
       ? w.creditOf(formatMoney(-bill.totalCents))
@@ -146,9 +147,7 @@ export const billLine = (lang: Language, bill: BillSummary) => {
       bill.payment === "on_page" &&
       bill.totalCents > 0 &&
       w.dueBy(formatDay(bill.dueOn)),
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  ]);
 };
 
 // how it was paid, for whoever is looking

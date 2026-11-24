@@ -447,11 +447,13 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
     1,
   );
   await expect(offer).toContainText("Sent ");
-  // its own Service first, the one recommended beside it
+  // its own Service, the one recommended an aside under it, as the Draft
   await expect(offer.getByRole("heading", { level: 3 })).toHaveText([
     "Standard Clean",
-    "Deep Clean",
   ]);
+  await expect(
+    offer.getByText(/^Also offered: Deep Clean \$[\d,.]+$/),
+  ).toBeVisible();
 
   // Sent and waiting, with no card to record a yes by phone: nothing is
   // next, and Change quote is the page's one action

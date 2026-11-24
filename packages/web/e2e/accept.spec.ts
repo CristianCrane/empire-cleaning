@@ -174,6 +174,16 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
   await pageAction(page, "Record acceptance");
   const confirm = page.getByRole("alertdialog");
   await expect(confirm).toContainText("Test card ending 4242");
+  // the one asked for is picked, as the card leads with it; Casey said
+  // the Deep Clean
+  await expect(
+    confirm.getByRole("radio", { name: "Standard Clean" }),
+  ).toBeChecked();
+  // the radio's label covers its input, so the tap lands on its name
+  await confirm.getByText("Deep Clean", { exact: true }).click();
+  await expect(
+    confirm.getByRole("radio", { name: "Deep Clean" }),
+  ).toBeChecked();
   await confirm.getByRole("button", { name: "Charge and book" }).click();
 
   await expect(page.getByText("Accepted and booked")).toBeVisible();
@@ -250,7 +260,7 @@ test("Office Staff record acceptance of the offer while drafting a new Revision,
     page
       .getByRole("region", { name: "Current quote" })
       .getByRole("heading", { level: 3 }),
-  ).toHaveText(["Deep Clean"]);
+  ).toHaveText(["Standard Clean"]);
 });
 
 // the Client's side, nothing to pay for: portal-quote.spec.ts

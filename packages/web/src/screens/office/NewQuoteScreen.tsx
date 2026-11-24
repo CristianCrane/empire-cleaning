@@ -33,7 +33,7 @@ import {
 } from "@empire-cleaning/ui";
 import { getJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
-import { clientName, screenWords } from "../format.ts";
+import { clientName, lineOf, screenWords } from "../format.ts";
 import { FoldedPrice } from "./QuoteAsked.tsx";
 import { OnSite } from "./WorkedOutQuote.tsx";
 import { reportUnexpected } from "../../monitoring.ts";
@@ -454,7 +454,7 @@ function FindClient({
               start={<Avatar src={client.imageUrl} />}
               description={
                 <span className="[overflow-wrap:anywhere]">
-                  {[client.email, client.phone].filter(Boolean).join(" · ")}
+                  {lineOf([client.email, client.phone])}
                 </span>
               }
             />

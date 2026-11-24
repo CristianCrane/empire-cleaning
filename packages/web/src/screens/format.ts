@@ -38,6 +38,11 @@ export const addressOf = (
   p: Pick<PropertyView, "street" | "unit" | "postcode">,
 ) => [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
 
+// a row's line, from the parts it has: "12 Elm St · $184.50". A wrap never
+// starts a line with its dot
+export const lineOf = (parts: (string | false | null | undefined)[]) =>
+  parts.filter(Boolean).join("\u00a0· ");
+
 // a Job's crew, or that it has none yet
 export const crewOf = (crew: { name: string }[]) =>
   crew.map((c) => c.name).join(", ") || "No cleaners yet";
