@@ -303,13 +303,17 @@ Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432
 
 - Header: the letterhead (print only, before the layout); Clients › client ›
   Bill N; "Bill N" and its status (its week is a fact).
-- Actions: once its payment didn't go through or it's late, Record a payment
-  the primary, Print and Cancel bill in red behind its arrow; otherwise Menu
-  (Record a payment, Print; Cancel bill in red). While its card payment is
-  going through, Record a payment and Cancel bill are greyed, each saying
-  under it "Not while its card payment is going through".
-- Alerts: that, while its card payment is going through; why it's unpaid;
-  or its bank payment on its way.
+- Actions: once its payment didn't go through (our charge, or the Client's
+  on its page) or it's late, Record a payment the primary, Print and Cancel
+  bill in red behind its arrow; otherwise Menu (Record a payment, Print;
+  Cancel bill in red). While a payment on it is going through, Record a
+  payment and Cancel bill are greyed, each saying under it "Not while its
+  payment is going through", or "Not while Casey is paying this bill" while
+  the Client's bank asks them to approve theirs.
+- Alerts: that, while a payment is going through (info), or the Client's
+  bank asks them to approve theirs (warning: who, how much, and when it's
+  called off); the Client's payment on its page that didn't go through, when
+  and why; why it's unpaid; or its bank payment on its way.
 - Body: the Bill (`DetailsCard`: what it comes to, icon facts, the lines).
 
 #### Office > Staff
@@ -446,7 +450,7 @@ Keeps: what you owe first, fixed header Button (ux-portal). Renders through
 `HomePage` (#435).
 
 - Header: "Payments" in the bar; Your card (secondary), standing aside while the card asks something of them (its tile stays).
-- Body: what you owe (`AnswerCard`: `IconTile`, the primary; for a payment we try again ourselves, Payment pending, one line (and one while it pauses a plan), its link outlined) or all paid;
+- Body: what you owe (`AnswerCard`: `IconTile`, the primary; for a payment we try again ourselves, Payment pending, one line (and one while it pauses a plan), its link outlined; a Bill whose payment on its page didn't go through leads, in red, saying why) or all paid;
   Notices of payments clearing; tiles All payments (`?open=history`, the
   Statement by month in place) and Your card (a link).
 
@@ -553,8 +557,12 @@ Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432
 - Header: letterhead; Payments › Bill N; "Bill N" and its status (its week is a fact).
 - Actions: while the server says it can be paid (`payable`), Pay this bill
   the primary (its form in a dialog), Print behind its arrow; otherwise one
-  Button (Print), as while it's a payment we take ourselves (#533).
-- Alerts: why it's unpaid (Update your card, a text Button), or its bank
+  Button (Print), as while a payment is going through (#533, #534). While
+  their bank asks them to approve their payment, Pay this bill stays, to
+  start over.
+- Alerts: their bank asking them to approve their payment (warning); their
+  payment on its page that didn't go through, and why (danger, the badge
+  Unpaid); why it's unpaid (Update your card, a text Button); or its bank
   payment on its way.
 - Body: the Bill (`DetailsCard`).
 
