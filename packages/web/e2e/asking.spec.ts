@@ -226,7 +226,7 @@ test("a home asked about only for Painting gives its rooms when it's asked about
   await expect(page).toHaveURL("/portal");
   await page.goto("/portal/details");
   await expect(
-    page.getByText(/Apartment\s·\s3 bedrooms/).first(),
+    page.getByText(/Apartment\s·\s3\sbedrooms/).first(),
   ).toBeVisible();
 });
 

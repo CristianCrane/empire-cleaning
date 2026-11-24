@@ -48,9 +48,10 @@ export { lineOf };
 export const crewOf = (crew: { name: string }[]) =>
   crew.map((c) => c.name).join(", ") || "No cleaners yet";
 
-// "2 bedrooms", "1 bathroom", for the Office
+// "2 bedrooms", "1 bathroom", for the Office, the number held to its word
+// so a narrow line never ends on "1.5" with "bathrooms" under it
 const count = (n: number, one: string) =>
-  `${n} ${formats.en.plural(n, { one, other: `${one}s` })}`;
+  `${n}\u00a0${formats.en.plural(n, { one, other: `${one}s` })}`;
 
 // a home's rooms in full, as a Client gives them, for the Office: "2 bedrooms, 1.5
 // bathrooms, 1 storey, pets"
@@ -224,7 +225,7 @@ const words = catalog({
     cleaner: { one: "cleaner", other: "cleaners" },
     moreCleaner: { one: "more cleaner", other: "more cleaners" },
     freeCleaner: { one: "free cleaner", other: "free cleaners" },
-    sqFt: (area: string) => `${area} sq ft`,
+    sqFt: (area: string) => `${area}\u00a0sq\u00a0ft`,
     floorAreaNotKnown: "floor area not known yet",
     roomsNotKnown: "rooms not known yet",
     studio: "Studio",
@@ -269,7 +270,7 @@ const words = catalog({
     cleaner: { one: "limpiador", other: "limpiadores" },
     moreCleaner: { one: "limpiador más", other: "limpiadores más" },
     freeCleaner: { one: "limpiador libre", other: "limpiadores libres" },
-    sqFt: (area: string) => `${area} pies²`,
+    sqFt: (area: string) => `${area}\u00a0pies²`,
     floorAreaNotKnown: "superficie aún sin saber",
     roomsNotKnown: "habitaciones aún sin saber",
     studio: "Estudio",
@@ -321,9 +322,9 @@ const screenWordsIn = (lang: Language) => {
   const { weekdayName, weekdays } = formats[lang];
   const { planDaysWhen, recurrence } = messages[lang];
   const form = formWords[lang];
-  // "2 bedrooms", "1 baño"
+  // "2 bedrooms", "1 baño", the number held to its word
   const count = (n: number, forms: { one: string; other: string }) =>
-    `${n} ${plural(n, forms)}`;
+    `${n}\u00a0${plural(n, forms)}`;
 
   const conditionLabel = Object.fromEntries(
     conditions[lang].map((c) => [c.value, c.label]),
