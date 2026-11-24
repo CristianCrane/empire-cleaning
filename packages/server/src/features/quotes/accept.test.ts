@@ -1398,6 +1398,14 @@ describe("while the Client's bank is approving the Deposit", () => {
     expect(sent.unbookedPayments).toEqual([
       { amountCents: 0, endedAt: "2026-01-05T09:00:00.000Z", why: "no_room" },
     ]);
+    // Today asks them to make the call the email promises (#534 UX pass 4)
+    expect(
+      (await needsAttention(office)).filter((i) => i.kind === "quote_no_room"),
+    ).toEqual([
+      expect.objectContaining({
+        quote: expect.objectContaining({ id: quote.id }),
+      }),
+    ]);
   });
 });
 
@@ -2007,11 +2015,11 @@ describe("the reminder the day before a Job", () => {
   });
 });
 
-describe("when a Quote's day fills up before it's accepted", () => {
-  const needsAttention = async (office: Agent) =>
-    (await office.get("/api/dashboard/needs-attention").expect(200))
-      .body as NeedsAttentionItem[];
+const needsAttention = async (office: Agent) =>
+  (await office.get("/api/dashboard/needs-attention").expect(200))
+    .body as NeedsAttentionItem[];
 
+describe("when a Quote's day fills up before it's accepted", () => {
   const drewRequest = () =>
     guestAsk({
       contact: { ...casey, name: "Drew Client", email: "drew@example.com" },
