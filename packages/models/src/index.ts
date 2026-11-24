@@ -2191,7 +2191,7 @@ export type BillView = BillSummary & {
   // whether Office Staff can cancel it or record a payment made another way
   // now: due, and no payment on it may still take the money, going through
   // or the Client's bank asking them to approve it (ADR-0022's one rule;
-  // paymentNotDone and clientPayingBill say why not)
+  // paymentNotDone, clientPayingBill and bankPaymentOnWay say why not)
   canCancelOrRecord: boolean;
   // the Client's Service Plans with Jobs on it, oldest first: each On Hold
   // while it's Unpaid (ADR-0016), unless Ended

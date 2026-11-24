@@ -4,6 +4,7 @@ import { Ban, Banknote } from "lucide-react";
 import {
   because,
   asksTheClient,
+  bankPaymentOnWay,
   clientPayingBill,
   firstNameOf,
   officeFix,
@@ -39,10 +40,12 @@ import { clientTrail } from "./trails.ts";
 const { formatList, formatMoney, formatShortDay, formatTime } = formats.en;
 
 // why Cancel bill and Record a payment are greyed, while they are: the
-// Client's bank asking them to approve their payment on its page, or a
-// payment going through (ADR-0022's one rule), each in its own words:
-// the menu's short line, and each dialog's
+// Client's bank debit on its way, which takes days; their bank asking them
+// to approve their payment on its page; or a payment going through
+// (ADR-0022's one rule), each in its own words: the menu's short line, and
+// each dialog's
 const heldBy = (bill: BillView) => {
+  if (bill.status === "processing") return bankPaymentOnWay;
   if (bill.paying?.status === "approving") {
     const first = firstNameOf(bill.client.name);
     const until = formatTime(bill.paying.until);
@@ -62,19 +65,21 @@ const heldBy = (bill: BillView) => {
 // the page's next step (the `ui` skill), unless it's a payment we try
 // again ourselves (ADR-0022). While a payment on it may still take the
 // money, both are greyed, and its alert says why (canCancelOrRecord, the
-// server's answer); while the Client's bank asks them to approve theirs,
-// the page looks again, so it frees them once that's over
+// server's answer), a bank debit on its way too, as it's due again if it
+// fails (#534's UX review U14); while the Client's bank asks them to
+// approve theirs, the page looks again, so it frees them once that's over
 export function BillScreen() {
   const bill = useLoaderData({ from: "/office/bills/$billId" });
   const router = useRouter();
   const due = bill.status === "due";
+  const open = due || bill.status === "processing";
   const print = usePrintBill();
   const held = !bill.canCancelOrRecord;
   const why = heldBy(bill).item;
   useWhilePaying(bill.paying?.status === "approving" ? bill.paying : null, () =>
     router.invalidate(),
   );
-  const record: PageAction | false = due && {
+  const record: PageAction | false = open && {
     label: "Record a payment",
     icon: Banknote,
     isDisabled: held,
@@ -82,8 +87,9 @@ export function BillScreen() {
     dialog: (state) => <RecordPayment bill={bill} {...state} />,
   };
   const next =
-    (!!bill.unpaid && asksTheClient(bill.unpaid.kind)) ||
-    bill.paying?.status === "failed";
+    due &&
+    ((!!bill.unpaid && asksTheClient(bill.unpaid.kind)) ||
+      bill.paying?.status === "failed");
 
   return (
     <>
@@ -96,7 +102,7 @@ export function BillScreen() {
         actions={[
           !next && record,
           print,
-          due && {
+          open && {
             label: "Cancel bill",
             icon: Ban,
             danger: true,

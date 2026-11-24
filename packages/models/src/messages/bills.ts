@@ -96,6 +96,19 @@ export const paymentNotDone = {
   item: "Not while its payment is going through",
 };
 
+// why Office Staff can't cancel a Bill, or record a payment on it, while
+// the Client's bank debit on it is on its way (status processing), which
+// takes days: the line under each in its menu, beside the page's alert
+// that says it, and the server's refusal of each from a page opened before
+// (#534's UX review U14)
+const whileBankPays = (cant: string) =>
+  `You can't ${cant} while the client's bank payment is on its way.`;
+export const bankPaymentOnWay = {
+  cancel: whileBankPays("cancel this bill"),
+  record: whileBankPays("record a payment on this bill"),
+  item: "Not while the client's bank payment is on its way",
+};
+
 // A Client paying a Bill on its page while their bank asks them to approve
 // it (#534), as Office Staff read it: nothing else that moves money on it
 // starts till it's approved, refused or called off (ADR-0022's one rule),

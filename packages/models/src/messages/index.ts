@@ -41,6 +41,7 @@ export const messages = catalog({
 export { RELEASE_CUTOFF_HOURS } from "./assignments.ts";
 export {
   paymentNotDone,
+  bankPaymentOnWay,
   clientPayingBill,
   cleansPaidForOffice,
   ON_THAT_WEEKS_BILL,

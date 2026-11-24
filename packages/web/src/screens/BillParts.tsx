@@ -57,14 +57,18 @@ const words = catalog({
     covers: "The week it covers",
     made: "Made",
     howPaid: "How it's paid",
-    onItsPage: "On its page, by card or bank",
+    // the Client reads it on that page, as "Paid on this page" (#534's UX
+    // review U15); the Office reads where the Client pays it
+    onThisPage: "On this page, by card or bank account",
     whatFor: "What it's for",
     taxIncluded: "Tax included",
     print: "Print",
   },
   es: {
     cancelled: "Cancelada",
-    due: "Pendiente",
+    // not "Pendiente", which reads as Pago pendiente, a payment on its way
+    // (#534's UX review U13): what's to pay, as Payments' card says it
+    due: "Por pagar",
     credit: "Crédito",
     nothingToPay: "Nada que pagar",
     paid: "Pagada",
@@ -91,7 +95,7 @@ const words = catalog({
     covers: "La semana que cubre",
     made: "Emitida",
     howPaid: "Cómo se paga",
-    onItsPage: "En su página, con tarjeta o banco",
+    onThisPage: "En esta página, con tarjeta o cuenta bancaria",
     whatFor: "Para qué es",
     taxIncluded: "Impuestos incluidos",
     print: "Imprimir",
@@ -277,7 +281,9 @@ export function BillDetail({
           label={w.howPaid}
           value={
             bill.payment === "on_page"
-              ? w.onItsPage
+              ? forClient
+                ? w.onThisPage
+                : "On its page, by card or bank account"
               : forClient
                 ? w.fromYourCard
                 : "From their card, automatically"

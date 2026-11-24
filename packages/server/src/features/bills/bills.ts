@@ -27,6 +27,7 @@ import type {
 import {
   because,
   addDays,
+  bankPaymentOnWay,
   clientPayingBill,
   DAY_MS,
   dayOf,
@@ -977,11 +978,11 @@ export const settleBill = async (
 
 // ---- the Office ----
 
-// why Office Staff can't act on a Bill that isn't due: `then` follows a bank
-// payment still on its way
-const notDue = (bill: Pick<Bill, "status">, then = "") =>
+// why Office Staff can't cancel a Bill, or record a payment on it, that
+// isn't due, as its page says beforehand
+const notDue = (bill: Pick<Bill, "status">, what: "cancel" | "record") =>
   bill.status === "processing"
-    ? `A bank payment for this bill is on its way${then}.`
+    ? bankPaymentOnWay[what]
     : `This bill is already ${bill.status === "void" ? "cancelled" : "paid"}.`;
 
 // why Office Staff can't cancel a due Bill, or record a payment on it, yet:
@@ -1035,7 +1036,7 @@ export const voidBill = async (
       .for("update");
     if (!bill) throw new NotFoundError("Bill not found");
     if (bill.status !== "due") {
-      throw new ConflictError(notDue(bill, ", so it can't be cancelled"));
+      throw new ConflictError(notDue(bill, "cancel"));
     }
     await refuseWhilePaying(bill, "cancel", tx);
     await tx
@@ -1090,7 +1091,7 @@ export const recordOutsidePayment = async (
       .for("update");
     if (!bill) throw new NotFoundError("Bill not found");
     if (bill.status !== "due") {
-      throw new ConflictError(notDue(bill));
+      throw new ConflictError(notDue(bill, "record"));
     }
     await refuseWhilePaying(bill, "record", tx);
     await tx

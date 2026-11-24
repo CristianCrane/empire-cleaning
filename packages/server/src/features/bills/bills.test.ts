@@ -411,11 +411,21 @@ describe("making Bills", () => {
 
     await pay(testPayments().bankToken()).expect(200);
     expect((await billOf(office, id)).status).toBe("processing");
-    // it can't be voided, or paid again, meanwhile
-    await office
-      .post(`/api/bills/${id}/void`)
-      .send({ reason: "x" })
-      .expect(409);
+    // it can't be voided, or paid again, meanwhile, in the words its
+    // page's greyed Cancel bill gives (#534's UX review U14)
+    expect(await billOf(office, id)).toMatchObject({
+      canCancelOrRecord: false,
+    });
+    expect(
+      (
+        await office
+          .post(`/api/bills/${id}/void`)
+          .send({ reason: "x" })
+          .expect(409)
+      ).body.message,
+    ).toBe(
+      "You can't cancel this bill while the client's bank payment is on its way.",
+    );
     expect(
       (await pay(testPayments().paymentToken()).expect(409)).body.message,
     ).toBe("Your bank payment for this bill is on its way.");
