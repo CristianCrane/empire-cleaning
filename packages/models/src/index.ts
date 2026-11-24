@@ -1209,6 +1209,29 @@ export type OfficeQuote = {
   // the Client's saved Payment Method, which recording acceptance on their
   // behalf charges; null until they add one
   paymentMethod: PaymentMethodView | null;
+  // the Deposit the Client is paying online while their bank asks them to
+  // approve it (#534): what it's for (its Service, null on a cleaning plan),
+  // and until when it holds the Quote, as nothing else that moves money on
+  // it starts meanwhile (ADR-0022); null when there's none
+  paying: {
+    until: string;
+    serviceName: string | null;
+    depositCents: number;
+  } | null;
+  // Deposits the Client paid online that couldn't be booked once their bank
+  // approved them, so were refunded, and why, oldest first
+  refundedDeposits: RefundedDeposit[];
+};
+
+// why a Deposit paid online couldn't be booked, once the Client's bank
+// approved it: its time filled, the quote changed or closed, or its home's
+// cleaning plan started or changed another way meanwhile
+export type DepositRefundedWhy =
+  "no_room" | "revised" | "closed" | "has_plan" | "plan_changed";
+export type RefundedDeposit = {
+  amountCents: number;
+  refundedAt: string;
+  why: DepositRefundedWhy;
 };
 
 // POST /api/quotes: Office Staff offering a Service Plan nobody asked for
@@ -1370,7 +1393,16 @@ export type AcceptQuoteInput = {
 // Secure) in the browser with `secret`, then POST .../accept/finalize
 export type AcceptOutcome =
   | { status: "accepted"; quote: QuoteView }
-  | { status: "needs_approval"; secret: string };
+  | { status: "needs_approval"; secret: string }
+  // nothing was taken, as an earlier payment on it is still going through
+  // (#534): their bank is finishing it ("processing"), or hasn't approved
+  // it yet ("waiting", from .../finalize); `message` says what happens next
+  | { status: "processing" | "waiting"; message: string };
+
+// POST /api/quotes/:id/accept: the Quote, accepted, and whether it was by
+// the Client's own payment online, which their bank approved just before
+// (#534), so what they paid for is booked, whatever Office Staff picked
+export type RecordedAcceptance = { quote: OfficeQuote; paidOnline: boolean };
 
 // a booked Job as its Client sees it
 export type ClientJob = {

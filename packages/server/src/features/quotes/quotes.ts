@@ -4,6 +4,7 @@ import { and, asc, eq, inArray, isNull, max, ne } from "drizzle-orm";
 import type {
   AddOnChoice,
   ClientQuoteView,
+  DepositRefundedWhy,
   Condition,
   DayCapacity,
   FirstCleanFindings,
@@ -26,6 +27,8 @@ import {
   addDays,
   atTime,
   CANCELLATION_CUTOFF_HOURS,
+  clientPaying as clientPayingWords,
+  formats,
   DAY_MS,
   dayOf,
   noEmailYet,
@@ -47,6 +50,7 @@ import { email } from "../../services/email/index.ts";
 import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { officeCompletionOf } from "../completion/completion.ts";
+import { clientPaying, depositsGivenBack } from "../payments/money.ts";
 import { paymentMethodOf, toPaymentMethodView } from "../payments/payments.ts";
 import {
   choiceOf,
@@ -108,6 +112,7 @@ import {
   whatClosed,
 } from "./quote-state.ts";
 import {
+  pendingDeposits,
   quoteRevisions,
   quotes,
   revisionOptions,
@@ -681,6 +686,56 @@ const homePlanIdOf = async (propertyId: string) => {
   return plan?.id ?? null;
 };
 
+// The Deposit the Client's bank is asking them to approve, within
+// APPROVAL_MS of their pressing (clientPaying): until when, how much, and
+// for which Service (the Office's English; null for a cleaning plan);
+// null when there's none, and Office Staff may act on the Quote
+export const payingOf = async (
+  quote: Pick<Quote, "id" | "kind">,
+  tx: Tx | typeof db = db,
+) => {
+  const paying = await clientPaying(quote.id, tx);
+  if (!paying) return null;
+  const [pending] = await tx
+    .select()
+    .from(pendingDeposits)
+    .where(eq(pendingDeposits.gatewayRef, paying.ref));
+  // its pending Deposit is saved as the Client's try lets go of the Quote
+  if (!pending) return null;
+  const row =
+    quote.kind === "one_off"
+      ? (await optionsOf(pending.revisionId, tx)).find(
+          (o) => o.serviceKey === pending.serviceKey,
+        )
+      : undefined;
+  return {
+    until: paying.until,
+    serviceName: row ? await serviceNameOf("en", row.serviceId, tx) : null,
+    depositCents: pending.depositCents,
+  };
+};
+
+// why a Deposit was given back, as the Office's record of it says: one the
+// Client's bank approved but that couldn't be booked
+const REFUNDED_WHY: string[] = [
+  "no_room",
+  "revised",
+  "closed",
+  "has_plan",
+  "plan_changed",
+] satisfies DepositRefundedWhy[];
+
+// the Deposits the Client's bank approved on a Quote that couldn't be
+// booked, given back: what Office Staff on the phone with them see
+const refundedDepositsOf = async (quoteId: string) =>
+  (await depositsGivenBack(quoteId))
+    .filter((d) => REFUNDED_WHY.includes(d.why))
+    .map((d) => ({
+      amountCents: d.amountCents,
+      refundedAt: d.givenBackAt.toISOString(),
+      why: d.why as DepositRefundedWhy,
+    }));
+
 // A Quote in full, for the Office (ADR-0017): what was asked, with the
 // Suggested Price for the Service being worked on (the Draft's, else the
 // offer's or the Quote's) and any first-visit recommendation,
@@ -711,6 +766,8 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     revisions,
     anyCompleted,
     shownRows,
+    paying,
+    refundedDeposits,
   ] = await Promise.all([
     paymentMethodOf(client.id),
     quote.kind === "service_plan" ? findingsOf(propertyId) : null,
@@ -728,6 +785,8 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     revisionHistory(quote),
     hasCompletedJob(propertyId),
     draft || offer ? optionsOf((draft ?? offer)!.id) : [],
+    payingOf(quote),
+    refundedDepositsOf(id),
   ]);
   const asked = addOns.get(id) ?? [];
   const chosen = list.addOns.filter((a) => asked.some((c) => c.key === a.key));
@@ -810,6 +869,8 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     turnedDownAt: iso(quote.turnedDownAt),
     turnDownReason: quote.turnDownReason,
     paymentMethod: toPaymentMethodView(paymentMethod),
+    paying: paying && { ...paying, until: paying.until.toISOString() },
+    refundedDeposits,
   };
 };
 
@@ -1693,6 +1754,17 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
     await lockProperty(tx, quote.propertyId);
     const { quote: current, draft } = await findDraftRevision(id, tx);
     const { client, property } = (await homeOf(current.propertyId, tx))!;
+    // The one rule (ADR-0022): changes sent now would close the offer the
+    // Client's bank is approving, for APPROVAL_MS at most
+    const paying = await clientPaying(id, tx);
+    if (paying) {
+      throw new ConflictError(
+        clientPayingWords.draft(
+          client.name,
+          formats.en.formatTime(paying.until),
+        ),
+      );
+    }
     const saved = await optionsOf(draft.id, tx);
     const options = repriced(
       list,

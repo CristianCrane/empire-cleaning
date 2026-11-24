@@ -127,6 +127,9 @@ export type PaymentEvent =
   | { kind: "refund_failed"; chargeId: string; refundId: string }
   | { kind: "dispute_opened"; chargeId: string };
 
+// why a Deposit waiting on the Client's bank is called off
+export type CallingOff = "client_retried" | "abandoned";
+
 export interface PaymentGateway {
   // which browser form takes a payment, for the web app to show
   paymentForm(): PaymentForm;
@@ -153,6 +156,11 @@ export interface PaymentGateway {
   takeDeposit(input: DepositInput): Promise<DepositAttempt>;
   // how a Deposit that needed approval ended
   depositOutcome(ref: string): Promise<DepositAttempt>;
+  // calls off a Deposit waiting on the Client's bank, or one it refused, so
+  // it's never taken: because the Client tried again, or nobody came back
+  // to approve it. Throws if it can't be (taken, or a card's still
+  // processing): then depositOutcome(ref) says how it stands
+  cancelDeposit(ref: string, why: CallingOff): Promise<void>;
   // a later Charge to a saved Payment Method, without the Client there
   charge(input: ChargeInput): Promise<ChargeResult>;
   // how a Charge (or a Deposit) ended whose reply never came, or that was
@@ -196,6 +204,7 @@ export const paymentGateway: PaymentGateway = {
   savePaymentMethod: (input) => current.savePaymentMethod(input),
   takeDeposit: (input) => current.takeDeposit(input),
   depositOutcome: (ref) => current.depositOutcome(ref),
+  cancelDeposit: (ref, why) => current.cancelDeposit(ref, why),
   charge: (input) => current.charge(input),
   chargeOutcome: (lookup) => current.chargeOutcome(lookup),
   startBillPayment: (input) => current.startBillPayment(input),

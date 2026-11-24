@@ -1,0 +1,1 @@
+ALTER TABLE "charge_attempts" ADD COLUMN "given_back_at" timestamp with time zone;

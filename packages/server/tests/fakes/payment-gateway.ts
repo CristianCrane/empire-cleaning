@@ -3,6 +3,7 @@ import {
   PaymentMethodError,
   type BillPaymentInput,
   type BillPaymentOutcome,
+  type CallingOff,
   type ChargeInput,
   type ChargeLookup,
   type ChargeResult,
@@ -29,8 +30,10 @@ type RecordedCharge = {
 type RecordedRefund = RefundInput & { refundId: string };
 type RefundStatus = "succeeded" | "pending" | "failed";
 
-// what the Client's bank does when it asks them to approve a Deposit
-export type Approval = "approved" | "refused" | "pending";
+// what the Client's bank does with a Deposit it asked them to approve:
+// "pending" until they do, "processing" once they have and the bank is
+// still finishing it (when, for a card, it can't be called off)
+export type Approval = "approved" | "refused" | "pending" | "processing";
 
 // what a webhook from the fake carries; its signature header must match
 export const FAKE_SIGNATURE = "fake-signature";
@@ -90,6 +93,10 @@ export class FakePaymentGateway implements PaymentGateway {
     string,
     { input: DepositInput; card: TestCard; byCard: boolean }
   >();
+  // and those called off, never to be taken
+  readonly canceled = new Set<string>();
+  // Deposits taken without asking, by charge, as the provider still has them
+  private readonly takenAtOnce = new Map<string, DepositAttempt>();
   private readonly replies = new Map<
     string,
     { request: string; reply: unknown }
@@ -369,8 +376,14 @@ export class FakePaymentGateway implements PaymentGateway {
     }
   }
 
-  private take(input: DepositInput, paymentMethodId: string | null) {
-    const chargeId = input.amount > 0 ? this.id("pi") : null;
+  // a Deposit's payment, under the ref it was asked as if its holder's bank
+  // had to approve it first, as a Stripe PaymentIntent keeps its id
+  private take(
+    input: DepositInput,
+    paymentMethodId: string | null,
+    ref?: string,
+  ) {
+    const chargeId = input.amount > 0 ? (ref ?? this.id("pi")) : null;
     if (chargeId) {
       this.charges.push({
         payerId: input.payerId,
@@ -485,8 +498,12 @@ export class FakePaymentGateway implements PaymentGateway {
           saved?.paymentMethodId ??
             ("paymentMethodId" in source ? source.paymentMethodId : null),
         );
-        if (chargeId) this.made.set(idempotencyKey, { ok: true, chargeId });
-        return { status: "succeeded", chargeId, saved };
+        const taken: DepositAttempt = { status: "succeeded", chargeId, saved };
+        if (chargeId) {
+          this.made.set(idempotencyKey, { ok: true, chargeId });
+          this.takenAtOnce.set(chargeId, taken);
+        }
+        return taken;
       },
       () => ({ status: "failed", reason: "idempotency_error" }),
     );
@@ -494,9 +511,16 @@ export class FakePaymentGateway implements PaymentGateway {
 
   async depositOutcome(ref: string): Promise<DepositAttempt> {
     this.check();
+    const taken = this.takenAtOnce.get(ref);
+    if (taken) return taken;
     const waiting = this.waiting.get(ref);
     if (!waiting) return { status: "failed", reason: "unknown_payment" };
-    if (waiting.byCard || this.approval === "pending") {
+    if (this.canceled.has(ref)) return { status: "failed", reason: "canceled" };
+    if (
+      waiting.byCard ||
+      this.approval === "pending" ||
+      this.approval === "processing"
+    ) {
       return { status: "needs_approval", ref, secret: `${ref}_secret` };
     }
     // the bank's answer, once given, stays
@@ -510,12 +534,29 @@ export class FakePaymentGateway implements PaymentGateway {
         const saved = this.save(waiting.input.payerId, waiting.card);
         return {
           status: "succeeded",
-          chargeId: this.take(waiting.input, saved.paymentMethodId),
+          chargeId: this.take(waiting.input, saved.paymentMethodId, ref),
           saved,
         };
       },
       () => ({ status: "failed", reason: "idempotency_error" }),
     );
+  }
+
+  // as at Stripe, refused once taken, called off already, or while a
+  // card's bank is finishing it; the bank's answer, if it's given one, is
+  // what decides
+  async cancelDeposit(ref: string, _why: CallingOff) {
+    this.check();
+    if (!this.waiting.has(ref) || this.canceled.has(ref)) {
+      throw new Error(`no Deposit ${ref} to call off`);
+    }
+    if (this.approval === "processing") {
+      throw new Error(`Deposit ${ref} is processing`);
+    }
+    if ((await this.depositOutcome(ref)).status === "succeeded") {
+      throw new Error(`Deposit ${ref} was taken`);
+    }
+    this.canceled.add(ref);
   }
 
   async charge(input: ChargeInput): Promise<ChargeResult> {

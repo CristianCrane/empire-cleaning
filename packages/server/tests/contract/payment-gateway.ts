@@ -227,6 +227,74 @@ export const paymentGatewayContract = (
         });
       });
 
+      test("a Deposit waiting on approval can be called off, and then it's never taken", async () => {
+        const t = await setup();
+        const { payerId } = await payer(t);
+        const deposit = await t.gateway.takeDeposit({
+          payerId,
+          source: { token: await t.enterCard("approvalOnSetup") },
+          amount: 2500,
+          description: "Contract check: Deposit called off",
+          idempotencyKey: `deposit:${run}:${payerId}`,
+        });
+        if (deposit.status !== "needs_approval") {
+          throw new Error(`expected needs_approval, got ${deposit.status}`);
+        }
+
+        await t.gateway.cancelDeposit(deposit.ref, "abandoned");
+
+        expect(await t.gateway.depositOutcome(deposit.ref)).toEqual({
+          status: "failed",
+          reason: "canceled",
+        });
+        await expect(
+          t.gateway.cancelDeposit(deposit.ref, "client_retried"),
+        ).rejects.toThrow();
+      });
+
+      test("a Deposit taken at once reads as taken later, with the card it saved", async () => {
+        const t = await setup();
+        const { payerId } = await payer(t);
+        const deposit = await t.gateway.takeDeposit({
+          payerId,
+          source: { token: await t.enterCard("visa") },
+          amount: 2500,
+          description: "Contract check: Deposit read back",
+          idempotencyKey: `deposit:${run}:${payerId}`,
+        });
+        if (deposit.status !== "succeeded" || !deposit.chargeId) {
+          throw new Error(`expected succeeded, got ${deposit.status}`);
+        }
+
+        expect(await t.gateway.depositOutcome(deposit.chargeId)).toEqual({
+          status: "succeeded",
+          chargeId: deposit.chargeId,
+          saved: {
+            paymentMethodId: deposit.saved!.paymentMethodId,
+            card: expect.objectContaining({ last4: "4242" }),
+          },
+        });
+      });
+
+      test("a Deposit taken can't be called off", async () => {
+        const t = await setup();
+        const { payerId } = await payer(t);
+        const deposit = await t.gateway.takeDeposit({
+          payerId,
+          source: { token: await t.enterCard("visa") },
+          amount: 2500,
+          description: "Contract check: Deposit taken, not called off",
+          idempotencyKey: `deposit:${run}:${payerId}`,
+        });
+        if (deposit.status !== "succeeded" || !deposit.chargeId) {
+          throw new Error(`expected succeeded, got ${deposit.status}`);
+        }
+
+        await expect(
+          t.gateway.cancelDeposit(deposit.chargeId, "abandoned"),
+        ).rejects.toThrow();
+      });
+
       test("a 0 Deposit takes nothing, and saves the card", async () => {
         const t = await setup();
         const { payerId } = await payer(t);

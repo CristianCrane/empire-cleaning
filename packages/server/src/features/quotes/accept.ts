@@ -1,11 +1,13 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import type { Card, QuoteOption, QuoteStatus } from "@empire-cleaning/models";
 import {
   catalog,
+  clientPaying as clientPayingWords,
   dayOf,
   formats,
   inLanguage,
   messages,
+  MINUTE_MS,
 } from "@empire-cleaning/models";
 import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
@@ -23,7 +25,7 @@ import {
 import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { bookJob, lockDay } from "../jobs/jobs.ts";
-import type { Job } from "../jobs/jobs.schema.ts";
+import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { scheduleFor } from "../jobs/schedule.ts";
 import {
   payerFor,
@@ -32,12 +34,20 @@ import {
   storePaymentMethod,
 } from "../payments/payments.ts";
 import {
+  APPROVAL_MS,
+  approvalOf,
+  depositAttemptOf,
+  FINISHING,
   giveBackDeposit,
+  giveBackUnbookedDeposits,
+  keepTaken,
   takeDepositOnce,
   UNREACHABLE,
+  type Approval,
+  type DepositTaken,
 } from "../payments/money.ts";
 import { idempotencyKey } from "../payments/keys.ts";
-import { charges } from "../payments/payments.schema.ts";
+import { charges, type ChargeAttempt } from "../payments/payments.schema.ts";
 import { whyNotPaid } from "../payments/unpaid.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
@@ -56,9 +66,13 @@ import type { ServicePlan } from "../service-plans/service-plans.schema.ts";
 import { cleanOf, serviceVersions } from "../services/services.ts";
 import {
   bookingConfirmationEmail,
+  depositCalledOffEmail,
+  depositRefundedEmail,
   planChangeEmail,
   planConfirmationEmail,
+  type DepositFor,
   type Paid,
+  type QuoteSince,
   type PaidWith,
   type PlanCleans,
 } from "./emails.ts";
@@ -70,6 +84,7 @@ import {
   dropDraftRevision,
   inOrder,
   optionsOf,
+  payingOf,
   toOption,
   type KindedRevision,
 } from "./quotes.ts";
@@ -90,6 +105,10 @@ const { formatWhen } = formats.en;
 export type Acceptor =
   | { by: "client"; clientId: string; accountId: string }
   | { by: "office"; accountId: string };
+
+// what a Deposit waiting on the Client's bank books: a one-off Quote's
+// clean, a plan started, or the home's plan changed
+type Paying = "clean" | "plan" | "change";
 
 // What the API says to someone accepting a Quote, in the request's language
 // (ADR-0025): the Client's words, and those the Office reads too. The
@@ -113,8 +132,16 @@ const words = catalog({
     planFor: (services: string) => `This cleaning plan is for ${services}.`,
     aService: (name: string) => `a ${name}`,
     pick: (services: string) => `Pick ${services}`,
-    waiting:
-      "Your bank hasn't approved the payment yet. Please approve it, then try again.",
+    // back from their bank with the payment not yet approved: approving
+    // it in their bank's app books it, and pressing again starts over, as
+    // a closed pop-up may leave it either way (#534)
+    waiting: (what: Paying) =>
+      `Your bank hasn't approved the payment yet. Approve it in your bank's app and ${{ clean: "we'll book your clean", plan: "we'll start your plan", change: "we'll change your plan" }[what]}. Or press Accept and pay to start over: the first payment is called off, so you're only charged once.`,
+    // pressed again while their bank finishes the first payment
+    processing:
+      "Your first payment is still going through, so nothing more was charged. We'll email you as soon as it's through.",
+    calledOff: (minutes: number) =>
+      `This payment was called off, as it wasn't approved within ${minutes} minutes, so nothing was charged. Please pay again.`,
     bankFailed:
       "Your bank didn't approve the payment, so nothing was booked. Please try again, or use another card.",
     refundedNoRoom:
@@ -144,8 +171,12 @@ const words = catalog({
     planFor: (services: string) => `Este plan de limpieza es para ${services}.`,
     aService: (name: string) => name,
     pick: (services: string) => `Elija ${services}`,
-    waiting:
-      "Su banco aún no ha aprobado el pago. Apruébelo y vuelva a intentarlo.",
+    waiting: (what: Paying) =>
+      `Su banco aún no ha aprobado el pago. Apruébelo en la app de su banco y ${{ clean: "reservaremos su limpieza", plan: "empezaremos su plan", change: "cambiaremos su plan" }[what]}. O presione Aceptar y pagar para empezar de nuevo: el primer pago se cancela, así que solo se le cobra una vez.`,
+    processing:
+      "Su primer pago aún se está procesando, así que no se cobró nada más. Le enviaremos un correo en cuanto se complete.",
+    calledOff: (minutes: number) =>
+      `Este pago se canceló porque no se aprobó en ${minutes} minutos, así que no se cobró nada. Vuelva a pagar.`,
     bankFailed:
       "Su banco no aprobó el pago, así que no se reservó nada. Vuelva a intentarlo, o use otra tarjeta.",
     refundedNoRoom:
@@ -163,9 +194,12 @@ const said = () => words[currentLanguage()];
 const formatList = (items: string[], type?: "and" | "or") =>
   formats[currentLanguage()].formatList(items, type);
 
+// paidOnline: booked with a Deposit the Client's bank approved just
+// before, not with what Office Staff pressed for (#534)
 export type AcceptResult =
-  | { status: "accepted"; job: Job }
-  | { status: "needs_approval"; secret: string };
+  | { status: "accepted"; job: Job; paidOnline: boolean }
+  | { status: "needs_approval"; secret: string }
+  | { status: "processing"; message: string };
 
 // what happened (whatClosed), then what to do: the Client asks us for a new
 // Quote, and the Office sends one
@@ -572,10 +606,12 @@ export const acceptQuote = async (
 
   // changing a plan takes no Deposit: the plan's carries over
   const depositCents = changing ? 0 : offer.depositCents;
-  // Once per attempt, however often accepting is tried (takeDepositOnce).
-  // Nothing to take only saves a card entered just now, keyed by its token,
-  // which is used once
-  const takeDeposit = async (tx: Tx): Promise<DepositAttempt> => {
+  // Once per attempt, however often accepting is tried (takeDepositOnce):
+  // one still waiting on the Client's bank is called off, as they're
+  // paying again or Office Staff are recording their yes. Nothing to take
+  // only saves a card entered just now, keyed by its token, which is used
+  // once
+  const takeDeposit = async (tx: Tx): Promise<DepositTaken> => {
     // nothing to take or save from a saved card
     if (depositCents === 0 && !token) {
       return { status: "succeeded", chargeId: null, saved: null };
@@ -586,6 +622,10 @@ export const acceptQuote = async (
       amount: depositCents,
       description: describe(booking),
     };
+    const once = {
+      callOff: acceptor.by === "client" ? "client_retried" : "abandoned",
+      unsettled: await unsettledDeposits(id, tx),
+    } as const;
     if (acceptor.by === "client") {
       const source = token ? { token } : { paymentMethodId: saved!.gatewayRef };
       return depositCents === 0
@@ -600,16 +640,23 @@ export const acceptQuote = async (
               status: "failed",
               reason: UNREACHABLE,
             }))
-        : takeDepositOnce(tx, id, {
-            call: "deposit",
-            input: { ...input, source },
-          });
+        : takeDepositOnce(
+            tx,
+            id,
+            { call: "deposit", input: { ...input, source } },
+            once,
+          );
     }
     // the Office: off-session, so no approval can be asked for
-    return takeDepositOnce(tx, id, {
-      call: "charge",
-      input: { ...input, paymentMethodId: saved!.gatewayRef },
-    });
+    return takeDepositOnce(
+      tx,
+      id,
+      {
+        call: "charge",
+        input: { ...input, paymentMethodId: saved!.gatewayRef },
+      },
+      once,
+    );
   };
 
   // set inside the transaction; `as` stops TypeScript deciding it's always null
@@ -621,8 +668,32 @@ export const acceptQuote = async (
       if (hold.unbookable) {
         throw new ConflictError(unbookableMessage(hold.unbookable, acceptor));
       }
+      // The one rule (ADR-0022): while the Client's bank asks them to
+      // approve a Deposit, Office Staff wait, for APPROVAL_MS at most; the
+      // Client may pay again, calling it off
+      const paying = acceptor.by === "office" && (await payingOf(quote, tx));
+      if (paying) {
+        throw new ConflictError(
+          clientPayingWords.record({
+            name: client.name,
+            deposit: formats.en.formatMoney(paying.depositCents),
+            service: paying.serviceName,
+            until: formats.en.formatTime(paying.until),
+          }),
+        );
+      }
 
       const attempt = await takeDeposit(tx);
+      // their bank approved an earlier one: it's the Deposit, booked as it
+      // asked, once this lets go of the day (finalizeDeposit)
+      if (attempt.status === "approved") return attempt;
+      if (attempt.status === "failed" && attempt.reason === FINISHING) {
+        // nothing more was taken, and nothing to do but wait
+        if (acceptor.by === "client") {
+          return { status: "processing", message: said().processing } as const;
+        }
+        throw new ConflictError(clientPayingWords.finishing(client.name));
+      }
       if (attempt.status === "failed") {
         // the Client is told only that their card wasn't charged
         log.info(`Deposit for Quote ${id} not taken (${attempt.reason})`);
@@ -662,7 +733,19 @@ export const acceptQuote = async (
     throw error;
   }
 
-  if (outcome.status === "needs_approval") return outcome;
+  if (outcome.status === "approved") {
+    return bookedWith(
+      await finalizeDeposit(outcome.ref),
+      id,
+      acceptor.by === "client"
+        ? finalizeProblem
+        : (finalized) =>
+            finalized.status === "refunded"
+              ? clientPayingWords.refunded(client.name)
+              : said().PAYMENT_DOWN,
+    );
+  }
+  if (outcome.status !== "accepted") return outcome;
   await afterAcceptance(
     client,
     property,
@@ -670,14 +753,68 @@ export const acceptQuote = async (
     offer,
     outcome.paidWith,
   );
-  return { status: "accepted", job: outcome.booked.jobs[0]! };
+  return {
+    status: "accepted",
+    job: outcome.booked.jobs[0]!,
+    paidOnline: false,
+  };
 };
+
+// An earlier Deposit the Client's bank approved, finished: the Quote
+// booked with it, by this or by whoever finished it first, or else the
+// `problem` it came to
+const bookedWith = async (
+  finalized: Finalized,
+  quoteId: string,
+  problem: (finalized: Finalized) => string,
+): Promise<AcceptResult> => {
+  if (finalized.status === "accepted") {
+    return { status: "accepted", job: finalized.job, paidOnline: true };
+  }
+  const job = await acceptedJobOf(quoteId);
+  if (job) return { status: "accepted", job, paidOnline: true };
+  throw new ConflictError(
+    finalized.status === "settled" ? said().PAYMENT_DOWN : problem(finalized),
+  );
+};
+
+// an Accepted Quote's Job (a plan's first); null while it isn't Accepted
+const acceptedJobOf = async (quoteId: string) => {
+  const [found] = await db
+    .select({ job: jobs })
+    .from(quotes)
+    .innerJoin(jobs, eq(jobs.id, quotes.jobId))
+    .where(and(eq(quotes.id, quoteId), eq(quotes.status, "accepted")));
+  return found?.job ?? null;
+};
+
+// the Deposits for a Quote still waiting on the Client's bank, which
+// finalizeDeposit() may yet book, by the provider's ref
+const unsettledDeposits = async (quoteId: string, tx: Tx | typeof db = db) =>
+  new Set(
+    (
+      await tx
+        .select({ ref: pendingDeposits.gatewayRef })
+        .from(pendingDeposits)
+        .where(
+          and(
+            eq(pendingDeposits.quoteId, quoteId),
+            isNull(pendingDeposits.settledAt),
+          ),
+        )
+    ).map((p) => p.ref),
+  );
 
 // how finishing a Deposit that needed approval went
 export type Finalized =
-  | { status: "accepted" }
-  | { status: "waiting" }
+  | { status: "accepted"; job: Job }
+  // their bank is still asking them, or finishing it
+  | { status: "waiting"; paying: Paying }
   | { status: "failed"; reason: string }
+  // not approved within APPROVAL_MS, so called off
+  | { status: "called_off" }
+  // the provider couldn't be reached
+  | { status: "unknown" }
   | { status: "refunded"; unbookable: Unbookable }
   // not one of ours, or already finished by the browser or the webhook
   | { status: "settled" };
@@ -693,32 +830,55 @@ const settle = (ref: string, tx: Tx | typeof db = db) =>
       ),
     );
 
+// how a settled Deposit ended, as its attempt says: called off, refused,
+// or booked or given back (settled)
+const settledAs = (attempt: ChargeAttempt | undefined): Finalized =>
+  attempt?.status !== "failed"
+    ? { status: "settled" }
+    : attempt.reason === "canceled"
+      ? { status: "called_off" }
+      : { status: "failed", reason: attempt.reason ?? "" };
+
+// where a Deposit that only saves a card stands, no money moving: as
+// approvalOf() says of one that does
+const savingCardApproval = async (ref: string): Promise<Approval> => {
+  const said = await paymentGateway.depositOutcome(ref).catch(() => null);
+  if (!said) return { status: "unknown", reason: UNREACHABLE };
+  switch (said.status) {
+    case "needs_approval":
+      return { status: "waiting" };
+    case "succeeded":
+      return {
+        status: "approved",
+        chargeId: said.chargeId!,
+        saved: said.saved,
+      };
+    case "failed":
+      return { status: "ended", reason: said.reason };
+  }
+};
+
 /**
- * Finishes a Deposit that waited on the Client's bank: once the payment has
- * succeeded, books the Job and Accepts the Quote as acceptQuote() would have.
- * The browser calls this after the Client approves, and the provider's
- * webhook does too, in case the browser never comes back; whichever is first
- * books it, and the other finds it settled.
+ * Finishes a Deposit that waited on the Client's bank: once their bank has
+ * approved it, books the Job and Accepts the Quote as acceptQuote() would
+ * have. The browser calls this after the Client approves, the provider's
+ * webhook does too, in case the browser never comes back, and the Clock
+ * does once APPROVAL_MS has gone by, in case neither does; whichever is
+ * first books it, and the others find it settled. One refused, or called
+ * off, is settled with nothing booked.
  *
  * The Quote may have closed, or its day filled, while the bank was asking:
- * then the Deposit is refunded and nothing is booked.
+ * then the Deposit is refunded, the Client emailed, and nothing is booked.
+ * Holds the day, then the pending Deposit, so where it stands is read once
+ * nothing else can book or call it off.
  */
 export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
   const [pending] = await db
     .select()
     .from(pendingDeposits)
     .where(eq(pendingDeposits.gatewayRef, ref));
-  if (!pending || pending.settledAt) return { status: "settled" };
-
-  const attempt = await paymentGateway.depositOutcome(ref);
-  if (attempt.status === "needs_approval") return { status: "waiting" };
-  if (attempt.status === "failed") {
-    log.info(
-      `Deposit ${ref} for Quote ${pending.quoteId} not approved (${attempt.reason})`,
-    );
-    await settle(ref);
-    return { status: "failed", reason: attempt.reason };
-  }
+  if (!pending) return { status: "settled" };
+  if (pending.settledAt) return settledAs(await depositAttemptOf(ref));
 
   const { quote, client, property } = (await findForAcceptance(
     pending.quoteId,
@@ -739,16 +899,11 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
     acceptedBy: pending.acceptedBy,
   };
 
+  // set once their bank has approved it: the Deposit, taken
+  let approved = null as Extract<Approval, { status: "approved" }> | null;
   let result;
   try {
     result = await db.transaction(async (tx) => {
-      const [current] = await tx
-        .select()
-        .from(pendingDeposits)
-        .where(eq(pendingDeposits.gatewayRef, ref))
-        .for("update");
-      if (current!.settledAt) return { status: "settled" } as const;
-
       // the plan it changes must still be the home's, or, if it changes
       // none, the home must have none
       const hold = await holdForBooking(
@@ -758,53 +913,115 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
         offer,
         pending.changingPlanId,
       );
+      const [current] = await tx
+        .select()
+        .from(pendingDeposits)
+        .where(eq(pendingDeposits.gatewayRef, ref))
+        .for("update");
+      if (current!.settledAt) return { status: "settled" } as const;
+
+      // none for one that only saves a card: no money moves
+      const attempt = await depositAttemptOf(ref, tx);
+      const standing = attempt
+        ? await approvalOf(attempt, null)
+        : await savingCardApproval(ref);
+      switch (standing.status) {
+        case "waiting":
+        case "finishing":
+          return {
+            status: "waiting",
+            paying: pending.changingPlanId
+              ? "change"
+              : quote.kind === "service_plan"
+                ? "plan"
+                : "clean",
+          } as const;
+        case "unknown":
+          return { status: "unknown" } as const;
+        case "called_off":
+        case "ended": {
+          const reason =
+            standing.status === "ended" ? standing.reason : "canceled";
+          log.info(
+            `Deposit ${ref} for Quote ${pending.quoteId} not approved (${reason})`,
+          );
+          await settle(ref, tx);
+          return reason === "canceled"
+            ? ({ status: "called_off" } as const)
+            : ({ status: "failed", reason } as const);
+        }
+        case "approved":
+          break;
+      }
+
+      approved = standing;
       await settle(ref, tx);
       if (hold.unbookable) {
         return { status: "refunded", unbookable: hold.unbookable } as const;
       }
-      const booked = await recordAcceptance(tx, booking, attempt, hold.change);
+      const booked = await recordAcceptance(
+        tx,
+        booking,
+        {
+          status: "succeeded",
+          chargeId: standing.chargeId,
+          saved: standing.saved,
+        },
+        hold.change,
+      );
+      if (attempt) await keepTaken(tx, attempt);
       return { status: "accepted", booked } as const;
     });
   } catch (error) {
-    if (attempt.chargeId) {
-      await giveBackDeposit(attempt.chargeId, pending.depositCents, quote.id);
+    if (approved) {
+      // settled first, so a later webhook or Clock never books a Deposit
+      // given back (#534, N3)
+      await settle(ref);
+      await giveBackDeposit(approved.chargeId, pending.depositCents, quote.id);
     }
-    // given back: a later webhook mustn't book it after all
-    await settle(ref);
     throw error;
   }
 
-  if (result.status === "refunded" && attempt.chargeId) {
-    await giveBackDeposit(attempt.chargeId, pending.depositCents, quote.id);
+  if (result.status === "settled") {
+    return settledAs(await depositAttemptOf(ref));
+  }
+  if (result.status === "refunded") {
+    const { chargeId, saved } = approved!;
+    const why = result.unbookable.reason;
+    if (await giveBackDeposit(chargeId, pending.depositCents, quote.id, why)) {
+      await tellRefunded(pending, why, saved?.card ?? null);
+    }
+    return result;
   }
   if (result.status !== "accepted") return result;
 
   const paidWith =
-    attempt.saved?.card ?? cardIn((await paymentMethodOf(client.id))!);
+    approved!.saved?.card ?? cardIn((await paymentMethodOf(client.id))!);
   await afterAcceptance(client, property, result.booked, offer, paidWith);
-  return { status: "accepted" };
+  return { status: "accepted", job: result.booked.jobs[0]! };
 };
 
-// the Client's latest Deposit still waiting on their bank for this Quote
-export const pendingDepositFor = async (quoteId: string) => {
+// the Client's latest Deposit that waited on their bank for this Quote,
+// settled or not: what the page they came back to asked for
+export const latestDepositFor = async (quoteId: string) => {
   const [pending] = await db
     .select()
     .from(pendingDeposits)
-    .where(
-      and(
-        eq(pendingDeposits.quoteId, quoteId),
-        isNull(pendingDeposits.settledAt),
-      ),
-    )
-    .orderBy(desc(pendingDeposits.createdAt));
+    .where(eq(pendingDeposits.quoteId, quoteId))
+    .orderBy(desc(pendingDeposits.createdAt))
+    .limit(1);
   return pending;
 };
 
-// what a Client is told when finishing their approved Deposit didn't book
+// what a Client is told when finishing their Deposit didn't book it
 export const finalizeProblem = (finalized: Finalized) => {
   switch (finalized.status) {
     case "waiting":
-      return said().waiting;
+      return said().waiting(finalized.paying);
+    case "called_off":
+      return said().calledOff(APPROVAL_MS / MINUTE_MS);
+    case "unknown":
+      return said().PAYMENT_DOWN;
     case "failed":
       return said().bankFailed;
     case "refunded":
@@ -818,6 +1035,156 @@ export const finalizeProblem = (finalized: Finalized) => {
             : said().refundedClosed;
     default:
       return said().nothingWaiting;
+  }
+};
+
+// ---- the Deposits nobody finished (#534) ----
+
+/**
+ * Settles the Deposits on a Quote that waited on the Client's bank, as the
+ * Clock does once APPROVAL_MS has gone by and Office Staff do before
+ * sending changes: those still waiting are called off, those approved are
+ * booked (finalizeDeposit), or given back if they can't be; and whatever
+ * else an earlier try took unbooked is given back. Emails the Client of
+ * each given back; those called off are returned, for the caller to say
+ * what's become of the Quote. Whether the Quote is now Accepted.
+ */
+export const settleQuotePayments = async (quoteId: string) => {
+  const { givenBack, calledOff } = await db.transaction(async (tx) => {
+    // as accepting it does, so the two never both have its Deposit
+    await tx
+      .select({ id: quotes.id })
+      .from(quotes)
+      .where(eq(quotes.id, quoteId))
+      .for("update");
+    return giveBackUnbookedDeposits(
+      tx,
+      quoteId,
+      await unsettledDeposits(quoteId, tx),
+    );
+  });
+  // each apart, holding the day, never inside the Quote's lock
+  for (const ref of await unsettledDeposits(quoteId)) {
+    await finalizeDeposit(ref);
+  }
+  for (const ref of givenBack) {
+    const [pending] = await db
+      .select()
+      .from(pendingDeposits)
+      .where(eq(pendingDeposits.gatewayRef, ref));
+    const attempt = await depositAttemptOf(ref);
+    if (pending && attempt?.reason) {
+      await tellRefunded(pending, attempt.reason as Unbookable["reason"], null);
+    }
+  }
+  const pendings = calledOff.length
+    ? await db
+        .select()
+        .from(pendingDeposits)
+        .where(inArray(pendingDeposits.gatewayRef, calledOff))
+    : [];
+  return {
+    accepted: (await acceptedJobOf(quoteId)) !== null,
+    calledOff: pendings,
+  };
+};
+
+type PendingDeposit = typeof pendingDeposits.$inferSelect;
+
+// what a Deposit was for, as its emails to the Client name it
+const depositFor = async (pending: PendingDeposit) => {
+  const found = (await findForAcceptance(pending.quoteId))!;
+  const { quote, client, property } = found;
+  const [revision] = await db
+    .select()
+    .from(quoteRevisions)
+    .where(eq(quoteRevisions.id, pending.revisionId));
+  const kinded: KindedRevision = { ...revision!, kind: quote.kind! };
+  const offer = await offerFor(kinded, pending.serviceKey);
+  const [first] = offer.cleans;
+  return {
+    client,
+    // as it stands: its latest Sent Revision's expiry
+    quote: { ...quote, expiresAt: found.revision?.expiresAt ?? null },
+    deposit: {
+      name: client.name,
+      address: addressOf(property),
+      quoteId: quote.id,
+      service:
+        quote.kind === "one_off"
+          ? (await serviceVersions([first!.serviceId])).get(first!.serviceId)!
+          : null,
+      changing: pending.changingPlanId !== null,
+      startsAt: first!.startsAt,
+      amountCents: pending.depositCents,
+    } satisfies DepositFor,
+  };
+};
+
+// the card the Client has saved, if any
+const savedCardOf = async (clientId: string) => {
+  const saved = await paymentMethodOf(clientId);
+  return saved ? cardIn(saved) : null;
+};
+
+// The Client's record of a Deposit their bank approved but that couldn't
+// be booked, given back: the only word for one who never came back to the
+// Quote's page. An email that can't go mustn't undo the refund
+const tellRefunded = async (
+  pending: PendingDeposit,
+  why: Unbookable["reason"],
+  card: Card | null,
+) => {
+  try {
+    const { client, deposit } = await depositFor(pending);
+    await email.send({
+      to: client.email,
+      ...depositRefundedEmail(client.preferredLanguage, {
+        ...deposit,
+        why,
+        card: card ?? (await savedCardOf(client.id)),
+      }),
+    });
+  } catch (error) {
+    monitoring.error(error, {
+      what: `refund email for Deposit ${pending.gatewayRef} not sent`,
+    });
+  }
+};
+
+// Tells the Client their Deposits left unapproved past APPROVAL_MS were
+// called off, and what's become of the Quote `since`: still open, Expired,
+// or changes sent (by whoever called them off). Nothing for one otherwise
+// closed: they closed it, or it's booked
+export const tellCalledOff = async (
+  calledOff: PendingDeposit[],
+  sent: boolean,
+) => {
+  for (const pending of calledOff) {
+    try {
+      const { client, quote, deposit } = await depositFor(pending);
+      const status = statusOf(quote);
+      const since: QuoteSince | null = sent
+        ? "sent"
+        : status === "sent"
+          ? "open"
+          : status === "expired"
+            ? "expired"
+            : null;
+      if (!since) continue;
+      await email.send({
+        to: client.email,
+        ...depositCalledOffEmail(client.preferredLanguage, {
+          ...deposit,
+          minutes: APPROVAL_MS / MINUTE_MS,
+          since,
+        }),
+      });
+    } catch (error) {
+      monitoring.error(error, {
+        what: `called-off email for Deposit ${pending.gatewayRef} not sent`,
+      });
+    }
   }
 };
 

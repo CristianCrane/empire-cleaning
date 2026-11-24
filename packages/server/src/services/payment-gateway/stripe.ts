@@ -7,6 +7,7 @@ import {
   PaymentMethodError,
   type BillPaymentInput,
   type BillPaymentOutcome,
+  type CallingOff,
   type ChargeInput,
   type ChargeLookup,
   type ChargeResult,
@@ -212,6 +213,16 @@ export class StripePaymentGateway implements PaymentGateway {
       intent.object === "setup_intent" ||
       intent.setup_future_usage === "off_session";
     return outcomeOf(intent, savesCard);
+  }
+
+  // Stripe refuses to cancel a PaymentIntent that succeeded, or a card's
+  // that's processing (https://docs.stripe.com/api/payment_intents/cancel);
+  // its reason shows in the dashboard
+  async cancelDeposit(ref: string, why: CallingOff) {
+    await this.stripe.paymentIntents.cancel(ref, {
+      cancellation_reason:
+        why === "client_retried" ? "requested_by_customer" : "abandoned",
+    });
   }
 
   async charge({
@@ -510,6 +521,9 @@ const outcomeOf = (
         ref: intent.id,
         secret: intent.client_secret!,
       };
+    // called off by us (cancelDeposit), whatever the bank had said before
+    case "canceled":
+      return { status: "failed", reason: "canceled" };
     default: {
       const error =
         intent.object === "payment_intent"

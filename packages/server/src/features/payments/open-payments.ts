@@ -7,9 +7,8 @@ import { retryBill } from "../bills/bills.ts";
 import { NOT_SETTLED } from "./unpaid.ts";
 import { retryJob } from "../completion/completion.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
-import { quotes } from "../quotes/quotes.schema.ts";
+import { settleQuotePayments, tellCalledOff } from "../quotes/accept.ts";
 import {
-  giveBackUnbookedDeposits,
   openBefore,
   refundFrom,
   SETTLED_AFTER_MS,
@@ -73,17 +72,12 @@ export const settleOpenPayments = async () => {
     [...open.bills, ...unpaidBills.map((b) => b.id)],
     retryBill,
   );
-  await each("Quote", open.quotes, (quoteId) =>
-    db.transaction(async (tx) => {
-      // as accepting it does, so the two never both have its Deposit
-      await tx
-        .select({ id: quotes.id })
-        .from(quotes)
-        .where(eq(quotes.id, quoteId))
-        .for("update");
-      await giveBackUnbookedDeposits(tx, quoteId);
-    }),
-  );
+  // a Deposit left waiting on the Client's bank is called off, or booked
+  // once approved, and they're told
+  await each("Quote", open.quotes, async (quoteId) => {
+    const { calledOff } = await settleQuotePayments(quoteId);
+    await tellCalledOff(calledOff, false);
+  });
   // a payment made twice, given back whole
   await each("Charge", open.charges, async (chargeId) => {
     const [charge] = await db
