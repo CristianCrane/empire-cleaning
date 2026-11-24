@@ -513,13 +513,15 @@ const outcomeOf = (
             : null,
       };
     // the bank wants the Client to approve it; processing is rare for cards
-    // and settles soon, so it's waited on the same way
+    // and settles soon, so it's waited on the same way, but can't be called
+    // off (https://docs.stripe.com/api/payment_intents/cancel)
     case "requires_action":
     case "processing":
       return {
         status: "needs_approval",
         ref: intent.id,
         secret: intent.client_secret!,
+        processing: intent.status === "processing",
       };
     // called off by us (cancelDeposit), whatever the bank had said before
     case "canceled":

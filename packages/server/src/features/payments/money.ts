@@ -122,7 +122,7 @@ type Outcome =
       saved: SavedPaymentMethod | null;
     }
   | { status: "unknown"; reason: string }
-  | { status: "needs_approval"; ref: string; secret: string }
+  | Extract<DepositAttempt, { status: "needs_approval" }>
   | { status: "failed"; reason: string };
 
 // written outside the caller's transaction, so it stands whatever that does
@@ -312,6 +312,8 @@ export type Approval =
   | { status: "called_off" }
   // refused, or called off before: never taken
   | { status: "ended"; reason: string }
+  // the provider not reached, or a call-off that didn't reach it: tried
+  // again on the next read
   | { status: "unknown"; reason: string };
 
 /**
@@ -329,20 +331,27 @@ export const approvalOf = async (
   const read = () => paymentGateway.depositOutcome(ref).catch(() => undefined);
   let said = await read();
   let calledOff = false;
-  if (said?.status === "needs_approval" && callOff) {
-    // refused when it's just been taken, or is processing: read again
+  if (said?.status === "needs_approval" && !said.processing && callOff) {
+    // refused when it's just been taken, or has started processing, or the
+    // provider couldn't be reached: read again
     calledOff = await paymentGateway.cancelDeposit(ref, callOff).then(
       () => true,
       () => false,
     );
     said = await read();
-    if (said?.status === "needs_approval") {
-      // so the Office's pages hold the Quote till it ends (payingOf)
-      if (attempt?.status === "approving" && !attempt.bankFinishingAt) {
-        await update(attempt, { bankFinishingAt: clock.now() });
-      }
-      return { status: "finishing" };
+    // still asking the Client: the call-off didn't reach the provider, and
+    // is tried again on the next read (#534 critical review C8)
+    if (said?.status === "needs_approval" && !said.processing) {
+      return { status: "unknown", reason: UNREACHABLE };
     }
+  }
+  if (said?.status === "needs_approval" && said.processing && callOff) {
+    // too far on to call off: the Office's pages hold the Quote till it
+    // ends (payingOf)
+    if (attempt?.status === "approving" && !attempt.bankFinishingAt) {
+      await update(attempt, { bankFinishingAt: clock.now() });
+    }
+    return { status: "finishing" };
   }
   if (!said) return { status: "unknown", reason: UNREACHABLE };
   switch (said.status) {

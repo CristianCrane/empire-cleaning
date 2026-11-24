@@ -1381,6 +1381,33 @@ describe("while the Client's bank is approving the Deposit", () => {
     });
   });
 
+  // critical review C8: a call-off that failed for want of the provider
+  // (unreachable, a 5xx, a 429) isn't their bank finishing it: Casey's bank
+  // is still asking them, so the next press calls it off and records the yes
+  test("a call-off that failed while their bank still asks them isn't the bank finishing", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+    testClock().advance({ minutes: 15 });
+    vi.spyOn(testPayments(), "cancelDeposit").mockRejectedValueOnce(
+      new Error("Stripe is down"),
+    );
+
+    await recordAccepted(office, quote).expect(409);
+    const held = (await quoteOf(office, quote.id)).paying;
+    const again = await recordAccepted(office, quote);
+
+    expect({
+      finishing: held?.finishing ?? false,
+      again: again.status,
+      calledOff: testPayments().canceled.size,
+    }).toEqual({ finishing: false, again: 200, calledOff: 1 });
+  });
+
   // critical review C3: a payment that's ended (approved, the day full, its
   // refund failed) isn't one the Client is still making
   test("the Office isn't told the Client is paying once the payment's ended unbooked", async () => {

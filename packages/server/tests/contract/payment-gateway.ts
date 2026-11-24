@@ -219,6 +219,7 @@ export const paymentGatewayContract = (
           status: "needs_approval",
           ref: expect.any(String),
           secret: expect.stringMatching(/.+/),
+          processing: false,
         });
         if (deposit.status !== "needs_approval") return;
         expect(await t.gateway.depositOutcome(deposit.ref)).toMatchObject({

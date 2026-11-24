@@ -489,7 +489,12 @@ export class FakePaymentGateway implements PaymentGateway {
         if ("token" in source && (this.approval || byCard)) {
           const ref = this.id(input.amount > 0 ? "pi" : "seti");
           this.waiting.set(ref, { input, card, byCard });
-          return { status: "needs_approval", ref, secret: `${ref}_secret` };
+          return {
+            status: "needs_approval",
+            ref,
+            secret: `${ref}_secret`,
+            processing: false,
+          };
         }
 
         const saved = "token" in source ? this.save(input.payerId, card) : null;
@@ -521,7 +526,12 @@ export class FakePaymentGateway implements PaymentGateway {
       this.approval === "pending" ||
       this.approval === "processing"
     ) {
-      return { status: "needs_approval", ref, secret: `${ref}_secret` };
+      return {
+        status: "needs_approval",
+        ref,
+        secret: `${ref}_secret`,
+        processing: !waiting.byCard && this.approval === "processing",
+      };
     }
     // the bank's answer, once given, stays
     return this.once(

@@ -34,7 +34,8 @@ export type DepositInput = {
 
 // how taking a Deposit went. Needing approval means the Client's bank wants
 // them to approve it in the browser (e.g. 3D Secure) with `secret`; then
-// `depositOutcome(ref)` says how it ended.
+// `depositOutcome(ref)` says how it ended; `processing` once they have and
+// their bank is finishing it, when it can no longer be called off.
 export type DepositAttempt =
   | {
       status: "succeeded";
@@ -43,7 +44,12 @@ export type DepositAttempt =
       // set when the source was entered just now, and so saved by this
       saved: SavedPaymentMethod | null;
     }
-  | { status: "needs_approval"; ref: string; secret: string }
+  | {
+      status: "needs_approval";
+      ref: string;
+      secret: string;
+      processing: boolean;
+    }
   | { status: "failed"; reason: string };
 
 export type ChargeInput = {
