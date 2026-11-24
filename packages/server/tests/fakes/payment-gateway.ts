@@ -86,6 +86,9 @@ export class FakePaymentGateway implements PaymentGateway {
   private chargeFailure: string | null = null;
   private refundFailure: string | null = null;
   private approval: Approval | null = null;
+  // a card paying a Bill that its bank finishes before it's taken, from its
+  // first reply, until finishCards(false) (#534's critical review C6)
+  private cardsFinishing = false;
   // what the browser's test payment form enters for a Bill (payBillsBy())
   private billsBy: "card" | "bank" = "card";
   private down = false;
@@ -105,6 +108,7 @@ export class FakePaymentGateway implements PaymentGateway {
       card: TestCard;
       byCard: boolean;
       saves: boolean;
+      finishing?: boolean;
     }
   >();
   // and those called off, never to be taken
@@ -223,6 +227,13 @@ export class FakePaymentGateway implements PaymentGateway {
   // their bank then gives, refuses, or is still waiting on; null to stop
   requireApproval(then: Approval | null = "approved") {
     this.approval = then;
+  }
+
+  // each card paying a Bill from now is processing from its first reply,
+  // its bank finishing it, as Stripe can say it, until finishCards(false),
+  // when it's taken
+  finishCards(finishing = true) {
+    this.cardsFinishing = finishing;
   }
 
   // every call throws, as when the provider can't be reached, until
@@ -518,7 +529,7 @@ export class FakePaymentGateway implements PaymentGateway {
         status: "needs_approval",
         ref,
         secret: `${ref}_secret`,
-        processing: true,
+        processing: "bank",
       };
     }
     const card =
@@ -532,9 +543,10 @@ export class FakePaymentGateway implements PaymentGateway {
       return { status: "failed", reason: declined };
     }
     const byCard = card === "approvalOnSetup" || card === "alwaysApproval";
-    if ("token" in source && (this.approval || byCard)) {
+    const finishing = banks && this.cardsFinishing && input.amount > 0;
+    if ("token" in source && (this.approval || byCard || finishing)) {
       const ref = this.id(input.amount > 0 ? "pi" : "seti");
-      this.waiting.set(ref, { input, key, card, byCard, saves });
+      this.waiting.set(ref, { input, key, card, byCard, saves, finishing });
       if (input.amount > 0) {
         this.made.set(key, {
           ok: false,
@@ -546,7 +558,7 @@ export class FakePaymentGateway implements PaymentGateway {
         status: "needs_approval",
         ref,
         secret: `${ref}_secret`,
-        processing: false,
+        processing: finishing ? "card" : false,
       };
     }
 
@@ -576,7 +588,7 @@ export class FakePaymentGateway implements PaymentGateway {
           status: "needs_approval",
           ref,
           secret: `${ref}_secret`,
-          processing: true,
+          processing: "bank",
         };
       }
       return debit.ended === "cleared"
@@ -590,6 +602,14 @@ export class FakePaymentGateway implements PaymentGateway {
     // the next payment (critical review C10)
     const answered = this.replies.get(`outcome:${ref}`);
     if (answered) return answered.reply as OnSessionResult;
+    if (waiting.finishing && this.cardsFinishing) {
+      return {
+        status: "needs_approval",
+        ref,
+        secret: `${ref}_secret`,
+        processing: "card",
+      };
+    }
     if (
       waiting.byCard ||
       this.approval === "pending" ||
@@ -599,7 +619,8 @@ export class FakePaymentGateway implements PaymentGateway {
         status: "needs_approval",
         ref,
         secret: `${ref}_secret`,
-        processing: !waiting.byCard && this.approval === "processing",
+        processing:
+          !waiting.byCard && this.approval === "processing" ? "card" : false,
       };
     }
     // the bank answers once, and it's kept for the read above

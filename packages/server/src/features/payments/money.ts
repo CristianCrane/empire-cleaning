@@ -188,6 +188,7 @@ const keep = async (
         ? { status: "succeeded", chargeId: reply.chargeId, saved: null }
         : { status: "failed", reason: reply.reason }
       : reply;
+  const onBill = (attempt.request as Asked).call === "bill";
   // not taken yet, nor declined: a Charge or a Bill's bank debit, which
   // chargeOutcome reads until it clears or fails, days later
   const processing =
@@ -196,12 +197,28 @@ const keep = async (
         ? reply.chargeId
         : null
       : reply.status === "needs_approval" &&
-          reply.processing &&
-          (attempt.request as Asked).call === "bill"
+          reply.processing === "bank" &&
+          onBill
         ? reply.ref
         : null;
   if (processing) {
     await update(attempt, { status: "processing", gatewayRef: processing });
+    return { status: "unknown", reason: "processing" };
+  }
+  // a card paying a Bill whose bank finishes it from the first: going
+  // through, as one approved and finishing is (approvalOf), not theirs to
+  // approve, nor a bank debit on its way (#534's critical review C6)
+  if (
+    !("ok" in reply) &&
+    reply.status === "needs_approval" &&
+    reply.processing === "card" &&
+    onBill
+  ) {
+    await update(attempt, {
+      status: "approving",
+      gatewayRef: reply.ref,
+      bankFinishingAt: clock.now(),
+    });
     return { status: "unknown", reason: "processing" };
   }
   switch (said.status) {

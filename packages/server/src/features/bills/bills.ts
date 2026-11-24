@@ -791,8 +791,8 @@ export const payBillOnPage = async (
     if ("secret" in charged) {
       return { kind: "approve", secret: charged.secret } as const;
     }
-    // a card whose bank finishes it reads processing too, so the attempt
-    // says whether a bank debit is on its way
+    // a bank debit on its way, which the attempt says (keep): a card
+    // whose bank finishes it is going through, but not on its way
     const open = (await attemptsFor("bill", [bill.id], tx)).filter(
       (a) => a.open,
     );

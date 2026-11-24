@@ -36,8 +36,10 @@ export type DepositInput = {
 // on its page). Needing approval means the Client's bank wants them to
 // approve it in the browser (e.g. 3D Secure) with `secret`; then
 // `paymentOutcome(ref)` says how it ended; `processing` once they have and
-// their bank is finishing it, when it can no longer be called off, as a
-// bank debit is for days until it clears.
+// their bank is finishing it, when it can no longer be called off: by
+// "card", which settles soon, or by "bank", a bank debit, for days until it
+// clears; false while it's still theirs to approve. A Bill's page says the
+// two apart (#534's critical review C6).
 export type OnSessionResult =
   | {
       status: "succeeded";
@@ -50,7 +52,7 @@ export type OnSessionResult =
       status: "needs_approval";
       ref: string;
       secret: string;
-      processing: boolean;
+      processing: false | "card" | "bank";
     }
   | { status: "failed"; reason: string };
 

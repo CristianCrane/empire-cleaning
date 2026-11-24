@@ -521,14 +521,21 @@ const outcomeOf = (
       };
     // the bank wants the Client to approve it; processing is rare for cards
     // and settles soon, so it's waited on the same way, but can't be called
-    // off (https://docs.stripe.com/api/payment_intents/cancel)
+    // off (https://docs.stripe.com/api/payment_intents/cancel). Which it is
+    // by, a card or a bank debit, is the payment method's type
+    // (https://docs.stripe.com/api/payment_methods/object#payment_method_object-type)
     case "requires_action":
     case "processing":
       return {
         status: "needs_approval",
         ref: intent.id,
         secret: intent.client_secret!,
-        processing: intent.status === "processing",
+        processing:
+          intent.status !== "processing"
+            ? false
+            : typeof method !== "string" && method?.type === "us_bank_account"
+              ? "bank"
+              : "card",
       };
     // called off by us (cancelPayment), whatever the bank had said before
     case "canceled":

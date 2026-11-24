@@ -688,7 +688,7 @@ export const paymentGatewayContract = (
           status: "needs_approval",
           ref: expect.any(String),
           secret: expect.any(String),
-          processing: true,
+          processing: "bank",
         });
         if (paid.status !== "needs_approval") return;
         expect(await t.gateway.paymentOutcome(paid.ref)).toEqual(paid);

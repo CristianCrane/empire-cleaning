@@ -751,6 +751,48 @@ describe("a Bill payment the Client's bank asks them to approve", () => {
 // a payment on a Bill's page whose end isn't known yet: going through,
 // with nothing to do but wait, then settled by the Clock
 describe("a Bill payment going through", () => {
+  // #534's critical review C6: a card isn't a bank debit, which takes days
+  test("by a card its bank finishes is pending, not a bank payment on its way", async () => {
+    const { office, clientId } = await billedJob({ payment: "on_page" });
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const [{ id, totalCents }] = (await billsOf(office, clientId)) as [
+      BillSummary,
+    ];
+    const client = await signIn(casey.email);
+
+    testPayments().finishCards();
+    const going = (
+      await client
+        .post(`/api/bills/mine/${id}/payment`)
+        .send({ token: testPayments().paymentToken() })
+        .expect(200)
+    ).body as BillPayOutcome;
+
+    expect(going).toMatchObject({
+      status: "done",
+      bill: {
+        status: "due",
+        clearingSince: null,
+        payable: false,
+        unpaid: { kind: "waiting", since: NEXT_MONDAY.toISOString() },
+        paying: null,
+      },
+    });
+
+    // its bank's done, and the Clock finds it taken, once
+    testPayments().finishCards(false);
+    testClock().advance({ minutes: 20 });
+    await settleOpenPayments();
+    expect(await billOf(office, id)).toMatchObject({
+      status: "paid",
+      paidVia: "page",
+    });
+    expect(
+      testPayments().charges.filter((c) => c.amount === totalCents),
+    ).toHaveLength(1);
+  });
+
   // #534 Q13: neither the browser nor the webhook came back
   test("whose reply never came is pending, then settled by the Clock", async () => {
     const { office, clientId } = await billedJob({ payment: "on_page" });
