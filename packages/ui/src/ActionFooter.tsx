@@ -7,7 +7,10 @@ import { useLayoutEffect, useRef, type ReactNode } from "react";
 // wider screen keeps them in the header): a Record's next step, and a Quote
 // Draft's or New quote's price and button.
 // What it sums up goes first (`summary`, then `status`, a line that's
-// read out as it changes: a save's state), the main action last. While shown, its
+// read out as it changes: a save's state), the main action last. Its main
+// action greyed, `why` says why in short on a line above it all, as a
+// greyed menu item's line does, as the page's alert saying it may have
+// scrolled away (#534). While shown, its
 // height (taller when its actions wrap) is `--action-footer-height` on the
 // page: the room it leaves below the page, so nothing hides under it, and
 // for what floats above it (the test site's feedback button).
@@ -15,12 +18,14 @@ export function ActionFooter({
   "aria-label": label,
   summary,
   status,
+  why,
   phone = false,
   children,
 }: {
   "aria-label": string;
   summary?: ReactNode;
   status?: ReactNode;
+  why?: string;
   // drawn on a phone alone
   phone?: boolean;
   children: ReactNode;
@@ -53,6 +58,7 @@ export function ActionFooter({
         className={`fixed inset-x-0 bottom-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] z-30 border-t border-border bg-surface py-3 shadow-raised left-side md:bottom-0 print:hidden ${only}`}
       >
         <div className="page-column flex flex-wrap items-center justify-end gap-2">
+          {why && <p className="w-full text-sm text-fg-muted">{why}</p>}
           {(summary || status) && (
             <div className="flex min-w-0 flex-1 flex-col">
               {summary && (

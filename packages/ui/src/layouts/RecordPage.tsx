@@ -18,7 +18,8 @@ import { PageHeader } from "./PageHeader.tsx";
 // a Section; and its History in a Card, last, at every width: one column,
 // the content's width, as a side column competed with the page (#493).
 // Its next step is the header's primary, and on a phone it's pinned at the
-// foot, read after the facts, the rest behind its arrow. Every other
+// foot, read after the facts, the rest behind its arrow; greyed, with its
+// `why` above it there. Every other
 // action is in the header, or on the part it acts on
 export function RecordPage({
   trail,
@@ -68,7 +69,11 @@ export function RecordPage({
         </Section>
       )}
       {next && (
-        <ActionFooter aria-label={words.whatToDo} phone>
+        <ActionFooter
+          aria-label={words.whatToDo}
+          why={next.isDisabled ? next.why : undefined}
+          phone
+        >
           <SplitButton
             next={next}
             more={(actions ?? []).filter((a) => !!a)}

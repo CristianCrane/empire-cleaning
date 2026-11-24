@@ -200,6 +200,7 @@ export function FormPage({
           aria-label={words.whatToDo}
           summary={price && "line" in price ? price.line : undefined}
           status={note ?? missing}
+          why={next.isDisabled ? next.why : undefined}
           phone
         >
           <ActionButton action={next} variant="primary" />

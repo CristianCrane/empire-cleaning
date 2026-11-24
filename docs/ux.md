@@ -88,7 +88,9 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   body, **Now** on top holding it as it stands; its Draft is a Form page.
 - **On a phone, the page's next step pinned at the foot**, above the tab
   bar, after the facts, the rest behind its arrow in a sheet; a wider
-  screen keeps it in the header (`RecordPage`'s `next`).
+  screen keeps it in the header (`RecordPage`'s `next`). Greyed, it says
+  why in a line above it there (its `why`, `ActionFooter`), as the alert
+  that says so has scrolled away (#534).
 
 ("Layout / RecordPage", "Next Step At A Phones Foot"; "A Record: its header, two alerts, its details, its
 parts"; "A record's History last, one column"; "Records as stories")

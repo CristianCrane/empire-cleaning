@@ -184,3 +184,35 @@ test("a Record's next step on a phone is pinned at the foot, the rest in a sheet
     .element(foot.getByRole("button", { name: "More actions" }))
     .toHaveFocus();
 });
+
+// greyed, its why is on the line above it, as the alert saying it may have
+// scrolled away (#534); live, there's no line
+test("a Record's greyed next step on a phone says why above it", async () => {
+  await page.viewport(390, 844);
+  const record = (isDisabled: boolean) => (
+    <RecordPage
+      trail={[{ label: "Quotes", href: "#" }, { label: "Quote" }]}
+      title="Quote"
+      next={{
+        label: "Record acceptance",
+        icon: CircleCheck,
+        isDisabled,
+        why: "Not while Casey is paying the deposit",
+        onAction: () => {},
+      }}
+    />
+  );
+  const screen = await render(record(true));
+  const foot = page.getByRole("group", { name: "What to do" });
+  const why = foot.getByText("Not while Casey is paying the deposit");
+
+  await expect.element(why).toBeVisible();
+  await expect
+    .element(foot.getByRole("button", { name: "Record acceptance" }))
+    .toBeDisabled();
+  expect(box(why.element()).bottom).toBeLessThanOrEqual(
+    box(button("Record acceptance")).top,
+  );
+  await screen.rerender(record(false));
+  await expect.element(why).not.toBeInTheDocument();
+});
