@@ -22,6 +22,7 @@ import {
   officeFix,
   weekdayOf,
   oneStop,
+  quarterHours,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -381,30 +382,43 @@ const alike = <T,>(days: T[], key: (day: T) => string) => {
   return [...kinds.values()];
 };
 
-// whether a Client's list of cleans says each one's length: only once one
-// isn't what the plan's card says for its weekday (booked longer, or moved
-// to another day), and then every row, so the eye compares like with like;
-// while each runs as its weekday's, the card says it and a row would repeat
-export const cleansSayLength = (
-  t: Parameters<typeof howLong>[0],
+// which of a Client's cleans say their length in the list: none while each
+// runs as the card says for its weekday, as a row would repeat it; else, on
+// a plan of one length, every row, so the one that differs sits among
+// neighbours alike; on a plan of several, only the clean that isn't its
+// weekday's (booked longer, or moved to a day the card has no length
+// for), as neighbours of other weekdays aren't alike to compare and would
+// hide it
+export const cleansSayingLength = <
+  Clean extends { startsAt: string; hoursOnSite: number },
+>(
   days: { startsAt: string; hoursOnSite: number }[],
-  cleans: { startsAt: string; hoursOnSite: number }[],
+  cleans: Clean[],
 ) => {
   const weekday = (startsAt: string) => weekdayOf(dayOf(new Date(startsAt)));
-  return cleans.some((clean) => {
-    const usual = days.find(
-      (d) => weekday(d.startsAt) === weekday(clean.startsAt),
-    );
+  const oneLength =
+    alike(days, (d) => `${quarterHours(d.hoursOnSite)}`).length === 1;
+  // a clean moved off the plan's weekdays runs as the card says if it has
+  // one length; with several, the card can't say which is its
+  const differs = (clean: Clean) => {
+    const usual =
+      days.find((d) => weekday(d.startsAt) === weekday(clean.startsAt)) ??
+      (oneLength ? days[0] : undefined);
     return (
-      !usual || howLong(t, usual.hoursOnSite) !== howLong(t, clean.hoursOnSite)
+      !usual ||
+      quarterHours(usual.hoursOnSite) !== quarterHours(clean.hoursOnSite)
     );
-  });
+  };
+  return oneLength && cleans.some(differs)
+    ? new Set(cleans)
+    : new Set(cleans.filter(differs));
 };
 
 // how long a Client's cleans run, to the quarter hour, on their plan and on
 // the quote that offers it: one fact while every clean reads alike, else one
 // for each length, naming its weekdays, so none is read as a sum or matched
-// to a weekday by its place
+// to a weekday by its place. Weekdays the same to the quarter hour read
+// alike, "About" if any of them isn't exactly that
 export function HowLongFacts({
   days,
 }: {
@@ -413,19 +427,28 @@ export function HowLongFacts({
   const t = useSaid(words);
   return (
     <>
-      {alike(days, (d) => howLong(t, d.hoursOnSite)).map((these, _, kinds) => (
-        <Fact
-          key={these[0]!.startsAt}
-          icon={Clock}
-          label={t.howLong}
-          value={howLong(t, these[0]!.hoursOnSite)}
-          line={
-            kinds.length > 1
-              ? t.howLongOn(t.planDays(these.map((d) => d.startsAt)))
-              : undefined
-          }
-        />
-      ))}
+      {alike(days, (d) => `${quarterHours(d.hoursOnSite)}`).map(
+        (these, _, kinds) => (
+          <Fact
+            key={these[0]!.startsAt}
+            icon={Clock}
+            label={t.howLong}
+            value={howLong(
+              t,
+              (
+                these.find(
+                  (d) => quarterHours(d.hoursOnSite) !== d.hoursOnSite,
+                ) ?? these[0]!
+              ).hoursOnSite,
+            )}
+            line={
+              kinds.length > 1
+                ? t.howLongOn(t.planDays(these.map((d) => d.startsAt)))
+                : undefined
+            }
+          />
+        ),
+      )}
     </>
   );
 }

@@ -28,7 +28,7 @@ import { upcomingBadge } from "./clean-badge.tsx";
 import {
   PlanCard,
   PlanStatusBadge,
-  cleansSayLength,
+  cleansSayingLength,
   useEndPlanAction,
   useOnHold,
 } from "../PlanParts.tsx";
@@ -91,7 +91,7 @@ export function PortalPlan() {
     forClient: true,
     endPath: `/api/service-plans/mine/${plan.id}/end`,
   });
-  const sayLength = cleansSayLength(t, plan.days, plan.upcoming);
+  const sayingLength = cleansSayingLength(plan.days, plan.upcoming);
 
   return (
     <RecordPage
@@ -146,7 +146,9 @@ export function PortalPlan() {
               id={job.id}
               title={t.formatDateTime(job.startsAt)}
               // how long, as the clean's own page says it
-              description={sayLength ? howLong(t, job.hoursOnSite) : undefined}
+              description={
+                sayingLength.has(job) ? howLong(t, job.hoursOnSite) : undefined
+              }
               // as the Cleans list badges it (#507)
               end={upcomingBadge(t, job)}
             />
