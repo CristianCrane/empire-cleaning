@@ -85,7 +85,6 @@ import {
   Section,
   Select,
   SelectItem,
-  StatusBadge,
   TextField,
   Timeline,
   TimelineItem,
@@ -113,6 +112,7 @@ import { useAction, useLeavingAction } from "../action.ts";
 import {
   clientName,
   dayOfInstant,
+  lineOf,
   timeOfDay,
   timeOfField,
   screenWords,
@@ -154,10 +154,11 @@ const {
   cleaners,
   conditionLabel,
   planName,
-  planRhythm,
   recurrenceLabel,
   quoteKindName,
   formatFloorArea,
+  revisionHeadline,
+  servicePrice,
 } = screenWords.en;
 
 const { adjustmentLabel } = messages.en;
@@ -317,7 +318,7 @@ export function QuoteScreen() {
             key={moment.key}
             icon={moment.icon}
             title={moment.title}
-            when={formatDate(moment.at)}
+            when={formatDateTime(moment.at)}
             description={moment.description}
           >
             {moment.details}
@@ -753,14 +754,16 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
       description: visit.visitor ? `By ${visit.visitor.name}` : undefined,
     });
   }
-  // oldest first, as they happened (quote.revisions is newest first)
-  for (const revision of [...quote.revisions].reverse()) {
+  // oldest first, as they happened (quote.revisions is newest first); a
+  // send after the first says so, as two sends can match word for word
+  for (const [i, revision] of [...quote.revisions].reverse().entries()) {
     moments.push({
       key: revision.id,
       at: revision.sentAt,
       icon: Send,
-      title: "Quote sent",
-      description: `${formatMoney(revision.headlineTotalCents)} · for ${formatDateTime(revision.proposedStartsAt)}`,
+      title: i === 0 ? "Quote sent" : "Quote sent again",
+      // what it was sent for, and when: "Standard Clean $194.89 · for …"
+      description: `${revisionHeadline(revision)} · for ${formatDateTime(revision.proposedStartsAt)}`,
     });
   }
   if (quote.status === "expired" && shown?.expiresAt) {
@@ -893,9 +896,15 @@ function Offer({ quote }: { quote: ShownQuote }) {
   // once a one-off is accepted, the Service booked alone: the other was
   // never taken
   const booked = quote.status === "accepted" && !plan;
+  // until then a one-off's own Service, the one asked for, as every Office
+  // screen leads with it, and the one recommended an aside under it, as the
+  // Draft has it (#493, after #527); a plan's weekdays in their order
   const options = booked
     ? quote.options.filter((o) => o.serviceKey === quote.acceptedServiceKey)
-    : quote.options;
+    : plan
+      ? quote.options
+      : [ownOption(quote)];
+  const aside = !booked && !plan ? recommendedOption(quote) : undefined;
   return (
     <Section
       title="Current quote"
@@ -920,7 +929,7 @@ function Offer({ quote }: { quote: ShownQuote }) {
             <Fact
               icon={Repeat}
               label="Then"
-              value={planRhythm(plan)}
+              value={recurrenceLabel[plan.recurrence]}
               line={`Then, priced for ${conditionLabel[plan.condition].toLowerCase()} condition`}
             />
           )}
@@ -952,19 +961,6 @@ function Offer({ quote }: { quote: ShownQuote }) {
               <OfferPrice
                 key={day?.startsAt ?? option.serviceKey}
                 title={day ? planDayTitle("en", day) : option.serviceName}
-                badge={
-                  day ? (
-                    <PlanSaving
-                      day={day}
-                      discountPercent={plan!.discountPercent}
-                    />
-                  ) : (
-                    option.recommended &&
-                    !booked && (
-                      <StatusBadge tone="success">Recommended</StatusBadge>
-                    )
-                  )
-                }
               >
                 {day ? (
                   <PlanFigures
@@ -986,6 +982,17 @@ function Offer({ quote }: { quote: ShownQuote }) {
               </OfferPrice>
             );
           })}
+          {aside && (
+            <AlsoOffered option={aside}>
+              <OptionRows
+                option={aside}
+                crewSize={quote.crewSize}
+                depositPercent={quote.depositPercent}
+              />
+              <AddOnList addOns={aside.addOns} />
+              <PricedFrom option={aside} />
+            </AlsoOffered>
+          )}
         </div>
         {plan && (
           <div className="border-t border-border pt-4">
@@ -1064,7 +1071,19 @@ function DraftPrices({
           </FoldedPrice>
         </OfferPrice>
         {recommended && (
-          <AlsoOffered option={recommended} roomSaid={shared !== undefined}>
+          <AlsoOffered
+            option={recommended}
+            under={
+              // unfolded, as it changes what the client can do; the
+              // proposed time's part says how to fix it. Said once, under
+              // the own price, when they share it
+              shared === undefined && <NoRoomLine room={recommended.room} />
+            }
+          >
+            {recommended.overrideCents !== null && (
+              <PricedFrom option={recommended} />
+            )}
+            <PriceWorking breakdown={recommended.suggested} />
             <OptionRows
               option={recommended}
               crewSize={quote.crewSize}
@@ -1088,7 +1107,10 @@ function DraftPrices({
             key={option.serviceKey + String(i)}
             title={
               plan.days.length === 1
-                ? `${option.serviceName}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`
+                ? planName({
+                    recurrence: plan.recurrence,
+                    days: [{ startsAt: null, serviceName: option.serviceName }],
+                  })
                 : `${dayTitles[i] ?? `Weekday ${i + 1}`}: ${option.serviceName}`
             }
             badge={
@@ -1169,37 +1191,33 @@ function OfferPrice({
 }
 
 // The Service recommended for a first visit, which the sent Quote offers
-// beside the one asked for (ADR-0018): an aside to the Draft's price, one
-// quiet line under it, its price and working folded behind it (the user, on
-// #527: "The recommendation is an aside")
+// beside the one asked for (ADR-0018): an aside to the own price, the
+// Draft's and the sent one's, one quiet line under it, its price and working
+// folded behind it (the user, on #527: "The recommendation is an aside").
+// `under` stays unfolded
 function AlsoOffered({
   option,
-  roomSaid,
+  under,
   children,
 }: {
   option: OfficeQuoteOption;
-  // its no-room line is said under the own price, with the own one's
-  roomSaid: boolean;
+  under?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section aria-label={option.serviceName} className="flex flex-col text-sm">
       <Fold
-        label={`Also offered: ${option.serviceName} ${formatMoney(option.totalCents)}`}
+        label={`Also offered: ${servicePrice(option.serviceName, option.totalCents)}`}
       >
         <div className="flex flex-col gap-3">
           <p className="flex flex-col gap-1 text-fg-muted">
             <span>Shown to the client as recommended; they pick one.</span>
             <span>Includes {formatMoney(option.taxCents)} tax</span>
           </p>
-          {option.overrideCents !== null && <PricedFrom option={option} />}
-          <PriceWorking breakdown={option.suggested} />
           {children}
         </div>
       </Fold>
-      {/* unfolded, as it changes what the client can do; the proposed
-          time's part says how to fix it */}
-      {!roomSaid && <NoRoomLine room={option.room} />}
+      {under}
     </section>
   );
 }
@@ -1251,10 +1269,15 @@ function RecordAcceptanceDialog({
   quote: ShownQuote;
   drafting?: number;
 } & Partial<DialogState>) {
-  // the recommended Service, unless only the other still fits
+  // a one-off's own Service first, the one asked for, as the card it's
+  // recorded from leads with it, and picked unless only the other still
+  // fits (#493)
+  const recommended = recommendedOption(quote);
+  const choices = quote.plan
+    ? quote.options
+    : [ownOption(quote), ...(recommended ? [recommended] : [])];
   const [serviceKey, setServiceKey] = useState(
-    quote.options.find((o) => quote.bookable.includes(o.serviceKey))!
-      .serviceKey,
+    choices.find((o) => quote.bookable.includes(o.serviceKey))!.serviceKey,
   );
   const action = useAction("That didn't work. Please try again.", {
     reloadOnFailure: true,
@@ -1305,7 +1328,7 @@ function RecordAcceptanceDialog({
               value={serviceKey}
               onChange={setServiceKey}
             >
-              {quote.options.map((option) => (
+              {choices.map((option) => (
                 <Radio
                   key={option.serviceKey}
                   value={option.serviceKey}
@@ -1808,7 +1831,7 @@ const priceOf = (quote: ShownQuote) => {
         };
   }
   const own = ownOption(quote);
-  const named = `${own.serviceName} ${formatMoney(own.totalCents)}`;
+  const named = servicePrice(own.serviceName, own.totalCents);
   return { line: named, short: named };
 };
 
@@ -2328,14 +2351,12 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
 
         <FormPart
           title="Terms"
-          summary={[
+          summary={lineOf([
             // each of a plan's weekdays has its own
             !plan && cleaners(fields.crewSize),
             `${fields.depositPercent}% deposit`,
             `valid ${fields.validityDays} days`,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
+          ])}
         >
           <FieldRow>
             {!plan && (

@@ -271,6 +271,7 @@ test("Office Staff quote a business caller from New quote", async ({
   await expect(
     page.getByRole("button", { name: /^What was asked/ }),
   ).toHaveText(
-    /^What was asked\s*Commercial cleaning · Retail · floor area not known yet$/,
+    // the line's dots hold to the word before them (lineOf)
+    /^What was asked\s*Commercial cleaning\s·\sRetail\s·\sfloor area not known yet$/,
   );
 });

@@ -63,6 +63,16 @@ const send = async (page: Page) => {
   await expect(page.getByText("Sent", { exact: true }).first()).toBeVisible();
 };
 
+// a Standard Clean asked for, sent for next Monday with a Deep Clean
+// recommended beside it for a first visit, open on the Office's Quote
+const sentQuote = async (page: Page) => {
+  await requestQuoteAsGuest(casey);
+  await signInAsOffice(page);
+  await startDraft(page);
+  await proposeNextMonday(page);
+  await send(page);
+};
+
 // the Deep Clean recommended for a first visit: its price set behind its
 // fold in the Service part
 const deepCleanOverride = async (page: Page) => {
@@ -331,11 +341,7 @@ test("the Client Declines a Quote from the portal", async ({
   page,
   browser,
 }) => {
-  await requestQuoteAsGuest(casey);
-  await signInAsOffice(page);
-  await startDraft(page);
-  await proposeNextMonday(page);
-  await send(page);
+  await sentQuote(page);
 
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
@@ -358,41 +364,96 @@ test("the Client Declines a Quote from the portal", async ({
   await expectNoPageAction(page, "Change quote");
 });
 
-test("the Quotes list names the Service its total is for", async ({ page }) => {
-  // a Standard Clean asked for, quoted leading with the Deep Clean
-  // recommended for a first visit
-  await requestQuoteAsGuest(casey);
-  await signInAsOffice(page);
-  await startDraft(page);
-  await proposeNextMonday(page);
-  await send(page);
+test(
+  "the Quotes list names the Service its total is for",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    await sentQuote(page);
 
-  await page.goto("/office/quotes");
-  const row = page.getByRole("row", { name: new RegExp(casey.name) });
-  await expect(row).toContainText("Deep Clean");
-  await expect(row).not.toContainText("Standard Clean");
-  // still found by the Service asked for, as a search for another isn't
-  await searchList(page, "Search quotes", "Painting");
-  await expect(row).toBeHidden();
-  await page.getByRole("searchbox", { name: "Search quotes" }).fill("Standard");
-  await expect(row).toBeVisible();
+    await page.goto("/office/quotes");
+    const row = page.getByRole("row", { name: new RegExp(casey.name) });
+    // the Service asked for, not the one recommended
+    await expect(row).toContainText(/Standard Clean.*\$\d/);
+    await expect(row).not.toContainText("Deep Clean");
+    // a phone's row says what its age is, as the Table's header does
+    if (isMobile) await expect(row).toContainText("waiting since today");
+    // found by the Service, as a search for another isn't
+    await searchList(page, "Search quotes", "Deep");
+    await expect(row).toBeHidden();
+    await page
+      .getByRole("searchbox", { name: "Search quotes" })
+      .fill("Standard");
+    await expect(row).toBeVisible();
+    await page.getByRole("searchbox", { name: "Search quotes" }).fill("");
+    await expect(row).toBeVisible();
+
+    if (!isMobile) {
+      // a laptop window at half width keeps the clean, its price and its
+      // wait, and gives up the address first
+      const columns = page.getByRole("columnheader");
+      await page.setViewportSize({ width: 900, height: 720 });
+      await expect(columns).toHaveText([
+        "Client",
+        "Service",
+        "Total",
+        "Waiting",
+      ]);
+      await page.setViewportSize({ width: 1280, height: 720 });
+      await expect(columns).toHaveText([
+        "Client",
+        "Address",
+        "Service",
+        "Total",
+        "Waiting",
+      ]);
+    }
+  },
+);
+
+test("a home's History names the Service a Quote was sent for", async ({
+  page,
+}) => {
+  await sentQuote(page);
+
+  await page.goto("/office/clients?tab=quoting");
+  await page.getByRole("row", { name: new RegExp(casey.name) }).click();
+  await page
+    .getByRole("grid", { name: /properties/ })
+    .getByRole("row", { name: /41-12 Austin St/ })
+    .click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "41-12 Austin St, 4B, 11375",
+  );
+  await expect(
+    page
+      .getByRole("list", { name: /^History/ })
+      .getByRole("listitem")
+      .filter({ hasText: "Quote ·" }),
+  ).toContainText([/Standard Clean \$\d/]);
 });
 
 test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as history", async ({
   page,
 }) => {
-  await requestQuoteAsGuest(casey);
-  await signInAsOffice(page);
-  await startDraft(page);
-  await proposeNextMonday(page);
-  await send(page);
+  await sentQuote(page);
   const quote = page.url();
   // each Sent Revision is a moment in the Quote's story, the offer in full
   // on top
   const sent = page.getByText("Quote sent", { exact: true });
   const offer = page.getByRole("region", { name: "Current quote" });
   await expect(sent).toHaveText(["Quote sent"]);
+  // for the Service asked for, not the Deep Clean recommended beside it
+  await expect(page.getByText(/^Standard Clean \$[\d,.]+ · for /)).toHaveCount(
+    1,
+  );
   await expect(offer).toContainText("Sent ");
+  // its own Service, the one recommended an aside under it, as the Draft
+  await expect(offer.getByRole("heading", { level: 3 })).toHaveText([
+    "Standard Clean",
+  ]);
+  await expect(
+    offer.getByText(/^Also offered: Deep Clean \$[\d,.]+$/),
+  ).toBeVisible();
 
   // Sent and waiting, with no card to record a yes by phone: nothing is
   // next, and Change quote is the page's one action
@@ -434,7 +495,11 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
   await pageAction(page, "Carry on with the draft");
   await send(page);
   await expect(page.getByText("Being updated")).toBeHidden();
-  await expect(sent).toHaveText(["Quote sent", "Quote sent"]);
+  // the second send says so, newest first
+  await expect(page.getByText(/^Quote sent( again)?$/)).toHaveText([
+    "Quote sent again",
+    "Quote sent",
+  ]);
   await expect(offer).toContainText("Sent ");
 });
 
@@ -442,11 +507,7 @@ test("the Client sees only the latest Revision, from any of its emails", async (
   page,
   browser,
 }) => {
-  await requestQuoteAsGuest(casey);
-  await signInAsOffice(page);
-  await startDraft(page);
-  await proposeNextMonday(page);
-  await send(page);
+  await sentQuote(page);
   const link = await quoteLink();
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
@@ -545,11 +606,7 @@ test("old Requests links lead to Quotes", async ({ page }) => {
 });
 
 test("a Quote about to Expire needs attention", async ({ page }) => {
-  await requestQuoteAsGuest(casey);
-  await signInAsOffice(page);
-  await startDraft(page);
-  await proposeNextMonday(page);
-  await send(page);
+  await sentQuote(page);
   await page.goto("/office");
   // nothing for Quotes needs the Office yet
   await expect(page.getByRole("button", { name: /^Quotes/ })).toBeDisabled();

@@ -29,7 +29,7 @@ import {
 import { putJson } from "../../api.ts";
 import { useAction } from "../action.ts";
 import { useDraftOf } from "./draft.ts";
-import { dayOfInstant, formatHours, screenWords } from "../format.ts";
+import { dayOfInstant, formatHours, lineOf, screenWords } from "../format.ts";
 
 const { cleaners, conditionLabel } = screenWords.en;
 
@@ -223,13 +223,11 @@ function AddOns({ list, services }: { list: PriceList; services: Service[] }) {
         {...offeredAndRetired(list.addOns, (addOn, i) => ({
           id: String(i),
           title: addOn.name,
-          description: [
+          description: lineOf([
             formatHours(addOn.hours),
             goesWith(addOn),
             addOn.taxExempt && "Tax-exempt",
-          ]
-            .filter(Boolean)
-            .join(" · "),
+          ]),
           onOpen: () => setOpen(addOn.key),
         }))}
       />

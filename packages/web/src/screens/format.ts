@@ -11,6 +11,7 @@ import type {
   QuoteSummary,
   QuoteStatus,
   Recurrence,
+  RevisionSummary,
   ServicePlanStatus,
   Weekday,
 } from "@empire-cleaning/models";
@@ -36,6 +37,11 @@ import type { StatusTone } from "@empire-cleaning/ui";
 export const addressOf = (
   p: Pick<PropertyView, "street" | "unit" | "postcode">,
 ) => [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
+
+// a row's line, from the parts it has: "12 Elm St · $184.50". A wrap never
+// starts a line with its dot
+export const lineOf = (parts: (string | false | null | undefined)[]) =>
+  parts.filter(Boolean).join("\u00a0· ");
 
 // a Job's crew, or that it has none yet
 export const crewOf = (crew: { name: string }[]) =>
@@ -240,8 +246,11 @@ const words = catalog({
     everyWeekOn: (what: string, days: string) =>
       `${what}, every week${days ? ` on ${days}` : ""}`,
     notPriced: "Not priced yet",
-    planHeadline: (plan: string, price: string, perWeek: boolean) =>
-      `Cleaning plan, ${plan}: ${price} ${perWeek ? "a week" : "a clean"}`,
+    planPrice: (price: string, perWeek: boolean) =>
+      `${price} ${perWeek ? "a week" : "a clean"}`,
+    planOf: (service: string) => `${service} plan`,
+    planHeadline: (plan: string, price: string) =>
+      `Cleaning plan, ${plan}: ${price}`,
     rhythm: (often: string, when: string) => `${often}, on ${when}`,
     skipped: "Skipped",
     // where someone stands on a Job's crew: the Office's, and a Cleaner's
@@ -281,8 +290,11 @@ const words = catalog({
     everyWeekOn: (what: string, days: string) =>
       `${what}, cada semana${days ? ` los ${days}` : ""}`,
     notPriced: "Aún sin precio",
-    planHeadline: (plan: string, price: string, perWeek: boolean) =>
-      `Plan de limpieza, ${plan}: ${price} ${perWeek ? "por semana" : "por limpieza"}`,
+    planPrice: (price: string, perWeek: boolean) =>
+      `${price} ${perWeek ? "por semana" : "por limpieza"}`,
+    planOf: (service: string) => `Plan de ${service}`,
+    planHeadline: (plan: string, price: string) =>
+      `Plan de limpieza, ${plan}: ${price}`,
     rhythm: (often: string, when: string) => `${often}, ${when}`,
     skipped: "Saltada",
     // a trabajo, as a Cleaner reads it
@@ -341,6 +353,37 @@ const screenWordsIn = (lang: Language) => {
       : w.everyWeekOn(what, on.length > 0 ? formatList(on) : "");
   };
 
+  // a headline price with its unit: "$194.89", or a Service Plan's round,
+  // given its weekdays, "$201.85 a clean", or for several "$650.10 a week"
+  // (several weekdays are only ever weekly)
+  const priceOf = (cents: number, planDays: number | null) =>
+    planDays === null
+      ? formatMoney(cents)
+      : w.planPrice(formatMoney(cents), planDays > 1);
+
+  // what a Quote is of: its Service, or a Service Plan of it, "Standard
+  // Clean plan"
+  const serviceNamed = (service: string, plan: boolean) =>
+    plan ? w.planOf(service) : service;
+
+  // a Service with its price, as every Office screen names an option or a
+  // Quote's headline: "Standard Clean $194.89", or given a Service Plan's
+  // weekdays, "Standard Clean plan $650.10 a week"
+  const servicePrice = (
+    service: string,
+    cents: number,
+    planDays: number | null = null,
+  ) =>
+    `${serviceNamed(service, planDays !== null)} ${priceOf(cents, planDays)}`;
+
+  // a Quote's headline price, as priceOf says; null with no Revision
+  const quoteTotal = (
+    quote: Pick<QuoteSummary, "headlineTotalCents" | "plan">,
+  ) =>
+    quote.headlineTotalCents === null
+      ? null
+      : priceOf(quote.headlineTotalCents, quote.plan?.days.length ?? null);
+
   return {
     // "Tue, Oct 20" and "Oct 20" for an instant: New York's day
     dayOf: (iso: string) => formats[lang].formatDay(dayOfInstant(iso)),
@@ -368,13 +411,13 @@ const screenWordsIn = (lang: Language) => {
     // 4,500 sq ft" for business premises
     propertySummary: (p: PropertyView) =>
       p.kind === "commercial"
-        ? [
+        ? lineOf([
             p.premisesType.name,
             p.floorArea === null
               ? w.floorAreaNotKnown
               : formatFloorArea(p.floorArea),
-          ].join(" · ")
-        : [
+          ])
+        : lineOf([
             form[p.type],
             ...(p.bedrooms === null
               ? [w.roomsNotKnown]
@@ -382,7 +425,7 @@ const screenWordsIn = (lang: Language) => {
                   p.bedrooms === 0 ? w.studio : count(p.bedrooms, w.bedroom),
                   count(p.bathrooms!, w.bathroom),
                 ]),
-          ].join(" · "),
+          ]),
     // when a business wants cleaning: "Monday, Wednesday and Friday at 6:00
     // PM", or a one-off
     wantedCleaning: (request: {
@@ -417,7 +460,22 @@ const screenWordsIn = (lang: Language) => {
     ) as Record<ServicePlanStatus, { tone: StatusTone; label: string }>,
     recurrenceLabel,
     planName,
-    // how a Quote reads in a list: "Deep Clean $391.04", the Service it
+    quoteTotal,
+    servicePrice,
+    serviceNamed,
+    // what a Sent Revision led with, as servicePrice says
+    revisionHeadline: (
+      revision: Pick<
+        RevisionSummary,
+        "headlineTotalCents" | "headlineServiceName" | "planDays"
+      >,
+    ) =>
+      servicePrice(
+        revision.headlineServiceName,
+        revision.headlineTotalCents,
+        revision.planDays,
+      ),
+    // how a Quote reads in a list: "Standard Clean $194.89", the Service it
     // leads with, or "Cleaning plan, Standard Clean, every 2 weeks: $201.85
     // a clean", or for several weekdays "...: $650.10 a week"
     quoteHeadline: (
@@ -429,12 +487,8 @@ const screenWordsIn = (lang: Language) => {
       quote.headlineTotalCents === null
         ? w.notPriced
         : quote.plan
-          ? w.planHeadline(
-              planName(quote.plan),
-              formatMoney(quote.headlineTotalCents),
-              quote.plan.days.length > 1,
-            )
-          : `${quote.headlineServiceName} ${formatMoney(quote.headlineTotalCents)}`,
+          ? w.planHeadline(planName(quote.plan), quoteTotal(quote)!)
+          : servicePrice(quote.headlineServiceName!, quote.headlineTotalCents),
     // when a Service Plan's cleans come round, each weekday from its first:
     // "Every week, on Mondays at 9:00 AM", or "Every week, on Mondays at
     // 9:00 AM and Wednesdays at 1:00 PM"

@@ -110,9 +110,11 @@ import {
   firstCleansOf,
   hasCompletedJob,
   isOpen,
+  isOwnOption,
   needSiteVisit,
   offers,
   optionsIn,
+  ownOption,
   revisionHistory,
   siteVisitOf,
   sourceOf,
@@ -392,13 +394,6 @@ const priceOptions = (
 // an option as priced, before it's written to its Revision
 type PricedOption = Omit<RevisionOptionRow, "id" | "revisionId">;
 
-// a Revision's option for its own Service, which has every Add-on it chose:
-// a one-off Quote's recommended Service prices only those that go with it
-const ownOption = <T extends { serviceKey: string }>(
-  revision: Pick<Revision, "serviceKey">,
-  rows: T[],
-) => rows.find((row) => row.serviceKey === revision.serviceKey)!;
-
 // A Revision's terms as it set them, priced afresh by priceOptions: a one-off
 // Quote its own Service (and the one recommended for a first visit, where
 // that's offered), crew and overrides; a Service Plan Quote its weekdays,
@@ -498,8 +493,7 @@ export const toOption = (
   serviceKey: row.serviceKey,
   serviceName: row.suggested.serviceName,
   // a Service Plan's Services are the ones chosen for it
-  recommended:
-    revision.kind === "one_off" && row.serviceKey !== revision.serviceKey,
+  recommended: revision.kind === "one_off" && !isOwnOption(revision, row),
   labourHours: row.labourHours,
   hoursOnSite: hoursOnSiteOf(row),
   priceCents: row.priceCents,

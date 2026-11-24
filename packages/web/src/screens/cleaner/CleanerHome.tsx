@@ -33,6 +33,7 @@ import {
   formatHours,
   formatMinutes,
   jobStatusTone,
+  lineOf,
 } from "../format.ts";
 import { type Said, useSaid, useShared } from "../words.ts";
 
@@ -313,12 +314,10 @@ const rowOf = (t: Said, item: Item, openJob: (id: string) => void): ListRow =>
         id: item.visit.id,
         at: item.startsAt,
         title: addressOf(item.visit.property),
-        description: [
+        description: lineOf([
           `${clientName(item.visit.client)}, ${item.visit.client.phone}`,
           item.visit.property.accessInstructions,
-        ]
-          .filter(Boolean)
-          .join(" · "),
+        ]),
         badges: [
           <StatusBadge key="visit" tone="info">
             {t.siteVisit}

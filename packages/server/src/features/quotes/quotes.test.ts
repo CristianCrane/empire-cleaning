@@ -872,6 +872,30 @@ describe("a new Revision", () => {
   });
 });
 
+describe("the Office's Quotes", () => {
+  test("lead with the Service asked for, not the Deep Clean recommended beside it", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    const sent = await sentQuote(office, quoteId);
+    const standard = option(sent, "standard");
+    expect(option(sent, "deep").recommended).toBe(true);
+
+    const listed = (await office.get("/api/quotes").expect(200))
+      .body as QuoteSummary[];
+    expect(
+      listed.map((q) => [q.headlineServiceName, q.headlineTotalCents]),
+    ).toEqual([["Standard Clean", standard.totalCents]]);
+    // and its story's Sent Revision
+    expect(
+      sent.revisions.map((r) => [
+        r.headlineServiceName,
+        r.headlineTotalCents,
+        r.planDays,
+      ]),
+    ).toEqual([["Standard Clean", standard.totalCents, null]]);
+  });
+});
+
 describe("a Client's Quotes", () => {
   test("show what they asked for, but never a Draft Revision", async () => {
     const quoteId = await asked();

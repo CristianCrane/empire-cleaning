@@ -36,7 +36,7 @@ import {
 import { patchJson } from "../../api.ts";
 import { linkTo, type AppHref } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { addressOf, formatMinutes, screenWords } from "../format.ts";
+import { addressOf, formatMinutes, lineOf, screenWords } from "../format.ts";
 import { AccessFact, ConditionFact, FloorAreaFact } from "../Fact.tsx";
 import { homeIcon, JobIcon, QuoteIcon, SiteVisitIcon } from "../icons.ts";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
@@ -340,9 +340,7 @@ function VisitPart({
           }
           description={
             visit.startsAt &&
-            [visit.visitor?.name, formatMinutes(visit.minutes)]
-              .filter(Boolean)
-              .join(" · ")
+            lineOf([visit.visitor?.name, formatMinutes(visit.minutes)])
           }
           end={<SiteVisitBadge visit={visit} />}
         />
@@ -392,9 +390,7 @@ const historyOf = (home: OfficePropertyView): HistoryEvent[] =>
       icon: SiteVisitIcon,
       kind: "Site visit",
       what: visit.startsAt
-        ? [visit.visitor?.name, formatMinutes(visit.minutes)]
-            .filter(Boolean)
-            .join(" · ")
+        ? lineOf([visit.visitor?.name, formatMinutes(visit.minutes)])
         : "Findings recorded, no visit",
       status: <SiteVisitBadge visit={visit} />,
       href: linkTo({
@@ -485,7 +481,7 @@ function Details({ home }: { home: OfficePropertyView }) {
     >
       <Facts>
         <FloorAreaFact property={home} />
-        <ConditionFact property={home} line="Condition, at the last visit" />
+        <ConditionFact property={home} line="Condition, as last reported" />
         <AccessFact
           property={home}
           line="How we get in, which the client and cleaners see"

@@ -7,7 +7,7 @@ import type {
 } from "@empire-cleaning/models";
 import { catalog } from "@empire-cleaning/models";
 import { ListPage, type ListRow } from "@empire-cleaning/ui";
-import { addressOf, formatMinutes, howLong } from "../format.ts";
+import { addressOf, formatMinutes, howLong, lineOf } from "../format.ts";
 import { tabShown, useListUrl } from "../list-search.ts";
 import { type Said, useSaid } from "../words.ts";
 import { cleanBadge, upcomingBadge } from "./clean-badge.tsx";
@@ -42,9 +42,6 @@ type T = Said & { w: (typeof words)["en"] };
 
 export const cleansTabs = ["upcoming", "past"] as const;
 type CleansTab = (typeof cleansTabs)[number];
-
-// "12 Elm St · $184.50": the home only when there's more than one
-const lineOf = (parts: (string | false)[]) => parts.filter(Boolean).join(" · ");
 
 const upcomingRow =
   (t: T, homes: number, open: (jobId: string) => void) =>

@@ -225,7 +225,9 @@ test("a home asked about only for Painting gives its rooms when it's asked about
 
   await expect(page).toHaveURL("/portal");
   await page.goto("/portal/details");
-  await expect(page.getByText(/Apartment · 3 bedrooms/).first()).toBeVisible();
+  await expect(
+    page.getByText(/Apartment\s·\s3 bedrooms/).first(),
+  ).toBeVisible();
 });
 
 test("a Client asks about a second home", async ({ page }) => {

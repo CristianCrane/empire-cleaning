@@ -170,8 +170,11 @@ Keeps: Table + filters (#109). Renders through `ListPage` (#433).
 - Header: "Quotes" in the bar; on a phone, the search's icon; New quote
   (primary).
 - Body: Tabs Requested · Draft · Sent · Expired, the search at the end of
-  their line from md; a sortable Table from md, rows on a phone; Show more
-  (N left).
+  their line from md; a sortable Table from md (Client · Address · Service
+  · Total · Waiting, Address from lg, no Total on Requested until a search
+  spans the Tabs),
+  rows on a phone, the Table's cells as one line under the Client; Show
+  more (N left).
 
 #### Office > New quote
 

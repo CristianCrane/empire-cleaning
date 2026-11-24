@@ -48,7 +48,7 @@ import { linkTo } from "../../links.ts";
 import { QuoteIcon } from "../icons.ts";
 import { useAction } from "../action.ts";
 import { BillStatusBadge, billLine } from "../BillParts.tsx";
-import { addressOf, clientName, screenWords } from "../format.ts";
+import { addressOf, clientName, lineOf, screenWords } from "../format.ts";
 import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
 import { clientsCrumb } from "./trails.ts";
 
@@ -131,7 +131,10 @@ export function ClientDetail() {
               key={home.id}
               id={home.id}
               title={addressOf(home)}
-              description={`${statusLine(home.status)} · ${propertySummary(home)}`}
+              description={lineOf([
+                statusLine(home.status),
+                propertySummary(home),
+              ])}
               onAction={() =>
                 void navigate({
                   to: "/office/properties/$propertyId",

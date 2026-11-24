@@ -760,9 +760,12 @@ describe("a Sent Service Plan Quote", () => {
       status: "sent",
       offer: { number: 2, plan: { recurrence: "weekly", discountPercent: 12 } },
     });
-    expect(newer.revisions[1]!.headlineTotalCents).toBe(
-      quote.offer!.plan!.roundTotalCents,
-    );
+    // the first, a clean of its Service every 2 weeks, keeps its round
+    expect(newer.revisions[1]).toMatchObject({
+      headlineServiceName: quote.service.name,
+      headlineTotalCents: quote.offer!.plan!.roundTotalCents,
+      planDays: 1,
+    });
     expect((await officeQuote(office, oneOff.id)).status).toBe("sent");
   });
 
