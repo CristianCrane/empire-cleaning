@@ -1377,8 +1377,10 @@ export type QuoteSummary = {
   // it), or once Accepted the one booked; to its Client the first, the
   // recommended one where there is one (ADR-0018), unless they're paying
   // for another (`paying`), so the list, its alert and their bank's
-  // request name the same clean (#534's UX review U23). Null with no
-  // Revision
+  // request name the same clean (#534's UX review U23). A refunded one
+  // leads with the first Service it can still be booked as, what's on
+  // offer now, and names the refunded clean only when none can (Fully
+  // booked, or closed: U37). Null with no Revision
   headlineTotalCents: number | null;
   // the Service that one-off option is for, or the one a Service Plan
   // Quote's cleans are all of; null with no Revision
@@ -1397,6 +1399,11 @@ export type QuoteSummary = {
   createdAt: string;
   // where the Client's latest Deposit payment on it stands (#534)
   paying: DepositPaying | null;
+  // to its Client, the Services a Sent Quote can still be booked as, as
+  // its page's (QuoteView's `bookable`): none is Fully booked, which Home
+  // draws as its own card (#534). Null once it isn't Sent, and on the
+  // Office's lists, which ask quotesWithoutRoom
+  bookable: string[] | null;
 };
 
 // ---- Accepting a Quote (#8) ----

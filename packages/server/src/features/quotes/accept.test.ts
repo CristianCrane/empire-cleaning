@@ -2778,4 +2778,69 @@ describe("the Client's Deposit payment, as their pages read it", () => {
       listed: (await listed(client, quote.id)).paying,
     }).toEqual({ refunded: "refunded", booked: null, listed: null });
   });
+
+  // Home draws a Fully booked quote as its own card, about the payment
+  // refunded on it, so it names the clean that payment was for
+  test("a Fully booked quote's row says nothing can be booked, and leads with the clean refunded", async () => {
+    // 8 hours on Monday
+    await cleaners(2, 4);
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("approved");
+    await payNow(client, quote, "standard").expect(200);
+    await bookedJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 7 });
+    await finalize(client, quote).expect(409);
+
+    expect(await listed(client, quote.id)).toMatchObject({
+      bookable: [],
+      headlineServiceName: option(quote, "standard").serviceName,
+    });
+  });
+
+  // once updated, what's on offer is the new version's, so the row leads
+  // with it, as it would with no payment, and the alert names the refund
+  test("a refund on an updated quote leads its row with what's on offer now", async () => {
+    // 8 hours on Monday
+    await cleaners(2, 4);
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("approved");
+    await payNow(client, quote, "standard").expect(200);
+    await bookedJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 7 });
+    await finalize(client, quote).expect(409);
+
+    const tuesday = await revise(office, quote, {
+      proposedStart: { date: "2026-01-13", time: "09:00" },
+    });
+
+    expect(await listed(client, quote.id)).toMatchObject({
+      paying: { status: "refunded" },
+      bookable: tuesday.offer!.options.map((o) => o.serviceKey),
+      headlineServiceName: tuesday.offer!.options[0]!.serviceName,
+    });
+    expect(tuesday.offer!.options[0]!.serviceKey).toBe(SEEDED.deep);
+  });
+
+  // nothing is on offer once it's closed, so its card names the clean the
+  // refund under it is for (#534's UX review U37)
+  test("a quote that expired as its deposit was refunded leads with the clean refunded", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("approved");
+    await payNow(client, quote, "standard").expect(200);
+    testClock().set(new Date(quote.offer!.expiresAt!));
+    await finalize(client, quote).expect(409);
+
+    expect(await listed(client, quote.id)).toMatchObject({
+      status: "expired",
+      paying: { status: "refunded" },
+      bookable: null,
+      headlineServiceName: option(quote, "standard").serviceName,
+    });
+    expect(quote.offer!.options[0]!.serviceKey).not.toBe(SEEDED.standard);
+  });
 });
