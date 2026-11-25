@@ -346,6 +346,46 @@ test("a payment the Client's bank wants them to approve is next on their Home", 
   ).toHaveAttribute("href", `/portal/jobs/${job.id}`);
 });
 
+// #534 Q7 made the Client's retry of a Job's payment one made with them
+// there, which their bank may ask them to approve: the server answers 200
+// with the approval's secret, nothing taken yet. The card page's "Try this
+// card again" read no body and said "Payment taken" with nothing taken
+// (critical-review-payment-truth.md C10): it runs the approval there
+test("a Client trying their card again, whose bank now asks them to approve it, approves it there, or is told it wasn't taken", async ({
+  page,
+}) => {
+  const { job, cory } = await jobUnderway();
+  await failCharges();
+  await completeJob(job.id, cory.id, { condition: "moderate", reports: [] });
+  // the money's there now, but their bank asks them to approve each payment
+  await failCharges(null);
+  await savedCardsAsk();
+
+  await signedInAs(page, casey.email);
+  await page.goto("/portal/payment-method");
+  const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
+  const tryAgain = needed.getByRole("button", { name: "Try this card again" });
+
+  // turned down at their bank: nothing taken, and the page says so
+  await requireApproval("refused");
+  await tryAgain.click();
+  await expect(
+    page.getByText(
+      "Your payment wasn't approved, so nothing was taken. Please try again, or use another card.",
+    ),
+  ).toBeVisible();
+  await expect(page.getByText("Payment taken")).toHaveCount(0);
+  await expect(needed).toBeVisible();
+
+  // approved there: taken, and the clean is paid
+  await requireApproval(null);
+  await tryAgain.click();
+  await expect(page.getByText("Payment taken")).toBeVisible();
+  await expect(needed).toHaveCount(0);
+  await page.goto(`/portal/jobs/${job.id}`);
+  await expect(titleBadge(page, "Done")).toBeVisible();
+});
+
 test("the email about a payment the Client's bank wants them to approve opens their clean, to approve it there", async ({
   page,
 }) => {

@@ -1,10 +1,14 @@
 import { useLoaderData } from "@tanstack/react-router";
 import { Button, FormPage, FormPart, Notice } from "@empire-cleaning/ui";
-import { catalog } from "@empire-cleaning/models";
+import {
+  catalog,
+  type ClientJobDetail,
+  type JobPayOutcome,
+} from "@empire-cleaning/models";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { postJson } from "../../api.ts";
-import { ConsentNote, useCardForm } from "./CardForm.tsx";
+import { ConsentNote, useCardForm, usePaymentForm } from "./CardForm.tsx";
 import { useSaid } from "../words.ts";
 
 // in the Client's language (ADR-0025)
@@ -62,12 +66,33 @@ export function PortalPaymentMethod() {
   const retry = useAction(t.w.couldntRetry, { toast: true });
   const [first] = unpaid;
   const owed = unpaid.reduce((sum, j) => sum + j.owedCents, 0);
+  // the saved card's payments, made with them here, which their bank may
+  // want them to approve here too
+  const approving = usePaymentForm({
+    amountCents: 0,
+    showCard: false,
+    needed: !!saved && unpaid.length > 0,
+  });
 
-  // each Unpaid clean in turn; the first that still fails says why
+  // each Unpaid clean in turn, each approved with their bank here if it
+  // asks (#534 critical review C10, in critical-review-payment-truth.md);
+  // the first that still fails, or that they turn down, says why
   const tryAgain = () =>
     retry.run(async () => {
       for (const job of unpaid) {
-        await postJson(`/api/jobs/mine/${job.id}/balance/retry`);
+        await approving.pay({
+          start: async () => {
+            const outcome = await postJson<JobPayOutcome>(
+              `/api/jobs/mine/${job.id}/balance/retry`,
+            );
+            return outcome.status === "done" ? outcome.job : outcome;
+          },
+          finish: (refused) =>
+            postJson<ClientJobDetail>(
+              `/api/jobs/mine/${job.id}/balance/finish`,
+              { approved: !refused },
+            ),
+        });
       }
     }, t.w.taken);
 
@@ -94,6 +119,7 @@ export function PortalPaymentMethod() {
                 <Button
                   variant="danger-text"
                   isPending={retry.isPending}
+                  isDisabled={!approving.isReady}
                   onPress={() => void tryAgain()}
                 >
                   {t.w.tryAgain}

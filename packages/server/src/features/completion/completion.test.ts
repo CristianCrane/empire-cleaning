@@ -1062,6 +1062,36 @@ describe("a Job's payment the Client's bank wants them to approve", () => {
     ]);
   });
 
+  // C10 in critical-review-payment-truth.md: a declined Job's retry is one
+  // made with them there, which their bank may now ask them to approve
+  test("tried again after a decline, then turned down at their bank, says it wasn't approved, not declined", async () => {
+    const { office, cory, client, jobId, quote } = await bookedJob();
+    testPayments().failCharges();
+    await complete(cory.agent, jobId).expect(200);
+    testPayments().failCharges(null);
+    testPayments().savedCardsAsk();
+
+    const asked = (
+      await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(200)
+    ).body as JobPayOutcome;
+    expect(asked.status).toBe("needs_approval");
+    testPayments().requireApproval("refused");
+    const refused = await client
+      .post(`/api/jobs/mine/${jobId}/balance/finish`)
+      .send({ approved: false })
+      .expect(409);
+
+    expect(refused.body).toEqual({
+      message:
+        "Your payment wasn't approved, so nothing was taken. Please try again, or use another card.",
+      kind: "approve",
+    });
+    expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
+      kind: "declined",
+    });
+    expect(amounts()).toEqual([deepOf(quote).depositCents]);
+  });
+
   test("left waiting on their bank, is held a quarter hour, then the Office's retry asks again", async () => {
     const { office, jobId, deep, pay } = await doneOnApprovalCard();
     await pay();

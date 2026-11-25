@@ -1070,7 +1070,8 @@ export const clientFinishBalance = async (
     by: approved ? "approved" : "refused",
   });
   if (!settled.failure) return;
-  const kind = unpaidKind(settled.failure);
+  // one turned down there, though the Job was Unpaid for a decline before
+  const kind = settled.notApproved ? "approve" : unpaidKind(settled.failure);
   if (kind === "approve") {
     throw new ConflictError(words[currentLanguage()].notApproved, "approve");
   }

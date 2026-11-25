@@ -298,6 +298,11 @@ export type Settled = {
   // the Client paying on its page, whose bank wants them to approve it
   // there: for their browser, then settleJob as "approved" or "refused"
   secret?: string;
+  // once their bank's check is done, that it wasn't approved (refused, or
+  // left), so nothing was taken: whatever the Job was Unpaid for before
+  // stays its failure, but this payment wasn't declined (critical review
+  // C10, in critical-review-payment-truth.md)
+  notApproved?: boolean;
 };
 
 // The Client settling a Job on its page: "paying", there for their bank to
@@ -457,12 +462,12 @@ export const settleJob = async (
       (by === "approved" || by === "refused")
     ) {
       const newest = await newestAttempt(tx, jobId);
-      settled.failure =
+      const declined =
         newest?.status === "failed" &&
         newest.reason !== APPROVE &&
-        !NOT_APPROVED(newest.reason)
-          ? (newest.reason ?? waiting)
-          : waiting;
+        !NOT_APPROVED(newest.reason);
+      settled.failure = declined ? (newest.reason ?? waiting) : waiting;
+      settled.notApproved = !declined;
     } else if (moves && ledger.owedCents > 0) {
       const charged = await chargeSaved(tx, {
         client,
