@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import {
+  notFound,
   useLoaderData,
   useNavigate,
   useParams,
@@ -43,8 +44,11 @@ export const prototype = <const Layout extends string>(
 const files = import.meta.glob<{ default: Prototype }>("./**/*.prototype.tsx");
 const screenOf = (path: string) => path.replace(/^.*\/|\.prototype\.tsx$/g, "");
 
-// the route's loader: the prototype named, if this branch has it
+// the route's loader: the prototype named, if this branch has it. A
+// branch with none, such as main, has no such page: Not found, as for any
+// address the app doesn't have
 export const loadPrototype = async (screen: string) => {
+  if (!Object.keys(files).length) throw notFound();
   const load = Object.entries(files).find(
     ([path]) => screenOf(path) === screen,
   )?.[1];
@@ -76,6 +80,11 @@ export function PrototypeScreen() {
     search.layout === undefined
       ? drawn.layouts[0]?.key
       : drawn.layouts.find(({ key }) => key === search.layout)?.key;
+  // what the address asks for that the prototype hasn't
+  const missing = [
+    ...(shown !== undefined && !drawn.cases[shown] ? [`case ${shown}`] : []),
+    ...(layout === undefined ? [`layout ${search.layout}`] : []),
+  ];
   if (shown === undefined || !drawn.cases[shown] || layout === undefined) {
     return (
       <PrototypeIndex
@@ -86,8 +95,8 @@ export function PrototypeScreen() {
           name: drawn.cases[key]?.name ?? "",
         }))}
         hrefOf={hrefOf}
-        {...(shown !== undefined && {
-          missing: `It has no case ${shown}${layout === undefined ? ` or layout ${search.layout}` : ""}: pick one here.`,
+        {...(missing.length && {
+          missing: `It has no ${missing.join(" or ")}: pick one here.`,
         })}
       />
     );
@@ -141,28 +150,20 @@ function Unknown({ screen }: { screen: string }) {
       <p className="mb-1 text-base font-semibold">
         No prototype is named {screen} on this branch.
       </p>
-      {known.length ? (
-        <ul className="space-y-1">
-          {known.map((name) => (
-            <li key={name}>
-              <Link
-                href={linkTo({
-                  to: "/prototype/$screen",
-                  params: { screen: name },
-                })}
-              >
-                {name}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p>
-          It has none: a prototype is a{" "}
-          <code>&lt;screen&gt;.prototype.tsx</code> file on a prototype-* branch
-          (docs/ux.md, Changing a screen).
-        </p>
-      )}
+      <ul className="space-y-1">
+        {known.map((name) => (
+          <li key={name}>
+            <Link
+              href={linkTo({
+                to: "/prototype/$screen",
+                params: { screen: name },
+              })}
+            >
+              {name}
+            </Link>
+          </li>
+        ))}
+      </ul>
     </main>
   );
 }
