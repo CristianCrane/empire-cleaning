@@ -91,6 +91,12 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   Clean $194.89 · 2 cleaners · for Mon, Jan 12, 9:00 AM"), every entry alike
   (`TimelineItem`, a Quote's story too); on a Job's, any more there is goes
   after a colon in that line (a cancellation's reason), not on a third. A
+  home's History is the one exception: each entry there is a record, its
+  Quote, Job or Site visit, its state now a badge ("Quote · Deep Clean
+  $359.29", Accepted), dated by when it was sent or took place. A home
+  holds many records, each with its own story a tap away, and one entry
+  each keeps the home's short. Telling it as events, as every other
+  History does, is #555 (#548, U33). A
   Quote sent again names what it changed of the send before it, in the
   Draft's words for its fields and in the Draft's order: "Quote sent again ·
   cleaners changed", "· Deep Clean price changed" where only the Service
