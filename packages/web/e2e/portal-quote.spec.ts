@@ -71,16 +71,20 @@ test("a quote whose day filled up is told on Home and by its home, with nothing 
     .getByRole("grid", { name: "Your home" })
     .getByRole("row")
     .first();
-  await expect(home).toContainText("Fully booked");
+  await expect(home).toContainText("Time unavailable");
   await home.click();
   await expect(
     page.getByRole("grid", { name: "Quotes" }).getByRole("row"),
-  ).toContainText("Fully booked");
+  ).toContainText("Time unavailable");
 
   await page.goto("/portal");
-  await expect(page.getByText("Fully booked", { exact: true })).toBeVisible();
   await expect(
-    page.getByText("We'll send you a new quote for another time."),
+    page.getByText("Time unavailable", { exact: true }),
+  ).toBeVisible();
+  // what comes next leads, then which time filled (#534's UX review U1)
+  await expect(page.getByText("We'll send a new quote")).toBeVisible();
+  await expect(
+    page.getByText(/^Mon, Jan 12, 9:00\sAM is fully booked/),
   ).toBeVisible();
   await expect(page.getByText("Quote ready", { exact: true })).toHaveCount(0);
 });
@@ -105,7 +109,9 @@ test("a quote whose day filled up has nothing next, declining its one action", a
   await expect(payAndBook(page).form).toHaveCount(0);
   await expectNothingNext(page);
   // its badge and subtitle say so too: it waits on us, not on them
-  await expect(page.getByText("Fully booked", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Time unavailable", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("Ready", { exact: true })).toHaveCount(0);
   await expect(page.getByText(/^Open until/)).toHaveCount(0);
   // the alert says it once, not each option again

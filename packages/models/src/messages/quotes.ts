@@ -76,7 +76,7 @@ export const quotes = catalog({
       `We'll email your quote to ${email}, ${WITHIN_A_DAY}.`,
     WORKING_ON_IT: `We're working on your quote. We'll email it to you, ${WITHIN_A_DAY}.`,
     NEW_QUOTE: NEW_QUOTE_EN,
-    // the quote's page, once what it books filled (its badge: fullyBooked),
+    // the quote's page, once what it books filled (its badge: timeUnavailable),
     // `when` the clean's time; then that a new quote comes (NEW_QUOTE)
     bookedUp: (filled: FilledDays, when: string) =>
       `Sorry, ${

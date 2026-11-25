@@ -197,7 +197,8 @@ describe("Home's hero, with nothing booked", () => {
       label: "Your quote is ready",
       headline: "Deep Clean $391.04",
       lines: [
-        "For Sun, Nov 8, 10:00\u00a0AM at 12 Elm St, 4B, 11375",
+        "For Sun, Nov 8, 10:00\u00a0AM",
+        "At 12 Elm St, 4B, 11375",
         "Open until Fri, Nov 13",
       ],
       action: { label: "See your quote" },
@@ -666,7 +667,7 @@ const paid = (
     ...over,
   });
 const going = paid({ status: "goingThrough" });
-const FOR = "For Sun, Nov 8, 10:00 AM at 12 Elm St, 4B, 11375";
+const FOR = ["For Sun, Nov 8, 10:00 AM", "At 12 Elm St, 4B, 11375"];
 const ON = "on Sun, Nov 8, 10:00 AM at 12 Elm St, 4B, 11375";
 const NEW_QUOTE = "We'll send you a new quote for another time.";
 const planQuote = (
@@ -698,7 +699,7 @@ describe("Home, while a quote's deposit is going through (#534)", () => {
       label: "Payment pending",
       tone: "info",
       headline: "$48.72",
-      lines: ["Deposit for Standard Clean · Nothing you need to do.", FOR],
+      lines: ["Deposit for Standard Clean · Nothing you need to do.", ...FOR],
       action: { label: "See your quote", secondary: true },
     });
     expect(why).toBeUndefined();
@@ -713,7 +714,7 @@ describe("Home, while a quote's deposit is going through (#534)", () => {
       next({ quotes: [{ ...planQuote(), paying: going.paying }] }).hero.lines,
     ).toEqual([
       "Deposit for your cleaning plan · Nothing you need to do.",
-      FOR,
+      ...FOR,
     ]);
   });
 
@@ -722,7 +723,7 @@ describe("Home, while a quote's deposit is going through (#534)", () => {
     expect(next({ quotes: [card] }).hero).toMatchObject({
       label: "Booking pending",
       headline: "Standard Clean $194.89",
-      lines: [FOR, "We'll email you as soon as your clean is booked."],
+      lines: [...FOR, "We'll email you as soon as your clean is booked."],
     });
     expect(next({ jobs: [job()], quotes: [card] }).news).toEqual([
       `Your bank is finishing approving your card for the Standard Clean ${ON}. We'll email you as soon as it's booked, usually within half an hour.`,
@@ -760,6 +761,7 @@ describe("Home, while a quote's deposit is going through (#534)", () => {
       lines: [
         "Depósito de Standard Clean · No tiene que hacer nada.",
         expect.any(String),
+        "En 12 Elm St, 4B, 11375",
       ],
       action: { label: "Ver su cotización" },
     });
@@ -784,7 +786,7 @@ describe("Home, as a quote's deposit waits on their bank or ends unbooked (#534)
       label: "Your quote is ready",
       headline: "Standard Clean $194.89",
       lines: [
-        FOR,
+        ...FOR,
         "Open until Fri, Nov 13",
         "Your bank hasn't approved your payment yet.",
       ],
@@ -793,7 +795,7 @@ describe("Home, as a quote's deposit waits on their bank or ends unbooked (#534)
     expect(
       next({
         quotes: [paid({ status: "approving", until: "", depositCents: 0 })],
-      }).hero.lines[2],
+      }).hero.lines[3],
     ).toBe("Your bank hasn't approved your card yet.");
   });
 
@@ -913,13 +915,18 @@ describe("Home, as a quote's deposit waits on their bank or ends unbooked (#534)
 });
 
 describe("Home, with a quote whose time filled since it was sent (#534)", () => {
-  test("a state card, not a quote to answer: which time, and what comes next", () => {
+  // what comes next leads, large, and the badge doesn't say "booked", as
+  // beside their clean it read as their clean booked (UX review U1)
+  test("a state card, not a quote to answer: what comes next, then which time filled", () => {
     const { hero, tiles } = next({ quotes: [fullyBooked] });
     expect(hero).toMatchObject({
-      label: "Fully booked",
+      label: "Time unavailable",
       tone: "info",
-      headline: "Standard Clean $194.89",
-      lines: [FOR, NEW_QUOTE],
+      headline: "We'll send a new quote",
+      lines: [
+        "Sun, Nov 8, 10:00\u00a0AM is fully booked, so your quote for Standard Clean can't be booked.",
+        "At 12 Elm St, 4B, 11375",
+      ],
       action: { label: "See your quote", secondary: true },
     });
     expect(tiles.map((s) => s.label)).not.toContain("See your quote");
@@ -928,20 +935,22 @@ describe("Home, with a quote whose time filled since it was sent (#534)", () => 
       next({
         quotes: [paid({ status: "approving", until: "" }, { bookable: [] })],
       }).hero.label,
-    ).toBe("Fully booked");
+    ).toBe("Time unavailable");
   });
 
-  test("a plan's names its home and the days, not one time", () => {
+  test("a plan's names the days, not one time, and its home", () => {
     expect(next({ quotes: [planQuote({ bookable: [] })] }).hero.lines).toEqual([
+      "One of the days your plan starts on is fully booked, so its quote can't be booked.",
       "At 12 Elm St, 4B, 11375",
-      `One of the days your plan starts on is fully booked. ${NEW_QUOTE}`,
     ]);
     // a change to the plan they have: its new days
     expect(
       next({
         quotes: [planQuote({ bookable: [], homePlanId: "plan" })],
-      }).hero.lines[1],
-    ).toBe(`One of the new days for your plan is fully booked. ${NEW_QUOTE}`);
+      }).hero.lines[0],
+    ).toBe(
+      "One of the new days for your plan is fully booked, so the change can't be booked. Your plan stays as it is.",
+    );
   });
 
   test("under something ahead of it, News naming the quote", () => {
@@ -966,7 +975,7 @@ describe("Home, with a quote whose time filled since it was sent (#534)", () => 
   test("a deposit refunded as it filled: an alert over its card, or its News in place of the card's", () => {
     const filled = refunded("no_room", { bookable: [] });
     expect(next({ quotes: [filled] })).toMatchObject({
-      hero: { label: "Fully booked" },
+      hero: { label: "Time unavailable" },
       why: {
         tone: "info",
         lead: "We've refunded your deposit for Standard Clean.",

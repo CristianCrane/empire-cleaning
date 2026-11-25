@@ -504,7 +504,7 @@ describe("what a Sent Quote waits on that's nothing of theirs", () => {
     // a quote answered or gone waits on nothing
     expect(waitOf(going({ status: "declined" }))).toBeNull();
     expect(waitLabelOf("en", "payment")).toBe("Payment pending");
-    expect(waitLabelOf("es", "filled")).toBe("Día lleno");
+    expect(waitLabelOf("es", "filled")).toBe("Hora no disponible");
   });
 });
 

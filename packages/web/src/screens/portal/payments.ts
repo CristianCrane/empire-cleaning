@@ -426,11 +426,11 @@ export function waitOf(
   return q.bookable?.length === 0 ? "filled" : null;
 }
 export const waitLabelOf = (lang: Language, wait: QuoteWait) => {
-  const { paymentPending, bookingPending, fullyBooked } = said[lang];
+  const { paymentPending, bookingPending, timeUnavailable } = said[lang];
   return {
     payment: paymentPending,
     booking: bookingPending,
-    filled: fullyBooked,
+    filled: timeUnavailable,
   }[wait];
 };
 

@@ -1380,7 +1380,7 @@ export type OfferedQuoteSummary = {
     // their bank's request name the same clean (#534's UX review U23). A
     // refunded one leads with the first Service it can still be booked as,
     // what's on offer now, and names the refunded clean only when none can
-    // (Fully booked, or closed: U37)
+    // (Time unavailable, or closed: U37)
     headlineTotalCents: number;
     // the Service that one-off option is for, or the one a Service Plan
     // Quote's cleans are all of
@@ -1432,7 +1432,7 @@ type QuoteSummaryFields = {
   // for a Service Plan Quote's, which names the plan
   payingServiceName: string | null;
   // to its Client, the Services a Sent Quote can still be booked as, as
-  // its page's (QuoteView's `bookable`): none is Fully booked, which Home
+  // its page's (QuoteView's `bookable`): none is Time unavailable, which Home
   // draws as its own card (#534). Null once it isn't Sent, and on the
   // Office's lists, which ask quotesWithoutRoom
   bookable: string[] | null;

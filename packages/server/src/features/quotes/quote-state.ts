@@ -475,7 +475,7 @@ const summaries = async (
       // the Client with the recommended one (ADR-0018), or the one they're
       // paying for, as its alert and their bank's request name it (#534's
       // UX review U23). Once refunded, what can still be booked leads, as
-      // that's what's on offer; with nothing (Fully booked, or closed) the
+      // that's what's on offer; with nothing (Time unavailable, or closed) the
       // clean refunded does, as the card is then about that payment (U37)
       const clientLead =
         paying?.status === "refunded" && canBook?.length

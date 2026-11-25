@@ -93,14 +93,21 @@ const words = catalog({
     untilPaid:
       "Nothing's booked until it goes through. Then your plan carries on from its next date.",
     forWhen: (when: string) => `For ${when}`,
-    at: " at ",
-    // a quote whose time filled since it was sent (#534's UX design,
-    // Screen 2), on its card, then that a new quote comes (NEW_QUOTE): a
-    // plan's names its home, as its first clean's time may not be the day
-    // that filled; a change to a plan, its new days
+    // a quote's home, on a line of its own under its time, so a phone never
+    // leaves its ZIP alone on a line (UX review U5)
     atHome: (address: string) => `At ${address}`,
-    planFilled: "One of the days your plan starts on is fully booked.",
-    changeFilled: "One of the new days for your plan is fully booked.",
+    // a quote whose time filled since it was sent (#534's UX design,
+    // Screen 2), on its card: large, what comes next, as that's the news
+    // (UX review U1); then which time filled, or for a plan which days, as
+    // its first clean's time may not be the day that filled, a change to a
+    // plan its new days; then at which home (atHome)
+    newQuote: "We'll send a new quote",
+    filled: (when: string, service: string) =>
+      `${when} is fully booked, so your quote for ${service} can't be booked.`,
+    planFilled:
+      "One of the days your plan starts on is fully booked, so its quote can't be booked.",
+    changeFilled:
+      "One of the new days for your plan is fully booked, so the change can't be booked. Your plan stays as it is.",
     // and as News, under another card, naming the quote
     filledNews: (when: string, service: string, address: string) =>
       `${when} is fully booked, so your quote for ${service} at ${address} can't be booked.`,
@@ -177,10 +184,14 @@ const words = catalog({
     untilPaid:
       "No hay nada reservado hasta que el pago pase. Después, su plan continúa desde su próxima fecha.",
     forWhen: (when: string) => `Para el ${when}`,
-    at: " en ",
     atHome: (address: string) => `En ${address}`,
-    planFilled: "Uno de los días en que empieza su plan se llenó.",
-    changeFilled: "Uno de los nuevos días de su plan se llenó.",
+    newQuote: "Le enviaremos una nueva cotización",
+    filled: (when: string, service: string) =>
+      `El ${when} ya está lleno, así que su cotización de ${service} no se puede reservar.`,
+    planFilled:
+      "Uno de los días en que empieza su plan se llenó, así que su cotización no se puede reservar.",
+    changeFilled:
+      "Uno de los nuevos días de su plan se llenó, así que el cambio no se puede reservar. Su plan sigue como está.",
     filledNews: (when: string, service: string, address: string) =>
       `El ${when} ya está lleno, así que su cotización de ${service} en ${address} no se puede reservar.`,
     planFilledNews: (address: string) =>
@@ -533,12 +544,11 @@ type Context = {
   now: Date;
 };
 
-// a sent quote's line on its card: when, and at which home
-const forLine = (t: Said, quote: OfferedQuoteSummary) =>
-  [
-    t.w.forWhen(t.formatDateTime(quote.proposedStartsAt)),
-    addressOf(quote.property),
-  ].join(t.w.at);
+// a sent quote's lines on its card: when, and at which home
+const forLines = (t: Said, quote: OfferedQuoteSummary) => [
+  t.w.forWhen(t.formatDateTime(quote.proposedStartsAt)),
+  t.w.atHome(addressOf(quote.property)),
+];
 
 // how a quote's latest payment ended without booking it, as the alert
 // over its card, or as News, in one sentence; none while it's on its way
@@ -618,7 +628,7 @@ function stateOf(t: Said, q: SentQuote): Answer {
             icon: Hourglass,
             tone: "info",
             headline: t.quoteHeadline(q),
-            lines: [forLine(t, q), t.cardPendingLine(plan)],
+            lines: [...forLines(t, q), t.cardPendingLine(plan)],
             action,
           },
         }
@@ -636,7 +646,7 @@ function stateOf(t: Said, q: SentQuote): Answer {
                 ),
                 t.NOTHING_TO_DO,
               ]),
-              forLine(t, q),
+              ...forLines(t, q),
             ],
             action,
           },
@@ -645,17 +655,21 @@ function stateOf(t: Said, q: SentQuote): Answer {
   const how = filledOf(q);
   return {
     hero: {
-      label: t.fullyBooked,
+      label: t.timeUnavailable,
       icon: CalendarX,
       tone: "info",
-      headline: t.quoteHeadline(q),
-      lines:
-        how === "clean"
-          ? [forLine(t, q), t.NEW_QUOTE]
-          : [
-              t.w.atHome(addressOf(q.property)),
-              `${how === "change" ? t.w.changeFilled : t.w.planFilled} ${t.NEW_QUOTE}`,
-            ],
+      headline: t.w.newQuote,
+      lines: [
+        {
+          clean: t.w.filled(
+            t.formatDateTime(q.proposedStartsAt),
+            q.headlineServiceName,
+          ),
+          plan: t.w.planFilled,
+          change: t.w.changeFilled,
+        }[how],
+        t.w.atHome(addressOf(q.property)),
+      ],
       action,
     },
     why: q.paying?.status === "refunded" ? endingOf(t, q, false) : undefined,
@@ -675,7 +689,7 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Answer {
         tone: "info",
         headline: t.quoteHeadline(leadingQuote),
         lines: [
-          forLine(t, leadingQuote),
+          ...forLines(t, leadingQuote),
           t.p.openUntil(dayOf(leadingQuote.expiresAt)),
           // their bank waiting on them to approve it: still theirs to do
           ...(paying?.status === "approving"

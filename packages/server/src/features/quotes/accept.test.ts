@@ -3144,9 +3144,9 @@ describe("the Client's Deposit payment, as their pages read it", () => {
     }).toEqual({ refunded: "refunded", booked: null, listed: null });
   });
 
-  // Home draws a Fully booked quote as its own card, about the payment
+  // Home draws a Time unavailable quote as its own card, about the payment
   // refunded on it, so it names the clean that payment was for
-  test("a Fully booked quote's row says nothing can be booked, and leads with the clean refunded", async () => {
+  test("a Time unavailable quote's row says nothing can be booked, and leads with the clean refunded", async () => {
     // 8 hours on Monday
     await cleaners(2, 4);
     const office = await signInAsOffice();

@@ -189,7 +189,7 @@ describe("a home whose quote waits on nothing of theirs (#534)", () => {
   test("its time filled: the sent quote's line", () => {
     expect(standingOf("en", home, data({ quotes: [filled] }))).toEqual({
       tone: "info",
-      label: "Fully booked",
+      label: "Time unavailable",
       line: "Deep Clean, sent Oct 28",
     });
   });
@@ -229,7 +229,7 @@ describe("a home whose quote waits on nothing of theirs (#534)", () => {
         home,
         data({ quotes: [filled, quote({ status: "requested" })] }),
       ).label,
-    ).toBe("Fully booked");
+    ).toBe("Time unavailable");
   });
 
   test("its row in the home's quotes names the clean it's paying for", () => {

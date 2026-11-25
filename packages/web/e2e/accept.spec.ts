@@ -770,7 +770,7 @@ test("a Client whose Deposit was given back as the time filled up sees it and it
     await route.fallback();
   });
   await payAndBook(page).accept.click();
-  await expect(titleBadge(page, "Fully booked")).toBeVisible();
+  await expect(titleBadge(page, "Time unavailable")).toBeVisible();
 
   await page.goto("/portal/payments");
   await expect(page.getByText("You're all paid up")).toBeVisible();
