@@ -86,7 +86,13 @@ import {
   paymentMethods,
   refunds,
 } from "../payments/payments.schema.ts";
-import { LATE, nowTheirs, unpaidKind, whyNotPaid } from "../payments/unpaid.ts";
+import {
+  LATE,
+  nowTheirs,
+  REFUSED,
+  unpaidKind,
+  whyNotPaid,
+} from "../payments/unpaid.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { currentPriceList, namedByKey } from "../price-list/price-list.ts";
 import { changedOf } from "../completion/emails.ts";
@@ -892,6 +898,20 @@ export const settleBill = async (
     const endedNow = page
       ? { failed: page.status === "failed" ? (page.reason ?? "") : null }
       : null;
+    // one their bank wanted them to approve, turned down at their bank on
+    // its page: theirs to try again, the server's word for it, so every
+    // page and list says it (#534's review F18)
+    if (
+      page?.status === "failed" &&
+      NOT_APPROVED(page.reason) &&
+      bill.unpaidSince &&
+      unpaidKind(bill.unpaidReason ?? "") === "approve"
+    ) {
+      await tx
+        .update(bills)
+        .set({ unpaidReason: REFUSED })
+        .where(eq(bills.id, bill.id));
+    }
     // one they were told was going through, or left with their bank
     // finishing it, that failed: not one they saw refused in the dialog,
     // nor one never approved, nor called off as the Bill was paid

@@ -88,6 +88,7 @@ export const payments = catalog({
       declined: `Please ${UPDATE_AND_RETRY}.`,
       approve:
         "Your bank wants you to approve it first. Please approve it on its page.",
+      refused: "Please try again on its page, or use a different card.",
       no_card: "Please add a card and we'll try again straight away.",
       waiting:
         "We'll try again by ourselves, so there's nothing you need to do.",
@@ -152,6 +153,8 @@ export const payments = catalog({
       declined: `Por favor, ${UPDATE_AND_RETRY_ES}.`,
       approve:
         "Su banco quiere que lo apruebe primero. Por favor, apruébelo en su página.",
+      refused:
+        "Por favor, vuelva a intentarlo en su página, o use otra tarjeta.",
       no_card:
         "Por favor, agregue una tarjeta y lo volvemos a intentar enseguida.",
       waiting:
@@ -194,6 +197,8 @@ export const officeFix: Record<UnpaidKind, string> = {
   declined:
     "We've emailed the client to update their card. Once they do, we try the payment again.",
   approve: "We've emailed the client to approve it on its page.",
+  refused:
+    "None of it was taken. They can try again on its page, or use another card.",
   no_card:
     "We've emailed the client to add a card. Once they do, we try the payment again.",
   waiting: "We'll try again by ourselves.",

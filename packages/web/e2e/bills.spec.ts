@@ -578,7 +578,7 @@ test("a Bill's payment the Client's bank wants them to approve is theirs to appr
   await pageAction(page, "Approve payment");
   await expect(
     page.getByText(
-      /^The payment wasn't approved\. Nothing was taken\. You can try again\. Until it's paid, we won't book more cleans on your plan\.$/,
+      /^The payment wasn't approved\. None of it was taken\. Please try again\. Until it's paid, we won't book more cleans on your plan\.$/,
     ),
   ).toBeVisible();
   await expect(
@@ -592,7 +592,7 @@ test("a Bill's payment the Client's bank wants them to approve is theirs to appr
   await page.reload();
   await expect(titleBadge(page, "Unpaid")).toBeVisible();
   await expect(
-    page.getByText(/^The payment wasn't approved\. Nothing was taken\./),
+    page.getByText(/^The payment wasn't approved\. None of it was taken\./),
   ).toBeVisible();
   await expectNextStep(page, "Try again");
 });
@@ -665,7 +665,7 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   // and which of the client's plans it pauses, by its home
   await expect(
     page.getByText(
-      /^Its payment didn't go through( \(.+\))?\. We've emailed the client to update their card\. Once they do, we try the payment again\. Until it's paid, Casey's cleaning plan at this home is paused\.$/,
+      /^Its payment didn't go through( \(.+\))?\. We've emailed the client to update their card\. Once they do, we try the payment again\. Until it's paid, the client's cleaning plan at this home is paused\.$/,
     ),
   ).toBeVisible();
   // recording one made another way is the Office's next step; and the
@@ -743,7 +743,7 @@ test("a Bill we try again ourselves reads as payment pending, not failed, says i
   await expect(office.getByRole("main").getByRole("alert")).toHaveCount(0);
   await expect(
     office.getByText(
-      `${paymentNotDone.page} Until it's paid, Casey's cleaning plan at this home is paused.`,
+      `${paymentNotDone.page} Until it's paid, the client's cleaning plan at this home is paused.`,
       { exact: true },
     ),
   ).toBeVisible();

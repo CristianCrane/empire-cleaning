@@ -1,7 +1,7 @@
-import { useState } from "react";
 import { CreditCard, ShieldCheck } from "lucide-react";
+import type { ClientJobDetail, JobPayOutcome } from "@empire-cleaning/models";
 import { ButtonLink, type Alert, type PageAction } from "@empire-cleaning/ui";
-import { ApiError } from "../../api.ts";
+import { ApiError, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { useShared, type Said } from "../words.ts";
@@ -14,22 +14,21 @@ type NeedsApproval = { status: "needs_approval"; secret: string };
  * Bill's page, where it's the next step (#534 Q7, layout A): Approve
  * payment asks our server to take it with their saved card, there for them
  * (`start`); their bank asks them, and `finish` tells the server how that
- * went. Not approved, nothing is taken and `refused` says so, for the
- * page's alert and badge, until they press it again, whose label then says
- * it's a fresh try (#534's UX review U1); `before`, that the server holds
- * it as turned down already (a Bill's). `paid` is the toast, from what
- * the payment gave back.
+ * went. Not approved, nothing is taken, and the page reloads to what the
+ * server holds: turned down (`refused`, its Unpaid's kind), so its label
+ * says it's a fresh try (#534's UX review U1, review F18). `paid` is the
+ * toast, from what the payment gave back.
  */
 export function useApprovePayment<T>({
   needed,
-  before = false,
+  refused,
   start,
   finish,
   paid,
 }: {
   // whether the page has a payment to approve: its form loads only then
   needed: boolean;
-  before?: boolean;
+  refused: boolean;
   start: () => Promise<T | NeedsApproval>;
   finish: (approved: boolean) => Promise<T>;
   paid: (result: T) => string;
@@ -38,29 +37,24 @@ export function useApprovePayment<T>({
   // their saved card: no card box, but their bank's check runs here
   const payment = usePaymentForm({ amountCents: 0, showCard: false, needed });
   // a page's next step: why it failed is a toast, and the page reloads to
-  // what the server found
+  // what the server found, either way
   const paying = useAction(t.p.didntWork, {
     toast: true,
     reloadOnFailure: true,
   });
-  const [justRefused, setRefused] = useState(false);
-  const refused = justRefused || before;
 
   const pay = () =>
     paying.run(
       async () => {
-        setRefused(false);
         try {
           return await payment.pay({
             start,
             finish: (no) => finish(!no),
           });
         } catch (e) {
-          // turned down at their bank: not a failure, theirs to try again
-          if (e instanceof ApiError && e.kind === "approve") {
-            setRefused(true);
-            return null;
-          }
+          // turned down at their bank: not a failure, theirs to try again,
+          // as the page says once it reloads
+          if (e instanceof ApiError && e.kind === "approve") return null;
           throw e;
         }
       },
@@ -74,8 +68,24 @@ export function useApprovePayment<T>({
     isDisabled: !payment.isReady,
     onAction: () => void pay(),
   };
-  return { approve, refused };
+  return approve;
 }
+
+// a clean's payment, approved with their bank on its page or the card
+// page, the one way both ask it (#534's review F20): `start` takes it with
+// their saved card, `finish` says how their bank's check went
+export const jobApproval = (jobId: string) => ({
+  start: async () => {
+    const outcome = await postJson<JobPayOutcome>(
+      `/api/jobs/mine/${jobId}/balance/retry`,
+    );
+    return outcome.status === "done" ? outcome.job : outcome;
+  },
+  finish: (approved: boolean) =>
+    postJson<ClientJobDetail>(`/api/jobs/mine/${jobId}/balance/finish`, {
+      approved,
+    }),
+});
 
 // paying it with another card instead, on the card page, whose saving
 // tries it again

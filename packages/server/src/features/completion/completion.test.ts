@@ -1039,7 +1039,7 @@ describe("a Job's payment the Client's bank wants them to approve", () => {
       kind: "approve",
     });
     expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
-      kind: "approve",
+      kind: "refused",
     });
     expect(amounts()).toEqual([deep.depositCents]);
     expect(testPayments().canceled).toContain(
@@ -1064,7 +1064,7 @@ describe("a Job's payment the Client's bank wants them to approve", () => {
 
   // C10 in critical-review-payment-truth.md: a declined Job's retry is one
   // made with them there, which their bank may now ask them to approve
-  test("tried again after a decline, then turned down at their bank, says it wasn't approved, not declined", async () => {
+  test("tried again after a decline, then turned down at their bank, says it was refused, not declined", async () => {
     const { office, cory, client, jobId, quote } = await bookedJob();
     testPayments().failCharges();
     await complete(cory.agent, jobId).expect(200);
@@ -1087,7 +1087,7 @@ describe("a Job's payment the Client's bank wants them to approve", () => {
       kind: "approve",
     });
     expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
-      kind: "declined",
+      kind: "refused",
     });
     expect(amounts()).toEqual([deepOf(quote).depositCents]);
   });

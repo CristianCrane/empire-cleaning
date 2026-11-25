@@ -29,6 +29,11 @@ const words = catalog({
     approveBill: (n: string) =>
       `Your bank wants you to approve your payment for bill ${n}`,
     approveMany: (n: number) => `Your bank wants you to approve ${n} payments`,
+    // the same, once they turned it down at their bank: theirs to try
+    // again on its page (#534's review F18)
+    refusedClean: (day: string) =>
+      `The payment for your ${day} clean wasn't approved`,
+    refusedBill: (n: string) => `The payment for bill ${n} wasn't approved`,
     nothingTakenYet: "None of it has been taken yet.",
     billDue: (n: string, day: string) => `Bill ${n} is due by ${day}`,
     andMore: (first: string, n: number) => `${first}, and ${n} more`,
@@ -73,6 +78,9 @@ const words = catalog({
     approveBill: (n: string) =>
       `Su banco quiere que apruebe su pago de la factura ${n}`,
     approveMany: (n: number) => `Su banco quiere que apruebe ${n} pagos`,
+    refusedClean: (day: string) =>
+      `El pago de su limpieza del ${day} no se aprobó`,
+    refusedBill: (n: string) => `El pago de la factura ${n} no se aprobó`,
     nothingTakenYet: "Aún no se ha cobrado nada de este pago.",
     billDue: (n: string, day: string) => `La factura ${n} vence el ${day}`,
     andMore: (first: string, n: number) => `${first}, y ${n} más`,
@@ -235,6 +243,17 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
             action: { label: t.APPROVE_PAYMENT, href: billLink(b.id) },
           };
         }
+        // they turned it down there: theirs to try again, on its page
+        if (b.unpaid!.kind === "refused") {
+          return {
+            cents: b.totalCents,
+            late: true,
+            asks,
+            bill: b.id,
+            news: w.refusedBill(b.number),
+            action: { label: t.tryAgain, href: billLink(b.id) },
+          };
+        }
         return {
           cents: b.totalCents,
           // one the payment service is trying again asks nothing yet, and
@@ -298,6 +317,15 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
             line: t.p.yourClean(shortDayOf(j.startsAt)),
             news: w.approveClean,
             action: { label: t.APPROVE_PAYMENT, href: page },
+          };
+        }
+        if (j.unpaid === "refused") {
+          return {
+            cents: j.owedCents,
+            late: true,
+            asks,
+            news: w.refusedClean(shortDayOf(j.startsAt)),
+            action: { label: t.tryAgain, href: page },
           };
         }
         return {

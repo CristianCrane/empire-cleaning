@@ -87,10 +87,14 @@ export function PortalBill() {
   useWhilePaying(bill.paying?.status === "approving" ? bill.paying : null, () =>
     router.invalidate(),
   );
-  const approving = bill.payable && bill.unpaid?.kind === "approve";
-  const approval = useApprovePayment({
+  // their bank wants them to approve it, or they turned it down there:
+  // theirs to do here (#534 Q7)
+  const refused = bill.unpaid?.kind === "refused";
+  const approving =
+    bill.payable && (bill.unpaid?.kind === "approve" || refused);
+  const approve = useApprovePayment({
     needed: approving,
-    before: bill.paying?.status === "notApproved",
+    refused,
     start: async () => {
       const outcome = await postJson<BillPayOutcome>(
         `/api/bills/mine/${bill.id}/payment`,
@@ -109,7 +113,7 @@ export function PortalBill() {
     icon: CreditCard,
     dialog: (state) => <PayBill bill={bill} {...state} />,
   };
-  const next = approving ? approval.approve : pay || undefined;
+  const next = approving ? approve : pay || undefined;
 
   return (
     <>
@@ -120,12 +124,10 @@ export function PortalBill() {
           { label: t.p.bill(bill.number) },
         ]}
         title={t.p.bill(bill.number)}
-        status={
-          <BillStatusBadge bill={bill} forClient refused={approval.refused} />
-        }
+        status={<BillStatusBadge bill={bill} forClient />}
         next={next}
         actions={[pay !== next && pay, print].filter((a) => !!a)}
-        alerts={[useStanding(bill, next, approval.refused)]}
+        alerts={[useStanding(bill, next)]}
         details={
           <BillDetail
             bill={bill}
@@ -142,12 +144,10 @@ export function PortalBill() {
 
 // what's left to do about it, if anything; while it's unpaid, that a
 // cleaning plan with cleans on it is paused, when one is. `next` is the
-// page's next step; `refused`, that they've just turned its payment down
-// at their bank
+// page's next step
 function useStanding(
   bill: BillView,
   next: PageAction | undefined,
-  refused: boolean,
 ): Alert | null {
   const t = useSaid(words);
   const isPaused = pausedPlans(bill.plans).length > 0;
@@ -192,10 +192,11 @@ function useStanding(
     };
   }
   // its payment, charged without them there, their bank wants them to
-  // approve: the page's Approve payment (#534 Q7)
-  if (bill.unpaid?.kind === "approve") {
+  // approve, or they turned it down there: the page's Approve payment, or
+  // Try again (#534 Q7)
+  if (bill.unpaid?.kind === "approve" || bill.unpaid?.kind === "refused") {
     return approveAlert(t, {
-      refused,
+      refused: bill.unpaid.kind === "refused",
       card: t.p.card,
       more: paused,
     });

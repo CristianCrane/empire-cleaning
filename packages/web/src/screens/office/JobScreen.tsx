@@ -216,9 +216,13 @@ function useActionsOf(job: OfficeJob): {
 
   // the steps a Job waits on, the first its next
   const [next, ...steps] = [
-    // one their bank wants them to approve, they approve on its page:
-    // trying it again here would only ask again
-    job.payment?.unpaid && job.payment.unpaid.kind !== "approve" && retry,
+    // one their bank wants them to approve, they approve on its page, and
+    // one they turned down there, they try again there: trying it again
+    // here would only ask again
+    job.payment?.unpaid &&
+      job.payment.unpaid.kind !== "approve" &&
+      job.payment.unpaid.kind !== "refused" &&
+      retry,
     reported && {
       label: "Review",
       icon: ClipboardCheck,
@@ -333,6 +337,22 @@ const alertsFor = (job: OfficeJob, next?: PageAction): Alert[] => {
           <strong>{name}'s bank wants them to approve the payment.</strong> None
           of it was taken. We've emailed them to approve it on their clean's
           page.
+        </p>
+      ),
+    });
+  } else if (job.payment && unpaid?.kind === "refused") {
+    // turned down at their bank on its page: theirs to try again, red as
+    // its badge, Unpaid (#534's review F18)
+    alerts.push({
+      key: "unpaid",
+      tone: "danger",
+      children: (
+        <p>
+          <strong>
+            {firstNameOf(job.client.name)} turned down the payment at their
+            bank.
+          </strong>{" "}
+          {officeFix.refused}
         </p>
       ),
     });

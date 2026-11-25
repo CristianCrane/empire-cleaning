@@ -386,10 +386,11 @@ test("a Client trying their card again, whose bank now asks them to approve it, 
   await expect(titleBadge(page, "Done")).toBeVisible();
 });
 
-// critical-review-payment-truth.md C11: "Try this card again" tries each
-// Unpaid clean in turn. One approved and taken, then the next turned down
-// at their bank: the page says nothing was taken, and still asks for both
-test("a Client trying their card again for two cleans, approving the first and turning down the second, isn't told nothing was taken", async ({
+// critical-review-payment-truth.md C11: "Try this card again" tried each
+// Unpaid clean in turn, so one approved and taken, then the next turned
+// down at their bank, read as nothing taken. It tries the first, named with
+// its amount, and the page then asks about the next
+test("a Client with two cleans to pay tries their card for the first, then the second alone, and turned down it takes nothing more", async ({
   page,
 }) => {
   const FRIDAY_9AM = "2026-01-09T14:00:00Z";
@@ -418,37 +419,42 @@ test("a Client trying their card again for two cleans, approving the first and t
   await signedInAs(page, casey.email);
   await page.goto("/portal/payment-method");
   const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
-  await expect(needed).toContainText("and 1 more");
+  await expect(needed).toContainText("1 more clean comes after it.");
 
-  // the first clean's payment they approve; the second's they turn down
   let finishes = 0;
   await page.route("**/balance/finish", async (route) => {
     finishes += 1;
     if (finishes === 2) await requireApproval("refused");
     await route.continue();
   });
+  const paid = async () => {
+    const done: string[] = [];
+    for (const id of [monday.id, friday.id]) {
+      const job = await page.context().newPage();
+      await job.goto(`/portal/jobs/${id}`);
+      await expect(job.getByRole("heading", { level: 1 })).toBeVisible();
+      if ((await titleBadge(job, "Done").count()) > 0) done.push(id);
+      await job.close();
+    }
+    return done;
+  };
+
+  // the first, approved: taken, and the page asks about the other alone
   await needed.getByRole("button", { name: "Try this card again" }).click();
-  const told = page.getByText(
-    "Your payment wasn't approved, so nothing was taken. Please try again, or use another card.",
-  );
-  await expect(told.or(page.getByText("Payment taken"))).toBeVisible();
-  const saidNothingTaken = await told.isVisible();
+  await expect(page.getByText("Payment taken")).toBeVisible();
+  expect(finishes).toBe(1);
+  expect(await paid()).toHaveLength(1);
+  await expect(needed).not.toContainText("more clean");
+
+  // the second, turned down at their bank: nothing more taken, and it says so
+  await needed.getByRole("button", { name: "Try this card again" }).click();
+  await expect(
+    page.getByText(
+      "Your payment wasn't approved, so nothing was taken. Please try again, or use another card.",
+    ),
+  ).toBeVisible();
   expect(finishes).toBe(2);
-
-  // one of the two was taken
-  const paid: string[] = [];
-  for (const id of [monday.id, friday.id]) {
-    const job = await page.context().newPage();
-    await job.goto(`/portal/jobs/${id}`);
-    await expect(job.getByRole("heading", { level: 1 })).toBeVisible();
-    if ((await titleBadge(job, "Done").count()) > 0) paid.push(id);
-    await job.close();
-  }
-  expect(paid).toHaveLength(1);
-
-  // so the page doesn't say nothing was taken, nor still ask for both
-  expect.soft(saidNothingTaken, "told nothing was taken").toBe(false);
-  await expect.soft(needed).not.toContainText("and 1 more");
+  expect(await paid()).toHaveLength(1);
 });
 
 test("the email about a payment the Client's bank wants them to approve opens their clean, to approve it there", async ({
@@ -480,7 +486,7 @@ test("a payment the Client's bank wants them to approve, turned down there, take
   await pageAction(page, "Approve payment");
   await expect(
     page.getByText(
-      /^The payment wasn't approved\. Nothing was taken\. You can try again\.$/,
+      /^The payment wasn't approved\. None of it was taken\. Please try again\.$/,
     ),
   ).toBeVisible();
   await expect(

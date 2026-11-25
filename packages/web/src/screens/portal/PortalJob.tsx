@@ -19,7 +19,6 @@ import type {
   CancellationTerms,
   ClientJobDetail,
   JobPayment,
-  JobPayOutcome,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -65,6 +64,7 @@ import { BillStatusBadge } from "../BillParts.tsx";
 import {
   approveAlert,
   otherCard,
+  jobApproval,
   useApprovePayment,
 } from "./approve-payment.tsx";
 
@@ -247,7 +247,6 @@ export function PortalJob() {
         {
           status: job.status,
           unpaid: job.payment.unpaid?.kind ?? null,
-          refused: now.refused,
           priceChange: now.proposed.length > 0,
           skipped: wasSkipped(job),
           moveAsked: now.booked && job.rescheduleRequest?.status === "pending",
@@ -285,8 +284,6 @@ function useNow(job: ClientJobDetail): {
   next?: PageAction;
   actions: PageAction[];
   alerts: Alert[];
-  // its payment just turned down at their bank
-  refused: boolean;
 } {
   const t = useSaid(words);
   const { completion, payment } = job;
@@ -298,23 +295,17 @@ function useNow(job: ClientJobDetail): {
     .sort((a, b) => a.lapsesAt!.localeCompare(b.lapsesAt!));
   const [first] = proposed;
 
-  // their bank wants them to approve it: here, with them there (#534 Q7)
-  const approving = payment.unpaid?.kind === "approve";
+  // their bank wants them to approve it: here, with them there (#534 Q7);
+  // once they turned it down, theirs to try again here
+  const refused = payment.unpaid?.kind === "refused";
+  const approving = payment.unpaid?.kind === "approve" || refused;
   const approval = useApprovePayment({
     needed: approving,
-    start: async () => {
-      const outcome = await postJson<JobPayOutcome>(
-        `/api/jobs/mine/${job.id}/balance/retry`,
-      );
-      return outcome.status === "done" ? outcome.job : outcome;
-    },
-    finish: (approved) =>
-      postJson<ClientJobDetail>(`/api/jobs/mine/${job.id}/balance/finish`, {
-        approved,
-      }),
+    refused,
+    ...jobApproval(job.id),
     paid: () => t.w.cleanPaid,
   });
-  const approve = approving && approval.approve;
+  const approve = approving && approval;
   const updateCard: PageAction | false = !!payment.unpaid &&
     asksTheClient(payment.unpaid.kind) &&
     !approving && {
@@ -401,12 +392,11 @@ function useNow(job: ClientJobDetail): {
     proposed,
     next,
     actions,
-    refused: approval.refused,
     // what's needed of them first, before what the clean is
     alerts: [
       approving
         ? approveAlert(t, {
-            refused: approval.refused,
+            refused,
             card: payment.paymentMethod ?? t.p.card,
           })
         : payment.unpaid && unpaid(t, payment),
@@ -950,7 +940,7 @@ function Receipt({ job }: { job: ClientJobDetail }) {
             label={
               <>
                 {{ deposit: t.deposit, ...t.w.charge }[c.kind]}{" "}
-                {t.formatDate(c.chargedAt)}
+                {t.dayOf(c.chargedAt)}
                 {c.refundedCents > 0 &&
                   `, ${t.w.refunded(t.formatMoney(c.refundedCents))}`}
               </>

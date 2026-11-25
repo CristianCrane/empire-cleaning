@@ -44,6 +44,9 @@ const words = catalog({
     dueBy: (day: string) => `due by ${day}`,
     chargedToYour: "Charged to your card",
     fromYourCard: "From your card, automatically",
+    // while their bank wants them to approve it, or once they turned it
+    // down there: it's taken only when they do (#534's UX review U10)
+    onceApproved: "From your card, once you approve it",
     paidOnPage: "Paid on this page",
     paidAnother: "Paid another way",
     creditOffYour: "Nothing to pay: the credit comes off your next bill",
@@ -87,6 +90,7 @@ const words = catalog({
     dueBy: (day: string) => `vence el ${day}`,
     chargedToYour: "Cobrada a su tarjeta",
     fromYourCard: "De su tarjeta, automáticamente",
+    onceApproved: "De su tarjeta, una vez que lo apruebe",
     paidOnPage: "Pagada en esta página",
     paidAnother: "Pagada de otra forma",
     creditOffYour:
@@ -121,12 +125,9 @@ type T = Said & { w: (typeof words)["en"] };
 export function BillStatusBadge({
   bill,
   forClient = false,
-  refused = false,
 }: {
   bill: Pick<BillSummary, "status" | "unpaid" | "paying" | "totalCents">;
   forClient?: boolean;
-  // its payment just turned down at their bank, before the page reloads
-  refused?: boolean;
 }) {
   const { w, p, unpaid, paymentPending } = useSaid(words);
   if (bill.status === "void") return <StatusBadge>{w.cancelled}</StatusBadge>;
@@ -140,14 +141,9 @@ export function BillStatusBadge({
     return <StatusBadge tone="info">{paymentPending}</StatusBadge>;
   // the Client's bank wants them to approve its payment (#534 Q7): theirs
   // to do, on its page, and no failure, as a clean's says. Once they've
-  // turned it down, nothing waits on their bank: it's Unpaid (#534's UX
-  // review U1)
-  if (
-    bill.unpaid?.kind === "approve" &&
-    bill.paying?.status !== "failed" &&
-    bill.paying?.status !== "notApproved" &&
-    !refused
-  )
+  // turned it down ("refused"), nothing waits on their bank: it's Unpaid,
+  // below (#534's UX review U1)
+  if (bill.unpaid?.kind === "approve" && bill.paying?.status !== "failed")
     return (
       <StatusBadge tone="warning">
         {forClient ? p.needsApproval : CLIENT_TO_APPROVE}
@@ -224,19 +220,23 @@ const nowLine = (t: T, bill: BillView, forClient: boolean) => {
   if (bill.unpaid)
     return bill.unpaid.kind === "late"
       ? w.notPaidBy(t.formatDay(bill.dueOn))
-      : // its alert says why: the Client's bank wants them to approve it
+      : // its alert says why: the Client's bank wants them to approve it;
+        // once they turned it down, its badge says Unpaid, and nothing
+        // more is worth a line (#534's UX review U15)
         bill.unpaid.kind === "approve"
         ? w.notPaidYet
-        : asksTheClient(bill.unpaid.kind)
-          ? w.didntGo(t.dayOf(bill.unpaid.since))
-          : // to the minute for the Office, whose alert says it usually
-            // takes under half an hour, so Olive can tell when it's stuck
-            // (#534's UX review U9)
-            w.notYet(
-              forClient
-                ? t.dayOf(bill.unpaid.since)
-                : t.formatDateTime(bill.unpaid.since),
-            );
+        : bill.unpaid.kind === "refused"
+          ? null
+          : asksTheClient(bill.unpaid.kind)
+            ? w.didntGo(t.dayOf(bill.unpaid.since))
+            : // to the minute for the Office, whose alert says it usually
+              // takes under half an hour, so Olive can tell when it's stuck
+              // (#534's UX review U9)
+              w.notYet(
+                forClient
+                  ? t.dayOf(bill.unpaid.since)
+                  : t.formatDateTime(bill.unpaid.since),
+              );
   if (bill.status === "due")
     return bill.payment === "on_page"
       ? w.toPayBy(t.formatDay(bill.dueOn))
@@ -307,19 +307,23 @@ export function BillDetail({
       icon={CreditCard}
       label={w.howPaid}
       value={
-        bill.payment !== "on_page"
+        bill.unpaid?.kind === "approve" || bill.unpaid?.kind === "refused"
           ? forClient
-            ? w.fromYourCard
-            : "From their card, automatically"
-          : // its bank debit on its way, from their bank, as there's
-            // no paying on its page meanwhile (#534's UX review U17)
-            bill.status === "processing"
+            ? w.onceApproved
+            : "From their card, once they approve it"
+          : bill.payment !== "on_page"
             ? forClient
-              ? w.fromYourBank
-              : "From their bank account"
-            : forClient
-              ? w.onThisPage
-              : "On its page, by card or bank account"
+              ? w.fromYourCard
+              : "From their card, automatically"
+            : // its bank debit on its way, from their bank, as there's
+              // no paying on its page meanwhile (#534's UX review U17)
+              bill.status === "processing"
+              ? forClient
+                ? w.fromYourBank
+                : "From their bank account"
+              : forClient
+                ? w.onThisPage
+                : "On its page, by card or bank account"
       }
     />,
     standing && (
@@ -355,7 +359,9 @@ export function BillDetail({
       <div className="flex flex-col gap-3 border-t border-border pt-4">
         {/* the tax is said by the total's label and its own line below */}
         <p className="font-semibold text-fg">{w.whatFor}</p>
-        <div className="flex flex-col">
+        {/* within 28rem, beside their labels, as a clean's receipt holds
+            its figures (#534's UX review U13) */}
+        <div className="flex max-w-md flex-col">
           {bill.lines.map((line, i) => (
             <div
               key={i}

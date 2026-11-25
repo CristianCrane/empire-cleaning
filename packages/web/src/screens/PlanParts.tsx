@@ -57,6 +57,9 @@ const words = catalog({
     // a payment their bank wants them to approve, on its page (#534 Q7)
     toApprove: (what: string) =>
       `Your bank wants you to approve the payment for ${what}. None of it has been taken yet.`,
+    // the same, once they turned it down at their bank (#534's review F18)
+    refused: (what: string) =>
+      `The payment for ${what} wasn't approved. None of it was taken.`,
     // a payment we try again ourselves, still on its way
     notYet: (what: string) => `The payment for ${what} is pending.`,
     cancels: (cleans: number, hours: number, when: string) =>
@@ -92,6 +95,8 @@ const words = catalog({
     couldntTake: "No pudimos cobrar ",
     toApprove: (what: string) =>
       `Su banco quiere que apruebe el pago de ${what}. Aún no se ha cobrado nada de este pago.`,
+    refused: (what: string) =>
+      `El pago de ${what} no se aprobó. No se cobró nada.`,
     notYet: (what: string) => `El pago de ${what} está pendiente.`,
     cancels: (cleans: number, hours: number, when: string) =>
       oneStop(
@@ -169,11 +174,14 @@ export function useOnHold(
   if (plan?.status !== "on_hold") return { alerts: [] };
   const asks = (u: { kind: UnpaidKind }) => asksTheClient(u.kind);
   // their bank wants them to approve it: on its own page (#534 Q7)
-  const approveOn = (href: AppHref) => ({
-    label: t.APPROVE_PAYMENT,
+  // approved, or tried again once turned down, on its page
+  const approveOn = (href: AppHref, kind: UnpaidKind) => ({
+    label: kind === "refused" ? t.tryAgain : t.APPROVE_PAYMENT,
     icon: ShieldCheck,
     href,
   });
+  const onItsPage = (kind: UnpaidKind) =>
+    kind === "approve" || kind === "refused";
   // the ones that ask something first, as money that asks leads: the
   // first alert, which says the pause, then says it of a payment that asks
   const unpaid = [
@@ -186,8 +194,8 @@ export function useOnHold(
       // a clean's payment is put right by a card that works, which tries
       // it again; or, their bank wanting them to approve it, on its page
       way: forClient
-        ? u.kind === "approve"
-          ? approveOn(jobHref(u.jobId))
+        ? onItsPage(u.kind)
+          ? approveOn(jobHref(u.jobId), u.kind)
           : {
               label: t.UPDATE_CARD,
               icon: CreditCard,
@@ -206,8 +214,8 @@ export function useOnHold(
         ? t.w.billN(b.number, t.formatMoney(b.totalCents))
         : `bill ${b.number} (${t.formatMoney(b.totalCents)})`,
       way:
-        forClient && b.kind === "approve"
-          ? approveOn(billHref(b.billId))
+        forClient && onItsPage(b.kind)
+          ? approveOn(billHref(b.billId), b.kind)
           : {
               label: forClient ? t.payBill(b.number) : t.seeBill(b.number),
               icon: FileText,
@@ -239,11 +247,15 @@ export function useOnHold(
           ? forClient
             ? t.w.toApprove(u.what)
             : `The client's bank wants them to approve the payment for ${u.what}. None of it was taken. ${officeFix.approve}`
-          : asks(u)
-            ? `${forClient ? t.w.couldntTake : "The client's payment didn't go through for "}${u.what}.`
-            : forClient
-              ? `${t.w.notYet(u.what)} ${t.NOTHING_TO_DO}`
-              : `The client's payment for ${u.what} hasn't gone through yet. ${officeFix.waiting}`}
+          : u.kind === "refused"
+            ? forClient
+              ? t.w.refused(u.what)
+              : `The client turned down the payment for ${u.what} at their bank. ${officeFix.refused}`
+            : asks(u)
+              ? `${forClient ? t.w.couldntTake : "The client's payment didn't go through for "}${u.what}.`
+              : forClient
+                ? `${t.w.notYet(u.what)} ${t.NOTHING_TO_DO}`
+                : `The client's payment for ${u.what} hasn't gone through yet. ${officeFix.waiting}`}
         {i === 0 &&
           (forClient
             ? ` ${t.noMoreCleans(asks(u))}`

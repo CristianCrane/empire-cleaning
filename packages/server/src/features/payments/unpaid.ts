@@ -18,6 +18,10 @@ import { NO_CARD, UNREACHABLE } from "./money.ts";
 export const NOT_SETTLED = "its payment couldn't be worked out";
 // why a Bill paid on its page is Unpaid
 export const LATE = "not paid by its due date";
+// why a payment their bank wanted them to approve is still Unpaid, once they
+// turned it down at their bank on its page: theirs to try again (#534's
+// review F18), said by the server so every page and list agrees
+export const REFUSED = "turned down at their bank";
 
 // ours, and the provider's own that we know: each with its kind. A bank
 // asking for a charge made without the Client there to be approved is theirs
@@ -29,6 +33,7 @@ const known: Record<string, UnpaidKind> = {
   [NO_CARD]: "no_card",
   [LATE]: "late",
   [APPROVE]: "approve",
+  [REFUSED]: "refused",
 };
 
 // why, in words, in the reader's language (ADR-0025): ours, and the few

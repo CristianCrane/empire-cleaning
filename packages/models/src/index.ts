@@ -1869,10 +1869,12 @@ export type JobPayment = {
 // why a payment didn't go through, by what puts it right: "declined", a new
 // card or another way to pay; "approve", the Client approving it with their
 // bank on its page, as it was charged without them there (#534 Q7);
+// "refused", the same, once they turned it down at their bank there, so
+// it's theirs to try again or pay with another card;
 // "waiting", nothing, as we try again ourselves (ADR-0022); "no_card",
 // adding one; "late", paying the Bill on its page
 export type UnpaidKind =
-  "declined" | "approve" | "waiting" | "no_card" | "late";
+  "declined" | "approve" | "refused" | "waiting" | "no_card" | "late";
 
 // since when it's been Unpaid, and why: a clause for after "didn't go
 // through" ("the card has expired"), or null when there's no more to say

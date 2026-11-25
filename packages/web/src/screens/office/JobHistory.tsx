@@ -229,10 +229,12 @@ const momentsOf = (job: OfficeJob): Moment[] => {
   });
   const unpaid = job.payment?.unpaid;
   if (unpaid) {
+    const approval = unpaid.kind === "approve" || unpaid.kind === "refused";
     moments.push({
       key: "unpaid",
       at: unpaid.since,
-      icon: unpaid.kind === "approve" ? ShieldAlert : CircleAlert,
+      // since their bank asked: one they've turned down since asked then
+      icon: approval ? ShieldAlert : CircleAlert,
       // named as its charge would be once it goes through: what's owed once
       // done is the Balance, once it didn't happen its fee
       title: `${
@@ -244,7 +246,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       } of ${formatMoney(job.payment!.owedCents)} ${
         // their bank wanting them to approve it took nothing, and isn't a
         // failure (#534 Q7)
-        unpaid.kind === "approve"
+        approval
           ? `needs ${firstNameOf(job.client.name)}'s approval`
           : "didn't go through"
       }`,

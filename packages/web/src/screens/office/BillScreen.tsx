@@ -86,13 +86,14 @@ export function BillScreen() {
     why,
     dialog: (state) => <RecordPayment bill={bill} {...state} />,
   };
-  // one their bank wants them to approve is theirs, as the Office's Job
-  // says: nothing next here (#534's UX review U2)
+  // one their bank wants them to approve, or that they turned down there,
+  // is theirs, as the Office's Job says: nothing next here (#534's UX
+  // review U2)
+  const theirs =
+    bill.unpaid?.kind === "approve" || bill.unpaid?.kind === "refused";
   const next =
     due &&
-    ((!!bill.unpaid &&
-      asksTheClient(bill.unpaid.kind) &&
-      bill.unpaid.kind !== "approve") ||
+    ((!!bill.unpaid && asksTheClient(bill.unpaid.kind) && !theirs) ||
       bill.paying?.status === "failed");
 
   return (
@@ -139,13 +140,14 @@ function standing(bill: BillView): Alert | null {
     };
   }
   if (bill.status !== "due") return null;
+  const name = firstNameOf(bill.client.name);
   // the Client approving their payment with their bank, which waits on
   // them, till `until`
   if (bill.paying?.status === "approving") {
     return {
       key: "approving",
       tone: "warning",
-      children: `${clientPayingBill.page(bill.client.name, formatTime(bill.paying.until))}${plansPaused(bill)}`,
+      children: `${clientPayingBill.page(bill.client.name, formatTime(bill.paying.until))}${plansPaused(bill, `${name}'s`)}`,
     };
   }
   // over why it's unpaid, if it is: it's being tried now, and Office Staff
@@ -154,7 +156,7 @@ function standing(bill: BillView): Alert | null {
     return {
       key: "paymentNotDone",
       tone: "info",
-      children: `${paymentNotDone.page}${plansPaused(bill)}`,
+      children: `${paymentNotDone.page}${plansPaused(bill, "the client's")}`,
     };
   }
   // the Client's last payment on its page didn't go through, as they were
@@ -167,7 +169,7 @@ function standing(bill: BillView): Alert | null {
     return {
       key: "failed",
       tone: "danger",
-      children: `The client's payment didn't go through on ${formatShortDay(dayOfInstant(at))}${because(why)}. ${late ? `${officeFix.late}${plansPaused(bill)}` : "They can try again on its page."}`,
+      children: `The client's payment didn't go through on ${formatShortDay(dayOfInstant(at))}${because(why)}. ${late ? `${officeFix.late}${plansPaused(bill, "the client's")}` : "They can try again on its page."}`,
     };
   }
   // their last one on its page never approved (by their bank, or they
@@ -181,12 +183,10 @@ function standing(bill: BillView): Alert | null {
     };
   }
   // the Client's bank wants them to approve its payment (#534 Q7): theirs
-  // to do on its page, as we've emailed them, and no failure
   // to do on its page, as we've emailed them, and no failure; once they
   // turned it down there, theirs to try again
-  if (bill.unpaid?.kind === "approve") {
-    const name = firstNameOf(bill.client.name);
-    const refused = bill.paying?.status === "notApproved";
+  if (bill.unpaid?.kind === "approve" || bill.unpaid?.kind === "refused") {
+    const refused = bill.unpaid.kind === "refused";
     return {
       key: "unpaid",
       tone: "warning",
@@ -200,7 +200,7 @@ function standing(bill: BillView): Alert | null {
           {refused
             ? "None of it was taken. They can try again on the bill's page."
             : "None of it was taken. We've emailed them to approve it on the bill's page."}
-          {plansPaused(bill)}
+          {plansPaused(bill, `${name}'s`)}
         </p>
       ),
     };
@@ -217,7 +217,7 @@ function standing(bill: BillView): Alert | null {
           : asksTheClient(kind)
             ? `Its payment didn't go through${because(why)}.`
             : `Its payment hasn't gone through yet${because(why)}.`
-      } ${officeFix[kind]}${plansPaused(bill)}`,
+      } ${officeFix[kind]}${plansPaused(bill, "the client's")}`,
     };
   }
   // one simply due says when by in its line, and how it's paid in its facts
@@ -225,13 +225,13 @@ function standing(bill: BillView): Alert | null {
 }
 
 // which of the client's cleaning plans it keeps paused, by their homes, as
-// the Office's Needs attention names them, by the client's name as the
-// alert's lead does; the Bill's own home, its Where fact, once (#534's UX
-// review U6); nothing when it holds none
-function plansPaused(bill: BillView) {
+// the Office's Needs attention names them; `whose`, the client as the
+// alert's lead names them ("Casey's", "the client's"; #534's review F19);
+// the Bill's own home, its Where fact, once (#534's UX review U6); nothing
+// when it holds none
+function plansPaused(bill: BillView, whose: string) {
   const homes = pausedPlans(bill.plans).map((p) => addressOf(p.property));
   if (homes.length === 0) return "";
-  const whose = `${firstNameOf(bill.client.name)}'s`;
   if (homes.length > 1)
     return ` Until it's paid, ${whose} cleaning plans at ${formatList(homes)} are paused.`;
   return ` Until it's paid, ${whose} cleaning plan at ${homes[0] === bill.home ? "this home" : homes[0]} is paused.`;
@@ -271,6 +271,11 @@ function RecordPayment({ bill, ...state }: { bill: BillView } & DialogState) {
           <p>
             For {formatMoney(bill.totalCents)} paid another way. It marks the
             bill paid, and we email the client a receipt.
+            {/* the card payment waiting on them, which took nothing, so
+                they're never asked twice (#534's UX review U11) */}
+            {(bill.unpaid?.kind === "approve" ||
+              bill.unpaid?.kind === "refused") &&
+              ` ${firstNameOf(bill.client.name)} won't be asked to approve the card payment any more, and none of it was taken.`}
           </p>
           <TextField
             label="How it was paid"

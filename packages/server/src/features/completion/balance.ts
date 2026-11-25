@@ -39,7 +39,12 @@ import {
   type Charge,
   type ChargeItem,
 } from "../payments/payments.schema.ts";
-import { nowTheirs, NOT_SETTLED, unpaidOf } from "../payments/unpaid.ts";
+import {
+  nowTheirs,
+  NOT_SETTLED,
+  REFUSED,
+  unpaidOf,
+} from "../payments/unpaid.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { holdOrResume, planOnHold } from "../service-plans/on-hold.ts";
@@ -454,8 +459,9 @@ export const settleJob = async (
     }
 
     // once their bank's check is done, nothing new is asked for: one they
-    // refused leaves the Job as it was; one their bank declined once it
-    // was approved is Unpaid for that
+    // turned down is theirs to try again (REFUSED, #534's review F18), the
+    // server's word for it, so every page and list says it; one their bank
+    // declined once it was approved is Unpaid for that
     if (
       moves &&
       ledger.owedCents > 0 &&
@@ -466,7 +472,14 @@ export const settleJob = async (
         newest?.status === "failed" &&
         newest.reason !== APPROVE &&
         !NOT_APPROVED(newest.reason);
-      settled.failure = declined ? (newest.reason ?? waiting) : waiting;
+      const refused =
+        by === "refused" ||
+        (newest?.status === "failed" && NOT_APPROVED(newest.reason));
+      settled.failure = declined
+        ? (newest.reason ?? waiting)
+        : refused
+          ? REFUSED
+          : waiting;
       settled.notApproved = !declined;
     } else if (moves && ledger.owedCents > 0) {
       const charged = await chargeSaved(tx, {

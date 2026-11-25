@@ -843,7 +843,8 @@ const portalPaymentMethodRoute = createRoute({
     // the cleans a card puts right; one waiting on the payment service we
     // try again ourselves, and one their bank wants them to approve is
     // approved on its own page, where trying it here would only ask again
-    // (#534 Q7)
+    // (#534 Q7). One they turned down there is here: its "Use a different
+    // card" leads here, to try this card again or save another
     return {
       saved,
       unpaid: pastJobs.filter(
