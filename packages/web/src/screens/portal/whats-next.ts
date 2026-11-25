@@ -23,6 +23,7 @@ import {
   type ClientSiteVisit,
   type ClientUpcomingJob,
   type ClientView,
+  type OfferedQuoteSummary,
   type PaymentMethodView,
   type QuoteSummary,
   type ServicePlanSummary,
@@ -115,7 +116,6 @@ const words = catalog({
     expired: "Your quote expired",
     wasOpenUntil: (day: string) =>
       `It was open until ${day}. Ask again and we'll price it afresh.`,
-    askAgain: "Ask again and we'll price it afresh.",
     couldntTake: "We couldn't take this one on",
     sorry: "Sorry, we can't take this one on",
     changedMind: "Changed your mind?",
@@ -195,7 +195,6 @@ const words = catalog({
     expired: "Su cotización venció",
     wasOpenUntil: (day: string) =>
       `Estuvo abierta hasta el ${day}. Pídala de nuevo y le daremos un precio nuevo.`,
-    askAgain: "Pídala de nuevo y le daremos un precio nuevo.",
     couldntTake: "No pudimos aceptar este trabajo",
     sorry: "Lo sentimos, no podemos aceptar este trabajo",
     changedMind: "¿Cambió de opinión?",
@@ -516,36 +515,34 @@ export function whatsNext(
 // the tile it makes a repeat
 type Answer = { hero: Hero; why?: Why; aside?: string };
 
+type SentQuote = Extract<QuoteSummary, { status: "sent" }>;
+
 type Context = {
   next: Booked | undefined;
   paused: ServicePlanSummary | undefined;
-  leadingQuote?: QuoteSummary;
+  leadingQuote?: SentQuote;
   // a quote waiting on nothing of theirs, as the card (#534)
-  state?: QuoteSummary;
+  state?: SentQuote;
   now: Date;
 };
 
 // a sent quote's line on its card: when, and at which home
-const forLine = (t: Said, quote: QuoteSummary) =>
+const forLine = (t: Said, quote: OfferedQuoteSummary) =>
   [
-    quote.proposedStartsAt &&
-      t.w.forWhen(t.formatDateTime(quote.proposedStartsAt)),
+    t.w.forWhen(t.formatDateTime(quote.proposedStartsAt)),
     addressOf(quote.property),
-  ]
-    .filter(Boolean)
-    .join(t.w.at);
-
-// the Service a sent quote leads with: the server's, what's still bookable
-const serviceOf = (q: QuoteSummary) => q.headlineServiceName ?? q.service.name;
+  ].join(t.w.at);
 
 // a quote's payment as Home names it: a plan by its home; a clean by the
-// Service paid for and, in News, under another card, by its time and home
+// Service paid for (the server's, there with any one-off's payment) and, in
+// News, under another card, by its time and home. A closed quote's (a
+// Turned Down one has no offer) is only ever over its own card
 const namedFor = (t: Said, q: QuoteSummary, news: boolean): DepositNamed =>
   q.kind === "service_plan"
     ? { plan: true, at: addressOf(q.property) }
     : {
         plan: false,
-        service: q.payingServiceName ?? serviceOf(q),
+        service: q.payingServiceName ?? q.service.name,
         news:
           news && q.proposedStartsAt
             ? {
@@ -580,10 +577,11 @@ function endingOf(t: Said, q: QuoteSummary, news: boolean): Why | undefined {
     card,
     plan: q.kind === "service_plan",
     expired: q.status === "expired",
-    // what's still bookable then, when its own Service's time filled
+    // what's still bookable then, when its own Service's time filled: the
+    // server leads a refunded quote with it
     other:
       paying.why === "no_room" && q.kind === "one_off" && q.bookable?.length
-        ? serviceOf(q)
+        ? q.headlineServiceName
         : null,
   };
   const lead = t.depositRefundedOn(n, card);
@@ -599,9 +597,9 @@ function endingOf(t: Said, q: QuoteSummary, news: boolean): Why | undefined {
 
 // a quote whose time filled since it was sent, named as its page names it
 // (models' bookedUp): one sent to a home with a plan changes that plan
-const filledOf = (q: QuoteSummary) =>
+const filledOf = (q: SentQuote) =>
   filledDaysOf({ plan: q.plan, changes: Boolean(q.homePlanId) });
-const filledNews = (t: Said, q: QuoteSummary) => {
+const filledNews = (t: Said, q: SentQuote) => {
   const at = addressOf(q.property);
   switch (filledOf(q)) {
     case "change":
@@ -610,8 +608,8 @@ const filledNews = (t: Said, q: QuoteSummary) => {
       return `${t.w.planFilledNews(at)} ${t.NEW_QUOTE}`;
     case "clean":
       return `${t.w.filledNews(
-        t.formatDateTime(q.proposedStartsAt!),
-        serviceOf(q),
+        t.formatDateTime(q.proposedStartsAt),
+        q.headlineServiceName,
         at,
       )} ${t.NEW_QUOTE}`;
   }
@@ -621,7 +619,7 @@ const filledNews = (t: Said, q: QuoteSummary) => {
 // design, Screen 2): its Deposit going through, or a card saved with
 // nothing charged (a 0% Deposit) finishing; or its time filled, with a
 // refund's alert when one came of it. Nothing to do: an outlined button
-function stateOf(t: Said, q: QuoteSummary): Answer {
+function stateOf(t: Said, q: SentQuote): Answer {
   const action = { ...seeQuote(t, q.id), secondary: true };
   const plan = q.kind === "service_plan";
   if (q.paying?.status === "goingThrough") {
@@ -646,7 +644,7 @@ function stateOf(t: Said, q: QuoteSummary): Answer {
               lineOf([
                 depositOf(
                   t.lang,
-                  plan ? null : (q.payingServiceName ?? serviceOf(q)),
+                  plan ? null : (q.payingServiceName ?? q.headlineServiceName),
                 ),
                 t.NOTHING_TO_DO,
               ]),
@@ -690,9 +688,7 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Answer {
         headline: t.quoteHeadline(leadingQuote),
         lines: [
           forLine(t, leadingQuote),
-          ...(leadingQuote.expiresAt
-            ? [t.p.openUntil(dayOf(leadingQuote.expiresAt))]
-            : []),
+          t.p.openUntil(dayOf(leadingQuote.expiresAt)),
           // their bank waiting on them to approve it: still theirs to do
           ...(paying?.status === "approving"
             ? [
@@ -853,9 +849,7 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Answer {
         icon: CalendarClock,
         tone: "neutral",
         headline: t.quoteHeadline(last),
-        lines: [
-          last.expiresAt ? w.wasOpenUntil(dayOf(last.expiresAt)) : w.askAgain,
-        ],
+        lines: [w.wasOpenUntil(dayOf(last.expiresAt))],
         action: requestQuote(t),
       },
       why: refund,

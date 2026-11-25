@@ -79,7 +79,7 @@ export function standingOf(
     return {
       tone: "warning",
       label: w.quote(clientQuoteStatus.sent.label),
-      line: w.sent(sent.service.name, shortDayOf(sent.sentAt!)),
+      line: w.sent(sent.service.name, shortDayOf(sent.sentAt)),
     };
   }
   const next = data.jobs

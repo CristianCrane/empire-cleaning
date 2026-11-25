@@ -1357,13 +1357,55 @@ export type FirstCleanFindings = {
   adjustments: AdjustmentView[];
 };
 
-// A Quote in a list, for the Office or its Client. Its offer's figures are
-// its latest Sent Revision's; for the Office, until one is Sent, its Draft
-// Revision's, if it has one.
-export type QuoteSummary = {
+// A Quote in a list, for the Office or its Client: one with an offer, or
+// one with nothing Sent yet
+export type QuoteSummary = OfferedQuoteSummary | UnsentQuoteSummary;
+
+// the statuses a Quote has once a Revision of it is Sent: Turn Down refuses
+// a Sent Quote, and only a Sent one is Accepted, Declined or Expires
+type OfferedStatus = "sent" | "accepted" | "declined" | "expired";
+
+// A Quote with an offer, its latest Sent Revision, whose figures it shows.
+// Sending writes them all at once, so each is there. One member per status,
+// so that `status === "sent"` narrows to the Sent one.
+export type OfferedQuoteSummary = {
+  [S in OfferedStatus]: QuoteSummaryFields & {
+    status: S;
+    // the total it leads with, tax included: a Service Plan Quote's round,
+    // a clean on each weekday, or a one-off Quote's option: to the Office
+    // its Revision's own Service (the one asked for, unless the Office
+    // changed it), or once Accepted the one booked; to its Client the
+    // first, the recommended one where there is one (ADR-0018), unless
+    // they're paying for another (`paying`), so the list, its alert and
+    // their bank's request name the same clean (#534's UX review U23). A
+    // refunded one leads with the first Service it can still be booked as,
+    // what's on offer now, and names the refunded clean only when none can
+    // (Fully booked, or closed: U37)
+    headlineTotalCents: number;
+    // the Service that one-off option is for, or the one a Service Plan
+    // Quote's cleans are all of
+    headlineServiceName: string;
+    proposedStartsAt: string;
+    sentAt: string;
+    expiresAt: string;
+  };
+}[OfferedStatus];
+
+// A Quote with nothing Sent yet: Requested, a Draft (to its Client,
+// Requested), or Turned Down. To the Office, its Draft Revision's figures,
+// as an offer's above, once it has one; to its Client, none.
+export type UnsentQuoteSummary = QuoteSummaryFields & {
+  status: Exclude<QuoteStatus, OfferedStatus>;
+  headlineTotalCents: number | null;
+  headlineServiceName: string | null;
+  proposedStartsAt: string | null;
+  sentAt: null;
+  expiresAt: null;
+};
+
+type QuoteSummaryFields = {
   id: string;
   kind: QuoteKind | null;
-  status: QuoteStatus;
   origin: QuoteOrigin;
   asked: QuoteAsked | null;
   // the Service it's for now
@@ -1373,25 +1415,8 @@ export type QuoteSummary = {
   // its home's Service Plan, unless it has none or it has Ended: a Service
   // Plan Quote, or one asked for, may change it
   homePlanId: string | null;
-  // the total it leads with, tax included: a Service Plan Quote's round, a
-  // clean on each weekday, or a one-off Quote's option: to the Office its
-  // Revision's own Service (the one asked for, unless the Office changed
-  // it), or once Accepted the one booked; to its Client the first, the
-  // recommended one where there is one (ADR-0018), unless they're paying
-  // for another (`paying`), so the list, its alert and their bank's
-  // request name the same clean (#534's UX review U23). A refunded one
-  // leads with the first Service it can still be booked as, what's on
-  // offer now, and names the refunded clean only when none can (Fully
-  // booked, or closed: U37). Null with no Revision
-  headlineTotalCents: number | null;
-  // the Service that one-off option is for, or the one a Service Plan
-  // Quote's cleans are all of; null with no Revision
-  headlineServiceName: string | null;
   // a Service Plan Quote's; null otherwise
   plan: { recurrence: Recurrence; days: PlanDaySummary[] } | null;
-  proposedStartsAt: string | null;
-  sentAt: string | null;
-  expiresAt: string | null;
   // for the Office: whether a Revision is being drafted
   drafting: boolean;
   siteVisit: SiteVisitStage;
