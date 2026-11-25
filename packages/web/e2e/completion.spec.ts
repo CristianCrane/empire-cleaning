@@ -1,4 +1,4 @@
-import type { Browser } from "@playwright/test";
+import type { Browser, Page } from "@playwright/test";
 import {
   acceptedJob,
   completeJob,
@@ -529,6 +529,54 @@ test("Office Staff see a Job's payment is the Client's to approve, emailed so, w
   await expect(page.getByRole("region", { name: "History" })).toContainText(
     /Balance of \$[\d.,]+ needs Casey's approval/,
   );
+  await expectNothingNext(page);
+});
+
+// #534's change review F18: a payment turned down at their bank read so
+// only on the page it was pressed on, so Home and the Office's Job still
+// said it waited on the Client's approval. The server keeps it
+const turnedDown = async (page: Page) => {
+  const job = await doneOnACardThatAsks();
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/jobs/${job.id}`);
+  await requireApproval("refused");
+  await pageAction(page, "Approve payment");
+  await expect(titleBadge(page, "Unpaid")).toBeVisible();
+  return job;
+};
+
+test("a payment the Client turned down at their bank reads so on their Home and Payments, to try again on its page", async ({
+  page,
+}) => {
+  const job = await turnedDown(page);
+  await page.goto("/portal/payments");
+  await expect(
+    page.getByText(/^The payment for your Jan 12 clean wasn't approved/),
+  ).toBeVisible();
+  await expect(page.getByText(/approve your clean's payment/)).toBeHidden();
+
+  await page.goto("/portal");
+  await expect(
+    page.getByText(/^The payment for your Jan 12 clean wasn't approved/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Try again" }).first(),
+  ).toHaveAttribute("href", `/portal/jobs/${job.id}`);
+});
+
+test("Office Staff see a Job's payment the Client turned down at their bank as Unpaid, theirs to try again", async ({
+  page,
+}) => {
+  const job = await turnedDown(page);
+  await signedInAs(page, olive.email);
+  await page.goto(`/office/jobs/${job.id}`);
+  await expect(titleBadge(page, "Unpaid")).toBeVisible();
+  await expect(
+    page.getByText(
+      /^Casey turned down the payment at their bank. None of it was taken. They can try again on its page, or use another card.$/,
+    ),
+  ).toBeVisible();
+  await expect(page.getByText(/wants them to approve/)).toBeHidden();
   await expectNothingNext(page);
 });
 
