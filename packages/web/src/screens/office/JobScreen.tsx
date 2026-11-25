@@ -90,7 +90,7 @@ import { QUOTE_A_PLAN, useStartDraft } from "./StartDraft.tsx";
 const w = screenWords.en;
 const { cleaners, cancelledLabel, jobStatusLabel } = w;
 
-const { formatDateTime, formatMoney, formatTime } = formats.en;
+const { formatDateTime, formatTime } = formats.en;
 
 const booked = (job: OfficeJob) => job.status === "booked";
 
@@ -330,12 +330,9 @@ const alertsFor = (job: OfficeJob, next?: PageAction): Alert[] => {
       tone: "warning",
       children: (
         <p>
-          <strong>
-            {name}'s bank wants them to approve the{" "}
-            {formatMoney(job.payment.owedCents)} payment.
-          </strong>{" "}
-          None of it was taken. We've emailed them to approve it on their
-          clean's page.
+          <strong>{name}'s bank wants them to approve the payment.</strong> None
+          of it was taken. We've emailed them to approve it on their clean's
+          page.
         </p>
       ),
     });

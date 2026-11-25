@@ -51,6 +51,7 @@ import type {
 import {
   acceptedWith,
   clientPaying,
+  CLIENT_TO_APPROVE,
   firstNameOf,
   inLine,
   noEmailYet,
@@ -328,7 +329,11 @@ function useNow(quote: OfficeQuote): Now {
     label: "Record acceptance",
     icon: CircleCheck,
     isDisabled: paying !== null,
-    why: clientPaying.item(firstNameOf(name), paying?.deposit === null),
+    why: clientPaying.item(
+      firstNameOf(name),
+      paying?.deposit === null,
+      paying?.finishing ?? false,
+    ),
     dialog: (state) => (
       <RecordAcceptanceDialog
         quote={offer!}
@@ -1351,7 +1356,7 @@ function RecordAcceptanceDialog({
     // its first sentence, what happened, the lead
     const [lead, ...rest] = action.problem!.split(/(?<=\.) /);
     return (
-      <Dialog title="Record acceptance?" role="alertdialog" {...state}>
+      <Dialog title={CLIENT_TO_APPROVE} role="alertdialog" {...state}>
         {({ close }) => (
           <>
             <Notice tone="warning" answers>

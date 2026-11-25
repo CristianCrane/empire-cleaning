@@ -15,17 +15,21 @@ type NeedsApproval = { status: "needs_approval"; secret: string };
  * payment asks our server to take it with their saved card, there for them
  * (`start`); their bank asks them, and `finish` tells the server how that
  * went. Not approved, nothing is taken and `refused` says so, for the
- * page's alert, until they press it again. `paid` is the toast, from what
+ * page's alert and badge, until they press it again, whose label then says
+ * it's a fresh try (#534's UX review U1); `before`, that the server holds
+ * it as turned down already (a Bill's). `paid` is the toast, from what
  * the payment gave back.
  */
 export function useApprovePayment<T>({
   needed,
+  before = false,
   start,
   finish,
   paid,
 }: {
   // whether the page has a payment to approve: its form loads only then
   needed: boolean;
+  before?: boolean;
   start: () => Promise<T | NeedsApproval>;
   finish: (approved: boolean) => Promise<T>;
   paid: (result: T) => string;
@@ -39,7 +43,8 @@ export function useApprovePayment<T>({
     toast: true,
     reloadOnFailure: true,
   });
-  const [refused, setRefused] = useState(false);
+  const [justRefused, setRefused] = useState(false);
+  const refused = justRefused || before;
 
   const pay = () =>
     paying.run(
@@ -63,7 +68,7 @@ export function useApprovePayment<T>({
     );
 
   const approve: PageAction = {
-    label: t.APPROVE_PAYMENT,
+    label: refused ? t.tryAgain : t.APPROVE_PAYMENT,
     icon: ShieldCheck,
     isPending: paying.isPending,
     isDisabled: !payment.isReady,

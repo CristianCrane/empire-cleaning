@@ -152,6 +152,9 @@ export type PayingFor = {
   changing: boolean;
   until: string;
   finishing: boolean;
+  // when it started, to the minute, as the Office's Bill says its own, so
+  // Office Staff can tell one stuck (#534's UX review U3)
+  since: string;
 };
 // where the server says the Client's paying stands (OfficeQuote's
 // `paying`), as these words take it: one copy, so the server's refusals
@@ -160,6 +163,7 @@ export const payingFor = (
   name: string,
   paying: {
     until: string | Date;
+    since: string | Date;
     finishing: boolean;
     serviceName: string | null;
     changing: boolean;
@@ -174,6 +178,7 @@ export const payingFor = (
   service: paying.serviceName,
   changing: paying.changing,
   until: formats.en.formatTime(paying.until),
+  since: formats.en.formatDateTime(paying.since),
   finishing: paying.finishing,
 });
 // a payment their bank is finishing, past `until`: too far on to call off.
@@ -203,15 +208,16 @@ const payingWhat = ({
   service,
   changing,
   finishing,
+  since,
 }: PayingFor) => {
   const what = forWhat({ service, changing });
   if (deposit === null) {
     return finishing
-      ? `${name} is accepting online, ${what}: ${cardFinishing}. It books on its own, usually within half an hour.`
+      ? `${name} is accepting online, ${what}, started ${since}: ${cardFinishing}. It books on its own, usually within half an hour.`
       : `${name} is accepting online, ${what}, waiting on their bank to approve their card.`;
   }
   return finishing
-    ? `${name}'s online payment of the ${deposit} deposit, ${what}, ${goingThrough}.`
+    ? `${name}'s online payment of the ${deposit} deposit, ${what}, started ${since} and ${goingThrough}.`
     : `${name} is paying the ${deposit} deposit online, ${what}, waiting on their bank to approve it.`;
 };
 // what the Client's own payment online took, once it booked the quote just
@@ -294,20 +300,26 @@ export const clientPaying = {
       ? `${payingWhat(p)} Until it's done, you can't record acceptance.${p.deposit === null ? "" : " Nothing more was charged."}`
       : `${payingWhat(p)} If it isn't approved by ${p.until}, it's called off and you can record acceptance.`,
   // the draft's, and the server's refusal of sending it
-  draft: ({ name, until, finishing, deposit }: PayingFor) =>
+  draft: ({ name, until, finishing, deposit, since }: PayingFor) =>
     deposit === null
       ? finishing
-        ? `${name} is accepting online, and ${cardFinishing}. ${booksDraft} If not, you can send your changes then.`
+        ? `${name} is accepting online, started ${since}, and ${cardFinishing}. ${booksDraft} If not, you can send your changes then.`
         : `${name} is accepting online. ${booksDraft} If it isn't approved by ${until}, you can send your changes then.`
       : finishing
-        ? `${name}'s online payment ${goingThrough}. ${booksDraft} If not, you can send your changes then.`
+        ? `${name}'s online payment, started ${since}, ${goingThrough}. ${booksDraft} If not, you can send your changes then.`
         : `${name} is paying the deposit online. ${booksDraft} If it isn't approved by ${until}, you can send your changes then.`,
   // under the greyed action, short, as the menu or a phone's foot may hide
   // the alert
-  item: (firstName: string, card: boolean) =>
-    card
-      ? `Not while ${firstName} is accepting online`
-      : `Not while ${firstName} is paying the deposit`,
+  // the alert, waiting on their bank once it's past them (`finishing`)
+  // (#534's UX review U4)
+  item: (firstName: string, card: boolean, finishing = false) =>
+    finishing
+      ? card
+        ? `Not while ${firstName}'s card approval goes through`
+        : `Not while ${firstName}'s deposit payment goes through`
+      : card
+        ? `Not while ${firstName} is accepting online`
+        : `Not while ${firstName} is paying the deposit`,
   // the draft's line beside Send, after its save state, so it names what
   // waits: "Not while…" after "Give a reason…" read as the reason waiting
   // (#534 UX review U10)

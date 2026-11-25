@@ -317,7 +317,7 @@ const doneOnACardThatAsks = async () => {
   return job;
 };
 const approvalAsked =
-  /^Your bank wants you to approve this payment. Nothing has been taken from your Test card ending 4242 yet.$/;
+  /^Your bank wants you to approve this payment\. None of it has been taken from your Test card ending 4242 yet\.$/;
 
 test("a payment the Client's bank wants them to approve is next on their Home", async ({
   page,
@@ -330,7 +330,7 @@ test("a payment the Client's bank wants them to approve is next on their Home", 
   // why, amber, as it's theirs to do and no failure
   await expect(
     page.getByText(
-      "Your bank wants you to approve your clean's payment. Nothing has been taken yet.",
+      "Your bank wants you to approve your clean's payment. None of it has been taken yet.",
     ),
   ).toBeVisible();
   await expect(
@@ -421,10 +421,13 @@ test("a payment the Client's bank wants them to approve, turned down there, take
   await expect(
     page.getByRole("link", { name: "Use a different card" }),
   ).toBeVisible();
-  await expectNextStep(page, "Approve payment");
+  // nothing waits on their bank now: it's Unpaid, and the press is a fresh
+  // payment (#534's UX review U1)
+  await expect(titleBadge(page, "Unpaid")).toBeVisible();
+  await expectNextStep(page, "Try again");
 
   await requireApproval(null);
-  await pageAction(page, "Approve payment");
+  await pageAction(page, "Try again");
   await expect(titleBadge(page, "Done")).toBeVisible();
   await expect(
     page.getByRole("region", { name: "Your receipt" }),
@@ -449,7 +452,7 @@ test("Office Staff see a Job's payment is the Client's to approve, emailed so, w
   await expect(titleBadge(page, "Client to approve")).toBeVisible();
   await expect(
     page.getByText(
-      /^Casey's bank wants them to approve the \$[\d.,]+ payment\. None of it was taken\. We've emailed them to approve it on their clean's page\.$/,
+      /^Casey's bank wants them to approve the payment\. None of it was taken\. We've emailed them to approve it on their clean's page\.$/,
     ),
   ).toBeVisible();
   await expect(page.getByRole("region", { name: "History" })).toContainText(

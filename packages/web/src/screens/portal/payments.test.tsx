@@ -418,7 +418,8 @@ describe("a payment their bank wants them to approve", () => {
       }),
       why: {
         tone: "warning",
-        lead: "Your bank wants you to approve your clean's payment. Nothing has been taken yet.",
+        lead: "Your bank wants you to approve your clean's payment.",
+        more: "None of it has been taken yet.",
       },
     });
   });
@@ -434,17 +435,16 @@ describe("a payment their bank wants them to approve", () => {
         href: { to: "/portal/bills/$billId", params: { billId: "bill" } },
       },
     });
-    expect(answer.why?.lead).toBe(
-      "Your bank wants you to approve your payment for bill EC-000041. Nothing has been taken yet.",
-    );
+    expect(answer.why).toMatchObject({
+      lead: "Your bank wants you to approve your payment for bill EC-000041.",
+      more: "None of it has been taken yet.",
+    });
   });
 
   test("two are counted", () => {
     expect(
       owedAnswer(data({ pastJobs: [clean], bills: [approveBill] })).why?.lead,
-    ).toBe(
-      "Your bank wants you to approve 2 payments. Nothing has been taken yet.",
-    );
+    ).toBe("Your bank wants you to approve 2 payments.");
   });
 
   test("beside a declined clean, that's what's late and leads, red", () => {

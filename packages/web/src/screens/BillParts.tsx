@@ -121,9 +121,12 @@ type T = Said & { w: (typeof words)["en"] };
 export function BillStatusBadge({
   bill,
   forClient = false,
+  refused = false,
 }: {
   bill: Pick<BillSummary, "status" | "unpaid" | "paying" | "totalCents">;
   forClient?: boolean;
+  // its payment just turned down at their bank, before the page reloads
+  refused?: boolean;
 }) {
   const { w, p, unpaid, paymentPending } = useSaid(words);
   if (bill.status === "void") return <StatusBadge>{w.cancelled}</StatusBadge>;
@@ -136,8 +139,15 @@ export function BillStatusBadge({
   )
     return <StatusBadge tone="info">{paymentPending}</StatusBadge>;
   // the Client's bank wants them to approve its payment (#534 Q7): theirs
-  // to do, on its page, and no failure, as a clean's says
-  if (bill.unpaid?.kind === "approve" && bill.paying?.status !== "failed")
+  // to do, on its page, and no failure, as a clean's says. Once they've
+  // turned it down, nothing waits on their bank: it's Unpaid (#534's UX
+  // review U1)
+  if (
+    bill.unpaid?.kind === "approve" &&
+    bill.paying?.status !== "failed" &&
+    bill.paying?.status !== "notApproved" &&
+    !refused
+  )
     return (
       <StatusBadge tone="warning">
         {forClient ? p.needsApproval : CLIENT_TO_APPROVE}

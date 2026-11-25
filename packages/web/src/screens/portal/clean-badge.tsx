@@ -13,6 +13,9 @@ export type CleanState = {
   status: JobStatus;
   // a charge or fee for it that didn't go through, of what kind
   unpaid: UnpaidKind | null;
+  // its payment just turned down at their bank: nothing waits there, so
+  // it's Unpaid, not Needs approval (#534's UX review U1)
+  refused?: boolean;
   // a price change the Office proposed, waiting on their OK
   priceChange: boolean;
   // a plan clean they cancelled, which the plan carries on past
@@ -32,7 +35,7 @@ export type CleanState = {
 // (`plain`), and a row with none has none, so a list's Status shows only
 // while a row has one.
 export function cleanBadge(t: Said, clean: CleanState, plain = false) {
-  if (clean.unpaid === "approve")
+  if (clean.unpaid === "approve" && !clean.refused)
     return <StatusBadge tone="warning">{t.p.needsApproval}</StatusBadge>;
   if (clean.unpaid && asksTheClient(clean.unpaid))
     return <StatusBadge tone="danger">{t.unpaid}</StatusBadge>;

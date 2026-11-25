@@ -42,6 +42,7 @@ test("a quote whose time filled names what filled: a clean's time, a plan's days
 const finishing = (over: Partial<PayingFor> = {}): PayingFor => ({
   ...payingFor("Robin Diaz", {
     until: "2026-11-25T19:29:00Z",
+    since: "2026-11-25T19:04:00Z",
     finishing: true,
     serviceName: "Standard Clean",
     changing: false,
@@ -54,24 +55,36 @@ const page = (p: PayingFor, card: boolean, drafting = false) =>
 
 test("a Deposit the Client's bank is finishing says how long it usually takes, and what's next once it's done (#534)", () => {
   expect(page(finishing(), true)).toBe(
-    "Robin Diaz's online payment of the $48.72 deposit, for the Standard Clean, is still going through with their bank, which usually takes under half an hour. If it doesn't go through, you can record acceptance then.",
+    "Robin Diaz's online payment of the $48.72 deposit, for the Standard Clean, started Wed, Nov 25, 2:04\u00a0PM and is still going through with their bank, which usually takes under half an hour. If it doesn't go through, you can record acceptance then.",
   );
   // no card saved: Record acceptance isn't offered, so nothing more
   expect(page(finishing({ service: null }), false)).toBe(
-    "Robin Diaz's online payment of the $48.72 deposit, to start the cleaning plan, is still going through with their bank, which usually takes under half an hour.",
+    "Robin Diaz's online payment of the $48.72 deposit, to start the cleaning plan, started Wed, Nov 25, 2:04\u00a0PM and is still going through with their bank, which usually takes under half an hour.",
   );
   expect(page(finishing(), true, true)).toBe(
-    "Robin Diaz's online payment of the $48.72 deposit, for the Standard Clean, is still going through with their bank, which usually takes under half an hour. If it books the quote you sent, your draft is deleted. If not, you can send your changes or record acceptance then.",
+    "Robin Diaz's online payment of the $48.72 deposit, for the Standard Clean, started Wed, Nov 25, 2:04\u00a0PM and is still going through with their bank, which usually takes under half an hour. If it books the quote you sent, your draft is deleted. If not, you can send your changes or record acceptance then.",
   );
   expect(page(finishing(), false, true)).toBe(
-    "Robin Diaz's online payment of the $48.72 deposit, for the Standard Clean, is still going through with their bank, which usually takes under half an hour. If it books the quote you sent, your draft is deleted. If not, you can send your changes then.",
+    "Robin Diaz's online payment of the $48.72 deposit, for the Standard Clean, started Wed, Nov 25, 2:04\u00a0PM and is still going through with their bank, which usually takes under half an hour. If it books the quote you sent, your draft is deleted. If not, you can send your changes then.",
   );
   // a card entered with nothing to charge (a 0% Deposit)
   expect(page(finishing({ deposit: null }), true)).toBe(
-    "Robin Diaz is accepting online, for the Standard Clean: their bank is finishing approving their card. It books on its own, usually within half an hour. If it isn't approved, you can record acceptance then.",
+    "Robin Diaz is accepting online, for the Standard Clean, started Wed, Nov 25, 2:04\u00a0PM: their bank is finishing approving their card. It books on its own, usually within half an hour. If it isn't approved, you can record acceptance then.",
   );
   expect(clientPaying.draft(finishing())).toBe(
-    "Robin Diaz's online payment is still going through with their bank, which usually takes under half an hour. If it books the quote you sent, your draft is deleted. If not, you can send your changes then.",
+    "Robin Diaz's online payment, started Wed, Nov 25, 2:04\u00a0PM, is still going through with their bank, which usually takes under half an hour. If it books the quote you sent, your draft is deleted. If not, you can send your changes then.",
+  );
+  // when it started, so Office Staff can tell one stuck (#534's UX review
+  // U3), and the greyed Record acceptance's reason, waiting on their bank,
+  // not on them (U4)
+  expect(clientPaying.item("Robin", false, true)).toBe(
+    "Not while Robin's deposit payment goes through",
+  );
+  expect(clientPaying.item("Robin", true, true)).toBe(
+    "Not while Robin's card approval goes through",
+  );
+  expect(clientPaying.item("Robin", false)).toBe(
+    "Not while Robin is paying the deposit",
   );
   expect(clientPaying.finishing("Robin Diaz", false)).toBe(
     "Robin Diaz's online payment is still going through with their bank, which usually takes under half an hour, so you can't record acceptance yet. Nothing more was charged.",

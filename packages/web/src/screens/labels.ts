@@ -11,6 +11,8 @@ export const labels = catalog({
   en: {
     notKnownYet: "Not known yet",
     unpaid: "Unpaid",
+    // a page that couldn't load, and a payment their bank turned down
+    tryAgain: "Try again",
     pickNewTime: "Pick a new time",
     signIn: "Sign in",
     signOut: "Sign out",
@@ -70,6 +72,7 @@ export const labels = catalog({
   es: {
     notKnownYet: "Aún no se sabe",
     unpaid: "Sin pagar",
+    tryAgain: "Intentar de nuevo",
     pickNewTime: "Elegir otra hora",
     signIn: "Iniciar sesión",
     signOut: "Cerrar sesión",

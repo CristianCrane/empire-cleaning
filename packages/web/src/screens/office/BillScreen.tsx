@@ -86,9 +86,13 @@ export function BillScreen() {
     why,
     dialog: (state) => <RecordPayment bill={bill} {...state} />,
   };
+  // one their bank wants them to approve is theirs, as the Office's Job
+  // says: nothing next here (#534's UX review U2)
   const next =
     due &&
-    ((!!bill.unpaid && asksTheClient(bill.unpaid.kind)) ||
+    ((!!bill.unpaid &&
+      asksTheClient(bill.unpaid.kind) &&
+      bill.unpaid.kind !== "approve") ||
       bill.paying?.status === "failed");
 
   return (
@@ -178,11 +182,27 @@ function standing(bill: BillView): Alert | null {
   }
   // the Client's bank wants them to approve its payment (#534 Q7): theirs
   // to do on its page, as we've emailed them, and no failure
+  // to do on its page, as we've emailed them, and no failure; once they
+  // turned it down there, theirs to try again
   if (bill.unpaid?.kind === "approve") {
+    const name = firstNameOf(bill.client.name);
+    const refused = bill.paying?.status === "notApproved";
     return {
       key: "unpaid",
       tone: "warning",
-      children: `${firstNameOf(bill.client.name)}'s bank wants them to approve this bill's payment. Nothing was taken. We've emailed them to approve it on the bill's page.${plansPaused(bill)}`,
+      children: (
+        <p>
+          <strong>
+            {refused
+              ? `${name} turned down this bill's payment at their bank.`
+              : `${name}'s bank wants them to approve this bill's payment.`}
+          </strong>{" "}
+          {refused
+            ? "None of it was taken. They can try again on the bill's page."
+            : "None of it was taken. We've emailed them to approve it on the bill's page."}
+          {plansPaused(bill)}
+        </p>
+      ),
     };
   }
   if (bill.unpaid) {
@@ -205,13 +225,16 @@ function standing(bill: BillView): Alert | null {
 }
 
 // which of the client's cleaning plans it keeps paused, by their homes, as
-// the Office's Needs attention names them; nothing when it holds none
+// the Office's Needs attention names them, by the client's name as the
+// alert's lead does; the Bill's own home, its Where fact, once (#534's UX
+// review U6); nothing when it holds none
 function plansPaused(bill: BillView) {
   const homes = pausedPlans(bill.plans).map((p) => addressOf(p.property));
   if (homes.length === 0) return "";
-  return homes.length === 1
-    ? ` Until it's paid, the client's cleaning plan at ${homes[0]} is paused.`
-    : ` Until it's paid, the client's cleaning plans at ${formatList(homes)} are paused.`;
+  const whose = `${firstNameOf(bill.client.name)}'s`;
+  if (homes.length > 1)
+    return ` Until it's paid, ${whose} cleaning plans at ${formatList(homes)} are paused.`;
+  return ` Until it's paid, ${whose} cleaning plan at ${homes[0] === bill.home ? "this home" : homes[0]} is paused.`;
 }
 
 // a short note, required, sent with the action; the API's message shown if

@@ -80,7 +80,7 @@ export const payments = catalog({
     // for ("$50 for your clean"); then, before its button, what pressing
     // it does
     approveFirst: (amount: string, card: string) =>
-      `Your bank wants you to approve the ${amount} before it's taken from your ${card}. Nothing has been taken yet.`,
+      `Your bank wants you to approve the ${amount} before it's taken from your ${card}. None of it has been taken yet.`,
     PRESS_TO_APPROVE:
       "Press the button below, and your bank will ask you to approve it.",
     // what happens next, once a payment didn't go through, by why
@@ -145,7 +145,7 @@ export const payments = catalog({
     UPDATE_CARD: "Actualizar tarjeta",
     APPROVE_PAYMENT: "Aprobar el pago",
     approveFirst: (amount: string, card: string) =>
-      `Su banco quiere que apruebe ${amount} antes de cobrarlo de su ${card}. Aún no se ha cobrado nada.`,
+      `Su banco quiere que apruebe ${amount} antes de cobrarlo de su ${card}. Aún no se ha cobrado nada de este pago.`,
     PRESS_TO_APPROVE:
       "Pulse el botón de abajo, y su banco le pedirá que lo apruebe.",
     clientFix: {

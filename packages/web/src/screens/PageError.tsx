@@ -5,6 +5,7 @@ import { catalog } from "@empire-cleaning/models";
 import { Button, MessagePage, useLanguage } from "@empire-cleaning/ui";
 import { ApiError } from "../api.ts";
 import { linkTo } from "../links.ts";
+import { labels } from "./labels.ts";
 import { reportUnexpected } from "../monitoring.ts";
 import { NotFound } from "./NotFound.tsx";
 
@@ -19,18 +20,17 @@ const words = catalog({
   en: {
     title: "Something went wrong",
     text: "We couldn't load this page. Try again in a moment.",
-    tryAgain: "Try again",
   },
   es: {
     title: "Algo salió mal",
     text: "No pudimos cargar esta página. Se puede intentar de nuevo en un momento.",
-    tryAgain: "Intentar de nuevo",
   },
 });
 
 export function PageError({ error }: ErrorComponentProps) {
   const router = useRouter();
-  const w = words[useLanguage()];
+  const lang = useLanguage();
+  const w = words[lang];
   useEffect(() => reportUnexpected(error), [error]);
   if (
     error instanceof ApiError &&
@@ -48,7 +48,9 @@ export function PageError({ error }: ErrorComponentProps) {
     >
       <p className="text-fg-muted">{w.text}</p>
       {/* re-running the loaders resets this screen once they succeed */}
-      <Button onPress={() => void router.invalidate()}>{w.tryAgain}</Button>
+      <Button onPress={() => void router.invalidate()}>
+        {labels[lang].tryAgain}
+      </Button>
     </MessagePage>
   );
 }

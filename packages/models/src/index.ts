@@ -1288,6 +1288,8 @@ export type OfficeQuote = {
   // with, as the Client picked it (#534's UX review U2); null on a plan
   paying: {
     until: string;
+    // when their payment started
+    since: string;
     finishing: boolean;
     serviceKey: string | null;
     serviceName: string | null;

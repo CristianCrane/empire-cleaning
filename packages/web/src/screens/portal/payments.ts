@@ -29,7 +29,7 @@ const words = catalog({
     approveBill: (n: string) =>
       `Your bank wants you to approve your payment for bill ${n}`,
     approveMany: (n: number) => `Your bank wants you to approve ${n} payments`,
-    nothingTakenYet: "Nothing has been taken yet.",
+    nothingTakenYet: "None of it has been taken yet.",
     billDue: (n: string, day: string) => `Bill ${n} is due by ${day}`,
     andMore: (first: string, n: number) => `${first}, and ${n} more`,
     // their last payment on a Bill's page, for a sentence to end (#534)
@@ -73,7 +73,7 @@ const words = catalog({
     approveBill: (n: string) =>
       `Su banco quiere que apruebe su pago de la factura ${n}`,
     approveMany: (n: number) => `Su banco quiere que apruebe ${n} pagos`,
-    nothingTakenYet: "Aún no se ha cobrado nada.",
+    nothingTakenYet: "Aún no se ha cobrado nada de este pago.",
     billDue: (n: string, day: string) => `La factura ${n} vence el ${day}`,
     andMore: (first: string, n: number) => `${first}, y ${n} más`,
     failedFor: (n: string, why: string | null) =>
@@ -142,6 +142,8 @@ type Owed = {
   // the alert above the card: what went wrong, as a sentence; null when
   // nothing did
   why: string | null;
+  // what follows the why, plain under its bold lead (#534's UX review U8)
+  more: string | null;
   // a line under it: their bank asking them to approve a payment of theirs
   // on it, or null
   waiting: string | null;
@@ -366,7 +368,8 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         approve,
         asks: first.asks,
         line,
-        why: approve && why ? `${why} ${w.nothingTakenYet}` : why,
+        why,
+        more: approve && why ? w.nothingTakenYet : null,
         waiting: waitingOf(alike, w),
         action: first.action,
       }
@@ -534,7 +537,11 @@ export function owedAnswer(
     // what went wrong; or, nothing late, their bank wanting them to approve
     // a payment, theirs to do and no failure
     ...(owed.why && {
-      why: { tone: owed.late ? "danger" : "warning", lead: owed.why },
+      why: {
+        tone: owed.late ? "danger" : "warning",
+        lead: owed.why,
+        ...(owed.more && { more: owed.more }),
+      },
     }),
   };
 }

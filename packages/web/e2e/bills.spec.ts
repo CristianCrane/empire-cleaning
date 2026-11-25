@@ -569,7 +569,7 @@ test("a Bill's payment the Client's bank wants them to approve is theirs to appr
   await expect(titleBadge(page, "Needs approval")).toBeVisible();
   await expect(
     page.getByText(
-      /^Your bank wants you to approve this payment\. Nothing has been taken from your card yet\. Until it's paid, we won't book more cleans on your plan\.$/,
+      /^Your bank wants you to approve this payment\. None of it has been taken from your card yet\. Until it's paid, we won't book more cleans on your plan\.$/,
     ),
   ).toBeVisible();
   await expectNextStep(page, "Approve payment");
@@ -584,7 +584,17 @@ test("a Bill's payment the Client's bank wants them to approve is theirs to appr
   await expect(
     page.getByRole("link", { name: "Use a different card" }),
   ).toBeVisible();
-  await expectNextStep(page, "Approve payment");
+  // nothing waits on their bank now: it's Unpaid, and the press is a fresh
+  // payment (#534's UX review U1)
+  await expect(titleBadge(page, "Unpaid")).toBeVisible();
+  await expectNextStep(page, "Try again");
+  // as when they come back to it
+  await page.reload();
+  await expect(titleBadge(page, "Unpaid")).toBeVisible();
+  await expect(
+    page.getByText(/^The payment wasn't approved\. Nothing was taken\./),
+  ).toBeVisible();
+  await expectNextStep(page, "Try again");
 });
 
 test("Office Staff see a Bill's payment is the Client's to approve, emailed so, its plan paused", async ({
@@ -603,11 +613,16 @@ test("Office Staff see a Bill's payment is the Client's to approve, emailed so, 
   await expect(titleBadge(page, "Client to approve")).toBeVisible();
   await expect(
     page.getByText(
-      /^Casey's bank wants them to approve this bill's payment\. Nothing was taken\. We've emailed them to approve it on the bill's page\. Until it's paid, the client's cleaning plan at 41-12 Austin St, 4B, 11375 is paused\.$/,
+      /^Casey's bank wants them to approve this bill's payment\. None of it was taken\. We've emailed them to approve it on the bill's page\. Until it's paid, Casey's cleaning plan at this home is paused\.$/,
     ),
   ).toBeVisible();
-  // a payment made another way is still hers to record
-  await expectNextStep(page, "Record a payment");
+  // it's Casey's to do, as on the Office's Job: a payment made another way
+  // is still hers to record, from the ⋯ (#534's UX review U2)
+  await expectNothingNext(page);
+  await pageAction(page, "Record a payment");
+  await expect(
+    page.getByRole("dialog", { name: "Record a payment" }),
+  ).toBeVisible();
 });
 
 test("only the Client can open their Bill", async ({ page }) => {
@@ -650,7 +665,7 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   // and which of the client's plans it pauses, by its home
   await expect(
     page.getByText(
-      /^Its payment didn't go through( \(.+\))?\. We've emailed the client to update their card\. Once they do, we try the payment again\. Until it's paid, the client's cleaning plan at 41-12 Austin St, 4B, 11375 is paused\.$/,
+      /^Its payment didn't go through( \(.+\))?\. We've emailed the client to update their card\. Once they do, we try the payment again\. Until it's paid, Casey's cleaning plan at this home is paused\.$/,
     ),
   ).toBeVisible();
   // recording one made another way is the Office's next step; and the
@@ -728,7 +743,7 @@ test("a Bill we try again ourselves reads as payment pending, not failed, says i
   await expect(office.getByRole("main").getByRole("alert")).toHaveCount(0);
   await expect(
     office.getByText(
-      `${paymentNotDone.page} Until it's paid, the client's cleaning plan at 41-12 Austin St, 4B, 11375 is paused.`,
+      `${paymentNotDone.page} Until it's paid, Casey's cleaning plan at this home is paused.`,
       { exact: true },
     ),
   ).toBeVisible();

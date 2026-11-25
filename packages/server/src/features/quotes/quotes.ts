@@ -687,7 +687,7 @@ const clientPaying = async (
 ) => {
   const held = (await clientHolds([quote.id], tx))(quote.id);
   if (!held) return null;
-  const { pending, until, onClient, past } = held;
+  const { attempt, pending, until, onClient, past } = held;
   const row =
     quote.kind === "one_off"
       ? (await optionsOf(pending.revisionId, tx)).find(
@@ -696,6 +696,7 @@ const clientPaying = async (
       : undefined;
   return {
     until,
+    since: attempt.askedAt,
     finishing: !onClient,
     past,
     serviceKey: row ? row.serviceKey : null,
@@ -895,7 +896,11 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     turnedDownAt: iso(quote.turnedDownAt),
     turnDownReason: quote.turnDownReason,
     paymentMethod: toPaymentMethodView(paymentMethod),
-    paying: paying && { ...paying, until: paying.until.toISOString() },
+    paying: paying && {
+      ...paying,
+      until: paying.until.toISOString(),
+      since: paying.since.toISOString(),
+    },
     paymentEnded:
       latest?.status === "failed" || latest?.status === "notApproved"
         ? latest

@@ -90,6 +90,7 @@ export function PortalBill() {
   const approving = bill.payable && bill.unpaid?.kind === "approve";
   const approval = useApprovePayment({
     needed: approving,
+    before: bill.paying?.status === "notApproved",
     start: async () => {
       const outcome = await postJson<BillPayOutcome>(
         `/api/bills/mine/${bill.id}/payment`,
@@ -119,7 +120,9 @@ export function PortalBill() {
           { label: t.p.bill(bill.number) },
         ]}
         title={t.p.bill(bill.number)}
-        status={<BillStatusBadge bill={bill} forClient />}
+        status={
+          <BillStatusBadge bill={bill} forClient refused={approval.refused} />
+        }
         next={next}
         actions={[pay !== next && pay, print].filter((a) => !!a)}
         alerts={[useStanding(bill, next, approval.refused)]}
@@ -192,7 +195,7 @@ function useStanding(
   // approve: the page's Approve payment (#534 Q7)
   if (bill.unpaid?.kind === "approve") {
     return approveAlert(t, {
-      refused: refused || bill.paying?.status === "notApproved",
+      refused,
       card: t.p.card,
       more: paused,
     });

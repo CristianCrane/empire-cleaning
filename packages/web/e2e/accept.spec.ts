@@ -511,7 +511,7 @@ test(
     ).toHaveText("Saved · send waits on Casey's deposit payment");
     const alert = page.getByRole("status").filter({
       hasText:
-        "Casey Client's online payment is still going through with their bank, which usually takes under half an hour. If it books the quote you sent, your draft is deleted. If not, you can send your changes then.",
+        /^Casey Client's online payment, started Mon, Jan 5, \d+:\d{2}\s[AP]M, is still going through with their bank, which usually takes under half an hour\. If it books the quote you sent, your draft is deleted\. If not, you can send your changes then\.$/,
     });
     await expect(alert).toBeFocused();
     await expect(alert).toBeInViewport({ ratio: 1 });
@@ -558,6 +558,7 @@ const recordAcceptance = (page: Page) =>
 test("Office Staff see a Deposit the Client's bank is finishing as going through, calm, with Record acceptance waiting on it, and its badge says so on the list", async ({
   page,
   browser,
+  isMobile,
 }) => {
   const client = await paidOnline(page, browser, () =>
     requireApproval("processing"),
@@ -569,10 +570,15 @@ test("Office Staff see a Deposit the Client's bank is finishing as going through
     .getByRole("status")
     .filter({ hasText: /^Casey Client's online payment/ });
   await expect(alert).toHaveText(
-    /^Casey Client's online payment of the \$[\d.]+ deposit, for the Deep Clean, is still going through with their bank, which usually takes under half an hour\. If it doesn't go through, you can record acceptance then\.$/,
+    /^Casey Client's online payment of the \$[\d.]+ deposit, for the Deep Clean, started \w{3}, \w{3} \d+, \d+:\d{2}\s[AP]M and is still going through with their bank, which usually takes under half an hour\. If it doesn't go through, you can record acceptance then\.$/,
   );
   await expect(alert).toHaveClass(/bg-info-subtle/);
   await expect(recordAcceptance(page)).toBeDisabled();
+  // why, waiting on their bank, not on Casey (#534's UX review U4)
+  if (isMobile)
+    await expect(
+      page.getByText("Not while Casey's deposit payment goes through"),
+    ).toBeVisible();
   // the quote leads with the clean they're paying for, the one they asked
   // for an aside (#534's UX review U2)
   await expect(
@@ -645,9 +651,13 @@ test("Office Staff recording acceptance on a card whose bank asks the Client to 
 
   await page.reload();
   await pageAction(page, "Record acceptance");
-  const confirm = page.getByRole("alertdialog", { name: "Record acceptance?" });
-  await confirm.getByRole("button", { name: "Charge and book" }).click();
+  await page
+    .getByRole("alertdialog", { name: "Record acceptance?" })
+    .getByRole("button", { name: "Charge and book" })
+    .click();
 
+  // answered, it's no longer a question (#534's UX review U9)
+  const confirm = page.getByRole("alertdialog", { name: "Client to approve" });
   await expect(confirm).toContainText(
     /Casey Client's bank wants them to approve the \$[\d.]+ deposit themselves\. Nothing was charged or booked\. They can accept on their quote's page, and their bank will ask them there\./,
   );

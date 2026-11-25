@@ -1201,6 +1201,7 @@ describe("while the Client's bank is approving the Deposit", () => {
 
     expect((await quoteOf(office, quote.id)).paying).toEqual({
       until: "2026-01-05T09:15:00.000Z",
+      since: "2026-01-05T09:00:00.000Z",
       serviceName: option(quote, "deep").serviceName,
       serviceKey: option(quote, "deep").serviceKey,
       changing: false,
@@ -1519,7 +1520,7 @@ describe("while the Client's bank is approving the Deposit", () => {
     {
       when: "their bank is still finishing the payment",
       fails: null,
-      says: "Casey Client's online payment is still going through with their bank, which usually takes under half an hour. If it books the quote you sent, your draft is deleted. If not, you can send your changes then.",
+      says: "Casey Client's online payment, started Mon, Jan 5, 4:00\u00a0AM, is still going through with their bank, which usually takes under half an hour. If it books the quote you sent, your draft is deleted. If not, you can send your changes then.",
     },
     {
       when: "calling it off can't reach the provider",
@@ -1601,13 +1602,14 @@ describe("while the Client's bank is approving the Deposit", () => {
         "Casey Client's online payment is still going through with their bank, which usually takes under half an hour, so you can't record acceptance yet. Nothing more was charged.",
       held: {
         until: "2026-01-05T09:15:00.000Z",
+        since: "2026-01-05T09:00:00.000Z",
         serviceName: option(quote, "deep").serviceName,
         serviceKey: option(quote, "deep").serviceKey,
         changing: false,
         depositCents: option(quote, "deep").depositCents,
         finishing: true,
       },
-      sent: "Casey Client's online payment is still going through with their bank, which usually takes under half an hour. If it books the quote you sent, your draft is deleted. If not, you can send your changes then.",
+      sent: "Casey Client's online payment, started Mon, Jan 5, 4:00\u00a0AM, is still going through with their bank, which usually takes under half an hour. If it books the quote you sent, your draft is deleted. If not, you can send your changes then.",
       after: null,
       charges: 1,
     });
@@ -1945,6 +1947,7 @@ describe("while the Client's bank is approving the card for a 0% Deposit", () =>
 
     expect((await quoteOf(office, quote.id)).paying).toEqual({
       until: "2026-01-05T09:15:00.000Z",
+      since: "2026-01-05T09:00:00.000Z",
       serviceName: option(quote, "deep").serviceName,
       serviceKey: option(quote, "deep").serviceKey,
       changing: false,

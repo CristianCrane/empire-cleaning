@@ -247,6 +247,7 @@ export function PortalJob() {
         {
           status: job.status,
           unpaid: job.payment.unpaid?.kind ?? null,
+          refused: now.refused,
           priceChange: now.proposed.length > 0,
           skipped: wasSkipped(job),
           moveAsked: now.booked && job.rescheduleRequest?.status === "pending",
@@ -284,6 +285,8 @@ function useNow(job: ClientJobDetail): {
   next?: PageAction;
   actions: PageAction[];
   alerts: Alert[];
+  // its payment just turned down at their bank
+  refused: boolean;
 } {
   const t = useSaid(words);
   const { completion, payment } = job;
@@ -398,6 +401,7 @@ function useNow(job: ClientJobDetail): {
     proposed,
     next,
     actions,
+    refused: approval.refused,
     // what's needed of them first, before what the clean is
     alerts: [
       approving

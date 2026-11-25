@@ -38,9 +38,10 @@ export const portalWords = catalog({
     needsApproval: "Needs approval",
     bankWants: "Your bank wants you to approve this payment.",
     nothingYet: (card: string) =>
-      `Nothing has been taken from your ${card} yet.`,
+      `None of it has been taken from your ${card} yet.`,
     notApproved: "The payment wasn't approved.",
     tryAgain: "Nothing was taken. You can try again.",
+
     didntWork: "That didn't work. Please try again.",
     seeYourCleaningPlan: "See your cleaning plan",
     seeTheClean: "See the clean",
@@ -95,9 +96,11 @@ export const portalWords = catalog({
     paymentNeeded: "Hay un pago pendiente.",
     needsApproval: "Por aprobar",
     bankWants: "Su banco quiere que apruebe este pago.",
-    nothingYet: (card: string) => `Aún no se ha cobrado nada de su ${card}.`,
+    nothingYet: (card: string) =>
+      `Aún no se ha cobrado nada de este pago de su ${card}.`,
     notApproved: "El pago no se aprobó.",
     tryAgain: "No se cobró nada. Puede intentarlo de nuevo.",
+
     didntWork: "No funcionó. Vuelva a intentarlo.",
     seeYourCleaningPlan: "Ver su plan de limpieza",
     seeTheClean: "Ver la limpieza",
