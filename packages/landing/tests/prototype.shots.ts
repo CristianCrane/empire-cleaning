@@ -2,6 +2,7 @@
 // through this package's harness
 // (packages/server/tests/e2e/prototype-shots.ts)
 import { prototypeShots } from "@empire-cleaning/server/prototype-shots";
+import { indexPath } from "../src/prototype.ts";
 import { test } from "./harness.ts";
 
-prototypeShots(test, (screen) => `/prototype/${screen}/`);
+prototypeShots(test, indexPath);

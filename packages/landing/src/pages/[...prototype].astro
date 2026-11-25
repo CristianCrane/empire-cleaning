@@ -2,8 +2,7 @@
 import type { AstroComponentFactory } from "astro/runtime/server/index.js";
 import { PrototypeBar, PrototypeIndex } from "@empire-cleaning/ui";
 import Page from "../layouts/Page.astro";
-import { landingHome } from "@empire-cleaning/models";
-import { shotPath, type Prototype } from "../prototype.ts";
+import { indexPath, shotPath, type Prototype } from "../prototype.ts";
 
 // every prototype's pages, on a prototype-* branch (src/prototype.ts): main
 // has none, so this makes no page there
@@ -14,7 +13,7 @@ export const getStaticPaths = () => {
   return Object.entries(lists).flatMap(([file, { default: drawn }]) => {
     const screen = file.replace(/^.*\/|\.ts$/g, "");
     const index = {
-      params: { prototype: `prototype/${screen}` },
+      params: { prototype: indexPath(screen).slice(1, -1) },
       props: { screen, drawn },
     };
     const shots = Object.entries(drawn.cases).flatMap(([shown, { lang }]) =>
@@ -67,7 +66,7 @@ const hrefOf = (to: string, at: string) =>
           }))}
           layout={layout}
           case={shown}
-          index={`${landingHome.en}prototype/${screen}/`}
+          index={indexPath(screen)}
         />
       )}
     </>

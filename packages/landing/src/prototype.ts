@@ -17,9 +17,14 @@ export type Prototype = {
 /** @public what a prototype's list default-exports, its layouts in order */
 export const prototype = (drawn: Prototype) => drawn;
 
+// a prototype's address, its index's (the English one, as the list is
+// the kit's, not the site's) and each layout × case's
+export const indexPath = (screen: string, lang: Language = "en") =>
+  `${landingHome[lang]}prototype/${screen}/`;
+
 export const shotPath = (
   screen: string,
   layout: string,
   shown: string,
   lang: Language = "en",
-) => `${landingHome[lang]}prototype/${screen}/${layout}-${shown}/`;
+) => `${indexPath(screen, lang)}${layout}-${shown}/`;
