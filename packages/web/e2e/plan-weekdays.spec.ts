@@ -161,13 +161,13 @@ test(
         .getByRole("grid", { name: "Your upcoming cleans" })
         .getByRole("row"),
     ).toHaveText([
-      /Mon, Jan 19, 9:00 AM/,
-      /Wed, Jan 21, 1:00 PM/,
-      /Mon, Jan 26, 9:00 AM/,
-      /Wed, Jan 28, 1:00 PM/,
-      /Mon, Feb 2, 9:00 AM/,
-      /Wed, Feb 4, 1:00 PM/,
-      /Mon, Feb 9, 9:00 AM/,
+      /Mon, Jan 19, 9:00\sAM/,
+      /Wed, Jan 21, 1:00\sPM/,
+      /Mon, Jan 26, 9:00\sAM/,
+      /Wed, Jan 28, 1:00\sPM/,
+      /Mon, Feb 2, 9:00\sAM/,
+      /Wed, Feb 4, 1:00\sPM/,
+      /Mon, Feb 9, 9:00\sAM/,
     ]);
     await noViolations(client);
   },

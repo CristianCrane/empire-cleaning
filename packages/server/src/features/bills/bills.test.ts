@@ -234,7 +234,7 @@ describe("making Bills", () => {
     // full, below
     expect(bill.home).toBe("41-12 Austin St, 4B, 11375");
     expect(bill.lines.map((l) => l.label)).toEqual([
-      "Deep Clean, Wed, Jan 7, 9:00 AM",
+      "Deep Clean, Wed, Jan 7, 9:00\u00a0AM",
       "Deposit paid",
     ]);
     expect(bill.taxCents).toBeGreaterThan(0);
@@ -248,7 +248,7 @@ describe("making Bills", () => {
       "Week: Monday, January 5 to Sunday, January 11",
     );
     expect(receipt.text).toMatch(
-      /Deposit paid: Deep Clean at 41-12 Austin St, .*Wednesday, January 7 at 9:00 AM/,
+      /Deposit paid: Deep Clean at 41-12 Austin St, .*Wednesday, January 7 at 9:00\u00a0AM/,
     );
     expect(receipt.text).toMatch(
       /Prices include tax: \$[\d,.]+ of the total\./,
@@ -2281,7 +2281,7 @@ describe("a Bill's lines", () => {
       "Depósito pagado",
     );
     expect(lineLabel("en", deposit, { home: false })).toBe(
-      "Deposit paid: Deep Clean, Wed, Jan 7, 9:00 AM",
+      "Deposit paid: Deep Clean, Wed, Jan 7, 9:00\u00a0AM",
     );
     expect(lineLabel("en", deposit)).toMatch(
       /^Deposit paid: Deep Clean at 41-12 Austin St, 4B, 11375, Wednesday/,
@@ -2290,13 +2290,13 @@ describe("a Bill's lines", () => {
 
   test("name a clean's home on its page only when asked, and in full in an email", () => {
     expect(lineLabel("en", line, { home: false })).toBe(
-      "Deep Clean, Wed, Jan 7, 9:00 AM",
+      "Deep Clean, Wed, Jan 7, 9:00\u00a0AM",
     );
     expect(lineLabel("en", line, { home: true })).toBe(
-      "Deep Clean at 41-12 Austin St, 4B, 11375, Wed, Jan 7, 9:00 AM",
+      "Deep Clean at 41-12 Austin St, 4B, 11375, Wed, Jan 7, 9:00\u00a0AM",
     );
     expect(lineLabel("en", line)).toBe(
-      "Deep Clean at 41-12 Austin St, 4B, 11375, Wednesday, January 7 at 9:00 AM",
+      "Deep Clean at 41-12 Austin St, 4B, 11375, Wednesday, January 7 at 9:00\u00a0AM",
     );
   });
 
@@ -2313,7 +2313,7 @@ describe("a Bill's lines", () => {
     const both = await mine();
     expect(both.home).toBe("41-12 Austin St, 4B, 11375");
     expect(both.lines.map((l) => l.label).sort()).toEqual([
-      "Deep Clean, Wed, Jan 7, 9:00 AM",
+      "Deep Clean, Wed, Jan 7, 9:00\u00a0AM",
       "Deposit paid",
     ]);
     // one property, as a business with only its premises has: the
@@ -2323,7 +2323,7 @@ describe("a Bill's lines", () => {
     const theirs = await mine();
     expect(theirs.home).toBeNull();
     expect(theirs.lines.map((l) => l.label).sort()).toEqual([
-      "Deep Clean, Wed, Jan 7, 9:00 AM",
+      "Deep Clean, Wed, Jan 7, 9:00\u00a0AM",
       "Deposit paid",
     ]);
     const ours = await billOf(office, bill!.id);

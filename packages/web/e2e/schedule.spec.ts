@@ -84,7 +84,7 @@ test(
     await expect(day(page, "Sat, Mar 6")).toContainText("Nobody working");
 
     const block = jobsOn(page, "Tue, Mar 2").getByRole("link");
-    await expect(block).toContainText(/9:00 AM Robin \d+/);
+    await expect(block).toContainText(/9:00\sAM Robin \d+/);
     await expect(block).toContainText("Needs cleaners");
     await expect(block).toContainText("Cory Cleaner");
     // placed at 9am, two hours down the axis, and 2.5 hours on site tall
@@ -521,7 +521,7 @@ test(
 
     await expect(page.getByText("Site visit moved")).toBeVisible();
     await expect(
-      wednesday.getByRole("link", { name: /1:00 PM Acme Dental/ }),
+      wednesday.getByRole("link", { name: /1:00\sPM Acme Dental/ }),
     ).toBeVisible();
     await expect(
       jobsOn(page, "Tue, Mar 2").getByRole("link", { name: /Acme Dental/ }),
@@ -579,7 +579,7 @@ test(
     await expect(dialog).toContainText("ToWed, Mar 3, 1:00 PM");
     await dialog.getByRole("button", { name: "Move site visit" }).click();
     await expect(page.getByText("Site visit moved")).toBeVisible();
-    const moved = wednesday.getByRole("link", { name: /1:00 PM Acme Dental/ });
+    const moved = wednesday.getByRole("link", { name: /1:00\sPM Acme Dental/ });
     await expect(moved).toBeVisible();
 
     // once its findings are recorded, it's Done and doesn't drag
@@ -702,14 +702,14 @@ test(
     // crew line only where someone's on it
     await expect(
       blocks.filter({ hasText: "9:00 AM" }).filter({ hasText: "Cory Cleaner" }),
-    ).toHaveAccessibleName(/^9:00 AM Robin \d+ ?, Staffed ?, Cory Cleaner$/);
+    ).toHaveAccessibleName(/^9:00\sAM Robin \d+ ?, Staffed ?, Cory Cleaner$/);
     await expect(
       blocks
         .filter({ hasText: "9:00 AM" })
         .filter({ hasNotText: "Cory Cleaner" }),
-    ).toHaveAccessibleName(/^9:00 AM Robin \d+ ?, Needs cleaners$/);
+    ).toHaveAccessibleName(/^9:00\sAM Robin \d+ ?, Needs cleaners$/);
     await expect(blocks.filter({ hasText: "Site visit" })).toHaveAccessibleName(
-      /^3:00 PM Acme Dental ?, Site visit · 30 min ?, Cory Cleaner$/,
+      /^3:00\sPM Acme Dental ?, Site visit · 30 min ?, Cory Cleaner$/,
     );
     // a Site Visit is told from a Staffed Job by its mark, not its colour
     // alone
@@ -727,7 +727,7 @@ test(
     expect((await free.boundingBox())!.height).toBeLessThan(20);
     const short = blocks.filter({ hasText: "1:00 PM" });
     await expect(short).toHaveAccessibleName(
-      /^1:00 PM Robin \d+ ?, Needs cleaners$/,
+      /^1:00\sPM Robin \d+ ?, Needs cleaners$/,
     );
     // its state a mark, not words; its time not shown, as it hasn't room
     await expect(short.locator("svg")).toBeVisible();
@@ -737,7 +737,7 @@ test(
       expect(box.width, words).toBeLessThanOrEqual(1);
     }
     await expect(blocks.filter({ hasText: "11:30 AM" })).toHaveAccessibleName(
-      /^11:30 AM Robin \d+ ?, Couldn't get in ?, Cory Cleaner$/,
+      /^11:30\sAM Robin \d+ ?, Couldn't get in ?, Cory Cleaner$/,
     );
     // a line that doesn't fit isn't drawn cut in half: each line of words
     // keeps its height, and ends above the edge that clips it or starts

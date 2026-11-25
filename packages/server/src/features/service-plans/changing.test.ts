@@ -171,7 +171,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
       "Your cleaning plan with Empire Cleaning has changed",
     );
     expect(confirmation.text).toContain(
-      "it's a Standard Clean every 2 weeks, on Wednesdays at 9:00 AM",
+      "it's a Standard Clean every 2 weeks, on Wednesdays at 9:00\u00a0AM",
     );
     expect(confirmation.text).toContain("are cancelled, at no charge");
     expect(confirmation.text).toContain("Your deposit stays as it is");

@@ -84,13 +84,13 @@ describe("Office Staff moving a Job", () => {
     const toCasey = testEmail().lastTo(casey.email);
     expect(toCasey.subject).toBe("Your clean has moved");
     expect(toCasey.text).toContain(
-      "When: Wednesday, January 14 at 10:30 AM\nWas: Monday, January 12 at 9:00 AM",
+      "When: Wednesday, January 14 at 10:30\u00a0AM\nWas: Monday, January 12 at 9:00\u00a0AM",
     );
     expect(toCasey.text).toContain("There's no charge for this.");
     const toCory = testEmail().lastTo("cory@example.com");
     expect(toCory.subject).toBe("A job you're on has moved");
     expect(toCory.text).toContain(
-      "When: Wednesday, January 14 at 10:30 AM\nWas: Monday, January 12 at 9:00 AM",
+      "When: Wednesday, January 14 at 10:30\u00a0AM\nWas: Monday, January 12 at 9:00\u00a0AM",
     );
 
     await confirmOffer(asCory, jobId);

@@ -217,7 +217,7 @@ test("a Site Visit shows on the Schedule, in the Client's portal and in the visi
   await page.goto("/office/schedule?from=2026-01-05&to=2026-01-05");
   // a Cleaner's visit takes half an hour of their hours that day
   await expect(page.getByText("0.5 h booked")).toBeVisible();
-  await page.getByRole("link", { name: /3:00 PM Acme Dental/ }).click();
+  await page.getByRole("link", { name: /3:00\sPM Acme Dental/ }).click();
   await expect(page).toHaveURL(/\/office\/site-visits\/[0-9a-f-]{36}$/);
   await expect(page.getByText("Cory Cleaner", { exact: true })).toBeVisible();
 
