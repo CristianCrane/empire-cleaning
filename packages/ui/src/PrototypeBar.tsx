@@ -37,10 +37,11 @@ const FOLDED = "prototype-bar-folded";
 // names, so its links stay put from case to case, above all a case draws
 // (a dialog's backdrop, a bank's pop-up), and in React Aria's top layer, as
 // the toasts are, which an open dialog leaves pressable, so a press reaches
-// it as the keys do. It covers what's under it, so it folds to a small tab
-// naming the layout and case as the list's cells do (A2), halfway down the
-// right edge, clear of a
-// frame's bars and corners, and the keys still step. It's drawn in the
+// it as the keys do. It covers what's under it, so it folds to a tab
+// naming the layout and case as the list's cells do (A over 2), halfway down
+// the right edge, clear of a frame's bars and corners, and as narrow as a
+// phone's 16px side margin, so it sits beside the screen's rows, not on them;
+// the keys still step. It's drawn in the
 // browser alone (the landing site's client:only). Its links go through the
 // web app's router there, and are plain links on the landing site. Each
 // places it in development alone (import.meta.env.DEV): an e2e run, and so
@@ -95,7 +96,7 @@ export function PrototypeBar({
       data-react-aria-top-layer=""
       className={`fixed z-[2147483647] bg-fg text-xs text-bg shadow-lg ${
         folded
-          ? "end-0 top-1/2 -translate-y-1/2 rounded-s-lg"
+          ? "end-0 top-1/2 -translate-y-1/2 rounded-s-md"
           : "bottom-2 start-2 w-[min(24rem,calc(100vw-1rem))] rounded-lg p-1"
       }`}
     >
@@ -126,10 +127,10 @@ export function PrototypeBar({
         <Button
           onPress={() => fold(false)}
           aria-label="Unfold the bar"
-          className="px-1.5 py-1 text-sm font-semibold hover:opacity-70"
+          className="flex h-11 w-4 flex-col items-center justify-center text-[11px] leading-none font-semibold hover:opacity-70"
         >
-          {layout}
-          {shown}
+          <span>{layout}</span>
+          <span>{shown}</span>
         </Button>
       )}
     </div>,

@@ -890,8 +890,8 @@ stays as it is (#336).
      of its own, a Spanish one under `/es/`.
    - **Looking at it:** `pnpm dev` draws a bar in the corner
      (`PrototypeBar`): ↑/↓ for layouts and ←/→ for cases, a link to the
-     list of them all, and a fold to a small tab on the right edge,
-     reading "A2" as the list does, when it covers what's under it. A name
+     list of them all, and a fold to a tab on the right edge,
+     reading "A" over "2" as the list's "A2", within a phone's 16px margin, when it covers what's under it. A name
      with no prototype lists the ones the branch has, in both packages
      (`PrototypeUnknown`). With no case, the address is that list, a grid of every
      layout × case (`PrototypeIndex`). When another dev server may be
