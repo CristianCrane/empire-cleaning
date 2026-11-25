@@ -23,7 +23,7 @@ Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agen
 
 ## UX
 
-Before designing, prototyping, reviewing or changing any screen, or writing words a person reads (a server message, an email), load the `ui` skill, then read `docs/ux.md`: this product's UX rules, and how a new UX question is settled (prototype, pick, build, record). Before reworking a screen, read `docs/ux-log.md`, the decisions so far, so a choice isn't undone by accident. Record a new decision as `docs/ux.md`'s Changing a screen says.
+Before designing, prototyping, reviewing or changing any screen, or writing words a person reads (a server message, an email), load the `ui` skill, then read `docs/ux.md`: this product's UX rules, and how a new UX question is settled (prototype, pick, build, record). Before reworking a screen, search `docs/ux-log.md`, the decisions so far, for it and for the states and words it shows, and read the rows that match, so a choice isn't undone by accident: a decision can sit under another screen's name (where a failed charge is retried is Payment Method's, though Home's alert follows it). Record a new decision as `docs/ux.md`'s Changing a screen says.
 
 A PR that changes a screen shows it before and after: `pnpm pr:shots <spec> "<test title>"` makes the screenshots and prints the table for the PR body (`packages/web/README.md`, Testing).
 
@@ -31,6 +31,6 @@ A rule both the server and a screen run lives in `@empire-cleaning/models`, as t
 
 ## Tests
 
-Before writing a test, changing how tests start, stop or wait, chasing one that fails or runs slow, or claiming what a build leaves out, load the `testing` skill, then read `docs/testing.md`: this repo's test rules, helpers and budgets. Before chasing a failure or timing a change, read `docs/testing-log.md`, the findings so far: the same failure has turned up twice already. Record each new finding there.
+Before writing a test, changing how tests start, stop or wait, chasing one that fails or runs slow, or claiming what a build leaves out, load the `testing` skill, then read `docs/testing.md`: this repo's test rules, helpers and budgets. Before chasing a failure or timing a change, search `docs/testing-log.md`, the findings so far, for the test, its file and the symptom, and read the rows that match: the same failure has turned up twice already. Record each new finding there.
 
 For the `change` skill, which says when each runs: the quick tests are `pnpm test:change`, naming the specs for the screens a change touches (`packages/web/README.md`), and the Checks (the CI table in `README.md`); the full suite is CI, on the PR (ADR-0026). A newer push cancels the run still going, and a cancelled run isn't a failure but hides one: read `gh run list` conclusions (cancelled vs failure; 2026-10-27, when cancelled runs read as failed builds).
