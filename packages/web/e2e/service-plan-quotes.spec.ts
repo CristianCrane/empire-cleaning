@@ -220,7 +220,7 @@ test(
       ),
     ).toBeVisible();
     await expect(
-      client.getByText(/^For Mon, Jan 19, 9:00 AM at /),
+      client.getByText(/^For Mon, Jan 19, 9:00\sAM at /),
     ).toBeVisible();
   },
 );
@@ -245,7 +245,7 @@ test("a Service Plan of Deep Cleans", async ({ page, browser }) => {
   // its story names the plan's Service, and the round's unit
   await expect(
     page.getByText(
-      /^Deep Clean plan \$[\d,.]+ a clean\s·\s2 cleaners\s·\sfor /,
+      /^Deep Clean plan \$[\d,.]+ a clean\s·\s2\scleaners\s·\sfor /,
     ),
   ).toHaveCount(1);
 

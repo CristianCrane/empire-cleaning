@@ -335,7 +335,7 @@ describe("Releasing a Confirmed Assignment", () => {
     expect(toDee.text).toContain(
       [
         "Deep Clean",
-        "Tuesday, January 6 at 9:00 AM",
+        "Tuesday, January 6 at 9:00\u00a0AM",
         "ZIP code 11375",
         "3 hours",
         "just you",
@@ -366,7 +366,7 @@ describe("The morning email of Cleaners Needed", () => {
     expect(first.text).toContain(
       [
         "Deep Clean",
-        "Thursday, January 8 at 9:00 AM",
+        "Thursday, January 8 at 9:00\u00a0AM",
         "ZIP code 11375",
         "3 hours",
         "with 2 cleaners",
@@ -457,7 +457,7 @@ describe("Moving a Job", () => {
     const toDee = testEmail().lastTo(dee.email);
     expect(toDee.subject).toBe("You're no longer on a job");
     expect(toDee.text).toContain(
-      "to Thursday, January 8 at 9:00 AM, when you're not free, so you're off it",
+      "to Thursday, January 8 at 9:00\u00a0AM, when you're not free, so you're off it",
     );
     expect(await openJobIds(await eve.signIn())).toEqual([job.id]);
   });

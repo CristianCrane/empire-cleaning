@@ -36,18 +36,20 @@ test("a send's line says the crew it went with", () => {
   const monday = "2026-01-12T14:00:00Z";
   const wednesday = "2026-01-14T18:00:00Z";
   const friday = "2026-01-16T14:00:00Z";
-  expect(sentWith([{ startsAt: monday, crewSize: 1 }])).toBe("1 cleaner");
+  expect(sentWith([{ startsAt: monday, crewSize: 1 }])).toBe("1\u00a0cleaner");
   expect(
     sentWith([
       { startsAt: monday, crewSize: 2 },
       { startsAt: wednesday, crewSize: 2 },
     ]),
-  ).toBe("2 cleaners");
+  ).toBe("2\u00a0cleaners");
   expect(
     sentWith([
       { startsAt: monday, crewSize: 2 },
       { startsAt: wednesday, crewSize: 1 },
       { startsAt: friday, crewSize: 2 },
     ]),
-  ).toBe("2 cleaners on Mondays and Fridays and 1 cleaner on Wednesdays");
+  ).toBe(
+    "2\u00a0cleaners on Mondays and Fridays and 1\u00a0cleaner on Wednesdays",
+  );
 });

@@ -357,7 +357,7 @@ describe("accepting a First Clean Quote", () => {
     const confirmation = testEmail().lastTo(casey.email);
     expect(confirmation.subject).toBe("You're booked with Empire Cleaning");
     expect(confirmation.text).toContain(
-      "When: Monday, January 12 at 9:00 AM\nWhere: 41-12 Austin St, 4B, 11375\nService: Deep Clean",
+      "When: Monday, January 12 at 9:00\u00a0AM\nWhere: 41-12 Austin St, 4B, 11375\nService: Deep Clean",
     );
     expect(confirmation.text).toContain(
       `deposit of $${(deep.depositCents / 100).toFixed(2)} from your Test card ending 4242`,
@@ -879,7 +879,7 @@ const recordAccepted = (
 // the Office's line while the Client's bank approves the Deep Clean's
 // Deposit, asked at the clock's start (4am)
 const payingLine = (quote: OfficeQuote) =>
-  `Casey Client is paying the ${formatMoney(option(quote, "deep").depositCents)} deposit online, for the ${option(quote, "deep").serviceName}, waiting on their bank to approve it. If it isn't approved by 4:15 AM, it's called off and you can record acceptance.`;
+  `Casey Client is paying the ${formatMoney(option(quote, "deep").depositCents)} deposit online, for the ${option(quote, "deep").serviceName}, waiting on their bank to approve it. If it isn't approved by 4:15\u00a0AM, it's called off and you can record acceptance.`;
 
 // while one payment on a Quote is still going through, nothing else that
 // moves money on it starts (#534: the one rule); a Client's bank approving
@@ -980,7 +980,7 @@ describe("while the Client's bank is approving the Deposit", () => {
       "so nothing was charged, and nothing is booked yet.",
     );
     expect(email.text).toContain(
-      "Your quote is still open until Sunday, January 11 at 9:00 AM, so you can pay again before then.",
+      "Your quote is still open until Sunday, January 11 at 9:00\u00a0AM, so you can pay again before then.",
     );
     expect((await quoteOf(office, quote.id)).paying).toBeNull();
     testPayments().requireApproval(null);
@@ -1131,7 +1131,7 @@ describe("while the Client's bank is approving the Deposit", () => {
       `Your bank asked you to approve the ${formatMoney(option(quote, "deep").depositCents)} deposit for your ${option(quote, "deep").serviceName}, and 15 minutes went by without an approval, so we called the payment off. Nothing was charged, and nothing is booked yet.`,
     );
     expect(email.text).toContain(
-      "Your quote is still open until Sunday, January 11 at 9:00 AM, so you can pay again before then.",
+      "Your quote is still open until Sunday, January 11 at 9:00\u00a0AM, so you can pay again before then.",
     );
     // they approve it in the bank's pop-up, too late
     testPayments().requireApproval(null);
@@ -1253,7 +1253,7 @@ describe("while the Client's bank is approving the Deposit", () => {
       .expect(409);
 
     expect(refused.body.message).toBe(
-      "Casey Client is paying the deposit online. If it books the quote you sent, your draft is deleted. If it isn't approved by 4:15 AM, you can send your changes then.",
+      "Casey Client is paying the deposit online. If it books the quote you sent, your draft is deleted. If it isn't approved by 4:15\u00a0AM, you can send your changes then.",
     );
     expect((await quoteOf(office, quote.id)).draft).not.toBeNull();
   });
@@ -1274,7 +1274,7 @@ describe("while the Client's bank is approving the Deposit", () => {
       .to(casey.email)
       .find((m) => m.subject === "Your payment wasn't approved in time");
     expect(calledOff?.text).toContain(
-      "We've since sent you an updated quote, open until Sunday, January 11 at 9:00 AM, so you can pay on that one before then.",
+      "We've since sent you an updated quote, open until Sunday, January 11 at 9:00\u00a0AM, so you can pay on that one before then.",
     );
     // approved too late, it books nothing
     testPayments().requireApproval(null);
@@ -2226,7 +2226,7 @@ describe("the reminder the day before a Job", () => {
 
     const [reminder] = reminders();
     expect(reminder!.text).toContain(
-      "your clean is tomorrow.\n\nWhen: Monday, January 12 at 9:00 AM\nWhere: 41-12 Austin St, 4B, 11375\nService: Deep Clean",
+      "your clean is tomorrow.\n\nWhen: Monday, January 12 at 9:00\u00a0AM\nWhere: 41-12 Austin St, 4B, 11375\nService: Deep Clean",
     );
     expect(reminder!.text).toContain("http://localhost:5173/portal/details");
   });

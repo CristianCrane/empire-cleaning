@@ -540,14 +540,11 @@ export const revisionHistory = async (
       offeredServiceName,
       crew:
         quote.kind === "service_plan"
-          ? offered
-              .flatMap((o) =>
-                o.startsAt
-                  ? [{ startsAt: o.startsAt, crewSize: o.crewSize }]
-                  : [],
-              )
-              .sort((x, y) => x.startsAt.getTime() - y.startsAt.getTime())
-              .map((d) => ({ ...d, startsAt: d.startsAt.toISOString() }))
+          ? // in the order the send wrote its weekdays, each with its start
+            offered.map((o) => ({
+              startsAt: o.startsAt!.toISOString(),
+              crewSize: o.crewSize,
+            }))
           : [
               {
                 startsAt: r.proposedStartsAt!.toISOString(),

@@ -5,9 +5,11 @@ import {
   type RevisionChange,
   type RevisionSummary,
 } from "@empire-cleaning/models";
+import { alike, screenWords } from "../format.ts";
 
-const { formatList, plural } = formats.en;
+const { formatList } = formats.en;
 const { planDays } = messages.en;
+const { cleaners } = screenWords.en;
 
 // what a send changed, as words in a sentence, each the Draft's name for it
 const changeWords: Record<RevisionChange, string> = {
@@ -45,21 +47,18 @@ export const sentAgain = (
   ]);
 };
 
-const cleaners = (n: number) =>
-  `${n} ${plural(n, { one: "cleaner", other: "cleaners" })}`;
-
 // the crew a send went with, on its History line beside its price and time,
 // so a send that changed only its cleaners shows its before and after:
 // "2 cleaners", or a plan's whose weekdays differ, each crew with its days,
 // "2 cleaners on Mondays and 1 cleaner on Wednesdays"
 export const sentWith = (crew: RevisionSummary["crew"]) => {
-  const kinds = new Map<number, string[]>();
-  for (const d of crew)
-    kinds.set(d.crewSize, [...(kinds.get(d.crewSize) ?? []), d.startsAt]);
-  const sizes = [...kinds.keys()];
-  return sizes.length === 1
-    ? cleaners(sizes[0]!)
+  const kinds = alike(crew, (d) => String(d.crewSize));
+  return kinds.length === 1
+    ? cleaners(crew[0]!.crewSize)
     : formatList(
-        sizes.map((n) => `${cleaners(n)} on ${planDays(kinds.get(n)!)}`),
+        kinds.map(
+          (days) =>
+            `${cleaners(days[0]!.crewSize)} on ${planDays(days.map((d) => d.startsAt))}`,
+        ),
       );
 };

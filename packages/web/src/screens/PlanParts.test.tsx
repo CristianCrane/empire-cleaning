@@ -55,8 +55,8 @@ test("a plan's weekdays that read alike are one fact, named only beside another 
   const wednesday = day("2026-01-21", 3.75, 1);
   const friday = day("2026-01-23", 1.625, 2);
   expect(await howLong([monday, wednesday, friday], false)).toEqual([
-    "On site Mondays and Fridays, with 2 cleaners",
-    "On site Wednesdays, with 1 cleaner",
+    "On site Mondays and Fridays, with 2\u00a0cleaners",
+    "On site Wednesdays, with 1\u00a0cleaner",
   ]);
   expect(await howLong([monday, wednesday, friday], true)).toEqual([
     "How long on Mondays and Fridays",
@@ -64,7 +64,7 @@ test("a plan's weekdays that read alike are one fact, named only beside another 
   ]);
   // every clean alike: one fact, no days, as a one-weekday plan's
   expect(await howLong([monday, friday], false)).toEqual([
-    "On site, with 2 cleaners",
+    "On site, with 2\u00a0cleaners",
   ]);
   expect(await howLong([monday, friday], true)).toEqual(["How long"]);
 });

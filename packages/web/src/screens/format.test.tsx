@@ -15,8 +15,8 @@ test("formatDate says the day it was in New York, not the viewer's", () => {
 });
 
 test("planDayWhen says the weekday and time in New York, with plain spaces", () => {
-  expect(planDayWhen(LATE_EVENING)).toBe("Tuesdays at 10:30 PM");
-  expect(planDayWhen("2026-11-02T14:00:00Z")).toBe("Mondays at 9:00 AM");
+  expect(planDayWhen(LATE_EVENING)).toBe("Tuesdays at 10:30\u00a0PM");
+  expect(planDayWhen("2026-11-02T14:00:00Z")).toBe("Mondays at 9:00\u00a0AM");
 });
 
 // the Office reads a length as a person says it, to the minute: a crew's

@@ -91,7 +91,7 @@ test(
     const [email] = (await emailsTo(casey.email)).filter(
       (e) => e.subject === "Your site visit is booked",
     );
-    expect(email!.text).toContain("Tuesday, January 6 at 10:00 AM");
+    expect(email!.text).toContain("Tuesday, January 6 at 10:00\u00a0AM");
     const visit = page.url();
 
     await page.goto("/office/quotes");
@@ -217,7 +217,7 @@ test("a Site Visit shows on the Schedule, in the Client's portal and in the visi
   await page.goto("/office/schedule?from=2026-01-05&to=2026-01-05");
   // a Cleaner's visit takes half an hour of their hours that day
   await expect(page.getByText("30 min booked")).toBeVisible();
-  await page.getByRole("link", { name: /3:00 PM Acme Dental/ }).click();
+  await page.getByRole("link", { name: /3:00\sPM Acme Dental/ }).click();
   await expect(page).toHaveURL(/\/office\/site-visits\/[0-9a-f-]{36}$/);
   await expect(page.getByText("Cory Cleaner", { exact: true })).toBeVisible();
 
@@ -241,7 +241,7 @@ test("a Site Visit shows on the Schedule, in the Client's portal and in the visi
   // and on their cleans, its title read on from the time before it
   await page.goto("/portal/cleans");
   const row = page.getByRole("row").first();
-  await expect(row).toContainText(/3:00 PM\s·\ssite visit/);
+  await expect(row).toContainText(/3:00\sPM\s·\ssite visit/);
   // its line in parts, saying who comes and what it costs
   await expect(row).toContainText(/with Cory\s·\sabout 30 min\s·\sno charge/);
 });

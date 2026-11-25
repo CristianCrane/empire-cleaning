@@ -177,13 +177,13 @@ test(
     ).toHaveText([
       // how long is the card's to say, each weekday named, as no clean
       // runs other than its weekday's
-      /^Mon, Jan 19, [^,]*9:00 AM\D*$/,
-      /^Wed, Jan 21, [^,]*1:00 PM\D*$/,
-      /^Mon, Jan 26, [^,]*9:00 AM\D*$/,
-      /^Wed, Jan 28, [^,]*1:00 PM\D*$/,
-      /^Mon, Feb 2, [^,]*9:00 AM\D*$/,
-      /^Wed, Feb 4, [^,]*1:00 PM\D*$/,
-      /^Mon, Feb 9, [^,]*9:00 AM\D*$/,
+      /Jan 19, 2026, Mon 9:00\sAM$/,
+      /Jan 21, 2026, Wed 1:00\sPM$/,
+      /Jan 26, 2026, Mon 9:00\sAM$/,
+      /Jan 28, 2026, Wed 1:00\sPM$/,
+      /Feb 2, 2026, Mon 9:00\sAM$/,
+      /Feb 4, 2026, Wed 1:00\sPM$/,
+      /Feb 9, 2026, Mon 9:00\sAM$/,
     ]);
     await expect(details).toContainText("About 2 hHow long on Mondays");
     await expect(details).toContainText("3¾ hHow long on Wednesdays");

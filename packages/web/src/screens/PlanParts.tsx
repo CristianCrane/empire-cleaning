@@ -42,7 +42,7 @@ import {
 import { postJson } from "../api.ts";
 import { linkTo, sameHref, type AppHref } from "../links.ts";
 import { useAction } from "./action.ts";
-import { dayOfInstant, formatHours, planDayOn } from "./format.ts";
+import { alike, dayOfInstant, formatHours, planDayOn } from "./format.ts";
 import { type Said, useSaid } from "./words.ts";
 
 // what the Client reads, in their language (ADR-0025); what only the
@@ -370,15 +370,6 @@ export function EndPlan({
     </DialogTrigger>
   );
 }
-
-// a plan's weekdays, those that read alike together, in the order they
-// come: one kind when every clean reads alike
-const alike = <T,>(days: T[], key: (day: T) => string) => {
-  const kinds = new Map<string, T[]>();
-  for (const day of days)
-    kinds.set(key(day), [...(kinds.get(key(day)) ?? []), day]);
-  return [...kinds.values()];
-};
 
 // which of a Client's cleans say their length in the list: none while each
 // runs as the card says for its weekday, as a row would repeat it; else, on

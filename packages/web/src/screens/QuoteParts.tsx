@@ -22,7 +22,6 @@ import {
   formatHours,
   quoteStatusLabel,
   quoteStatusTone,
-  timesHeld,
   typedHours,
 } from "./format.ts";
 import { useSaid } from "./words.ts";
@@ -284,9 +283,7 @@ export function PlanDayCard({
 // yet, "Standard Clean"
 export const planDayTitle = (lang: Language, day: PlanDayTerms) =>
   day.startsAt
-    ? timesHeld(
-        `${messages[lang].planDayWhen(day.startsAt)}: ${day.serviceName}`,
-      )
+    ? `${messages[lang].planDayWhen(day.startsAt)}: ${day.serviceName}`
     : day.serviceName;
 
 // what a plan clean saves, said only when the plan has a discount: a plan

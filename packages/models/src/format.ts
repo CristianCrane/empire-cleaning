@@ -26,6 +26,13 @@ const instant = (at: string | Date) =>
 // en-GB's, which doesn't; everything else is en-US, as ADR-0025 says
 const listLocales: Record<Language, string> = { en: "en-GB", es: locales.es };
 
+// a clock time held to its AM or PM by a no-break space, wherever it's
+// read (a screen, an email), so a narrow line never ends on "9:00" with
+// "AM" under it. Intl's own space between them differs from one engine to
+// the next, so every engine's comes out the same
+const held = (text: string) =>
+  text.replace(/(\d)[ \u202f](?=AM|PM|[ap]\.\s?m\.)/g, "$1\u00a0");
+
 const formatsIn = (lang: Language) => {
   const locale = locales[lang];
   const dates = (options: Intl.DateTimeFormatOptions) =>
@@ -98,19 +105,19 @@ const formatsIn = (lang: Language) => {
     // a day in a month -> "January 2026"
     formatMonth: (d: string) => month.format(noonOf(d)),
     // an instant -> "9:00 AM"
-    formatTime: (at: string | Date) => time.format(instant(at)),
+    formatTime: (at: string | Date) => held(time.format(instant(at))),
     // two instants -> "9:00 AM – 3:00 PM", each end as formatTime writes
     // it (Intl's formatRange spaces its ends apart differently from one
     // engine to the next)
     formatTimeRange: (from: string | Date, to: string | Date) =>
-      `${time.format(instant(from))} – ${time.format(instant(to))}`,
+      held(`${time.format(instant(from))} – ${time.format(instant(to))}`),
     // a time of day -> how a person reads it: "18:00" -> "6:00 PM"
     formatClock: (t: string) =>
-      timeOfDay.format(new Date(`1970-01-01T${t}:00Z`)),
+      held(timeOfDay.format(new Date(`1970-01-01T${t}:00Z`))),
     // an instant -> "Mon, Jan 12, 9:00 AM"
-    formatDateTime: (at: string | Date) => dateTime.format(instant(at)),
+    formatDateTime: (at: string | Date) => held(dateTime.format(instant(at))),
     // an instant -> "Monday, January 12 at 9:00 AM", as an email writes it
-    formatWhen: (at: string | Date) => when.format(instant(at)),
+    formatWhen: (at: string | Date) => held(when.format(instant(at))),
     // an instant as a page off a calendar shows it (DateTile): "Nov", "3",
     // "Tue"
     dateTile: (at: string | Date) => ({

@@ -40,6 +40,15 @@ export const addressOf = (
   p: Pick<PropertyView, "street" | "unit" | "postcode">,
 ) => [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
 
+// things, those that read alike together, in the order they come: one
+// kind when all read alike (a plan's weekdays by length, a send's by crew)
+export const alike = <T>(things: T[], key: (thing: T) => string) => {
+  const kinds = new Map<string, T[]>();
+  for (const thing of things)
+    kinds.set(key(thing), [...(kinds.get(key(thing)) ?? []), thing]);
+  return [...kinds.values()];
+};
+
 // a row's line of parts as text, where a slot takes only text; a row's
 // own line is the kit's Line
 export { lineOf };
@@ -48,10 +57,15 @@ export { lineOf };
 export const crewOf = (crew: { name: string }[]) =>
   crew.map((c) => c.name).join(", ") || "No cleaners yet";
 
-// "2 bedrooms", "1 bathroom", for the Office, the number held to its word
+// so many of a thing, "2 bedrooms", "1 baño": the number held to its word,
 // so a narrow line never ends on "1.5" with "bathrooms" under it
+const countIn =
+  (lang: Language) => (n: number, forms: { one: string; other: string }) =>
+    `${n}\u00a0${formats[lang].plural(n, forms)}`;
+
+// "2 bedrooms", "1 bathroom", for the Office
 const count = (n: number, one: string) =>
-  `${n}\u00a0${formats.en.plural(n, { one, other: `${one}s` })}`;
+  countIn("en")(n, { one, other: `${one}s` });
 
 // a home's rooms in full, as a Client gives them, for the Office: "2 bedrooms, 1.5
 // bathrooms, 1 storey, pets"
@@ -78,13 +92,6 @@ export const shortClientName = (c: Pick<ClientName, "name" | "businessName">) =>
 // Cleaner reads it to the quarter hour: howLong)
 export const formatHours = (hours: number) =>
   formatMinutes(Math.round(hours * 60)) || "0 h";
-
-// a clock time held together in running words, so a narrow screen never
-// ends a line on "9:00" with "AM" under it: "Accepting books your clean
-// for Mon, Jan 12, 9:00 AM." (formatTime spaces it plainly, for exact
-// checks and emails)
-export const timesHeld = (text: string) =>
-  text.replace(/(\d) (?=AM|PM|a\.m\.|p\.m\.)/g, "$1\u00a0");
 
 // hours the Office types or prices at a rate, as she types them: the Price
 // list's, a working-out's sums, cleaning hours, extra time, a cleaner's
@@ -317,14 +324,11 @@ type PlanDays = { recurrence: Recurrence; days: PlanDaySummary[] };
 const screenWordsIn = (lang: Language) => {
   const w = words[lang];
   const l = labels[lang];
-  const { formatClock, formatList, formatMoney, formatNumber, plural } =
-    formats[lang];
+  const { formatClock, formatList, formatMoney, formatNumber } = formats[lang];
   const { weekdayName, weekdays } = formats[lang];
   const { planDaysWhen, recurrence } = messages[lang];
   const form = formWords[lang];
-  // "2 bedrooms", "1 baño", the number held to its word
-  const count = (n: number, forms: { one: string; other: string }) =>
-    `${n}\u00a0${plural(n, forms)}`;
+  const count = countIn(lang);
 
   const conditionLabel = Object.fromEntries(
     conditions[lang].map((c) => [c.value, c.label]),

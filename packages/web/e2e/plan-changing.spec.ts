@@ -95,9 +95,9 @@ test(
     await client.getByRole("link", { name: "See your cleaning plan" }).click();
     const cleans = client.getByRole("region", { name: "Your upcoming cleans" });
     await expect(cleans.getByRole("row")).toHaveText([
-      /^Mon, Jan 19, .*9:00 AM/,
-      /^Mon, Jan 26, .*9:00 AM/,
-      /^Wed, Jan 28, .*9:00 AM/,
+      /Jan 19, 2026, Mon 9:00\sAM$/,
+      /Jan 26, 2026, Mon 9:00\sAM$/,
+      /Jan 28, 2026, Wed 9:00\sAM$/,
     ]);
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
       "Your cleaning plan with Empire Cleaning has changed",
@@ -178,7 +178,7 @@ test("a Draft changing the plan can take the time of a Job it replaces", async (
     morning.getByRole("button", { name: "8:00 AM", exact: true }),
   ).toBeVisible();
   await expect(
-    morning.getByRole("button", { name: /^9:00 AM\s?to / }),
+    morning.getByRole("button", { name: /^9:00\sAM\s?to / }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect(
     morning.getByRole("button", { name: "9:30 AM", exact: true }),

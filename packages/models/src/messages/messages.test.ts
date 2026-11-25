@@ -31,9 +31,9 @@ test("a Service Plan's weekdays read in either language", () => {
   // Monday 9:00am, Saturday 1:00pm in New York
   const days = ["2026-01-12T14:00:00Z", "2026-01-17T18:00:00Z"];
   expect(messages.en.planDaysWhen(days)).toBe(
-    "Mondays at 9:00 AM and Saturdays at 1:00 PM",
+    "Mondays at 9:00\u00a0AM and Saturdays at 1:00\u00a0PM",
   );
   expect(messages.es.planDaysWhen(days)).toBe(
-    "los lunes a las 9:00 a.m. y los sábados a la 1:00 p.m.",
+    "los lunes a las 9:00\u00a0a.m. y los sábados a la 1:00\u00a0p.m.",
   );
 });

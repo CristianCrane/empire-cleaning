@@ -44,7 +44,7 @@ import {
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { addressOf, formatMinutes, lineOf, timesHeld } from "../format.ts";
+import { addressOf, formatMinutes, lineOf } from "../format.ts";
 import { ConditionIcon, QuoteIcon } from "../icons.ts";
 import { type Said, useSaid } from "../words.ts";
 import {
@@ -859,8 +859,8 @@ function Accept({
 
         <p className="text-sm text-fg-muted">
           {quote.plan
-            ? `${depositCents > 0 ? t.w.takeAndKeep(t.formatMoney(depositCents)) : ""}${eachClean(t, quote, chosen)}${t.w.firstOn(timesHeld(t.formatDateTime(quote.proposedStartsAt)))}`
-            : `${oneOffPayment(t, quote, chosen)}${t.w.bookedFor(timesHeld(t.formatDateTime(quote.proposedStartsAt)))}`}
+            ? `${depositCents > 0 ? t.w.takeAndKeep(t.formatMoney(depositCents)) : ""}${eachClean(t, quote, chosen)}${t.w.firstOn(t.formatDateTime(quote.proposedStartsAt))}`
+            : `${oneOffPayment(t, quote, chosen)}${t.w.bookedFor(t.formatDateTime(quote.proposedStartsAt))}`}
         </p>
         {newCard && <ConsentNote action="paying" />}
         {action.problem && <Notice tone="danger">{action.problem}</Notice>}
