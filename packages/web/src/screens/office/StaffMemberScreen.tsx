@@ -385,11 +385,15 @@ function Availability({ member }: { member: StaffDetail }) {
   const [open, setOpen] = useState<string | null>(null);
   const { usualWeek, exceptions } = member.availability;
   const exceptionOn = (day: string) => exceptions.find((e) => e.date === day);
+  // a day set apart from the usual week that reads unlike it: a usual day
+  // off set off again changes nothing shown, so it isn't tinted
+  const differs = (e: { date: string; hours: number }) =>
+    e.hours !== usualWeek[weekdayOf(e.date)];
   // the key names only the tints this month shows, and none when it has
   // none: a line about a mark that isn't there reads as a rule to look for
   const shown = new Set(
     exceptions
-      .filter((e) => e.date.startsWith(`${month}-`))
+      .filter((e) => e.date.startsWith(`${month}-`) && differs(e))
       .map((e) => tintOf(e.hours)),
   );
   const keys = tints.filter((tint) => shown.has(tint)).map((t) => t.key);
@@ -424,8 +428,9 @@ function Availability({ member }: { member: StaffDetail }) {
               if (day === null) return <span key={`blank ${i}`} />;
               const exception = exceptionOn(day);
               const hours = exception?.hours ?? usualWeek[weekdayOf(day)]!;
+              const tinted = exception && differs(exception);
               const past = day < now;
-              const tone = exception
+              const tone = tinted
                 ? tintOf(hours).tone
                 : hours > 0
                   ? "bg-surface"
@@ -449,7 +454,7 @@ function Availability({ member }: { member: StaffDetail }) {
                   <span className="text-sm font-semibold sm:text-base">
                     {" "}
                     {hoursLabel(hours)}
-                    {exception && (
+                    {tinted && (
                       <span className="sr-only">
                         (differs from the usual week)
                       </span>
