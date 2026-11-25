@@ -66,6 +66,7 @@ describe("what a Client owes now", () => {
       owed: null,
       paying: "Visa ending 4242",
       clearing: [],
+      cardsBill: null,
     });
   });
 
@@ -194,7 +195,32 @@ describe("what a Client owes now", () => {
         action: { label: "See the bill" },
       },
       clearing: [debit],
+      // the card names it, so what's said under it needn't (U16)
+      cardsBill: "bill",
     });
+  });
+
+  // #534's change review F25
+  test("a bank debit on its way under a card about two Bills: the card names neither alone", () => {
+    const debit = bill({ status: "processing" });
+    const waiting = bill({
+      id: "waiting",
+      number: "EC-000040",
+      payment: "automatic",
+      unpaid: { since: "", kind: "waiting", why: null },
+    });
+
+    expect(moneyNow(data({ bills: [waiting, debit] }))).toMatchObject({
+      owed: { asks: false, line: "Bill EC-000040, and 1 more" },
+      clearing: [debit],
+      cardsBill: null,
+    });
+    // and a Bill due under it, asking to be paid, is the card's alone
+    expect(
+      moneyNow(
+        data({ bills: [bill({ id: "due", number: "EC-000042" }), debit] }),
+      ).cardsBill,
+    ).toBe("due");
   });
 
   // #534's UX review U11

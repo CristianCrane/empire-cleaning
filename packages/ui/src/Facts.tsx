@@ -31,10 +31,12 @@ export function Facts({
 }
 
 // the columns for so many short facts, so none sits alone in a part of a
-// row: a lone fact the whole row, four two and two rather than three and one
-// (the Office's Job, U15; a Bill, #534's UX review U20)
-export const factColumns = (facts: number): 1 | 2 | 3 =>
-  facts === 1 ? 1 : facts === 4 ? 2 : 3;
+// row: a lone fact the whole row; else four two and two rather than three
+// and one, or, for a grid lined up with another on its page (the Job's
+// Money under its facts), that one's, `lineUp`. The Office's Job (U15,
+// U29, U34) and a Bill (#534's UX review U20) count theirs
+export const factColumns = (facts: number, lineUp?: 2 | 3): 1 | 2 | 3 =>
+  facts === 1 ? 1 : (lineUp ?? (facts === 4 ? 2 : 3));
 
 // One fact: an icon, its value, and under it a muted line saying what it
 // is, the label unless `line` says more. className places it, e.g.

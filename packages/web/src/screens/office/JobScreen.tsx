@@ -137,7 +137,7 @@ export function JobScreen() {
         <>
           <HowItWent job={job} />
           <Adjustments job={job} />
-          <JobMoney job={job} columns={factColumnsOf(job)} />
+          <JobMoney job={job} lineUp={lineUpOf(job)} />
           <JobFold label="The job">
             <Card hiddenTitle="Job facts">
               <JobFacts job={job} />
@@ -148,7 +148,7 @@ export function JobScreen() {
       ) : (
         <>
           {parts}
-          <JobMoney job={job} columns={factColumnsOf(job)} />
+          <JobMoney job={job} lineUp={lineUpOf(job)} />
         </>
       )}
     </RecordPage>
@@ -395,9 +395,10 @@ function WhereAndWho({ job }: { job: OfficeJob }) {
 // while it's free to move or cancel, until when (one row when the two
 // agree, freeUntilOf); and how we get in, last and the card's width
 function JobFacts({ job }: { job: OfficeJob }) {
+  const facts = shortFactsOf(job);
   return (
-    <Facts columns={factColumnsOf(job)}>
-      {shortFactsOf(job)}
+    <Facts columns={factColumns(facts.length)}>
+      {facts}
       {job.property.accessInstructions && (
         <AccessFact property={job.property} className="col-span-full" />
       )}
@@ -405,10 +406,10 @@ function JobFacts({ job }: { job: OfficeJob }) {
   );
 }
 
-// the Job's facts grid's columns, as many short facts take (factColumns);
-// Money's grid, one card down, follows it, so the page's columns line up
-// (U34)
-const factColumnsOf = (job: OfficeJob) =>
+// the columns Money's grids, one card down, line up with (U34): two
+// under the Job's facts two and two, else three, as a lone fact of the
+// Job's takes the whole row and lines up with nothing
+const lineUpOf = (job: OfficeJob) =>
   factColumns(shortFactsOf(job).length) === 2 ? 2 : 3;
 
 function shortFactsOf(job: OfficeJob) {

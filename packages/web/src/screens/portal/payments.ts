@@ -136,7 +136,8 @@ type Owing = {
   // its news when its line already names the Bill, as the card's alone
   // (#534's UX review U6)
   alone?: string;
-  bill?: boolean;
+  // its Bill's id, when it's a Bill
+  bill?: string;
   // its Bill's number, while their bank asks them to approve a payment
   // they made on its page
   waiting?: string;
@@ -150,6 +151,10 @@ export type MoneyNow = {
   paying: string;
   // a Bill's bank debit on its way, to say so
   clearing: BillSummary[];
+  // the one Bill the card is about, alone, so what's said under it needn't
+  // name it again (#534's UX review U16); null for none, or for more than
+  // one ("Bill EC-000040, and 1 more")
+  cardsBill: string | null;
 };
 
 const cardLink = linkTo({ to: "/portal/payment-method" });
@@ -185,7 +190,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
           // isn't late: it waits on us
           late: asks,
           asks,
-          bill: true,
+          bill: b.id,
           ...(asks
             ? {
                 news: failedFor(b) ?? billNotPaid(b.number),
@@ -207,7 +212,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         cents: b.totalCents,
         late: false,
         asks: false,
-        bill: true,
+        bill: b.id,
         line: t.p.bill(b.number),
         action: { label: t.p.seeTheBill, href: billLink(b.id) },
       })),
@@ -251,7 +256,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         cents: b.totalCents,
         late: !!failedFor(b),
         asks: true,
-        bill: true,
+        bill: b.id,
         line: w.billDue(b.number, formatShortDay(b.dueOn)),
         ...(b.paying?.status === "failed" && {
           news: failedFor(b)!,
@@ -299,6 +304,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
     owed,
     paying,
     clearing: data.bills.filter((b) => b.status === "processing"),
+    cardsBill: (alike.length === 1 && first?.bill) || null,
   };
 }
 

@@ -71,9 +71,11 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   (a `DateTile` for when, an `IconTile` for what, an `Avatar` for who),
   a muted line above and below; then its facts (`Facts`, each an icon, a
   value and a muted line), with the time, the address and how to reach
-  someone among them, not in a part of their own. As many columns as they
-  take (`factColumns`), so none sits alone in a part of a row squeezing
-  its words: a lone fact the whole row, four two and two.
+  someone among them, not in a part of their own. A card that counts its
+  facts (the Office's Job and its Money, a Bill) takes as many columns as
+  they need (`factColumns`), so none sits alone in a part of a row
+  squeezing its words: a lone fact the whole row, four two and two. Every
+  card's, by what it shows: #553.
 - **Its parts**, each a Section. An action on one part stays on that part's
   title line (End plan, red, on the plan; Billing's Edit). A part
   with nothing in it yet offers its action (`ActionRow`), unless that

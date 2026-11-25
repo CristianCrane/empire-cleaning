@@ -69,11 +69,7 @@ export function PortalPayments() {
   const data = useLoaderData({ from: "/portal/payments" });
   const home = useHomeUrl();
   const money = moneyNow(data, t.lang);
-  const { owed, clearing } = money;
-  // the card above already names the one Bill whose bank debit is on its
-  // way, and its amount, so its alert needn't; beside another, or under a
-  // card about something else, it names its Bill (#534's UX review U16)
-  const cardNamesIt = clearing.length === 1 && owed?.asks === false;
+  const { owed, clearing, cardsBill } = money;
   const owing = owed && owedAnswer(owed, t.lang, data.plans);
   const { history } = data;
 
@@ -105,9 +101,12 @@ export function PortalPayments() {
           }
         />
       }
+      // a bank debit on its way names its Bill only when the card above
+      // doesn't, as it names it with its amount (#534's UX review U16)
       notices={clearing.map((bill) => (
         <Notice key={bill.id}>
-          {t.w.bankOnWay(cardNamesIt ? null : bill.number)} {t.BANK_CLEARING}
+          {t.w.bankOnWay(bill.id === cardsBill ? null : bill.number)}{" "}
+          {t.BANK_CLEARING}
         </Notice>
       ))}
       tilesLabel={t.w.yourPayments}
