@@ -112,6 +112,7 @@ const offered = (over: Partial<OfferedQuoteSummary> = {}): QuoteSummary => ({
   proposedStartsAt: "2026-11-08T15:00:00.000Z",
   sentAt: "2026-10-31T19:00:00.000Z",
   expiresAt: "2026-11-14T04:59:00.000Z",
+  plan: null,
   ...over,
 });
 const sentQuote = offered();

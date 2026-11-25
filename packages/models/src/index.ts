@@ -800,14 +800,14 @@ export type NeedsAttentionItem =
       // a Sent Quote within 48 hours of Expiring
       kind: "quote_expiring";
       since: string;
-      quote: QuoteSummary;
+      quote: OfferedQuoteSummary;
     }
   | {
       // a Sent Quote whose proposed day no longer has room for either Clean
       // Type, so its Client can't accept it: it needs another time
       kind: "quote_no_room";
       since: string;
-      quote: QuoteSummary;
+      quote: OfferedQuoteSummary;
     }
   | {
       // a booked Job starting within 48 hours whose crew isn't all
@@ -1371,6 +1371,12 @@ export type OfferedQuoteSummary = {
     proposedStartsAt: string;
     sentAt: string;
     expiresAt: string;
+    // a Service Plan Quote's, each weekday's first clean set (sending
+    // refuses a weekday without one); null otherwise
+    plan: {
+      recurrence: Recurrence;
+      days: TimedPlanDay[];
+    } | null;
   };
 }[OfferedStatus];
 
@@ -1384,6 +1390,8 @@ export type UnsentQuoteSummary = QuoteSummaryFields & {
   proposedStartsAt: string | null;
   sentAt: null;
   expiresAt: null;
+  // a Service Plan Quote's; null otherwise
+  plan: { recurrence: Recurrence; days: PlanDaySummary[] } | null;
 };
 
 type QuoteSummaryFields = {
@@ -1398,8 +1406,6 @@ type QuoteSummaryFields = {
   // its home's Service Plan, unless it has none or it has Ended: a Service
   // Plan Quote, or one asked for, may change it
   homePlanId: string | null;
-  // a Service Plan Quote's; null otherwise
-  plan: { recurrence: Recurrence; days: PlanDaySummary[] } | null;
   // for the Office: whether a Revision is being drafted
   drafting: boolean;
   siteVisit: SiteVisitStage;
@@ -2029,6 +2035,9 @@ export type ServicePlanStatus = "active" | "on_hold" | "ended";
 // and time every later one repeats (null on a Draft until chosen), and its
 // Service
 export type PlanDaySummary = { startsAt: string | null; serviceName: string };
+// a weekday whose first clean has its time: a Sent Quote's (sending refuses
+// one without) or a Service Plan's
+export type TimedPlanDay = PlanDaySummary & { startsAt: string };
 
 // a Service Plan in a line: on the Property page, and the Client's home screen
 export type ServicePlanSummary = {
@@ -2036,7 +2045,7 @@ export type ServicePlanSummary = {
   status: ServicePlanStatus;
   recurrence: Recurrence;
   // on its current terms, earliest first
-  days: PlanDaySummary[];
+  days: TimedPlanDay[];
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
   // its next booked Job, if one is on the Schedule
   nextStartsAt: string | null;
