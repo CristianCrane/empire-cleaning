@@ -45,8 +45,21 @@ const problemsAt = (page: Page) =>
     const problems: string[] = [];
     const { documentElement: root } = document;
     if (root.scrollWidth > root.clientWidth) {
+      // named by the innermost thing past the screen's edge, so a failure
+      // says what to fix
+      const past = [...document.querySelectorAll("#main *")].find(
+        (element) =>
+          element.getBoundingClientRect().right > root.clientWidth + 1 &&
+          ![...element.children].some(
+            (child) =>
+              child.getBoundingClientRect().right > root.clientWidth + 1,
+          ),
+      );
+      const named = past
+        ? `, past it: <${past.tagName.toLowerCase()}> "${(past.textContent ?? "").trim().slice(0, 60)}"`
+        : "";
       problems.push(
-        `the page scrolls sideways (${root.scrollWidth}px in ${root.clientWidth}px)`,
+        `the page scrolls sideways (${root.scrollWidth}px in ${root.clientWidth}px)${named}`,
       );
     }
     // a bar fixed at the page's foot (an ActionFooter) starts where the side

@@ -40,7 +40,7 @@ import { ConditionIcon, homeIcon } from "../icons.ts";
 import { AskedRows, PriceHead } from "../QuoteParts.tsx";
 import { working } from "./WorkedOutQuote.tsx";
 
-const { conditionLabel, conditionText, formatFloorArea, propertySummary } =
+const { conditionLabel, conditionText, formatFloorArea, propertyParts } =
   screenWords.en;
 
 const { formatDate, formatMoney } = formats.en;
@@ -81,7 +81,7 @@ export const askedSummary = ({ asked, property }: OfficeQuote) => (
   <Line
     parts={[
       asked?.service.name,
-      propertySummary(property, !!asked),
+      ...propertyParts(property, !!asked),
       property.condition && conditionText(property.condition).toLowerCase(),
     ]}
   />
@@ -103,7 +103,7 @@ export function AskedFacts({ quote }: { quote: OfficeQuote }) {
         icon={homeIcon(property.kind)}
         label="Property"
         value={<Link href={propertyLink(quote)}>{addressOf(property)}</Link>}
-        line={propertySummary(property)}
+        line={<Line parts={propertyParts(property)} />}
       />
       <Fact
         icon={CalendarDays}

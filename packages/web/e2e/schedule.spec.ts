@@ -197,7 +197,7 @@ test(
 const outlineOf = (page: Page, client = "Casey Client") =>
   page
     .getByRole("main")
-    .getByText(new RegExp(`^\\d+:\\d+ [AP]M ${client}$`))
+    .getByText(new RegExp(`^\\d+:\\d+\\s[AP]M ${client}$`))
     .and(page.locator("div"));
 const boxOf = async (of: Locator) => (await of.boundingBox())!;
 // an edge's colour and line: the outline's top, a block's own left bar

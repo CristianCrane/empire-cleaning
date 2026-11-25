@@ -392,6 +392,24 @@ const screenWordsIn = (lang: Language) => {
       ? null
       : priceOf(quote.headlineTotalCents, quote.plan?.days.length ?? null);
 
+  const propertyParts = (p: PropertyView, after = false) =>
+    p.kind === "commercial"
+      ? [
+          p.premisesType.name,
+          p.floorArea === null
+            ? w.floorAreaNotKnown
+            : formatFloorArea(p.floorArea),
+        ]
+      : [
+          after ? inLine(form[p.type]) : form[p.type],
+          ...(p.bedrooms === null
+            ? [w.roomsNotKnown]
+            : [
+                p.bedrooms === 0 ? w.studio : count(p.bedrooms, w.bedroom),
+                count(p.bathrooms!, w.bathroom),
+              ]),
+        ];
+
   return {
     // "Tue, Oct 20" and "Oct 20" for an instant: New York's day
     dayOf: (iso: string) => formats[lang].formatDay(dayOfInstant(iso)),
@@ -414,29 +432,14 @@ const screenWordsIn = (lang: Language) => {
             : w.cleaner,
       ),
     formatFloorArea,
-    // what a Property is: "Apartment · 2 bedrooms · 1.5 bathrooms"
-    // ("Apartment · rooms not known yet" before they're given), or "Office ·
-    // 4,500 sq ft" for business premises. `after` a part of a row's line,
-    // a home's kind reads on from the dot ("Quote sent · apartment · …"); a
-    // Premises Type's name, typed on the Price List as a Service's is, keeps
-    // its capitals
-    propertySummary: (p: PropertyView, after = false) =>
-      p.kind === "commercial"
-        ? lineOf([
-            p.premisesType.name,
-            p.floorArea === null
-              ? w.floorAreaNotKnown
-              : formatFloorArea(p.floorArea),
-          ])
-        : lineOf([
-            after ? inLine(form[p.type]) : form[p.type],
-            ...(p.bedrooms === null
-              ? [w.roomsNotKnown]
-              : [
-                  p.bedrooms === 0 ? w.studio : count(p.bedrooms, w.bedroom),
-                  count(p.bathrooms!, w.bathroom),
-                ]),
-          ]),
+    // what a Property is, part by part for a row's Line: "Apartment · 2
+    // bedrooms · 1.5 bathrooms" ("Apartment · rooms not known yet" before
+    // they're given), or "Office · 4,500 sq ft" for business premises.
+    // `after` a part of a row's line, a home's kind reads on from the dot
+    // ("Quote sent · apartment · …"); a Premises Type's name, typed on the
+    // Price List as a Service's is, keeps its capitals. Parts, not one text:
+    // each is held whole, so a narrow line wraps between them
+    propertyParts,
     // when a business wants cleaning: "Monday, Wednesday and Friday at 6:00
     // PM", or a one-off
     wantedCleaning: (request: {

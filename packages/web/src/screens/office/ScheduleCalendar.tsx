@@ -873,9 +873,11 @@ function ScheduleBlock({
 }) {
   const inside = `flex h-full flex-col ${narrow ? "px-1" : "px-1.5"} text-xs leading-tight font-normal text-fg no-underline ${compact ? "justify-center" : "py-1"}`;
   // only the lines that fit whole, each drawn whole or not at all: a line
-  // that would run past the last whole line, a wrapped name's second half
-  // too, moves to a column of its own past the block's edge, which isn't
-  // drawn. What isn't drawn is still read out, as a screen reader reads it
+  // that would run past the last whole line moves to a column of its own
+  // past the block's edge, which isn't drawn. The name, the first line, is
+  // the one exception: a column always keeps its first, so a name wrapped
+  // past a short block's foot is cut there. What isn't drawn is still read
+  // out, as a screen reader reads it
   const lines = compact ? (
     children
   ) : (

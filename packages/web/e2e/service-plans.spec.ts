@@ -126,7 +126,9 @@ test(
       .filter({ hasText: "Standard Clean" });
     await expect(jobs).toHaveCount(4);
     await expect(
-      page.getByRole("list", { name: /^History/ }).getByText(/^Job · /),
+      page
+        .getByRole("list", { name: /^History/ })
+        .getByText(/^Job · Standard Clean/),
     ).toHaveCount(0);
 
     // a week on, the next Job comes within reach

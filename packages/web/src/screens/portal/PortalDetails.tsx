@@ -104,7 +104,9 @@ export function PortalDetails() {
             id: p.id,
             title: addressOf(p),
             start: <IconTile icon={homeIcon(p.kind)} />,
-            description: <Line parts={[t.propertySummary(p), standing.line]} />,
+            description: (
+              <Line parts={[...t.propertyParts(p), standing.line]} />
+            ),
             badges: [
               <StatusBadge key="standing" tone={standing.tone}>
                 {standing.label}

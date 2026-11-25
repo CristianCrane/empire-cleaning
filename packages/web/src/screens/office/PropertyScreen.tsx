@@ -71,7 +71,7 @@ import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
 import { clientTrail } from "./trails.ts";
 import { jobStatus, JobStatusBadge } from "../JobBadges.tsx";
 
-const { propertySummary, quoteHeadline } = screenWords.en;
+const { propertyParts, quoteHeadline } = screenWords.en;
 
 const { formatDate, formatDateTime } = formats.en;
 
@@ -531,7 +531,7 @@ function Details({ home }: { home: OfficePropertyView }) {
       label={premises ? "Business details" : "Home details"}
       tile={<IconTile icon={homeIcon(home.kind)} size="lg" />}
       kicker={premises ? "A business" : "A home"}
-      title={propertySummary(home)}
+      title={<Line parts={propertyParts(home)} />}
     >
       <Facts>
         <FloorAreaFact property={home} />

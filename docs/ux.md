@@ -662,10 +662,13 @@ stays as it is (#336).
   Service and its price ("Standard Clean $194.89"), a name and its role.
   A part after the first reads on from its dot in lower case, as a
   sentence does ("Deep Clean · about 1¾ h", models' `inLine`). A slot that
-  takes only text (a `TimelineItem`'s title, a Fact's value, an email's
-  line) takes models' `lineOf`, whose dots are glued to both their
-  neighbours, so they never end or start a line either, though a long part
-  may break inside itself. Inside any part or sentence, a number stays with its
+  takes only text (a `TimelineItem`'s title, an email's line) takes
+  models' `lineOf`, whose dots are glued to both their neighbours, so they
+  never end or start a line either, though a long part may break inside
+  itself. A slot that takes more than text (a Fact's value or line, a card's
+  title) takes the `Line`: with each part held whole, `lineOf`'s one text
+  has nowhere to wrap, and "Apartment · 2 bedrooms · 1.5 bathrooms" ran a
+  320px Quote sideways, so its words give the parts (`propertyParts`). Inside any part or sentence, a number stays with its
   word ("2 bedrooms", "1.5 bathrooms", "2 cleaners") and a clock time with
   its AM or PM, held by a no-break space where the words are made (web's
   `count`, models' time formats), so "1.5" or "9:00" never ends a line on
@@ -747,7 +750,9 @@ stays as it is (#336).
   alone; the crew's names show only when someone's on it, a name to a
   line, and a block draws only the lines that fit whole, each wrapping in a
   narrow lane rather than cut short ("Cory Cl…" names no one), and each
-  name, time or Site visit line whole or not drawn at all. The key draws each state as a block
+  time or Site visit line whole or not drawn at all; the client's name, the
+  first line, always shows, cut at the block's foot when a short block can't
+  hold all of it. The key draws each state as a block
   (#493 G4.1). A Job or a Site Visit dragged on the Schedule carries a picture of its block, and an outline
   its size shows where it would land, snapped as the drop is: its own
   colours, a see-through fill inside a dashed edge, red where it can't go

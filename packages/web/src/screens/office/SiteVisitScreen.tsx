@@ -24,6 +24,7 @@ import {
   RecordPage,
   DetailsCard,
   Facts,
+  Line,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
 import { addressOf, formatMinutes, screenWords } from "../format.ts";
@@ -40,7 +41,7 @@ import {
   SiteVisitBadge,
 } from "./SiteVisitParts.tsx";
 
-const { propertySummary } = screenWords.en;
+const { propertyParts } = screenWords.en;
 
 const { formatDateTime } = formats.en;
 
@@ -199,7 +200,7 @@ function Found({
             <Fact
               icon={homeIcon(visit.property.kind)}
               label="What it is"
-              value={propertySummary(visit.property)}
+              value={<Line parts={propertyParts(visit.property)} />}
             />
             <ConditionFact property={visit.property} />
             <Fact

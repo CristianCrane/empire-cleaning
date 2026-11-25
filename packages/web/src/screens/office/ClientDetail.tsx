@@ -53,7 +53,7 @@ import { addressOf, clientName, screenWords } from "../format.ts";
 import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
 import { clientsCrumb } from "./trails.ts";
 
-const { propertySummary } = screenWords.en;
+const { propertyParts } = screenWords.en;
 
 const { formatDate, formatDateTime, formatDay, formatMoney } = formats.en;
 
@@ -134,7 +134,10 @@ export function ClientDetail() {
               title={addressOf(home)}
               description={
                 <Line
-                  parts={[statusLine(home.status), propertySummary(home, true)]}
+                  parts={[
+                    statusLine(home.status),
+                    ...propertyParts(home, true),
+                  ]}
                 />
               }
               onAction={() =>

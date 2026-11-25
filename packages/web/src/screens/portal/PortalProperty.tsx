@@ -123,7 +123,7 @@ export function PortalProperty() {
           label={premises ? w.businessDetails : w.homeDetails}
           tile={<IconTile icon={homeIcon(p.kind)} size="lg" />}
           kicker={premises ? w.yourBusiness : t.p.yourHome}
-          title={t.propertySummary(p)}
+          title={<Line parts={t.propertyParts(p)} />}
           line={addressOf(p)}
         >
           <Facts>

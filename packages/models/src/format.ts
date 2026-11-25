@@ -187,10 +187,12 @@ export const inLine = (part: string) =>
 export const partsShown = <T>(parts: (T | false | null | undefined)[]) =>
   parts.filter((p): p is T => p != null && p !== false && p !== "");
 
-// a row's line of parts as text, where only text goes (a card's title, a
-// Fact's value, an email's line): set apart by dots, each glued to both its
+// a row's line of parts as text, where only text goes (a History entry's
+// title, an email's line): set apart by dots, each glued to both its
 // neighbours, so a wrap never leaves one at a line's end or start, though a
-// long part may break inside itself. A screen's row takes the kit's Line
+// long part may break inside itself. Where a slot takes more than text (a
+// row, a Fact, a card's title), the kit's Line: parts each held whole leave
+// this one text nowhere to wrap (docs/ux.md, Lists and tables)
 export const lineOf = (parts: (string | false | null | undefined)[]) =>
   partsShown(parts).join("\u00a0·\u00a0");
 
