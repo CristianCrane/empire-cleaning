@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import {
   notFound,
   useLoaderData,
@@ -6,7 +6,12 @@ import {
   useParams,
   useSearch,
 } from "@tanstack/react-router";
-import { Link, PrototypeBar, PrototypeIndex } from "@empire-cleaning/ui";
+import {
+  PrototypeBar,
+  PrototypeIndex,
+  PrototypeUnknown,
+  clearToasts,
+} from "@empire-cleaning/ui";
 import { linkTo } from "../links.ts";
 
 // The web app's prototype shell (docs/ux.md, Changing a screen). A prototype
@@ -45,10 +50,10 @@ const files = import.meta.glob<{ default: Prototype }>("./**/*.prototype.tsx");
 const screenOf = (path: string) => path.replace(/^.*\/|\.prototype\.tsx$/g, "");
 
 // the route's loader: the prototype named, if this branch has it. A
-// branch with none, such as main, has no such page: Not found, as for any
-// address the app doesn't have
+// production build with none, as main's is, has no such page: Not found, as
+// for any address the app doesn't have
 export const loadPrototype = async (screen: string) => {
-  if (!Object.keys(files).length) throw notFound();
+  if (!Object.keys(files).length && !import.meta.env.DEV) throw notFound();
   const load = Object.entries(files).find(
     ([path]) => screenOf(path) === screen,
   )?.[1];
@@ -67,7 +72,22 @@ export function PrototypeScreen() {
   const search = useSearch({ from });
   const drawn = useLoaderData({ from });
   const navigate = useNavigate();
-  if (!drawn) return <Unknown screen={screen} />;
+  if (!drawn)
+    return (
+      <PrototypeUnknown
+        screen={screen}
+        known={Object.keys(files)
+          .map(screenOf)
+          .sort()
+          .map((name) => ({
+            name,
+            href: linkTo({
+              to: "/prototype/$screen",
+              params: { screen: name },
+            }),
+          }))}
+      />
+    );
   const caseKeys = Object.keys(drawn.cases);
   const hrefOf = (layout: string, shown: string) =>
     linkTo({
@@ -119,6 +139,7 @@ export function PrototypeScreen() {
         data-prototype-case=""
         className="contents"
       >
+        <ToastsCleared />
         {drawn.cases[shown]?.draw(layout, go)}
       </div>
       {import.meta.env.DEV && (
@@ -142,28 +163,10 @@ export function PrototypeScreen() {
   );
 }
 
-// a name this branch has no prototype of, and the ones it has
-function Unknown({ screen }: { screen: string }) {
-  const known = Object.keys(files).map(screenOf).sort();
-  return (
-    <main className="mx-auto max-w-3xl p-4 text-sm">
-      <p className="mb-1 text-base font-semibold">
-        No prototype is named {screen} on this branch.
-      </p>
-      <ul className="space-y-1">
-        {known.map((name) => (
-          <li key={name}>
-            <Link
-              href={linkTo({
-                to: "/prototype/$screen",
-                params: { screen: name },
-              })}
-            >
-              {name}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </main>
-  );
+// the toasts a case before raised, gone before this one draws: the first
+// child, so its effect runs before the case's own (a toast the case raises
+// as it opens stays)
+function ToastsCleared() {
+  useEffect(clearToasts, []);
+  return null;
 }

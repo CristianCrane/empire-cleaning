@@ -893,7 +893,7 @@ const portalPropertyRoute = createRoute({
 });
 
 // a prototype on a prototype-* branch, signed out (screens/Prototype.tsx);
-// main has none, so it's always Not found there
+// main has none, so its production build is always Not found there
 const prototypeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/prototype/$screen",

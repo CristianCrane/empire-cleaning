@@ -36,8 +36,9 @@ const FOLDED = "prototype-bar-folded";
 // names, so its links stay put from case to case, above all a case draws
 // (a dialog's backdrop, a bank's pop-up), and in React Aria's top layer, as
 // the toasts are, which an open dialog leaves pressable, so a press reaches
-// it as the keys do. It covers what's under it, so it folds to a narrow tab
-// naming the layout and case, halfway down the right edge, clear of a
+// it as the keys do. It covers what's under it, so it folds to a small tab
+// naming the layout and case as the list's cells do (A2), halfway down the
+// right edge, clear of a
 // frame's bars and corners, and the keys still step. It's drawn in the
 // browser alone (the landing site's client:only). Its links go through the
 // web app's router there, and are plain links on the landing site. Each
@@ -124,9 +125,10 @@ export function PrototypeBar({
         <Button
           onPress={() => fold(false)}
           aria-label="Unfold the bar"
-          className="px-0.5 py-1.5 font-semibold [writing-mode:vertical-rl] hover:opacity-70"
+          className="px-1.5 py-1 text-sm font-semibold hover:opacity-70"
         >
-          {layout} · {shown}
+          {layout}
+          {shown}
         </Button>
       )}
     </div>,

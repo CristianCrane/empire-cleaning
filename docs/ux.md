@@ -890,8 +890,10 @@ stays as it is (#336).
      of its own, a Spanish one under `/es/`.
    - **Looking at it:** `pnpm dev` draws a bar in the corner
      (`PrototypeBar`): ↑/↓ for layouts and ←/→ for cases, a link to the
-     list of them all, and a fold to a narrow tab on the right edge when
-     it covers what's under it. With no case, the address is that list, a grid of every
+     list of them all, and a fold to a small tab on the right edge,
+     reading "A2" as the list does, when it covers what's under it. A name
+     with no prototype lists the ones the branch has, in both packages
+     (`PrototypeUnknown`). With no case, the address is that list, a grid of every
      layout × case (`PrototypeIndex`). When another dev server may be
      running, give yours a port under 10000 with `--strictPort`: the test
      runs lease theirs from 10000 up (`packages/server/tests/ports.ts`), and

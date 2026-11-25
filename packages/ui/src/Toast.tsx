@@ -27,6 +27,10 @@ const toastQueue = new AriaToastQueue<ToastContent>({
 export const showToast = (content: ToastContent) =>
   toastQueue.add(content, { timeout: 5000 });
 
+// every toast up gone at once: the prototype shell's, as a case is drawn,
+// so one case's toast doesn't carry into the next
+export const clearToasts = () => toastQueue.clear();
+
 const icons = { info: Info, success: CircleCheck, danger: CircleAlert };
 
 const accent = tv({
