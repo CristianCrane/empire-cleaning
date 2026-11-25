@@ -623,6 +623,9 @@ test.describe("requesting a Quote", () => {
 });
 
 test.describe("reviews", () => {
+  // the smooth scroll most visitors get: under reduced motion, the tests'
+  // default (playwright.config.ts), the buttons jump instead
+  test.use({ reducedMotion: "no-preference" });
   const review = (page: Page, i: number) =>
     page.getByRole("group", { name: `${i} of ${reviews.length}` });
 
@@ -787,7 +790,6 @@ test.describe("the Quote form, as it loads", () => {
     // the page as drawn, before its script runs
     const context = await browser.newContext({ javaScriptEnabled: false });
     const page = await context.newPage();
-    await page.emulateMedia({});
     await page.goto("/");
     const form = page.locator("#quote form");
     // inert, whatever shows
