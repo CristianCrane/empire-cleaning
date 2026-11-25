@@ -294,10 +294,11 @@ const slug = (title: string) =>
     .replace(/^-|-$/g, "")
     .slice(0, 60);
 
-// the base checked out in a worktree of its own for the length of `run`, at
-// the same path every time, so a killed run's is found and removed
+// the base checked out in a worktree of its own for the length of `run`,
+// named for this run's block of ports, which no other run holds while it
+// lives: so a worktree found there is a killed run's, and is removed
 const withBase = <T>(sha: string, run: (base: string) => T): T => {
-  const base = `${top}-shots-base`;
+  const base = `${top}-shots-base-${E2E_PORTS}`;
   const remove = () => {
     if (existsSync(base)) git(top, "worktree", "remove", "--force", base);
     git(top, "worktree", "prune");
