@@ -143,9 +143,9 @@ its state a mark (#493 G4.1). Renders through `CalendarPage` (#437).
 
 Keeps: Table + Tabs (#146). Renders through `ListPage` (#433).
 
-- Header: "Jobs" in the bar; on a phone, the search's icon.
+- Header: "Jobs" in the bar.
 - Body: Tabs Upcoming · Past · Cancelled, the search at the end of their
-  line from md; by month: a Table from md, dated rows on a phone, a badge
+  line from md, on a phone its icon there and the field under the line; by month: a Table from md, dated rows on a phone, a badge
   only for Needs cleaners; Show more (N left).
 
 #### Office > Job
@@ -193,10 +193,10 @@ Keeps: one column, History last, as every Record (#493). Renders through `Record
 
 Keeps: Table + filters (#109). Renders through `ListPage` (#433).
 
-- Header: "Quotes" in the bar; on a phone, the search's icon; New quote
-  (primary).
+- Header: "Quotes" in the bar; New quote (primary).
 - Body: Tabs Requested · Draft · Sent · Expired, the search at the end of
-  their line from md; a sortable Table from md (Client · Address · Service
+  their line from md, on a phone its icon there and the field under the
+  line; a sortable Table from md (Client · Address · Service
   · Total · Waiting, Address from lg, no Total on Requested until a search
   spans the Tabs),
   rows on a phone, the Table's cells as one line under the Client; Show
@@ -268,9 +268,9 @@ Keeps: a Draft page of its own (#145). Renders through `FormPage` (#434).
 
 Keeps: Table + status Tabs (#117). Renders through `ListPage` (#433).
 
-- Header: "Clients" in the bar; on a phone, the search's icon.
+- Header: "Clients" in the bar.
 - Body: Tabs Active · Quoting · Past, the search at the end of their line
-  from md; a Table from md, rows on a phone; Show more (N left).
+  from md, on a phone its icon there and the field under the line; a Table from md, rows on a phone; Show more (N left).
 
 #### Office > Client
 
@@ -293,7 +293,8 @@ Keeps: one page of Sections, its History last (#493). Renders through `RecordPag
   new terms (open the Quote).
 - Body: Home details (`DetailsCard`: `IconTile`, icon facts); Cleaning plan
   (Section: Change terms and End plan in red on its title line, the plan's
-  card), or an `ActionRow` to set one up; Site visit.
+  card), or an `ActionRow` to set one up; Booked jobs (Section: dated rows
+  by month, while any are booked); Site visit.
 - History: a Card, last, at every width.
 
 #### Office > Ended cleaning plan
@@ -307,7 +308,8 @@ Keeps: the Record. Renders through `RecordPage` (#432).
   See the job).
 - Alerts: on hold (why), in its badge's tone: warning, or info for a
   payment we try again ourselves.
-- Body: the plan (`DetailsCard`); visits waiting; Jobs (Section: List).
+- Body: the plan (`DetailsCard`); visits waiting; Jobs (Section: dated rows
+  by month).
 
 #### Office > Site visit
 
@@ -564,7 +566,7 @@ Keeps: headline, then facts across (ux-portal). Renders through `RecordPage` (#4
   ourselves; otherwise Menu (Ask to change; End plan in red).
 - Alerts: on hold (why), in its badge's tone: warning, or info for a
   payment we try again ourselves, which says there's nothing to do.
-- Body: the plan (`DetailsCard`); Upcoming (Section: List).
+- Body: the plan (`DetailsCard`); Upcoming (Section: dated rows by month).
 
 #### Client portal > A home
 

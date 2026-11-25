@@ -665,7 +665,11 @@ stays as it is (#336).
   takes only text (a `TimelineItem`'s title, a Fact's value, an email's
   line) takes models' `lineOf`, whose dots are glued to both their
   neighbours, so they never end or start a line either, though a long part
-  may break inside itself.
+  may break inside itself. Inside any part or sentence, a number stays with its
+  word ("2 bedrooms", "1.5 bathrooms", "2 cleaners") and a clock time with
+  its AM or PM, held by a no-break space where the words are made (web's
+  `count`, models' time formats), so "1.5" or "9:00" never ends a line on
+  its own (#548).
 - **Figures sit in a column**: a list of labels and their values (a
   price's hours and Deposit, a plan clean against a one-off, a plan's
   totals, a quote's extras, "How it's worked out", a receipt) is the kit's
@@ -742,7 +746,8 @@ stays as it is (#336).
   Visit's is its own icon, so it isn't told from a Staffed Job by colour
   alone; the crew's names show only when someone's on it, a name to a
   line, and a block draws only the lines that fit whole, each wrapping in a
-  narrow lane rather than cut short ("Cory Cl…" names no one). The key draws each state as a block
+  narrow lane rather than cut short ("Cory Cl…" names no one), and each
+  name, time or Site visit line whole or not drawn at all. The key draws each state as a block
   (#493 G4.1). A Job or a Site Visit dragged on the Schedule carries a picture of its block, and an outline
   its size shows where it would land, snapped as the drop is: its own
   colours, a see-through fill inside a dashed edge, red where it can't go
