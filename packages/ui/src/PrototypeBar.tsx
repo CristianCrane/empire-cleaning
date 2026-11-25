@@ -14,16 +14,9 @@ import { readStored, store } from "./stored.ts";
 // one of a prototype's layouts or cases, and the link that draws it
 type Choice = { key: string; name: string; href: LinkProps["href"] };
 
-// the arrow keys, and which link each presses
-const STEPS: Record<string, string> = {
-  ArrowUp: "layout-back",
-  ArrowDown: "layout-on",
-  ArrowLeft: "case-back",
-  ArrowRight: "case-on",
-};
-
-// each row's step links are drawn as the keys that press them, so the
-// marks say which key steps what
+// each row's step links, and the arrow keys that press them: each link
+// carries its key (aria-keyshortcuts), which the keys find it by, and is
+// drawn as that key, so the marks say which key steps what
 const MARKS = {
   layout: { back: ArrowUp, on: ArrowDown, keys: ["ArrowUp", "ArrowDown"] },
   case: { back: ArrowLeft, on: ArrowRight, keys: ["ArrowLeft", "ArrowRight"] },
@@ -74,10 +67,8 @@ export function PrototypeBar({
   };
   useEffect(() => {
     const press = (event: KeyboardEvent) => {
-      const step = STEPS[event.key];
       const target = event.target as HTMLElement;
       if (
-        !step ||
         event.altKey ||
         event.ctrlKey ||
         event.metaKey ||
@@ -86,7 +77,7 @@ export function PrototypeBar({
       )
         return;
       const link = bar.current?.querySelector<HTMLElement>(
-        `[data-step="${step}"]`,
+        `[aria-keyshortcuts="${CSS.escape(event.key)}"]`,
       );
       if (!link) return;
       event.preventDefault();
@@ -173,7 +164,6 @@ function Row({
       {many && (
         <Link
           href={step(-1)?.href}
-          data-step={`${what}-back`}
           aria-label={`Previous ${what}`}
           aria-keyshortcuts={keys[0]}
           className={link}
@@ -190,7 +180,6 @@ function Row({
       {many && (
         <Link
           href={step(1)?.href}
-          data-step={`${what}-on`}
           aria-label={`Next ${what}`}
           aria-keyshortcuts={keys[1]}
           className={`${link} ms-auto`}
