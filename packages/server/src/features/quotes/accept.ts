@@ -26,7 +26,7 @@ import { clock } from "../../services/clock/index.ts";
 import { email } from "../../services/email/index.ts";
 import {
   paymentGateway,
-  type OnSessionResult,
+  type PaymentResult,
 } from "../../services/payment-gateway/index.ts";
 import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
@@ -456,7 +456,7 @@ type Booked = {
 const recordAcceptance = async (
   tx: Tx,
   booking: Booking,
-  paid: Extract<OnSessionResult, { status: "succeeded" }>,
+  paid: Extract<PaymentResult, { status: "taken" }>,
   change: Change | null,
 ): Promise<Booked> => {
   const { quote, revision, property, offer } = booking;
@@ -629,7 +629,7 @@ export const acceptQuote = async (
   const takeDeposit = async (tx: Tx): Promise<DepositTaken> => {
     // nothing to take or save from a saved card
     if (depositCents === 0 && !token) {
-      return { status: "succeeded", chargeId: null, saved: null };
+      return { status: "taken", chargeId: null, saved: null };
     }
     const payerId = await payerFor(client);
     const input = {
@@ -650,8 +650,16 @@ export const acceptQuote = async (
               source,
               idempotencyKey: idempotencyKey.savingCard(id, token!),
             })
+            // a card saved whose bank finishes it is kept as one to
+            // approve, as keep() keeps a Deposit's: #534's F21, fixed in
+            // the commit after this one
+            .then((said): DepositTaken =>
+              said.status === "finishing"
+                ? { status: "approving", ref: said.ref, secret: said.secret }
+                : said,
+            )
             // nothing is taken, so trying again is safe
-            .catch((): OnSessionResult => ({
+            .catch((): DepositTaken => ({
               status: "failed",
               reason: UNREACHABLE,
             }))
@@ -730,7 +738,7 @@ export const acceptQuote = async (
               : `${client.name}'s ${messages.en.card(saved!)} didn't go through${because(why)}, so nothing was booked. Email them a link to add another card.`,
         );
       }
-      if (attempt.status === "needs_approval") {
+      if (attempt.status === "approving") {
         await tx.insert(pendingDeposits).values({
           gatewayRef: attempt.ref,
           quoteId: id,
@@ -834,7 +842,7 @@ const unsettledDeposits = async (quoteId: string, tx: Tx | typeof db = db) =>
 export type Finalized =
   | { status: "accepted"; job: Job }
   // their bank is still asking them, or finishing it
-  | { status: "waiting"; paying: Paying }
+  | { status: "approving"; paying: Paying }
   // their bank refused it; `endedHere` when this call settled it, so the
   // Client is emailed it once however many settle at once (#534 critical C7)
   | { status: "failed"; reason: string; endedHere: boolean }
@@ -908,7 +916,7 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
   };
 
   // set once their bank has approved it: the Deposit, taken
-  let approved = null as Extract<Approval, { status: "approved" }> | null;
+  let approved = null as Extract<Approval, { status: "taken" }> | null;
   let result;
   try {
     result = await db.transaction(async (tx) => {
@@ -931,10 +939,10 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
       const attempt = await depositAttemptOf(ref, tx);
       const standing = await approvalOf(ref, attempt, null);
       switch (standing.status) {
-        case "waiting":
+        case "approving":
         case "finishing":
           return {
-            status: "waiting",
+            status: "approving",
             paying: pending.changingPlanId
               ? "change"
               : quote.kind === "service_plan"
@@ -955,7 +963,7 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
             ? ({ status: "called_off" } as const)
             : ({ status: "failed", reason, endedHere: true } as const);
         }
-        case "approved":
+        case "taken":
           break;
       }
 
@@ -967,16 +975,7 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
         return { status: "refunded", unbookable: hold.unbookable } as const;
       }
       await settle(ref, tx);
-      const booked = await recordAcceptance(
-        tx,
-        booking,
-        {
-          status: "succeeded",
-          chargeId: standing.chargeId,
-          saved: standing.saved,
-        },
-        hold.change,
-      );
+      const booked = await recordAcceptance(tx, booking, standing, hold.change);
       if (attempt) await keepTaken(tx, attempt);
       return { status: "accepted", booked } as const;
     });
@@ -1031,7 +1030,7 @@ export const latestDepositFor = async (quoteId: string) => {
 // what a Client is told when finishing their Deposit didn't book it
 export const finalizeProblem = (finalized: Finalized) => {
   switch (finalized.status) {
-    case "waiting":
+    case "approving":
       return said().waiting(finalized.paying);
     case "called_off":
       return said().calledOff(APPROVAL_MS / MINUTE_MS);

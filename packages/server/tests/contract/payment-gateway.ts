@@ -114,7 +114,9 @@ export const paymentGatewayContract = (
         description: "Contract check: Balance",
         idempotencyKey: `balance:${run}:${payerId}`,
       });
-      if (!charge.ok) throw new Error(`not charged: ${charge.reason}`);
+      if (charge.status !== "taken" || !charge.chargeId) {
+        throw new Error(`not charged: ${charge.status}`);
+      }
       return charge.chargeId;
     };
 
@@ -156,7 +158,7 @@ export const paymentGatewayContract = (
         });
 
         expect(deposit).toEqual({
-          status: "succeeded",
+          status: "taken",
           chargeId: expect.any(String),
           saved: {
             paymentMethodId: expect.any(String),
@@ -179,7 +181,7 @@ export const paymentGatewayContract = (
         });
 
         expect(deposit).toEqual({
-          status: "succeeded",
+          status: "taken",
           chargeId: expect.any(String),
           saved: null,
         });
@@ -216,14 +218,13 @@ export const paymentGatewayContract = (
         });
 
         expect(deposit).toEqual({
-          status: "needs_approval",
+          status: "approving",
           ref: expect.any(String),
           secret: expect.stringMatching(/.+/),
-          processing: false,
         });
-        if (deposit.status !== "needs_approval") return;
+        if (deposit.status !== "approving") return;
         expect(await t.gateway.paymentOutcome(deposit.ref)).toMatchObject({
-          status: "needs_approval",
+          status: "approving",
           ref: deposit.ref,
         });
       });
@@ -238,8 +239,8 @@ export const paymentGatewayContract = (
           description: "Contract check: Deposit called off",
           idempotencyKey: `deposit:${run}:${payerId}`,
         });
-        if (deposit.status !== "needs_approval") {
-          throw new Error(`expected needs_approval, got ${deposit.status}`);
+        if (deposit.status !== "approving") {
+          throw new Error(`expected approving, got ${deposit.status}`);
         }
 
         await t.gateway.cancelPayment(deposit.ref, "abandoned");
@@ -263,12 +264,12 @@ export const paymentGatewayContract = (
           description: "Contract check: Deposit read back",
           idempotencyKey: `deposit:${run}:${payerId}`,
         });
-        if (deposit.status !== "succeeded" || !deposit.chargeId) {
-          throw new Error(`expected succeeded, got ${deposit.status}`);
+        if (deposit.status !== "taken" || !deposit.chargeId) {
+          throw new Error(`expected taken, got ${deposit.status}`);
         }
 
         expect(await t.gateway.paymentOutcome(deposit.chargeId)).toEqual({
-          status: "succeeded",
+          status: "taken",
           chargeId: deposit.chargeId,
           saved: {
             paymentMethodId: deposit.saved!.paymentMethodId,
@@ -287,8 +288,8 @@ export const paymentGatewayContract = (
           description: "Contract check: Deposit taken, not called off",
           idempotencyKey: `deposit:${run}:${payerId}`,
         });
-        if (deposit.status !== "succeeded" || !deposit.chargeId) {
-          throw new Error(`expected succeeded, got ${deposit.status}`);
+        if (deposit.status !== "taken" || !deposit.chargeId) {
+          throw new Error(`expected taken, got ${deposit.status}`);
         }
 
         await expect(
@@ -309,7 +310,7 @@ export const paymentGatewayContract = (
         });
 
         expect(deposit).toEqual({
-          status: "succeeded",
+          status: "taken",
           chargeId: null,
           saved: {
             paymentMethodId: expect.any(String),
@@ -331,7 +332,7 @@ export const paymentGatewayContract = (
           idempotencyKey: `deposit:${run}:${payerId}`,
         });
 
-        expect(deposit.status).toBe("needs_approval");
+        expect(deposit.status).toBe("approving");
       });
     });
 
@@ -373,7 +374,11 @@ export const paymentGatewayContract = (
           idempotencyKey: `balance:${run}:${payerId}`,
         });
 
-        expect(charge).toEqual({ ok: true, chargeId: expect.any(String) });
+        expect(charge).toEqual({
+          status: "taken",
+          chargeId: expect.any(String),
+          saved: null,
+        });
         expect(await t.paymentAttempts(payerId)).toBe(1);
       });
 
@@ -392,7 +397,7 @@ export const paymentGatewayContract = (
 
         const [first, again] = [await charge(), await charge()];
 
-        expect(first.ok).toBe(true);
+        expect(first.status).toBe("taken");
         expect(again).toEqual(first);
         expect(await t.paymentAttempts(payerId)).toBe(1);
       });
@@ -410,8 +415,8 @@ export const paymentGatewayContract = (
             idempotencyKey: `balance:${run}:${payerId}`,
           });
 
-        expect((await charge(7500)).ok).toBe(true);
-        expect((await charge(9000)).ok).toBe(false);
+        expect((await charge(7500)).status).toBe("taken");
+        expect((await charge(9000)).status).toBe("failed");
         expect(await t.paymentAttempts(payerId)).toBe(1);
       });
 
@@ -435,11 +440,11 @@ export const paymentGatewayContract = (
         const first = await charge("a");
         const again = await charge("a");
 
-        expect(first.ok).toBe(false);
+        expect(first.status).toBe("failed");
         expect(again).toEqual(first);
         expect(await t.paymentAttempts(payerId)).toBe(1);
         // a new key is a new attempt, declined again
-        expect((await charge("b")).ok).toBe(false);
+        expect((await charge("b")).status).toBe("failed");
         expect(await t.paymentAttempts(payerId)).toBe(2);
       });
     });
@@ -465,7 +470,7 @@ export const paymentGatewayContract = (
         expect(
           await t.gateway.chargeOutcome({ ...lookup, chargeId: null }),
         ).toEqual(charge);
-        if (!charge.ok) return;
+        if (charge.status !== "taken" || !charge.chargeId) return;
         expect(
           await t.gateway.chargeOutcome({
             ...lookup,
@@ -492,7 +497,7 @@ export const paymentGatewayContract = (
           idempotencyKey,
         });
 
-        expect(declined.ok).toBe(false);
+        expect(declined.status).toBe("failed");
         expect(
           await t.gateway.chargeOutcome({
             payerId,
@@ -524,8 +529,10 @@ export const paymentGatewayContract = (
             since,
           }),
         ).toEqual({
-          ok: true,
-          chargeId: deposit.status === "succeeded" ? deposit.chargeId : null,
+          status: "taken",
+          chargeId: deposit.status === "taken" ? deposit.chargeId : null,
+          // read back, the card it saved isn't
+          saved: null,
         });
       });
 
@@ -665,7 +672,7 @@ export const paymentGatewayContract = (
         });
 
         expect(paid).toEqual({
-          status: "succeeded",
+          status: "taken",
           chargeId: expect.any(String),
           saved: null,
         });
@@ -685,12 +692,12 @@ export const paymentGatewayContract = (
         });
 
         expect(paid).toEqual({
-          status: "needs_approval",
+          status: "finishing",
           ref: expect.any(String),
+          by: "bank",
           secret: expect.any(String),
-          processing: "bank",
         });
-        if (paid.status !== "needs_approval") return;
+        if (paid.status !== "finishing") return;
         expect(await t.gateway.paymentOutcome(paid.ref)).toEqual(paid);
       });
     });

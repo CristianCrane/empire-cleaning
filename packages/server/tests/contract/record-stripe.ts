@@ -70,7 +70,9 @@ const charged = async (card: string, amount = 5000) => {
     description: "Recording: Balance",
     idempotencyKey: `${run}:${payerId}`,
   });
-  if (!result.ok) throw new Error(`not charged: ${result.reason}`);
+  if (result.status !== "taken" || !result.chargeId) {
+    throw new Error(`not charged: ${result.status}`);
+  }
   return result.chargeId;
 };
 
@@ -180,7 +182,7 @@ const failing = await stripe.refunds.create({
     description: "Recording: Deposit",
     idempotencyKey: `${run}:deposit:${payerId}`,
   });
-  if (deposit.status !== "succeeded") throw new Error(deposit.status);
+  if (deposit.status !== "taken") throw new Error(deposit.status);
   save(
     "event-deposit-succeeded",
     await eventFor(stripe, "payment_intent.succeeded", deposit.chargeId!),

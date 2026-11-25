@@ -797,9 +797,7 @@ export const payBillOnPage = async (
     const open = (await attemptsFor("bill", [bill.id], tx)).filter(
       (a) => a.open,
     );
-    if (
-      open.some((a) => a.call === "bill" && a.attempt.status === "processing")
-    ) {
+    if (open.some((a) => a.attempt.processingBy === "bank")) {
       await clears(tx, bill.id);
     }
     // still open, it may yet take the money: going through
@@ -930,7 +928,7 @@ export const settleBill = async (
       }
     }
     const going = [...after.values()].some(
-      (a) => a.open && a.call === "bill" && a.attempt.status === "processing",
+      (a) => a.open && a.attempt.processingBy === "bank",
     );
     if (bill.status === "due" && going) await clears(tx, bill.id);
     let status = bill.status;

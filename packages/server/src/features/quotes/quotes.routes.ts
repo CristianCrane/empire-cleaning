@@ -131,7 +131,7 @@ router.post(
       return;
     }
     // still theirs to approve: not an error
-    if (finalized.status === "waiting") {
+    if (finalized.status === "approving") {
       const outcome: AcceptOutcome = {
         status: "waiting",
         message: finalizeProblem(finalized),

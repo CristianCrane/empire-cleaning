@@ -713,7 +713,8 @@ const clientPaying = async (
       and(
         eq(chargeAttempts.kind, "deposit"),
         eq(chargeAttempts.forId, quote.id),
-        eq(chargeAttempts.status, "approving"),
+        // waiting on their bank, or approved and their card's finishing it
+        inArray(chargeAttempts.status, ["approving", "processing"]),
         isNull(pendingDeposits.settledAt),
       ),
     )

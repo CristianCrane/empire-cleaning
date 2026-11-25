@@ -2423,3 +2423,87 @@ describe("when a Quote's day fills up before it's accepted", () => {
     ).toEqual([]);
   });
 });
+
+// "approved, and their bank finishing it" is kept as processing by card
+// (#534): a Deposit's is still the Client's pending one, which a second
+// press, the webhook and the Clock each read as it is, never as an
+// off-session Charge to look up, give back and ask again (#534's critical
+// review C1)
+describe("a Deposit their bank is finishing", () => {
+  const finishing = async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    const first = await payNow(client, quote).expect(200);
+    testPayments().requireApproval("processing");
+    await payNow(client, quote).expect(200);
+    // as the bank's reply, once approved, keeps it
+    await db.execute(
+      sql`update charge_attempts set status = 'processing', processing_by = 'card' where kind = 'deposit' and status = 'approving'`,
+    );
+    return { office, quote, client, ref: refOf(first.body) };
+  };
+
+  test("pressing again while it finishes says it's going through, and asks for nothing more", async () => {
+    const { client, quote } = await finishing();
+
+    const again = await payNow(client, quote).expect(200);
+
+    expect(testPayments().paymentAttempts).toHaveLength(1);
+    expect(again.body.status).toBe("processing");
+  });
+
+  test("pressing again once it's finished books it once, and gives nothing back", async () => {
+    const { office, client, quote, ref } = await finishing();
+    // their bank finished it: taken, as Stripe says on any read
+    testPayments().requireApproval(null);
+    await testPayments().paymentOutcome(ref);
+
+    await payNow(client, quote).expect(200);
+    await webhook({ kind: "deposit_succeeded", ref }).expect(200);
+    testClock().advance({ minutes: 16 });
+    await settleOpenPayments();
+
+    expect(testPayments().charges).toHaveLength(1);
+    expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
+    expect(testPayments().refunds).toEqual([]);
+  });
+
+  test("finished with neither the browser nor the webhook back, the Clock books it and gives nothing back", async () => {
+    const { office, ref } = await finishing();
+    testPayments().requireApproval(null);
+    await testPayments().paymentOutcome(ref);
+
+    testClock().advance({ minutes: 16 });
+    await settleOpenPayments();
+
+    expect(testPayments().charges).toHaveLength(1);
+    expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
+    expect(testPayments().refunds).toEqual([]);
+  });
+});
+
+// the Office's Deposit, charged to the saved card with the Client away, and
+// left processing by the card's bank: it has no pending Deposit of the
+// Client's, so it's read as the Charge it is, not given back and asked again
+// (#534's critical review C7)
+describe("the Office's Deposit charge, left processing", () => {
+  test("pressing Record acceptance again once it's gone through books the clean with it", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    await addCard(await signIn(casey.email));
+    testPayments().failCharges("processing");
+    await recordAccepted(office, quote);
+    testPayments().failCharges(null);
+    testPayments().clearCharges();
+
+    await recordAccepted(office, quote).expect(200);
+
+    expect(testPayments().charges).toHaveLength(1);
+    expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
+    expect(testPayments().refunds).toEqual([]);
+  });
+});

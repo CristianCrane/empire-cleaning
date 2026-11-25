@@ -186,10 +186,11 @@ export const chargeAttempts = pgTable(
     // when a Deposit taken but not booked was given back, by the Clock's
     // time: the Office's record of it (#534)
     givenBackAt: timestamp("given_back_at", { withTimezone: true }),
-    // when a payment waiting on the Client's bank was found too far on to
-    // call off (the bank finishing it): it holds its Quote or Bill till it
-    // ends, as the pages say (payingOf, payingOn; #534)
-    bankFinishingAt: timestamp("bank_finishing_at", { withTimezone: true }),
+    // what a processing one is finishing by, too far on to call off: a
+    // card, which settles soon, or a bank debit, days till it clears or
+    // fails (#534). Either holds its Quote or Bill till it ends, as the
+    // pages say (payingOf, payingOn)
+    processingBy: text("processing_by").$type<"card" | "bank">(),
     // when it was found taken or failed, by the Clock: a Bill's pages date
     // a page payment that didn't go through by it
     endedAt: timestamp("ended_at", { withTimezone: true }),

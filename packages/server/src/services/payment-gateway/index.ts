@@ -32,27 +32,35 @@ export type DepositInput = {
   idempotencyKey: string;
 };
 
-// how a payment made with the Client there went (a Deposit, or a Bill paid
-// on its page). Needing approval means the Client's bank wants them to
-// approve it in the browser (e.g. 3D Secure) with `secret`; then
-// `paymentOutcome(ref)` says how it ended; `processing` once they have and
-// their bank is finishing it, when it can no longer be called off: by
-// "card", which settles soon, or by "bank", a bank debit, for days until it
-// clears; false while it's still theirs to approve. A Bill's page says the
-// two apart (#534's critical review C6).
-export type OnSessionResult =
+// How a payment stands, as the provider says, whichever call made it: a
+// Deposit or a Bill paid on its page, with the Client there, or a Charge to
+// a saved card without them (#534, one status from the provider to the
+// screen).
+// - taken: the money's ours, or the card's saved (a 0 Deposit)
+// - approving: the Client's bank wants them to approve it in the browser
+//   (e.g. 3D Secure) with `secret`; then paymentOutcome(ref) says how it
+//   ended. It can still be called off
+// - finishing: going through, with nothing more to ask of anyone, and too
+//   far on to call off: by "card", which settles soon, or by "bank", a bank
+//   debit, for days until it clears or fails. A Bill's page says the two
+//   apart (#534's critical review C6)
+// - failed: never taken, and why
+export type PaymentResult =
   | {
-      status: "succeeded";
+      status: "taken";
       // null when nothing was taken (a 0 Deposit)
       chargeId: string | null;
       // set when the source was entered just now, and so saved by this
       saved: SavedPaymentMethod | null;
     }
+  | { status: "approving"; ref: string; secret: string }
   | {
-      status: "needs_approval";
+      status: "finishing";
       ref: string;
+      by: "card" | "bank";
+      // the browser's, as for approving: only a Deposit's first reply reads
+      // it, till #534's F21 is fixed in the commit after this one
       secret: string;
-      processing: false | "card" | "bank";
     }
   | { status: "failed"; reason: string };
 
@@ -69,15 +77,6 @@ export type RefundInput = {
   amount: number;
   idempotencyKey: string;
 };
-
-export type ChargeResult =
-  | { ok: true; chargeId: string }
-  | { ok: false; reason: string }
-  // not taken yet, nor declined: chargeOutcome() says how it ends
-  | { ok: false; reason: "processing"; chargeId: string }
-  // a payment made with the Client there, looked up: waiting on their
-  // bank's approval, which paymentOutcome(chargeId) reads
-  | { ok: false; reason: "requires_action"; chargeId: string };
 
 // how to find a Charge asked for before: by its id, once known, or else by
 // the idempotency key it was asked with, at or after `since`
@@ -152,24 +151,25 @@ export interface PaymentGateway {
     token: string;
   }): Promise<SavedPaymentMethod>;
   // the Deposit, with the Client there to approve it if their bank asks
-  takeDeposit(input: DepositInput): Promise<OnSessionResult>;
-  // a Bill paid on its page, likewise; a bank debit is processing until
-  // it clears or fails, days later, which its events tell
-  payBill(input: BillInput): Promise<OnSessionResult>;
+  takeDeposit(input: DepositInput): Promise<PaymentResult>;
+  // a Bill paid on its page, likewise; a bank debit is finishing until it
+  // clears or fails, days later, which its events tell
+  payBill(input: BillInput): Promise<PaymentResult>;
   // how a payment made with the Client there, that needed approval or was
-  // processing, ended
-  paymentOutcome(ref: string): Promise<OnSessionResult>;
+  // finishing, stands now, with the card it saved
+  paymentOutcome(ref: string): Promise<PaymentResult>;
   // calls off a payment waiting on the Client's bank, or one it refused, so
   // it's never taken: because the Client tried again, or nobody came back
   // to approve it. Throws if it can't be (taken, or a card's still
   // processing): then paymentOutcome(ref) says how it stands
   cancelPayment(ref: string, why: CallingOff): Promise<void>;
   // a later Charge to a saved Payment Method, without the Client there
-  charge(input: ChargeInput): Promise<ChargeResult>;
-  // how a Charge (or a Deposit) ended whose reply never came, or that was
-  // processing; null if the provider never made it. Asks afresh, unlike
-  // repeating its idempotency key, which only replays the first reply
-  chargeOutcome(lookup: ChargeLookup): Promise<ChargeResult | null>;
+  charge(input: ChargeInput): Promise<PaymentResult>;
+  // how any payment stands whose reply never came, or that was finishing,
+  // with no card read as saved (paymentOutcome reads that); null if the
+  // provider never made it. Asks afresh, unlike repeating its idempotency
+  // key, which only replays the first reply
+  chargeOutcome(lookup: ChargeLookup): Promise<PaymentResult | null>;
   refund(input: RefundInput): Promise<RefundResult>;
   // a refund whose reply never came, as the provider has it now; null if it
   // was never made
