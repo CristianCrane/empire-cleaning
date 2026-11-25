@@ -2,19 +2,13 @@ import {
   asksTheClient,
   catalog,
   formats,
-  messages,
   type CardRetried,
 } from "@empire-cleaning/models";
 import { currentLanguage } from "#services/request";
 import { ConflictError } from "../../middleware/errors.ts";
 import { retryUnpaidBillsFor } from "../bills/bills.ts";
 import { retryUnpaidJobsFor } from "../completion/completion.ts";
-import {
-  PROCESSING,
-  stillNotPaid,
-  unpaidKind,
-  type CardTried,
-} from "./unpaid.ts";
+import { stillNotPaid, unpaidKind, type CardTried } from "./unpaid.ts";
 
 // Tries again everything a Client's saved Payment Method failed to take:
 // their Unpaid Jobs, then their automatic Bills; says how each went
@@ -23,17 +17,23 @@ export const retryUnpaidFor = async (clientId: string) => [
   ...(await retryUnpaidBillsFor(clientId)),
 ];
 
-// what trying them again took, as Your card says it: each payment taken in
-// full, and whether the provider left any processing, which may yet go
-// either way
+// a failure that asks nothing of the Client: left processing, or the
+// payment service out of reach, which we try again ourselves (Payment
+// pending), so it may yet be taken (critical review C10)
+const ours = (r: CardTried) =>
+  r.failure !== null && !asksTheClient(unpaidKind(r.failure));
+
+// what trying them again took, as Your card says it: each payment's money
+// taken, the rest of one failing included (critical review C11), and
+// whether any is still to come by us
 export const tookOf = (retried: CardTried[]): CardRetried => ({
   took: retried
-    .filter((r) => !r.failure && r.takenCents > 0)
+    .filter((r) => r.takenCents > 0)
     .map(({ takenCents, failure: _, ...paid }) => ({
       ...paid,
       cents: takenCents,
     })),
-  goingThrough: retried.some((r) => r.failure === PROCESSING),
+  goingThrough: retried.some(ours),
 });
 
 // what the API says to a Client trying their card again, in their language
@@ -59,10 +59,11 @@ const words = catalog({
  * The Client's "Try this card again" on Your card (#499): every payment
  * their card failed to take, its cleans and its weekly Bills, tried at once.
  * Resolves with what it took, and whether any is still going through, when
- * nothing failed; else a 409 says what happened, what was taken first. A
- * failure only the payment service's, which Your card doesn't show and we
- * try again ourselves, isn't theirs to read: it says to try later. One the
- * provider left processing isn't a failure: it may yet be taken.
+ * nothing failed that's theirs to put right; else a 409 says what
+ * happened, what was taken first. One the payment service left processing
+ * or couldn't be reached for isn't theirs: we try it again ourselves, so it
+ * answers as still going through, as saving a card does (critical review
+ * C10).
  */
 export const clientRetry = async (clientId: string) => {
   const retried = await retryUnpaidFor(clientId);
@@ -72,15 +73,11 @@ export const clientRetry = async (clientId: string) => {
   const theirs = retried.find(
     (r) => r.failure && asksTheClient(unpaidKind(r.failure)),
   )?.failure;
-  const failed = theirs
-    ? `${stillNotPaid(lang, theirs)} ${said.differentCard}`
-    : retried.some((r) => r.failure && r.failure !== PROCESSING)
-      ? messages[lang].couldntRetry
-      : null;
-  if (!failed) {
+  if (!theirs) {
     if (result.took.length > 0 || result.goingThrough) return result;
     throw new ConflictError(said.nothingToTake);
   }
+  const failed = `${stillNotPaid(lang, theirs)} ${said.differentCard}`;
   const takenCents = result.took.reduce((sum, p) => sum + p.cents, 0);
   throw new ConflictError(
     takenCents > 0

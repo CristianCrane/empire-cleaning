@@ -491,7 +491,7 @@ Keeps: Tabs, by month, date tiles (ux-portal). Renders through `ListPage`
 
 #### Client portal > Payments
 
-Keeps: what you owe first (ux-portal); Your card a tile alone (#534's UX review U7). Renders through
+Keeps: what you owe first (ux-portal); Your card a tile alone (#499's UX review U3). Renders through
 `HomePage` (#435).
 
 - Header: "Payments" in the bar; no title-row action, as Your card's tile is the way there.
@@ -520,7 +520,8 @@ Keeps: on the Payment Method page (ux-portal). Renders through `FormPage`
   with its amount, and why when they share one (Try this card again, a
   text Button, its problem a Toast, only for a declined card: an expired one
   asks for a new card below); or Paid, what the server says that press or
-  save took; or that the payment is still going through; or the card saved;
+  save took; or Payment pending, naming what's still going through, with
+  nothing to do (we try it again ourselves); or the card saved;
   or info.
 - Body: one Card: the card field; what saving agrees to, and Save card, at
   its foot.

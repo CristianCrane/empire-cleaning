@@ -63,7 +63,13 @@ export function Notice({
       <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-start sm:gap-4">
         <div className="flex min-w-0 flex-1 flex-col gap-1">{children}</div>
         {/* centred on the first line too: a Button is taller than a line */}
-        {action && <div className="-my-1.5 shrink-0 sm:-my-2.5">{action}</div>}
+        {/* under the text on a phone, a text Button's padding hangs out to
+            the left so its words line up with the text (UX review U11) */}
+        {action && (
+          <div className="-my-1.5 -ms-4 shrink-0 sm:-my-2.5 sm:ms-0">
+            {action}
+          </div>
+        )}
       </div>
     </div>
   );

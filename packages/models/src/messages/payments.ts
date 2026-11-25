@@ -20,6 +20,8 @@ export const because = (why: string | null | undefined) =>
 
 const REFUND_TAKES_DAYS = "It can take a few days to reach you.";
 const UPDATE_AND_RETRY = "update your card and we'll try again straight away";
+// an expired card, or none: the card form's own verb, Save (UX review U10)
+const SAVE_AND_RETRY = "save a new card and we'll try again straight away";
 const BOOKED_GO_AHEAD =
   "Cleans already booked still go ahead, but we won't book any more.";
 const PAUSED_TILL_PAID = "Until it's paid, your cleaning plan is paused.";
@@ -30,6 +32,8 @@ const moreHoursEn = (a: Changed) =>
 const REFUND_TAKES_DAYS_ES = "Puede tardar unos días en llegarle.";
 const UPDATE_AND_RETRY_ES =
   "actualice su tarjeta y lo volvemos a intentar enseguida";
+const SAVE_AND_RETRY_ES =
+  "guarde una tarjeta nueva y lo volvemos a intentar enseguida";
 const BOOKED_GO_AHEAD_ES =
   "Las limpiezas ya reservadas siguen en pie, pero no reservaremos más.";
 const PAUSED_TILL_PAID_ES =
@@ -74,11 +78,12 @@ export const payments = catalog({
       `We couldn't take payment for your ${day} clean`,
     // how a Client puts right a payment that didn't go through
     UPDATE_AND_RETRY,
+    SAVE_AND_RETRY,
     UPDATE_CARD: "Update your card",
     // what happens next, once a payment didn't go through, by why
     clientFix: {
       declined: `Please ${UPDATE_AND_RETRY}.`,
-      no_card: "Please add a card and we'll try again straight away.",
+      no_card: `Please ${SAVE_AND_RETRY}.`,
       waiting:
         "We'll try again by ourselves, so there's nothing you need to do.",
       late: "Please pay it on its page.",
@@ -133,11 +138,11 @@ export const payments = catalog({
     cleanNotPaid: (day: string) =>
       `No pudimos cobrar el pago de su limpieza del ${day}`,
     UPDATE_AND_RETRY: UPDATE_AND_RETRY_ES,
+    SAVE_AND_RETRY: SAVE_AND_RETRY_ES,
     UPDATE_CARD: "Actualizar tarjeta",
     clientFix: {
       declined: `Por favor, ${UPDATE_AND_RETRY_ES}.`,
-      no_card:
-        "Por favor, agregue una tarjeta y lo volvemos a intentar enseguida.",
+      no_card: `Por favor, ${SAVE_AND_RETRY_ES}.`,
       waiting:
         "Lo volveremos a intentar nosotros, así que usted no tiene que hacer nada.",
       late: "Por favor, páguela en su página.",

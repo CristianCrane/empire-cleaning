@@ -400,7 +400,7 @@ describe("what's taken next", () => {
     ).toMatchObject({
       label: "Next bill",
       headline: "$269.47",
-      lines: ["So far, charged to your card on Mon, Oct 26"],
+      lines: ["So far. We'll charge your card on Mon, Oct 26"],
     });
     // one they pay on its page isn't said to be charged
     expect(
@@ -410,7 +410,7 @@ describe("what's taken next", () => {
         billOn: "2026-10-26",
         payment: "on_page",
       }).lines,
-    ).toEqual(["So far, billed to you on Mon, Oct 26"]);
+    ).toEqual(["So far. We'll bill you on Mon, Oct 26"]);
   });
 
   test("a weekly Bill with only a clean booked: its day, no amount yet", () => {

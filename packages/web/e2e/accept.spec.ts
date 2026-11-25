@@ -90,7 +90,9 @@ test("after the Deposit, Payments says what's still to be charged, never all pai
   // nothing owed now, and the rest of the clean's price is still to come,
   // charged once it's done (#508)
   const next = page.getByRole("region", { name: "Next payment" });
-  await expect(next).toContainText(/\$[\d,]+\.\d\d/);
+  // the clean's price less its Deposit: its receipt's "Payment pending
+  // $269.47" once done (portal-clean.spec)
+  await expect(next).toContainText("$269.47");
   await expect(next).toContainText(
     "Charged to your card after your Mon, Jan 12 clean",
   );

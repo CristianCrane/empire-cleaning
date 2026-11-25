@@ -74,7 +74,7 @@ export function PortalPayments() {
     <HomePage
       title={t.p.payments}
       // no title-row action: Your card's tile is the way there, as two ways
-      // to one place, side by side, read as two (#534's UX review U7; #499's U3)
+      // to one place, side by side, read as two (#499's UX review U3)
       alerts={[whyAlert(owing?.why)]}
       answer={
         <HeroCard hero={owing ? owing.hero : nextAnswer(data.next, t.lang)} />

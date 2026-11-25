@@ -21,9 +21,10 @@ const words = catalog({
   en: {
     notSaved: "Your card couldn't be saved. Please try again.",
     saved: "Card saved",
-    // a payment the provider left processing: it may yet go either way
-    goingThrough: "We tried your card. The payment is still going through.",
-    restGoingThrough: "The rest is still going through.",
+    // one we try again ourselves, as Payments says it: Payment pending,
+    // and nothing to do (UX review U7)
+    stillGoing: (what: string) => `Still going through: ${what}.`,
+    restGoing: "The rest is still going through.",
     howUsed: "How your card is used",
     about:
       "We take a deposit from this card when you book. Each clean is charged to it when it's done, or goes on your weekly bill if you have one. If a payment didn't go through, saving a card here tries it again.",
@@ -34,8 +35,8 @@ const words = catalog({
     tryOrSave: "Try it again, or save a different card below.",
     paid: "Paid.",
     took: (what: string, card: string) => `We took ${what} from your ${card}.`,
-    saveBelow: "Save a card below and we'll try again.",
-    saveNew: "Save a new card below and we'll try again.",
+    saveBelow: "Save a card below and we'll try again straight away.",
+    saveNew: "Save a new card below and we'll try again straight away.",
     isSaved: (card: string, day: string) =>
       `Your ${card} is saved (since ${day}).`,
     noneYet: "You haven't saved a card yet.",
@@ -45,8 +46,8 @@ const words = catalog({
   es: {
     notSaved: "No se pudo guardar su tarjeta. Vuelva a intentarlo.",
     saved: "Tarjeta guardada",
-    goingThrough: "Intentamos con su tarjeta. El pago todavía está en proceso.",
-    restGoingThrough: "El resto todavía está en proceso.",
+    stillGoing: (what: string) => `Todavía en proceso: ${what}.`,
+    restGoing: "El resto todavía está en proceso.",
     howUsed: "Cómo se usa su tarjeta",
     about:
       "Cobramos un depósito de esta tarjeta cuando reserva. Cada limpieza se cobra a ella cuando está terminada, o va en su factura semanal si tiene una. Si un pago no pasó, guardar una tarjeta aquí lo vuelve a intentar.",
@@ -58,8 +59,9 @@ const words = catalog({
     tryOrSave: "Vuelva a intentarlo, o guarde otra tarjeta abajo.",
     paid: "Pagado.",
     took: (what: string, card: string) => `Cobramos ${what} de su ${card}.`,
-    saveBelow: "Guarde una tarjeta abajo y lo volveremos a intentar.",
-    saveNew: "Guarde una tarjeta nueva abajo y lo volveremos a intentar.",
+    saveBelow: "Guarde una tarjeta abajo y lo volvemos a intentar enseguida.",
+    saveNew:
+      "Guarde una tarjeta nueva abajo y lo volvemos a intentar enseguida.",
     isSaved: (card: string, day: string) =>
       `Su ${card} está guardada (desde el ${day}).`,
     noneYet: "Aún no ha guardado una tarjeta.",
@@ -137,13 +139,6 @@ const sharedWhy = (owed: CardOwed[]) => {
   return whys.size === 1 ? owed[0]!.why : null;
 };
 
-// where the Office's "add a card" email leads: the Client adds (or
-// replaces) the card that Deposits and Balances are charged to. Where a
-// clean couldn't be charged, they fix it here: try the same card again (the
-// money may be there now; not an expired one), or save another, which tries
-// it too. Once that takes all of it, it says so in place of the alert, from
-// what the server says it took, never from the list emptying (a payment
-// still going through leaves it too).
 // which one notice Your card shows: what's still owed, else how their
 // last press went, from what the server says it took (never from the list
 // emptying, as a payment still going through leaves it too): Paid only
@@ -160,6 +155,21 @@ export const cardNotice = (
         ? "paid"
         : "card";
 
+// what their last press took, and what they owed as they pressed it, so
+// what's still going through is named
+type Tried = CardRetried & { owed: CardOwed[] };
+
+// still going through: what they owed less what was taken
+const pendingOf = (tried: Tried) =>
+  tried.owed.filter(
+    (o) => !tried.took.some((p) => p.kind === o.kind && p.id === o.id),
+  );
+
+// where the Office's "add a card" email leads: the Client adds (or
+// replaces) the card that Deposits and Balances are charged to. Where a
+// clean or a Bill couldn't be charged, they fix it here: try the same card
+// again (the money may be there now; not an expired one), or save another,
+// which tries it too, and the notice in place says how it went
 export function PortalPaymentMethod() {
   const t = useSaid(words);
   const { saved, unpaid } = useLoaderData({ from: "/portal/payment-method" });
@@ -173,7 +183,7 @@ export function PortalPaymentMethod() {
   });
   // what the server says their last press took, and whether any of it is
   // still going through
-  const [tried, setTried] = useState<CardRetried | null>(null);
+  const [tried, setTried] = useState<Tried | null>(null);
   const shown = cardNotice(unpaid, tried);
   const retries = saved !== null && unpaid.some((o) => o.retry);
 
@@ -185,7 +195,7 @@ export function PortalPaymentMethod() {
     return retry.run(
       () => postJson<CardRetried>("/api/payments/mine/retry"),
       (answer) => {
-        setTried(answer);
+        setTried({ ...answer, owed: unpaid });
         return "";
       },
     );
@@ -200,7 +210,7 @@ export function PortalPaymentMethod() {
         return tried;
       },
       (answer) => {
-        setTried(answer);
+        setTried({ ...answer, owed: unpaid });
         return t.w.saved;
       },
     );
@@ -250,9 +260,13 @@ export function PortalPaymentMethod() {
                 key: "going",
                 children: (
                   <p>
-                    {tried.took.length > 0
-                      ? `${t.w.took(owedList(t, tried.took), saved.label)} ${t.w.restGoingThrough}`
-                      : t.w.goingThrough}
+                    <strong>{t.paymentPending}.</strong>{" "}
+                    {tried.took.length > 0 &&
+                      `${t.w.took(owedList(t, tried.took), saved.label)} `}
+                    {pendingOf(tried).length > 0
+                      ? t.w.stillGoing(owedList(t, pendingOf(tried)))
+                      : t.w.restGoing}{" "}
+                    {t.NOTHING_TO_DO}
                   </p>
                 ),
               }

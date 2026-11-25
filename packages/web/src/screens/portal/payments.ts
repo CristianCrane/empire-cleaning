@@ -27,8 +27,8 @@ const words = catalog({
       `Charged to your card after your ${day} clean`,
     nextBill: "Next bill",
     // what's on it so far, and when it's taken, by how it's paid
-    soFarCharged: (day: string) => `So far, charged to your card on ${day}`,
-    soFarBilled: (day: string) => `So far, billed to you on ${day}`,
+    soFarCharged: (day: string) => `So far. We'll charge your card on ${day}`,
+    soFarBilled: (day: string) => `So far. We'll bill you on ${day}`,
     forYourClean: (day: string) => `For your ${day} clean`,
     forCleanCharged: (day: string) =>
       `For your ${day} clean, charged to your card`,
@@ -74,8 +74,9 @@ const words = catalog({
       `Se cobra a su tarjeta después de su limpieza del ${day}`,
     nextBill: "Próxima factura",
     soFarCharged: (day: string) =>
-      `Hasta ahora, se cobra a su tarjeta el ${day}`,
-    soFarBilled: (day: string) => `Hasta ahora, se le factura el ${day}`,
+      `Hasta ahora. Lo cobraremos a su tarjeta el ${day}`,
+    soFarBilled: (day: string) =>
+      `Hasta ahora. Le enviaremos la factura el ${day}`,
     forYourClean: (day: string) => `Por su limpieza del ${day}`,
     forCleanCharged: (day: string) =>
       `Por su limpieza del ${day}, cobrada a su tarjeta`,

@@ -199,3 +199,63 @@ describe("a plan Job left Unpaid", () => {
     );
   });
 });
+
+// critical review C10: saving a card answers with what it took, and
+// Your card says "Paid." when that's some and nothing it lists is left. A
+// payment the provider couldn't be reached for is left too, Pending, and
+// Your card doesn't list it (we try it again ourselves), so the answer must
+// say so, as it says of one still processing
+describe("saving a card that takes one payment while another can't reach the provider", () => {
+  test("doesn't answer as though all of it was taken", async () => {
+    const { office, client, planId, jobId } = await heldPlan();
+    // the next Monday's clean skipped late on the same declined card
+    const second = (await officePlan(office, planId)).jobs.find(
+      (j) => j.startsAt === "2026-01-26T14:00:00.000Z",
+    )!;
+    testClock().set(new Date("2026-01-25T15:00:00Z"));
+    await client
+      .post(`/api/jobs/mine/${second.id}/cancel`)
+      .send({ feeCents: PLAN_DEPOSIT })
+      .expect(200);
+    const owed = (
+      (await client.get("/api/jobs/mine/past").expect(200))
+        .body as ClientPastJob[]
+    ).filter((j) => j.unpaid);
+    expect(owed.map((j) => j.id).sort()).toEqual([jobId, second.id].sort());
+
+    // a new card: the first fee goes through, then the provider goes down
+    testPayments().failCharges(null);
+    const held = testPayments().holdNextCharge();
+    const form = (
+      await client.post("/api/payment-methods/mine/card-form").expect(200)
+    ).body as { secret: string };
+    const saving = client
+      .put("/api/payment-methods/mine")
+      .send({ token: form.secret })
+      .then((r) => r);
+    await held.reached;
+    testPayments().goDown();
+    held.release();
+    const res = await saving;
+    testPayments().goDown(false);
+    expect(res.status).toBe(200);
+
+    // one fee taken, the other left Pending, on a reason Your card doesn't
+    // list (we try it again ourselves)
+    const left = (
+      (await client.get("/api/jobs/mine/past").expect(200))
+        .body as ClientPastJob[]
+    ).filter((j) => j.unpaid);
+    expect(left).toEqual([
+      expect.objectContaining({
+        unpaid: expect.objectContaining({ kind: "waiting" }),
+      }),
+    ]);
+    expect(res.body.took).toHaveLength(1);
+    // Your card's cardNotice reads { took: [one], goingThrough: false } with
+    // nothing it lists as "Paid. We took $50.46 for your … clean": the
+    // answer must say the rest isn't through (as goingThrough does for
+    // "processing", or a field of its own)
+    expect(res.body.goingThrough).toBe(true);
+  });
+});

@@ -171,8 +171,9 @@ Cleaner's Your jobs render through `HomePage`
 
 - **The greeting**: "Hi, Jen", by the person's first name, on an area's
   first page; Payments keeps its name, hidden on a phone where the bar
-  says it. Its one secondary action on the title row (Request a quote, Your
-  card), which stands aside while the card asks something out of the
+  says it. Its one secondary action on the title row (a Client's Request a
+  quote; Payments has none, its Your card tile the one way there, #499's
+  UX review U3), which stands aside while the card asks something out of the
   usual of them (below; #493).
 - **One answer card** (`AnswerCard`): what's next or what's owed, read left
   to right behind its tile (a `DateTile` for when, an `IconTile` for

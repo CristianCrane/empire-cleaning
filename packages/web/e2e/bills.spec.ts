@@ -705,7 +705,7 @@ test("Your card asks for a new card in place of an expired one, with no retry", 
     page
       .getByRole("main")
       .getByText(
-        "We couldn't take $269.47 for this bill (the card has expired). Please pay it, or add a card and we'll try again straight away.",
+        "We couldn't take $269.47 for this bill (the card has expired). Please pay it, or save a new card and we'll try again straight away.",
         { exact: true },
       ),
   ).toBeVisible();
@@ -713,7 +713,7 @@ test("Your card asks for a new card in place of an expired one, with no retry", 
 
   const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
   await expect(needed).toContainText(
-    "We couldn't take $269.47 for bill EC-000001 from your Test card ending 4242 (the card has expired). Save a new card below and we'll try again.",
+    "We couldn't take $269.47 for bill EC-000001 from your Test card ending 4242 (the card has expired). Save a new card below and we'll try again straight away.",
   );
   await expect(needed.getByRole("button")).toHaveCount(0);
 });
@@ -732,9 +732,13 @@ test("Your card's retry still going through says so, not that it's paid", async 
 
   const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
   await needed.getByRole("button", { name: "Try this card again" }).click();
+  // in the app's words for a payment on its way, naming what's waiting
+  // (UX review U7)
   await expect(
-    page.getByText("We tried your card. The payment is still going through."),
-  ).toBeVisible();
+    page.getByRole("status").filter({ hasText: "Payment pending." }),
+  ).toHaveText(
+    "Payment pending. Still going through: $269.47 for bill EC-000001. Nothing you need to do.",
+  );
   await expect(needed).toHaveCount(0);
   await expect(page.getByText(/^Paid\. We took/)).toHaveCount(0);
 });
@@ -748,7 +752,7 @@ test("Payments says what's on the next Bill so far", async ({ page }) => {
   const next = page.getByRole("region", { name: "Next bill" });
   await expect(next).toContainText("$269.47");
   await expect(next).toContainText(
-    "So far, charged to your card on Mon, Jan 12",
+    "So far. We'll charge your card on Mon, Jan 12",
   );
 });
 
