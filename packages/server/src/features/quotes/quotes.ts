@@ -104,7 +104,7 @@ import { askedAddOns } from "./asked-add-ons.ts";
 import { depositPaying } from "./deposit-paying.ts";
 import { quoteEmail, turnDownEmail } from "./emails.ts";
 import { percentOf } from "./plan-days.ts";
-import { bookableFor, openTimesOf, optionRoomsOf } from "./quote-room.ts";
+import { bookableFor, openTimesOf, optionRoomsOf } from "./offer-room.ts";
 import {
   askedOf,
   firstCleanCompleted,
