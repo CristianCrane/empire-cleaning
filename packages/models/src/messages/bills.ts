@@ -77,37 +77,45 @@ export const ON_THAT_WEEKS_BILL = "goes on that week's bill";
 export const cleansPaidForOffice = (how: BillPayment | "per_clean") =>
   cleansPaidBy(how, false);
 
-// why Office Staff can't cancel a Bill, or record a payment on it, while a
-// payment on it may still take the money (ADR-0022's one rule): our charge
-// to the saved card, or the Client's own on its page, a card or a bank
-// payment, going through. The page's alert beside both greyed actions, the
-// line under each in its menu (`item`, short, as the menu may cover the
-// alert), and the server's refusal of each from a page opened before. It
+// why Office Staff can't cancel a Bill, or record a payment on it, while
+// `what` holds it (ADR-0022's one rule), and how long that `takes`: each
+// dialog's words, which the server's refusal from a page opened before
+// repeats, and the line under each in its menu (`item`, short, as the menu
+// may cover the page's alert)
+const cantWhile =
+  (what: string, takes = "") =>
+  (it: string) =>
+    `You can't ${it} while ${what}${takes}.`;
+const heldWhile = (what: string, takes = "") => {
+  const cant = cantWhile(what, takes);
+  return {
+    cancel: cant("cancel this bill"),
+    record: cant("record a payment on this bill"),
+    item: `Not while ${what}`,
+  };
+};
+
+// a payment on it that may still take the money: our charge to the saved
+// card, or the Client's own on its page, a card or one nobody heard the end
+// of yet, going through; `page`, the alert beside both greyed actions. It
 // promises neither, as most go through and leave the Bill paid (design
 // review U6). "Usually": the Clock asks again once an attempt is
 // SETTLED_AFTER_MS old, on its next tick (TICK_MS), and an attempt stays
 // open while the provider can't be reached
-const whilePaymentGoes = (cant: string) =>
-  `You can't ${cant} while its payment is going through, which usually takes under half an hour.`;
+const GOING = [
+  "its payment is going through",
+  ", which usually takes under half an hour",
+] as const;
 export const paymentNotDone = {
-  page: whilePaymentGoes("cancel this bill or record a payment"),
-  cancel: whilePaymentGoes("cancel this bill"),
-  record: whilePaymentGoes("record a payment on this bill"),
-  item: "Not while its payment is going through",
+  ...heldWhile(...GOING),
+  page: cantWhile(...GOING)("cancel this bill or record a payment"),
 };
 
-// why Office Staff can't cancel a Bill, or record a payment on it, while
-// the Client's bank debit on it is on its way (status processing), which
-// takes days: the line under each in its menu, beside the page's alert
-// that says it, and the server's refusal of each from a page opened before
-// (#534's UX review U14)
-const whileBankPays = (cant: string) =>
-  `You can't ${cant} while the client's bank payment is on its way.`;
-export const bankPaymentOnWay = {
-  cancel: whileBankPays("cancel this bill"),
-  record: whileBankPays("record a payment on this bill"),
-  item: "Not while the client's bank payment is on its way",
-};
+// the Client's bank debit on it on its way (status processing), which takes
+// days; the page's alert says so in its own words (#534's UX review U14)
+export const bankPaymentOnWay = heldWhile(
+  "the client's bank payment is on its way",
+);
 
 // A Client paying a Bill on its page while their bank asks them to approve
 // it (#534), as Office Staff read it: nothing else that moves money on it

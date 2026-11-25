@@ -207,7 +207,11 @@ const keep = async (
   }
   // a card paying a Bill whose bank finishes it from the first: going
   // through, as one approved and finishing is (approvalOf), not theirs to
-  // approve, nor a bank debit on its way (#534's critical review C6)
+  // approve, nor a bank debit on its way (#534's critical review C6). A
+  // Deposit's is left as it was, kept approving till approvalOf reads it
+  // finishing: its Quote's acceptance answers each status its own way, a
+  // flow this change doesn't touch (#534's review F21, the survey's Seen
+  // nearby)
   if (
     !("ok" in reply) &&
     reply.status === "needs_approval" &&
