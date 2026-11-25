@@ -43,8 +43,9 @@ export const messages = catalog({
 // the rules the words state, and the Office's own words
 export { RELEASE_CUTOFF_HOURS } from "./assignments.ts";
 export {
-  depositEndedOf,
-  type DepositEnded,
+  depositAlertOf,
+  depositGoalOf,
+  type DepositAlert,
   type DepositGoal,
 } from "./deposits.ts";
 export {

@@ -1,15 +1,15 @@
 import { describe, expect, test } from "vitest";
-import type { DepositPaying } from "../index.ts";
-import { depositEndedOf, deposits } from "./deposits.ts";
+import type { DepositPaying, QuoteOption } from "../index.ts";
+import { formats } from "../format.ts";
+import { depositAlertOf, deposits } from "./deposits.ts";
 
 // a one-off Quote with two Services, as its page holds it
 const STANDARD = "standard";
 const DEEP = "deep";
-const names: Record<string, string> = {
-  [STANDARD]: "Standard Clean",
-  [DEEP]: "Deep Clean",
-};
-const nameOf = (key: string) => names[key]!;
+const options = [
+  { serviceKey: STANDARD, serviceName: "Standard Clean" },
+  { serviceKey: DEEP, serviceName: "Deep Clean" },
+] as QuoteOption[];
 const refunded = (
   why: Extract<DepositPaying, { status: "refunded" }>["why"],
   depositCents = 4872,
@@ -24,27 +24,64 @@ const quote = (
   paying: DepositPaying | null,
   status: "sent" | "expired" | "turned_down" | "declined" = "sent",
   bookable: string[] = [],
-) => ({ kind: "one_off" as const, status, bookable, paying, nameOf });
+) => ({
+  kind: "one_off" as const,
+  status,
+  bookable,
+  paying,
+  options,
+  changesPlan: null,
+});
 
-describe("how a Deposit payment that didn't book ended, as the Client is told", () => {
-  test("none while it's still going, or their bank is asking", () => {
-    for (const paying of [
-      null,
-      { status: "goingThrough", serviceKey: STANDARD, depositCents: 4872 },
-      {
-        status: "approving",
-        until: "2026-11-25T19:29:00Z",
-        serviceKey: STANDARD,
-        depositCents: 4872,
-      },
-    ] as const) {
-      expect(depositEndedOf("en", quote(paying))).toBeNull();
-    }
+describe("where a Deposit payment stands, as the Client's Quote page says it", () => {
+  test("none when there's none", () => {
+    expect(depositAlertOf("en", quote(null))).toBeNull();
   });
 
+  test("going through says when they'll hear; their bank asking, by when, for which Service", () => {
+    expect(
+      depositAlertOf(
+        "en",
+        quote({
+          status: "goingThrough",
+          serviceKey: STANDARD,
+          depositCents: 0,
+        }),
+      ),
+    ).toEqual({
+      tone: "info",
+      text: "We'll email you as soon as your clean is booked, usually within half an hour.",
+    });
+    const until = "2026-11-25T19:29:00Z";
+    // 2:29 PM, as the business's clock writes it
+    const twoTwentyNine = formats.en.formatTime(until);
+    const approving = {
+      status: "approving",
+      until,
+      serviceKey: STANDARD,
+    } as const;
+    expect(
+      depositAlertOf("en", quote({ ...approving, depositCents: 4872 })),
+    ).toEqual({
+      tone: "warning",
+      text: `Your bank hasn't approved your payment yet. Approve it in your bank's app by ${twoTwentyNine} to book your Standard Clean, or press Accept and pay to start over: you're only charged once.`,
+    });
+    // a plan's names no Service, as each weekday's is the plan's
+    expect(
+      depositAlertOf("en", {
+        ...quote({ ...approving, depositCents: 0 }),
+        kind: "service_plan",
+      })?.text,
+    ).toBe(
+      `Your bank hasn't approved your card yet. Approve it in your bank's app by ${twoTwentyNine} to start your plan, or press Accept and book to start over. Nothing is charged.`,
+    );
+  });
+});
+
+describe("how a Deposit payment that didn't book ended, as the Client is told", () => {
   test("never approved, or refused, says so and asks them to try again", () => {
     expect(
-      depositEndedOf(
+      depositAlertOf(
         "en",
         quote({
           status: "notApproved",
@@ -58,7 +95,7 @@ describe("how a Deposit payment that didn't book ended, as the Client is told", 
       text: "Your payment wasn't approved, so nothing was taken. Please try again, or use another card.",
     });
     expect(
-      depositEndedOf(
+      depositAlertOf(
         "es",
         quote({
           status: "failed",
@@ -75,11 +112,11 @@ describe("how a Deposit payment that didn't book ended, as the Client is told", 
   });
 
   test("its time filled: a new quote to come when nothing's bookable, the other Service when it is", () => {
-    expect(depositEndedOf("en", quote(refunded("no_room")))?.text).toBe(
-      "Sorry, that time got booked up while your bank was approving the payment. We've refunded your deposit, and we'll send you a new quote for another time.",
+    expect(depositAlertOf("en", quote(refunded("no_room")))?.text).toBe(
+      "Sorry, that time got booked up while your bank was approving the payment. We've refunded your deposit. We'll send you a new quote for another time.",
     );
     expect(
-      depositEndedOf("en", quote(refunded("no_room"), "sent", [DEEP]))?.text,
+      depositAlertOf("en", quote(refunded("no_room"), "sent", [DEEP]))?.text,
     ).toBe(
       "Sorry, that time got booked up for the Standard Clean while your bank was approving the payment, so we've refunded your deposit. The Deep Clean can still be booked then.",
     );
@@ -87,43 +124,43 @@ describe("how a Deposit payment that didn't book ended, as the Client is told", 
 
   test("a closed quote says how it closed", () => {
     expect(
-      depositEndedOf("en", quote(refunded("closed"), "expired"))?.text,
+      depositAlertOf("en", quote(refunded("closed"), "expired"))?.text,
     ).toBe(
       "This quote expired while your bank was approving the payment, so we've refunded your deposit.",
     );
     expect(
-      depositEndedOf("en", quote(refunded("closed"), "turned_down"))?.text,
+      depositAlertOf("en", quote(refunded("closed"), "turned_down"))?.text,
     ).toBe(
       "We couldn't take this one on, so we've refunded the deposit you paid while your bank was approving it.",
     );
     expect(
-      depositEndedOf("en", quote(refunded("closed"), "declined"))?.text,
+      depositAlertOf("en", quote(refunded("closed"), "declined"))?.text,
     ).toBe(
       "This quote closed while your bank was approving the payment, so we've refunded your deposit.",
     );
   });
 
   test("a card saved with nothing charged (a 0% Deposit) leads with nothing booked, not a refund", () => {
-    expect(depositEndedOf("en", quote(refunded("no_room", 0)))?.text).toBe(
+    expect(depositAlertOf("en", quote(refunded("no_room", 0)))?.text).toBe(
       "Sorry, that time got booked up while your bank was approving your card, so nothing was booked. We'll send you a new quote for another time.",
     );
-    expect(depositEndedOf("en", quote(refunded("revised", 0)))?.text).toBe(
+    expect(depositAlertOf("en", quote(refunded("revised", 0)))?.text).toBe(
       "This quote was updated while your bank was approving your card, so nothing was booked. Please take a look at what's changed.",
     );
     expect(
-      depositEndedOf("es", quote(refunded("closed", 0), "expired"))?.text,
+      depositAlertOf("es", quote(refunded("closed", 0), "expired"))?.text,
     ).toBe(
       "Esta cotización venció mientras su banco aprobaba su tarjeta, así que no se reservó nada.",
     );
     expect(
-      depositEndedOf("en", quote(refunded("closed", 0), "turned_down"))?.text,
+      depositAlertOf("en", quote(refunded("closed", 0), "turned_down"))?.text,
     ).toBe("We couldn't take this one on, so nothing was booked.");
   });
 
   test("a card save never approved, or declined, says nothing was booked", () => {
     const at = "2026-11-25T19:29:00Z";
     expect(
-      depositEndedOf(
+      depositAlertOf(
         "en",
         quote({
           status: "notApproved",
@@ -137,7 +174,7 @@ describe("how a Deposit payment that didn't book ended, as the Client is told", 
       text: "Your card wasn't approved, so nothing was booked. Please try again, or use another card.",
     });
     expect(
-      depositEndedOf(
+      depositAlertOf(
         "en",
         quote({
           status: "failed",
@@ -152,7 +189,7 @@ describe("how a Deposit payment that didn't book ended, as the Client is told", 
       text: "Your card was declined, so nothing was booked. Please try again, or use another card.",
     });
     expect(
-      depositEndedOf(
+      depositAlertOf(
         "es",
         quote({
           status: "failed",

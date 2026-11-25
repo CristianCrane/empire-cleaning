@@ -1,5 +1,6 @@
 import {
   clientPaying as clientPayingWords,
+  depositAlertOf,
   formats,
 } from "@empire-cleaning/models";
 import { describe, expect, test, vi } from "vitest";
@@ -173,6 +174,15 @@ const refOf = (outcome: AcceptOutcome) => {
 
 const option = (quote: OfficeQuote, service: "deep" | "standard") =>
   quote.offer!.options.find((o) => o.serviceKey === SEEDED[service])!;
+
+// what the Client's Quote page says of their Deposit payment there, which a
+// press answers in the same words (#534's UX design, Screen 1d)
+const pageSays = async (client: Agent, quote: { id: string }) =>
+  depositAlertOf(
+    "en",
+    (await client.get(`/api/quotes/mine/${quote.id}`).expect(200))
+      .body as QuoteView,
+  )?.text;
 
 const scheduleOn = async (office: Agent, day: string) =>
   (
@@ -510,8 +520,9 @@ describe("accepting a First Clean Quote", () => {
     const refused = await accept(client, quote).expect(409);
 
     expect(refused.body.message).toBe(
-      "Your card didn't go through, so nothing was booked. Please try another card.",
+      "Your payment didn't go through. Please try again, or use another card.",
     );
+    expect(await pageSays(client, quote)).toBe(refused.body.message);
     expect((await client.get(`/api/quotes/mine/${quote.id}`)).body.status).toBe(
       "sent",
     );
@@ -746,15 +757,19 @@ describe("paying the Deposit with a card entered just now", () => {
     const early = await finalize(client, quote).expect(200);
     // they may have closed the bank's pop-up: pressing again starts over
     expect(early.body.status).toBe("waiting");
+    // by when, for which Service: called off 15 minutes from the press
+    const until = formats.en.formatTime("2026-01-05T09:15:00.000Z");
     expect(early.body.message).toBe(
-      "Your bank hasn't approved the payment yet. Approve it in your bank's app to book your clean. Or press Accept and pay to start over: the first payment is called off, so you're only charged once.",
+      `Your bank hasn't approved your payment yet. Approve it in your bank's app by ${until} to book your Deep Clean, or press Accept and pay to start over: you're only charged once.`,
     );
+    expect(await pageSays(client, quote)).toBe(early.body.message);
 
     testPayments().requireApproval("refused");
     const refused = await finalize(client, quote).expect(409);
     expect(refused.body.message).toBe(
-      "Your bank didn't approve the payment, so nothing was booked. Please try again, or use another card.",
+      "Your payment wasn't approved, so nothing was taken. Please try again, or use another card.",
     );
+    expect(await pageSays(client, quote)).toBe(refused.body.message);
     expect((await client.get(`/api/quotes/mine/${quote.id}`)).body.status).toBe(
       "sent",
     );
@@ -778,11 +793,16 @@ describe("paying the Deposit with a card entered just now", () => {
     await payNow(client, quote).expect(200);
 
     testPayments().requireApproval("refused");
-    await finalize(client, quote).expect(409);
+    const refused = await finalize(client, quote).expect(409);
 
     expect([...testPayments().canceled]).toEqual([
       expect.stringMatching(/^seti_/),
     ]);
+    // a card, not a payment: nothing was to be taken
+    expect(refused.body.message).toBe(
+      "Your card wasn't approved, so nothing was booked. Please try again, or use another card.",
+    );
+    expect(await pageSays(client, quote)).toBe(refused.body.message);
   });
 
   test("refunds the Deposit if the day filled up while the bank was asking", async () => {
@@ -798,8 +818,9 @@ describe("paying the Deposit with a card entered just now", () => {
     const refused = await finalize(client, quote).expect(409);
 
     expect(refused.body.message).toBe(
-      "Sorry, that time got booked up while your bank was approving the payment. We've refunded your deposit, and we'll be in touch with another time.",
+      "Sorry, that time got booked up while your bank was approving the payment. We've refunded your deposit. We'll send you a new quote for another time.",
     );
+    expect(await pageSays(client, quote)).toBe(refused.body.message);
     const [charge] = testPayments().charges;
     expect(testPayments().refunds).toEqual([
       expect.objectContaining({
@@ -841,9 +862,11 @@ describe("paying the Deposit with a card entered just now", () => {
 
     const refused = await finalize(client, quote).expect(409);
 
+    // how it closed: it expired
     expect(refused.body.message).toBe(
-      "This quote closed while your bank was approving the payment, so we've refunded your deposit.",
+      "This quote expired while your bank was approving the payment, so we've refunded your deposit.",
     );
+    expect(await pageSays(client, quote)).toBe(refused.body.message);
     expect(testPayments().refunds).toHaveLength(1);
     expect((await scheduleOn(office, MONDAY)).jobs).toEqual([]);
     expect((await quoteOf(office, quote.id)).status).toBe("expired");
@@ -1269,8 +1292,9 @@ describe("while the Client's bank is approving the Deposit", () => {
     testPayments().requireApproval(null);
     const late = await finalize(client, quote).expect(409);
     expect(late.body.message).toBe(
-      "This payment was called off, as it wasn't approved within 15 minutes, so nothing was charged. Please pay again.",
+      "Your payment wasn't approved, so nothing was taken. Please try again, or use another card.",
     );
+    expect(await pageSays(client, quote)).toBe(late.body.message);
     expect(testPayments().charges).toEqual([]);
     await addCard(client);
     await recordAccepted(office, quote).expect(200);
@@ -1456,8 +1480,9 @@ describe("while the Client's bank is approving the Deposit", () => {
     expect(testMonitoring().signalled("refund_failed")).toEqual([]);
     // nothing was paid, so nothing's said to be refunded
     expect(finalized.body.message).toBe(
-      "Sorry, that time just got booked up, so nothing was charged. We'll be in touch with another time.",
+      "Sorry, that time got booked up while your bank was approving your card, so nothing was booked. We'll send you a new quote for another time.",
     );
+    expect(await pageSays(client, quote)).toBe(finalized.body.message);
   });
 
   // past 15 minutes, Send calls the payment off first; one it can't, as
@@ -1774,7 +1799,9 @@ describe("while the Client's bank is approving the Deposit", () => {
       "that time got booked up while your bank was approving your card.",
     );
     expect(email.text).toContain("Nothing was charged to your card.");
-    expect(email.text).toContain("We'll be in touch with another time.");
+    expect(email.text).toContain(
+      "We'll send you a new quote for another time.",
+    );
     expect(email.text).not.toContain("refunded");
     // and the Office sees it, to be in touch
     expect(sent.unbookedPayments).toEqual([

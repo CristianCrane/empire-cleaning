@@ -1,6 +1,7 @@
-import type { DepositPaying, QuoteKind, QuoteStatus } from "../index.ts";
-import { theTimeEs } from "../format.ts";
+import type { QuoteView } from "../index.ts";
+import { formats, theTimeEs } from "../format.ts";
 import { catalog, type Language } from "../language.ts";
+import { NEW_QUOTE_EN, NEW_QUOTE_ES } from "./quotes.ts";
 
 // What the Client is told of their Deposit payment on a Quote (#534), by
 // the server answering a press and by the Quote's pages and Home reading
@@ -15,13 +16,13 @@ export type DepositGoal = "clean" | "plan" | "change";
 // what booking it does, after "to", with the Service paid for on a clean
 const goalEn = (goal: DepositGoal, service: string | null) =>
   ({
-    clean: `book your ${service}`,
+    clean: `book your ${service ?? "clean"}`,
     plan: "start your plan",
     change: "change your plan",
   })[goal];
 const goalEs = (goal: DepositGoal, service: string | null) =>
   ({
-    clean: `reservar su ${service}`,
+    clean: `reservar su ${service ?? "limpieza"}`,
     plan: "empezar su plan",
     change: "cambiar su plan",
   })[goal];
@@ -117,8 +118,8 @@ export const deposits = catalog({
         : `Your payment didn't go through${why ? ` (${why})` : ""}. Please try again, or use another card.`,
     depositNoRoom: (card: boolean) =>
       card
-        ? `Sorry, that time got booked up ${whileEn(card)}, ${soEn(card)}. We'll send you a new quote for another time.`
-        : `Sorry, that time got booked up ${whileEn(card)}. We've refunded your deposit, and we'll send you a new quote for another time.`,
+        ? `Sorry, that time got booked up ${whileEn(card)}, ${soEn(card)}. ${NEW_QUOTE_EN}`
+        : `Sorry, that time got booked up ${whileEn(card)}. We've refunded your deposit. ${NEW_QUOTE_EN}`,
     // its Service's time filled while another option still fits then
     depositNoRoomFor: (card: boolean, service: string, other: string) =>
       `Sorry, that time got booked up for the ${service} ${whileEn(card)}, ${soEn(card)}. The ${other} can still be booked then.`,
@@ -169,8 +170,8 @@ export const deposits = catalog({
         : `Su pago no pasó${why ? ` (${why})` : ""}. Vuelva a intentarlo, o use otra tarjeta.`,
     depositNoRoom: (card: boolean) =>
       card
-        ? `Lo sentimos, esa hora se llenó ${whileEs(card)}, ${soEs(card)}. Le enviaremos una nueva cotización para otra hora.`
-        : `Lo sentimos, esa hora se llenó ${whileEs(card)}. Le devolvimos el depósito, y le enviaremos una nueva cotización para otra hora.`,
+        ? `Lo sentimos, esa hora se llenó ${whileEs(card)}, ${soEs(card)}. ${NEW_QUOTE_ES}`
+        : `Lo sentimos, esa hora se llenó ${whileEs(card)}. Le devolvimos el depósito. ${NEW_QUOTE_ES}`,
     depositNoRoomFor: (card: boolean, service: string, other: string) =>
       `Lo sentimos, esa hora se llenó para la ${service} ${whileEs(card)}, ${soEs(card)}. La ${other} aún se puede reservar a esa hora.`,
     depositRevised: (card: boolean) =>
@@ -188,32 +189,55 @@ export const deposits = catalog({
   },
 });
 
-// how a Client's Deposit payment on a Quote ended without booking it, as
-// its page's alert says it: none while it's going through or their bank
-// is asking, or when there's none. `bookable`, the Services that can still
-// be booked (QuoteView's), says whether a refund for a time that filled
-// leaves another; `nameOf` names a Service by its key, in `lang`
-export type DepositEnded = { tone: "info" | "danger"; text: string };
-export const depositEndedOf = (
+// what booking a Quote does, as its Client is told while their Deposit
+// goes through: changing the plan their home has, starting one, or
+// booking a clean
+export const depositGoalOf = (
+  quote: Pick<QuoteView, "kind" | "changesPlan">,
+): DepositGoal =>
+  quote.kind === "one_off" ? "clean" : quote.changesPlan ? "change" : "plan";
+
+// What a Client's Quote page says of their latest Deposit payment on it, in
+// its alert, and what pressing Accept answers once the payment stands
+// there, in the same words (#534's UX design, Screen 1d: one wording for
+// each state): going through, their bank asking them to approve it, or how
+// it ended without booking it; null when there's none. The Quote as its
+// page holds it: `bookable` says whether a refund for a time that filled
+// leaves another Service, and `options` name each by its key
+export type DepositAlert = {
+  tone: "info" | "warning" | "danger";
+  text: string;
+};
+export const depositAlertOf = (
   lang: Language,
-  quote: {
-    kind: QuoteKind;
-    status: QuoteStatus;
-    bookable: string[];
-    paying: DepositPaying | null;
-    nameOf: (serviceKey: string) => string;
-  },
-): DepositEnded | null => {
+  quote: Pick<
+    QuoteView,
+    "kind" | "status" | "bookable" | "paying" | "options" | "changesPlan"
+  >,
+): DepositAlert | null => {
   const said = deposits[lang];
   const { paying } = quote;
   if (!paying) return null;
+  const nameOf = (key: string) =>
+    quote.options.find((o) => o.serviceKey === key)?.serviceName;
   // a card saved with nothing charged (a 0% Deposit) says what was booked,
   // as nothing was to be taken
   const card = paying.depositCents === 0;
+  const goal = depositGoalOf(quote);
   switch (paying.status) {
     case "goingThrough":
-    case "approving":
-      return null;
+      return { tone: "info", text: said.depositFinishing(goal) };
+    case "approving": {
+      const waiting = {
+        goal,
+        service: goal === "clean" ? (nameOf(paying.serviceKey) ?? null) : null,
+        until: formats[lang].formatTime(paying.until),
+      };
+      return {
+        tone: "warning",
+        text: card ? said.cardWaiting(waiting) : said.depositWaiting(waiting),
+      };
+    }
     case "notApproved":
       return { tone: "info", text: said.depositNotApproved(card) };
     case "failed":
@@ -225,12 +249,10 @@ export const depositEndedOf = (
     switch (paying.why) {
       case "no_room": {
         const other = quote.kind === "one_off" ? quote.bookable[0] : undefined;
-        return other
-          ? said.depositNoRoomFor(
-              card,
-              quote.nameOf(paying.serviceKey),
-              quote.nameOf(other),
-            )
+        const service = nameOf(paying.serviceKey);
+        const instead = other && nameOf(other);
+        return service && instead
+          ? said.depositNoRoomFor(card, service, instead)
           : said.depositNoRoom(card);
       }
       case "revised":

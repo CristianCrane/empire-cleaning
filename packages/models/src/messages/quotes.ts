@@ -15,6 +15,14 @@ const startOfEs = (kind: PropertyKind) =>
 const WITHIN_A_DAY = "usually within a working day";
 const WITHIN_A_DAY_ES = "normalmente en un día hábil";
 
+// once a Quote's time filled, the Office sends one for another time
+// (Today's "Pick another time for the quote"): the promise, wherever the
+// Client is told it filled, and the Deposit's words (deposits.ts) end with
+// it too
+export const NEW_QUOTE_EN = "We'll send you a new quote for another time.";
+export const NEW_QUOTE_ES =
+  "Le enviaremos una nueva cotización para otra hora.";
+
 const turnDownReasonEn: Record<TurnDownReason, string> = {
   out_of_area: "It's outside the area we clean",
   out_of_scope: "It's not work we take on",
@@ -49,6 +57,7 @@ export const quotes = catalog({
     quoteEmailedTo: (email: string) =>
       `We'll email your quote to ${email}, ${WITHIN_A_DAY}.`,
     WORKING_ON_IT: `We're working on your quote. We'll email it to you, ${WITHIN_A_DAY}.`,
+    NEW_QUOTE: NEW_QUOTE_EN,
   },
   es: {
     thisPlace: (kind: PropertyKind) =>
@@ -65,6 +74,7 @@ export const quotes = catalog({
     quoteEmailedTo: (email: string) =>
       `Le enviaremos su cotización a ${email}, ${WITHIN_A_DAY_ES}.`,
     WORKING_ON_IT: `Estamos preparando su cotización. Se la enviaremos por correo, ${WITHIN_A_DAY_ES}.`,
+    NEW_QUOTE: NEW_QUOTE_ES,
   },
 });
 

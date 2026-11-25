@@ -11,6 +11,7 @@ import {
   catalog,
   clientPaying as clientPayingWords,
   dayOf,
+  depositAlertOf,
   formats,
   inLanguage,
   messages,
@@ -127,31 +128,11 @@ const words = catalog({
       "This quote was just updated, so nothing was booked. Please reload the page to see it.",
     planChanged:
       "Your cleaning plan changed just now, so nothing was booked. Please reload the page and try again.",
-    bookedUp:
-      "Sorry, that time just got booked up, so nothing was charged. We'll be in touch with another time.",
+    bookedUp: `Sorry, that time just got booked up, so nothing was charged. ${messages.en.NEW_QUOTE}`,
     addCard: "Add a card to accept this quote.",
-    cardFailed: (because: string) =>
-      `Your card didn't go through${because}, so nothing was booked. Please try another card.`,
     planFor: (services: string) => `This cleaning plan is for ${services}.`,
     aService: (name: string) => `a ${name}`,
     pick: (services: string) => `Pick ${services}`,
-    // back from their bank with the payment not yet approved: approving
-    // it in their bank's app books it, and pressing again starts over, as
-    // a closed pop-up may leave it either way (#534)
-    waiting: (what: DepositGoal) =>
-      `Your bank hasn't approved the payment yet. Approve it in your bank's app to ${{ clean: "book your clean", plan: "start your plan", change: "change your plan" }[what]}. Or press Accept and pay to start over: the first payment is called off, so you're only charged once.`,
-    calledOff: (minutes: number) =>
-      `This payment was called off, as it wasn't approved within ${minutes} minutes, so nothing was charged. Please pay again.`,
-    bankFailed:
-      "Your bank didn't approve the payment, so nothing was booked. Please try again, or use another card.",
-    refundedNoRoom:
-      "Sorry, that time got booked up while your bank was approving the payment. We've refunded your deposit, and we'll be in touch with another time.",
-    refundedPlan:
-      "Your cleaning plan started while your bank was approving the payment, so we've refunded your deposit.",
-    refundedRevised:
-      "This quote was updated while your bank was approving the payment, so we've refunded your deposit. Please take a look at what's changed.",
-    refundedClosed:
-      "This quote closed while your bank was approving the payment, so we've refunded your deposit.",
     nothingWaiting: "There's no payment waiting on this quote.",
     // declining, their payment couldn't be called off: the provider
     // couldn't be reached
@@ -167,28 +148,11 @@ const words = catalog({
       "Esta cotización se acaba de actualizar, así que no se reservó nada. Vuelva a cargar la página para verla.",
     planChanged:
       "Su plan de limpieza acaba de cambiar, así que no se reservó nada. Vuelva a cargar la página e inténtelo de nuevo.",
-    bookedUp:
-      "Lo sentimos, esa hora se acaba de llenar, así que no se cobró nada. Le contactaremos con otra hora.",
+    bookedUp: `Lo sentimos, esa hora se acaba de llenar, así que no se cobró nada. ${messages.es.NEW_QUOTE}`,
     addCard: "Agregue una tarjeta para aceptar esta cotización.",
-    cardFailed: (because: string) =>
-      `Su tarjeta no pasó${because}, así que no se reservó nada. Pruebe con otra tarjeta.`,
     planFor: (services: string) => `Este plan de limpieza es para ${services}.`,
     aService: (name: string) => name,
     pick: (services: string) => `Elija ${services}`,
-    waiting: (what: DepositGoal) =>
-      `Su banco aún no ha aprobado el pago. Apruébelo en la app de su banco para ${{ clean: "reservar su limpieza", plan: "empezar su plan", change: "cambiar su plan" }[what]}. O presione Aceptar y pagar para empezar de nuevo: el primer pago se cancela, así que solo se le cobra una vez.`,
-    calledOff: (minutes: number) =>
-      `Este pago se canceló porque no se aprobó en ${minutes} minutos, así que no se cobró nada. Vuelva a pagar.`,
-    bankFailed:
-      "Su banco no aprobó el pago, así que no se reservó nada. Vuelva a intentarlo, o use otra tarjeta.",
-    refundedNoRoom:
-      "Lo sentimos, esa hora se llenó mientras su banco aprobaba el pago. Le devolvimos el depósito, y le contactaremos con otra hora.",
-    refundedPlan:
-      "Su plan de limpieza empezó mientras su banco aprobaba el pago, así que le devolvimos el depósito.",
-    refundedRevised:
-      "Esta cotización se actualizó mientras su banco aprobaba el pago, así que le devolvimos el depósito. Revise lo que cambió.",
-    refundedClosed:
-      "Esta cotización se cerró mientras su banco aprobaba el pago, así que le devolvimos el depósito.",
     nothingWaiting: "No hay ningún pago pendiente en esta cotización.",
     declineDown:
       "Algo salió mal al cancelar su pago, así que esta cotización no se rechazó. Vuelva a intentarlo en unos minutos.",
@@ -709,14 +673,19 @@ export const acceptQuote = async (
         throw new ConflictError(clientPayingWords.finishing(client.name, card));
       }
       if (attempt.status === "failed") {
-        // the Client is told only that their card wasn't charged
+        // the Client is told what their Quote's page then says of it
+        // (depositAlertOf), as it's recorded: a card saved with nothing
+        // charged (0%) was declined, a payment didn't go through
         log.info(`Deposit for Quote ${id} not taken (${attempt.reason})`);
         const { kind, why } = whyNotPaid(currentLanguage(), attempt.reason);
         throw new ConflictError(
           kind === "waiting"
             ? said().PAYMENT_DOWN
             : acceptor.by === "client"
-              ? said().cardFailed(because(why))
+              ? messages[currentLanguage()].depositFailed(
+                  depositCents === 0,
+                  why,
+                )
               : `${client.name}'s ${messages.en.card(saved!)} didn't go through${because(why)}, so nothing was booked. Email them a link to add another card.`,
         );
       }
@@ -755,12 +724,14 @@ export const acceptQuote = async (
   }
 
   if (outcome.status === "approved") {
+    const clientId = acceptor.by === "client" ? acceptor.clientId : null;
     return bookedWith(
       await finalizeDeposit(outcome.ref),
       id,
-      acceptor.by === "client"
-        ? finalizeProblem
-        : (finalized) =>
+      clientId
+        ? async (finalized) =>
+            finalizeProblem(finalized, await clientQuote(id, clientId))
+        : async (finalized) =>
             finalized.status === "refunded"
               ? clientPayingWords.refunded(client.name)
               : finalized.status === "unbooked"
@@ -789,16 +760,14 @@ export const acceptQuote = async (
 const bookedWith = async (
   finalized: Finalized,
   quoteId: string,
-  problem: (finalized: Finalized) => string,
+  problem: (finalized: Finalized) => Promise<string>,
 ): Promise<AcceptResult> => {
   if (finalized.status === "accepted") {
     return { status: "accepted", job: finalized.job, paidOnline: true };
   }
   const job = await acceptedJobOf(quoteId);
   if (job) return { status: "accepted", job, paidOnline: true };
-  throw new ConflictError(
-    finalized.status === "settled" ? said().PAYMENT_DOWN : problem(finalized),
-  );
+  throw new ConflictError(await problem(finalized));
 };
 
 // an Accepted Quote's Job (a plan's first); null while it isn't Accepted
@@ -1022,34 +991,16 @@ export const latestDepositFor = async (quoteId: string) => {
   return pending;
 };
 
-// what a Client is told when finishing their Deposit didn't book it
-export const finalizeProblem = (finalized: Finalized) => {
-  switch (finalized.status) {
-    case "approving":
-      return said().waiting(finalized.paying);
-    case "finishing":
-      return messages[currentLanguage()].depositFinishing(finalized.paying);
-    case "called_off":
-      return said().calledOff(APPROVAL_MS / MINUTE_MS);
-    case "unknown":
-      return said().PAYMENT_DOWN;
-    case "failed":
-      return said().bankFailed;
-    case "unbooked":
-      return unbookableMessage(finalized.unbookable, "client");
-    case "refunded":
-      return finalized.unbookable.reason === "no_room"
-        ? said().refundedNoRoom
-        : finalized.unbookable.reason === "has_plan" ||
-            finalized.unbookable.reason === "plan_changed"
-          ? said().refundedPlan
-          : finalized.unbookable.reason === "revised"
-            ? said().refundedRevised
-            : said().refundedClosed;
-    default:
-      return said().nothingWaiting;
-  }
-};
+// What a Client is told when finishing their Deposit didn't book it: where
+// it stands as their Quote's page, `quote` as it now is, says it, in the
+// same words (depositAlertOf; #534's UX design, Screen 1d), or that the
+// provider couldn't be reached. Nothing on the page when the payment's
+// ending no longer shows there (the Quote closed or changed since), or
+// there was none: there's no payment waiting
+export const finalizeProblem = (finalized: Finalized, quote: QuoteView) =>
+  finalized.status === "unknown"
+    ? said().PAYMENT_DOWN
+    : (depositAlertOf(currentLanguage(), quote)?.text ?? said().nothingWaiting);
 
 // ---- the Deposits nobody finished (#534) ----
 

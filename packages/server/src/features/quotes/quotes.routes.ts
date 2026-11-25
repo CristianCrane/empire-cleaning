@@ -134,12 +134,12 @@ router.post(
     if (finalized.status === "approving" || finalized.status === "finishing") {
       const outcome: AcceptOutcome = {
         status: finalized.status === "approving" ? "waiting" : "processing",
-        message: finalizeProblem(finalized),
+        message: finalizeProblem(finalized, quote),
       };
       res.json(outcome);
       return;
     }
-    throw new ConflictError(finalizeProblem(finalized));
+    throw new ConflictError(finalizeProblem(finalized, quote));
   },
 );
 

@@ -808,7 +808,6 @@ const depositWords = catalog({
       refunded: (amount: string, card: string, takes: string) =>
         `We've refunded your ${amount} deposit to your ${card}. ${takes}`,
       NOTHING_CHARGED: "Nothing was charged to your card.",
-      ANOTHER_TIME: "We'll be in touch with another time.",
       WHATS_CHANGED: "Take a look at what's changed:",
     },
     calledOff: {
@@ -882,7 +881,6 @@ const depositWords = catalog({
       refunded: (amount: string, card: string, takes: string) =>
         `Le devolvimos su depósito de ${amount} a su ${card}. ${takes}`,
       NOTHING_CHARGED: "No se cobró nada a su tarjeta.",
-      ANOTHER_TIME: "Le contactaremos con otra hora.",
       WHATS_CHANGED: "Revise lo que cambió:",
     },
     calledOff: {
@@ -966,7 +964,7 @@ export const depositUnbookedEmail = (
             )
           : w.NOTHING_CHARGED,
       ),
-      ...(why === "no_room" ? [paragraph(w.ANOTHER_TIME)] : []),
+      ...(why === "no_room" ? [paragraph(messages[lang].NEW_QUOTE)] : []),
       ...(why === "revised" ? [paragraph(w.WHATS_CHANGED)] : []),
       button(words[lang].SEE_QUOTE, `/portal/quotes/${deposit.quoteId}`),
     ],
