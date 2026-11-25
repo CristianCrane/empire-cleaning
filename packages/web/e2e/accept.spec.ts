@@ -510,13 +510,113 @@ test(
     ).toHaveText("Saved · send waits on Casey's deposit payment");
     const alert = page.getByRole("status").filter({
       hasText:
-        "Casey Client's online payment is still going through with their bank, which usually takes a few minutes. If it books the quote you sent, your draft is deleted. If not, you can send your changes then.",
+        "Casey Client's online payment is still going through with their bank, which usually takes under half an hour. If it books the quote you sent, your draft is deleted. If not, you can send your changes then.",
     });
     await expect(alert).toBeFocused();
     await expect(alert).toBeInViewport({ ratio: 1 });
+    // calm, as it waits on no one (#534's UX design, Screen 5)
+    await expect(alert).toHaveClass(/bg-info-subtle/);
     await expect(page).toHaveURL(/\/draft$/);
   },
 );
+
+// #534's UX design, Screen 5: Casey, a card saved, pays with one typed in,
+// and their bank answers as `answers` sets: the Quote, open on Olive's
+// screen, says where it stands
+const paidOnline = async (
+  page: Page,
+  browser: Browser,
+  answers: () => Promise<void>,
+) => {
+  await quoteSent(page, olive, casey);
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  await client.goto("/portal/payment-method");
+  await saveACard(client).save.click();
+  await expect(
+    client.getByText("Your Test card ending 4242 is saved"),
+  ).toBeVisible();
+  await client.goto(
+    await linkIn(casey.email, "Your quote from Empire Cleaning"),
+  );
+  const { form, accept } = payAndBook(client);
+  await form.getByRole("button", { name: "Use a different card" }).click();
+  await answers();
+  await accept.click();
+  return client;
+};
+
+const recordAcceptance = (page: Page) =>
+  page
+    .getByRole("group", { name: "What to do" })
+    .getByRole("button", { name: "Record acceptance" })
+    .first();
+
+// it waits on no one, so it's calm, info, as the Office's Bill says the
+// same wait, and Record acceptance waits till it's done
+test("Office Staff see a Deposit the Client's bank is finishing as going through, calm, with Record acceptance waiting on it", async ({
+  page,
+  browser,
+}) => {
+  const client = await paidOnline(page, browser, () =>
+    requireApproval("processing"),
+  );
+  await expect(titleBadge(client, "Payment pending")).toBeVisible();
+
+  await page.reload();
+  const alert = page
+    .getByRole("status")
+    .filter({ hasText: /^Casey Client's online payment/ });
+  await expect(alert).toHaveText(
+    /^Casey Client's online payment of the \$[\d.]+ deposit, for the Deep Clean, is still going through with their bank, which usually takes under half an hour\. If it doesn't go through, you can record acceptance then\.$/,
+  );
+  await expect(alert).toHaveClass(/bg-info-subtle/);
+  await expect(recordAcceptance(page)).toBeDisabled();
+});
+
+// one that took nothing says how it ended, in the Office's Bill's words for
+// the same endings, while Casey can still try again, and Record acceptance
+// is live again
+test("Office Staff see a Deposit payment the Client's bank never approved took nothing, and can record acceptance", async ({
+  page,
+  browser,
+}) => {
+  const client = await paidOnline(page, browser, () =>
+    requireApproval("refused"),
+  );
+  await expect(
+    client.getByText(/^Your payment wasn't approved, so nothing was taken\./),
+  ).toBeVisible();
+
+  await page.reload();
+  const alert = page.getByRole("status").filter({ hasText: /^Casey Client's/ });
+  await expect(alert).toHaveText(
+    "Casey Client's online payment of the deposit on Jan 5 wasn't approved, so nothing was taken. They can try again on their quote, or you can record acceptance.",
+  );
+  await expect(alert).toHaveClass(/bg-info-subtle/);
+  await expect(recordAcceptance(page)).toBeEnabled();
+});
+
+test("Office Staff see why a Client's Deposit payment didn't go through", async ({
+  page,
+  browser,
+}) => {
+  const client = await paidOnline(page, browser, () =>
+    failCharges("insufficient_funds"),
+  );
+  await expect(
+    client.getByText(/^Your payment didn't go through/),
+  ).toBeVisible();
+  await failCharges(null);
+
+  await page.reload();
+  await expect(
+    page.getByRole("alert").filter({ hasText: /^Casey Client's/ }),
+  ).toHaveText(
+    "Casey Client's online payment of the deposit on Jan 5 didn't go through (there wasn't enough money in the account). They can try again on their quote, or you can record acceptance.",
+  );
+  await expect(recordAcceptance(page)).toBeEnabled();
+});
 
 test("a Client back from their bank before approving the Deposit is told how it goes on", async ({
   page,

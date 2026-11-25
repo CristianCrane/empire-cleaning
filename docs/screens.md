@@ -234,7 +234,13 @@ Keeps: a record as its story (#145). Renders through `RecordPage` (#432).
   the visit to book or booked, the draft not sent, no card to record a yes
   by phone (its one action, Email a link to add a card), the time filled
   up, the plan an acceptance started or changed; the home's plan, the plan
-  change.
+  change. The Client's Deposit paid online: while their bank asks them to
+  approve it (warning: who, and when it's called off) or is finishing it
+  (info: "usually takes under half an hour", and what Jen can do once it's
+  done), Record acceptance greyed; once their latest payment took nothing,
+  while the quote's open, when and why, and that they can try again (info
+  if never approved, danger if it didn't go through) (#534's UX design,
+  Screen 5).
 - Body: a Timeline, Now on top holding Current quote (Card; once a
   one-off is accepted, only the Service booked, "Booked for" its time), then
   each moment; What was asked folded (`Fold`) under its entry, the home's

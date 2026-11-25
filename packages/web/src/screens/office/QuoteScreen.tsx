@@ -174,6 +174,7 @@ const {
   formatClock,
   formatDay,
   formatMoney,
+  formatShortDay,
   weekdayName,
   formatList,
 } = formats.en;
@@ -335,16 +336,42 @@ function useNow(quote: OfficeQuote): Now {
       />
     ),
   };
-  // over everything else to say about taking the Deposit, which waits on it
+  // over everything else to say about taking the Deposit, which waits on
+  // it: amber while it waits on the Client approving it, calm once their
+  // bank is finishing it, as it waits on no one, as the Office's Bill says
+  // the same wait (#534's UX design, Screen 5)
   const payingAlert: Alert | false = !!paying && {
     key: "paying",
-    tone: "warning",
+    tone: paying.finishing ? "info" : "warning",
     children: (
       <p>
         {clientPaying.page(paying, {
           card: recordable,
           drafting: quote.draft !== null && quote.offer !== null,
         })}
+      </p>
+    ),
+  };
+  // or their latest one took nothing: how it ended, and what's next, in
+  // the Office's Bill's tones for the same endings: red where it failed,
+  // calm where it was never approved, as nothing went wrong (Screen 5)
+  const ended = paying ? null : quote.paymentEnded;
+  const endedAlert: Alert | false = !!ended && {
+    key: "ended",
+    tone: ended.status === "failed" ? "danger" : "info",
+    children: (
+      <p>
+        {clientPaying.ended(
+          {
+            name,
+            on: formatShortDay(dayOfInstant(ended.at)),
+            card: ended.depositCents === 0,
+            ...(ended.status === "failed"
+              ? { status: "failed" as const, why: ended.why }
+              : { status: "notApproved" as const }),
+          },
+          { open: acceptable, record: recordable },
+        )}
       </p>
     ),
   };
@@ -405,6 +432,7 @@ function useNow(quote: OfficeQuote): Now {
             </p>
           ),
         },
+        endedAlert,
         noCard,
       ],
     };
@@ -423,7 +451,7 @@ function useNow(quote: OfficeQuote): Now {
         ? {
             next: recordAcceptance || undefined,
             actions: [changeQuote],
-            alerts: [payingAlert, noCard],
+            alerts: [payingAlert, endedAlert, noCard],
           }
         : {
             next: changeQuote,
@@ -442,6 +470,7 @@ function useNow(quote: OfficeQuote): Now {
                   </p>
                 ),
               },
+              endedAlert,
             ],
           };
     // the badge, the Expired fact and the story's moment say what
@@ -1337,7 +1366,9 @@ function RecordAcceptanceDialog({
             Only do this if they've told you they accept.
           </p>
           {paying ? (
-            <Notice tone="warning">{clientPaying.record(paying)}</Notice>
+            <Notice tone={paying.finishing ? "info" : "warning"}>
+              {clientPaying.record(paying)}
+            </Notice>
           ) : (
             action.problem && <Notice tone="danger">{action.problem}</Notice>
           )}
@@ -2161,7 +2192,8 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
           paying
             ? {
                 key: "paying",
-                tone: "warning",
+                // as the Quote's alert (Screen 5)
+                tone: paying.finishing ? "info" : "warning",
                 // Send refused as the Client is paying: the page loads
                 // again into this alert, which answers the press in its
                 // place (`failure` below), in view wherever Send was

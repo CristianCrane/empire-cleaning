@@ -1494,7 +1494,7 @@ describe("while the Client's bank is approving the Deposit", () => {
     {
       when: "their bank is still finishing the payment",
       fails: null,
-      says: "Casey Client's online payment is still going through with their bank, which usually takes a few minutes. If it books the quote you sent, your draft is deleted. If not, you can send your changes then.",
+      says: "Casey Client's online payment is still going through with their bank, which usually takes under half an hour. If it books the quote you sent, your draft is deleted. If not, you can send your changes then.",
     },
     {
       when: "calling it off can't reach the provider",
@@ -1573,7 +1573,7 @@ describe("while the Client's bank is approving the Deposit", () => {
       charges: testPayments().charges.length,
     }).toEqual({
       recorded:
-        "Casey Client's online payment is still going through with their bank, which usually takes a few minutes, so you can't record acceptance yet. Nothing more was charged.",
+        "Casey Client's online payment is still going through with their bank, which usually takes under half an hour, so you can't record acceptance yet. Nothing more was charged.",
       held: {
         until: "2026-01-05T09:15:00.000Z",
         serviceName: option(quote, "deep").serviceName,
@@ -1581,7 +1581,7 @@ describe("while the Client's bank is approving the Deposit", () => {
         depositCents: option(quote, "deep").depositCents,
         finishing: true,
       },
-      sent: "Casey Client's online payment is still going through with their bank, which usually takes a few minutes. If it books the quote you sent, your draft is deleted. If not, you can send your changes then.",
+      sent: "Casey Client's online payment is still going through with their bank, which usually takes under half an hour. If it books the quote you sent, your draft is deleted. If not, you can send your changes then.",
       after: null,
       charges: 1,
     });

@@ -1,6 +1,7 @@
 import type { PropertyKind, TurnDownReason } from "../index.ts";
 import { formats } from "../format.ts";
 import { catalog } from "../language.ts";
+import { because } from "./payments.ts";
 
 // What the server and the screens both say about a Quote
 // (docs/ux.md, Words)
@@ -174,9 +175,12 @@ export const payingFor = (
   until: formats.en.formatTime(paying.until),
   finishing: paying.finishing,
 });
-// a payment their bank is finishing, past `until`: too far on to call off
+// a payment their bank is finishing, past `until`: too far on to call off.
+// "Under half an hour", as the Office's Bill says the same wait
+// (paymentNotDone): the Clock asks again once the attempt is
+// SETTLED_AFTER_MS old, on its next tick (#534's UX design, Screen 5)
 const goingThrough =
-  "is still going through with their bank, which usually takes a few minutes";
+  "is still going through with their bank, which usually takes under half an hour";
 // a card the same, with nothing charged
 const cardFinishing = "their bank is finishing approving their card";
 // what's at stake for a new version while the Client pays: said once, as
@@ -208,6 +212,18 @@ const wentThrough = (name: string, card: boolean) =>
   card
     ? `${name}'s card was approved just before you pressed, so the quote is accepted`
     : `${name}'s payment went through just before you pressed, so the quote is accepted`;
+// once their bank is finishing it, what the Office can do if it doesn't go
+// through: said as what's next, not what's barred, as the greyed action
+// beside it says that, and nothing waits on anyone (#534's UX design,
+// Screen 5)
+const ifNot = (p: PayingFor, card: boolean, drafting: boolean) => {
+  const then = `you can ${drafting ? `send your changes${card ? " or record acceptance" : ""}` : "record acceptance"} then.`;
+  if (drafting) return ` ${booksDraft} If not, ${then}`;
+  if (!card) return "";
+  return p.deposit === null
+    ? ` If it isn't approved, ${then}`
+    : ` If it doesn't go through, ${then}`;
+};
 export const clientPaying = {
   // the Quote's alert: with Record acceptance greyed beside it (`card`, a
   // card saved to charge), or with a new version being drafted
@@ -216,7 +232,7 @@ export const clientPaying = {
     { card, drafting }: { card: boolean; drafting: boolean },
   ) =>
     p.finishing
-      ? `${payingWhat(p)}${drafting ? ` ${booksDraft} Until it's done, you can't send your changes or record acceptance.` : card ? " Until it's done, you can't record acceptance." : ""}`
+      ? `${payingWhat(p)}${ifNot(p, card, drafting)}`
       : drafting
         ? `${payingWhat(p)} ${booksDraft} Until ${p.until}, you can't send your changes or record acceptance.`
         : `${payingWhat(p)} If it isn't approved by ${p.until}, it's called off${card ? " and you can record acceptance" : ""}.`,
@@ -281,4 +297,32 @@ export const clientPaying = {
   // the draft's page, once the Client's payment accepted the quote
   draftGone: (name: string) =>
     `${name} accepted the quote you sent, so your draft was deleted.`,
+  // the Quote's alert once their latest payment online took nothing, while
+  // the offer's open (OfficeQuote's paymentEnded), in the Office's Bill's
+  // words for the same endings: when (`on`, formatted), and why it didn't
+  // go through, if the payment service said; `card`, a card entered with
+  // nothing to charge (a 0% Deposit), in the Client's words for it. Then
+  // what's next: they can try again while it can be accepted (`open`), and
+  // the Office can record acceptance with a card saved (`record`) (#534's
+  // UX design, Screen 5)
+  ended: (
+    e: { name: string; on: string; card: boolean } & (
+      { status: "notApproved" } | { status: "failed"; why: string | null }
+    ),
+    { open, record }: { open: boolean; record: boolean },
+  ) => {
+    const what = e.card
+      ? `${e.name}'s card, entered to accept online on ${e.on},`
+      : `${e.name}'s online payment of the deposit on ${e.on}`;
+    const how =
+      e.status === "notApproved"
+        ? `wasn't approved, so nothing was ${e.card ? "booked" : "taken"}`
+        : e.card
+          ? `was declined${because(e.why)}, so nothing was booked`
+          : `didn't go through${because(e.why)}`;
+    const next = open
+      ? ` They can try again on their quote${record ? ", or you can record acceptance" : ""}.`
+      : "";
+    return `${what} ${how}.${next}`;
+  },
 };
