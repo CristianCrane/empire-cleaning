@@ -72,6 +72,13 @@ test(
     await expect(client.getByText("Your first clean")).toBeVisible();
     await expect(client.getByText("Mon, Jan 12, 9:00 AM")).toBeVisible();
     await expect(client.getByText(/^Standard Clean at /)).toBeVisible();
+    // Payments owes nothing now, and says what's still to come: the rest,
+    // charged once it's done (#508), never "all paid up"
+    await client.getByRole("link", { name: "Payments" }).first().click();
+    await expect(client.getByText("Next payment")).toBeVisible();
+    await expect(
+      client.getByText("Charged to your card after your Mon, Jan 12 clean"),
+    ).toBeVisible();
 
     await page.reload();
     await expect(page.getByText(/ accepted it$/)).toBeVisible();

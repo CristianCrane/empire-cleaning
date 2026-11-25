@@ -20,6 +20,7 @@ import type {
   ClientJobDetail,
   ClientPastJob,
   ClientPayment,
+  NextCharge,
   ClientUpcomingJob,
   ClientQuoteView,
   ClientView,
@@ -808,14 +809,16 @@ const portalPaymentsRoute = createRoute({
   path: "/payments",
   validateSearch: homeUrl(paymentsTiles),
   loader: async () => {
-    const [plans, pastJobs, bills, paymentMethod, history] = await Promise.all([
-      getJson<ServicePlanSummary[]>("/api/service-plans/mine"),
-      getJson<ClientPastJob[]>("/api/jobs/mine/past"),
-      getJson<BillSummary[]>("/api/bills/mine"),
-      ownPaymentMethod(),
-      getJson<ClientPayment[]>("/api/payments/mine"),
-    ]);
-    return { plans, pastJobs, bills, paymentMethod, history };
+    const [plans, pastJobs, bills, paymentMethod, history, next] =
+      await Promise.all([
+        getJson<ServicePlanSummary[]>("/api/service-plans/mine"),
+        getJson<ClientPastJob[]>("/api/jobs/mine/past"),
+        getJson<BillSummary[]>("/api/bills/mine"),
+        ownPaymentMethod(),
+        getJson<ClientPayment[]>("/api/payments/mine"),
+        getJson<NextCharge | null>("/api/payments/mine/next"),
+      ]);
+    return { plans, pastJobs, bills, paymentMethod, history, next };
   },
   component: PortalPayments,
 });

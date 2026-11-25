@@ -206,6 +206,12 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
   };
 };
 
+// what a booked Job will owe once it's done, by the rule settling it then
+// charges: its price with what counts, less its Deposit and anything paid,
+// refunded at the provider or billed
+export const owedOnceDone = async (job: Job, tx: Tx | typeof db = db) =>
+  (await ledgerOf({ ...job, status: "completed" }, tx)).owedCents;
+
 // whether all a Job's money is in: it owes nothing, isn't Unpaid, and any
 // Bill that billed it (billed weekly) is paid. Till then, a plan offer for
 // its home waits (WEB-5)

@@ -1,5 +1,5 @@
 import { and, asc, eq, ne } from "drizzle-orm";
-import { startOfDay } from "@empire-cleaning/models";
+import { addDays, dayOf, mondayOf, startOfDay } from "@empire-cleaning/models";
 import type { db, Tx } from "../../db/index.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import type { Job } from "../jobs/jobs.schema.ts";
@@ -46,6 +46,14 @@ export const weeklyBillFor = (
   client.billedWeeklyFrom && job.startsAt >= startOfDay(client.billedWeeklyFrom)
     ? client.billPayment
     : null;
+
+// the earliest Monday a weekly Bill can bill a Job: each Monday's Bill is
+// for the week before (makeDueBills), and a Job not yet done when its
+// week's is made goes on a later one, so never a Monday gone
+export const billMadeOn = (job: Pick<Job, "startsAt">, today: string) => {
+  const day = dayOf(job.startsAt);
+  return addDays(mondayOf(day > today ? day : today), 7);
+};
 
 // weeklyBillFor a Job, read from its home's Client, for the Job's views
 export const weeklyBillOfJob = async (

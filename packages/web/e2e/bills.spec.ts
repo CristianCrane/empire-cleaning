@@ -256,7 +256,7 @@ test(
 
     // their Payments show it paid, and owe nothing
     await page.getByRole("link", { name: "Payments" }).first().click();
-    await expect(page.getByText("Nothing owed")).toBeVisible();
+    await expect(page.getByText("Nothing", { exact: true })).toBeVisible();
     await openTile(page, "All payments");
     await expect(listRows(page, "All payments")).toContainText([
       /Bill EC-000001/,

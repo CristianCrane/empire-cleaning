@@ -8,8 +8,9 @@ import {
   type ServicePlanSummary,
   catalog,
   type Language,
+  type NextCharge,
 } from "@empire-cleaning/models";
-import { CreditCard, Wallet } from "lucide-react";
+import { CircleCheck, CreditCard, Receipt, Wallet } from "lucide-react";
 import { linkTo, type AppHref } from "../../links.ts";
 import { pausedPlans } from "../format.ts";
 import type { Hero, Why } from "./HeroCard.tsx";
@@ -19,6 +20,14 @@ import { said, saidWith } from "../words.ts";
 const words = catalog({
   en: {
     toPay: "To pay",
+    nothing: "Nothing",
+    // what's taken next, once nothing is owed now (#508)
+    nextPayment: "Next payment",
+    chargedAfter: (day: string) =>
+      `Charged to your card after your ${day} clean`,
+    nextBill: "Next bill",
+    soFarOn: (day: string) => `So far, on your bill of ${day}`,
+    forYourClean: (day: string) => `For your ${day} clean`,
     billDue: (n: string, day: string) => `Bill ${n} is due by ${day}`,
     andMore: (first: string, n: number) => `${first}, and ${n} more`,
     // their last payment on a Bill's page, for a sentence to end (#534)
@@ -55,6 +64,13 @@ const words = catalog({
   },
   es: {
     toPay: "Por pagar",
+    nothing: "Nada",
+    nextPayment: "Próximo pago",
+    chargedAfter: (day: string) =>
+      `Se cobra a su tarjeta después de su limpieza del ${day}`,
+    nextBill: "Próxima factura",
+    soFarOn: (day: string) => `Hasta ahora, en su factura del ${day}`,
+    forYourClean: (day: string) => `Por su limpieza del ${day}`,
     billDue: (n: string, day: string) => `La factura ${n} vence el ${day}`,
     andMore: (first: string, n: number) => `${first}, y ${n} más`,
     failedFor: (n: string, why: string | null) =>
@@ -418,6 +434,51 @@ export function owedAnswer(
     },
     ...(owed.why && { why: { tone: "danger", lead: owed.why } }),
   };
+}
+
+// Payments' card when nothing is owed now: what's taken next, by the rules
+// that take it (the server's nextChargeFor), so "nothing to pay" never
+// reads as "nothing to come" while a clean's rest or a weekly Bill waits
+// (#508); the all-clear only once nothing does. Calm, as nothing is asked
+// of them. Days as the Bill and the owed card write them ("Mon, Jan 12")
+export function nextAnswer(next: NextCharge | null, lang: Language): Hero {
+  const t = saidWith(lang, words);
+  const { w } = t;
+  switch (next?.kind) {
+    case "clean":
+      return {
+        label: w.nextPayment,
+        icon: Wallet,
+        tone: "info",
+        headline: t.formatMoney(next.cents),
+        lines: [w.chargedAfter(t.dayOf(next.startsAt))],
+      };
+    case "bill":
+      return {
+        label: w.nextBill,
+        icon: Receipt,
+        tone: "info",
+        headline: t.formatMoney(next.cents),
+        lines: [w.soFarOn(t.formatDay(next.billOn))],
+      };
+    // its amount isn't known till the Bill is made: others may join it
+    case "billedClean":
+      return {
+        label: w.nextBill,
+        icon: Receipt,
+        tone: "info",
+        headline: t.formatDay(next.billOn),
+        lines: [w.forYourClean(t.dayOf(next.startsAt))],
+      };
+    default:
+      return {
+        label: w.toPay,
+        icon: CircleCheck,
+        tone: "success",
+        headline: w.nothing,
+        lines: [],
+      };
+  }
 }
 
 // how they pay, as a Home's tile: the card on file, or why there's none

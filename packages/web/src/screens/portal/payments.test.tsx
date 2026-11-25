@@ -6,6 +6,7 @@ import type {
 } from "@empire-cleaning/models";
 import {
   moneyNow as moneyNowIn,
+  nextAnswer as nextAnswerIn,
   owedAnswer as owedAnswerIn,
   pausedLine as pausedLineIn,
   paymentRow as paymentRowIn,
@@ -18,6 +19,8 @@ const paymentRow = (p: Parameters<typeof paymentRowIn>[0]) =>
   paymentRowIn(p, "en");
 const pausedLine = (plans: Parameters<typeof pausedLineIn>[0], asks = true) =>
   pausedLineIn(plans, "en", asks);
+const nextAnswer = (next: Parameters<typeof nextAnswerIn>[0]) =>
+  nextAnswerIn(next, "en");
 const owedAnswer = (data: PaymentsData) =>
   owedAnswerIn(moneyNow(data).owed!, "en", data.plans);
 
@@ -363,6 +366,52 @@ describe("the owed card", () => {
     const { hero } = owedAnswer(data({ bills: [bill()] }));
     expect(hero).toMatchObject({ label: "To pay", tone: "warning" });
     expect(hero.action?.secondary).toBeUndefined();
+  });
+});
+
+// owing nothing now, the card says what's taken next (#508)
+describe("what's taken next", () => {
+  test("a clean's rest, charged to their card once it's done", () => {
+    expect(
+      nextAnswer({ kind: "clean", cents: 24742, startsAt: CLEAN }),
+    ).toMatchObject({
+      label: "Next payment",
+      tone: "info",
+      headline: "$247.42",
+      lines: ["Charged to your card after your Tue, Oct 20 clean"],
+    });
+  });
+
+  test("a weekly Bill: what's on it so far, and when it's made", () => {
+    expect(
+      nextAnswer({ kind: "bill", cents: 26947, billOn: "2026-10-26" }),
+    ).toMatchObject({
+      label: "Next bill",
+      headline: "$269.47",
+      lines: ["So far, on your bill of Mon, Oct 26"],
+    });
+  });
+
+  test("a weekly Bill with only a clean booked: its day, no amount yet", () => {
+    expect(
+      nextAnswer({
+        kind: "billedClean",
+        startsAt: CLEAN,
+        billOn: "2026-10-26",
+      }),
+    ).toMatchObject({
+      label: "Next bill",
+      headline: "Mon, Oct 26",
+      lines: ["For your Tue, Oct 20 clean"],
+    });
+  });
+
+  test("nothing to come: the all-clear", () => {
+    expect(nextAnswer(null)).toMatchObject({
+      label: "To pay",
+      tone: "success",
+      headline: "Nothing",
+    });
   });
 });
 

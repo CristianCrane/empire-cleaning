@@ -1439,6 +1439,17 @@ export type PaymentMethodView = {
 export type ClientPaymentKind =
   "deposit" | "balance" | "adjustment" | "fee" | "bill" | "refund";
 
+// what a Client's card or weekly Bill takes next, for their Payments page
+// while they owe nothing now (GET /api/payments/mine/next), or null
+export type NextCharge =
+  // a clean charged once it's done: what it will charge then, and its start
+  | { kind: "clean"; cents: number; startsAt: string }
+  // cleans done, on the next weekly Bill: what it holds so far, and its day
+  | { kind: "bill"; cents: number; billOn: IsoDate }
+  // a clean booked on a weekly Bill: the earliest that Bill can be made, as
+  // what it holds isn't known till then
+  | { kind: "billedClean"; startsAt: string; billOn: IsoDate };
+
 // money that moved between a Client and us, for their Payments page
 // (GET /api/payments/mine). It was for a Job, a Service Plan's
 // Deposit, or a Bill; a refund was for what its Charge was for.

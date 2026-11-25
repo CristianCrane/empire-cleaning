@@ -5,6 +5,7 @@ import { paymentGateway } from "../../services/payment-gateway/index.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { ownClient } from "../clients/clients.ts";
 import { paymentHistoryFor } from "./history.ts";
+import { nextChargeFor } from "./next-charge.ts";
 import {
   cardWords,
   paymentMethodOf,
@@ -66,6 +67,12 @@ export const historyRouter = Router();
 historyRouter.get("/mine", authorize("client"), async (_req, res) => {
   const client = await ownClient(signedInAccount(res).id);
   res.json(await paymentHistoryFor(client.id));
+});
+
+// what their card or weekly Bill takes next, or null (#508)
+historyRouter.get("/mine/next", authorize("client"), async (_req, res) => {
+  const client = await ownClient(signedInAccount(res).id);
+  res.json(await nextChargeFor(client));
 });
 
 // ---- the Office ----
