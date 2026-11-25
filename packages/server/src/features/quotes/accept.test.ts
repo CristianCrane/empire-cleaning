@@ -2897,6 +2897,33 @@ describe("the Office's Deposit charge, left processing", () => {
     expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
     expect(testPayments().refunds).toEqual([]);
   });
+
+  // it may still take their money, so declining waits, as it does for their
+  // own payment their bank is finishing; once it's through, unbooked, it's
+  // given back as any Deposit no booking recorded is, and they may decline
+  // (#534 critical review C9)
+  test("the Client can't decline the Quote while it may still go through", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+    testPayments().failCharges("processing");
+    await recordAccepted(office, quote);
+    testPayments().failCharges(null);
+
+    expect((await decline(client, quote).expect(409)).body.message).toBe(
+      "A deposit payment for this quote is still going through with your bank, so this quote can't be declined now. Please try again later.",
+    );
+    testPayments().clearCharges();
+    testClock().advance({ minutes: 16 });
+    await settleOpenPayments();
+    expect(testPayments().charges).toHaveLength(1);
+    expect(testPayments().refunds).toEqual([
+      expect.objectContaining({ amount: testPayments().charges[0]!.amount }),
+    ]);
+    await decline(client, quote).expect(200);
+  });
 });
 
 // where the Client's latest Deposit payment on a Quote stands, as their

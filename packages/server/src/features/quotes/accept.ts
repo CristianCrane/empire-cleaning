@@ -56,6 +56,7 @@ import {
   type DepositTaken,
 } from "../payments/money.ts";
 import { charges, type ChargeAttempt } from "../payments/payments.schema.ts";
+import { paymentOn } from "../payments/payment-on.ts";
 import { whyNotPaid } from "../payments/unpaid.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
@@ -139,6 +140,10 @@ const words = catalog({
     // couldn't be reached
     declineDown:
       "Something went wrong calling off your payment, so this quote wasn't declined. Please try again in a few minutes.",
+    // declining, a payment of its Deposit from their saved card or bank
+    // account is still going through, so it may yet take the money
+    declineCharging:
+      "A deposit payment for this quote is still going through with your bank, so this quote can't be declined now. Please try again later.",
   },
   es: {
     PAYMENT_DOWN:
@@ -157,6 +162,8 @@ const words = catalog({
     nothingWaiting: "No hay ningún pago pendiente en esta cotización.",
     declineDown:
       "Algo salió mal al cancelar su pago, así que esta cotización no se rechazó. Vuelva a intentarlo en unos minutos.",
+    declineCharging:
+      "Un pago del depósito de esta cotización aún no termina de pasar con su banco, así que esta cotización no se puede rechazar ahora. Vuelva a intentarlo más tarde.",
   },
 });
 const said = () => words[currentLanguage()];
@@ -1089,7 +1096,9 @@ export const settleQuotePayments = async (
  * later books nothing, and they're emailed nothing of it: they said no. One
  * their bank approved meanwhile has booked it; one their bank is finishing,
  * too far on to call off, may yet, so the Quote can't be declined till it
- * ends (#534's UX design, Screens 1b and 1c).
+ * ends (#534's UX design, Screens 1b and 1c); and so may one the Office took
+ * from their saved card or bank account, still going through, which has no
+ * pending Deposit to settle (#534 critical review C9).
  */
 export const declineQuote = async (
   id: string,
@@ -1126,6 +1135,9 @@ export const declineQuote = async (
       .for("update");
     // one paid for since, on another page, is called off on another try
     if ((await unsettledDeposits(id, tx)).size) return "paying" as const;
+    if ((await paymentOn("deposit", [id], tx))(id).goingSince) {
+      return "charging" as const;
+    }
     const [row] = await tx
       .update(quotes)
       .set({ status: "declined", declinedAt: clock.now() })
@@ -1135,6 +1147,9 @@ export const declineQuote = async (
     return row ? ("declined" as const) : null;
   });
   if (declined === "paying") return declineQuote(id, clientId);
+  if (declined === "charging") {
+    throw new ConflictError(said().declineCharging);
+  }
   const now = await clientQuote(id, clientId);
   if (!declined) throw new ConflictError(whatClosed(now.status));
   return now;
