@@ -104,8 +104,8 @@ const expiringQuotes: Source = async () =>
     kind: "quote_expiring",
     since: new Date(
       Math.max(
-        Date.parse(quote.sentAt!),
-        Date.parse(quote.expiresAt!) - EXPIRING_HOURS * HOUR_MS,
+        Date.parse(quote.sentAt),
+        Date.parse(quote.expiresAt) - EXPIRING_HOURS * HOUR_MS,
       ),
     ).toISOString(),
     quote,

@@ -1,5 +1,5 @@
 import { and, inArray, max } from "drizzle-orm";
-import type { QuoteSummary } from "@empire-cleaning/models";
+import type { OfferedQuoteSummary } from "@empire-cleaning/models";
 import { dayOf } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import { onSchedule } from "../jobs/jobs.ts";
@@ -17,13 +17,14 @@ import { monitoring } from "../../services/monitoring/index.ts";
 // The open Quotes a booking or fewer Cleaners or hours left without room
 // (offer-room.ts says why a Sent Quote can lose it), and the Office told.
 
-const startOf = (quote: QuoteSummary) => new Date(quote.proposedStartsAt!);
+const startOf = (quote: OfferedQuoteSummary) =>
+  new Date(quote.proposedStartsAt);
 
 // the days a Quote would book a clean on first: a Service Plan Quote's on
 // each of its weekdays
-const firstDaysOf = (quote: QuoteSummary) =>
+const firstDaysOf = (quote: OfferedQuoteSummary) =>
   quote.plan
-    ? quote.plan.days.map((d) => dayOf(new Date(d.startsAt!)))
+    ? quote.plan.days.map((d) => dayOf(new Date(d.startsAt)))
     : [dayOf(startOf(quote))];
 
 // open Sent Quotes with a clean on `day` if given, that can't be booked for
@@ -37,14 +38,14 @@ export const quotesWithoutRoom = async (day?: string) => {
   );
   return open
     .filter((q) => bookable.get(q.id)!.length === 0)
-    .sort((a, b) => a.proposedStartsAt!.localeCompare(b.proposedStartsAt!));
+    .sort((a, b) => a.proposedStartsAt.localeCompare(b.proposedStartsAt));
 };
 
 // when the Quote stopped fitting, as near as is known: the latest booking on
 // its day since it was sent (a Job, a Site Visit, or a move asked for onto
 // it), or else when it was sent (its day's Cleaner hours may have been cut
 // instead, or the Office moved a Job there)
-export const noRoomSince = async (quote: QuoteSummary) => {
+export const noRoomSince = async (quote: OfferedQuoteSummary) => {
   const day = dayOf(startOf(quote));
   const [job] = await db
     .select({ at: max(jobs.bookedAt) })
@@ -69,7 +70,7 @@ export const noRoomSince = async (quote: QuoteSummary) => {
       ),
     );
   const at = [job, visit, move].map((latest) => latest?.at?.getTime() ?? 0);
-  return new Date(Math.max(Date.parse(quote.sentAt!), ...at)).toISOString();
+  return new Date(Math.max(Date.parse(quote.sentAt), ...at)).toISOString();
 };
 
 /**

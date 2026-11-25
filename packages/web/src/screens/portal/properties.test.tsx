@@ -60,6 +60,7 @@ const sent: QuoteSummary = {
   proposedStartsAt: "2026-11-08T15:00:00.000Z",
   sentAt: "2026-10-28T14:00:00.000Z",
   expiresAt: "2026-11-14T04:59:00.000Z",
+  plan: null,
 };
 
 const job = {

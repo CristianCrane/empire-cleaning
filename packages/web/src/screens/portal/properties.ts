@@ -45,7 +45,7 @@ export type Standing = {
 export const planWhen = (
   lang: Language,
   plan: Pick<ServicePlanSummary, "days">,
-) => said[lang].planDaysWhen(plan.days.flatMap((d) => d.startsAt ?? []));
+) => said[lang].planDaysWhen(plan.days.map((d) => d.startsAt));
 
 // a Quote as a row's title: what it's for, a one-off's the clean they paid
 // for when they did, as Home names it

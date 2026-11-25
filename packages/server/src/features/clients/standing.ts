@@ -1,11 +1,11 @@
-import { and, eq, exists, gt, gte, inArray, ne, or, sql } from "drizzle-orm";
+import { and, eq, exists, gte, inArray, ne, or, sql } from "drizzle-orm";
 import type { ClientStanding } from "@empire-cleaning/models";
 import { DAY_MS } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
-import { offers } from "../quotes/quote-state.ts";
+import { offers, sentUnexpired } from "../quotes/quote-state.ts";
 import { quotes } from "../quotes/quotes.schema.ts";
 import { servicePlans } from "../service-plans/service-plans.schema.ts";
 import { clients } from "./clients.schema.ts";
@@ -51,7 +51,7 @@ export const standingOfClient = () => {
           theirs,
           or(
             inArray(quotes.status, ["requested", "draft"]),
-            and(eq(quotes.status, "sent"), gt(offers.expiresAt, now)),
+            sentUnexpired(now),
           ),
         ),
       ),
