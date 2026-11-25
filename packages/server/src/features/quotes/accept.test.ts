@@ -7,6 +7,7 @@ import { describe, expect, test, vi } from "vitest";
 import { sql } from "drizzle-orm";
 import type {
   AcceptOutcome,
+  ClientPayment,
   NeedsAttentionItem,
   ClientJob,
   ClientUpcomingJob,
@@ -3099,6 +3100,50 @@ describe("the Client's Deposit payment, as their pages read it", () => {
         kind: "deposit",
         amountCents: depositCents,
         ...byQuote,
+      },
+    ]);
+  });
+
+  // the money's left their bank, so it's listed, pending, as a Bill's bank
+  // debit on its way is; once booked, it's the clean's Deposit, listed
+  // once (#534's UX review U3)
+  test("a Deposit their bank is finishing is in their payment history, pending, by its quote", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote, "standard").expect(200);
+    testPayments().requireApproval("processing");
+    await finalize(client, quote).expect(200);
+
+    const { depositCents } = standard(quote);
+    const history = async () =>
+      (await client.get("/api/payments/mine").expect(200))
+        .body as ClientPayment[];
+    expect(await history()).toEqual([
+      {
+        id: expect.any(String),
+        at: "2026-01-05T09:00:00.000Z",
+        kind: "deposit",
+        amountCents: depositCents,
+        job: null,
+        servicePlanId: null,
+        bill: null,
+        quote: { id: quote.id, serviceName: "Standard Clean" },
+        clearing: true,
+        item: null,
+      },
+    ]);
+
+    testPayments().requireApproval(null);
+    await finalize(client, quote).expect(200);
+    expect(await history()).toMatchObject([
+      {
+        kind: "deposit",
+        amountCents: depositCents,
+        clearing: false,
+        quote: null,
       },
     ]);
   });

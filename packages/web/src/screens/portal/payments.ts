@@ -549,13 +549,18 @@ export function paymentRow(p: ClientPayment, lang: Language): PaymentRow {
     };
   }
   // a Deposit given back as nothing could be booked, and its refund: by
-  // the quote, which says why (#534's UX design, Screen 4)
+  // the quote, which says why (#534's UX design, Screen 4); or one still
+  // going through, which its badge tells (UX review U3)
   if (p.quote) {
     const { id, serviceName } = p.quote;
     const href = quoteLink(id);
     return p.kind === "refund"
       ? { title: serviceName ? w.refundOn(serviceName) : w.planRefund, href }
-      : { title: depositOf(lang, serviceName), line: w.notBooked, href };
+      : {
+          title: depositOf(lang, serviceName),
+          line: p.clearing ? undefined : w.notBooked,
+          href,
+        };
   }
   if (p.servicePlanId) {
     const href = linkTo({

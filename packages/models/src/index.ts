@@ -1489,11 +1489,12 @@ export type ClientPayment = {
     weekStart: IsoDate;
     weekEnd: IsoDate;
   } | null;
-  // the Quote a Deposit given back unbooked was for, and the Service it
-  // was to book: null for a Service Plan Quote's, named as the plan's
-  // (#534)
+  // the Quote a Deposit given back unbooked, or still going through, was
+  // for, and the Service it was to book: null for a Service Plan Quote's,
+  // named as the plan's (#534)
   quote: { id: string; serviceName: string | null } | null;
-  // a Bill's bank debit, on its way but not yet cleared
+  // a Bill's bank debit, or a Quote's Deposit, on its way but not yet
+  // cleared
   clearing: boolean;
   // the one change to the price it was for, by name ("Inside the fridge",
   // "1 more hour, price corrected"), when it was for one

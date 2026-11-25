@@ -12,6 +12,7 @@ import { billNumber } from "../bills/billed-weekly.ts";
 import { bills } from "../bills/bills.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
+import { clientHolds } from "../quotes/deposit-paying.ts";
 import { pendingDeposits, quotes } from "../quotes/quotes.schema.ts";
 import { servicePlans } from "../service-plans/service-plans.schema.ts";
 import { addOnNamesIn } from "../price-list/price-list.ts";
@@ -50,7 +51,9 @@ const howWords = catalog({
  * shows while it clears, and one Office Staff recorded as paid another way
  * shows when it was paid. A Quote's Deposit taken, but given back as
  * nothing could be booked, has no Charge, as it was for no Job or plan: it
- * shows by its Quote, taken and given back (#534's UX design, Screen 4). A
+ * shows by its Quote, taken and given back (#534's UX design, Screen 4);
+ * and so does one their bank is still finishing, pending, as a Bill's bank
+ * debit does, as the money's left their bank (#534's UX review U3). A
  * Charge that failed moved no money, so it isn't here: what's owed is on
  * the page above it.
  */
@@ -177,23 +180,37 @@ export const paymentHistoryFor = async (
           })
           .from(pendingDeposits)
           .where(inArray(pendingDeposits.gatewayRef, refs));
-  const services = givenBack.length === 0 ? [] : await currentServices();
-  const quoteOf = ({
-    attempt,
-    offer,
-  }: (typeof givenBack)[number]): ClientPayment["quote"] => {
-    const quote = ownQuotes.find((q) => q.id === attempt.forId)!;
+  // and one their bank is finishing, with money in it, by its pending
+  // Deposit's Service, as its pages read it going through (depositPaying)
+  const holds = await clientHolds(ownQuotes.map((q) => q.id));
+  const going = ownQuotes.flatMap((q) => {
+    const held = holds(q.id);
+    return held && !held.onClient && held.attempt.amountCents > 0 ? held : [];
+  });
+  const services =
+    givenBack.length + going.length === 0 ? [] : await currentServices();
+  const quoteNamed = (
+    quoteId: string,
+    key: string | null,
+  ): ClientPayment["quote"] => {
+    const quote = ownQuotes.find((q) => q.id === quoteId)!;
     if (quote.kind === "service_plan")
       return { id: quote.id, serviceName: null };
-    const key =
-      pending.find((p) => p.gatewayRef === attempt.gatewayRef)?.serviceKey ??
-      offer?.serviceKey ??
-      quote.serviceKey;
     return {
       id: quote.id,
-      serviceName: inLanguage(currentLanguage(), serviceOf(services, key)).name,
+      serviceName: inLanguage(
+        currentLanguage(),
+        serviceOf(services, key ?? quote.serviceKey),
+      ).name,
     };
   };
+  const quoteOf = ({ attempt, offer }: (typeof givenBack)[number]) =>
+    quoteNamed(
+      attempt.forId,
+      pending.find((p) => p.gatewayRef === attempt.gatewayRef)?.serviceKey ??
+        offer?.serviceKey ??
+        null,
+    );
 
   // a Job's Balance taken after its first was for an increase approved later.
   // The charges come newest first, so its first is the last seen. Two
@@ -274,6 +291,18 @@ export const paymentHistoryFor = async (
         },
       ];
     }),
+    ...going.map(({ attempt, pending: row }) => ({
+      id: attempt.id,
+      at: attempt.askedAt.toISOString(),
+      kind: "deposit" as const,
+      amountCents: attempt.amountCents,
+      job: null,
+      servicePlanId: null,
+      bill: null,
+      quote: quoteNamed(attempt.forId, row.serviceKey),
+      clearing: true,
+      item: null,
+    })),
     // what hasn't a Charge (yet): a bank debit clearing, or paid another way
     ...ownBills
       .filter(

@@ -760,6 +760,15 @@ test("a Client whose Deposit is going through sees it pending on Payments, with 
   await expect(
     page.getByRole("link", { name: "See your quote" }),
   ).toHaveAttribute("href", new URL(quote).pathname);
+  // its tile the one way to Your card, not a button beside it too (#534's
+  // UX review U7)
+  await expect(page.getByRole("link", { name: /Your card/ })).toHaveCount(1);
+  // and listed, pending, as the money's left their bank (UX review U3)
+  await openTile(page, "All payments");
+  const rows = listRows(page, "All payments");
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText("Deposit for Deep Clean");
+  await expect(rows.first()).toContainText("Payment pending");
 });
 
 // Screen 4: a Deposit taken as their bank approved it, but given back as

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import { CircleCheck, CreditCard, Receipt } from "lucide-react";
+import { CircleCheck, Receipt } from "lucide-react";
 import { catalog, type ClientPayment } from "@empire-cleaning/models";
 import {
   Button,
@@ -13,7 +13,6 @@ import {
   StatusBadge,
   useUiWords,
 } from "@empire-cleaning/ui";
-import { linkTo } from "../../links.ts";
 import { useHomeUrl } from "../home-search.ts";
 import { HeroCard, whyAlert } from "./HeroCard.tsx";
 import {
@@ -76,15 +75,8 @@ export function PortalPayments() {
   return (
     <HomePage
       title={t.p.payments}
-      actions={[
-        // stands aside while the card asks something of them, as Home's
-        // does (docs/ux.md; UX review U18); Your card's tile stays below
-        !owed?.asks && {
-          label: t.p.yourCard,
-          icon: CreditCard,
-          href: linkTo({ to: "/portal/payment-method" }),
-        },
-      ]}
+      // no title-row action: Your card's tile is the way there, as two ways
+      // to one place, side by side, read as two (#534's UX review U7)
       alerts={[whyAlert(owing?.why)]}
       answer={
         <HeroCard

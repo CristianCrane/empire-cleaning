@@ -697,6 +697,26 @@ describe("how a payment reads", () => {
     expect(paymentRowIn(unbooked({}), "es").line).toBe("No se reservó");
   });
 
+  // still going through, it isn't "Not booked": it may yet book, and its
+  // badge says it's pending (#534's UX review U3)
+  test("a Deposit going through opens its quote, with no line", () => {
+    expect(
+      paymentRow(
+        payment({
+          kind: "deposit",
+          amountCents: 4872,
+          job: null,
+          quote: { id: "quote", serviceName: "Standard Clean" },
+          clearing: true,
+        }),
+      ),
+    ).toEqual({
+      title: "Deposit for Standard Clean",
+      line: undefined,
+      href: quoteHref,
+    });
+  });
+
   test("a Bill says its week", () => {
     expect(
       paymentRow(
