@@ -50,7 +50,6 @@ import {
   formatHours,
   formatMinutes,
   jobLabelOf,
-  lineOf,
   shortClientName,
   timeOfDay,
   today,
@@ -821,7 +820,7 @@ function DayJobs({
             </BlockTime>
             <BlockLine compact={compact}>
               <span className="sr-only">, </span>
-              {lineOf(["Site visit", formatMinutes(visit.minutes)])}
+              <Line parts={["Site visit", formatMinutes(visit.minutes)]} />
             </BlockLine>
             {visit.visitor && (
               <BlockLine compact={compact} muted>
@@ -873,15 +872,16 @@ function ScheduleBlock({
   children: ReactNode;
 }) {
   const inside = `flex h-full flex-col ${narrow ? "px-1" : "px-1.5"} text-xs leading-tight font-normal text-fg no-underline ${compact ? "justify-center" : "py-1"}`;
-  // only the lines that fit whole, so none shows cut in half: each keeps its
-  // height, and those past the last whole line aren't drawn. What's clipped
-  // is still read out, as a screen reader reads what isn't drawn too
+  // only the lines that fit whole, each drawn whole or not at all: a line
+  // that would run past the last whole line, a wrapped name's second half
+  // too, moves to a column of its own past the block's edge, which isn't
+  // drawn. What isn't drawn is still read out, as a screen reader reads it
   const lines = compact ? (
     children
   ) : (
     <span
-      className="flex flex-col overflow-hidden [&>*]:shrink-0"
-      style={{ maxHeight: wholeLines(Number(style.height)) * LINE_PX }}
+      className="flex flex-col flex-wrap content-start overflow-hidden [&>*]:w-full [&>*]:shrink-0"
+      style={{ height: wholeLines(Number(style.height)) * LINE_PX }}
     >
       {children}
     </span>
