@@ -196,6 +196,16 @@ Cleaner's Your jobs render through `HomePage`
   "Payment pending" and one line, that there's nothing to do (and, while
   it pauses a plan, "Until it goes through, we won't book more cleans on your
   plan."), and its way to see it outlined, as the page has no next step.
+  A quote that no longer waits on their answer (its Deposit going through,
+  "Payment pending"; a card saved with it while it books, "Booking
+  pending"; or its time filled since it was sent, "Fully booked") is a
+  state card on a Client's Home, calm as a paused plan's: after a booked
+  clean, a Site Visit or a paused plan, before the rest, so Home never
+  falls through to "Nothing booked" for one who just paid; with any of
+  those ahead of it, a News notice naming the quote (#534). A quote ready
+  whose payment their bank is approving, or whose payment ended without
+  booking, leads the quotes ready, so its alert and card are about one
+  quote.
   With nothing waiting anywhere,
   offers to answer included, it's a green all-clear card, as a screen says only what's true (the
   `ui` skill). The Office's is its first

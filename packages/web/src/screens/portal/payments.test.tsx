@@ -350,7 +350,8 @@ describe("the owed card", () => {
         label: "Payment pending",
         tone: "info",
         headline: "$1,253.50",
-        lines: ["Bill EC-000041 · Nothing you need to do."],
+        // the shared line's dot, held to its words (lineOf)
+        lines: ["Bill EC-000041 · Nothing you need to do."],
         action: expect.objectContaining({
           label: "See the bill",
           secondary: true,

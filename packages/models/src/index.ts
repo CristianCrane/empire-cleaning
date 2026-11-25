@@ -1401,6 +1401,11 @@ export type QuoteSummary = {
   createdAt: string;
   // where the Client's latest Deposit payment on it stands (#534)
   paying: DepositPaying | null;
+  // the Service a one-off Quote's payment is for, by name, as its Client's
+  // Home names it: the headline leads with another once that one's
+  // refunded and another can still be booked. Null with no payment, and
+  // for a Service Plan Quote's, which names the plan
+  payingServiceName: string | null;
   // to its Client, the Services a Sent Quote can still be booked as, as
   // its page's (QuoteView's `bookable`): none is Fully booked, which Home
   // draws as its own card (#534). Null once it isn't Sent, and on the

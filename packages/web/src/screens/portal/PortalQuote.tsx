@@ -61,6 +61,7 @@ import {
   catalog,
   depositAlertOf,
   depositGoalOf,
+  filledDaysOf,
   howLong,
   inLine,
   oneStop,
@@ -81,10 +82,6 @@ const words = catalog({
     askedFor: "What you asked for",
     asked: "Asked",
     yourKind: (kind: string) => `Your ${kind.toLowerCase()}`,
-    // once its day filled up (its badge: fullyBooked); then that a new
-    // quote comes (NEW_QUOTE)
-    bookedUp: (planDays: boolean, when: string) =>
-      `Sorry, ${planDays ? "one of the days your plan starts on has" : `${when} has`} been fully booked since we sent this quote, so it can't be accepted.`,
     details: "Quote details",
     aWeekTax: "A week's cleans, tax included",
     aCleanTax: (service: string) => `${service}, a clean, tax included`,
@@ -180,8 +177,6 @@ const words = catalog({
     askedFor: "Lo que pidió",
     asked: "Pedida",
     yourKind: (kind: string) => `Su ${kind.toLowerCase()}`,
-    bookedUp: (planDays: boolean, when: string) =>
-      `Lo sentimos, ${planDays ? "uno de los días en que empieza su plan se llenó" : `el ${when} se llenó`} después de que le enviamos esta cotización, así que no se puede aceptar.`,
     details: "Detalles de la cotización",
     aWeekTax: "Las limpiezas de una semana, impuestos incluidos",
     aCleanTax: (service: string) =>
@@ -507,8 +502,11 @@ function OfferedQuote({
         bookedUp &&
           !filled && {
             key: "booked up",
-            children: `${t.w.bookedUp(
-              Boolean(quote.plan && quote.plan.days.length > 1),
+            children: `${t.bookedUp(
+              filledDaysOf({
+                plan: quote.plan,
+                changes: Boolean(quote.changesPlan),
+              }),
               t.formatDateTime(quote.proposedStartsAt),
             )} ${t.NEW_QUOTE}`,
           },

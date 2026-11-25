@@ -483,6 +483,11 @@ const summaries = async (
                 : (quote.acceptedServiceKey ?? shown.serviceKey),
             )
           : null;
+      // a plan's payment names the plan, so only a one-off's names its
+      // Service; a revision can drop it from the offer, so it's read from
+      // the Services
+      const paidFor =
+        paying && !plan ? serviceOf(all, paying.serviceKey) : undefined;
       return {
         id: quote.id,
         kind: quote.kind,
@@ -523,6 +528,9 @@ const summaries = async (
         turnDownReason: quote.turnDownReason,
         createdAt: quote.madeAt.toISOString(),
         paying,
+        payingServiceName: paidFor
+          ? inLanguage(currentLanguage(), paidFor).name
+          : null,
         bookable: canBook,
       };
     },

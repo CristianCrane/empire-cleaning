@@ -47,6 +47,8 @@ export {
   depositGoalOf,
   type DepositAlert,
   type DepositGoal,
+  type DepositNamed,
+  type DepositUnbooked,
 } from "./deposits.ts";
 export {
   paymentNotDone,
@@ -75,6 +77,8 @@ export {
 export { asksTheClient, because, officeFix } from "./payments.ts";
 export {
   clientPaying,
+  filledDaysOf,
+  type FilledDays,
   needsVisit,
   noEmailYet,
   notSeenYet,

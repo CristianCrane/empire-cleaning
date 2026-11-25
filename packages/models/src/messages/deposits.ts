@@ -1,4 +1,4 @@
-import type { QuoteView } from "../index.ts";
+import type { DepositRefundedWhy, QuoteView } from "../index.ts";
 import { formats, theTimeEs } from "../format.ts";
 import { catalog, type Language } from "../language.ts";
 import { NEW_QUOTE_EN, NEW_QUOTE_ES } from "./quotes.ts";
@@ -74,6 +74,94 @@ const soEn = (card: boolean) =>
 const soEs = (card: boolean) =>
   card ? "así que no se reservó nada" : "así que le devolvimos el depósito";
 
+// A quote's payment as Home names it (#534's UX design, Screen 2): a
+// clean by its Service, and in a News notice, which sits under another
+// card, by its time and home too; a plan by its home, so neither reads
+// as a running plan's or another clean's
+export type DepositNamed =
+  | { plan: false; service: string; news: { when: string; at: string } | null }
+  | { plan: true; at: string };
+// "the Standard Clean on …", "your cleaning plan at …"
+const ofEn = (n: DepositNamed) =>
+  n.plan
+    ? `your cleaning plan at ${n.at}`
+    : n.news
+      ? `the ${n.service} on ${n.news.when} at ${n.news.at}`
+      : n.service;
+const ofEs = (n: DepositNamed) =>
+  n.plan
+    ? `su plan de limpieza en ${n.at}`
+    : n.news
+      ? `la ${n.service} del ${n.news.when} en ${n.news.at}`
+      : n.service;
+// "Your Standard Clean …", what a card saved with nothing charged was for
+const yoursEn = (n: DepositNamed) =>
+  n.plan
+    ? `Your cleaning plan at ${n.at}`
+    : n.news
+      ? `Your ${n.service} on ${n.news.when} at ${n.news.at}`
+      : `Your ${n.service}`;
+const yoursEs = (n: DepositNamed) =>
+  n.plan
+    ? `Su plan de limpieza en ${n.at}`
+    : n.news
+      ? `Su ${n.service} del ${n.news.when} en ${n.news.at}`
+      : `Su ${n.service}`;
+// why it couldn't be booked, as a clause: refunded, or a card saved with
+// nothing charged left unused; null when the quote's own card says it
+// (turned down) or none is drawn (a plan started meanwhile)
+export type DepositUnbooked = {
+  why: DepositRefundedWhy;
+  card: boolean;
+  plan: boolean;
+  // the quote expired, rather than was turned down, when `why` is closed
+  expired: boolean;
+  // the Service the quote can still be booked as then, when its own filled
+  other: string | null;
+};
+const unbookedEn = (u: DepositUnbooked) => {
+  switch (u.why) {
+    case "no_room":
+      return u.plan
+        ? `one of the days it starts on got booked up ${whileEn(u.card)}`
+        : `that time got booked up${u.other ? " for it" : ""} ${whileEn(u.card)}`;
+    case "revised":
+      return `your quote was updated ${whileEn(u.card)}`;
+    case "closed":
+      return u.expired ? `your quote expired ${whileEn(u.card)}` : null;
+    default:
+      return null;
+  }
+};
+const unbookedEs = (u: DepositUnbooked) => {
+  switch (u.why) {
+    case "no_room":
+      return u.plan
+        ? `uno de los días en que empieza se llenó ${whileEs(u.card)}`
+        : `esa hora se llenó${u.other ? " para esa limpieza" : ""} ${whileEs(u.card)}`;
+    case "revised":
+      return `su cotización se actualizó ${whileEs(u.card)}`;
+    case "closed":
+      return u.expired ? `su cotización venció ${whileEs(u.card)}` : null;
+    default:
+      return null;
+  }
+};
+// and what comes next, in News, which has no quote card under it
+const unbookedNextEn = (u: DepositUnbooked) =>
+  u.why === "revised"
+    ? "Please take a look at what's changed."
+    : u.other
+      ? `The ${u.other} can still be booked then.`
+      : NEW_QUOTE_EN;
+const unbookedNextEs = (u: DepositUnbooked) =>
+  u.why === "revised"
+    ? "Revise lo que cambió."
+    : u.other
+      ? `La ${u.other} aún se puede reservar a esa hora.`
+      : NEW_QUOTE_ES;
+const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
 export const deposits = catalog({
   en: {
     // their bank is finishing it, with nothing to approve: a first press
@@ -143,6 +231,45 @@ export const deposits = catalog({
     // home makes it unreachable today, but the server still checks it
     depositPlanMoved: (card: boolean) =>
       `Your cleaning plan started ${whileEn(card)}, ${soEn(card)}.`,
+    // Home (#534's UX design, Screen 2): going through, as a News notice
+    // under another card; "it's booked", not "your clean", so it can't
+    // read as about a clean booked above it
+    depositPendingNews: (n: DepositNamed) =>
+      `Your deposit for ${ofEn(n)} is pending. We'll email you as soon as it's booked, usually within half an hour.`,
+    cardPendingNews: (n: DepositNamed) =>
+      `Your bank is finishing approving your card for ${ofEn(n)}. We'll email you as soon as it's booked, usually within half an hour.`,
+    // a card saved with nothing charged, as the line of its own card
+    cardPendingLine: (plan: boolean) =>
+      `We'll email you as soon as ${plan ? "your plan" : "your clean"} is booked.`,
+    // how it ended without booking, over the quote's card or as News
+    depositFailedOn: (n: DepositNamed, card: boolean, why: string | null) =>
+      card
+        ? `Your card for ${ofEn(n)} was declined${why ? ` (${why})` : ""}, so nothing was booked.`
+        : `Your payment for ${ofEn(n)} didn't go through${why ? ` (${why})` : ""}.`,
+    depositNotApprovedOn: (n: DepositNamed, card: boolean) =>
+      card
+        ? `Your card for ${ofEn(n)} wasn't approved, so nothing was booked.`
+        : `Your payment for ${ofEn(n)} wasn't approved, so nothing was taken.`,
+    // what happened to the money, the alert's lead; then why, its line
+    depositRefundedOn: (n: DepositNamed, card: boolean) =>
+      card
+        ? `${yoursEn(n)} wasn't booked.`
+        : `We've refunded your deposit for ${ofEn(n)}.`,
+    depositUnbooked: (u: DepositUnbooked) => {
+      const why = unbookedEn(u);
+      return why && `${capital(why)}.${u.other ? ` ${unbookedNextEn(u)}` : ""}`;
+    },
+    // both in one sentence, and what comes next, as News; null when Home
+    // says nothing of it, as its quote is closed
+    depositUnbookedNews: (n: DepositNamed, u: DepositUnbooked) => {
+      const why = unbookedEn(u);
+      return (
+        why &&
+        (u.card
+          ? `${yoursEn(n)} wasn't booked, as ${why}. ${unbookedNextEn(u)}`
+          : `We've refunded your deposit for ${ofEn(n)}, as ${why}. ${unbookedNextEn(u)}`)
+      );
+    },
   },
   es: {
     depositFinishing: emailEs,
@@ -196,6 +323,37 @@ export const deposits = catalog({
       `Esta cotización se cerró ${whileEs(card)}, ${soEs(card)}.`,
     depositPlanMoved: (card: boolean) =>
       `Su plan de limpieza empezó ${whileEs(card)}, ${soEs(card)}.`,
+    depositPendingNews: (n: DepositNamed) =>
+      `Su depósito de ${ofEs(n)} está pendiente. Le enviaremos un correo en cuanto quede ${n.plan ? "reservado" : "reservada"}, normalmente en menos de media hora.`,
+    cardPendingNews: (n: DepositNamed) =>
+      `Su banco está terminando de aprobar su tarjeta para ${ofEs(n)}. Le enviaremos un correo en cuanto quede ${n.plan ? "reservado" : "reservada"}, normalmente en menos de media hora.`,
+    cardPendingLine: (plan: boolean) =>
+      `Le enviaremos un correo en cuanto ${plan ? "su plan quede reservado" : "su limpieza quede reservada"}.`,
+    depositFailedOn: (n: DepositNamed, card: boolean, why: string | null) =>
+      card
+        ? `Su tarjeta para ${ofEs(n)} fue rechazada${why ? ` (${why})` : ""}, así que no se reservó nada.`
+        : `Su pago de ${ofEs(n)} no pasó${why ? ` (${why})` : ""}.`,
+    depositNotApprovedOn: (n: DepositNamed, card: boolean) =>
+      card
+        ? `Su tarjeta para ${ofEs(n)} no se aprobó, así que no se reservó nada.`
+        : `Su pago de ${ofEs(n)} no se aprobó, así que no se cobró nada.`,
+    depositRefundedOn: (n: DepositNamed, card: boolean) =>
+      card
+        ? `${yoursEs(n)} no se reservó.`
+        : `Le devolvimos su depósito de ${ofEs(n)}.`,
+    depositUnbooked: (u: DepositUnbooked) => {
+      const why = unbookedEs(u);
+      return why && `${capital(why)}.${u.other ? ` ${unbookedNextEs(u)}` : ""}`;
+    },
+    depositUnbookedNews: (n: DepositNamed, u: DepositUnbooked) => {
+      const why = unbookedEs(u);
+      return (
+        why &&
+        (u.card
+          ? `${yoursEs(n)} no se reservó, ya que ${why}. ${unbookedNextEs(u)}`
+          : `Le devolvimos su depósito de ${ofEs(n)}, ya que ${why}. ${unbookedNextEs(u)}`)
+      );
+    },
   },
 });
 

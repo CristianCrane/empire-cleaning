@@ -474,7 +474,9 @@ Keeps: what's next, date tile, shortcut tiles (ux-portal). Renders through
   something of them (the amount, Pay or Update your card), else a price
   change to answer (what it adds, Review the price change), else that
   morning's How we get in, else a quote ready, else the next clean
-  (`DateTile`, the primary), else the plan paused (its way to it outlined) or where they stand;
+  (`DateTile`, the primary), else the plan paused (its way to it outlined),
+  else a quote that waits on nothing of theirs (Payment pending, Booking
+  pending, Fully booked; See your quote outlined), or where they stand;
   news (info Notices); up to four link tiles, what else waits on them
   first (a quote, a price change with what it adds and by when), then
   shortcuts.

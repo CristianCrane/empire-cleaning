@@ -23,6 +23,22 @@ export const NEW_QUOTE_EN = "We'll send you a new quote for another time.";
 export const NEW_QUOTE_ES =
   "Le enviaremos una nueva cotización para otra hora.";
 
+// what filled on a quote since it was sent, as its Client is told it on
+// the quote's page and on Home: a clean's time; one of the days a plan
+// starts on, as its first clean's time may not be the day that filled; or
+// one of a change's new days, as the plan they have stays (#534)
+export type FilledDays = "clean" | "plan" | "change";
+export const filledDaysOf = (quote: {
+  plan: { days: unknown[] } | null;
+  // it changes the plan its home has
+  changes: boolean;
+}): FilledDays =>
+  quote.plan && quote.plan.days.length > 1
+    ? quote.changes
+      ? "change"
+      : "plan"
+    : "clean";
+
 const turnDownReasonEn: Record<TurnDownReason, string> = {
   out_of_area: "It's outside the area we clean",
   out_of_scope: "It's not work we take on",
@@ -58,6 +74,16 @@ export const quotes = catalog({
       `We'll email your quote to ${email}, ${WITHIN_A_DAY}.`,
     WORKING_ON_IT: `We're working on your quote. We'll email it to you, ${WITHIN_A_DAY}.`,
     NEW_QUOTE: NEW_QUOTE_EN,
+    // the quote's page, once what it books filled (its badge: fullyBooked),
+    // `when` the clean's time; then that a new quote comes (NEW_QUOTE)
+    bookedUp: (filled: FilledDays, when: string) =>
+      `Sorry, ${
+        {
+          clean: `${when} has`,
+          plan: "one of the days your plan starts on has",
+          change: "one of the new days for your plan has",
+        }[filled]
+      } been fully booked since we sent this quote, so it can't be accepted.`,
   },
   es: {
     thisPlace: (kind: PropertyKind) =>
@@ -75,6 +101,14 @@ export const quotes = catalog({
       `Le enviaremos su cotización a ${email}, ${WITHIN_A_DAY_ES}.`,
     WORKING_ON_IT: `Estamos preparando su cotización. Se la enviaremos por correo, ${WITHIN_A_DAY_ES}.`,
     NEW_QUOTE: NEW_QUOTE_ES,
+    bookedUp: (filled: FilledDays, when: string) =>
+      `Lo sentimos, ${
+        {
+          clean: `el ${when} se llenó`,
+          plan: "uno de los días en que empieza su plan se llenó",
+          change: "uno de los nuevos días de su plan se llenó",
+        }[filled]
+      } después de que le enviamos esta cotización, así que no se puede aceptar.`,
   },
 });
 

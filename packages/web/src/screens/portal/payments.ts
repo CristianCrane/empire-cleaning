@@ -11,7 +11,7 @@ import {
 } from "@empire-cleaning/models";
 import { CreditCard, Wallet } from "lucide-react";
 import { linkTo, type AppHref } from "../../links.ts";
-import { pausedPlans } from "../format.ts";
+import { lineOf, pausedPlans } from "../format.ts";
 import type { Hero, Why } from "./HeroCard.tsx";
 import { said, saidWith } from "../words.ts";
 
@@ -372,6 +372,12 @@ export function pausedLine(
   return pausedPlans(plans).length > 0 ? [t.noMoreCleans(asks)] : [];
 }
 
+// what a quote's Deposit is for, as a deposit paid is named here: a
+// one-off's by the Service paid for, a plan's as the plan's (#534's UX
+// design, Screen 2: Home's card while one goes through)
+export const depositOf = (lang: Language, service: string | null) =>
+  service ? words[lang].depositFor(service) : words[lang].planDeposit;
+
 // what's owed as a Home's answer (AnswerCard): Payments' card, and the
 // Client's Home's when it asks something of them. What went wrong says
 // itself above the card (whyAlert); what's simply due, and by when, in its
@@ -395,7 +401,7 @@ export function owedAnswer(
         tone: "info",
         headline: t.formatMoney(owed.cents),
         lines: [
-          owed.line ? `${owed.line} · ${t.NOTHING_TO_DO}` : t.NOTHING_TO_DO,
+          lineOf([owed.line, t.NOTHING_TO_DO]),
           ...pausedLine(plans, lang, false),
         ],
         action: { ...owed.action, secondary: true },

@@ -34,9 +34,10 @@ export const languageOf = (tag: string | null | undefined): Language =>
 export type Catalog<T> = Record<Language, T>;
 
 // the type of a catalog's words, from its English: a function's words any
-// string, not the English ones ("this home" | "this business")
-export type Words<T> = T extends (...args: infer A) => string
-  ? (...args: A) => string
+// string, not the English ones ("this home" | "this business"), and null
+// where it says nothing of a case (deposits.ts's depositUnbooked)
+export type Words<T> = T extends (...args: infer A) => infer R
+  ? (...args: A) => R extends string ? string : R
   : T extends object
     ? { [K in keyof T]: Words<T[K]> }
     : T;

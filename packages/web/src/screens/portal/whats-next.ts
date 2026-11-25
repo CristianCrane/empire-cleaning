@@ -3,6 +3,7 @@ import {
   CalendarCheck,
   CalendarClock,
   CalendarDays,
+  CalendarX,
   ClipboardCheck,
   Hourglass,
   KeyRound,
@@ -12,10 +13,12 @@ import {
   Repeat,
   Sparkles,
   UserRound,
+  Wallet,
 } from "lucide-react";
 import {
   business,
   type BillSummary,
+  type DepositNamed,
   type ClientPastJob,
   type ClientSiteVisit,
   type ClientUpcomingJob,
@@ -24,6 +27,7 @@ import {
   type QuoteSummary,
   type ServicePlanSummary,
   catalog,
+  filledDaysOf,
   howLong,
   oneStop,
   sameDay,
@@ -36,7 +40,7 @@ import { QuoteIcon, SiteVisitIcon } from "../icons.ts";
 import { addressOf, formatMinutes, lineOf, pausedPlans } from "../format.ts";
 import { saidWith } from "../words.ts";
 import type { Hero, Why } from "./HeroCard.tsx";
-import { moneyNow, owedAnswer, yourCardTile } from "./payments.ts";
+import { depositOf, moneyNow, owedAnswer, yourCardTile } from "./payments.ts";
 
 // Home's words, in the Client's language (ADR-0025)
 const words = catalog({
@@ -83,6 +87,20 @@ const words = catalog({
       "Nothing's booked until it goes through. Then your plan carries on from its next date.",
     forWhen: (when: string) => `For ${when}`,
     at: " at ",
+    // a quote whose time filled since it was sent (#534's UX design,
+    // Screen 2), on its card, then that a new quote comes (NEW_QUOTE): a
+    // plan's names its home, as its first clean's time may not be the day
+    // that filled; a change to a plan, its new days
+    atHome: (address: string) => `At ${address}`,
+    planFilled: "One of the days your plan starts on is fully booked.",
+    changeFilled: "One of the new days for your plan is fully booked.",
+    // and as News, under another card, naming the quote
+    filledNews: (when: string, service: string, address: string) =>
+      `${when} is fully booked, so your quote for ${service} at ${address} can't be booked.`,
+    planFilledNews: (address: string) =>
+      `One of the days your cleaning plan at ${address} starts on is fully booked, so its quote can't be booked.`,
+    changeFilledNews: (address: string) =>
+      `One of the new days for your cleaning plan at ${address} is fully booked, so the change can't be booked. Your plan stays as it is, and we'll send you a new quote for another time.`,
     seeAsked: "See what you asked for",
     beforeWeQuote: "Before we quote",
     callToArrange: "We'll call to arrange a visit",
@@ -154,6 +172,15 @@ const words = catalog({
       "No hay nada reservado hasta que el pago pase. Después, su plan continúa desde su próxima fecha.",
     forWhen: (when: string) => `Para el ${when}`,
     at: " en ",
+    atHome: (address: string) => `En ${address}`,
+    planFilled: "Uno de los días en que empieza su plan se llenó.",
+    changeFilled: "Uno de los nuevos días de su plan se llenó.",
+    filledNews: (when: string, service: string, address: string) =>
+      `El ${when} ya está lleno, así que su cotización de ${service} en ${address} no se puede reservar.`,
+    planFilledNews: (address: string) =>
+      `Uno de los días en que empieza su plan de limpieza en ${address} se llenó, así que su cotización no se puede reservar.`,
+    changeFilledNews: (address: string) =>
+      `Uno de los nuevos días de su plan de limpieza en ${address} se llenó, así que el cambio no se puede reservar. Su plan sigue como está, y le enviaremos una nueva cotización para otra hora.`,
     seeAsked: "Ver lo que pidió",
     beforeWeQuote: "Antes de cotizar",
     callToArrange: "Le llamaremos para programar una visita",
@@ -368,15 +395,33 @@ export function whatsNext(
     }
     return undefined;
   })();
+  // a Sent Quote whose Deposit is going through, or whose time filled since
+  // it was sent, waits on nothing of theirs, so it's no quote to answer: a
+  // state card, as a paused plan's, or News (#534's UX design, Screen 2)
+  const going = sent.filter((q) => q.paying?.status === "goingThrough");
+  const filled = sent.filter(
+    (q) => !going.includes(q) && q.bookable?.length === 0,
+  );
+  // among the rest, ready, one whose payment waits on their bank or ended
+  // unbooked leads, so its alert and its card are of the same quote
+  const ready = sent
+    .filter((q) => !going.includes(q) && !filled.includes(q))
+    .sort((a, b) => Number(Boolean(b.paying)) - Number(Boolean(a.paying)));
   // a Sent Quote leads when nothing else waits on them, a clean booked or
   // not: it waits on their answer
-  const leadingQuote = lead ? undefined : sent[0];
+  const leadingQuote = lead ? undefined : ready[0];
+  // the state card, the newest's, when nothing booked or paused is ahead
+  // of it; money on its way first, as it's what they came to check
+  const state =
+    lead || leadingQuote || next || paused
+      ? undefined
+      : (going[0] ?? filled[0]);
 
   // what's waiting on them besides the card: a tile a kind, so never more
   // than two and the shortcuts keep two places. One leads to it; several
   // to where they all are: a home's page lists its quotes (Your details its
   // homes), Cleans' Past tab the cleans with prices to review
-  const quotes = sent.filter((q) => q !== leadingQuote);
+  const quotes = ready.filter((q) => q !== leadingQuote);
   const hintFor = (first: string, all: unknown[]) =>
     all.length > 1 ? w.andMore(first, all.length - 1) : first;
   const waiting: HomeTile[] = [
@@ -407,14 +452,39 @@ export function whatsNext(
     })),
   ];
 
-  const news = data.jobs.flatMap((job) =>
-    job.movingTo
-      ? [w.askedToMove(dayOf(job.startsAt), formatDateTime(job.movingTo))]
-      : [],
-  );
+  const news = [
+    ...data.jobs.flatMap((job) =>
+      job.movingTo
+        ? [w.askedToMove(dayOf(job.startsAt), formatDateTime(job.movingTo))]
+        : [],
+    ),
+    // each quote that isn't the card says where it stands, newest first:
+    // a deposit going through, a time filled (or the refund it brought),
+    // a payment that ended unbooked
+    ...sent.flatMap((q) => {
+      if (q === state || q === leadingQuote) return [];
+      if (going.includes(q)) {
+        return [
+          q.paying!.depositCents === 0
+            ? t.cardPendingNews(namedFor(t, q, true))
+            : t.depositPendingNews(namedFor(t, q, true)),
+        ];
+      }
+      const ended = endingOf(t, q, true);
+      if (filled.includes(q)) {
+        // a refund as it filled says both, in place of the filled one's
+        return [
+          q.paying?.status === "refunded" && ended
+            ? ended.lead
+            : filledNews(t, q),
+        ];
+      }
+      return ended ? [ended.lead] : [];
+    }),
+  ];
 
   const { hero, why, aside } =
-    lead ?? heroOf(data, t, { next, paused, leadingQuote, now });
+    lead ?? heroOf(data, t, { next, paused, leadingQuote, state, now });
   const shortcuts = shortcutsOf(data, t, {
     next,
     paused,
@@ -450,14 +520,168 @@ type Context = {
   next: Booked | undefined;
   paused: ServicePlanSummary | undefined;
   leadingQuote?: QuoteSummary;
+  // a quote waiting on nothing of theirs, as the card (#534)
+  state?: QuoteSummary;
   now: Date;
 };
 
+// a sent quote's line on its card: when, and at which home
+const forLine = (t: Said, quote: QuoteSummary) =>
+  [
+    quote.proposedStartsAt &&
+      t.w.forWhen(t.formatDateTime(quote.proposedStartsAt)),
+    addressOf(quote.property),
+  ]
+    .filter(Boolean)
+    .join(t.w.at);
+
+// the Service a sent quote leads with: the server's, what's still bookable
+const serviceOf = (q: QuoteSummary) => q.headlineServiceName ?? q.service.name;
+
+// a quote's payment as Home names it: a plan by its home; a clean by the
+// Service paid for and, in News, under another card, by its time and home
+const namedFor = (t: Said, q: QuoteSummary, news: boolean): DepositNamed =>
+  q.kind === "service_plan"
+    ? { plan: true, at: addressOf(q.property) }
+    : {
+        plan: false,
+        service: q.payingServiceName ?? serviceOf(q),
+        news:
+          news && q.proposedStartsAt
+            ? {
+                when: t.formatDateTime(q.proposedStartsAt),
+                at: addressOf(q.property),
+              }
+            : null,
+      };
+
+// how a quote's latest payment ended without booking it, as the alert
+// over its card, or as News, in one sentence; none while it's on its way
+function endingOf(t: Said, q: QuoteSummary, news: boolean): Why | undefined {
+  const { paying } = q;
+  if (!paying) return undefined;
+  const n = namedFor(t, q, news);
+  // a card saved with nothing charged (a 0% Deposit) says what wasn't
+  // booked, as nothing was taken
+  const card = paying.depositCents === 0;
+  switch (paying.status) {
+    case "goingThrough":
+    case "approving":
+      return undefined;
+    case "failed":
+      return { tone: "danger", lead: t.depositFailedOn(n, card, paying.why) };
+    case "notApproved":
+      return { tone: "info", lead: t.depositNotApprovedOn(n, card) };
+    case "refunded":
+      break;
+  }
+  const unbooked = {
+    why: paying.why,
+    card,
+    plan: q.kind === "service_plan",
+    expired: q.status === "expired",
+    // what's still bookable then, when its own Service's time filled
+    other:
+      paying.why === "no_room" && q.kind === "one_off" && q.bookable?.length
+        ? serviceOf(q)
+        : null,
+  };
+  const lead = t.depositRefundedOn(n, card);
+  if (news) {
+    return {
+      tone: "info",
+      lead: t.depositUnbookedNews(n, unbooked) ?? lead,
+    };
+  }
+  const more = t.depositUnbooked(unbooked);
+  return { tone: "info", lead, ...(more ? { more } : {}) };
+}
+
+// a quote whose time filled since it was sent, named as its page names it
+// (models' bookedUp): one sent to a home with a plan changes that plan
+const filledOf = (q: QuoteSummary) =>
+  filledDaysOf({ plan: q.plan, changes: Boolean(q.homePlanId) });
+const filledNews = (t: Said, q: QuoteSummary) => {
+  const at = addressOf(q.property);
+  switch (filledOf(q)) {
+    case "change":
+      return t.w.changeFilledNews(at);
+    case "plan":
+      return `${t.w.planFilledNews(at)} ${t.NEW_QUOTE}`;
+    case "clean":
+      return `${t.w.filledNews(
+        t.formatDateTime(q.proposedStartsAt!),
+        serviceOf(q),
+        at,
+      )} ${t.NEW_QUOTE}`;
+  }
+};
+
+// the state card of a quote waiting on nothing of theirs (#534's UX
+// design, Screen 2): its Deposit going through, or a card saved with
+// nothing charged (a 0% Deposit) finishing; or its time filled, with a
+// refund's alert when one came of it. Nothing to do: an outlined button
+function stateOf(t: Said, q: QuoteSummary): Answer {
+  const action = { ...seeQuote(t, q.id), secondary: true };
+  const plan = q.kind === "service_plan";
+  if (q.paying?.status === "goingThrough") {
+    return q.paying.depositCents === 0
+      ? {
+          hero: {
+            label: t.bookingPending,
+            icon: Hourglass,
+            tone: "info",
+            headline: t.quoteHeadline(q),
+            lines: [forLine(t, q), t.cardPendingLine(plan)],
+            action,
+          },
+        }
+      : {
+          hero: {
+            label: t.paymentPending,
+            icon: Wallet,
+            tone: "info",
+            headline: t.formatMoney(q.paying.depositCents),
+            lines: [
+              lineOf([
+                depositOf(
+                  t.lang,
+                  plan ? null : (q.payingServiceName ?? serviceOf(q)),
+                ),
+                t.NOTHING_TO_DO,
+              ]),
+              forLine(t, q),
+            ],
+            action,
+          },
+        };
+  }
+  const how = filledOf(q);
+  return {
+    hero: {
+      label: t.fullyBooked,
+      icon: CalendarX,
+      tone: "info",
+      headline: t.quoteHeadline(q),
+      lines:
+        how === "clean"
+          ? [forLine(t, q), t.NEW_QUOTE]
+          : [
+              t.w.atHome(addressOf(q.property)),
+              `${how === "change" ? t.w.changeFilled : t.w.planFilled} ${t.NEW_QUOTE}`,
+            ],
+      action,
+    },
+    why: q.paying?.status === "refunded" ? endingOf(t, q, false) : undefined,
+  };
+}
+
 function heroOf(data: HomeData, t: Said, ctx: Context): Answer {
-  const { next, paused, leadingQuote, now } = ctx;
+  const { next, paused, leadingQuote, state, now } = ctx;
   const { w, dayOf, formatDateTime } = t;
 
   if (leadingQuote) {
+    const { paying } = leadingQuote;
     return {
       hero: {
         label: w.quoteReadyLabel,
@@ -465,19 +689,22 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Answer {
         tone: "info",
         headline: t.quoteHeadline(leadingQuote),
         lines: [
-          [
-            leadingQuote.proposedStartsAt &&
-              w.forWhen(formatDateTime(leadingQuote.proposedStartsAt)),
-            addressOf(leadingQuote.property),
-          ]
-            .filter(Boolean)
-            .join(w.at),
+          forLine(t, leadingQuote),
           ...(leadingQuote.expiresAt
             ? [t.p.openUntil(dayOf(leadingQuote.expiresAt))]
+            : []),
+          // their bank waiting on them to approve it: still theirs to do
+          ...(paying?.status === "approving"
+            ? [
+                paying.depositCents === 0
+                  ? t.CARD_WAITING_LINE
+                  : t.DEPOSIT_WAITING_LINE,
+              ]
             : []),
         ],
         action: seeQuote(t, leadingQuote.id),
       },
+      why: endingOf(t, leadingQuote, false),
     };
   }
 
@@ -557,6 +784,10 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Answer {
     };
   }
 
+  // a quote waiting on nothing of theirs: without its card, Home would say
+  // nothing's booked, untrue for one who's just paid (#534)
+  if (state) return stateOf(t, state);
+
   const asked = data.quotes.find(open);
   if (asked) {
     const seeIt = {
@@ -608,8 +839,13 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Answer {
     };
   }
 
-  // the latest Quote, now closed, says how things ended
+  // the latest Quote, now closed, says how things ended, and a deposit
+  // refunded as it closed, over it: the money's what its card doesn't say.
+  // Only here: Home is about what's ahead, and the quote's page and
+  // Payments keep it (#534's UX design, Screen 2)
   const last = data.quotes[0];
+  const refund =
+    last?.paying?.status === "refunded" ? endingOf(t, last, false) : undefined;
   if (last?.status === "expired") {
     return {
       hero: {
@@ -622,6 +858,7 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Answer {
         ],
         action: requestQuote(t),
       },
+      why: refund,
     };
   }
   if (last?.status === "turned_down") {
@@ -636,6 +873,7 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Answer {
         lines: [`${addressOf(last.property)}. ${t.ASK_AGAIN}`],
         action: requestQuote(t),
       },
+      why: refund,
     };
   }
   if (last?.status === "declined") {

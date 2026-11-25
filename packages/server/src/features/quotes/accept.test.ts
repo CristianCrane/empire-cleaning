@@ -3074,8 +3074,9 @@ describe("the Client's Deposit payment, as their pages read it", () => {
   });
 
   // once updated, what's on offer is the new version's, so the row leads
-  // with it, as it would with no payment, and the alert names the refund
-  test("a refund on an updated quote leads its row with what's on offer now", async () => {
+  // with it, as it would with no payment, and Home's alert names the clean
+  // refunded, by its own name (#534's UX design, Screen 2)
+  test("a refund on an updated quote leads its row with what's on offer now, and names the clean refunded", async () => {
     // 8 hours on Monday
     await cleaners(2, 4);
     const office = await signInAsOffice();
@@ -3092,6 +3093,7 @@ describe("the Client's Deposit payment, as their pages read it", () => {
 
     expect(await listed(client, quote.id)).toMatchObject({
       paying: { status: "refunded" },
+      payingServiceName: option(quote, "standard").serviceName,
       bookable: tuesday.offer!.options.map((o) => o.serviceKey),
       headlineServiceName: tuesday.offer!.options[0]!.serviceName,
     });
