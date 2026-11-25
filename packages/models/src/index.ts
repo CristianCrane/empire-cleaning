@@ -1067,6 +1067,8 @@ export type QuoteView = {
   // Service Plan Quote's are its days' while the first clean on each of them
   // has room, and none otherwise.
   bookable: string[];
+  // where their latest Deposit payment on it stands (#534)
+  paying: DepositPaying | null;
 };
 
 // A Quote its Client asked for, with nothing Sent yet: what they asked, and
@@ -1284,6 +1286,14 @@ export type OfficeQuote = {
     serviceName: string | null;
     depositCents: number;
   } | null;
+  // the Client's latest Deposit payment online, when it didn't go through
+  // or they never approved it, while the offer it was for is open and
+  // nothing newer was pressed (#534's UX review U12): what the Office's
+  // Bill says of the same endings
+  paymentEnded: Extract<
+    DepositPaying,
+    { status: "failed" | "notApproved" }
+  > | null;
   // what the Client paid online that couldn't be booked once their bank
   // approved it, and why, oldest first
   unbookedPayments: UnbookedPayment[];
@@ -1365,7 +1375,10 @@ export type QuoteSummary = {
   // clean on each weekday, or a one-off Quote's option: to the Office its
   // Revision's own Service (the one asked for, unless the Office changed
   // it), or once Accepted the one booked; to its Client the first, the
-  // recommended one where there is one (ADR-0018). Null with no Revision
+  // recommended one where there is one (ADR-0018), unless they're paying
+  // for another (`paying`), so the list, its alert and their bank's
+  // request name the same clean (#534's UX review U23). Null with no
+  // Revision
   headlineTotalCents: number | null;
   // the Service that one-off option is for, or the one a Service Plan
   // Quote's cleans are all of; null with no Revision
@@ -1382,6 +1395,8 @@ export type QuoteSummary = {
   turnDownReason: TurnDownReason | null;
   // when it was asked or started, on the server's Clock
   createdAt: string;
+  // where the Client's latest Deposit payment on it stands (#534)
+  paying: DepositPaying | null;
 };
 
 // ---- Accepting a Quote (#8) ----
@@ -2207,6 +2222,23 @@ export type BillPaying =
   | { status: "approving"; until: string }
   | { status: "failed"; at: string; why: string | null }
   | { status: "notApproved"; at: string };
+
+// the Client's latest Deposit payment on a Quote, as its pages and the
+// Office's tell it (#534), in the words a Bill's payment has where they
+// mean the same (BillPaying): going through, which may still take it, so
+// nothing is asked of them and nothing else that moves money on the Quote
+// starts (ADR-0022); their bank asking them to approve it, till `until`;
+// the latest that didn't go through, or that they never approved (past
+// its wait too), while the offer it was for is open; or given back, as it
+// couldn't be booked (`at`, and why). Which option it's for, by key (a
+// one-off Quote's Service, a Service Plan Quote's weekday), and how much.
+// Null when there's none, once it's Accepted, or once a newer offer is Sent
+// over one that didn't go through.
+export type DepositPaying = (
+  | { status: "goingThrough" }
+  | BillPaying
+  | { status: "refunded"; at: string; why: DepositRefundedWhy }
+) & { serviceKey: string; depositCents: number };
 
 export type BillView = BillSummary & {
   lines: BillLineView[];

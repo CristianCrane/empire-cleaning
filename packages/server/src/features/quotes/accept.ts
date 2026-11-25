@@ -649,6 +649,11 @@ export const acceptQuote = async (
       callOff: acceptor.by === "client" ? "client_retried" : "abandoned",
       unsettled: await unsettledDeposits(id, tx),
     } as const;
+    // the offer it's for, which the Quote's pages name as the payment's
+    const offered = {
+      revisionId: revision.id,
+      serviceKey: offer.serviceKey,
+    };
     if (acceptor.by === "client") {
       const source = token ? { token } : { paymentMethodId: saved!.gatewayRef };
       return depositCents === 0
@@ -666,7 +671,7 @@ export const acceptQuote = async (
         : takeDepositOnce(
             tx,
             id,
-            { call: "deposit", input: { ...input, source } },
+            { call: "deposit", input: { ...input, source }, offer: offered },
             once,
           );
     }
@@ -677,6 +682,7 @@ export const acceptQuote = async (
       {
         call: "charge",
         input: { ...input, paymentMethodId: saved!.gatewayRef },
+        offer: offered,
       },
       once,
     );

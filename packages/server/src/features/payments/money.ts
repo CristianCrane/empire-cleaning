@@ -127,11 +127,25 @@ export const readByApproval = (
 export const NOT_APPROVED = (reason: string | null) =>
   reason === "canceled" || !!reason?.endsWith("_authentication_failure");
 
+// the offer a Deposit is for: its Revision, and the Service chosen, by key,
+// so a Quote's pages say which clean a payment was for, ended or not
+// (#534's UX review U16); none on attempts made before it was kept
+export type Offered = { revisionId: string; serviceKey: string };
+
 // the provider call an attempt makes, as asked but for its key: a saved
-// card charged, a Deposit, or a Bill the Client pays on its page
+// card charged, a Deposit, or a Bill the Client pays on its page; a
+// Deposit's, by the Client or the Office, with the offer it's for
 type Asked =
-  | { call: "charge"; input: Omit<ChargeInput, "idempotencyKey"> }
-  | { call: "deposit"; input: Omit<DepositInput, "idempotencyKey"> }
+  | {
+      call: "charge";
+      input: Omit<ChargeInput, "idempotencyKey">;
+      offer?: Offered;
+    }
+  | {
+      call: "deposit";
+      input: Omit<DepositInput, "idempotencyKey">;
+      offer?: Offered;
+    }
   | { call: "bill"; input: Omit<BillInput, "idempotencyKey"> };
 
 // what a try would ask the provider for now, against which an earlier
@@ -435,8 +449,9 @@ export const chargeOpen = async (forId: string, tx: Tx | typeof db = db) =>
   (await openOn([forId], tx)).has(forId);
 
 // every attempt for these Bills (or Jobs, or Quotes), newest first, each
-// with whether it's open (isOpen's), and the provider call it made: what a
-// Bill's pages read to say where its payments stand (paymentOn)
+// with whether it's open (isOpen's), the provider call it made, and a
+// Deposit's offer: what a Bill's or a Quote's pages read to say where its
+// payments stand (paymentOn)
 export const attemptsFor = async (
   kind: ChargeAttempt["kind"],
   forIds: string[],
@@ -460,10 +475,14 @@ export const attemptsFor = async (
           // the write order (created_at) breaks the Clock's tie, as in the
           // payment history
           .orderBy(desc(chargeAttempts.askedAt), desc(chargeAttempts.createdAt))
-      ).map((row) => ({
-        ...row,
-        call: (row.attempt.request as Asked).call,
-      }));
+      ).map((row) => {
+        const asked = row.attempt.request as Asked;
+        return {
+          ...row,
+          call: asked.call,
+          offer: ("offer" in asked && asked.offer) || null,
+        };
+      });
 
 // ---- a payment waiting on the Client's bank (#534) ----
 //

@@ -2623,3 +2623,159 @@ describe("the Office's Deposit charge, left processing", () => {
     expect(testPayments().refunds).toEqual([]);
   });
 });
+
+// where the Client's latest Deposit payment on a Quote stands, as their
+// Quote's page, their list of quotes and the Office's page read it (#534):
+// each said "Your quote is ready" with Accept and pay, whatever their bank
+// was doing with the payment, and nothing once it ended
+describe("the Client's Deposit payment, as their pages read it", () => {
+  const mine = async (client: Agent, id: string) =>
+    (await client.get(`/api/quotes/mine/${id}`).expect(200)).body as QuoteView;
+  const listed = async (client: Agent, id: string) =>
+    (
+      (await client.get("/api/quotes/mine").expect(200)).body as {
+        id: string;
+        paying: unknown;
+        headlineServiceName: string | null;
+      }[]
+    ).find((q) => q.id === id)!;
+  const standard = (quote: OfficeQuote) => ({
+    serviceKey: SEEDED.standard,
+    depositCents: option(quote, "standard").depositCents,
+  });
+
+  test("while their bank finishes it, it's going through, for the clean they paid for", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote, "standard").expect(200);
+    testPayments().requireApproval("processing");
+    await finalize(client, quote).expect(200);
+
+    const going = { status: "goingThrough", ...standard(quote) };
+    expect((await mine(client, quote.id)).paying).toEqual(going);
+    expect(await listed(client, quote.id)).toMatchObject({
+      paying: going,
+      headlineServiceName: option(quote, "standard").serviceName,
+    });
+  });
+
+  test("while their bank asks them to approve it, it's approving until the wait ends", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote, "standard").expect(200);
+
+    expect((await mine(client, quote.id)).paying).toEqual({
+      status: "approving",
+      until: "2026-01-05T09:15:00.000Z",
+      ...standard(quote),
+    });
+  });
+
+  test("past the wait, never approved, on their page and the Office's", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote, "standard").expect(200);
+    testClock().advance({ minutes: 16 });
+
+    const ended = {
+      status: "notApproved",
+      at: "2026-01-05T09:00:00.000Z",
+      ...standard(quote),
+    };
+    expect((await mine(client, quote.id)).paying).toEqual(ended);
+    expect((await quoteOf(office, quote.id)).paymentEnded).toEqual(ended);
+    // the same once the Clock has called it off
+    await settleOpenPayments();
+    expect((await mine(client, quote.id)).paying).toEqual(ended);
+  });
+
+  test("a card their bank declined says why, on their page and the Office's", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().failCharges("insufficient_funds");
+    await payNow(client, quote, "standard").expect(409);
+
+    const failed = {
+      status: "failed",
+      at: "2026-01-05T09:00:00.000Z",
+      why: "there wasn't enough money in the account",
+      ...standard(quote),
+    };
+    expect((await mine(client, quote.id)).paying).toEqual(failed);
+    expect((await quoteOf(office, quote.id)).paymentEnded).toEqual(failed);
+  });
+
+  test("a Deposit refunded as the time filled up says so, and when", async () => {
+    // 8 hours on Monday
+    await cleaners(2, 4);
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("approved");
+    await payNow(client, quote, "standard").expect(200);
+    await bookedJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 7 });
+    await finalize(client, quote).expect(409);
+
+    expect((await mine(client, quote.id)).paying).toEqual({
+      status: "refunded",
+      why: "no_room",
+      at: "2026-01-05T09:00:00.000Z",
+      ...standard(quote),
+    });
+  });
+
+  test("none once a newer Revision is sent, as it was for the last offer", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().failCharges("card_declined");
+    await payNow(client, quote, "standard").expect(409);
+    testPayments().failCharges(null);
+
+    await revise(office, quote, { validityDays: 10 });
+
+    expect((await mine(client, quote.id)).paying).toBeNull();
+    expect((await quoteOf(office, quote.id)).paymentEnded).toBeNull();
+  });
+
+  // a refund shows on the Quote while it isn't booked, a newer Revision
+  // too, as that's why it wasn't; once it's booked, with no payment of its
+  // own (no Deposit), its page says that instead
+  test("a refund stays on a newer Revision, and goes once it's booked", async () => {
+    // 8 hours on Monday
+    await cleaners(2, 4);
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("approved");
+    await payNow(client, quote, "standard").expect(200);
+    await bookedJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 7 });
+    await finalize(client, quote).expect(409);
+    testPayments().requireApproval(null);
+
+    const tuesday = await revise(office, quote, {
+      depositPercent: 0,
+      proposedStart: { date: "2026-01-13", time: "09:00" },
+    });
+    const refunded = (await mine(client, quote.id)).paying;
+    await payNow(client, tuesday, "standard").expect(200);
+
+    expect({
+      refunded: refunded?.status,
+      booked: (await mine(client, quote.id)).paying,
+      listed: (await listed(client, quote.id)).paying,
+    }).toEqual({ refunded: "refunded", booked: null, listed: null });
+  });
+});

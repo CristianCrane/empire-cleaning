@@ -101,6 +101,7 @@ import {
 } from "../site-visits/site-visits.ts";
 import { siteVisitViews } from "../site-visits/views.ts";
 import { askedAddOns } from "./asked-add-ons.ts";
+import { depositPaying } from "./deposit-paying.ts";
 import { quoteEmail, turnDownEmail } from "./emails.ts";
 import { percentOf } from "./plan-days.ts";
 import { bookableFor, openTimesOf, optionRoomsOf } from "./quote-room.ts";
@@ -844,6 +845,8 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     payingOf(quote),
     unbookedPaymentsOf(id),
   ]);
+  const shown = { ...quote, status };
+  const latest = (await depositPaying([shown]))(shown);
   const asked = addOns.get(id) ?? [];
   const chosen = list.addOns.filter((a) => asked.some((c) => c.key === a.key));
   // a Draft's Service is the Quote's only once it's sent (saveDraft)
@@ -926,6 +929,10 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     turnDownReason: quote.turnDownReason,
     paymentMethod: toPaymentMethodView(paymentMethod),
     paying: paying && { ...paying, until: paying.until.toISOString() },
+    paymentEnded:
+      latest?.status === "failed" || latest?.status === "notApproved"
+        ? latest
+        : null,
     unbookedPayments,
   };
 };
@@ -953,6 +960,8 @@ export const clientQuote = async (
   const revision = kinded(quote, offer);
   const rows = await optionsIn(currentLanguage(), await optionsOf(offer.id));
   const status = currentStatusOf(quote, offer);
+  const shown = { ...quote, status };
+  const paying = (await depositPaying([shown]))(shown);
 
   return {
     id: quote.id,
@@ -980,6 +989,7 @@ export const clientQuote = async (
     changesPlan: await planChangeFor(quote, status, offer),
     bookable: await bookableOf(quote, status, offer),
     weeklyBill: weeklyBillOf(client),
+    paying,
   };
 };
 
