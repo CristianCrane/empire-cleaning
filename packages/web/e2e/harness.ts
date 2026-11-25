@@ -1,4 +1,3 @@
-import { writeFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import {
   test as base,
@@ -9,6 +8,7 @@ import {
 } from "@playwright/test";
 import type { Me, QuoteSource, StaffRole } from "@empire-cleaning/models";
 import { API_CLOCK_HEADER } from "@empire-cleaning/server/api-clock";
+import { shootTheEnd } from "@empire-cleaning/server/at-rest";
 import type { Approval } from "@empire-cleaning/server/fake-payments";
 import { THEME_STORAGE_KEY } from "@empire-cleaning/ui/theme-boot";
 import { apiUrl, controlUrl } from "../playwright.config.ts";
@@ -460,58 +460,14 @@ export const test = base.extend<{
     { auto: true },
   ],
   // the screen a test ends on as a person would see it, for `pnpm pr:shots`
-  // (packages/server/tests/e2e/shots.ts): no focus ring or hover left by the
-  // last press, no toast over it (#407, #410). Playwright's own screenshot
-  // is taken before any fixture can let go of them, so this takes its own
+  // (packages/server/tests/e2e/shots.ts, at-rest.ts). Playwright's own
+  // screenshot is taken before any fixture can let go of a focus ring or a
+  // toast, so this takes its own
   prShot: [
     // the context, not the page, so a test with no page doesn't get one
     async ({ context }, use, testInfo) => {
       await use();
-      const [page] = context.pages();
-      if (!process.env.PR_SHOTS_OUT || testInfo.status !== "passed" || !page)
-        return;
-      await page.mouse.move(0, 0);
-      await page.evaluate(() => {
-        (document.activeElement as HTMLElement | null)?.blur();
-        // React Aria marks only the toast region as its top layer
-        for (const toasts of document.querySelectorAll<HTMLElement>(
-          "[data-react-aria-top-layer]",
-        ))
-          toasts.style.visibility = "hidden";
-      });
-      // the whole page, with what's pinned to the screen where a person sees
-      // it: the top bar at the page's top, the tab bar at its foot. Chromium's
-      // full-page shot draws them where the screen sat as the test ended,
-      // mid-page (#414), so the screen is made as tall as the page instead.
-      // What's sized by the screen's height grows with it (the desktop
-      // sidebar), and may make the page taller, so it's measured again
-      // (every project here sets a screen size, so there's always a width).
-      // With --viewport, the screen as the test left it, and what a bar
-      // pinned to it covers there (#430)
-      const width =
-        !process.env.PR_SHOTS_VIEWPORT && page.viewportSize()?.width;
-      for (let tries = 0; width && tries < 3; tries++) {
-        const [height, screen] = await page.evaluate(() => [
-          document.documentElement.scrollHeight,
-          window.innerHeight,
-        ]);
-        if (height === screen) break;
-        await page.setViewportSize({ width, height });
-      }
-      // a still frame, so one commit shoots one test the same each run
-      // (pr:shots --same compares them byte for byte, #439): transitions run
-      // to their end, as the hover the mouse just left fades out, and the shot
-      // is taken again until two in a row match, as an image or font settles
-      const still = () => page.screenshot({ animations: "disabled" });
-      let shot = await still();
-      for (let tries = 0; tries < 5; tries++) {
-        const again = await still();
-        if (again.equals(shot)) break;
-        shot = again;
-      }
-      const path = testInfo.outputPath("pr-shot.png");
-      writeFileSync(path, shot);
-      await testInfo.attach("pr-shot", { path, contentType: "image/png" });
+      await shootTheEnd(context, testInfo);
     },
     { auto: true },
   ],
