@@ -366,6 +366,15 @@ const daysOf = (month: string) => {
   ];
 };
 
+// a day that differs from the usual week, by its tint: the colour the
+// calendar draws it in and what the key under it says that colour means,
+// one record each, so the two can't disagree
+const tints = [
+  { tone: "bg-warning-subtle", key: "amber for a day off" },
+  { tone: "bg-info-subtle", key: "blue for other hours" },
+] as const;
+const tintOf = (hours: number) => (hours === 0 ? tints[0] : tints[1]);
+
 // Their usual week and the days that differ, on a month calendar: each day
 // its hours, only the days that differ tinted (a usual day off is the
 // usual week, so it reads "Off" untinted), past days dimmed. A day from today
@@ -378,11 +387,12 @@ function Availability({ member }: { member: StaffDetail }) {
   const exceptionOn = (day: string) => exceptions.find((e) => e.date === day);
   // the key names only the tints this month shows, and none when it has
   // none: a line about a mark that isn't there reads as a rule to look for
-  const tinted = exceptions.filter((e) => e.date.startsWith(`${month}-`));
-  const tints = [
-    tinted.some((e) => e.hours === 0) && "amber for a day off",
-    tinted.some((e) => e.hours > 0) && "blue for other hours",
-  ].filter((tint) => tint !== false);
+  const shown = new Set(
+    exceptions
+      .filter((e) => e.date.startsWith(`${month}-`))
+      .map((e) => tintOf(e.hours)),
+  );
+  const keys = tints.filter((tint) => shown.has(tint)).map((t) => t.key);
 
   return (
     <Section
@@ -416,9 +426,7 @@ function Availability({ member }: { member: StaffDetail }) {
               const hours = exception?.hours ?? usualWeek[weekdayOf(day)]!;
               const past = day < now;
               const tone = exception
-                ? hours > 0
-                  ? "bg-info-subtle"
-                  : "bg-warning-subtle"
+                ? tintOf(hours).tone
                 : hours > 0
                   ? "bg-surface"
                   : "bg-surface text-fg-muted";
@@ -451,9 +459,9 @@ function Availability({ member }: { member: StaffDetail }) {
               );
             })}
           </div>
-          {tints.length > 0 && (
+          {keys.length > 0 && (
             <p className="text-sm text-fg-muted">
-              Tinted days differ from the usual week: {formatList(tints)}.
+              Tinted days differ from the usual week: {formatList(keys)}.
             </p>
           )}
         </div>
