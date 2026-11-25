@@ -4,16 +4,18 @@ import {
   type BillSummary,
   type ClientPastJob,
   type ClientPayment,
+  type DepositNamed,
   type PaymentMethodView,
+  type QuoteSummary,
   type ServicePlanSummary,
   catalog,
   type Language,
 } from "@empire-cleaning/models";
 import { CreditCard, Wallet } from "lucide-react";
 import { linkTo, type AppHref } from "../../links.ts";
-import { lineOf, pausedPlans } from "../format.ts";
+import { addressOf, lineOf, pausedPlans } from "../format.ts";
 import type { Hero, Why } from "./HeroCard.tsx";
-import { said, saidWith } from "../words.ts";
+import { said, saidWith, type Said } from "../words.ts";
 
 // in the Client's language (ADR-0025)
 const words = catalog({
@@ -377,6 +379,53 @@ export function pausedLine(
 // design, Screen 2: Home's card while one goes through)
 export const depositOf = (lang: Language, service: string | null) =>
   service ? words[lang].depositFor(service) : words[lang].planDeposit;
+
+// what a Sent Quote waits on when it's nothing of theirs (#534's UX design,
+// Screens 2 to 4): its Deposit going through, a card saved with it (a 0%
+// Deposit) finishing, or its time filled since it was sent. Home, a home's
+// page, the quote's own page and Payments name it alike, and none asks them
+// anything
+export type QuoteWait = "payment" | "booking" | "filled";
+export function waitOf(
+  q: Pick<QuoteSummary, "status" | "paying" | "bookable">,
+): QuoteWait | null {
+  if (q.status !== "sent") return null;
+  if (q.paying?.status === "goingThrough") {
+    return q.paying.depositCents === 0 ? "booking" : "payment";
+  }
+  return q.bookable?.length === 0 ? "filled" : null;
+}
+export const waitLabelOf = (lang: Language, wait: QuoteWait) => {
+  const { paymentPending, bookingPending, fullyBooked } = said[lang];
+  return {
+    payment: paymentPending,
+    booking: bookingPending,
+    filled: fullyBooked,
+  }[wait];
+};
+
+// a quote's payment as Home names it: a plan by its home; a clean by the
+// Service paid for (the server's, there with any one-off's payment) and, in
+// News, under another card, by its time and home. A closed quote's (a
+// Turned Down one has no offer) is only ever over its own card
+export const namedFor = (
+  t: Pick<Said, "formatDateTime">,
+  q: QuoteSummary,
+  news: boolean,
+): DepositNamed =>
+  q.kind === "service_plan"
+    ? { plan: true, at: addressOf(q.property) }
+    : {
+        plan: false,
+        service: q.payingServiceName ?? q.service.name,
+        news:
+          news && q.proposedStartsAt
+            ? {
+                when: t.formatDateTime(q.proposedStartsAt),
+                at: addressOf(q.property),
+              }
+            : null,
+      };
 
 // what's owed as a Home's answer (AnswerCard): Payments' card, and the
 // Client's Home's when it asks something of them. What went wrong says

@@ -66,7 +66,7 @@ import {
   inLine,
   oneStop,
 } from "@empire-cleaning/models";
-import { waitLabelOf, waitOf } from "./properties.ts";
+import { waitLabelOf, waitOf } from "./payments.ts";
 import { requestQuoteHref } from "./whats-next.ts";
 
 // in the Client's language (ADR-0025)

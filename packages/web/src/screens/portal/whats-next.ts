@@ -18,7 +18,6 @@ import {
 import {
   business,
   type BillSummary,
-  type DepositNamed,
   type ClientPastJob,
   type ClientSiteVisit,
   type ClientUpcomingJob,
@@ -41,8 +40,14 @@ import { QuoteIcon, SiteVisitIcon } from "../icons.ts";
 import { addressOf, formatMinutes, lineOf, pausedPlans } from "../format.ts";
 import { saidWith } from "../words.ts";
 import type { Hero, Why } from "./HeroCard.tsx";
-import { depositOf, moneyNow, owedAnswer, yourCardTile } from "./payments.ts";
-import { waitOf } from "./properties.ts";
+import {
+  depositOf,
+  moneyNow,
+  namedFor,
+  owedAnswer,
+  waitOf,
+  yourCardTile,
+} from "./payments.ts";
 
 // Home's words, in the Client's language (ADR-0025)
 const words = catalog({
@@ -534,25 +539,6 @@ const forLine = (t: Said, quote: OfferedQuoteSummary) =>
     t.w.forWhen(t.formatDateTime(quote.proposedStartsAt)),
     addressOf(quote.property),
   ].join(t.w.at);
-
-// a quote's payment as Home names it: a plan by its home; a clean by the
-// Service paid for (the server's, there with any one-off's payment) and, in
-// News, under another card, by its time and home. A closed quote's (a
-// Turned Down one has no offer) is only ever over its own card
-const namedFor = (t: Said, q: QuoteSummary, news: boolean): DepositNamed =>
-  q.kind === "service_plan"
-    ? { plan: true, at: addressOf(q.property) }
-    : {
-        plan: false,
-        service: q.payingServiceName ?? q.service.name,
-        news:
-          news && q.proposedStartsAt
-            ? {
-                when: t.formatDateTime(q.proposedStartsAt),
-                at: addressOf(q.property),
-              }
-            : null,
-      };
 
 // how a quote's latest payment ended without booking it, as the alert
 // over its card, or as News, in one sentence; none while it's on its way

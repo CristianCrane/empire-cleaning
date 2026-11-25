@@ -7,7 +7,7 @@ import type {
 } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
 import { said, saidWith } from "../words.ts";
-import { depositOf } from "./payments.ts";
+import { depositOf, waitLabelOf, waitOf } from "./payments.ts";
 
 // in the Client's language (ADR-0025)
 const words = catalog({
@@ -46,29 +46,6 @@ export const planWhen = (
   lang: Language,
   plan: Pick<ServicePlanSummary, "days">,
 ) => said[lang].planDaysWhen(plan.days.flatMap((d) => d.startsAt ?? []));
-
-// what a Sent Quote waits on when it's nothing of theirs (#534's UX design,
-// Screens 2 and 3): its Deposit going through, a card saved with it (a 0%
-// Deposit) finishing, or its time filled since it was sent. Home, a home's
-// page and the quote's own page name it alike, and none asks them anything
-export type QuoteWait = "payment" | "booking" | "filled";
-export function waitOf(
-  q: Pick<QuoteSummary, "status" | "paying" | "bookable">,
-): QuoteWait | null {
-  if (q.status !== "sent") return null;
-  if (q.paying?.status === "goingThrough") {
-    return q.paying.depositCents === 0 ? "booking" : "payment";
-  }
-  return q.bookable?.length === 0 ? "filled" : null;
-}
-export const waitLabelOf = (lang: Language, wait: QuoteWait) => {
-  const { paymentPending, bookingPending, fullyBooked } = said[lang];
-  return {
-    payment: paymentPending,
-    booking: bookingPending,
-    filled: fullyBooked,
-  }[wait];
-};
 
 // a Quote as a row's title: what it's for, a one-off's the clean they paid
 // for when they did, as Home names it

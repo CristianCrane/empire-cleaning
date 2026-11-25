@@ -6,13 +6,8 @@ import type {
   ServicePlanSummary,
   UnsentQuoteSummary,
 } from "@empire-cleaning/models";
-import {
-  quoteTitle,
-  standingOf,
-  waitLabelOf,
-  waitOf,
-  type PropertiesData,
-} from "./properties.ts";
+import { waitLabelOf, waitOf } from "./payments.ts";
+import { quoteTitle, standingOf, type PropertiesData } from "./properties.ts";
 
 const home = { id: "home", street: "", unit: null, postcode: "" };
 const elsewhere = { ...home, id: "elsewhere" };
