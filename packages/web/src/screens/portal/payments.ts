@@ -243,11 +243,12 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
             action: { label: t.APPROVE_PAYMENT, href: billLink(b.id) },
           };
         }
-        // they turned it down there: theirs to try again, on its page
+        // they turned it down there: theirs to try again, on its page, and
+        // amber, as the next step is theirs (#534's UX review U17)
         if (b.unpaid!.kind === "refused") {
           return {
             cents: b.totalCents,
-            late: true,
+            late: false,
             asks,
             bill: b.id,
             news: w.refusedBill(b.number),
@@ -322,7 +323,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         if (j.unpaid === "refused") {
           return {
             cents: j.owedCents,
-            late: true,
+            late: false,
             asks,
             news: w.refusedClean(shortDayOf(j.startsAt)),
             action: { label: t.tryAgain, href: page },

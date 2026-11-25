@@ -6,7 +6,7 @@ import {
   type UnpaidKind,
 } from "@empire-cleaning/models";
 import { APPROVE } from "../../services/payment-gateway/index.ts";
-import { NO_CARD, UNREACHABLE } from "./money.ts";
+import { NO_CARD, NOT_APPROVED, UNREACHABLE } from "./money.ts";
 
 // Why a Job or a Bill is Unpaid, from the reason stored with it, in words a
 // person reads (docs/ux.md, Words). The stored reason is the payment
@@ -22,6 +22,19 @@ export const LATE = "not paid by its due date";
 // turned it down at their bank on its page: theirs to try again (#534's
 // review F18), said by the server so every page and list agrees
 export const REFUSED = "turned down at their bank";
+
+// whether a payment their bank wanted them to approve was turned down there,
+// on the Client's own word as their browser finished their bank's check
+// (`finish`): they said so, or said approved and the payment ended not
+// approved. Never one called off as they walked away, which the Clock does
+// with no word from them: that still waits on their approval (#534's
+// critical review C12)
+export const turnedDown = (
+  finish: "approved" | "refused",
+  ended: { status: string; reason: string | null } | null | undefined,
+) =>
+  finish === "refused" ||
+  (ended?.status === "failed" && NOT_APPROVED(ended.reason));
 
 // ours, and the provider's own that we know: each with its kind. A bank
 // asking for a charge made without the Client there to be approved is theirs

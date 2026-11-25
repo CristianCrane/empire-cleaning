@@ -186,10 +186,23 @@ export const payments = catalog({
 // server and every screen that offers a way to put it right
 export const asksTheClient = (kind: UnpaidKind) => kind !== "waiting";
 
+// whether a payment is theirs to settle with their bank on its page (#534
+// Q7): to approve, or to try again once they turned it down there. Its
+// page's next step, not a card to update, and nothing for the Office to
+// try again
+export const onItsPage = (kind: UnpaidKind) =>
+  kind === "approve" || kind === "refused";
+
 // a payment the Client's bank wants them to approve, as the Office names it
 // on a Job's and a Bill's badge and Money (#534 Q7): theirs to do, on its
 // page, and no failure
 export const CLIENT_TO_APPROVE = "Client to approve";
+
+// what happens next once the Client turned a payment down at their bank,
+// as the Office reads it, naming where they try again: "its page" in a
+// list, the page by name on that page (#534's UX review U19)
+export const officeRefused = (where: string) =>
+  `None of it was taken. They can try again on ${where}, or use another card.`;
 
 // what happens next, once a payment didn't go through, as the Office reads
 // it, in English (ADR-0025)
@@ -197,8 +210,7 @@ export const officeFix: Record<UnpaidKind, string> = {
   declined:
     "We've emailed the client to update their card. Once they do, we try the payment again.",
   approve: "We've emailed the client to approve it on its page.",
-  refused:
-    "None of it was taken. They can try again on its page, or use another card.",
+  refused: officeRefused("its page"),
   no_card:
     "We've emailed the client to add a card. Once they do, we try the payment again.",
   waiting: "We'll try again by ourselves.",

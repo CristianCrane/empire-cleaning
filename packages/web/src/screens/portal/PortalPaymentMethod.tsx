@@ -20,6 +20,10 @@ const words = catalog({
     tryAgain: "Try this card again",
     forClean: (amount: string, day: string) =>
       `${amount} for your ${day} clean`,
+    // one they turned down at their bank: their card works (#534's UX
+    // review U16)
+    refused: (amount: string, day: string) =>
+      `The ${amount} payment for your ${day} clean wasn't approved, so none of it was taken.`,
     // the cleans after the first, each tried in turn (#534's critical
     // review C11)
     more: (n: number) =>
@@ -45,6 +49,8 @@ const words = catalog({
     tryAgain: "Volver a intentar con esta tarjeta",
     forClean: (amount: string, day: string) =>
       `${amount} de su limpieza del ${day}`,
+    refused: (amount: string, day: string) =>
+      `El pago de ${amount} de su limpieza del ${day} no se aprobó, así que no se cobró nada.`,
     more: (n: number) =>
       n === 1
         ? "Después sigue 1 limpieza más."
@@ -75,6 +81,9 @@ export function PortalPaymentMethod() {
     reloadOnFailure: true,
   });
   const [first] = unpaid;
+  // one they turned down at their bank is theirs to try again, amber, as
+  // on its own page: nothing's wrong with the card (#534's UX review U16)
+  const refused = first?.unpaid === "refused";
   // the saved card's payments, made with them here, which their bank may
   // want them to approve here too
   const approving = usePaymentForm({
@@ -111,10 +120,10 @@ export function PortalPaymentMethod() {
         first
           ? {
               key: "unpaid",
-              tone: "danger",
+              tone: refused ? "warning" : "danger",
               action: saved && (
                 <Button
-                  variant="danger-text"
+                  variant={refused ? "text" : "danger-text"}
                   isPending={retry.isPending}
                   isDisabled={!approving.isReady}
                   onPress={() => void tryAgain()}
@@ -125,13 +134,18 @@ export function PortalPaymentMethod() {
               children: (
                 <p>
                   <strong>{t.p.paymentNeeded}</strong>{" "}
-                  {t.notTaken(
-                    t.w.forClean(
-                      t.formatMoney(first.owedCents),
-                      t.shortDayOf(first.startsAt),
-                    ),
-                    saved?.label ?? null,
-                  )}{" "}
+                  {refused
+                    ? t.w.refused(
+                        t.formatMoney(first.owedCents),
+                        t.shortDayOf(first.startsAt),
+                      )
+                    : t.notTaken(
+                        t.w.forClean(
+                          t.formatMoney(first.owedCents),
+                          t.shortDayOf(first.startsAt),
+                        ),
+                        saved?.label ?? null,
+                      )}{" "}
                   {unpaid.length > 1 && `${t.w.more(unpaid.length - 1)} `}
                   {saved ? t.w.tryOrSave : t.w.saveBelow}
                 </p>

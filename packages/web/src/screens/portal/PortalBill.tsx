@@ -4,6 +4,7 @@ import {
   type BillPayOutcome,
   type BillView,
   catalog,
+  onItsPage,
 } from "@empire-cleaning/models";
 import { CreditCard } from "lucide-react";
 import {
@@ -91,7 +92,7 @@ export function PortalBill() {
   // theirs to do here (#534 Q7)
   const refused = bill.unpaid?.kind === "refused";
   const approving =
-    bill.payable && (bill.unpaid?.kind === "approve" || refused);
+    bill.payable && !!bill.unpaid && onItsPage(bill.unpaid.kind);
   const approve = useApprovePayment({
     needed: approving,
     refused,
@@ -194,7 +195,7 @@ function useStanding(
   // its payment, charged without them there, their bank wants them to
   // approve, or they turned it down there: the page's Approve payment, or
   // Try again (#534 Q7)
-  if (bill.unpaid?.kind === "approve" || bill.unpaid?.kind === "refused") {
+  if (bill.unpaid && onItsPage(bill.unpaid.kind)) {
     return approveAlert(t, {
       refused: bill.unpaid.kind === "refused",
       card: t.p.card,

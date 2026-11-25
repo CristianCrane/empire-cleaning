@@ -58,6 +58,7 @@ import {
   howLong,
   oneStop,
   stopAfter,
+  onItsPage,
 } from "@empire-cleaning/models";
 import { cleanBadge } from "./clean-badge.tsx";
 import { BillStatusBadge } from "../BillParts.tsx";
@@ -298,7 +299,7 @@ function useNow(job: ClientJobDetail): {
   // their bank wants them to approve it: here, with them there (#534 Q7);
   // once they turned it down, theirs to try again here
   const refused = payment.unpaid?.kind === "refused";
-  const approving = payment.unpaid?.kind === "approve" || refused;
+  const approving = !!payment.unpaid && onItsPage(payment.unpaid.kind);
   const approval = useApprovePayment({
     needed: approving,
     refused,

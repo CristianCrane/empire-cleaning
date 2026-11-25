@@ -90,6 +90,7 @@ import {
   LATE,
   nowTheirs,
   REFUSED,
+  turnedDown,
   unpaidKind,
   whyNotPaid,
 } from "../payments/unpaid.ts";
@@ -839,7 +840,11 @@ export const finishBillPayment = async (
   approved: boolean,
 ) => {
   await clientBill(client.id, billId);
-  const ended = await settleBill(billId, approved ? null : "client_retried");
+  const ended = await settleBill(
+    billId,
+    approved ? null : "client_retried",
+    approved ? "approved" : "refused",
+  );
   if (ended?.failed) throw nothingTaken(ended.failed);
   return billView(billId, client.id);
 };
@@ -857,12 +862,15 @@ type Attempted = Awaited<ReturnType<typeof attemptsFor>>[number];
  * it's given back. A bank debit started on its page makes it processing,
  * and one that failed makes it due again. A payment on its page the Client
  * left going through, which then failed, is emailed to them (#534 critical
- * review C3). Returns how the Client's latest payment on its page ended, if
- * it ended now: `failed`, why, or null when it was taken.
+ * review C3). `finish`, the Client's word as their bank's check finished
+ * in their browser, if that's what settles it. Returns how the Client's
+ * latest payment on its page ended, if it ended now: `failed`, why, or
+ * null when it was taken.
  */
 export const settleBill = async (
   billId: string,
   callOff: CallingOff | null,
+  finish?: "approved" | "refused",
 ) => {
   const done = await db.transaction(async (tx) => {
     const [bill] = await tx
@@ -899,17 +907,20 @@ export const settleBill = async (
       ? { failed: page.status === "failed" ? (page.reason ?? "") : null }
       : null;
     // one their bank wanted them to approve, turned down at their bank on
-    // its page: theirs to try again, the server's word for it, so every
-    // page and list says it (#534's review F18)
+    // its page, on their word: theirs to try again, the server's word for
+    // it, so every page and list says it (#534's review F18). Called off
+    // with no word from them, it still waits on their approval (C12).
+    // Unpaid from then, as it reads so from then (#534's UX review U18)
     if (
-      page?.status === "failed" &&
-      NOT_APPROVED(page.reason) &&
+      finish &&
+      page &&
+      turnedDown(finish, page) &&
       bill.unpaidSince &&
       unpaidKind(bill.unpaidReason ?? "") === "approve"
     ) {
       await tx
         .update(bills)
-        .set({ unpaidReason: REFUSED })
+        .set({ unpaidReason: REFUSED, unpaidSince: clock.now() })
         .where(eq(bills.id, bill.id));
     }
     // one they were told was going through, or left with their bank

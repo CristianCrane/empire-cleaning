@@ -3,6 +3,7 @@ import {
   asksTheClient,
   catalog,
   type Language,
+  onItsPage,
 } from "@empire-cleaning/models";
 import {
   Ban,
@@ -307,7 +308,7 @@ export function BillDetail({
       icon={CreditCard}
       label={w.howPaid}
       value={
-        bill.unpaid?.kind === "approve" || bill.unpaid?.kind === "refused"
+        bill.unpaid && onItsPage(bill.unpaid.kind)
           ? forClient
             ? w.onceApproved
             : "From their card, once they approve it"

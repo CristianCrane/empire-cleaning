@@ -21,11 +21,13 @@ import {
   type AssignmentView,
   type OfficeJob,
   formats,
+  onItsPage,
 } from "@empire-cleaning/models";
 import {
   CLIENT_TO_APPROVE,
   MORE_HOURS,
   officeFix,
+  officeRefused,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -90,7 +92,7 @@ import { QUOTE_A_PLAN, useStartDraft } from "./StartDraft.tsx";
 const w = screenWords.en;
 const { cleaners, cancelledLabel, jobStatusLabel } = w;
 
-const { formatDateTime, formatTime } = formats.en;
+const { formatDateTime, formatShortDay, formatTime } = formats.en;
 
 const booked = (job: OfficeJob) => job.status === "booked";
 
@@ -219,10 +221,7 @@ function useActionsOf(job: OfficeJob): {
     // one their bank wants them to approve, they approve on its page, and
     // one they turned down there, they try again there: trying it again
     // here would only ask again
-    job.payment?.unpaid &&
-      job.payment.unpaid.kind !== "approve" &&
-      job.payment.unpaid.kind !== "refused" &&
-      retry,
+    job.payment?.unpaid && !onItsPage(job.payment.unpaid.kind) && retry,
     reported && {
       label: "Review",
       icon: ClipboardCheck,
@@ -342,17 +341,18 @@ const alertsFor = (job: OfficeJob, next?: PageAction): Alert[] => {
     });
   } else if (job.payment && unpaid?.kind === "refused") {
     // turned down at their bank on its page: theirs to try again, red as
-    // its badge, Unpaid (#534's review F18)
+    // its badge, Unpaid (#534's review F18), from the day they did, as Jen
+    // may read it days on (#534's UX review U18)
     alerts.push({
       key: "unpaid",
       tone: "danger",
       children: (
         <p>
           <strong>
-            {firstNameOf(job.client.name)} turned down the payment at their
-            bank.
+            {firstNameOf(job.client.name)} turned down the payment at their bank
+            on {formatShortDay(dayOfInstant(unpaid.since))}.
           </strong>{" "}
-          {officeFix.refused}
+          {officeRefused("their clean's page")}
         </p>
       ),
     });

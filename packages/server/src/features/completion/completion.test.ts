@@ -1032,6 +1032,9 @@ describe("a Job's payment the Client's bank wants them to approve", () => {
     const first = await pay();
     if (first.status !== "needs_approval") throw new Error("not asked");
     testPayments().requireApproval("refused");
+    // Unpaid from when they said no, not from when their bank first asked
+    // (#534's UX review U18)
+    testClock().advance({ hours: 3 });
 
     expect(await refuse()).toEqual({
       message:
@@ -1040,6 +1043,7 @@ describe("a Job's payment the Client's bank wants them to approve", () => {
     });
     expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
       kind: "refused",
+      since: testClock().now().toISOString(),
     });
     expect(amounts()).toEqual([deep.depositCents]);
     expect(testPayments().canceled).toContain(

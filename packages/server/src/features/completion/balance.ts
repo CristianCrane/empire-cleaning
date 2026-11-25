@@ -43,6 +43,7 @@ import {
   nowTheirs,
   NOT_SETTLED,
   REFUSED,
+  turnedDown,
   unpaidOf,
 } from "../payments/unpaid.ts";
 import { properties } from "../properties/properties.schema.ts";
@@ -472,9 +473,7 @@ export const settleJob = async (
         newest?.status === "failed" &&
         newest.reason !== APPROVE &&
         !NOT_APPROVED(newest.reason);
-      const refused =
-        by === "refused" ||
-        (newest?.status === "failed" && NOT_APPROVED(newest.reason));
+      const refused = turnedDown(by, newest);
       settled.failure = declined
         ? (newest.reason ?? waiting)
         : refused
@@ -507,7 +506,13 @@ export const settleJob = async (
       await tx
         .update(jobs)
         .set({
-          unpaidSince: job!.unpaidSince ?? clock.now(),
+          // turned down at their bank, it's Unpaid from then, as it reads
+          // so from then: before, it waited on their approval (#534's UX
+          // review U18)
+          unpaidSince:
+            settled.failure === REFUSED && job!.unpaidReason !== REFUSED
+              ? clock.now()
+              : (job!.unpaidSince ?? clock.now()),
           unpaidReason: settled.failure,
         })
         .where(eq(jobs.id, jobId));

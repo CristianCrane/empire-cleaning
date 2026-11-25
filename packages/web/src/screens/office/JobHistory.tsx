@@ -1,4 +1,9 @@
-import { firstNameOf, formats, messages } from "@empire-cleaning/models";
+import {
+  firstNameOf,
+  formats,
+  messages,
+  onItsPage,
+} from "@empire-cleaning/models";
 import {
   CalendarCheck,
   CalendarPlus,
@@ -229,7 +234,8 @@ const momentsOf = (job: OfficeJob): Moment[] => {
   });
   const unpaid = job.payment?.unpaid;
   if (unpaid) {
-    const approval = unpaid.kind === "approve" || unpaid.kind === "refused";
+    const approval = onItsPage(unpaid.kind);
+    const name = firstNameOf(job.client.name);
     moments.push({
       key: "unpaid",
       at: unpaid.since,
@@ -245,10 +251,13 @@ const momentsOf = (job: OfficeJob): Moment[] => {
             : "Payment"
       } of ${formatMoney(job.payment!.owedCents)} ${
         // their bank wanting them to approve it took nothing, and isn't a
-        // failure (#534 Q7)
-        approval
-          ? `needs ${firstNameOf(job.client.name)}'s approval`
-          : "didn't go through"
+        // failure (#534 Q7); once they turned it down, it waits on no one
+        // (#534's review F21)
+        unpaid.kind === "approve"
+          ? `needs ${name}'s approval`
+          : approval
+            ? `wasn't approved by ${name}`
+            : "didn't go through"
       }`,
     });
   }

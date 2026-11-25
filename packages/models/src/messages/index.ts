@@ -76,9 +76,11 @@ export {
 } from "./jobs.ts";
 export {
   asksTheClient,
+  onItsPage,
   because,
   CLIENT_TO_APPROVE,
   officeFix,
+  officeRefused,
 } from "./payments.ts";
 export {
   acceptedWith,

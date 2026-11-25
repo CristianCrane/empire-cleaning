@@ -22,6 +22,7 @@ import {
   officeFix,
   oneStop,
   quarterHours,
+  onItsPage,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -180,8 +181,6 @@ export function useOnHold(
     icon: ShieldCheck,
     href,
   });
-  const onItsPage = (kind: UnpaidKind) =>
-    kind === "approve" || kind === "refused";
   // the ones that ask something first, as money that asks leads: the
   // first alert, which says the pause, then says it of a payment that asks
   const unpaid = [
