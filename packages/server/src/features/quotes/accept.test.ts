@@ -1085,6 +1085,26 @@ describe("while the Client's bank is approving the Deposit", () => {
     expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
   });
 
+  // #534's refactor 2: Office Staff wait out only one the Client holds. One
+  // whose acceptance rolled back, so no pending Deposit, no browser has the
+  // secret of, and nobody can approve, so the Office's press calls it off
+  test("one their acceptance never kept doesn't hold the Office", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+    testPayments().requireApproval("pending");
+    const orphan = await payNow(client, quote).expect(200);
+    await db.execute(sql`delete from pending_deposits`);
+
+    await recordAccepted(office, quote).expect(200);
+
+    expect([...testPayments().canceled]).toEqual([refOf(orphan.body)]);
+    expect(testPayments().charges).toHaveLength(1);
+    expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
+  });
+
   test("recorded after 15 minutes, a payment their bank approved meanwhile is the Deposit", async () => {
     await cleaners();
     const office = await signInAsOffice();

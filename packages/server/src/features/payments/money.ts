@@ -83,17 +83,32 @@ export const SETTLED_AFTER_MS = 15 * MINUTE_MS;
 // settleOpenPayments)
 export const APPROVAL_MS = 15 * MINUTE_MS;
 
+// the end of a payment's wait on the Client's bank, APPROVAL_MS after they
+// pressed Pay
+const waitUntil = (attempt: Pick<ChargeAttempt, "askedAt">) =>
+  new Date(attempt.askedAt.getTime() + APPROVAL_MS);
+
+// Who may call off a payment waiting on the Client's bank (ADR-0022's one
+// rule): the Client at once, by paying again ("client_retried"); anyone
+// else, Office Staff or the Clock ("abandoned"), once it's waited
+// APPROVAL_MS. Their bank finishing it, or anything but a wait on them,
+// nobody may (#534 critical review C2)
+export const mayCallOff = (
+  attempt: Pick<ChargeAttempt, "status" | "askedAt">,
+  by: CallingOff,
+) =>
+  attempt.status === "approving" &&
+  (by === "client_retried" || waitUntil(attempt) <= clock.now());
+
 // How a payment the Client's bank was asked to approve holds its Quote or
-// Bill (ADR-0022's one rule), the one reading of APPROVAL_MS: it waits
-// `onClient` till `until`, APPROVAL_MS after they pressed Pay; their bank
-// finishing it, or anything but a wait on them, isn't (#534 critical
-// review C2); `past`, on them and waited out, it holds nothing, as whoever
-// acts next calls it off first (#534 review F11, F12)
-export const waitOf = (attempt: Pick<ChargeAttempt, "status" | "askedAt">) => {
-  const until = new Date(attempt.askedAt.getTime() + APPROVAL_MS);
-  const onClient = attempt.status === "approving";
-  return { until, onClient, past: onClient && until <= clock.now() };
-};
+// Bill, as the pages say it: it waits `onClient` till `until`; `past`,
+// anyone may call it off (mayCallOff), so it holds nothing, as whoever acts
+// next calls it off first (#534 review F11, F12)
+export const waitOf = (attempt: Pick<ChargeAttempt, "status" | "askedAt">) => ({
+  until: waitUntil(attempt),
+  onClient: attempt.status === "approving",
+  past: mayCallOff(attempt, "abandoned"),
+});
 
 // An attempt approvalOf reads: made with the Client there, and waiting on
 // their bank, or approved and their card's bank finishing it. A bank debit
@@ -307,10 +322,9 @@ const outcomeOf = async (
   return { status: "failed", reason: "never_made" };
 };
 
-// The one rule's wait (ADR-0022): only the Client calls off a payment
-// waiting on their bank at once, by paying again; anyone else, Office Staff
-// or the Clock, once it's waited APPROVAL_MS. Until then it stays open, and
-// what's asked waits on it.
+// A payment waiting on the Client's bank, called off as `callOff` says if
+// it may be (mayCallOff). Until then it stays open, and what's asked waits
+// on it.
 const approving = async (
   attempt: ChargeAttempt,
   callOff: CallingOff | null,
@@ -318,7 +332,7 @@ const approving = async (
   const approval = await approvalOf(
     attempt.gatewayRef!,
     attempt,
-    callOff === "client_retried" || waitOf(attempt).past ? callOff : null,
+    callOff && mayCallOff(attempt, callOff) ? callOff : null,
   );
   switch (approval.status) {
     case "taken":
@@ -750,6 +764,10 @@ export const takeDepositOnce = async (
 ): Promise<DepositTaken> => {
   for (const earlier of await openAttempts(tx, quoteId)) {
     if (readByApproval(earlier)) {
+      // the Client may call it off (mayCallOff); Office Staff get here only
+      // once payingOf finds none they may not, as the one the Client holds
+      // has its pending Deposit. One with none, its acceptance rolled back,
+      // no browser holds, so nobody can approve it, and it's called off
       const approval = await approvalOf(earlier.gatewayRef!, earlier, callOff);
       if (approval.status === "ended" || approval.status === "called_off") {
         continue;
@@ -879,11 +897,12 @@ export const giveBackUnbookedDeposits = async (
   const calledOff: string[] = [];
   for (const earlier of await openAttempts(tx, quoteId)) {
     if (readByApproval(earlier)) {
-      if (waitOf(earlier).until > clock.now()) continue;
+      // not asked after within its wait, whatever it's doing
+      if (waitUntil(earlier) > clock.now()) continue;
       const approval = await approvalOf(
         earlier.gatewayRef!,
         earlier,
-        "abandoned",
+        mayCallOff(earlier, "abandoned") ? "abandoned" : null,
       );
       if (approval.status === "called_off") calledOff.push(earlier.gatewayRef!);
       if (
