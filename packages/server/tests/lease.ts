@@ -81,12 +81,13 @@ const why = {
 //   - a process a run started (a Playwright worker, a web server, a nested
 //     run) finds the run's block in E2E_PORT_LEASE and uses it, as the run
 //     holds it for as long as they live;
-//   - E2E_PORT_BASE pins one of `blocks`, leased like any other, and fails at
-//     once when it can't be: another run holds it, its ports are in use, or
-//     it reaches Linux's range for outgoing connections;
-//   - otherwise the first free one of `blocks` below that range, from `own`
-//     on (the checkout's own, so a checkout keeps its ports while it can),
-//     saying why when it isn't `own`.
+//   - E2E_PORT_BASE, how a block was picked by hand before runs leased
+//     theirs, fails at once: whoever set it learns no one picks now, rather
+//     than the run quietly taking other ports;
+//   - otherwise the first free one of `blocks` below `ephemeral` (Linux's
+//     range for outgoing connections), from `own` on (the checkout's own, so
+//     a checkout keeps its ports while it can), saying why when it isn't
+//     `own`.
 // A block leased here goes in E2E_PORT_LEASE, for the processes the run
 // starts.
 export const leaseRunPorts = async ({
@@ -115,34 +116,18 @@ export const leaseRunPorts = async ({
     return { base, release: async () => {} };
   }
 
-  const pool = blocks.filter((base) => base + size <= ephemeral);
-  const leased = (lease: Lease) => {
-    env.E2E_PORT_LEASE = String(lease.base);
-    return lease;
-  };
-
   const pinned = env.E2E_PORT_BASE;
   if (pinned !== undefined) {
-    const base = Number(pinned);
-    if (base + size > ephemeral) {
-      throw new Error(
-        `E2E_PORT_BASE=${pinned}: its ports aren't all below ${ephemeral}, where Linux starts picking the ports of outgoing connections (/proc/sys/net/ipv4/ip_local_port_range), and a server there can be refused with nothing listening. Leave E2E_PORT_BASE unset, and the run takes a free block itself`,
-      );
-    }
-    if (!pool.includes(base)) {
-      throw new Error(
-        `E2E_PORT_BASE=${pinned} isn't the start of a block of e2e ports (from ${pool[0]} to ${pool.at(-1)}, every ${size}). Leave it unset, and the run takes a free block itself`,
-      );
-    }
-    const lease = await takeBlock(base, size);
-    if (typeof lease === "string") {
-      throw new Error(
-        `E2E_PORT_BASE=${pinned}: ports ${range(base, size)} can't be used, as ${why[lease]}. Leave E2E_PORT_BASE unset, and the run takes a free block itself`,
-      );
-    }
-    return leased(lease);
+    const outgoing =
+      Number(pinned) + size > ephemeral
+        ? ` Here it would also reach ${ephemeral}, where Linux starts picking the ports of outgoing connections (/proc/sys/net/ipv4/ip_local_port_range), so a server there can be refused with nothing listening.`
+        : "";
+    throw new Error(
+      `E2E_PORT_BASE=${pinned}: an e2e run takes a free block of ports itself, so none is picked by hand.${outgoing} Leave E2E_PORT_BASE unset`,
+    );
   }
 
+  const pool = blocks.filter((base) => base + size <= ephemeral);
   const first = pool.findIndex((base) => base >= own);
   const order =
     first < 0 ? pool : [...pool.slice(first), ...pool.slice(0, first)];
@@ -158,7 +143,8 @@ export const leaseRunPorts = async ({
         `e2e ports: this checkout's ${range(own, size)} can't be used, as ${why[ownWas]}${ownWas === "busy" ? ` (\`ss -ltnp 'sport >= :${own} and sport <= :${own + size - 1}'\` names it: a stopped run's servers?)` : ""}, so this run takes ${range(base, size)}`,
       );
     }
-    return leased(lease);
+    env.E2E_PORT_LEASE = String(lease.base);
+    return lease;
   }
   throw new Error(
     `no block of e2e ports is free: all ${pool.length} (${range(pool[0] ?? 0, pool.length * size)}) are held by other runs or have ports in use`,

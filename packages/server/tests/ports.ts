@@ -29,8 +29,7 @@ const lease = await leaseRunPorts({
   ephemeral: ephemeralStart(),
 });
 
-// the first of the run's 200 ports. E2E_PORT_BASE pins a block (one of
-// `blocks`), still leased, and refused when it can't be (tests/lease.ts)
+// the first of the run's 200 ports
 export const E2E_PORTS = lease.base;
 
 // The block, from its first port: the web app's slots (packages/web/e2e/slots.ts),

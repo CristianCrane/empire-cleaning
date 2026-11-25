@@ -129,32 +129,28 @@ test("a process the run started uses the run's block, without leasing one", asyn
   expect((await lease()).base).toBe(run.base);
 });
 
-test("E2E_PORT_BASE pins a block, leased like any other", async () => {
-  const env = { E2E_PORT_BASE: String(blocks[2]) };
-  expect((await lease(env)).base).toBe(blocks[2]);
-  expect(env).toHaveProperty("E2E_PORT_LEASE", String(blocks[2]));
-});
-
-test("E2E_PORT_BASE fails at once on a block another run holds", async () => {
-  await lease();
-  await expect(lease({ E2E_PORT_BASE: String(blocks[0]) })).rejects.toThrow(
-    `E2E_PORT_BASE=${blocks[0]}: ports ${blocks[0]}-${blocks[0]! + 9} can't be used, as another run holds it`,
-  );
-});
-
-test("E2E_PORT_BASE is refused in Linux's range for outgoing connections, or off the blocks", async () => {
+// how a block was picked by hand before runs leased theirs: a prompt or a
+// shell still setting it learns that no one picks now
+test("E2E_PORT_BASE set by hand is refused, saying why", async () => {
   const ephemeral = blocks[3]! + 5;
-  // a block reaching the range, and a port past every block (41000 by hand)
-  for (const pin of [blocks[3]!, 60_000]) {
-    await expect(
-      lease({ E2E_PORT_BASE: String(pin) }, { ephemeral }),
-    ).rejects.toThrow(
-      `E2E_PORT_BASE=${pin}: its ports aren't all below ${ephemeral}, where Linux starts picking the ports of outgoing connections`,
-    );
-  }
   await expect(
-    lease({ E2E_PORT_BASE: String(blocks[0]! + 5) }, { ephemeral }),
-  ).rejects.toThrow(`isn't the start of a block of e2e ports`);
+    lease({ E2E_PORT_BASE: String(blocks[2]) }, { ephemeral }),
+  ).rejects.toThrow(
+    `E2E_PORT_BASE=${blocks[2]}: an e2e run takes a free block of ports itself, so none is picked by hand. Leave E2E_PORT_BASE unset`,
+  );
+  // in Linux's range for outgoing connections, it says that too
+  await expect(
+    lease({ E2E_PORT_BASE: String(blocks[3]) }, { ephemeral }),
+  ).rejects.toThrow(
+    `Here it would also reach ${ephemeral}, where Linux starts picking the ports of outgoing connections`,
+  );
+  // and a process the run started, which pr:shots hands it to for an older
+  // base, uses the run's block
+  const env: Record<string, string | undefined> = {};
+  const run = await lease(env);
+  expect((await lease({ ...env, E2E_PORT_BASE: String(run.base) })).base).toBe(
+    run.base,
+  );
 });
 
 test("no run takes a block reaching Linux's range for outgoing connections", async () => {
