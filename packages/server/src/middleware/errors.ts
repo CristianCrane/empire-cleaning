@@ -105,9 +105,11 @@ export class NotFoundError extends APIError {
 
 // the request is fine but clashes with what already exists, e.g. a Quote
 // Request for a home that already has one waiting. A `kind` tells a screen
-// what sort of clash it is where its words alone can't: "approve", the
-// Client's bank wanting them to approve a payment the Office asked for
-// (#534 Q7), which is theirs to do, not a failure
+// what sort of clash it is where its words alone can't: "approve", a
+// payment that's the Client's to approve at their bank, whether the Office
+// asked for it (accept.ts) or they turned it down there on a Bill's or a
+// Job's page (bills.ts, completion.ts) (#534 Q7): theirs to do, not a
+// failure
 export class ConflictError extends APIError {
   public readonly kind?: "approve";
   constructor(message: string, kind?: "approve") {

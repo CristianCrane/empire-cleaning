@@ -7,7 +7,8 @@ export class ApiError extends Error {
   // the API's per-field messages, keyed by the field's path (e.g. "email")
   readonly fieldErrors: Record<string, string>;
   // what sort of 409 it is, where its message alone can't tell a screen:
-  // "approve", a payment the Client's bank wants them to approve (#534 Q7)
+  // "approve", a payment that's the Client's to approve at their bank,
+  // whether the Office asked for it or they turned it down there (#534 Q7)
   readonly kind?: "approve";
 
   constructor(

@@ -101,11 +101,11 @@ const servicePlansDueSource: Source = async () => {
   }));
 };
 
-// a Sent Quote whose Deposit is going through, with their bank: it books
-// itself, or comes back as a payment that couldn't be booked, so there's
-// nothing to follow up or move meanwhile, and its badge says Payment pending
-// (#534 Q7)
-const waitingOnNoOne = (quote: OfferedQuoteSummary) =>
+// what Today asks of a Sent Quote: left out, one whose Deposit is going
+// through with their bank, as it books itself, or comes back as a payment
+// that couldn't be booked, so there's nothing to follow up or move
+// meanwhile, and its badge says Payment pending (#534 Q7)
+const notGoingThrough = (quote: OfferedQuoteSummary) =>
   quote.paying?.status !== "goingThrough";
 
 // Sent Quotes Expiring within 48 hours, soonest first; each counts from when
@@ -113,7 +113,7 @@ const waitingOnNoOne = (quote: OfferedQuoteSummary) =>
 const EXPIRING_HOURS = 48;
 const expiringQuotes: Source = async () =>
   (await quotesExpiringWithin(EXPIRING_HOURS))
-    .filter(waitingOnNoOne)
+    .filter(notGoingThrough)
     .map((quote) => ({
       kind: "quote_expiring",
       since: new Date(
@@ -129,7 +129,7 @@ const expiringQuotes: Source = async () =>
 // their Clients can't accept them, so they need another time
 const quotesWithoutRoomSource: Source = async () =>
   Promise.all(
-    (await quotesWithoutRoom()).filter(waitingOnNoOne).map(async (quote) => ({
+    (await quotesWithoutRoom()).filter(notGoingThrough).map(async (quote) => ({
       kind: "quote_no_room" as const,
       since: await noRoomSince(quote),
       quote,
