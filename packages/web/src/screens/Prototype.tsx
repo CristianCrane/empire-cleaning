@@ -1,25 +1,25 @@
 import type { ReactNode } from "react";
 import {
-  notFound,
   useLoaderData,
   useNavigate,
   useParams,
   useSearch,
 } from "@tanstack/react-router";
-import { Link, PrototypeBar } from "@empire-cleaning/ui";
+import { Link, PrototypeBar, PrototypeIndex } from "@empire-cleaning/ui";
 import { linkTo } from "../links.ts";
 
 // The web app's prototype shell (docs/ux.md, Changing a screen). A prototype
 // is a file named `<screen>.prototype.tsx` anywhere under src/screens, on a
 // prototype-* branch, that default-exports prototype({ layouts, cases });
 // /prototype/<screen>, signed out, draws it: `?layout=&case=` pick what's
-// on show, and with no case it's an index linking every layout × case,
-// which `pnpm pr:shots --prototype <screen>` shoots one by one
-// (packages/server/tests/e2e/prototype-shots.ts). Each case draws its own
-// state from made-up data: a dialog open, a Fold's defaultOpen, a
-// LanguageProvider for Spanish, the real frames through AreaLayout's navFor.
-// The screen-layout lint is off in a prototype file (.oxlintrc.json), and
-// the copies check skips its words (packages/lint/README.md)
+// on show, and with no case, or one it hasn't, it's the list of every
+// layout × case (PrototypeIndex), which `pnpm pr:shots --prototype
+// <screen>` shoots one by one (packages/server/tests/e2e/prototype-shots.ts).
+// Each case draws its own state from made-up data: a dialog open, a Fold's
+// defaultOpen, a LanguageProvider for Spanish, the real frames through
+// AreaLayout's PrototypeFrame. The screen-layout lint is off in a prototype
+// file (.oxlintrc.json), and the copies check skips its words
+// (packages/lint/README.md)
 
 /** @public a case's way to another layout or case, as a press would go */
 export type Go<Layout extends string = string> = (to: {
@@ -41,14 +41,14 @@ export const prototype = <const Layout extends string>(
 ) => drawn as unknown as Prototype;
 
 const files = import.meta.glob<{ default: Prototype }>("./**/*.prototype.tsx");
+const screenOf = (path: string) => path.replace(/^.*\/|\.prototype\.tsx$/g, "");
 
-// the route's loader: the prototype named, or Not found
+// the route's loader: the prototype named, if this branch has it
 export const loadPrototype = async (screen: string) => {
-  const load = Object.entries(files).find(([path]) =>
-    path.endsWith(`/${screen}.prototype.tsx`),
+  const load = Object.entries(files).find(
+    ([path]) => screenOf(path) === screen,
   )?.[1];
-  if (!load) throw notFound();
-  return (await load()).default;
+  return load && (await load()).default;
 };
 
 export type PrototypeSearch = { layout?: string; case?: string | number };
@@ -63,6 +63,7 @@ export function PrototypeScreen() {
   const search = useSearch({ from });
   const drawn = useLoaderData({ from });
   const navigate = useNavigate();
+  if (!drawn) return <Unknown screen={screen} />;
   const caseKeys = Object.keys(drawn.cases);
   const hrefOf = (layout: string, shown: string) =>
     linkTo({
@@ -70,39 +71,27 @@ export function PrototypeScreen() {
       params: { screen },
       search: { layout, case: inAddress(shown) },
     });
-  if (search.case === undefined) {
+  const shown = search.case === undefined ? undefined : String(search.case);
+  const layout =
+    search.layout === undefined
+      ? drawn.layouts[0]?.key
+      : drawn.layouts.find(({ key }) => key === search.layout)?.key;
+  if (shown === undefined || !drawn.cases[shown] || layout === undefined) {
     return (
-      <main className="mx-auto max-w-prose p-4">
-        <p className="mb-2 font-semibold">{screen}</p>
-        <ul className="space-y-1">
-          {caseKeys.flatMap((key) =>
-            drawn.layouts.map((layout) => (
-              <li key={`${layout.key}-${key}`}>
-                <Link
-                  href={hrefOf(layout.key, key)}
-                  data-prototype-shot=""
-                  data-layout={layout.key}
-                  data-layout-name={layout.name}
-                  data-case={key}
-                  data-case-name={drawn.cases[key]?.name}
-                >
-                  {key} {drawn.cases[key]?.name}, layout {layout.key}{" "}
-                  {layout.name}
-                </Link>
-              </li>
-            )),
-          )}
-        </ul>
-      </main>
+      <PrototypeIndex
+        screen={screen}
+        layouts={drawn.layouts}
+        cases={caseKeys.map((key) => ({
+          key,
+          name: drawn.cases[key]?.name ?? "",
+        }))}
+        hrefOf={hrefOf}
+        {...(shown !== undefined && {
+          missing: `It has no case ${shown}${layout === undefined ? ` or layout ${search.layout}` : ""}: pick one here.`,
+        })}
+      />
     );
   }
-  const [first] = drawn.layouts;
-  const layout =
-    drawn.layouts.find(({ key }) => key === search.layout)?.key ??
-    first?.key ??
-    "";
-  const asked = String(search.case);
-  const shown = drawn.cases[asked] ? asked : (caseKeys[0] ?? "");
   const go: Go = (to) =>
     void navigate({
       to: "/prototype/$screen",
@@ -123,20 +112,57 @@ export function PrototypeScreen() {
       >
         {drawn.cases[shown]?.draw(layout, go)}
       </div>
-      <PrototypeBar
-        layouts={drawn.layouts.map(({ key, name }) => ({
-          key,
-          name,
-          href: hrefOf(key, shown),
-        }))}
-        cases={caseKeys.map((key) => ({
-          key,
-          name: drawn.cases[key]?.name ?? "",
-          href: hrefOf(layout, key),
-        }))}
-        layout={layout}
-        case={shown}
-      />
+      {import.meta.env.DEV && (
+        <PrototypeBar
+          layouts={drawn.layouts.map(({ key, name }) => ({
+            key,
+            name,
+            href: hrefOf(key, shown),
+          }))}
+          cases={caseKeys.map((key) => ({
+            key,
+            name: drawn.cases[key]?.name ?? "",
+            href: hrefOf(layout, key),
+          }))}
+          layout={layout}
+          case={shown}
+          index={linkTo({ to: "/prototype/$screen", params: { screen } })}
+        />
+      )}
     </>
+  );
+}
+
+// a name this branch has no prototype of, and the ones it has
+function Unknown({ screen }: { screen: string }) {
+  const known = Object.keys(files).map(screenOf).sort();
+  return (
+    <main className="mx-auto max-w-3xl p-4 text-sm">
+      <p className="mb-1 text-base font-semibold">
+        No prototype is named {screen} on this branch.
+      </p>
+      {known.length ? (
+        <ul className="space-y-1">
+          {known.map((name) => (
+            <li key={name}>
+              <Link
+                href={linkTo({
+                  to: "/prototype/$screen",
+                  params: { screen: name },
+                })}
+              >
+                {name}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p>
+          It has none: a prototype is a{" "}
+          <code>&lt;screen&gt;.prototype.tsx</code> file on a prototype-* branch
+          (docs/ux.md, Changing a screen).
+        </p>
+      )}
+    </main>
   );
 }

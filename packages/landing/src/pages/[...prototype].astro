@@ -1,7 +1,8 @@
 ---
 import type { AstroComponentFactory } from "astro/runtime/server/index.js";
-import { PrototypeBar } from "@empire-cleaning/ui";
+import { PrototypeBar, PrototypeIndex } from "@empire-cleaning/ui";
 import Page from "../layouts/Page.astro";
+import { landingHome } from "@empire-cleaning/models";
 import { shotPath, type Prototype } from "../prototype.ts";
 
 // every prototype's pages, on a prototype-* branch (src/prototype.ts): main
@@ -66,30 +67,19 @@ const hrefOf = (to: string, at: string) =>
           }))}
           layout={layout}
           case={shown}
+          index={`${landingHome.en}prototype/${screen}/`}
         />
       )}
     </>
   ) : (
-    <main class="mx-auto max-w-prose p-4">
-      <p class="mb-2 font-semibold">{screen}</p>
-      <ul class="space-y-1">
-        {Object.entries(drawn.cases).flatMap(([key, { name }]) =>
-          drawn.layouts.map((each) => (
-            <li>
-              <a
-                href={hrefOf(each.key, key)}
-                data-prototype-shot
-                data-layout={each.key}
-                data-layout-name={each.name}
-                data-case={key}
-                data-case-name={name}
-              >
-                {key} {name}, layout {each.key} {each.name}
-              </a>
-            </li>
-          )),
-        )}
-      </ul>
-    </main>
+    <PrototypeIndex
+      screen={screen}
+      layouts={drawn.layouts}
+      cases={Object.entries(drawn.cases).map(([key, { name }]) => ({
+        key,
+        name,
+      }))}
+      hrefOf={hrefOf}
+    />
   )}
 </Page>
