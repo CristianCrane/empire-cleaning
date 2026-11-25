@@ -61,7 +61,7 @@ import {
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { officeClientView } from "../clients/clients.ts";
 import { counts, paymentOf, settleAfterChange } from "../completion/balance.ts";
-import { holds, payingOn, standing, type PayingOn } from "./standing.ts";
+import { holds, paymentOn, standing, type PaymentOn } from "./standing.ts";
 import {
   adjustments,
   reportedChange,
@@ -509,13 +509,7 @@ const chargeBill = async (
     }
     // the Client paying it on its page: theirs to finish, or settleBill's
     // (#534 critical review C1)
-    if (
-      (await attemptsFor("bill", [bill.id], tx)).some(
-        (a) => a.open && a.call === "bill",
-      )
-    ) {
-      return null;
-    }
+    if ((await paymentOn([bill.id], tx))(bill.id).onPage) return null;
     const [owner] = await tx
       .select({ client: clients, method: paymentMethods })
       .from(clients)
@@ -676,7 +670,7 @@ export const retryUnpaidBillsFor = async (clientId: string) => {
 // them to approve they may start over, as that calls it off
 const notPayable = (
   bill: Bill,
-  on: PayingOn,
+  on: PaymentOn,
 ): "onItsWay" | "ours" | "nothingToPay" | null => {
   if (bill.status === "processing") return "onItsWay";
   if (bill.status !== "due" || bill.totalCents <= 0) return "nothingToPay";
@@ -761,7 +755,7 @@ export const payBillOnPage = async (
       .where(and(eq(bills.id, billId), eq(bills.clientId, client.id)))
       .for("update");
     if (!bill) throw new NotFoundError("Bill not found");
-    const not = notPayable(bill, (await payingOn([bill.id], tx))(bill.id));
+    const not = notPayable(bill, (await paymentOn([bill.id], tx))(bill.id));
     if (not) throw new ConflictError(payWords[lang][not]);
 
     const charged = await chargeSaved(tx, {
@@ -993,7 +987,7 @@ const refuseWhilePaying = async (
   what: "cancel" | "record",
   tx: Tx,
 ) => {
-  const on = (await payingOn([bill.id], tx))(bill.id);
+  const on = (await paymentOn([bill.id], tx))(bill.id);
   if (on.approvingUntil) {
     const [client] = await tx
       .select({ name: clients.name })
@@ -1008,7 +1002,7 @@ const refuseWhilePaying = async (
   }
   // one going through, or one waited out that calling off couldn't reach
   // the provider to end, which may still take the money
-  if (await chargeOpen(bill.id, tx)) {
+  if (on.open) {
     throw new ConflictError(paymentNotDone[what]);
   }
 };
@@ -1481,7 +1475,7 @@ const sendBillReminders = async () => {
 const toSummary = (
   bill: Bill,
   client: Pick<Client, "id" | "name" | "businessName">,
-  on: PayingOn,
+  on: PaymentOn,
 ): BillSummary => {
   return {
     id: bill.id,
@@ -1583,7 +1577,7 @@ export const billView = async (
     );
   if (!found) throw new NotFoundError("Bill not found");
   const { bill, client } = found;
-  const on = (await payingOn([bill.id]))(bill.id);
+  const on = (await paymentOn([bill.id]))(bill.id);
   const lines = await linesToSay(bill);
   // where its cleans were, for the Office, and for a Client only when they
   // have more than one home, as their rows say (docs/ux.md, Lists): once,
@@ -1636,7 +1630,7 @@ export const listBills = async ({
       ),
     )
     .orderBy(desc(bills.weekStart), desc(bills.number));
-  const on = await payingOn(rows.map((r) => r.bill.id));
+  const on = await paymentOn(rows.map((r) => r.bill.id));
   return rows.map(({ bill, client }) => toSummary(bill, client, on(bill.id)));
 };
 

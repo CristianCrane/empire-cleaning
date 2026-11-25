@@ -390,13 +390,27 @@ const openAttempts = (tx: Tx | typeof db, forId: string) =>
 // Bill or recording a payment made another way. On a Quote, that's a
 // Deposit, waiting on the Client's bank too (`approving`): Office Staff
 // can't record acceptance or send changes meanwhile (payingOf). Two at
-// once would take it twice, or leave money to give back (ADR-0022)
+// once would take it twice, or leave money to give back (ADR-0022). Which
+// of these Jobs, Bills or Quotes it holds, in one query for a list
+export const openOn = async (forIds: string[], tx: Tx | typeof db = db) =>
+  new Set(
+    forIds.length === 0
+      ? []
+      : (
+          await tx
+            .selectDistinct({ forId: chargeAttempts.forId })
+            .from(chargeAttempts)
+            .where(and(inArray(chargeAttempts.forId, forIds), isOpen(tx)))
+        ).map((row) => row.forId),
+  );
+
+// whether it holds one
 export const chargeOpen = async (forId: string, tx: Tx | typeof db = db) =>
-  (await openAttempts(tx, forId)).length > 0;
+  (await openOn([forId], tx)).has(forId);
 
 // every attempt for these Bills (or Jobs, or Quotes), newest first, each
-// with whether it's open (chargeOpen's), and the provider call it made: what
-// a Bill's pages read to say where its payments stand (payingOn)
+// with whether it's open (isOpen's), and the provider call it made: what a
+// Bill's pages read to say where its payments stand (paymentOn)
 export const attemptsFor = async (
   kind: ChargeAttempt["kind"],
   forIds: string[],
@@ -491,7 +505,7 @@ export const approvalOf = async (
     case "approving":
       return { status: "approving" };
     // approved, and too far on to call off: the pages hold its Quote or
-    // Bill till it ends, saying so (payingOf, payingOn)
+    // Bill till it ends, saying so (payingOf, paymentOn)
     case "finishing":
       if (attempt?.status === "approving") {
         await update(attempt, { status: "processing", processingBy: said.by });

@@ -1,19 +1,29 @@
 import type { BillPaying, Unpaid } from "@empire-cleaning/models";
 import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
-import { attemptsFor, NOT_APPROVED, waitOf } from "../payments/money.ts";
+import {
+  attemptsFor,
+  NOT_APPROVED,
+  openOn,
+  waitOf,
+} from "../payments/money.ts";
 import { unpaidOf, whyNotPaid } from "../payments/unpaid.ts";
 import type { Bill } from "./bills.schema.ts";
 
-// Where the payments on a Bill stand, as its pages say it (#534): one going
-// through since `goingSince`, which may still take the money (ours to the
-// saved card, or the Client's on its page: a bank debit, or one nobody
-// heard the end of yet); the Client's bank asking them to approve theirs,
-// until `approvingUntil`, when it's called off; or their latest payment on
-// its page, which failed, and why, or which they never approved: no
-// failure, as nothing was taken, but the page says so to one who comes back
-// to it (#534's UX review U12)
-export type PayingOn = {
+// Where the payments on a Bill stand (#534), the one read each of its pages
+// and each step that moves money on it makes: whether money may still move
+// on it (`open`, ADR-0022's one rule, chargeOpen's), so nothing else that
+// does starts; whether the Client's own payment on its page is among it
+// (`onPage`), theirs to finish; one going through since `goingSince`,
+// which may still take the money (ours to the saved card, or the Client's
+// on its page: a bank debit, or one nobody heard the end of yet); the
+// Client's bank asking them to approve theirs, until `approvingUntil`, when
+// it's called off; or their latest payment on its page, which failed, and
+// why, or which they never approved: no failure, as nothing was taken, but
+// the page says so to one who comes back to it (#534's UX review U12)
+export type PaymentOn = {
+  open: boolean;
+  onPage: boolean;
   goingSince: Date | null;
   approvingUntil: Date | null;
   failed: { at: Date; reason: string; approved: boolean } | null;
@@ -25,19 +35,23 @@ export type PayingOn = {
 // to approve theirs within its wait. One waited out holds nothing, as
 // cancelling or recording calls it off first, as the alert promised
 // (#534 review F11)
-export const holds = (on: PayingOn) =>
+export const holds = (on: PaymentOn) =>
   on.goingSince !== null || on.approvingUntil !== null;
 
-const NOT_PAYING: PayingOn = {
+const NOT_PAYING: PaymentOn = {
+  open: false,
+  onPage: false,
   goingSince: null,
   approvingUntil: null,
   failed: null,
 };
 
-// each Bill's, by its id, in one query for a list
-export const payingOn = async (billIds: string[], tx: Tx | typeof db = db) => {
-  const on = new Map<string, PayingOn>();
+// each Bill's, by its id, in two queries for a list
+export const paymentOn = async (billIds: string[], tx: Tx | typeof db = db) => {
+  const on = new Map<string, PaymentOn>();
   const decided = new Set<string>();
+  const held = await openOn(billIds, tx);
+  for (const billId of held) on.set(billId, { ...NOT_PAYING, open: true });
   // newest first
   for (const { attempt, open, call } of await attemptsFor(
     "bill",
@@ -47,6 +61,7 @@ export const payingOn = async (billIds: string[], tx: Tx | typeof db = db) => {
     const paying = on.get(attempt.forId) ?? { ...NOT_PAYING };
     on.set(attempt.forId, paying);
     if (open) {
+      if (call === "bill") paying.onPage = true;
       const wait = waitOf(attempt);
       if (!wait.onClient) paying.goingSince ??= attempt.askedAt;
       // past it, whoever acts next calls it off, or the Clock does
@@ -73,14 +88,14 @@ export const payingOn = async (billIds: string[], tx: Tx | typeof db = db) => {
 };
 
 // where a Bill stands, as each page that shows it says it, from where its
-// payments stand (payingOn), in the reply's language: a payment going
+// payments stand (paymentOn), in the reply's language: a payment going
 // through is Unpaid only in that it's pending (ADR-0022), unless it already
 // was, which says why; and the Client's bank asking them to approve
 // theirs, or their last payment on its page, which failed or was never
 // approved
 export const standing = (
   bill: Pick<Bill, "status" | "unpaidSince" | "unpaidReason">,
-  on: PayingOn,
+  on: PaymentOn,
 ): { unpaid: Unpaid | null; paying: BillPaying | null } => {
   const lang = currentLanguage();
   const due = bill.status === "due";

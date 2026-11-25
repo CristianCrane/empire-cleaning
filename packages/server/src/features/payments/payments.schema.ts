@@ -189,7 +189,7 @@ export const chargeAttempts = pgTable(
     // what a processing one is finishing by, too far on to call off: a
     // card, which settles soon, or a bank debit, days till it clears or
     // fails (#534). Either holds its Quote or Bill till it ends, as the
-    // pages say (payingOf, payingOn)
+    // pages say (payingOf, paymentOn)
     processingBy: text("processing_by").$type<"card" | "bank">(),
     // when it was found taken or failed, by the Clock: a Bill's pages date
     // a page payment that didn't go through by it
