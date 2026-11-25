@@ -28,7 +28,14 @@ export default defineConfig({
   fullyParallel: true,
   // CI also keeps an HTML report, and the trace of every failed test
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
-  use: { baseURL: appUrl, trace: "retain-on-failure" },
+  // reduced motion, so the app stills its animations (ui's tokens.css): a
+  // busy CI browser froze mid-slide now and then, and a click waited on it
+  // until it timed out (docs/testing.md, "Every test browser")
+  use: {
+    baseURL: appUrl,
+    trace: "retain-on-failure",
+    reducedMotion: "reduce",
+  },
   // Playwright starts its `webServer` entries one after another, so one entry
   // builds the app while every slot's API starts, each on a copy of one
   // database migrated for the run (packages/server/tests/e2e/servers.ts).

@@ -71,7 +71,11 @@ export const test = base.extend<{ allowedByCsp: void }>({
 // each frame and then again in a blank page, ~1 s a check. Legacy mode skips
 // cross-origin iframes, which the site has none of
 export const expectAccessible = async (page: Page) => {
-  await page.waitForFunction(() => document.getAnimations().length === 0);
+  // a finished animation moves nothing, and Chromium can list one for good
+  // (packages/web/e2e/harness.ts's expectAccessible)
+  await page.waitForFunction(() =>
+    document.getAnimations().every((a) => a.playState === "finished"),
+  );
   const { violations } = await new AxeBuilder({ page })
     .exclude("[data-live-announcer]")
     .setLegacyMode()

@@ -399,8 +399,6 @@ eachTheme(() => {
   test("a page loading next passes the accessibility check", async ({
     page,
   }) => {
-    // still, so the check needn't wait out the bar's creep
-    await page.emulateMedia({ reducedMotion: "reduce" });
     await signInWithAJob(page);
 
     // never let go: the test ends mid-load, the picture pr:shots takes
