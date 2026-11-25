@@ -278,13 +278,18 @@ export class StripePaymentGateway implements PaymentGateway {
   }
 
   // Stripe refuses to cancel a PaymentIntent that succeeded, or a card's
-  // that's processing (https://docs.stripe.com/api/payment_intents/cancel);
-  // its reason shows in the dashboard
+  // that's processing (https://docs.stripe.com/api/payment_intents/cancel),
+  // and a 0 Deposit's SetupIntent once it saved the card
+  // (https://docs.stripe.com/api/setup_intents/cancel); its reason shows in
+  // the dashboard
   async cancelPayment(ref: string, why: CallingOff) {
-    await this.stripe.paymentIntents.cancel(ref, {
-      cancellation_reason:
-        why === "client_retried" ? "requested_by_customer" : "abandoned",
-    });
+    const cancellation_reason =
+      why === "client_retried" ? "requested_by_customer" : "abandoned";
+    if (ref.startsWith("seti_")) {
+      await this.stripe.setupIntents.cancel(ref, { cancellation_reason });
+    } else {
+      await this.stripe.paymentIntents.cancel(ref, { cancellation_reason });
+    }
   }
 
   async charge({

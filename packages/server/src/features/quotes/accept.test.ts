@@ -763,6 +763,24 @@ describe("paying the Deposit with a card entered just now", () => {
     expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
   });
 
+  // a 0% Deposit only saves a card, but a refused one left open could still
+  // be confirmed with the secret the browser holds (#534 plan review F1)
+  test("a 0% Deposit their bank refused is called off", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office, guestAsk(), { depositPercent: 0 });
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+
+    testPayments().requireApproval("refused");
+    await finalize(client, quote).expect(409);
+
+    expect([...testPayments().canceled]).toEqual([
+      expect.stringMatching(/^seti_/),
+    ]);
+  });
+
   test("refunds the Deposit if the day filled up while the bank was asking", async () => {
     // 8 hours on Monday
     await cleaners(2, 4);

@@ -159,9 +159,10 @@ export interface PaymentGateway {
   // finishing, stands now, with the card it saved
   paymentOutcome(ref: string): Promise<PaymentResult>;
   // calls off a payment waiting on the Client's bank, or one it refused, so
-  // it's never taken: because the Client tried again, or nobody came back
-  // to approve it. Throws if it can't be (taken, or a card's still
-  // processing): then paymentOutcome(ref) says how it stands
+  // it's never taken, or a 0 Deposit's card save, so it's never saved:
+  // because the Client tried again, or nobody came back to approve it.
+  // Throws if it can't be (taken, or a card's still processing): then
+  // paymentOutcome(ref) says how it stands
   cancelPayment(ref: string, why: CallingOff): Promise<void>;
   // a later Charge to a saved Payment Method, without the Client there
   charge(input: ChargeInput): Promise<PaymentResult>;

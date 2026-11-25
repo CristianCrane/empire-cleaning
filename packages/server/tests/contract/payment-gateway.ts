@@ -334,6 +334,30 @@ export const paymentGatewayContract = (
 
         expect(deposit.status).toBe("approving");
       });
+
+      // a card save is a SetupIntent at Stripe, which a PaymentIntent's
+      // call-off doesn't reach (#534 plan review F1)
+      test("saving a card that waits on approval can be called off, and then it's never saved", async () => {
+        const t = await setup();
+        const { payerId } = await payer(t);
+        const deposit = await t.gateway.takeDeposit({
+          payerId,
+          source: { token: await t.enterCard("alwaysApproval") },
+          amount: 0,
+          description: "Contract check: card save called off",
+          idempotencyKey: `deposit:${run}:${payerId}`,
+        });
+        if (deposit.status !== "approving") {
+          throw new Error(`expected approving, got ${deposit.status}`);
+        }
+
+        await t.gateway.cancelPayment(deposit.ref, "abandoned");
+
+        expect(await t.gateway.paymentOutcome(deposit.ref)).toEqual({
+          status: "failed",
+          reason: "canceled",
+        });
+      });
     });
 
     describe("the save-only card form", () => {

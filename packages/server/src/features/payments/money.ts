@@ -540,20 +540,24 @@ export const approvalOf = async (
         chargeId: said.chargeId,
         saved: said.saved,
       };
-    case "failed":
+    case "failed": {
+      // called off so it can't be paid later with the secret the browser
+      // holds, a 0 Deposit's card save too, which has no attempt (#534 plan
+      // review F1); a call-off that failed is tried again on each read
+      // (#534 review F20)
+      if (said.reason !== "canceled") {
+        await paymentGateway
+          .cancelPayment(ref, "abandoned")
+          .catch(() => undefined);
+      }
       if (!attempt) return { status: "ended", reason: said.reason };
       // its first answer stands: one refused, then called off by us so it
       // can't be paid later, still ended refused (#534 review F17)
       const open = readByApproval(attempt);
       const reason = open ? said.reason : (attempt.reason ?? said.reason);
       if (open) await update(attempt, { status: "failed", reason });
-      // a call-off that failed is tried again on each read (#534 review F20)
-      if (said.reason !== "canceled") {
-        await paymentGateway
-          .cancelPayment(ref, "abandoned")
-          .catch(() => undefined);
-      }
       return calledOff ? { status: "called_off" } : { status: "ended", reason };
+    }
   }
 };
 
