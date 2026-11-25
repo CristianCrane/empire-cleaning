@@ -23,8 +23,7 @@ const words = catalog({
     saved: "Card saved",
     // a payment the provider left processing: it may yet go either way
     goingThrough: "We tried your card. The payment is still going through.",
-    savedGoingThrough:
-      "Card saved. The payment we tried is still going through.",
+    restGoingThrough: "The rest is still going through.",
     howUsed: "How your card is used",
     about:
       "We take a deposit from this card when you book. Each clean is charged to it when it's done, or goes on your weekly bill if you have one. If a payment didn't go through, saving a card here tries it again.",
@@ -47,8 +46,7 @@ const words = catalog({
     notSaved: "No se pudo guardar su tarjeta. Vuelva a intentarlo.",
     saved: "Tarjeta guardada",
     goingThrough: "Intentamos con su tarjeta. El pago todavía está en proceso.",
-    savedGoingThrough:
-      "Tarjeta guardada. El pago que intentamos todavía está en proceso.",
+    restGoingThrough: "El resto todavía está en proceso.",
     howUsed: "Cómo se usa su tarjeta",
     about:
       "Cobramos un depósito de esta tarjeta cuando reserva. Cada limpieza se cobra a ella cuando está terminada, o va en su factura semanal si tiene una. Si un pago no pasó, guardar una tarjeta aquí lo vuelve a intentar.",
@@ -146,6 +144,22 @@ const sharedWhy = (owed: CardOwed[]) => {
 // it too. Once that takes all of it, it says so in place of the alert, from
 // what the server says it took, never from the list emptying (a payment
 // still going through leaves it too).
+// which one notice Your card shows: what's still owed, else how their
+// last press went, from what the server says it took (never from the list
+// emptying, as a payment still going through leaves it too): Paid only
+// once none of it is (review F13), else the card they have
+export const cardNotice = (
+  unpaid: unknown[],
+  tried: CardRetried | null,
+): "owed" | "goingThrough" | "paid" | "card" =>
+  unpaid.length > 0
+    ? "owed"
+    : tried?.goingThrough
+      ? "goingThrough"
+      : tried && tried.took.length > 0
+        ? "paid"
+        : "card";
+
 export function PortalPaymentMethod() {
   const t = useSaid(words);
   const { saved, unpaid } = useLoaderData({ from: "/portal/payment-method" });
@@ -157,35 +171,37 @@ export function PortalPaymentMethod() {
     toast: true,
     reloadOnFailure: true,
   });
-  // what their last press took, to say it's paid once nothing's left
-  const [took, setTook] = useState<CardPayment[]>([]);
-  const paid = unpaid.length === 0 && took.length > 0 ? took : null;
+  // what the server says their last press took, and whether any of it is
+  // still going through
+  const [tried, setTried] = useState<CardRetried | null>(null);
+  const shown = cardNotice(unpaid, tried);
   const retries = saved !== null && unpaid.some((o) => o.retry);
 
   // everything their card failed to take, tried at once; a 409 says what
   // still didn't go through
   const tryAgain = () => {
-    setTook([]);
+    setTried(null);
+    // the notice in place says how it went, so no toast
     return retry.run(
       () => postJson<CardRetried>("/api/payments/mine/retry"),
-      (tried) => {
-        setTook(tried.took);
-        return tried.goingThrough ? t.w.goingThrough : "";
+      (answer) => {
+        setTried(answer);
+        return "";
       },
     );
   };
 
   const save = () => {
-    setTook([]);
+    setTried(null);
     return action.run(
       async () => {
         const tried = await card.save();
         card.reset();
         return tried;
       },
-      (tried) => {
-        setTook(tried.took);
-        return tried.goingThrough ? t.w.savedGoingThrough : t.w.saved;
+      (answer) => {
+        setTried(answer);
+        return t.w.saved;
       },
     );
   };
@@ -200,7 +216,7 @@ export function PortalPaymentMethod() {
       // one at a time: what to pay for, else what was just paid, else the
       // card they have
       alerts={[
-        unpaid.length > 0
+        shown === "owed"
           ? {
               key: "unpaid",
               tone: "danger",
@@ -229,27 +245,38 @@ export function PortalPaymentMethod() {
                 </p>
               ),
             }
-          : paid && saved
+          : shown === "goingThrough" && tried && saved
             ? {
-                key: "paid",
-                tone: "success",
+                key: "going",
                 children: (
                   <p>
-                    <strong>{t.w.paid}</strong>{" "}
-                    {t.w.took(owedList(t, paid), saved.label)}
+                    {tried.took.length > 0
+                      ? `${t.w.took(owedList(t, tried.took), saved.label)} ${t.w.restGoingThrough}`
+                      : t.w.goingThrough}
                   </p>
                 ),
               }
-            : saved
+            : shown === "paid" && tried && saved
               ? {
-                  key: "saved",
+                  key: "paid",
                   tone: "success",
-                  children: t.w.isSaved(
-                    saved.label,
-                    t.formatDate(saved.savedAt),
+                  children: (
+                    <p>
+                      <strong>{t.w.paid}</strong>{" "}
+                      {t.w.took(owedList(t, tried.took), saved.label)}
+                    </p>
                   ),
                 }
-              : { key: "none", children: t.w.noneYet },
+              : saved
+                ? {
+                    key: "saved",
+                    tone: "success",
+                    children: t.w.isSaved(
+                      saved.label,
+                      t.formatDate(saved.savedAt),
+                    ),
+                  }
+                : { key: "none", children: t.w.noneYet },
       ]}
       about={{
         label: t.w.howUsed,

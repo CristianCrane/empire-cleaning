@@ -491,10 +491,10 @@ Keeps: Tabs, by month, date tiles (ux-portal). Renders through `ListPage`
 
 #### Client portal > Payments
 
-Keeps: what you owe first, fixed header Button (ux-portal). Renders through
+Keeps: what you owe first (ux-portal); Your card a tile alone (#534's UX review U7). Renders through
 `HomePage` (#435).
 
-- Header: "Payments" in the bar; Your card (secondary), standing aside while the card asks something of them (its tile stays).
+- Header: "Payments" in the bar; no title-row action, as Your card's tile is the way there.
 - Body: what you owe (`AnswerCard`: `IconTile`, the primary; for a payment we try again ourselves, or their bank payment on its way, Payment pending, one line (and one while it pauses a plan), its link outlined; while their bank asks them to approve a payment, a line under when it's due saying so; a Bill whose payment on its page didn't go through leads, in red, saying why, and naming the Bill when the card's line doesn't; Pay the bill when its line names it); else what's taken next (#508), in blue: the rest of the next clean's price, after it; the next weekly Bill's so far, charged to their card or billed to them, and its Monday; or, with only a clean booked, the Monday of the Bill it goes on; else To pay, Nothing, in green;
   Notices of payments clearing, each naming its Bill only when the card
   doesn't (beside another, or under a card about something else); tiles All payments (`?open=history`, the

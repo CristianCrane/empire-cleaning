@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import { CreditCard, Receipt } from "lucide-react";
+import { Receipt } from "lucide-react";
 import { catalog, type ClientPayment } from "@empire-cleaning/models";
 import {
   Button,
@@ -13,7 +13,6 @@ import {
   StatusBadge,
   useUiWords,
 } from "@empire-cleaning/ui";
-import { linkTo } from "../../links.ts";
 import { useHomeUrl } from "../home-search.ts";
 import { HeroCard, whyAlert } from "./HeroCard.tsx";
 import {
@@ -53,8 +52,8 @@ const words = catalog({
 // The Client's Payments, a Home (docs/ux.md, Screen types): what they owe
 // now, in one card with its one Button, or, owing nothing, what's taken
 // next (#508); then every
-// payment behind a tile, opened in place. Their card has a fixed way in, in
-// the header, and a tile. (UX pass, #96; #435)
+// payment behind a tile, opened in place. Their card's way in is a
+// tile. (UX pass, #96; #435; #499's UX review U3)
 
 // its tiles that open in place, as its URL names them
 export const paymentsTiles = ["history"] as const;
@@ -74,15 +73,8 @@ export function PortalPayments() {
   return (
     <HomePage
       title={t.p.payments}
-      actions={[
-        // stands aside while the card asks something of them, as Home's
-        // does (docs/ux.md; UX review U18); Your card's tile stays below
-        !owed?.asks && {
-          label: t.p.yourCard,
-          icon: CreditCard,
-          href: linkTo({ to: "/portal/payment-method" }),
-        },
-      ]}
+      // no title-row action: Your card's tile is the way there, as two ways
+      // to one place, side by side, read as two (#534's UX review U7; #499's U3)
       alerts={[whyAlert(owing?.why)]}
       answer={
         <HeroCard hero={owing ? owing.hero : nextAnswer(data.next, t.lang)} />
