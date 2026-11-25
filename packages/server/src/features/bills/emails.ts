@@ -1,4 +1,5 @@
 import {
+  cleanButton,
   cleansButton,
   amounts,
   button,
@@ -511,6 +512,14 @@ export const jobNamed = (
   return fee ? `${messages[lang].feeName[fee]}: ${what}` : what;
 };
 
+// the payment that couldn't be taken, one that asks something of them
+// first, so the email's fix, its pause line and its button all follow the
+// same payment
+const failedOf = (settled: SettledJob[]) =>
+  settled.find(
+    (s) => s.settled.failure && asksTheClient(unpaidKind(s.settled.failure)),
+  ) ?? settled.find((s) => s.settled.failure);
+
 // What settling per Job moved, as lines for the Client: each Job with what
 // was charged, refunded or couldn't be, then what to do about one that
 // couldn't, and what that did to their Service Plan
@@ -548,12 +557,7 @@ const settledLines = (lang: Language, settled: SettledJob[]) => {
           : w.refundsTo(card);
     lines.push(`${what}${refunded ? ` ${w.REFUND_DAYS}` : ""}`);
   }
-  // one that asks something of them first, so its fix, the pause line and
-  // the button below all follow the same payment
-  const failed =
-    settled.find(
-      (s) => s.settled.failure && asksTheClient(unpaidKind(s.settled.failure)),
-    ) ?? settled.find((s) => s.settled.failure);
+  const failed = failedOf(settled);
   if (failed) {
     lines.push(
       `${notTaken(w.PAYMENT, card)} ${clientFix[unpaidKind(failed.settled.failure!)]}`,
@@ -578,8 +582,10 @@ export const chargedPerCleanEmail = (
   { name, settled }: { name: string; settled: SettledJob[] },
 ): Email => {
   const w = words[lang].perClean;
-  const { PRICES_INCLUDE_TAX, UPDATE_CARD } = messages[lang];
+  const { PRICES_INCLUDE_TAX, UPDATE_CARD, APPROVE_PAYMENT } = messages[lang];
   const unpaid = settled.some((s) => s.unpaidCents !== null);
+  const failed = failedOf(settled);
+  const kind = failed && unpaidKind(failed.settled.failure!);
   return {
     lang,
     subject: unpaid ? w.unpaidSubject : w.subject,
@@ -591,14 +597,14 @@ export const chargedPerCleanEmail = (
         ...settledLines(lang, settled),
         PRICES_INCLUDE_TAX,
       ].map(paragraph),
-      // a card puts it right, unless we're trying again ourselves
-      unpaid &&
-      settled.some(
-        (s) =>
-          s.settled.failure && asksTheClient(unpaidKind(s.settled.failure)),
-      )
-        ? button(UPDATE_CARD, "/portal/payment-method")
-        : cleansButton(lang),
+      // one their bank wants them to approve is approved on its clean's
+      // page, as the card page leaves it out (#534 review F17); else a card
+      // puts it right, unless we're trying again ourselves
+      !unpaid || !kind || !asksTheClient(kind)
+        ? cleansButton(lang)
+        : kind === "approve"
+          ? cleanButton(lang, failed!.jobId, APPROVE_PAYMENT)
+          : button(UPDATE_CARD, "/portal/payment-method"),
     ],
   };
 };

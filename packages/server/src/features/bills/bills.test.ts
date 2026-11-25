@@ -2207,7 +2207,9 @@ describe("switching weekly billing off", () => {
     );
   });
 
-  test("a Charge that fails leaves the Job Unpaid and the plan On Hold, and says so", async () => {
+  // a plan's clean, billed weekly, done and not yet billed, as Casey is
+  // switched to being charged per clean and `fail` makes its Charge fail
+  const switchedOffUnpaid = async (fail: () => void) => {
     const office = await signInAsOffice();
     const me = (await office.get("/api/me").expect(200))
       .body as SignedInAccount;
@@ -2240,8 +2242,15 @@ describe("switching weekly billing off", () => {
       reports: [],
     });
 
-    testPayments().failCharges();
+    fail();
     const { settled } = await switchOff(office, client.id);
+    return { settled, firstJob, planId };
+  };
+
+  test("a Charge that fails leaves the Job Unpaid and the plan On Hold, and says so", async () => {
+    const { settled, firstJob, planId } = await switchedOffUnpaid(() =>
+      testPayments().failCharges(),
+    );
     // the first Job was paid in full when it was done, so only the plan's
     // is settled
     expect(settled).toEqual([
@@ -2269,6 +2278,22 @@ describe("switching weekly billing off", () => {
       "Until it's paid, we won't book more cleans on your plan.",
     );
     expect(notice.html).toContain("/portal/payment-method");
+  });
+
+  // the card page leaves out a payment their bank wants them to approve,
+  // so its button opens the clean, to approve it there (#534 review F17)
+  test("a Charge their bank wants them to approve emails a button to approve it on its clean", async () => {
+    const { firstJob } = await switchedOffUnpaid(() =>
+      testPayments().savedCardsAsk(),
+    );
+
+    const notice = testEmail().lastTo(BILLING_EMAIL);
+    expect(notice.text).toContain(
+      "Your bank wants you to approve it first. Please approve it on its page.",
+    );
+    expect(notice.html).toContain(`/portal/jobs/${firstJob.id}`);
+    expect(notice.html).toContain("Approve payment");
+    expect(notice.html).not.toContain("/portal/payment-method");
   });
 
   test("with nothing owed, sends nothing about money", async () => {
