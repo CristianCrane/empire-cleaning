@@ -71,7 +71,7 @@ import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
 import { clientTrail } from "./trails.ts";
 import { jobStatus, JobStatusBadge } from "../JobBadges.tsx";
 
-const { propertyParts, quoteHeadline } = screenWords.en;
+const { propertyParts, quoteNamed } = screenWords.en;
 
 const { formatDateTime } = formats.en;
 
@@ -418,7 +418,7 @@ const historyOf = (home: OfficePropertyView): HistoryEvent[] =>
       on: quote.sentAt ?? quote.createdAt,
       icon: QuoteIcon,
       kind: "Quote",
-      what: quoteHeadline(quote),
+      what: quoteNamed(quote),
       status: <QuoteStatusBadge status={quote.status} />,
       href: linkTo({
         to: "/office/quotes/$quoteId",

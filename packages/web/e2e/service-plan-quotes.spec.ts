@@ -305,9 +305,11 @@ test("the Client screen lists each home, whose own page holds its history and of
   await expect(
     page.getByRole("button", { name: "Carry on with the draft" }),
   ).toBeVisible();
-  await expect(
-    history.getByRole("listitem").filter({ hasText: "Cleaning plan" }),
-  ).toContainText("Draft");
+  // named as the Office's other screens name it, its price's unit said
+  const draft = history
+    .getByRole("listitem")
+    .filter({ hasText: "Quote · Standard Clean plan $201.85 a clean" });
+  await expect(draft).toContainText("Draft");
 });
 
 test("a request for a home whose First Clean is done can be answered with either kind of Quote", async ({

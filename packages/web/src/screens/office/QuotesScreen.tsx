@@ -15,7 +15,7 @@ import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
 import { linkTo } from "../../links.ts";
 import { tabShown, useListUrl } from "../list-search.ts";
 
-const { quoteTotal, serviceNamed } = screenWords.en;
+const { quoteNamed, quoteService, quoteTotal } = screenWords.en;
 
 // the statuses the list holds, a Tab each, in the order a Quote moves
 // through them
@@ -34,16 +34,6 @@ const waiting = (quote: QuoteSummary, row = false) => {
   return !row ? since : days === 0 ? "waiting since today" : `waiting ${since}`;
 };
 
-// what it's a Quote of: a Service Plan of the Service its cleans are, or
-// the Service its total is for, its Revision's own (the one asked for,
-// unless the Office changed it) or, once Accepted, the one booked; the
-// Service asked for until it has a total
-const serviceOf = (quote: QuoteSummary) =>
-  serviceNamed(
-    quote.headlineServiceName ?? quote.service.name,
-    quote.kind === "service_plan",
-  );
-
 // the words a search looks through: who, where, and what, both the
 // Service it's for and the one asked, as the caller may name it
 const searchable = (quote: QuoteSummary) =>
@@ -51,7 +41,7 @@ const searchable = (quote: QuoteSummary) =>
     quote.client.name,
     quote.client.businessName,
     addressOf(quote.property),
-    serviceOf(quote),
+    quoteService(quote),
     quote.service.name,
   ]
     .join(" ")
@@ -136,7 +126,7 @@ export function QuotesScreen() {
             parts={[
               addressOf(quote.property),
               // a Service and its price, one part: "Standard Clean $194.89"
-              [serviceOf(quote), quoteTotal(quote)].filter(Boolean).join(" "),
+              quoteNamed(quote),
               waiting(quote, true),
             ]}
           />
@@ -183,7 +173,7 @@ export function QuotesScreen() {
           from: "lg",
           cell: (quote) => addressOf(quote.property),
         },
-        { id: "service", label: "Service", cell: serviceOf },
+        { id: "service", label: "Service", cell: quoteService },
         // none is priced until it's drafted
         ...(tab === "requested" && !url.q
           ? []

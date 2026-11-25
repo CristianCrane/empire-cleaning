@@ -392,6 +392,28 @@ const screenWordsIn = (lang: Language) => {
       ? null
       : priceOf(quote.headlineTotalCents, quote.plan?.days.length ?? null);
 
+  // what it's a Quote of, to the Office: a Service Plan of the Service its
+  // cleans are, or the Service its total is for, its Revision's own (the
+  // one asked for, unless the Office changed it) or, once Accepted, the one
+  // booked; the Service asked for until it has a total
+  const quoteService = (
+    quote: Pick<QuoteSummary, "headlineServiceName" | "service" | "kind">,
+  ) =>
+    serviceNamed(
+      quote.headlineServiceName ?? quote.service.name,
+      quote.kind === "service_plan",
+    );
+
+  // a Quote in one part, as the Office names it in a line (a list's row, a
+  // home's History): "Standard Clean $194.89", "Standard Clean plan
+  // $650.10 a week", or "Standard Clean" until it's priced
+  const quoteNamed = (
+    quote: Pick<
+      QuoteSummary,
+      "headlineServiceName" | "headlineTotalCents" | "service" | "kind" | "plan"
+    >,
+  ) => [quoteService(quote), quoteTotal(quote)].filter(Boolean).join(" ");
+
   const propertyParts = (p: PropertyView, after = false) =>
     p.kind === "commercial"
       ? [
@@ -475,6 +497,8 @@ const screenWordsIn = (lang: Language) => {
     recurrenceLabel,
     planName,
     quoteTotal,
+    quoteService,
+    quoteNamed,
     servicePrice,
     serviceNamed,
     // what a Sent Revision led with, as servicePrice says
@@ -489,9 +513,10 @@ const screenWordsIn = (lang: Language) => {
         revision.headlineTotalCents,
         revision.planDays,
       ),
-    // how a Quote reads in a list: "Standard Clean $194.89", the Service it
-    // leads with, or "Cleaning plan, Standard Clean, every 2 weeks: $201.85
-    // a clean", or for several weekdays "...: $650.10 a week"
+    // how a Quote reads to its Client, on their Home: "Standard Clean
+    // $194.89", the Service it leads with, or "Cleaning plan, Standard
+    // Clean, every 2 weeks: $201.85 a clean", or for several weekdays
+    // "...: $650.10 a week" (the Office names it as quoteNamed says)
     quoteHeadline: (
       quote: Pick<
         QuoteSummary,
