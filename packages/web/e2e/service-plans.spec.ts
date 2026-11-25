@@ -94,10 +94,10 @@ test(
       .getByRole("grid", { name: "Your upcoming cleans" })
       .getByRole("row");
     await expect(upcoming).toHaveText([
-      /Mon, Jan 19, 9:00 AM/,
-      /Mon, Jan 26, 9:00 AM/,
-      /Mon, Feb 2, 9:00 AM/,
-      /Mon, Feb 9, 9:00 AM/,
+      /Mon, Jan 19, 9:00\sAM/,
+      /Mon, Jan 26, 9:00\sAM/,
+      /Mon, Feb 2, 9:00\sAM/,
+      /Mon, Feb 9, 9:00\sAM/,
     ]);
     await noViolations(client);
 

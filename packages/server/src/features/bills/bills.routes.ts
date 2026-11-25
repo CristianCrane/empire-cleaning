@@ -1,19 +1,15 @@
 import { Router } from "express";
-import { currentLanguage } from "#services/request";
 import { z } from "zod";
-import { ConflictError } from "../../middleware/errors.ts";
 import { byId, keepUnder, validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { ownClient } from "../clients/clients.ts";
-import { whyNotPaid } from "../payments/unpaid.ts";
 import {
   billView,
   finishBillPayment,
   listBills,
-  payWords,
+  payBillOnPage,
   recordOutsidePayment,
   setBilling,
-  startBillPayment,
   voidBill,
 } from "./bills.ts";
 
@@ -38,37 +34,33 @@ router.get(
   },
 );
 
-// the provider's form for paying it on its page, by card or bank debit
-router.post(
-  "/mine/:id/payment-form",
-  authorize("client"),
-  validate({ params: byId }),
-  async (req, res) => {
-    const client = await ownClient(signedInAccount(res).id);
-    res.json(await startBillPayment(client, req.params.id));
-  },
-);
-
-// once that form is done: paid, or a bank debit on its way
+// pays it on its page, with the card or bank account they entered in the
+// payment form (/api/payment-methods/form): paid, a bank debit on its way,
+// going through, or their bank asking them to approve it (BillPayOutcome)
 router.post(
   "/mine/:id/payment",
   authorize("client"),
   validate({
     params: byId,
-    body: z.object({ ref: z.string().min(1) }),
+    body: z.object({ token: z.string().min(1) }),
   }),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
-    const id = req.params.id;
-    await billView(id, client.id);
-    const failure = await finishBillPayment(id, req.body.ref);
-    if (failure) {
-      const { why } = whyNotPaid(currentLanguage(), failure);
-      throw new ConflictError(
-        payWords[currentLanguage()].notThrough(why ? ` (${why})` : ""),
-      );
-    }
-    res.json(await billView(id, client.id));
+    res.json(await payBillOnPage(client, req.params.id, req.body.token));
+  },
+);
+
+// once their bank's check on it is done in the browser, approved or not
+router.post(
+  "/mine/:id/payment/finish",
+  authorize("client"),
+  validate({
+    params: byId,
+    body: z.object({ approved: z.boolean() }),
+  }),
+  async (req, res) => {
+    const client = await ownClient(signedInAccount(res).id);
+    res.json(await finishBillPayment(client, req.params.id, req.body.approved));
   },
 );
 

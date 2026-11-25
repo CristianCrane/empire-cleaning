@@ -1,7 +1,7 @@
 import express, { Router } from "express";
 import { monitoring } from "../../services/monitoring/index.ts";
 import { paymentGateway } from "../../services/payment-gateway/index.ts";
-import { finishBillPayment } from "../bills/bills.ts";
+import { settleBill } from "../bills/bills.ts";
 import { recordRefundFailed, recordRefundsAtProvider } from "./money.ts";
 import { finalizeDeposit } from "../quotes/accept.ts";
 
@@ -28,11 +28,11 @@ webhookRouter.post(
         await finalizeDeposit(event.ref);
         break;
       // a Bill paid on its page: a card the browser may not have told us of,
-      // or a bank debit clearing, or failing, days later
+      // or a bank debit clearing, or failing, days later; the ledger reads
+      // it from the provider, not from the event
       case "bill_payment_succeeded":
       case "bill_payment_failed":
-        if (event.reference)
-          await finishBillPayment(event.reference, event.ref);
+        if (event.reference) await settleBill(event.reference, null);
         break;
       // ours, or one made in the provider's dashboard, which is recorded
       case "charge_refunded":

@@ -274,7 +274,7 @@ test(
     await expect(
       schedule
         .getByRole("group", { name: "Jobs on Mon, Jan 12" })
-        .getByText(/^9:00 AM Casey Client/),
+        .getByText(/^9:00\sAM Casey Client/),
     ).toBeVisible();
 
     // nobody works Saturdays, so it has no times to pick

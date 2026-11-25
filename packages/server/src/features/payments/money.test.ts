@@ -46,7 +46,7 @@ describe("charging a saved Payment Method", () => {
     const result = await db.transaction((tx) =>
       chargeSaved(tx, {
         client,
-        method,
+        source: method,
         amount: 4200,
         description: "Balance",
         for: { jobId: job.id, kind: "balance" },
@@ -76,7 +76,7 @@ describe("charging a saved Payment Method", () => {
     const result = await db.transaction((tx) =>
       chargeSaved(tx, {
         client,
-        method: scenario === "no Payment Method is saved" ? null : method,
+        source: scenario === "no Payment Method is saved" ? null : method,
         amount: 4200,
         description: "Balance",
         for: { jobId: job.id, kind: "balance" },
@@ -96,7 +96,7 @@ describe("charging a saved Payment Method", () => {
     const result = await db.transaction((tx) =>
       chargeSaved(tx, {
         client,
-        method,
+        source: method,
         amount: 4200,
         description: "Balance",
         for: { jobId: job.id, kind: "balance" },
@@ -116,7 +116,7 @@ describe("charging a saved Payment Method", () => {
     await db.transaction((tx) =>
       chargeSaved(tx, {
         client,
-        method,
+        source: method,
         amount: 4200,
         description: "Balance",
         for: { jobId: job.id, kind: "balance" },
@@ -144,7 +144,7 @@ describe("charging again after the provider took the money", () => {
     db.transaction((tx) =>
       chargeSaved(tx, {
         client,
-        method,
+        source: method,
         amount,
         description: "Balance",
         for: { jobId: job.id, kind: "balance" },
@@ -162,7 +162,7 @@ describe("charging again after the provider took the money", () => {
       db.transaction(async (tx) => {
         await chargeSaved(tx, {
           client: was.client,
-          method: was.method,
+          source: was.method,
           amount: 4200,
           description: "Balance",
           for: { jobId: was.job.id, kind: "balance" },
@@ -257,7 +257,7 @@ describe("refunding from Charges", () => {
     await db.transaction((tx) =>
       chargeSaved(tx, {
         client,
-        method,
+        source: method,
         amount: 10000,
         description: "Balance",
         for: { jobId: job.id, kind: "balance" },
@@ -345,7 +345,7 @@ describe("refunding again after the provider made the refund", () => {
     await db.transaction((tx) =>
       chargeSaved(tx, {
         client,
-        method,
+        source: method,
         amount: 10000,
         description: "Balance",
         for: { jobId: job.id, kind: "balance" },

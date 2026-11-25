@@ -36,7 +36,12 @@ export default defineConfig({
   outputDir: `test-results/${E2E_PORTS}`,
   // CI also keeps an HTML report, and the trace of every failed test
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
-  use: { baseURL: siteUrl, trace: "retain-on-failure" },
+  // reduced motion, as the web app's (docs/testing.md, "Every test browser")
+  use: {
+    baseURL: siteUrl,
+    trace: "retain-on-failure",
+    reducedMotion: "reduce",
+  },
   // as the web app's (packages/web/playwright.config.ts): one entry builds
   // the site while the API starts, ready once both say so, and either one
   // exiting ends it at once and takes the other with it

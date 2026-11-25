@@ -42,6 +42,7 @@ import {
   TextField,
   Fact,
   Facts,
+  factColumns,
   Fold,
   Link,
   List,
@@ -625,10 +626,9 @@ export function UndoCompletion({
 // still owed or to refund; how it's worked out, folded. Once it didn't
 // happen, its fee and what was refunded. Nothing, no part. Each charge is
 // in its History, and a failed one an alert above. Its grids take the
-// Job's facts' `columns`, so the page's columns line up, and a lone fact
-// the whole row, so its line isn't squeezed into a third (U29, U34)
-export function JobMoney({ job, columns }: { job: OfficeJob; columns: 2 | 3 }) {
-  const across = (facts: number) => (facts === 1 ? 1 : columns);
+// Job's facts' columns, `lineUp`, so the page's columns line up, and a
+// lone fact the whole row (factColumns; U29, U34)
+export function JobMoney({ job, lineUp }: { job: OfficeJob; lineUp: 2 | 3 }) {
   const payment = job.payment;
   if (!payment) return null;
   const { paidCents: paid, owedCents: owed } = payment;
@@ -790,10 +790,12 @@ export function JobMoney({ job, columns }: { job: OfficeJob; columns: 2 | 3 }) {
   return (
     <Section title="Money">
       <Card>
-        <Facts columns={across(shown.length)}>{shown}</Facts>
+        <Facts columns={factColumns(shown.length, lineUp)}>{shown}</Facts>
         {job.completion && payment.totalCents !== payment.quotedCents && (
           <Fold label="How it's worked out">
-            <Facts columns={across(workedOut.length)}>{workedOut}</Facts>
+            <Facts columns={factColumns(workedOut.length, lineUp)}>
+              {workedOut}
+            </Facts>
           </Fold>
         )}
       </Card>

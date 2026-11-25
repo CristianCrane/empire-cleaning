@@ -30,8 +30,12 @@ export default mergeConfig(
         headless: true,
         // the browser is in UTC whatever the machine's zone, so a screen
         // that says the viewer's day where it should say New York's fails
-        // everywhere, not only away from New York (format.test.tsx)
-        provider: playwright({ contextOptions: { timezoneId: "UTC" } }),
+        // everywhere, not only away from New York (format.test.tsx). It
+        // prefers reduced motion, as every test browser does
+        // (docs/testing.md, "Every test browser")
+        provider: playwright({
+          contextOptions: { timezoneId: "UTC", reducedMotion: "reduce" },
+        }),
         instances: [{ browser: "chromium", name: "web" }],
         commands: { darkDevice },
       },

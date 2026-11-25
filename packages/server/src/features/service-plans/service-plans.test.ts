@@ -207,7 +207,7 @@ describe("accepting a Service Plan Quote", () => {
       "a Standard Clean at 41-12 Austin St",
     );
     expect(confirmations[0]!.text).toContain(
-      "every week, on Mondays at 9:00 AM",
+      "every week, on Mondays at 9:00\u00a0AM",
     );
     expect(confirmations[0]!.text).toContain("$50.46");
     expect(sent.filter((m) => /booked/i.test(m.subject))).toHaveLength(1);

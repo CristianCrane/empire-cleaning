@@ -61,7 +61,7 @@ import { email } from "../../services/email/index.ts";
 import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { officeCompletionOf } from "../completion/completion.ts";
-import { APPROVAL_MS } from "../payments/money.ts";
+import { waitOf } from "../payments/money.ts";
 import { paymentMethodOf, toPaymentMethodView } from "../payments/payments.ts";
 import { chargeAttempts } from "../payments/payments.schema.ts";
 import {
@@ -722,8 +722,7 @@ const clientPaying = async (
     .limit(1);
   if (!found) return null;
   const { attempt, pending } = found;
-  const until = new Date(attempt.askedAt.getTime() + APPROVAL_MS);
-  const finishing = attempt.bankFinishingAt !== null;
+  const { until, onClient, past } = waitOf(attempt);
   const row =
     quote.kind === "one_off"
       ? (await optionsOf(pending.revisionId, tx)).find(
@@ -732,8 +731,8 @@ const clientPaying = async (
       : undefined;
   return {
     until,
-    finishing,
-    past: !finishing && until <= clock.now(),
+    finishing: !onClient,
+    past,
     serviceName: row ? await serviceNameOf("en", row.serviceId, tx) : null,
     depositCents: pending.depositCents,
   };

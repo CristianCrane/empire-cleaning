@@ -55,7 +55,7 @@ describe("where a Client's home stands", () => {
     ).toEqual({
       tone: "success",
       label: "Cleaning plan",
-      line: "Mondays at 9:00 AM",
+      line: "Mondays at 9:00\u00a0AM",
     });
   });
 
@@ -92,7 +92,7 @@ describe("where a Client's home stands", () => {
     expect(standingOf("en", home, data({ jobs: [job] }))).toEqual({
       tone: "info",
       label: "Booked",
-      line: "Mon, Nov 2, 9:00 AM",
+      line: "Mon, Nov 2, 9:00\u00a0AM",
     });
   });
 

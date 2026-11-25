@@ -220,7 +220,7 @@ test(
       ),
     ).toBeVisible();
     await expect(
-      client.getByText(/^For Mon, Jan 19, 9:00 AM at /),
+      client.getByText(/^For Mon, Jan 19, 9:00\sAM at /),
     ).toBeVisible();
   },
 );

@@ -71,7 +71,11 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   (a `DateTile` for when, an `IconTile` for what, an `Avatar` for who),
   a muted line above and below; then its facts (`Facts`, each an icon, a
   value and a muted line), with the time, the address and how to reach
-  someone among them, not in a part of their own.
+  someone among them, not in a part of their own. A card that counts its
+  facts (the Office's Job and its Money, a Bill) takes as many columns as
+  they need (`factColumns`), so none sits alone in a part of a row
+  squeezing its words: a lone fact the whole row, four two and two. Every
+  card's, by what it shows: #553.
 - **Its parts**, each a Section. An action on one part stays on that part's
   title line (End plan, red, on the plan; Billing's Edit). A part
   with nothing in it yet offers its action (`ActionRow`), unless that
@@ -164,7 +168,8 @@ Cleaner's Your jobs render through `HomePage`
   owed that asks, a price change, a crew who couldn't get in), the title
   row's action stands aside too. A paused plan with nothing to do is the
   plan's card, its alert calm (info), its way to the plan outlined. Money owed that asks nothing (a
-  payment we try again ourselves) is Payments' card alone, calm: info,
+  payment we try again ourselves, or their bank payment on its way) is
+  Payments' card alone, calm: info,
   "Payment pending" and one line, that there's nothing to do (and, while
   it pauses a plan, "Until it goes through, we won't book more cleans on your
   plan."), and its way to see it outlined, as the page has no next step.
@@ -743,6 +748,9 @@ stays as it is (#336).
   Client picks a day on a month, then that day's open times
   (`screens/AvailabilityPicker.tsx`). Both lists of times are the kit's
   `TimeTiles`. Clients never see the Schedule or anyone else's Jobs.
+- **A time stays whole**: "10:00 AM" and "9:00 a.m." never wrap away from
+  their AM, as models' formats write the space before it a no-break one,
+  for every screen and email (#534's UX review U19).
 
 ### Status and colour
 

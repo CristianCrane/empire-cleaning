@@ -316,7 +316,7 @@ describe("a Service Plan Quote on several weekdays", () => {
       .to(casey.email)
       .find((m) => /cleaning plan quote/.test(m.subject))!;
     expect(sent.text).toContain(
-      "a Standard Clean every week, on Mondays at 9:00 AM and Wednesdays at 1:00 PM",
+      "a Standard Clean every week, on Mondays at 9:00\u00a0AM and Wednesdays at 1:00\u00a0PM",
     );
     expect(sent.text).toContain(`Wednesday: $`);
   });
@@ -370,7 +370,7 @@ describe("accepting a Service Plan Quote on several weekdays", () => {
       .sent.filter((m) => m.to === casey.email)
       .find((m) => /has started/.test(m.subject))!;
     expect(confirmation.text).toContain(
-      "a Standard Clean at 41-12 Austin St, 4B, 11375 every week, on Mondays at 9:00 AM and Wednesdays at 1:00 PM",
+      "a Standard Clean at 41-12 Austin St, 4B, 11375 every week, on Mondays at 9:00\u00a0AM and Wednesdays at 1:00\u00a0PM",
     );
   });
 

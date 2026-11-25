@@ -74,19 +74,26 @@ const charged = async (card: string, amount = 5000) => {
   return result.chargeId;
 };
 
+// a Bill paid on its page, through the adapter, by a card entered in the
+// browser's payment form; its PaymentIntent, declined or not
 const onPage = async (card: string, reference: string) => {
   const payerId = await customer();
-  const { ref } = await gateway.startBillPayment({
+  const { id: token } = await stripe.testHelpers.confirmationTokens.create({
+    payment_method: card,
+  });
+  await gateway.payBill({
     payerId,
+    token,
     amount: 12000,
     description: "Recording: Bill",
     reference,
     idempotencyKey: `${run}:bill:${payerId}`,
   });
-  await stripe.paymentIntents
-    .confirm(ref, { payment_method: card })
-    .catch(() => undefined);
-  return ref;
+  const { data } = await stripe.paymentIntents.list({
+    customer: payerId,
+    limit: 1,
+  });
+  return data[0]!.id;
 };
 
 mkdirSync(OUT, { recursive: true });

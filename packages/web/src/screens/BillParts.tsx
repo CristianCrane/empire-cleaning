@@ -5,6 +5,7 @@ import {
   CalendarRange,
   CreditCard,
   FileText,
+  MapPin,
   Printer,
 } from "lucide-react";
 import type { BillSummary, BillView } from "@empire-cleaning/models";
@@ -16,6 +17,7 @@ import {
   Fact,
   DetailsCard,
   Facts,
+  factColumns,
   type PageAction,
 } from "@empire-cleaning/ui";
 import type { AppHref } from "../links.ts";
@@ -41,11 +43,11 @@ const words = catalog({
     paidAnother: "Paid another way",
     creditOffYour: "Nothing to pay: the credit comes off your next bill",
     wasCancelled: "Nothing to pay: it was cancelled",
-    bankOnWay: "A bank payment is on its way",
     notPaidBy: (day: string) => `Not paid by ${day}`,
     didntGo: (day: string) => `Payment didn't go through ${day}`,
-    // one the payment service is trying again, which we see to
-    // the badge says it's pending; "started", as "tried" reads as failed
+    // one the payment service is trying again, which we see to, or a bank
+    // debit on its way: the badge says it's pending; "started", as "tried"
+    // reads as failed
     notYet: (day: string) => `Payment started ${day}`,
     toPayBy: (day: string) => `To pay by ${day}`,
     toBeCharged: "To be charged to your card",
@@ -57,14 +59,20 @@ const words = catalog({
     covers: "The week it covers",
     made: "Made",
     howPaid: "How it's paid",
-    onItsPage: "On its page, by card or bank",
+    // the Client reads it on that page, as "Paid on this page" (#534's UX
+    // review U15); the Office reads where the Client pays it
+    onThisPage: "On this page, by card or bank account",
+    // while its bank debit is on its way (#534's UX review U17)
+    fromYourBank: "From your bank account",
     whatFor: "What it's for",
     taxIncluded: "Tax included",
     print: "Print",
   },
   es: {
     cancelled: "Cancelada",
-    due: "Pendiente",
+    // not "Pendiente", which reads as Pago pendiente, a payment on its way
+    // (#534's UX review U13): what's to pay, as Payments' card says it
+    due: "Por pagar",
     credit: "Crédito",
     nothingToPay: "Nada que pagar",
     paid: "Pagada",
@@ -78,7 +86,6 @@ const words = catalog({
     creditOffYour:
       "Nada que pagar: el crédito se descuenta de su próxima factura",
     wasCancelled: "Nada que pagar: se canceló",
-    bankOnWay: "Hay un pago bancario en camino",
     notPaidBy: (day: string) => `No se pagó antes del ${day}`,
     didntGo: (day: string) => `El pago no pasó el ${day}`,
     notYet: (day: string) => `Pago iniciado el ${day}`,
@@ -92,7 +99,8 @@ const words = catalog({
     covers: "La semana que cubre",
     made: "Emitida",
     howPaid: "Cómo se paga",
-    onItsPage: "En su página, con tarjeta o banco",
+    onThisPage: "En esta página, con tarjeta o cuenta bancaria",
+    fromYourBank: "De su cuenta bancaria",
     whatFor: "Para qué es",
     taxIncluded: "Impuestos incluidos",
     print: "Imprimir",
@@ -106,16 +114,23 @@ type T = Said & { w: (typeof words)["en"] };
 export function BillStatusBadge({
   bill,
 }: {
-  bill: Pick<BillSummary, "status" | "unpaid" | "totalCents">;
+  bill: Pick<BillSummary, "status" | "unpaid" | "paying" | "totalCents">;
 }) {
-  const { w, unpaid, clearing, paymentPending } = useSaid(words);
+  const { w, unpaid, paymentPending } = useSaid(words);
   if (bill.status === "void") return <StatusBadge>{w.cancelled}</StatusBadge>;
-  if (bill.status === "processing")
-    return <StatusBadge tone="info">{clearing}</StatusBadge>;
-  // one we try again ourselves waits on us (ADR-0022), as a clean's does
-  if (bill.unpaid && !asksTheClient(bill.unpaid.kind))
+  // a bank debit on its way, and one we try again ourselves, wait on us
+  // (ADR-0022), as a clean's does: one word for one wait, however long it
+  // takes, as the Client does nothing in either (#534's UX review U1)
+  if (
+    bill.status === "processing" ||
+    (bill.unpaid && !asksTheClient(bill.unpaid.kind))
+  )
     return <StatusBadge tone="info">{paymentPending}</StatusBadge>;
-  if (bill.unpaid) return <StatusBadge tone="danger">{unpaid}</StatusBadge>;
+  // the Client's last payment on its page didn't go through, as a card we
+  // charged that was declined: one event, one badge, however it's paid.
+  // One their bank asks them to approve is still Due, theirs to finish
+  if (bill.unpaid || bill.paying?.status === "failed")
+    return <StatusBadge tone="danger">{unpaid}</StatusBadge>;
   if (bill.status === "due")
     return <StatusBadge tone="warning">{w.due}</StatusBadge>;
   if (bill.totalCents < 0) return <StatusBadge>{w.credit}</StatusBadge>;
@@ -153,7 +168,7 @@ export const billLine = (lang: Language, bill: BillSummary) => {
 // how it was paid, for whoever is looking
 const paidHow = (t: T, bill: BillView, forClient: boolean) => {
   const { w } = t;
-  const on = bill.paidAt ? `, ${t.formatDate(bill.paidAt)}` : "";
+  const on = bill.paidAt ? `, ${t.dayOf(bill.paidAt)}` : "";
   switch (bill.paidVia) {
     case "charge":
       return `${forClient ? w.chargedToYour : "Charged to their card"}${on}`;
@@ -176,13 +191,22 @@ const paidHow = (t: T, bill: BillView, forClient: boolean) => {
 const nowLine = (t: T, bill: BillView, forClient: boolean) => {
   const { w } = t;
   if (bill.status === "void") return w.wasCancelled;
-  if (bill.status === "processing") return w.bankOnWay;
+  // since when, as its alert says how long it usually takes (U2)
+  if (bill.status === "processing")
+    return w.notYet(t.dayOf(bill.clearingSince!));
   if (bill.unpaid)
     return bill.unpaid.kind === "late"
       ? w.notPaidBy(t.formatDay(bill.dueOn))
       : asksTheClient(bill.unpaid.kind)
-        ? w.didntGo(t.formatDate(bill.unpaid.since))
-        : w.notYet(t.formatDate(bill.unpaid.since));
+        ? w.didntGo(t.dayOf(bill.unpaid.since))
+        : // to the minute for the Office, whose alert says it usually
+          // takes under half an hour, so Olive can tell when it's stuck
+          // (#534's UX review U9)
+          w.notYet(
+            forClient
+              ? t.dayOf(bill.unpaid.since)
+              : t.formatDateTime(bill.unpaid.since),
+          );
   if (bill.status === "due")
     return bill.payment === "on_page"
       ? w.toPayBy(t.formatDay(bill.dueOn))
@@ -201,7 +225,7 @@ const cancelledFact = (t: T, bill: BillView) =>
   bill.status === "void" && {
     icon: Ban,
     label: t.w.cancelled,
-    value: t.w.cancelledOn(t.formatDate(bill.voidedAt!)),
+    value: t.w.cancelledOn(t.dayOf(bill.voidedAt!)),
     line: bill.voidReason ?? t.w.cancelled,
   };
 
@@ -223,10 +247,63 @@ export function BillDetail({
   jobHref: (jobId: string) => AppHref;
 }) {
   const t = useSaid(words);
-  const { w, formatDate, formatDay, formatMoney, taxIncludedOf, total } = t;
+  const { w, p, dayOf, formatDay, formatMoney, taxIncludedOf, total } = t;
   const credit = bill.totalCents < 0;
   const standing = cancelledFact(t, bill);
   const row = "flex items-start justify-between gap-6";
+  // the week, when made, where when said, how it's paid, and how it stands
+  // when said
+  const facts = [
+    <Fact
+      key="week"
+      icon={CalendarRange}
+      label={w.week}
+      value={w.weekRange(formatDay(bill.weekStart), formatDay(bill.weekEnd))}
+      line={w.covers}
+    />,
+    <Fact
+      key="made"
+      icon={CalendarDays}
+      label={w.made}
+      value={dayOf(bill.madeAt)}
+    />,
+    // its cleans' home, when all at one and it's worth saying; else
+    // each row says its own (#534's UX review U8)
+    bill.home && (
+      <Fact key="where" icon={MapPin} label={p.where} value={bill.home} />
+    ),
+    <Fact
+      key="paid"
+      icon={CreditCard}
+      label={w.howPaid}
+      value={
+        bill.payment !== "on_page"
+          ? forClient
+            ? w.fromYourCard
+            : "From their card, automatically"
+          : // its bank debit on its way, from their bank, as there's
+            // no paying on its page meanwhile (#534's UX review U17)
+            bill.status === "processing"
+            ? forClient
+              ? w.fromYourBank
+              : "From their bank account"
+            : forClient
+              ? w.onThisPage
+              : "On its page, by card or bank account"
+      }
+    />,
+    standing && (
+      <Fact
+        key="standing"
+        icon={standing.icon}
+        label={standing.label}
+        value={
+          <span className="[overflow-wrap:anywhere]">{standing.value}</span>
+        }
+        line={standing.line}
+      />
+    ),
+  ].filter(Boolean);
 
   return (
     <DetailsCard
@@ -242,43 +319,9 @@ export function BillDetail({
       }
       line={nowLine(t, bill, forClient)}
     >
-      <Facts>
-        <Fact
-          icon={CalendarRange}
-          label={w.week}
-          value={w.weekRange(
-            formatDay(bill.weekStart),
-            formatDay(bill.weekEnd),
-          )}
-          line={w.covers}
-        />
-        <Fact
-          icon={CalendarDays}
-          label={w.made}
-          value={formatDate(bill.madeAt)}
-        />
-        <Fact
-          icon={CreditCard}
-          label={w.howPaid}
-          value={
-            bill.payment === "on_page"
-              ? w.onItsPage
-              : forClient
-                ? w.fromYourCard
-                : "From their card, automatically"
-          }
-        />
-        {standing && (
-          <Fact
-            icon={standing.icon}
-            label={standing.label}
-            value={
-              <span className="[overflow-wrap:anywhere]">{standing.value}</span>
-            }
-            line={standing.line}
-          />
-        )}
-      </Facts>
+      {/* as many columns as its facts take, so none sits alone in a part
+          of a row (#534's UX review U20) */}
+      <Facts columns={factColumns(facts.length)}>{facts}</Facts>
       <div className="flex flex-col gap-3 border-t border-border pt-4">
         {/* the tax is said by the total's label and its own line below */}
         <p className="font-semibold text-fg">{w.whatFor}</p>

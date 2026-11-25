@@ -142,6 +142,47 @@ describe("Stripe's refusals", () => {
       stripe.refund({ chargeId: "pi_1", amount: 1000, idempotencyKey: "r" }),
     ).rejects.toBe(error);
   });
+
+  // #534, N8: Stripe turning down our key, or what it may do, is ours to
+  // fix, not the Client's card. Read as a refusal, their card read declined
+  // and they were emailed to change it. Stripe took nothing, so it throws,
+  // as for an outage: the payment waits, the Clock asks again once it's
+  // fixed, and the caller signals it urgently meanwhile
+  test.each([
+    [
+      "our key is refused",
+      new Stripe.errors.StripeAuthenticationError({
+        type: "invalid_request_error",
+        message: "Invalid API Key provided: sk_test_****",
+      }),
+    ],
+    [
+      "our key may not do it",
+      new Stripe.errors.StripePermissionError({
+        type: "invalid_request_error",
+        message: "The provided key does not have the required permissions.",
+      }),
+    ],
+  ])("when %s, it throws", async (_, error) => {
+    const { stripe, client } = gateway();
+    vi.spyOn(client.paymentIntents, "create").mockRejectedValue(error);
+    vi.spyOn(client.refunds, "create").mockRejectedValue(error);
+
+    await expect(charge(stripe)).rejects.toBe(error);
+    await expect(
+      stripe.payBill({
+        payerId: "cus_1",
+        token: "ctoken_1",
+        amount: 4200,
+        description: "Bill EC-000001",
+        reference: "bill_1",
+        idempotencyKey: "bill:1",
+      }),
+    ).rejects.toBe(error);
+    await expect(
+      stripe.refund({ chargeId: "pi_1", amount: 1000, idempotencyKey: "r" }),
+    ).rejects.toBe(error);
+  });
 });
 
 // #241, finding 3: no test card does this off-session, so a bank debit's

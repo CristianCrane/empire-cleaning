@@ -26,7 +26,6 @@ import {
   offerAssignment,
 } from "../../src/features/assignments/index.ts";
 import {
-  inPaymentsSandbox,
   installFakes,
   resetDatabase,
   testClock,
@@ -56,6 +55,7 @@ import {
 } from "../../src/features/reschedule/index.ts";
 import { generateServicePlanJobs } from "../../src/features/service-plans/index.ts";
 import { chaseBills } from "../../src/features/bills/index.ts";
+import { settleOpenPayments } from "../../src/features/payments/index.ts";
 import { bookSiteVisit } from "../../src/features/site-visits/index.ts";
 import { properties } from "../../src/features/properties/index.ts";
 import { quotes } from "../../src/features/quotes/quotes.schema.ts";
@@ -66,14 +66,8 @@ import { accounts } from "../../src/features/auth/auth.schema.ts";
 const CONTROL_PORT = Number(process.env.E2E_CONTROL_PORT ?? 3101);
 
 // fresh fakes, whose payments the browser's test form makes: a Bill paid on
-// its page is paid by card unless a test says otherwise. The sandbox run's
-// browser pays Stripe itself
-const freshFakes = () => {
-  installFakes();
-  if (!inPaymentsSandbox) testPayments().payBillsInBrowser("card");
-};
-
-freshFakes();
+// its page is paid by card unless a test says otherwise
+installFakes();
 await listen(app, env.PORT);
 console.log(`e2e API on port ${env.PORT}`);
 
@@ -107,7 +101,7 @@ control.get("/health", (_req, res) => {
 
 // a clean slate before each test
 control.post("/reset", async (_req, res) => {
-  freshFakes();
+  installFakes();
   freshHomes();
   await resetDatabase();
   res.json({ status: "ok" });
@@ -260,11 +254,18 @@ control.post("/bills/chase", async (_req, res) => {
   res.json({ sent: await chaseBills() });
 });
 
+// what the server's Clock does every 10 minutes: a payment left waiting on
+// the Client's bank past its wait is called off, one gone quiet is looked up
+control.post("/payments/settle", async (_req, res) => {
+  await settleOpenPayments();
+  res.json({ status: "ok" });
+});
+
 // how the test payment form pays a Bill: by card, or a bank debit that stays
 // processing
 control.post("/payments/bills-in-browser", (req, res) => {
   const { by } = req.body as { by: "card" | "bank" };
-  testPayments().payBillsInBrowser(by);
+  testPayments().payBillsBy(by);
   res.json({ status: "ok" });
 });
 

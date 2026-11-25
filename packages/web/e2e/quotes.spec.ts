@@ -286,13 +286,13 @@ test("Office Staff pick a Draft's proposed time from its open times", async ({
     part.getByRole("button", { name: "Tue, Jan 13, picked" }),
   ).toBeVisible();
   await expect(
-    morning.getByRole("button", { name: /^10:30 AM\s?to \d+:\d\d (AM|PM)$/ }),
+    morning.getByRole("button", { name: /^10:30\sAM\s?to \d+:\d\d\s(AM|PM)$/ }),
   ).toHaveAttribute("aria-pressed", "true");
 
   await page.reload();
   await expect(
     page.getByRole("button", {
-      name: /^Proposed time\s*Tue, Jan 13 · 10:30 AM to /,
+      name: /^Proposed time\s*Tue, Jan 13 · 10:30\sAM to /,
     }),
   ).toHaveAttribute("aria-expanded", "false");
   await send(page);
@@ -740,12 +740,12 @@ test("the draft says when the proposed time has no room for a clean", async ({
   await proposed.getByRole("button", { name: "Next week" }).click();
   const picked = proposed.getByRole("status").filter({ hasText: "Picked" });
   await expect(picked).toContainText(
-    /Picked: Tue, Jan 13, 10:00 AM to [\d:]+ [AP]M, which has room\./,
+    /Picked: Tue, Jan 13, 10:00\sAM to [\d:]+\s[AP]M, which has room\./,
   );
   await picked.getByRole("button", { name: "Show it" }).click();
   await expect(picked).toBeHidden();
   await expect(
-    proposed.getByRole("button", { name: /^10:00 AM/, pressed: true }),
+    proposed.getByRole("button", { name: /^10:00\sAM/, pressed: true }),
   ).toBeVisible();
 
   // from 10pm the Deep Clean, 2.5 hours on site, would run past midnight,

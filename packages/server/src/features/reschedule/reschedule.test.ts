@@ -179,7 +179,7 @@ describe("asking to move a Job", () => {
 
     const email = testEmail().lastTo("olive@example.com");
     expect(email.subject).toBe("Casey Client asked to move a job");
-    expect(email.text).toContain("Wednesday, January 14 at 10:00 AM");
+    expect(email.text).toContain("Wednesday, January 14 at 10:00\u00a0AM");
 
     // the Client's Home shows it's waiting on the Office
     expect(await movingTo(client)).toEqual([WEDNESDAY_10AM]);
@@ -388,7 +388,7 @@ describe("Office Staff answering", () => {
     const toCasey = testEmail().lastTo(casey.email);
     expect(toCasey.subject).toBe("Your clean has moved");
     expect(toCasey.text).toContain(
-      "When: Wednesday, January 14 at 10:00 AM\nWas: Monday, January 12 at 9:00 AM",
+      "When: Wednesday, January 14 at 10:00\u00a0AM\nWas: Monday, January 12 at 9:00\u00a0AM",
     );
     expect(toCasey.text).toContain("There's no charge for moving it.");
     const toCory = testEmail().lastTo("cory@example.com");
