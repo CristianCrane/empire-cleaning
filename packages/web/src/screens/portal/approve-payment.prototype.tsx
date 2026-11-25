@@ -1150,6 +1150,9 @@ function EmailsPage({ layout }: { layout: Layout }) {
         >
           <p>Hi Ada,</p>
           <p>We've skipped your clean, as you asked.</p>
+          <p className="text-fg-muted">
+            Standard Clean · Thursday, November 26 at 9:00 AM · {HOME}
+          </p>
           <p>
             Skipping it less than 24 hours before is a late cancellation, with a{" "}
             {fee} fee, that clean's share of your plan's deposit. Your deposit
@@ -1240,7 +1243,6 @@ function OfficeJobPage() {
 }
 
 function OfficeBillPage() {
-  const f = formats.en;
   return (
     <OfficeFrame current="Clients">
       <RecordPage
@@ -1272,8 +1274,7 @@ function OfficeBillPage() {
             children: (
               <p>
                 <strong>
-                  Ada's bank wants her to approve the{" "}
-                  {f.formatMoney(BILL.totalCents)} payment.
+                  Ada's bank wants her to approve this bill's payment.
                 </strong>{" "}
                 Nothing was taken. We've emailed her to approve it on the bill's
                 page. Until it's paid, Ada's cleaning plan at 41-12 Austin St is
