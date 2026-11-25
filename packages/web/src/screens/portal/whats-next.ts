@@ -103,18 +103,18 @@ const words = catalog({
     // plan its new days; then at which home (atHome)
     newQuote: "We'll send a new quote",
     filled: (when: string, service: string) =>
-      `${when} is fully booked, so your quote for ${service} can't be booked.`,
+      `${when} has filled up, so your quote for ${service} can't be accepted.`,
     planFilled:
-      "One of the days your plan starts on is fully booked, so its quote can't be booked.",
+      "One of the days your plan starts on has filled up, so its quote can't be accepted.",
     changeFilled:
-      "One of the new days for your plan is fully booked, so the change can't be booked. Your plan stays as it is.",
+      "One of the new days for your plan has filled up, so the change can't be accepted. Your plan stays as it is.",
     // and as News, under another card, naming the quote
     filledNews: (when: string, service: string, address: string) =>
-      `${when} is fully booked, so your quote for ${service} at ${address} can't be booked.`,
+      `${when} has filled up, so your quote for ${service} at ${address} can't be accepted.`,
     planFilledNews: (address: string) =>
-      `One of the days your cleaning plan at ${address} starts on is fully booked, so its quote can't be booked.`,
+      `One of the days your cleaning plan at ${address} starts on has filled up, so its quote can't be accepted.`,
     changeFilledNews: (address: string) =>
-      `One of the new days for your cleaning plan at ${address} is fully booked, so the change can't be booked. Your plan stays as it is, and we'll send you a new quote for another time.`,
+      `One of the new days for your cleaning plan at ${address} has filled up, so the change can't be accepted. Your plan stays as it is, and we'll send you a new quote for another time.`,
     seeAsked: "See what you asked for",
     beforeWeQuote: "Before we quote",
     callToArrange: "We'll call to arrange a visit",
@@ -187,17 +187,17 @@ const words = catalog({
     atHome: (address: string) => `En ${address}`,
     newQuote: "Le enviaremos una nueva cotización",
     filled: (when: string, service: string) =>
-      `El ${when} ya está lleno, así que su cotización de ${service} no se puede reservar.`,
+      `El ${when} ya se llenó, así que su cotización de ${service} no se puede aceptar.`,
     planFilled:
-      "Uno de los días en que empieza su plan se llenó, así que su cotización no se puede reservar.",
+      "Uno de los días en que empieza su plan se llenó, así que su cotización no se puede aceptar.",
     changeFilled:
-      "Uno de los nuevos días de su plan se llenó, así que el cambio no se puede reservar. Su plan sigue como está.",
+      "Uno de los nuevos días de su plan se llenó, así que el cambio no se puede aceptar. Su plan sigue como está.",
     filledNews: (when: string, service: string, address: string) =>
-      `El ${when} ya está lleno, así que su cotización de ${service} en ${address} no se puede reservar.`,
+      `El ${when} ya se llenó, así que su cotización de ${service} en ${address} no se puede aceptar.`,
     planFilledNews: (address: string) =>
-      `Uno de los días en que empieza su plan de limpieza en ${address} se llenó, así que su cotización no se puede reservar.`,
+      `Uno de los días en que empieza su plan de limpieza en ${address} se llenó, así que su cotización no se puede aceptar.`,
     changeFilledNews: (address: string) =>
-      `Uno de los nuevos días de su plan de limpieza en ${address} se llenó, así que el cambio no se puede reservar. Su plan sigue como está, y le enviaremos una nueva cotización para otra hora.`,
+      `Uno de los nuevos días de su plan de limpieza en ${address} se llenó, así que el cambio no se puede aceptar. Su plan sigue como está, y le enviaremos una nueva cotización para otra hora.`,
     seeAsked: "Ver lo que pidió",
     beforeWeQuote: "Antes de cotizar",
     callToArrange: "Le llamaremos para programar una visita",

@@ -85,7 +85,7 @@ export const quotes = catalog({
           plan: "one of the days your plan starts on has",
           change: "one of the new days for your plan has",
         }[filled]
-      } been fully booked since we sent this quote, so it can't be accepted.`,
+      } filled up since we sent this quote, so it can't be accepted.`,
   },
   es: {
     thisPlace: (kind: PropertyKind) =>

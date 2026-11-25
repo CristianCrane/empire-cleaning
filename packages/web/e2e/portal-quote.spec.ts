@@ -84,7 +84,9 @@ test("a quote whose day filled up is told on Home and by its home, with nothing 
   // what comes next leads, then which time filled (#534's UX review U1)
   await expect(page.getByText("We'll send a new quote")).toBeVisible();
   await expect(
-    page.getByText(/^Mon, Jan 12, 9:00\sAM is fully booked/),
+    page.getByText(
+      /^Mon, Jan 12, 9:00\sAM has filled up, so your quote for Deep Clean can't be accepted\.$/,
+    ),
   ).toBeVisible();
   await expect(page.getByText("Quote ready", { exact: true })).toHaveCount(0);
 });
@@ -99,10 +101,10 @@ test("a quote whose day filled up has nothing next, declining its one action", a
   await quote(page, "Your quote from Empire Cleaning");
   const bookedUp = page
     .getByRole("status")
-    .filter({ hasText: "has been fully booked" });
+    .filter({ hasText: "has filled up" });
   // we are the team: it says what we'll do
   await expect(bookedUp).toHaveText(
-    "Sorry, Mon, Jan 12, 9:00 AM has been fully booked since we sent this quote, so it can't be accepted. We'll send you a new quote for another time.",
+    "Sorry, Mon, Jan 12, 9:00 AM has filled up since we sent this quote, so it can't be accepted. We'll send you a new quote for another time.",
   );
   // nothing to pay for and nothing waits on them, but they can still say
   // no: the page's one action, not the alert's

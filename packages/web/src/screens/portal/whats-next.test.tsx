@@ -924,7 +924,7 @@ describe("Home, with a quote whose time filled since it was sent (#534)", () => 
       tone: "info",
       headline: "We'll send a new quote",
       lines: [
-        "Sun, Nov 8, 10:00\u00a0AM is fully booked, so your quote for Standard Clean can't be booked.",
+        "Sun, Nov 8, 10:00\u00a0AM has filled up, so your quote for Standard Clean can't be accepted.",
         "At 12 Elm St, 4B, 11375",
       ],
       action: { label: "See your quote", secondary: true },
@@ -940,7 +940,7 @@ describe("Home, with a quote whose time filled since it was sent (#534)", () => 
 
   test("a plan's names the days, not one time, and its home", () => {
     expect(next({ quotes: [planQuote({ bookable: [] })] }).hero.lines).toEqual([
-      "One of the days your plan starts on is fully booked, so its quote can't be booked.",
+      "One of the days your plan starts on has filled up, so its quote can't be accepted.",
       "At 12 Elm St, 4B, 11375",
     ]);
     // a change to the plan they have: its new days
@@ -949,18 +949,18 @@ describe("Home, with a quote whose time filled since it was sent (#534)", () => 
         quotes: [planQuote({ bookable: [], homePlanId: "plan" })],
       }).hero.lines[0],
     ).toBe(
-      "One of the new days for your plan is fully booked, so the change can't be booked. Your plan stays as it is.",
+      "One of the new days for your plan has filled up, so the change can't be accepted. Your plan stays as it is.",
     );
   });
 
   test("under something ahead of it, News naming the quote", () => {
     expect(next({ jobs: [job()], quotes: [fullyBooked] }).news).toEqual([
-      `Sun, Nov 8, 10:00 AM is fully booked, so your quote for Standard Clean at 12 Elm St, 4B, 11375 can't be booked. ${NEW_QUOTE}`,
+      `Sun, Nov 8, 10:00 AM has filled up, so your quote for Standard Clean at 12 Elm St, 4B, 11375 can't be accepted. ${NEW_QUOTE}`,
     ]);
     expect(
       next({ jobs: [job()], quotes: [planQuote({ bookable: [] })] }).news,
     ).toEqual([
-      `One of the days your cleaning plan at 12 Elm St, 4B, 11375 starts on is fully booked, so its quote can't be booked. ${NEW_QUOTE}`,
+      `One of the days your cleaning plan at 12 Elm St, 4B, 11375 starts on has filled up, so its quote can't be accepted. ${NEW_QUOTE}`,
     ]);
     expect(
       next({
@@ -968,7 +968,7 @@ describe("Home, with a quote whose time filled since it was sent (#534)", () => 
         quotes: [planQuote({ bookable: [], homePlanId: "plan" })],
       }).news,
     ).toEqual([
-      "One of the new days for your cleaning plan at 12 Elm St, 4B, 11375 is fully booked, so the change can't be booked. Your plan stays as it is, and we'll send you a new quote for another time.",
+      "One of the new days for your cleaning plan at 12 Elm St, 4B, 11375 has filled up, so the change can't be accepted. Your plan stays as it is, and we'll send you a new quote for another time.",
     ]);
   });
 
@@ -996,7 +996,7 @@ describe("Home, with a quote whose time filled since it was sent (#534)", () => 
     });
     expect(hero.label).toBe("Payment pending");
     expect(news).toEqual([
-      `Sun, Nov 8, 10:00 AM is fully booked, so your quote for Deep Clean at 12 Elm St, 4B, 11375 can't be booked. ${NEW_QUOTE}`,
+      `Sun, Nov 8, 10:00 AM has filled up, so your quote for Deep Clean at 12 Elm St, 4B, 11375 can't be accepted. ${NEW_QUOTE}`,
     ]);
   });
 });
