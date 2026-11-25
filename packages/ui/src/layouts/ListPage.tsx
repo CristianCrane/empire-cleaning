@@ -7,7 +7,7 @@ import {
 } from "react";
 import type { SortDescriptor } from "react-aria-components";
 import { Search, type LucideIcon } from "lucide-react";
-import { dayOf, formats, type Language } from "@empire-cleaning/models";
+import { dayOf, formats, lineOf, type Language } from "@empire-cleaning/models";
 import { Button } from "../Button.tsx";
 import { DateTile } from "../DateTile.tsx";
 import { EmptyState } from "../EmptyState.tsx";
@@ -88,8 +88,9 @@ export type ListSearch = {
 // - Its PageHeader: the title, in a phone's top bar, and at most one
 //   primary, for making a new one.
 // - Its Tabs, the one way it splits, each with its count.
-// - A search, at the end of the Tabs' line from md and behind an icon on a
-//   phone, that looks through every Tab while the Tabs step aside.
+// - A search at the end of the Tabs' line: a field from md, an icon that
+//   opens one on a phone (so it never takes a row of its own once the bar
+//   holds the title); it looks through every Tab while the Tabs step aside.
 // - Its rows: a Table from md when it has columns (an Office list), by
 //   month when they're dated, 50 at a time, then Show more.
 // - With nothing in it at all, its empty state: the primary, moved there
@@ -141,7 +142,8 @@ export function ListPage<T>({
     : (tabs.find((t) => t.id === tab)?.count ?? 0);
   const nothing = !searching && tabs.every((t) => t.count === 0);
 
-  // kept where it is as a search starts, so typing goes on in it
+  // kept where it is as a search starts, so typing goes on in it: in the
+  // Tabs' line on a wide screen, under it on a phone
   const field = search && (
     <TextField
       label={search.label}
@@ -205,13 +207,27 @@ export function ListPage<T>({
               </TabList>
             )}
           </div>
-          {wide && field}
+          {wide
+            ? field
+            : search && (
+                <Button
+                  variant="quiet"
+                  size="icon"
+                  aria-label={search.label}
+                  aria-expanded={opened || searching}
+                  onPress={() => setOpened((o) => !o)}
+                >
+                  <Search aria-hidden size={20} />
+                </Button>
+              )}
           {searching && (
             <Button variant="text" onPress={clear}>
               {words.clearSearch}
             </Button>
           )}
         </div>
+        {/* a phone's field opens under the line whose icon opened it */}
+        {!wide && (opened || searching) && field}
         {!searching &&
           tabs.map((t) => (
             <TabPanel key={t.id} id={t.id}>
@@ -231,23 +247,7 @@ export function ListPage<T>({
         inBar
         // with nothing in it, the empty state holds it instead
         primary={nothing ? undefined : primary}
-        tools={
-          search &&
-          !wide &&
-          !nothing && (
-            <Button
-              variant="quiet"
-              size="icon"
-              aria-label={search.label}
-              aria-expanded={opened || searching}
-              onPress={() => setOpened((o) => !o)}
-            >
-              <Search aria-hidden size={20} />
-            </Button>
-          )
-        }
       />
-      {!wide && (opened || searching) && field}
       {list}
       {found}
     </div>
@@ -291,7 +291,8 @@ export function byMonth<X>(lang: Language, items: X[], at: (x: X) => string) {
 
 // A dated row (docs/ux.md, "Dated things a person scans are grouped by
 // month"): a small DateTile, then the weekday and time, then `title`, what
-// the person looking tells it apart by. The tile is decorative, so its date
+// the person looking tells it apart by, left out when the page above says
+// it for every row (a plan's cleans). The tile is decorative, so its date
 // is said to a screen reader before the time
 export function DatedItem({
   id,
@@ -303,7 +304,7 @@ export function DatedItem({
 }: {
   id: string;
   at: string;
-  title: string;
+  title?: string;
   description?: ReactNode;
   end?: ReactNode;
   onAction?: () => void;
@@ -313,14 +314,43 @@ export function DatedItem({
   return (
     <ListItem
       id={id}
-      textValue={`${formatDateTime(at)} · ${title}`}
+      textValue={lineOf([formatDateTime(at), title])}
       heard={formatDate(at)}
-      title={`${dateTile(at).weekday} ${formatTime(at)} · ${title}`}
+      // its dot glued, so a wrap never leaves it at a line's end
+      title={lineOf([`${dateTile(at).weekday} ${formatTime(at)}`, title])}
       start={<DateTile date={at} size="sm" />}
       description={description}
       end={end}
       onAction={onAction}
     />
+  );
+}
+
+// dated things by month, each month a List under its name: a dated
+// ListPage's rows, or a Section's (a plan's cleans)
+export function DatedLists<X>({
+  label,
+  items,
+  at,
+  item,
+  level = 2,
+}: {
+  // the list's name; each month's List is named for it and the month
+  label: string;
+  items: X[];
+  at: (x: X) => string;
+  item: (x: X) => ReactNode;
+  // the months' place in the page outline: 3 inside a Section
+  level?: 2 | 3;
+}) {
+  return (
+    <div className="flex flex-col gap-6">
+      {byMonth(useLanguage(), items, at).map(({ month, items: xs }) => (
+        <Month key={month} month={month} level={level}>
+          <List aria-label={`${label}, ${month}`}>{xs.map(item)}</List>
+        </Month>
+      ))}
+    </div>
   );
 }
 
@@ -401,10 +431,7 @@ function ListBody<T>({
   if (rows.length === 0)
     return none && <p className="p-6 text-center text-fg-muted">{none}</p>;
   // a dated list by month, at every width
-  const months = rows.every((r) => r.row.at)
-    ? byMonth(lang, rows, (r) => r.row.at!)
-    : null;
-  const named = (month: string) => `${label}, ${month}`;
+  const dated = rows.every((r) => r.row.at);
 
   let list: ReactNode;
   if (columns) {
@@ -416,7 +443,7 @@ function ListBody<T>({
       <Table
         aria-label={name}
         // a month's Table lines up with the next one's
-        className={months ? "table-fixed" : undefined}
+        className={dated ? "table-fixed" : undefined}
         sortDescriptor={sort?.descriptor}
         onSortChange={sort?.onChange}
       >
@@ -456,22 +483,23 @@ function ListBody<T>({
         </TableBody>
       </Table>
     );
-    list = months
-      ? months.map(({ month, items: rs }) => (
+    list = dated
+      ? byMonth(lang, rows, (r) => r.row.at!).map(({ month, items: rs }) => (
           <Month key={month} month={month}>
-            {table(named(month), rs)}
+            {table(`${label}, ${month}`, rs)}
           </Month>
         ))
       : table(label, rows);
   } else {
     const item = ({ row: r }: (typeof rows)[number]) =>
       listRowItem(r, searching);
-    list = months ? (
-      months.map(({ month, items: rs }) => (
-        <Month key={month} month={month}>
-          <List aria-label={named(month)}>{rs.map(item)}</List>
-        </Month>
-      ))
+    list = dated ? (
+      <DatedLists
+        label={label}
+        items={rows}
+        at={(r) => r.row.at!}
+        item={item}
+      />
     ) : (
       <List aria-label={label}>{rows.map(item)}</List>
     );
@@ -494,10 +522,18 @@ function ListBody<T>({
 }
 
 // a month of a dated list, under its name
-function Month({ month, children }: { month: string; children: ReactNode }) {
+function Month({
+  month,
+  level = 2,
+  children,
+}: {
+  month: string;
+  level?: 2 | 3;
+  children: ReactNode;
+}) {
   return (
     <section className="flex flex-col gap-2">
-      <Heading level={2} size={4} className="text-fg-muted">
+      <Heading level={level} size={4} className="text-fg-muted">
         {month}
       </Heading>
       {children}

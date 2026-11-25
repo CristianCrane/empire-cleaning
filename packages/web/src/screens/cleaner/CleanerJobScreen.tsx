@@ -14,6 +14,7 @@ import {
   business,
   catalog,
   firstNameOf,
+  howLong,
   type CleanerJob,
 } from "@empire-cleaning/models";
 import {
@@ -33,7 +34,7 @@ import {
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction, useLeavingAction } from "../action.ts";
-import { addressOf, howLong } from "../format.ts";
+import { addressOf } from "../format.ts";
 import { jobStatusIcon } from "../icons.ts";
 import { type Said, useSaid } from "../words.ts";
 import { CleanerJobBadge, directionsTo } from "./CleanerHome.tsx";

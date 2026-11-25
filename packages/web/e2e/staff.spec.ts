@@ -222,14 +222,21 @@ test(
     await week.getByRole("button", { name: "Save usual week" }).click();
     await expect(page.getByText("Usual week saved")).toBeVisible();
 
-    // the 15th of next month, on the calendar
+    // the 16th of next month, a Monday, on the calendar
+    const sixteenth = () =>
+      page.getByRole("button", { name: /^\w{3}, \w{3} 16 / });
     const fifteenth = () =>
       page.getByRole("button", { name: /^\w{3}, \w{3} 15 / });
     await page.getByRole("button", { name: "Next month" }).click();
-    await fifteenth().click();
+    await sixteenth().click();
     const day = page.getByRole("dialog");
     await day.getByRole("textbox", { name: "Hours that day" }).fill("0");
     await day.getByRole("textbox", { name: "Note (optional)" }).fill("Holiday");
+    await day.getByRole("button", { name: "Save day" }).click();
+    await expect(page.getByText(/ 16 saved$/)).toBeVisible();
+    // the Sunday before, already off in the usual week, set off too
+    await fifteenth().click();
+    await day.getByRole("textbox", { name: "Hours that day" }).fill("0");
     await day.getByRole("button", { name: "Save day" }).click();
     await expect(page.getByText(/ 15 saved$/)).toBeVisible();
 
@@ -244,10 +251,15 @@ test(
     await week.getByRole("button", { name: "Cancel" }).click();
 
     await page.getByRole("button", { name: "Next month" }).click();
-    await expect(fifteenth()).toHaveAccessibleName(
-      / 15 Off \(differs from the usual week\)$/,
+    await expect(sixteenth()).toHaveAccessibleName(
+      / 16 Off \(differs from the usual week\)$/,
     );
-    await fifteenth().click();
+    // a usual day off set off again reads as the usual week does
+    await expect(fifteenth()).toHaveAccessibleName(/ 15 Off$/);
+    // the key goes and comes with the one tint the month shows
+    const key = page.getByText(/^Unlike the usual week:/);
+    await expect(key).toBeVisible();
+    await sixteenth().click();
     await expect(page.getByRole("dialog")).toContainText("Usually");
     await expect(
       page
@@ -256,9 +268,20 @@ test(
     ).toHaveValue("Holiday");
     await page.getByRole("button", { name: "Back to the usual week" }).click();
     await expect(
-      page.getByText(/ 15 is back to the usual week$/),
+      page.getByText(/ 16 is back to the usual week$/),
     ).toBeVisible();
-    await expect(fifteenth()).not.toHaveAccessibleName(/differs/);
+    await expect(sixteenth()).not.toHaveAccessibleName(/differs/);
+    await expect(key).toHaveCount(0);
+
+    // off again, the month ends tinted, its key naming the tint
+    await sixteenth().click();
+    await day.getByRole("textbox", { name: "Hours that day" }).fill("0");
+    await day.getByRole("button", { name: "Save day" }).click();
+    await expect(page.getByText(/ 16 saved$/)).toBeVisible();
+    await expect(sixteenth()).toHaveAccessibleName(
+      / 16 Off \(differs from the usual week\)$/,
+    );
+    await expect(key).toHaveText("Unlike the usual week: Day off");
   },
 );
 

@@ -1,6 +1,6 @@
 import { formats, messages } from "@empire-cleaning/models";
 import { expect, test } from "vitest";
-import { howLong } from "./format.ts";
+import { formatHours } from "./format.ts";
 
 const { planDayWhen } = messages.en;
 
@@ -21,15 +21,12 @@ test("planDayWhen says the weekday and time in New York, its time kept whole", (
   expect(planDayWhen("2026-11-02T14:00:00Z")).toBe("Mondays at 9:00\u00a0AM");
 });
 
-test("howLong says About once, for any of several it rounds, and the same hours once", () => {
-  const t = { about: (hours: string) => `About ${hours}` };
-  expect(howLong(t, 6)).toBe("6 h");
-  expect(howLong(t, 3.3)).toBe("About 3¼ h");
-  expect(howLong(t, 2, 3.75)).toBe("2 h + 3¾ h");
-  expect(howLong(t, 1.875, 3.75)).toBe("About 2 h + 3¾ h");
-  // the same on each weekday, once: not read as a sum
-  expect(howLong(t, 3.75, 3.75)).toBe("3¾ h");
-  expect(howLong(t, 1.875, 1.875)).toBe("About 2 h");
-  // one for each weekday, in order, while they differ
-  expect(howLong(t, 2, 3.75, 2)).toBe("2 h + 3¾ h + 2 h");
+// the Office reads a length as a person says it, to the minute: a crew's
+// hours on site are kept to the hundredth (#548)
+test("formatHours says hours and minutes, to the minute", () => {
+  expect(formatHours(1.63)).toBe("1 h 38 min");
+  expect(formatHours(3)).toBe("3 h");
+  expect(formatHours(0.75)).toBe("45 min");
+  expect(formatHours(1.08)).toBe("1 h 5 min");
+  expect(formatHours(0)).toBe("0 h");
 });

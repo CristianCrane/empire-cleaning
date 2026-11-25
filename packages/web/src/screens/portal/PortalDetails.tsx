@@ -13,10 +13,11 @@ import {
   StatusBadge,
   TextField,
   type DialogState,
+  Line,
 } from "@empire-cleaning/ui";
 import { patchJson } from "../../api.ts";
 import { useAction } from "../action.ts";
-import { addressOf, lineOf } from "../format.ts";
+import { addressOf } from "../format.ts";
 import { useSaid } from "../words.ts";
 import { standingOf } from "./properties.ts";
 
@@ -90,7 +91,7 @@ export function PortalDetails() {
         {
           id: "contact",
           title: w.contact,
-          summary: [client.name, client.email, client.phone].join(" · "),
+          summary: <Line parts={[client.name, client.email, client.phone]} />,
           dialog: (state) => <EditContact client={client} {...state} />,
         },
       ]}
@@ -103,7 +104,9 @@ export function PortalDetails() {
             id: p.id,
             title: addressOf(p),
             start: <IconTile icon={homeIcon(p.kind)} />,
-            description: lineOf([t.propertySummary(p), standing.line]),
+            description: (
+              <Line parts={[...t.propertyParts(p), standing.line]} />
+            ),
             badges: [
               <StatusBadge key="standing" tone={standing.tone}>
                 {standing.label}

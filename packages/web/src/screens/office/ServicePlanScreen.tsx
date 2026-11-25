@@ -10,12 +10,13 @@ import {
 import {
   type OfficeServicePlan,
   type UnplacedVisit,
-  weekdayOf,
   formats,
 } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
+  DatedItem,
+  DatedLists,
   DatePicker,
   Dialog,
   IconTile,
@@ -30,7 +31,7 @@ import {
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
-import { crewOf, dayOfInstant, timeOfDay, timeOfField } from "../format.ts";
+import { crewOf, planDayOn, timeOfDay, timeOfField } from "../format.ts";
 import {
   EndPlan,
   PlanCard,
@@ -44,7 +45,7 @@ import { homeTrail } from "./trails.ts";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
 
-const { formatDateTime, formatDay } = formats.en;
+const { formatDay } = formats.en;
 
 // where the Office opens what holds a plan On Hold
 export const officePlanLinks = {
@@ -152,34 +153,39 @@ export function PlanDetails({
   );
 }
 
-// every Job the plan booked, opening each: on an Ended plan's page. A
-// current plan's are in its home's History
+// every Job the plan booked, by month, opening each: on an Ended plan's
+// page, each badged, as done and called off sit together here. A current
+// plan's booked ones are in its home's Booked jobs, the rest in its History.
+// The plan's card names the Service, so a row is its day, time and crew
 function PlanJobs({ plan }: { plan: OfficeServicePlan }) {
   const navigate = useNavigate();
   return (
     <Section title="Jobs">
-      <List
-        aria-label="The plan's jobs"
-        renderEmptyState={() => (
-          <p className="p-4 text-center text-fg-muted">No jobs yet.</p>
-        )}
-      >
-        {plan.jobs.map((job) => (
-          <ListItem
-            key={job.id}
-            id={job.id}
-            title={formatDateTime(job.startsAt)}
-            description={crewOf(job.crew)}
-            end={<JobBadge job={job} />}
-            onAction={() =>
-              void navigate({
-                to: "/office/jobs/$jobId",
-                params: { jobId: job.id },
-              })
-            }
-          />
-        ))}
-      </List>
+      {plan.jobs.length > 0 ? (
+        <DatedLists
+          label="The plan's jobs"
+          level={3}
+          items={plan.jobs}
+          at={(job) => job.startsAt}
+          item={(job) => (
+            <DatedItem
+              key={job.id}
+              id={job.id}
+              at={job.startsAt}
+              description={crewOf(job.crew)}
+              end={<JobBadge job={job} />}
+              onAction={() =>
+                void navigate({
+                  to: "/office/jobs/$jobId",
+                  params: { jobId: job.id },
+                })
+              }
+            />
+          )}
+        />
+      ) : (
+        <p className="p-4 text-center text-fg-muted">No jobs yet.</p>
+      )}
     </Section>
   );
 }
@@ -234,10 +240,7 @@ function BookOrSkip({
   close,
 }: VisitProps & { close: () => void }) {
   // the weekday it came round on: its usual time, and its visit
-  const day =
-    plan.days.find(
-      (d) => weekdayOf(dayOfInstant(d.startsAt)) === weekdayOf(visit.dueOn),
-    ) ?? plan.days[0]!;
+  const day = planDayOn(plan.days, visit.dueOn) ?? plan.days[0]!;
   const usual = timeOfDay(day.startsAt);
   const [date, setDate] = useState<CalendarDate | null>(parseDate(visit.dueOn));
   const [time, setTime] = useState<Time | null>(parseTime(usual));

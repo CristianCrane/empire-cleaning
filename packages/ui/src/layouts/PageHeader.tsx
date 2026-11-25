@@ -44,7 +44,6 @@ export function PageHeader({
   actions = [],
   next,
   primary,
-  tools,
   summary,
   note,
 }: {
@@ -58,9 +57,6 @@ export function PageHeader({
   // its StatusBadge, or two
   status?: ReactNode;
   subtitle?: ReactNode;
-  // what else the layout keeps on the title row, before the actions (a
-  // phone's search icon)
-  tools?: ReactNode;
   // what the next step rests on (a Draft's price), in the header that
   // sticks, beside its actions: a picture of what the page says, so it's
   // not read out again
@@ -106,7 +102,6 @@ export function PageHeader({
     !trail &&
     !status &&
     !subtitle &&
-    !tools &&
     !primary &&
     !next &&
     more.length === 0;
@@ -135,7 +130,6 @@ export function PageHeader({
           </div>
           {subtitle && <p className="text-lg text-fg-muted">{subtitle}</p>}
         </div>
-        {tools && <div className="shrink-0 print:hidden">{tools}</div>}
         {primary && (
           <div className="shrink-0 print:hidden">
             <ActionButton action={primary} variant="primary" />

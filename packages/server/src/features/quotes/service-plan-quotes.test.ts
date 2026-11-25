@@ -765,7 +765,15 @@ describe("a Sent Service Plan Quote", () => {
       headlineServiceName: quote.service.name,
       headlineTotalCents: quote.offer!.plan!.roundTotalCents,
       planDays: 1,
+      changed: null,
     });
+    // the second names what it changed, the price with its terms
+    expect(newer.revisions[0]!.changed).toEqual([
+      "price",
+      "condition",
+      "planDiscount",
+      "recurrence",
+    ]);
     expect((await officeQuote(office, oneOff.id)).status).toBe("sent");
   });
 

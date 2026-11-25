@@ -1,18 +1,18 @@
 import { MessageSquarePlus } from "lucide-react";
-import type { Key } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
   type ClientView,
   type ServicePlanView,
   catalog,
+  howLong,
 } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
+  DatedItem,
+  DatedLists,
   Dialog,
   Form,
-  List,
-  ListItem,
   Notice,
   Section,
   TextField,
@@ -22,12 +22,12 @@ import {
 import { getJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { formatHours } from "../format.ts";
 import { useSaid } from "../words.ts";
 import { upcomingBadge } from "./clean-badge.tsx";
 import {
   PlanCard,
   PlanStatusBadge,
+  cleansSayingLength,
   useEndPlanAction,
   useOnHold,
 } from "../PlanParts.tsx";
@@ -42,7 +42,6 @@ const words = catalog({
     noneBooked: "No cleans booked.",
     noneJustNow:
       "No cleans booked just now. We'll be in touch about your next one.",
-    aboutOnSite: (hours: string) => `About ${hours} on site`,
     didntSend: "That didn't send. Please try again.",
     sent: "Sent. We'll send you a new cleaning plan quote.",
     askToChange: "Ask to change",
@@ -59,7 +58,6 @@ const words = catalog({
     noneBooked: "No hay limpiezas reservadas.",
     noneJustNow:
       "Por ahora no hay limpiezas reservadas. Le contactaremos sobre la próxima.",
-    aboutOnSite: (hours: string) => `Cerca de ${hours} en el lugar`,
     didntSend: "No se envió. Vuelva a intentarlo.",
     sent: "Enviado. Le enviaremos una nueva cotización de plan de limpieza.",
     askToChange: "Pedir un cambio",
@@ -78,8 +76,8 @@ export function PortalPlan() {
   const t = useSaid(words);
   const plan = useLoaderData({ from: "/portal/plans/$planId" });
   const navigate = useNavigate();
-  const openJob = (id: Key) =>
-    navigate({ to: "/portal/jobs/$jobId", params: { jobId: String(id) } });
+  const openJob = (jobId: string) =>
+    void navigate({ to: "/portal/jobs/$jobId", params: { jobId } });
   const onHold = useOnHold(plan, {
     forClient: true,
     jobHref: (jobId) =>
@@ -92,6 +90,7 @@ export function PortalPlan() {
     forClient: true,
     endPath: `/api/service-plans/mine/${plan.id}/end`,
   });
+  const sayingLength = cleansSayingLength(plan.days, plan.upcoming);
 
   return (
     <RecordPage
@@ -131,26 +130,36 @@ export function PortalPlan() {
         // none is booked while it's paused, as its alert says
         description={plan.status === "on_hold" ? undefined : t.w.ahead}
       >
-        <List
-          aria-label={t.w.upcoming}
-          onAction={openJob}
-          renderEmptyState={() => (
-            <p className="p-6 text-center text-fg-muted">
-              {plan.status === "ended" ? t.w.noneBooked : t.w.noneJustNow}
-            </p>
-          )}
-        >
-          {plan.upcoming.map((job) => (
-            <ListItem
-              key={job.id}
-              id={job.id}
-              title={t.formatDateTime(job.startsAt)}
-              description={t.w.aboutOnSite(formatHours(job.hoursOnSite))}
-              // as the Cleans list badges it (#507)
-              end={upcomingBadge(t, job)}
-            />
-          ))}
-        </List>
+        {plan.upcoming.length > 0 ? (
+          // by month, as the Cleans list draws them; the plan's card names
+          // the kind of clean, so a row is its day and time
+          <DatedLists
+            label={t.w.upcoming}
+            level={3}
+            items={plan.upcoming}
+            at={(job) => job.startsAt}
+            item={(job) => (
+              <DatedItem
+                key={job.id}
+                id={job.id}
+                at={job.startsAt}
+                // how long, as the clean's own page says it
+                description={
+                  sayingLength.has(job)
+                    ? howLong(t, job.hoursOnSite)
+                    : undefined
+                }
+                // as the Cleans list badges it (#507)
+                end={upcomingBadge(t, job)}
+                onAction={() => openJob(job.id)}
+              />
+            )}
+          />
+        ) : (
+          <p className="p-6 text-center text-fg-muted">
+            {plan.status === "ended" ? t.w.noneBooked : t.w.noneJustNow}
+          </p>
+        )}
       </Section>
     </RecordPage>
   );

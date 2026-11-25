@@ -42,17 +42,18 @@ import {
   Facts,
   Fact,
   type DialogState,
+  Line,
 } from "@empire-cleaning/ui";
 import { patchJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { QuoteIcon } from "../icons.ts";
 import { useAction } from "../action.ts";
 import { BillStatusBadge, billLine } from "../BillParts.tsx";
-import { addressOf, clientName, lineOf, screenWords } from "../format.ts";
+import { addressOf, clientName, screenWords } from "../format.ts";
 import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
 import { clientsCrumb } from "./trails.ts";
 
-const { propertySummary } = screenWords.en;
+const { propertyParts } = screenWords.en;
 
 const { formatDate, formatDateTime, formatDay, formatMoney } = formats.en;
 
@@ -131,10 +132,14 @@ export function ClientDetail() {
               key={home.id}
               id={home.id}
               title={addressOf(home)}
-              description={lineOf([
-                statusLine(home.status),
-                propertySummary(home),
-              ])}
+              description={
+                <Line
+                  parts={[
+                    statusLine(home.status),
+                    ...propertyParts(home, true),
+                  ]}
+                />
+              }
               onAction={() =>
                 void navigate({
                   to: "/office/properties/$propertyId",

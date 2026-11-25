@@ -23,12 +23,13 @@ import {
   DetailsCard,
   Facts,
   type DialogState,
+  Line,
 } from "@empire-cleaning/ui";
 import { accessHelp } from "@empire-cleaning/quote-request";
 import { patchJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { addressOf, lineOf } from "../format.ts";
+import { addressOf } from "../format.ts";
 import { useSaid } from "../words.ts";
 import { AccessFact, ConditionFact, FloorAreaFact } from "../Fact.tsx";
 import { planWhen, quoteTitle, standingOf } from "./properties.ts";
@@ -122,7 +123,7 @@ export function PortalProperty() {
           label={premises ? w.businessDetails : w.homeDetails}
           tile={<IconTile icon={homeIcon(p.kind)} size="lg" />}
           kicker={premises ? w.yourBusiness : t.p.yourHome}
-          title={t.propertySummary(p)}
+          title={<Line parts={t.propertyParts(p)} />}
           line={addressOf(p)}
         >
           <Facts>
@@ -155,11 +156,17 @@ export function PortalProperty() {
                 id={plan.id}
                 start={<IconTile icon={CalendarClock} />}
                 title={`${t.recurrenceLabel[plan.recurrence]}, ${planWhen(t.lang, plan)}`}
-                description={lineOf([
-                  [...new Set(plan.days.map((d) => d.serviceName))].join(", "),
-                  plan.nextStartsAt &&
-                    w.nextClean(t.formatDateTime(plan.nextStartsAt)),
-                ])}
+                description={
+                  <Line
+                    parts={[
+                      [...new Set(plan.days.map((d) => d.serviceName))].join(
+                        ", ",
+                      ),
+                      plan.nextStartsAt &&
+                        w.nextClean(t.formatDateTime(plan.nextStartsAt)),
+                    ]}
+                  />
+                }
                 end={<PlanStatusBadge status={plan.status} />}
               />
             ))}

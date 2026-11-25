@@ -15,7 +15,6 @@ import {
   CalendarClock,
   Receipt,
   CircleAlert,
-  FileText,
   Files,
 } from "lucide-react";
 import type {
@@ -43,6 +42,8 @@ import {
   Fact,
   Facts,
   factColumns,
+  Figure,
+  Figures,
   Fold,
   Link,
   List,
@@ -51,11 +52,12 @@ import {
   type PageAction,
   Card,
   useWide,
+  Line,
 } from "@empire-cleaning/ui";
 import { deleteJson, patchJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { dollars, formatHours, lineOf } from "../format.ts";
+import { dollars, typedHours } from "../format.ts";
 import { ConditionField } from "./PropertyFields.tsx";
 
 const { formatDate, formatMoney } = formats.en;
@@ -225,7 +227,8 @@ export const whatOf = (a: AdjustmentView) =>
 // it's opened
 const changeOf = (a: AdjustmentView) =>
   a.kind === "extra_time"
-    ? `+${formatHours(a.hours!)}`
+    ? // as typed, and as the full line says them: "+1.5 h"
+      `+${typedHours(a.hours!)}`
     : a.kind === "add_on_done"
       ? "Done on the day"
       : "Not done";
@@ -272,7 +275,7 @@ export function Adjustments({ job }: { job: OfficeJob }) {
             <ListItem
               id={a.id}
               title={whatOf(a)}
-              description={lineOf([changeOf(a), signed(a.totalCents)])}
+              description={<Line parts={[changeOf(a), signed(a.totalCents)]} />}
               end={statusBadge[a.status]}
             />
           )}
@@ -770,32 +773,23 @@ export function JobMoney({ job, lineUp }: { job: OfficeJob; lineUp: 2 | 3 }) {
         ];
   const shown = facts.filter(Boolean);
   if (shown.length === 0) return null;
-  // how it's worked out: what was quoted, and the price changes counted
-  const workedOut = [
-    <Fact
-      key="quoted"
-      icon={FileText}
-      label="Quoted"
-      value={formatMoney(payment.quotedCents)}
-    />,
-    payment.adjustmentsCents !== 0 && (
-      <Fact
-        key="changes"
-        icon={ClipboardList}
-        label="Price changes"
-        value={formatMoney(payment.adjustmentsCents)}
-      />
-    ),
-  ].filter(Boolean);
   return (
     <Section title="Money">
       <Card>
         <Facts columns={factColumns(shown.length, lineUp)}>{shown}</Facts>
         {job.completion && payment.totalCents !== payment.quotedCents && (
+          // how it's worked out, figures in a column as a quote's are:
+          // what was quoted, and the price changes counted
           <Fold label="How it's worked out">
-            <Facts columns={factColumns(workedOut.length, lineUp)}>
-              {workedOut}
-            </Facts>
+            <Figures>
+              <Figure label="Quoted" value={formatMoney(payment.quotedCents)} />
+              {payment.adjustmentsCents !== 0 && (
+                <Figure
+                  label="Price changes"
+                  value={formatMoney(payment.adjustmentsCents)}
+                />
+              )}
+            </Figures>
           </Fold>
         )}
       </Card>

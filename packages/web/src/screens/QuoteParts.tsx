@@ -8,10 +8,29 @@ import type {
   QuoteStatus,
   ServicePlanTerms,
 } from "@empire-cleaning/models";
-import { Card, Fact, StatusBadge, useLanguage } from "@empire-cleaning/ui";
+import {
+  Card,
+  Fact,
+  Figure,
+  Figures,
+  StatusBadge,
+  useLanguage,
+} from "@empire-cleaning/ui";
 import { Building2, CirclePlus, NotebookPen, Repeat } from "lucide-react";
-import { catalog, type Language, messages } from "@empire-cleaning/models";
-import { formatHours, quoteStatusLabel, quoteStatusTone } from "./format.ts";
+import {
+  catalog,
+  type Language,
+  messages,
+  upperFirst,
+} from "@empire-cleaning/models";
+import {
+  alike,
+  formatHours,
+  lineOf,
+  quoteStatusLabel,
+  quoteStatusTone,
+  typedHours,
+} from "./format.ts";
 import { useSaid } from "./words.ts";
 
 // in the screen's language: the Office's English, the portal's its
@@ -24,7 +43,6 @@ const words = catalog({
     notAsked: "Not asked for",
     notes: "Notes",
     cleaningHours: "Cleaning hours",
-    onSiteWith: (cleaners: string) => `On site, with ${cleaners}`,
     quoteRequested: "Quote requested",
     beingUpdated: "Being updated",
     includesTax: (tax: string) => `Includes ${tax} tax`,
@@ -34,10 +52,10 @@ const words = catalog({
     asOneOff: "As a one-off clean",
     planDiscount: (percent: number) => `Plan discount (${percent}%)`,
     onThePlan: "On the plan",
-    aWeek: "A week, with a clean on each day",
+    aWeek: "A week's cleans",
     depositCarried: "Deposit, carried over from the plan",
     depositHeld: (percent: number, eachDay: boolean) =>
-      `Deposit (${percent}%${eachDay ? " of a clean on each day" : ""}), held while the plan runs`,
+      `Deposit (${percent}%${eachDay ? " of a week's cleans" : ""}), held while the plan runs`,
   },
   es: {
     cleaningWanted: "Limpieza que quiere",
@@ -46,7 +64,6 @@ const words = catalog({
     notAsked: "No las pidió",
     notes: "Notas",
     cleaningHours: "Horas de limpieza",
-    onSiteWith: (cleaners: string) => `En el lugar, con ${cleaners}`,
     quoteRequested: "Cotización solicitada",
     beingUpdated: "Se está actualizando",
     includesTax: (tax: string) => `Incluye ${tax} de impuestos`,
@@ -56,10 +73,10 @@ const words = catalog({
     asOneOff: "Como una sola limpieza",
     planDiscount: (percent: number) => `Descuento del plan (${percent}%)`,
     onThePlan: "Con el plan",
-    aWeek: "Una semana, con una limpieza cada día",
+    aWeek: "Las limpiezas de una semana",
     depositCarried: "Depósito, traspasado del plan",
     depositHeld: (percent: number, eachDay: boolean) =>
-      `Depósito (${percent}%${eachDay ? " de una limpieza cada día" : ""}), retenido mientras dure el plan`,
+      `Depósito (${percent}%${eachDay ? " de las limpiezas de una semana" : ""}), retenido mientras dure el plan`,
   },
 });
 
@@ -116,8 +133,9 @@ export function AskedRows({
   );
 }
 
-// an option's hours, in a dl: its cleaning hours, and how long its crew is
-// there; the Office's, as the Client reads one how long on the Quote's facts
+// an option's hours, as Figures: its cleaning hours, and how long its crew
+// is there; for a crew of one those are one fact, so its time there alone; the Office's, as the Client reads one how long on the Quote's
+// facts
 export function HoursRows({
   option,
   crewSize,
@@ -125,17 +143,20 @@ export function HoursRows({
   option: QuoteOption;
   crewSize: number;
 }) {
-  const { w, cleaners } = useWords();
+  const { w, cleaners, onSiteWith } = useWords();
   return (
     <>
-      <dt className="text-fg-muted">{w.cleaningHours}</dt>
-      <dd className="text-right tabular-nums">
-        {formatHours(option.labourHours)}
-      </dd>
-      <dt className="text-fg-muted">{w.onSiteWith(cleaners(crewSize))}</dt>
-      <dd className="text-right tabular-nums">
-        {formatHours(option.hoursOnSite)}
-      </dd>
+      {/* hours priced at a rate, as its working-out says them: "3.25 h" */}
+      {crewSize > 1 && (
+        <Figure
+          label={w.cleaningHours}
+          value={typedHours(option.labourHours)}
+        />
+      )}
+      <Figure
+        label={onSiteWith(cleaners(crewSize))}
+        value={formatHours(option.hoursOnSite)}
+      />
     </>
   );
 }
@@ -229,32 +250,56 @@ export function OptionRows({
 }) {
   const { w, formatMoney } = useWords();
   return (
-    <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
+    <Figures>
       <HoursRows option={option} crewSize={crewSize} />
-      <dt className="text-fg-muted">{w.deposit(depositPercent)}</dt>
-      <dd className="text-right tabular-nums">
-        {formatMoney(option.depositCents)}
-      </dd>
-    </dl>
+      <Figure
+        label={w.deposit(depositPercent)}
+        value={formatMoney(option.depositCents)}
+      />
+    </Figures>
   );
 }
 
-// One weekday of a Service Plan Quote: when, its clean's price, and the
-// saving against the same clean as a one-off Job
+// a plan's weekday and its clean's option, as a card shows them
+export type PlanCleanTerms = { day: PlanDayTerms; option: QuoteOption };
+
+// a Service Plan Quote's weekdays as the Client's cards show them: those
+// alike in all a card draws (its Service and every figure) share one, so
+// two cards never say the same thing twice (docs/ux.md, Numbers)
+export const planCards = (
+  days: PlanDayTerms[],
+  options: QuoteOption[],
+): PlanCleanTerms[][] =>
+  alike(
+    days.map((day, i) => ({ day, option: options[i]! })),
+    ({ day, option }) =>
+      [
+        day.serviceName,
+        option.totalCents,
+        option.taxCents,
+        day.oneOffTotalCents,
+        day.savingCents,
+      ].join(),
+  );
+
+// Weekdays of a Service Plan Quote whose cleans cost the same: when, their
+// clean's price, and the saving against the same clean as a one-off Job
 export function PlanDayCard({
-  option,
-  day,
+  cleans,
   discountPercent,
 }: {
-  option: QuoteOption;
-  day: PlanDayTerms;
+  cleans: PlanCleanTerms[];
   discountPercent: number;
 }) {
+  const { day, option } = cleans[0]!;
   return (
     <Card
-      title={planDayTitle(useLanguage(), day)}
+      title={planDayTitle(
+        useLanguage(),
+        cleans.map((c) => c.day),
+      )}
       headingLevel={3}
-      actions={<PlanSaving day={day} discountPercent={discountPercent} />}
+      description={<PlanSaving day={day} discountPercent={discountPercent} />}
     >
       <PlanFigures
         option={option}
@@ -265,12 +310,16 @@ export function PlanDayCard({
   );
 }
 
-// "Mondays at 9:00 AM: Standard Clean", or a Draft's weekday with no time
-// yet, "Standard Clean"
-export const planDayTitle = (lang: Language, day: PlanDayTerms) =>
-  day.startsAt
-    ? `${messages[lang].planDayWhen(day.startsAt)}: ${day.serviceName}`
-    : day.serviceName;
+// "Mondays at 9:00 AM · Standard Clean", or a card's several weekdays,
+// "Mondays at 9:00 AM and Fridays at 1:00 PM · Standard Clean"; a Draft's
+// weekday with no time yet, "Standard Clean"
+export const planDayTitle = (lang: Language, days: PlanDayTerms[]) => {
+  const times = days.flatMap((day) => (day.startsAt ? [day.startsAt] : []));
+  return lineOf([
+    times.length > 0 && upperFirst(messages[lang].planDaysWhen(times)),
+    days[0]!.serviceName,
+  ]);
+};
 
 // what a plan clean saves, said only when the plan has a discount: a plan
 // can be quoted at none
@@ -332,27 +381,21 @@ export function PlanRows({
 }) {
   const { w, formatMoney } = useWords();
   return (
-    <>
-      <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
-        <dt className="text-fg-muted">{w.asOneOff}</dt>
-        <dd className="text-right tabular-nums">
-          {formatMoney(day.oneOffTotalCents)}
-        </dd>
-        {discountPercent > 0 && (
-          <>
-            <dt className="text-fg-muted">{w.planDiscount(discountPercent)}</dt>
-            <dd className="text-right tabular-nums">
-              −{formatMoney(day.savingCents)}
-            </dd>
-          </>
-        )}
-        <dt className="font-semibold">{w.onThePlan}</dt>
-        <dd className="text-right font-semibold tabular-nums">
-          {formatMoney(option.totalCents)}
-        </dd>
-        {children}
-      </dl>
-    </>
+    <Figures>
+      <Figure label={w.asOneOff} value={formatMoney(day.oneOffTotalCents)} />
+      {discountPercent > 0 && (
+        <Figure
+          label={w.planDiscount(discountPercent)}
+          value={`−${formatMoney(day.savingCents)}`}
+        />
+      )}
+      <Figure
+        label={w.onThePlan}
+        value={formatMoney(option.totalCents)}
+        strong
+      />
+      {children}
+    </Figures>
   );
 }
 
@@ -370,24 +413,23 @@ export function PlanTotals({
 }) {
   const { w, formatMoney } = useWords();
   return (
-    <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1">
+    <Figures size="md">
       {plan.days.length > 1 && (
-        <>
-          <dt>{w.aWeek}</dt>
-          <dd className="text-right font-semibold tabular-nums">
-            {formatMoney(plan.roundTotalCents)}
-          </dd>
-        </>
+        <Figure
+          label={w.aWeek}
+          value={formatMoney(plan.roundTotalCents)}
+          strong
+        />
       )}
-      <dt>
-        {change
-          ? w.depositCarried
-          : w.depositHeld(depositPercent, plan.days.length > 1)}
-      </dt>
-      <dd className="text-right tabular-nums">
-        {formatMoney(change ? change.depositCents : plan.depositCents)}
-      </dd>
-    </dl>
+      <Figure
+        label={
+          change
+            ? w.depositCarried
+            : w.depositHeld(depositPercent, plan.days.length > 1)
+        }
+        value={formatMoney(change ? change.depositCents : plan.depositCents)}
+      />
+    </Figures>
   );
 }
 
@@ -397,15 +439,14 @@ export function AddOnList({ addOns }: { addOns: QuoteAddOn[] }) {
   const { formatMoney } = useWords();
   if (addOns.length === 0) return null;
   return (
-    <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
+    <Figures>
       {addOns.map((addOn) => (
-        <div key={addOn.key} className="contents">
-          <dt className="text-fg-muted">{addOn.name}</dt>
-          <dd className="text-right tabular-nums">
-            +{formatMoney(addOn.totalCents)}
-          </dd>
-        </div>
+        <Figure
+          key={addOn.key}
+          label={addOn.name}
+          value={`+${formatMoney(addOn.totalCents)}`}
+        />
       ))}
-    </dl>
+    </Figures>
   );
 }

@@ -33,13 +33,14 @@ import {
   type HomeTile,
   type ListRow,
   type StatusTone,
+  Line,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
 import { useHomeUrl } from "../home-search.ts";
 import { CrewBadge } from "../JobBadges.tsx";
 import { JobIcon, NeedsCleanersIcon, QuoteIcon } from "../icons.ts";
 import { billWeek } from "../BillParts.tsx";
-import { addressOf, clientName, lineOf } from "../format.ts";
+import { addressOf, clientName } from "../format.ts";
 import { QUOTE_A_PLAN } from "./StartDraft.tsx";
 
 // a tile's hint: how many of its Jobs are Unassigned, their crew not yet
@@ -105,11 +106,15 @@ export function Dashboard() {
         id: job.id,
         at: job.startsAt,
         title: clientName(job.client),
-        description: lineOf([
-          job.serviceName,
-          addressOf(job.property),
-          formatList(job.crew.map((c) => c.name)),
-        ]),
+        description: (
+          <Line
+            parts={[
+              job.serviceName,
+              addressOf(job.property),
+              formatList(job.crew.map((c) => c.name)),
+            ]}
+          />
+        ),
         status: {
           badge: <CrewBadge assignment={job.assignment} />,
           plain: job.assignment === "assigned",
@@ -143,11 +148,14 @@ export function Dashboard() {
           // the Client too, as a row's name, so each to-do is told apart
           textValue: `${row.action} ${row.client}`,
           description: (
-            <>
-              <span className="font-semibold text-fg">{row.client}</span>
-              {" · "}
-              {row.description}
-            </>
+            <Line
+              parts={[
+                <span key="client" className="font-semibold text-fg">
+                  {row.client}
+                </span>,
+                ...row.line,
+              ]}
+            />
           ),
           start: <IconTile icon={row.icon} tone={row.tone} />,
           onOpen: row.open,
@@ -165,7 +173,7 @@ export function Dashboard() {
             tile={<IconTile icon={card.icon} tone={card.tone} size="lg" />}
             label="First up"
             headline={card.client}
-            lines={[card.description]}
+            lines={[<Line key="line" parts={card.line} />]}
             actions={<Button onPress={card.open}>{card.action}</Button>}
           />
         ) : (
@@ -183,14 +191,15 @@ export function Dashboard() {
 }
 
 // a row leads with what the Office should do; the icon says what kind of
-// item it is, and who it's for comes first in the description
+// item it is, and who it's for comes first in its line, then the line's
+// parts
 type Row = {
   key: string;
   action: string;
   icon: LucideIcon;
   tone: StatusTone;
   client: string;
-  description: string;
+  line: string[];
   open: () => void;
 };
 
@@ -266,7 +275,7 @@ function useRowFor() {
           icon: QuoteIcon,
           tone: "info",
           client: clientName(quote.client),
-          description: `${addressOf(quote.property)} · asked ${formatDate(item.since)}`,
+          line: [addressOf(quote.property), `asked ${formatDate(item.since)}`],
           open: () =>
             navigate({
               to: "/office/quotes/$quoteId",
@@ -282,7 +291,10 @@ function useRowFor() {
           icon: Hourglass,
           tone: "warning",
           client: clientName(quote.client),
-          description: `${addressOf(quote.property)} · expires ${formatDateTime(quote.expiresAt!)}`,
+          line: [
+            addressOf(quote.property),
+            `expires ${formatDateTime(quote.expiresAt!)}`,
+          ],
           open: () =>
             navigate({
               to: "/office/quotes/$quoteId",
@@ -298,7 +310,10 @@ function useRowFor() {
           icon: CalendarX,
           tone: "danger",
           client: clientName(quote.client),
-          description: `${addressOf(quote.property)} · ${formatDateTime(quote.proposedStartsAt!)} is full`,
+          line: [
+            addressOf(quote.property),
+            `${formatDateTime(quote.proposedStartsAt!)} is full`,
+          ],
           open: () =>
             navigate({
               to: "/office/quotes/$quoteId",
@@ -314,7 +329,7 @@ function useRowFor() {
           icon: NeedsCleanersIcon,
           tone: "warning",
           client: clientName(job.client),
-          description: `${addressOf(job.property)} · ${formatDateTime(job.startsAt)}`,
+          line: [addressOf(job.property), formatDateTime(job.startsAt)],
           open: () =>
             navigate({
               to: "/office/jobs/$jobId",
@@ -330,7 +345,11 @@ function useRowFor() {
           icon: CircleDollarSign,
           tone: "danger",
           client: clientName(job.client),
-          description: `${formatMoney(item.owedCents)} owed · ${addressOf(job.property)} · ${formatDate(job.startsAt)}`,
+          line: [
+            `${formatMoney(item.owedCents)} owed`,
+            addressOf(job.property),
+            formatDate(job.startsAt),
+          ],
           open: () =>
             navigate({
               to: "/office/jobs/$jobId",
@@ -346,7 +365,10 @@ function useRowFor() {
           icon: CalendarClock,
           tone: "warning",
           client: clientName(job.client),
-          description: `${addressOf(job.property)} · ${formatDateTime(request.fromStartsAt)} to ${formatDateTime(request.startsAt)}`,
+          line: [
+            addressOf(job.property),
+            `${formatDateTime(request.fromStartsAt)} to ${formatDateTime(request.startsAt)}`,
+          ],
           open: () =>
             navigate({
               to: "/office/jobs/$jobId",
@@ -362,7 +384,11 @@ function useRowFor() {
           icon: ClipboardList,
           tone: "info",
           client: clientName(job.client),
-          description: `${item.count === 1 ? "1 price change" : `${item.count} price changes`} to review · ${addressOf(job.property)} · ${formatDate(job.startsAt)}`,
+          line: [
+            `${item.count === 1 ? "1 price change" : `${item.count} price changes`} to review`,
+            addressOf(job.property),
+            formatDate(job.startsAt),
+          ],
           open: () =>
             navigate({
               to: "/office/jobs/$jobId",
@@ -378,7 +404,10 @@ function useRowFor() {
           icon: Repeat,
           tone: "info",
           client: clientName(job.client),
-          description: `${addressOf(job.property)} · First clean done ${formatDate(item.since)}, wants regular visits`,
+          line: [
+            addressOf(job.property),
+            `first clean done ${formatDate(item.since)}, wants regular visits`,
+          ],
           // the home's page: its Service Plan, its history under it
           open: () =>
             navigate({
@@ -395,7 +424,10 @@ function useRowFor() {
           icon: CalendarX,
           tone: "danger",
           client: clientName(plan.client),
-          description: `${addressOf(plan.property)} · Cleaning plan visit on ${formatDay(visit.dueOn)}: no room that day`,
+          line: [
+            addressOf(plan.property),
+            `cleaning plan visit on ${formatDay(visit.dueOn)}: no room that day`,
+          ],
           open: () =>
             navigate({
               to: "/office/service-plans/$planId",
@@ -411,7 +443,11 @@ function useRowFor() {
           icon: Receipt,
           tone: "danger",
           client: clientName(bill.client),
-          description: `Bill ${bill.number} · ${formatMoney(bill.totalCents)} · ${billWeek("en", bill)}`,
+          line: [
+            `Bill ${bill.number}`,
+            formatMoney(bill.totalCents),
+            billWeek("en", bill),
+          ],
           open: () =>
             navigate({
               to: "/office/bills/$billId",
@@ -433,7 +469,7 @@ function useRowFor() {
           icon: CirclePause,
           tone: "warning",
           client: clientName(plan.client),
-          description: `${addressOf(plan.property)} · Cleaning plan paused: ${unpaid}`,
+          line: [addressOf(plan.property), `cleaning plan paused: ${unpaid}`],
           open: () =>
             navigate({
               to: "/office/service-plans/$planId",

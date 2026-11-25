@@ -1,5 +1,4 @@
 import {
-  Fragment,
   useLayoutEffect,
   useRef,
   useState,
@@ -34,6 +33,7 @@ import {
   List,
   ListItem,
   StatusBadge,
+  Line,
 } from "@empire-cleaning/ui";
 import { linkTo, type AppHref } from "../../links.ts";
 import {
@@ -609,23 +609,27 @@ function DayHeader({
         />
       </div>
       <p className="text-xs text-fg-muted">
-        {nobody && day.bookedHours === 0
-          ? "Nobody working"
-          : // each figure kept whole on its line, not "7.5 h" over "free"
-            [
+        {nobody && day.bookedHours === 0 ? (
+          "Nobody working"
+        ) : (
+          // each figure kept whole on its line, not "7 h 30 min" over "free"
+          <Line
+            parts={[
               `${formatHours(day.bookedHours)} booked`,
-              ...(day.heldHours > 0
-                ? [`${formatHours(day.heldHours)} held`]
-                : []),
+              day.heldHours > 0 && `${formatHours(day.heldHours)} held`,
               day.freeHours < 0
                 ? `${formatHours(-day.freeHours)} over`
                 : `${formatHours(day.freeHours)} free`,
-            ].map((part, i) => (
-              <Fragment key={part}>
-                {i > 0 && " · "}
-                <span className="whitespace-nowrap">{part}</span>
-              </Fragment>
-            ))}
+            ].map(
+              (part) =>
+                part && (
+                  <span key={part} className="whitespace-nowrap">
+                    {part}
+                  </span>
+                ),
+            )}
+          />
+        )}
       </p>
       {more}
     </header>
@@ -776,12 +780,14 @@ function DayJobs({
             </BlockName>
             <BlockTime compact={compact}>{formatTime(job.startsAt)}</BlockTime>
             <span className="sr-only">, {tone.label}</span>
-            {job.crew.length > 0 && (
-              <span className={compact ? "sr-only" : "truncate text-fg-muted"}>
+            {/* a name to a line, so the lines that fit whole are whole
+                names, never one cut short */}
+            {job.crew.map((member) => (
+              <BlockLine key={member.id} compact={compact} muted>
                 <span className="sr-only">, </span>
-                {crewOf(job.crew)}
-              </span>
-            )}
+                {member.name}
+              </BlockLine>
+            ))}
           </ScheduleBlock>
         );
       })}
@@ -812,15 +818,15 @@ function DayJobs({
             <BlockTime compact={compact}>
               {formatTime(visit.startsAt)}
             </BlockTime>
-            <span className={compact ? "sr-only" : "truncate"}>
+            <BlockLine compact={compact}>
               <span className="sr-only">, </span>
-              Site visit · {formatMinutes(visit.minutes)}
-            </span>
+              <Line parts={["Site visit", formatMinutes(visit.minutes)]} />
+            </BlockLine>
             {visit.visitor && (
-              <span className={compact ? "sr-only" : "truncate text-fg-muted"}>
+              <BlockLine compact={compact} muted>
                 <span className="sr-only">, </span>
                 {visit.visitor.name}
-              </span>
+              </BlockLine>
             )}
           </ScheduleBlock>
         );
@@ -866,15 +872,18 @@ function ScheduleBlock({
   children: ReactNode;
 }) {
   const inside = `flex h-full flex-col ${narrow ? "px-1" : "px-1.5"} text-xs leading-tight font-normal text-fg no-underline ${compact ? "justify-center" : "py-1"}`;
-  // only the lines that fit whole, so none shows cut in half: each keeps its
-  // height, and those past the last whole line aren't drawn. What's clipped
-  // is still read out, as a screen reader reads what isn't drawn too
+  // only the lines that fit whole, each drawn whole or not at all: a line
+  // that would run past the last whole line moves to a column of its own
+  // past the block's edge, which isn't drawn. The name, the first line, is
+  // the one exception: a column always keeps its first, so a name wrapped
+  // past a short block's foot is cut there. What isn't drawn is still read
+  // out, as a screen reader reads it
   const lines = compact ? (
     children
   ) : (
     <span
-      className="flex flex-col overflow-hidden [&>*]:shrink-0"
-      style={{ maxHeight: wholeLines(Number(style.height)) * LINE_PX }}
+      className="flex flex-col flex-wrap content-start overflow-hidden [&>*]:w-full [&>*]:shrink-0"
+      style={{ height: wholeLines(Number(style.height)) * LINE_PX }}
     >
       {children}
     </span>
@@ -934,7 +943,32 @@ function BlockTime({
   children: ReactNode;
 }) {
   return compact ? null : (
-    <span aria-hidden className="truncate text-fg-muted">
+    <span aria-hidden className="[overflow-wrap:anywhere] text-fg-muted">
+      {children}
+    </span>
+  );
+}
+
+// a block's line under its name and time: wrapped where the lane is
+// narrow rather than cut short, as the block draws only the lines that fit
+// whole; on a block of one line, read out only
+function BlockLine({
+  compact,
+  muted = false,
+  children,
+}: {
+  compact: boolean;
+  muted?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <span
+      className={
+        compact
+          ? "sr-only"
+          : `[overflow-wrap:anywhere] ${muted ? "text-fg-muted" : ""}`
+      }
+    >
       {children}
     </span>
   );

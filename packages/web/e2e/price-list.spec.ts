@@ -94,7 +94,8 @@ test("the Add-ons asked for are priced, and shown with their hours", async ({
   // on the Draft: 3.125 + 0.5 = 3.625 h, rounded up to 3.75 h
   await draftTheQuote(page);
   const standard = page.getByRole("region", { name: "Standard Clean" });
-  await expect(standard).toContainText("+ Inside the oven0.5 h");
+  // what it adds, then what the hours come to with it
+  await expect(standard).toContainText("+ Inside the oven (0.5 h)3.625 h");
   await expect(standard).toContainText(
     "Cleaning hours, rounded up to the quarter-hour3.75 h",
   );
@@ -136,11 +137,11 @@ test(
 
     await page.reload();
     await expect(
-      page.getByText(/Version 4 · saved .+ by Olive$/),
+      page.getByText(/Version 4\s·\ssaved .+ by Olive$/),
     ).toBeVisible();
-    await expect(part(page, "Condition")).toContainText("Heavy 1.5×");
+    await expect(part(page, "Condition")).toContainText("heavy 1.5×");
     await expect(page.getByRole("row", { name: "Steam clean" })).toContainText(
-      "Tax-exempt",
+      "tax-exempt",
     );
     // retired, it's folded after those offered
     await page.getByText("Retired (1)").click();
@@ -246,7 +247,9 @@ test("saving keeps your place on the page", async ({ page }) => {
   await page.getByRole("button", { name: "Save type" }).click();
   // the page's data is fetched again after a save; that mustn't jump to the
   // top (the placeholder notice going may still nudge it a little)
-  await expect(page.getByText(/Version 2 · saved .+ by Olive$/)).toBeVisible();
+  await expect(
+    page.getByText(/Version 2\s·\ssaved .+ by Olive$/),
+  ).toBeVisible();
   await expect(edit).toBeInViewport();
 });
 
@@ -280,7 +283,7 @@ test("a save made after someone else saved the prices is refused, and the dialog
   await expect(page.getByRole("textbox", { name: "Heavy (×)" })).toHaveValue(
     "1.4",
   );
-  await expect(page.getByText(/^Version \d+ · saved/)).toBeVisible();
+  await expect(page.getByText(/^Version \d+\s·\ssaved/)).toBeVisible();
 });
 
 test("a mistake is explained beside the field", async ({ page }) => {

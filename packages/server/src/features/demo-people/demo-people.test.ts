@@ -39,7 +39,7 @@ test("anyone can list the demo people who are here, Staff first, with what each 
       name: "Jennifer",
       email: "owner@example.com",
       role: "office_staff",
-      shows: "Runs the business",
+      shows: "runs the business",
     },
     {
       name: "Maria Gonzalez",
@@ -51,7 +51,7 @@ test("anyone can list the demo people who are here, Staff first, with what each 
       name: "Helen Kowalski",
       email: "owner+helen@example.com",
       role: "client",
-      shows: "On a weekly plan",
+      shows: "on a weekly plan",
     },
   ]);
 });

@@ -58,9 +58,9 @@ import {
   crewTone,
   dayOfInstant,
   formatHours,
-  howLong,
   jobStatusTone,
   screenWords,
+  typedHours,
   today,
   wasSkipped,
 } from "../format.ts";
@@ -431,14 +431,14 @@ function shortFactsOf(job: OfficeJob) {
       key="how-long"
       icon={Clock}
       label={w.howLong}
-      value={howLong(w, job.hoursOnSite)}
+      value={formatHours(job.hoursOnSite)}
     />,
     job.crewSize > 1 && (
       <Fact
         key="hours"
         icon={ClipboardList}
         label="Cleaning hours"
-        value={howLong(w, job.labourHours)}
+        value={typedHours(job.labourHours)}
         line="Cleaning hours, the crew together"
       />
     ),

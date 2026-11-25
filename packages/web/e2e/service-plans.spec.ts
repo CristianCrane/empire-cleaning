@@ -90,14 +90,18 @@ test(
     await expect(
       client.getByText(/^Each clean is charged to your card when it's done\./),
     ).toBeVisible();
-    const upcoming = client
-      .getByRole("grid", { name: "Your upcoming cleans" })
-      .getByRole("row");
+    const cleans = client.getByRole("region", { name: "Your upcoming cleans" });
+    // by month, as the Cleans list draws them
+    await expect(cleans.getByRole("heading", { level: 3 })).toHaveText([
+      "January 2026",
+      "February 2026",
+    ]);
+    const upcoming = cleans.getByRole("row");
     await expect(upcoming).toHaveText([
-      /Mon, Jan 19, 9:00\sAM/,
-      /Mon, Jan 26, 9:00\sAM/,
-      /Mon, Feb 2, 9:00\sAM/,
-      /Mon, Feb 9, 9:00\sAM/,
+      /Jan 19, 2026, Mon 9:00\sAM$/,
+      /Jan 26, 2026, Mon 9:00\sAM$/,
+      /Feb 2, 2026, Mon 9:00\sAM$/,
+      /Feb 9, 2026, Mon 9:00\sAM$/,
     ]);
     await noViolations(client);
 
@@ -114,19 +118,25 @@ test(
     await expect(page.getByText("Mondays at 9:00 AM")).toBeVisible();
     await noViolations(page);
 
-    // and its Jobs in the home's History, newest first
+    // and its Jobs booked, soonest first, apart from its History of what
+    // has happened, which holds none of them yet
     const jobs = page
-      .getByRole("list", { name: /^History/ })
-      .getByRole("listitem")
-      .filter({ hasText: "Job · Standard Clean" });
+      .getByRole("region", { name: "Booked jobs" })
+      .getByRole("row")
+      .filter({ hasText: "Standard Clean" });
     await expect(jobs).toHaveCount(4);
+    await expect(
+      page
+        .getByRole("list", { name: /^History/ })
+        .getByText(/^Job\s·\sStandard Clean/),
+    ).toHaveCount(0);
 
     // a week on, the next Job comes within reach
     await setClock("2026-01-19T16:00:00Z");
     await generatePlanJobs();
     await page.reload();
     await expect(jobs).toHaveCount(5);
-    await expect(jobs.first()).toContainText("Feb 16, 2026");
+    await expect(jobs.last()).toContainText("Feb 16, 2026, Mon");
   },
 );
 
@@ -152,7 +162,7 @@ test("the Office records a plan's acceptance, then books a visit its day had no 
     await openTile(page, "Jobs")
   )
     .getByRole("row")
-    .filter({ hasText: "Cleaning plan visit on Mon, Feb 2" })
+    .filter({ hasText: "cleaning plan visit on Mon, Feb 2" })
     .click();
   // the plan is on its home's page
   await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
@@ -170,11 +180,10 @@ test("the Office records a plan's acceptance, then books a visit its day had no 
   await expect(page.getByText("Visit booked")).toBeVisible();
 
   await expect(waiting).toHaveCount(0);
-  // booked on Tuesday the 3rd, not the full Monday: in the home's History
+  // booked on Tuesday the 3rd, not the full Monday: in the home's Booked jobs
   const jobs = page
-    .getByRole("list", { name: /^History/ })
-    .getByRole("listitem")
-    .filter({ hasText: "Job ·" });
-  await expect(jobs.filter({ hasText: "Feb 3, 2026" })).toHaveCount(1);
+    .getByRole("region", { name: "Booked jobs" })
+    .getByRole("row");
+  await expect(jobs.filter({ hasText: "Feb 3, 2026, Tue" })).toHaveCount(1);
   await expect(jobs.filter({ hasText: "Feb 2, 2026" })).toHaveCount(0);
 });

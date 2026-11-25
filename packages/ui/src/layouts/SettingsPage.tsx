@@ -15,7 +15,7 @@ import { PageHeader } from "./PageHeader.tsx";
 export type SettingsPart = {
   id: string;
   title: string;
-  summary: string;
+  summary: ReactNode;
   dialog: (state: DialogState) => ReactNode;
 };
 

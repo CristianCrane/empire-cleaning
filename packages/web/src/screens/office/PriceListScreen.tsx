@@ -1,4 +1,4 @@
-import { firstNameOf, formats } from "@empire-cleaning/models";
+import { firstNameOf, formats, inLine } from "@empire-cleaning/models";
 import { useState, type ReactNode } from "react";
 import { useLoaderData } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
@@ -25,11 +25,12 @@ import {
   type ListRow,
   type SettingsPart,
   FieldRow,
+  Line,
 } from "@empire-cleaning/ui";
 import { putJson } from "../../api.ts";
 import { useAction } from "../action.ts";
 import { useDraftOf } from "./draft.ts";
-import { dayOfInstant, formatHours, lineOf, screenWords } from "../format.ts";
+import { dayOfInstant, screenWords, typedHours } from "../format.ts";
 
 const { cleaners, conditionLabel } = screenWords.en;
 
@@ -223,11 +224,15 @@ function AddOns({ list, services }: { list: PriceList; services: Service[] }) {
         {...offeredAndRetired(list.addOns, (addOn, i) => ({
           id: String(i),
           title: addOn.name,
-          description: lineOf([
-            formatHours(addOn.hours),
-            goesWith(addOn),
-            addOn.taxExempt && "Tax-exempt",
-          ]),
+          description: (
+            <Line
+              parts={[
+                typedHours(addOn.hours),
+                goesWith(addOn),
+                addOn.taxExempt && "tax-exempt",
+              ]}
+            />
+          ),
           onOpen: () => setOpen(addOn.key),
         }))}
       />
@@ -492,7 +497,7 @@ const figuresPart = (
   part: {
     id: string;
     title: string;
-    summary: string;
+    summary: ReactNode;
     explain: string;
     // the figures the dialog changes
     names: Numbers[];
@@ -588,9 +593,15 @@ const condition = (list: PriceList) =>
   figuresPart(list, {
     id: "condition",
     title: "Condition",
-    summary: conditionFigures
-      .map(([c, name]) => `${conditionLabel[c]} ${times(list[name])}`)
-      .join(" · "),
+    summary: (
+      <Line
+        parts={conditionFigures.map(([c, name], i) => {
+          const figure = `${conditionLabel[c]} ${times(list[name])}`;
+          // each after the first reads on from its dot
+          return i > 0 ? inLine(figure) : figure;
+        })}
+      />
+    ),
     explain:
       "It multiplies a home's or business's hours, for services that condition affects. Extras aren't multiplied.",
     names: ["conditionLight", "conditionModerate", "conditionHeavy"],
@@ -610,12 +621,16 @@ const quoteDefaults = (list: PriceList) =>
   figuresPart(list, {
     id: "quote-defaults",
     title: "Quote defaults",
-    summary: [
-      `${list.depositPercent}% deposit`,
-      `${list.planDiscountPercent}% off plans`,
-      `valid ${list.quoteValidityDays} days`,
-      cleaners(list.defaultCrewSize),
-    ].join(" · "),
+    summary: (
+      <Line
+        parts={[
+          `${list.depositPercent}% deposit`,
+          `${list.planDiscountPercent}% plan discount`,
+          `valid for ${list.quoteValidityDays} days`,
+          cleaners(list.defaultCrewSize),
+        ]}
+      />
+    ),
     explain: "What a new quote starts with. You can change them on the quote.",
     names: [
       "depositPercent",

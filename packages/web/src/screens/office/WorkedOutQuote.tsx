@@ -1,33 +1,49 @@
 import { formats } from "@empire-cleaning/models";
 import { FileText } from "lucide-react";
 import type { PriceBreakdown } from "@empire-cleaning/models";
-import { IconTile } from "@empire-cleaning/ui";
-import { formatHours, formatMinutes, screenWords } from "../format.ts";
+import { Figure, Figures, IconTile } from "@empire-cleaning/ui";
+import { formatHours, screenWords, typedHours } from "../format.ts";
 
 const { cleaners } = screenWords.en;
 
 const { formatMoney } = formats.en;
 
-// About 1 h 38 min, shared by the Crew
-const onSite = (labourHours: number, crew: number) =>
-  formatMinutes(Math.round((labourHours / crew) * 60));
+// the home's hours, times what multiplies them (its Condition)
+const homeTimes = (b: PriceBreakdown, multiplier: number) =>
+  b.homeHours.reduce((sum, part) => sum + part.hours, 0) * multiplier;
 
 // a working-out's lines, as a Quote's override and this both say them
 export const working = {
   // the level, where it's known
   condition: (level: string | null, multiplier: number) =>
     `× ${level ? `${level.toLowerCase()} ` : ""}condition (${multiplier})`,
-  addOn: (addOn: { name: string; taxExempt: boolean }) =>
-    `+ ${addOn.name}${addOn.taxExempt ? " (no tax)" : ""}`,
+  // each extra's row: what it adds, then the hours with it and the rows
+  // above, as the condition's row says them, so the last is what's rounded
+  // up: "+ Inside the oven (0.5 h)", "2.8375 h"
+  addOns: (b: PriceBreakdown, multiplier: number) => {
+    let hours = homeTimes(b, multiplier);
+    return b.addOns.map((addOn) => {
+      hours += addOn.hours;
+      return {
+        key: addOn.key,
+        label: `+ ${addOn.name} (${typedHours(addOn.hours)}${addOn.taxExempt ? ", no tax" : ""})`,
+        value: typedHours(hours),
+      };
+    });
+  },
   hours: "Cleaning hours, rounded up to the quarter-hour",
+  // the home's hours, times what multiplies them, as the rows under add to
+  // them: "2.3375 h"
+  homeTimes: (b: PriceBreakdown, multiplier: number) =>
+    typedHours(homeTimes(b, multiplier)),
   rate: (cents: number, business = false) =>
     `× ${formatMoney(cents)} an hour${business ? " for a business" : ""}, to the whole dollar`,
   minimum: (cents: number) =>
     `At least the minimum price (${formatMoney(cents)})`,
 };
 
-// how long a Suggested Price's clean takes on site, for its Crew: "About
-// 1 h 38 min on site for 2 cleaners"
+// how long a Suggested Price's clean takes on site, for its Crew, to the
+// minute as the Schedule books it: "1 h 38 min on site, with 2 cleaners"
 export function OnSite({
   labourHours,
   crewSize,
@@ -39,7 +55,7 @@ export function OnSite({
   if (labourHours <= 0) return null;
   return (
     <span className="text-sm text-fg-muted">
-      About {onSite(labourHours, crewSize)} on site for {cleaners(crewSize)}
+      {formatHours(labourHours / crewSize)} on site, with {cleaners(crewSize)}
     </span>
   );
 }
@@ -96,56 +112,52 @@ export function WorkedOutQuote({
       </div>
 
       {/* how it's worked out */}
-      <dl className="flex flex-col gap-1 border-t border-border pt-4 text-sm">
-        {parts.map((part) => (
-          <Line
-            key={part.label}
-            label={part.label}
-            value={formatHours(part.hours)}
-            was={was && hoursOf(was, part.label, now)}
+      <div className="border-t border-border pt-4">
+        <Figures>
+          {parts.map((part) => (
+            <Figure
+              key={part.label}
+              label={part.label}
+              value={typedHours(part.hours)}
+              was={was && hoursOf(was, part.label, now)}
+            />
+          ))}
+          {condition && (
+            <Figure
+              label={working.condition(condition, now.conditionMultiplier)}
+              value={working.homeTimes(now, now.conditionMultiplier)}
+              was={was && working.homeTimes(was, was.conditionMultiplier)}
+            />
+          )}
+          {working.addOns(now, now.conditionMultiplier).map((row) => (
+            <Figure key={row.key} label={row.label} value={row.value} />
+          ))}
+          <Figure
+            label={working.hours}
+            value={typedHours(now.labourHours)}
+            was={was && typedHours(was.labourHours)}
+            strong
           />
-        ))}
-        {condition && (
-          <Line
-            label={working.condition(condition, now.conditionMultiplier)}
-            value=""
+          <Figure
+            label={working.rate(now.hourlyRateCents)}
+            value={formatMoney(now.workedOutCents)}
+            was={was && formatMoney(was.workedOutCents)}
           />
-        )}
-        {now.addOns.map((addOn) => (
-          <Line
-            key={addOn.key}
-            label={working.addOn(addOn)}
-            value={formatHours(addOn.hours)}
+          {(now.minimumApplied || was?.minimumApplied) && (
+            <Figure
+              label={working.minimum(now.minimumChargeCents)}
+              value={formatMoney(now.priceCents)}
+              was={was && formatMoney(was.priceCents)}
+            />
+          )}
+          <Figure
+            label={`Sales tax (${now.taxPercent}%)`}
+            value={formatMoney(now.taxCents)}
+            was={was && formatMoney(was.taxCents)}
           />
-        ))}
-        <Line
-          label={working.hours}
-          value={formatHours(now.labourHours)}
-          was={was && formatHours(was.labourHours)}
-          strong
-        />
-        <Line
-          label={working.rate(now.hourlyRateCents)}
-          value={formatMoney(now.workedOutCents)}
-          was={was && formatMoney(was.workedOutCents)}
-        />
-        {(now.minimumApplied || was?.minimumApplied) && (
-          <Line
-            label={working.minimum(now.minimumChargeCents)}
-            value={formatMoney(now.priceCents)}
-            was={was && formatMoney(was.priceCents)}
-          />
-        )}
-        <Line
-          label={`Sales tax (${now.taxPercent}%)`}
-          value={formatMoney(now.taxCents)}
-          was={was && formatMoney(was.taxCents)}
-        />
-        <div className="mt-2 flex justify-between gap-4 border-t border-border pt-2 text-base font-semibold text-fg">
-          <dt>Total</dt>
-          <dd className="tabular-nums">{formatMoney(now.totalCents)}</dd>
-        </div>
-      </dl>
+          <Figure label="Total" value={formatMoney(now.totalCents)} total />
+        </Figures>
+      </div>
     </>
   );
 }
@@ -154,40 +166,5 @@ export function WorkedOutQuote({
 const hoursOf = (was: PriceBreakdown, label: string, now: PriceBreakdown) => {
   const i = now.homeHours.findIndex((part) => part.label === label);
   const part = was.homeHours[i];
-  return part ? formatHours(part.hours) : null;
+  return part ? typedHours(part.hours) : null;
 };
-
-function Line({
-  label,
-  value,
-  was,
-  strong = false,
-}: {
-  label: string;
-  value: string;
-  // the other working-out's value: struck through beside it where it differs
-  was?: string | null;
-  strong?: boolean;
-}) {
-  const differs = was != null && was !== value;
-  return (
-    <div className="flex justify-between gap-4">
-      <dt className={strong ? "font-semibold text-fg" : "text-fg-muted"}>
-        {label}
-      </dt>
-      <dd
-        className={`flex shrink-0 gap-2 tabular-nums text-fg ${strong ? "font-semibold" : ""}`}
-      >
-        {differs && (
-          <s className="text-fg-muted">
-            <span className="sr-only">was </span>
-            {was}
-          </s>
-        )}
-        <span className={differs ? "font-semibold text-primary" : ""}>
-          {value}
-        </span>
-      </dd>
-    </div>
-  );
-}

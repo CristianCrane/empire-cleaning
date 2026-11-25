@@ -23,7 +23,12 @@ export const labels = catalog({
     about: (hours: string) => `About ${hours}`,
     // how long a Job runs, asked from the reader's side (howLong)
     howLong: "How long",
-    onSiteWith: (cleaners: string) => `On site, ${cleaners}`,
+    onSiteWith: (cleaners: string) => `On site, with ${cleaners}`,
+    // a plan's weekdays alike, where others differ: "On site Mondays and
+    // Fridays, with 2 cleaners", "How long on Mondays"
+    onSiteOnWith: (days: string, cleaners: string) =>
+      `On site ${days}, with ${cleaners}`,
+    howLongOn: (days: string) => `How long on ${days}`,
     extras: "Extras",
     none: "None",
     deposit: "Deposit",
@@ -69,7 +74,10 @@ export const labels = catalog({
     // "cerca de", not "unas", which would say "unas 1 h"
     about: (hours: string) => `Cerca de ${hours}`,
     howLong: "Cuánto dura",
-    onSiteWith: (cleaners: string) => `En el lugar, ${cleaners}`,
+    onSiteWith: (cleaners: string) => `En el lugar, con ${cleaners}`,
+    onSiteOnWith: (days: string, cleaners: string) =>
+      `En el lugar ${days}, con ${cleaners}`,
+    howLongOn: (days: string) => `Cuánto dura ${days}`,
     extras: "Adicionales",
     none: "Ninguno",
     deposit: "Depósito",

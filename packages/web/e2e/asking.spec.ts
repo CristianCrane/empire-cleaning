@@ -226,7 +226,7 @@ test("a home asked about only for Painting gives its rooms when it's asked about
   await expect(page).toHaveURL("/portal");
   await page.goto("/portal/details");
   await expect(
-    page.getByText(/Apartment\s·\s3 bedrooms/).first(),
+    page.getByText(/Apartment\s·\s3\sbedrooms/).first(),
   ).toBeVisible();
 });
 
@@ -505,6 +505,10 @@ test("Office Staff see which page and link a Guest asked from", async ({
   await expect(
     page.getByText("The website, /queens/, via gbp (profile)"),
   ).toBeVisible();
+  // when it was asked is its entry's, just above, not said again
+  await expect(
+    page.getByRole("term").filter({ hasText: /^Asked$/ }),
+  ).toHaveCount(0);
 });
 
 test(

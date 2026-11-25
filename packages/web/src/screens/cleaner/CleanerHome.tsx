@@ -11,7 +11,7 @@ import {
   Phone,
 } from "lucide-react";
 import type { CleanerJob, CleanerSiteVisit } from "@empire-cleaning/models";
-import { catalog, MINUTE_MS } from "@empire-cleaning/models";
+import { catalog, howLong, inLine, MINUTE_MS } from "@empire-cleaning/models";
 import {
   AnswerCard,
   Button,
@@ -22,18 +22,18 @@ import {
   IconTile,
   StatusBadge,
   type ListRow,
+  Line,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
+import { crewSizeOf } from "./CleanerNeededScreen.tsx";
 import { useHomeUrl } from "../home-search.ts";
 import {
   addressOf,
   clientName,
   dayOfInstant,
   endOf,
-  formatHours,
   formatMinutes,
   jobStatusTone,
-  lineOf,
 } from "../format.ts";
 import { type Said, useSaid, useShared } from "../words.ts";
 
@@ -49,7 +49,6 @@ const words = catalog({
     comingUp: "Coming up",
     doneToday: "Done today",
     now: "Now",
-    crewOf: (n: number) => `crew of ${n}`,
     siteVisitFor: (client: string) => `Site visit for ${client}`,
     toSeeIt: (minutes: string) => `${minutes} to see it`,
     call: (client: string) => `Call ${client}`,
@@ -68,7 +67,6 @@ const words = catalog({
     comingUp: "Próximos",
     doneToday: "Terminados hoy",
     now: "Ahora",
-    crewOf: (n: number) => `equipo de ${n}`,
     siteVisitFor: (client: string) => `Visita previa para ${client}`,
     toSeeIt: (minutes: string) => `${minutes} para verla`,
     call: (client: string) => `Llamar a ${client}`,
@@ -267,14 +265,24 @@ function NextUp({
               )
         }`,
         address,
-        job
-          ? [
-              job.serviceName,
-              t.c.hoursOnSite(formatHours(job.hoursOnSite)),
-              // the Job's crew size, not who's confirmed so far
-              ...(job.crewSize > 1 ? [w.crewOf(job.crewSize)] : []),
-            ].join(" · ")
-          : `${w.siteVisitFor(clientName(visit!.client))} · ${w.toSeeIt(formatMinutes(visit!.minutes))}`,
+        <Line
+          key="what"
+          parts={
+            job
+              ? [
+                  job.serviceName,
+                  // to the quarter hour, as the Job's page says it
+                  inLine(howLong(t, job.hoursOnSite)),
+                  // the Job's crew size, not who's confirmed so far, in the
+                  // Offers row's words: "just you", "2 cleaners"
+                  inLine(crewSizeOf(t, job)),
+                ]
+              : [
+                  w.siteVisitFor(clientName(visit!.client)),
+                  w.toSeeIt(formatMinutes(visit!.minutes)),
+                ]
+          }
+        />,
       ]}
       actions={
         <>
@@ -304,7 +312,14 @@ const rowOf = (t: Said, item: Item, openJob: (id: string) => void): ListRow =>
         id: item.job.id,
         at: item.startsAt,
         title: addressOf(item.job.property),
-        description: `${item.job.serviceName}, ${formatHours(item.job.hoursOnSite)}`,
+        description: (
+          <Line
+            parts={[
+              item.job.serviceName,
+              inLine(howLong(t, item.job.hoursOnSite)),
+            ]}
+          />
+        ),
         badges: [
           item.job.outcome && <CleanerJobBadge key="outcome" job={item.job} />,
         ],
@@ -314,10 +329,14 @@ const rowOf = (t: Said, item: Item, openJob: (id: string) => void): ListRow =>
         id: item.visit.id,
         at: item.startsAt,
         title: addressOf(item.visit.property),
-        description: lineOf([
-          `${clientName(item.visit.client)}, ${item.visit.client.phone}`,
-          item.visit.property.accessInstructions,
-        ]),
+        description: (
+          <Line
+            parts={[
+              `${clientName(item.visit.client)}, ${item.visit.client.phone}`,
+              item.visit.property.accessInstructions,
+            ]}
+          />
+        ),
         badges: [
           <StatusBadge key="visit" tone="info">
             {t.siteVisit}

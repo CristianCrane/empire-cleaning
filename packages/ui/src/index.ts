@@ -35,6 +35,7 @@ export { DatePicker, TimeField } from "./DateField.tsx";
 export { Dialog, DialogTrigger, type DialogState } from "./Dialog.tsx";
 export { Drawer } from "./Drawer.tsx";
 export { Fact, Facts, factColumns } from "./Facts.tsx";
+export { Figure, Figures } from "./Figures.tsx";
 export { FieldRow } from "./Field.tsx";
 export { Fold } from "./Fold.tsx";
 export { EmbeddedField } from "./EmbeddedField.tsx";
@@ -42,12 +43,15 @@ export { Form } from "./Form.tsx";
 export { Heading } from "./Heading.tsx";
 export { IconTile } from "./IconTile.tsx";
 export { ButtonLink, ExternalButtonLink, Link, linkStyles } from "./Link.tsx";
+export { Line } from "./Line.tsx";
 export { Logo } from "./Logo.tsx";
 export { MessagePage, SignInPage } from "./layouts/MessagePage.tsx";
 export {
   LIST_PAGE,
   ListPage,
   DatedItem,
+  DatedLists,
+  listRowItem,
   byMonth,
   type ListColumn,
   type ListRow,

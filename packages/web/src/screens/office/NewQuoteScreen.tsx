@@ -30,10 +30,11 @@ import {
   ListItem,
   TextField,
   useSettled,
+  Line,
 } from "@empire-cleaning/ui";
 import { getJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
-import { clientName, lineOf, screenWords } from "../format.ts";
+import { clientName, screenWords } from "../format.ts";
 import { FoldedPrice } from "./QuoteAsked.tsx";
 import { OnSite } from "./WorkedOutQuote.tsx";
 import { reportUnexpected } from "../../monitoring.ts";
@@ -190,8 +191,8 @@ function Caller({
         <Avatar src={null} />
         <div className="flex min-w-0 flex-col">
           <span className="font-semibold text-fg">{clientName(client)}</span>
-          <span className="text-sm [overflow-wrap:anywhere] text-fg-muted">
-            {[client.email ?? "No email", client.phone].join(" · ")}
+          <span className="text-sm text-fg-muted">
+            <Line parts={[client.email ?? "No email", client.phone]} />
           </span>
         </div>
       </div>
@@ -452,11 +453,7 @@ function FindClient({
               id={client.id}
               title={clientName(client)}
               start={<Avatar src={client.imageUrl} />}
-              description={
-                <span className="[overflow-wrap:anywhere]">
-                  {lineOf([client.email, client.phone])}
-                </span>
-              }
+              description={<Line parts={[client.email, client.phone]} />}
             />
           ))}
         </List>

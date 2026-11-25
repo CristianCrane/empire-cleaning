@@ -6,6 +6,8 @@ import {
   type Language,
   type Named,
   firstNameOf,
+  howLong,
+  lineOf,
 } from "@empire-cleaning/models";
 import {
   officeJobButton,
@@ -51,9 +53,12 @@ const words = catalog({
         soon
           ? "These jobs in the next two days need a cleaner, and you're free:"
           : "These jobs need a cleaner, and you're free. Newest first:",
-      onSite: (hours: string, n: number) =>
-        `about ${hours} ${n === 1 ? "hour" : "hours"} on site`,
-      crew: (n: number) => (n === 1 ? "on your own" : `with ${n} cleaners`),
+      // how long, as their Job's page says it, its unit spelled out
+      about: (hours: string) => `about ${hours}`,
+      hours: (hours: string, n: number) =>
+        `${hours} ${n <= 1 ? "hour" : "hours"}`,
+      zip: (postcode: string) => `ZIP code ${postcode}`,
+      crew: (n: number) => (n === 1 ? "just you" : `with ${n} cleaners`),
       FIRST_TO_CONFIRM: "Each goes to the first cleaner to confirm.",
       SEE_THE_JOBS: "See the jobs",
     },
@@ -72,8 +77,10 @@ const words = catalog({
         soon
           ? "Estos trabajos de los próximos dos días necesitan un limpiador, y estás libre:"
           : "Estos trabajos necesitan un limpiador, y estás libre. Los más nuevos primero:",
-      onSite: (hours: string, n: number) =>
-        n === 1 ? "una hora en el lugar" : `unas ${hours} horas en el lugar`,
+      about: (hours: string) => `cerca de ${hours}`,
+      hours: (hours: string, n: number) =>
+        `${hours} ${n <= 1 ? "hora" : "horas"}`,
+      zip: (postcode: string) => `código postal ${postcode}`,
       crew: (n: number) => (n === 1 ? "solo tú" : `con ${n} limpiadores`),
       FIRST_TO_CONFIRM: "Cada uno es para el primer limpiador que lo confirme.",
       SEE_THE_JOBS: "Ver los trabajos",
@@ -143,18 +150,17 @@ export const releasedEmail = ({
 // languages, for the email to name in its own
 export type NeededJob = Omit<CleanerNeeded, "serviceName"> & { service: Named };
 
-// "Deep Clean, Thursday, January 8 at 9:00 AM, 11375, about 3 hours on site,
-// with 2 cleaners"
+// "Deep Clean · Thursday, January 8 at 9:00 AM · ZIP code 11375 · about 1¾
+// hours · with 2 cleaners", its parts set apart as a row's on their screens
 const lineFor = (lang: Language, job: NeededJob) => {
   const w = words[lang].needed;
-  const { formatNumber, formatWhen } = formats[lang];
-  return [
+  return lineOf([
     inLanguage(lang, job.service).name,
-    formatWhen(new Date(job.startsAt)),
-    job.postcode,
-    w.onSite(formatNumber(job.hoursOnSite), job.hoursOnSite),
+    formats[lang].formatWhen(new Date(job.startsAt)),
+    w.zip(job.postcode),
+    howLong(w, job.hoursOnSite),
     w.crew(job.crewSize),
-  ].join(", ");
+  ]);
 };
 
 // the morning's list of every Job open to a Cleaner, new ones first, or

@@ -24,26 +24,23 @@ import {
   RadioGroup,
   Facts,
   Fact,
+  Figure,
+  Figures,
   Fold,
   type Alert,
   type DialogState,
+  Line,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { useStartDraft } from "./StartDraft.tsx";
-import {
-  addressOf,
-  formatHours,
-  lineOf,
-  roomsText,
-  screenWords,
-} from "../format.ts";
+import { addressOf, roomsText, screenWords, typedHours } from "../format.ts";
 import { ConditionIcon, homeIcon } from "../icons.ts";
 import { AskedRows, PriceHead } from "../QuoteParts.tsx";
 import { working } from "./WorkedOutQuote.tsx";
 
-const { conditionLabel, conditionText, formatFloorArea, propertySummary } =
+const { conditionLabel, conditionText, formatFloorArea, propertyParts } =
   screenWords.en;
 
 const { formatDate, formatMoney } = formats.en;
@@ -80,16 +77,27 @@ const sourceText = ({
 // what was asked, in a line: "Deep Clean · Apartment · 2 bedrooms · 1
 // bathroom · moderate". A business's condition is left out until its Site
 // Visit finds one, as its facts say "Not known yet" where it's named
-export const askedSummary = ({ asked, property }: OfficeQuote) =>
-  lineOf([
-    asked?.service.name,
-    propertySummary(property),
-    property.condition && conditionText(property.condition).toLowerCase(),
-  ]);
+export const askedSummary = ({ asked, property }: OfficeQuote) => (
+  <Line
+    parts={[
+      asked?.service.name,
+      ...propertyParts(property, !!asked),
+      property.condition && conditionText(property.condition).toLowerCase(),
+    ]}
+  />
+);
 
 // what the Client (or a caller) asked for, unchanged, and the home it's
-// for (WEB-8, WEB-A); none on a Quote the Office offered unprompted
-export function AskedFacts({ quote }: { quote: OfficeQuote }) {
+// for (WEB-8, WEB-A); none on a Quote the Office offered unprompted. When
+// it was asked, and whether by phone, unless the story's entry it's under
+// says so
+export function AskedFacts({
+  quote,
+  dated = true,
+}: {
+  quote: OfficeQuote;
+  dated?: boolean;
+}) {
   const { asked, property } = quote;
   if (!asked) return null;
   const stated = asked.condition;
@@ -103,13 +111,15 @@ export function AskedFacts({ quote }: { quote: OfficeQuote }) {
         icon={homeIcon(property.kind)}
         label="Property"
         value={<Link href={propertyLink(quote)}>{addressOf(property)}</Link>}
-        line={propertySummary(property)}
+        line={<Line parts={propertyParts(property)} />}
       />
-      <Fact
-        icon={CalendarDays}
-        label="Asked"
-        value={`${formatDate(quote.createdAt)}${quote.origin === "caller" ? ", by phone" : ""}`}
-      />
+      {dated && (
+        <Fact
+          icon={CalendarDays}
+          label="Asked"
+          value={`${formatDate(quote.createdAt)}${quote.origin === "caller" ? ", by phone" : ""}`}
+        />
+      )}
       {quote.source && (
         <Fact icon={Globe} label="From" value={sourceText(quote.source)} />
       )}
@@ -327,72 +337,60 @@ export function FoldedPrice({
 // a first visit, where that's offered too) and how each was worked out,
 // how a Suggested Price is worked out, from the home's or premises' hours
 export function PriceWorking({ breakdown: b }: { breakdown: PriceBreakdown }) {
-  const homeHours = b.homeHours.reduce((sum, part) => sum + part.hours, 0);
   // breakdowns from before #72 have no kind: they're all homes
   const premises = b.propertyKind === "commercial";
   return (
-    <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
+    <Figures>
       {b.homeHours.map((part) => (
-        <Row
+        <Figure
           key={part.label}
           label={part.label}
-          value={formatHours(part.hours)}
+          value={typedHours(part.hours)}
         />
       ))}
-      <Row
+      <Figure
         label={premises ? "The business" : "The home"}
-        value={formatHours(homeHours)}
+        value={working.homeTimes(b, 1)}
         strong
       />
-      <Row label={working.condition(null, b.conditionMultiplier)} value="" />
+      <Figure
+        label={working.condition(null, b.conditionMultiplier)}
+        value={working.homeTimes(b, b.conditionMultiplier)}
+      />
       {/* saved before each Service had its own hours (ADR-0018) */}
       {b.cleanTypeMultiplier !== undefined && !premises && (
-        <Row label={`× ${b.serviceName} (${b.cleanTypeMultiplier})`} value="" />
-      )}
-      {b.addOns.map((addOn) => (
-        <Row
-          key={addOn.key}
-          label={working.addOn(addOn)}
-          value={formatHours(addOn.hours)}
+        <Figure
+          label={`× ${b.serviceName} (${b.cleanTypeMultiplier})`}
+          value={working.homeTimes(
+            b,
+            b.conditionMultiplier * b.cleanTypeMultiplier,
+          )}
         />
-      ))}
-      <Row label={working.hours} value={formatHours(b.labourHours)} strong />
-      <Row
+      )}
+      {working
+        .addOns(
+          b,
+          b.conditionMultiplier * (premises ? 1 : (b.cleanTypeMultiplier ?? 1)),
+        )
+        .map((row) => (
+          <Figure key={row.key} label={row.label} value={row.value} />
+        ))}
+      <Figure label={working.hours} value={typedHours(b.labourHours)} strong />
+      <Figure
         label={working.rate(b.hourlyRateCents, premises)}
         value={formatMoney(b.workedOutCents)}
       />
       {b.minimumApplied && (
-        <Row
+        <Figure
           label={working.minimum(b.minimumChargeCents)}
           value={formatMoney(b.minimumChargeCents)}
         />
       )}
-      <Row
+      <Figure
         label="Suggested price, before tax"
         value={formatMoney(b.priceCents)}
         strong
       />
-    </dl>
-  );
-}
-
-function Row({
-  label,
-  value,
-  strong = false,
-}: {
-  label: string;
-  value: string;
-  strong?: boolean;
-}) {
-  return (
-    <>
-      <dt className={strong ? "font-semibold" : "text-fg-muted"}>{label}</dt>
-      <dd
-        className={`text-right tabular-nums ${strong ? "font-semibold" : ""}`}
-      >
-        {value}
-      </dd>
-    </>
+    </Figures>
   );
 }

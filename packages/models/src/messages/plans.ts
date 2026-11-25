@@ -12,17 +12,23 @@ const es = formats.es;
 const weekdayOfStart = (lang: typeof en, startsAt: string | Date) =>
   lang.weekdayName(dayOf(new Date(startsAt)));
 
-// a weekday's clean and when, by its first: "Mondays at 9:00 AM"
-const planDayWhenEn = (startsAt: string | Date) =>
-  `${weekdayOfStart(en, startsAt)}s at ${en.formatTime(startsAt)}`;
+// a weekday's clean, by its first: "Mondays"
+const planDayEn = (startsAt: string | Date) =>
+  `${weekdayOfStart(en, startsAt)}s`;
 
-// "los lunes a las 9:00 a.m.": sábado and domingo take an s, the others
-// stay as they are; one o'clock is "a la 1:00"
-const planDayWhenEs = (startsAt: string | Date) => {
+// and when: "Mondays at 9:00 AM"
+const planDayWhenEn = (startsAt: string | Date) =>
+  `${planDayEn(startsAt)} at ${en.formatTime(startsAt)}`;
+
+// "los lunes": sábado and domingo take an s, the others stay as they are
+const planDayEs = (startsAt: string | Date) => {
   const weekday = weekdayOfStart(es, startsAt);
-  const time = es.formatTime(startsAt);
-  return `los ${/[ao]$/.test(weekday) ? `${weekday}s` : weekday} a ${theTimeEs(time)}`;
+  return `los ${/[ao]$/.test(weekday) ? `${weekday}s` : weekday}`;
 };
+
+// "los lunes a las 9:00 a.m.": one o'clock is "a la 1:00"
+const planDayWhenEs = (startsAt: string | Date) =>
+  `${planDayEs(startsAt)} a ${theTimeEs(es.formatTime(startsAt))}`;
 
 export const plans = catalog({
   en: {
@@ -32,6 +38,9 @@ export const plans = catalog({
       fortnightly: "every 2 weeks",
       four_weekly: "every 4 weeks",
     } satisfies Record<Recurrence, string>,
+    // weekdays alike in some way, together: "Mondays and Fridays"
+    planDays: (startsAts: (string | Date)[]) =>
+      en.formatList(startsAts.map(planDayEn)),
     planDayWhen: planDayWhenEn,
     // each weekday's: "Mondays at 9:00 AM and Wednesdays at 1:00 PM"
     planDaysWhen: (startsAts: (string | Date)[]) =>
@@ -43,6 +52,8 @@ export const plans = catalog({
       fortnightly: "cada 2 semanas",
       four_weekly: "cada 4 semanas",
     },
+    planDays: (startsAts: (string | Date)[]) =>
+      es.formatList(startsAts.map(planDayEs)),
     planDayWhen: planDayWhenEs,
     planDaysWhen: (startsAts: (string | Date)[]) =>
       es.formatList(startsAts.map(planDayWhenEs)),

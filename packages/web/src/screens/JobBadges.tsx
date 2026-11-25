@@ -24,6 +24,17 @@ export function CrewBadge({ assignment }: { assignment: AssignmentStatus }) {
   );
 }
 
+// a Job's status on a list's row, plain when it's as it should be (booked
+// with a whole crew, done, or called off), so a list whose Tab or Section
+// says which it holds badges only the Job that needs cleaners
+export const jobStatus = (job: {
+  status: JobStatus;
+  assignment: AssignmentStatus;
+}) => ({
+  badge: <JobBadge job={job} />,
+  plain: job.status !== "booked" || job.assignment === "assigned",
+});
+
 // for Office Staff: how it went, or while it's booked, whether its crew is
 // whole
 export function JobBadge({

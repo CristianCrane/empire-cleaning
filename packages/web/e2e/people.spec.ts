@@ -43,7 +43,7 @@ test(
     await expect(
       page.getByRole("heading", { name: "Who do you want to be?" }),
     ).toBeVisible();
-    await expect(page.getByText("On a weekly plan")).toBeVisible();
+    await expect(page.getByText("on a weekly plan")).toBeVisible();
     await expect(
       page.getByText("This signs you out as Jennifer."),
     ).toBeVisible();

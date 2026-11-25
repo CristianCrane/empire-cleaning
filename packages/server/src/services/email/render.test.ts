@@ -114,7 +114,7 @@ describe("the blocks", () => {
     const { html, text } = await render({
       blocks: [
         details([
-          { label: "When", value: "Monday, January 12 at 9:00 AM" },
+          { label: "When", value: "Monday, January 12 at 9:00\u00a0AM" },
           { label: "Where", value: "1 Main St <Apt 2>" },
         ]),
       ],
@@ -123,7 +123,7 @@ describe("the blocks", () => {
     expect(html).toMatch(/<td[^>]*>When<\/td><td[^>]*>Monday, January 12/);
     expect(html).toContain("1 Main St &lt;Apt 2&gt;");
     expect(text).toMatch(
-      /^When: Monday, January 12 at 9:00 AM\nWhere: 1 Main St <Apt 2>\n\n/,
+      /^When: Monday, January 12 at 9:00\u00a0AM\nWhere: 1 Main St <Apt 2>\n\n/,
     );
   });
 

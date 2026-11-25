@@ -26,11 +26,13 @@ const instant = (at: string | Date) =>
 // en-GB's, which doesn't; everything else is en-US, as ADR-0025 says
 const listLocales: Record<Language, string> = { en: "en-GB", es: locales.es };
 
-// a time kept whole, "10:00 AM" or "9:00 a.m." never wrapped away from its
-// AM on a narrow screen: the space before it a no-break one (#534's UX
-// review U19)
-const keptWhole = (written: string) =>
-  written.replace(/ (?=[AP]M\b|[ap]\.\s?m\.)/g, "\u00a0");
+// a clock time held to its AM or PM by a no-break space, wherever it's
+// read (a screen, an email), so a narrow line never ends on "9:00" with
+// "AM" under it, nor "10:00 AM" or "9:00 a.m." wraps (#548, #534's UX
+// review U19). Intl's own space between them differs from one engine to
+// the next, so every engine's comes out the same
+const held = (text: string) =>
+  text.replace(/(\d)[ \u202f](?=AM|PM|[ap]\.\s?m\.)/g, "$1\u00a0");
 
 const formatsIn = (lang: Language) => {
   const locale = locales[lang];
@@ -104,20 +106,19 @@ const formatsIn = (lang: Language) => {
     // a day in a month -> "January 2026"
     formatMonth: (d: string) => month.format(noonOf(d)),
     // an instant -> "9:00 AM"
-    formatTime: (at: string | Date) => keptWhole(time.format(instant(at))),
+    formatTime: (at: string | Date) => held(time.format(instant(at))),
     // two instants -> "9:00 AM – 3:00 PM", each end as formatTime writes
     // it (Intl's formatRange spaces its ends apart differently from one
     // engine to the next)
     formatTimeRange: (from: string | Date, to: string | Date) =>
-      `${keptWhole(time.format(instant(from)))} – ${keptWhole(time.format(instant(to)))}`,
+      held(`${time.format(instant(from))} – ${time.format(instant(to))}`),
     // a time of day -> how a person reads it: "18:00" -> "6:00 PM"
     formatClock: (t: string) =>
-      keptWhole(timeOfDay.format(new Date(`1970-01-01T${t}:00Z`))),
+      held(timeOfDay.format(new Date(`1970-01-01T${t}:00Z`))),
     // an instant -> "Mon, Jan 12, 9:00 AM"
-    formatDateTime: (at: string | Date) =>
-      keptWhole(dateTime.format(instant(at))),
+    formatDateTime: (at: string | Date) => held(dateTime.format(instant(at))),
     // an instant -> "Monday, January 12 at 9:00 AM", as an email writes it
-    formatWhen: (at: string | Date) => keptWhole(when.format(instant(at))),
+    formatWhen: (at: string | Date) => held(when.format(instant(at))),
     // an instant as a page off a calendar shows it (DateTile): "Nov", "3",
     // "Tue"
     dateTile: (at: string | Date) => ({
@@ -157,6 +158,44 @@ export const quarterHoursText = (hours: number) => {
   const part = ["", "¼", "½", "¾"][Math.round((hours - whole) * 4)]!;
   return whole === 0 && part ? part : `${whole}${part}`;
 };
+
+// how long a clean runs, as a Client or a Cleaner reads it (the Office
+// reads it to the minute): to the quarter hour, and "About" only when that
+// rounded it: 6 -> "6 h", 3.3 -> "About 3¼ h". `hours` writes the unit,
+// "h" unless an email spells it out ("3 hours")
+export const howLong = (
+  t: {
+    about: (hours: string) => string;
+    hours?: (hours: string, quarters: number) => string;
+  },
+  hours: number,
+) => {
+  const unit = t.hours ?? ((text: string) => `${text} h`);
+  const text = unit(quarterHoursText(quarterHours(hours)), quarterHours(hours));
+  return quarterHours(hours) === hours ? text : t.about(text);
+};
+
+// a part of a row's line after its first, which reads on from the dot
+// before it as a sentence does, in lower case: "Deep Clean · about 1¾ h";
+// an initialism keeps its capitals, as a name does: "ZIP code 11375"
+export const inLine = (part: string) =>
+  /^\p{Lu}{2}/u.test(part)
+    ? part
+    : part.charAt(0).toLocaleLowerCase() + part.slice(1);
+
+// the parts of a row's line that show: a part left out is false, null,
+// undefined or empty. Both lineOf and the kit's Line keep only these
+export const partsShown = <T>(parts: (T | false | null | undefined)[]) =>
+  parts.filter((p): p is T => p != null && p !== false && p !== "");
+
+// a row's line of parts as text, where only text goes (a History entry's
+// title, an email's line): set apart by dots, each glued to both its
+// neighbours, so a wrap never leaves one at a line's end or start, though a
+// long part may break inside itself. Where a slot takes more than text (a
+// row, a Fact, a card's title), the kit's Line: parts each held whole leave
+// this one text nowhere to wrap (docs/ux.md, Lists and tables)
+export const lineOf = (parts: (string | false | null | undefined)[]) =>
+  partsShown(parts).join("\u00a0·\u00a0");
 
 // a person's first name, as a greeting says it ("Hi, Casey")
 export const firstNameOf = (name: string) => name.split(" ")[0]!;

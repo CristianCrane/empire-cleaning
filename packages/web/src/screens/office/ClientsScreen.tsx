@@ -6,8 +6,9 @@ import {
   ListPage,
   StatusBadge,
   type StatusTone,
+  Line,
 } from "@empire-cleaning/ui";
-import { clientName, lineOf } from "../format.ts";
+import { clientName } from "../format.ts";
 import { tabShown, useListUrl } from "../list-search.ts";
 
 // the list's Tabs, Active first: who the Office is dealing with now
@@ -32,8 +33,9 @@ const noneIn: Record<ClientStanding, string> = {
   past: "No past clients.",
 };
 
-const contactOf = (client: ClientListItem) =>
-  lineOf([client.email, client.phone]);
+const contactOf = (client: ClientListItem) => (
+  <Line parts={[client.email, client.phone]} />
+);
 
 // The Office's Clients (#96, #433), a List: a Tab per standing with its
 // count, Active (a Service Plan, or a Job coming up or in the last 90 days)
@@ -69,9 +71,7 @@ export function ClientsScreen() {
       row={(client) => ({
         id: client.id,
         title: clientName(client),
-        description: (
-          <span className="[overflow-wrap:anywhere]">{contactOf(client)}</span>
-        ),
+        description: contactOf(client),
         start: <Avatar src={client.imageUrl} />,
         // its Tab says it, but a search across them doesn't
         status: {

@@ -1092,7 +1092,7 @@ export const proposeNextMonday = (page: Page) =>
 export const saved = (page: Page) =>
   expect(
     page.getByRole("status").filter({ hasText: /saved|prices/i }),
-  ).toHaveText(/^Saved( · .+)?$/);
+  ).toHaveText(/^Saved(\s·\s.+)?$/);
 
 // what the browser does when the person comes back to this tab
 export const returnToTab = (page: import("@playwright/test").Page) =>

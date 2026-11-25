@@ -216,7 +216,7 @@ test("a Site Visit shows on the Schedule, in the Client's portal and in the visi
   await signInAsOffice(page);
   await page.goto("/office/schedule?from=2026-01-05&to=2026-01-05");
   // a Cleaner's visit takes half an hour of their hours that day
-  await expect(page.getByText("0.5 h booked")).toBeVisible();
+  await expect(page.getByText("30 min booked")).toBeVisible();
   await page.getByRole("link", { name: /3:00\sPM Acme Dental/ }).click();
   await expect(page).toHaveURL(/\/office\/site-visits\/[0-9a-f-]{36}$/);
   await expect(page.getByText("Cory Cleaner", { exact: true })).toBeVisible();
@@ -238,6 +238,12 @@ test("a Site Visit shows on the Schedule, in the Client's portal and in the visi
   await expect(
     page.getByText(/^Cory comes to see 200 Park Ave S.* for about 30 min$/),
   ).toBeVisible();
+  // and on their cleans, its title read on from the time before it
+  await page.goto("/portal/cleans");
+  const row = page.getByRole("row").first();
+  await expect(row).toContainText(/3:00\sPM\s·\ssite visit/);
+  // its line in parts, saying who comes and what it costs
+  await expect(row).toContainText(/with Cory\s·\sabout 30 min\s·\sno charge/);
 });
 
 test("a home's Quote for a Service seen first asks for a site visit as a home's", async ({

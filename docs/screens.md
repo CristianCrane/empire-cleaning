@@ -143,9 +143,9 @@ its state a mark (#493 G4.1). Renders through `CalendarPage` (#437).
 
 Keeps: Table + Tabs (#146). Renders through `ListPage` (#433).
 
-- Header: "Jobs" in the bar; on a phone, the search's icon.
+- Header: "Jobs" in the bar.
 - Body: Tabs Upcoming · Past · Cancelled, the search at the end of their
-  line from md; by month: a Table from md, dated rows on a phone, a badge
+  line from md, on a phone its icon there and the field under the line; by month: a Table from md, dated rows on a phone, a badge
   only for Needs cleaners; Show more (N left).
 
 #### Office > Job
@@ -193,10 +193,10 @@ Keeps: one column, History last, as every Record (#493). Renders through `Record
 
 Keeps: Table + filters (#109). Renders through `ListPage` (#433).
 
-- Header: "Quotes" in the bar; on a phone, the search's icon; New quote
-  (primary).
+- Header: "Quotes" in the bar; New quote (primary).
 - Body: Tabs Requested · Draft · Sent · Expired, the search at the end of
-  their line from md; a sortable Table from md (Client · Address · Service
+  their line from md, on a phone its icon there and the field under the
+  line; a sortable Table from md (Client · Address · Service
   · Total · Waiting, Address from lg, no Total on Requested until a search
   spans the Tabs),
   rows on a phone, the Table's cells as one line under the Client; Show
@@ -237,7 +237,8 @@ Keeps: a record as its story (#145). Renders through `RecordPage` (#432).
   change.
 - Body: a Timeline, Now on top holding Current quote (Card; once a
   one-off is accepted, only the Service booked, "Booked for" its time), then
-  each moment; What was asked folded (`Fold`), the home's facts in it.
+  each moment; What was asked folded (`Fold`) under its entry, the home's
+  facts in it, not the date its entry gives.
 - History: the page itself.
 
 #### Office > Draft quote
@@ -268,9 +269,9 @@ Keeps: a Draft page of its own (#145). Renders through `FormPage` (#434).
 
 Keeps: Table + status Tabs (#117). Renders through `ListPage` (#433).
 
-- Header: "Clients" in the bar; on a phone, the search's icon.
+- Header: "Clients" in the bar.
 - Body: Tabs Active · Quoting · Past, the search at the end of their line
-  from md; a Table from md, rows on a phone; Show more (N left).
+  from md, on a phone its icon there and the field under the line; a Table from md, rows on a phone; Show more (N left).
 
 #### Office > Client
 
@@ -293,8 +294,10 @@ Keeps: one page of Sections, its History last (#493). Renders through `RecordPag
   new terms (open the Quote).
 - Body: Home details (`DetailsCard`: `IconTile`, icon facts); Cleaning plan
   (Section: Change terms and End plan in red on its title line, the plan's
-  card), or an `ActionRow` to set one up; Site visit.
-- History: a Card, last, at every width.
+  card), or an `ActionRow` to set one up; Booked jobs (Section: dated rows
+  by month, while any are booked); Site visit.
+- History: a Card, last, at every width; each entry dated to its day and
+  time, as every History is.
 
 #### Office > Ended cleaning plan
 
@@ -307,7 +310,8 @@ Keeps: the Record. Renders through `RecordPage` (#432).
   See the job).
 - Alerts: on hold (why), in its badge's tone: warning, or info for a
   payment we try again ourselves.
-- Body: the plan (`DetailsCard`); visits waiting; Jobs (Section: List).
+- Body: the plan (`DetailsCard`); visits waiting; Jobs (Section: dated rows
+  by month).
 
 #### Office > Site visit
 
@@ -369,7 +373,8 @@ Keeps: the month as a calendar (#160). Renders through `RecordPage` (#432).
 - Actions: Menu (Edit details; Deactivate in red).
 - Alerts: can't sign in any more; only cleaners have working hours.
 - Body: Details (`DetailsCard`: the Avatar, roles, email, icon facts);
-  Working hours (Card: a month calendar, Edit usual week on its title line).
+  Working hours (Card: a month calendar, Edit usual week on its title line;
+  under it a key naming the month's tints, only while it has one).
 
 #### Office > Prices
 
@@ -564,9 +569,10 @@ Keeps: read like a Quote, paying under it (#165). Renders through `RecordPage` (
 - Alerts: each only why: how it ended (accepted, declined, expired, turned
   down), what it does to the plan, booked up.
 - Body: Quote details (`DetailsCard`: what it comes to, icon facts, how
-  long its crew is there, on each option too, a plan's each weekday's
-  joined by "+", or once when they match, no cleaning hours or crew on its
-  weekday cards); Accept
+  long its crew is there, on each option too, a plan's once when its
+  weekdays match, else one fact per length naming its weekdays, no
+  cleaning hours or crew on its weekday cards; weekdays that cost the same
+  share one card, naming each); Accept
   (Decline beside it, quiet; its confirm not red). While it's being
   prepared: what they asked for.
 
@@ -580,7 +586,7 @@ Keeps: headline, then facts across (ux-portal). Renders through `RecordPage` (#4
   ourselves; otherwise Menu (Ask to change; End plan in red).
 - Alerts: on hold (why), in its badge's tone: warning, or info for a
   payment we try again ourselves, which says there's nothing to do.
-- Body: the plan (`DetailsCard`); Upcoming (Section: List).
+- Body: the plan (`DetailsCard`); Upcoming (Section: dated rows by month).
 
 #### Client portal > A home
 

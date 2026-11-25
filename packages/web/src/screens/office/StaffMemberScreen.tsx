@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLoaderData } from "@tanstack/react-router";
-import { Ban, Languages, SquarePen, UserCheck } from "lucide-react";
+import { Ban, Languages, SquarePen } from "lucide-react";
 import type {
   StaffDetail,
   StaffHolding,
@@ -37,7 +37,7 @@ import {
 import { deleteJson, patchJson, postJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { dayOfInstant, formatHours, roleLabel, today } from "../format.ts";
+import { dayOfInstant, roleLabel, today, typedHours } from "../format.ts";
 import { MemberStatus, StaffFields } from "./StaffScreen.tsx";
 
 const {
@@ -51,9 +51,9 @@ const {
 
 const hoursFormat = { maximumFractionDigits: 2 } as const;
 
-// a day's hours as a calendar cell says them
-const hoursLabel = (hours: number) =>
-  hours === 0 ? "Off" : formatHours(hours);
+// a day's hours as a calendar cell says them, and as she types them in its
+// dialog: "Off", "7.5 h"
+const hoursLabel = (hours: number) => (hours === 0 ? "Off" : typedHours(hours));
 
 // One Staff member (UX pass, #96), a Record (docs/ux.md): who they are,
 // changed in a dialog; a Cleaner's availability as a month calendar, a day
@@ -98,17 +98,12 @@ export function StaffMemberScreen() {
         <DetailsCard
           label="Details"
           tile={<Avatar src={member.imageUrl} size="lg" />}
-          kicker={formatList(member.roles.map((r) => roleLabel[r]))}
-          title={member.name}
+          // the page's title is their name, so the card leads with what
+          // they are here (#548's UX review U46)
+          title={formatList(member.roles.map((r) => roleLabel[r]))}
           line={member.email}
         >
           <Facts>
-            <Fact
-              icon={UserCheck}
-              label="Signed up"
-              value={member.signedUp ? "Signed up" : "Not yet: invitation sent"}
-              line="Their account"
-            />
             <Fact
               icon={Languages}
               label="Preferred language"
@@ -372,8 +367,18 @@ const daysOf = (month: string) => {
   ];
 };
 
+// a day that differs from the usual week, by its tint: the colour the
+// calendar draws it in and what the key under it says that colour means,
+// one record each, so the two can't disagree
+const tints = [
+  { tone: "bg-warning-subtle", key: "Day off" },
+  { tone: "bg-info-subtle", key: "Other hours" },
+] as const;
+const tintOf = (hours: number) => (hours === 0 ? tints[0] : tints[1]);
+
 // Their usual week and the days that differ, on a month calendar: each day
-// its hours, the days that differ tinted, past days dimmed. A day from today
+// its hours, only the days that differ tinted (a usual day off is the
+// usual week, so it reads "Off" untinted), past days dimmed. A day from today
 // on opens its dialog; the usual week is changed from the header.
 function Availability({ member }: { member: StaffDetail }) {
   const now = today();
@@ -381,11 +386,25 @@ function Availability({ member }: { member: StaffDetail }) {
   const [open, setOpen] = useState<string | null>(null);
   const { usualWeek, exceptions } = member.availability;
   const exceptionOn = (day: string) => exceptions.find((e) => e.date === day);
+  // a day set apart from the usual week that reads unlike it: a usual day
+  // off set off again changes nothing shown, so it isn't tinted
+  const differs = (e: { date: string; hours: number }) =>
+    e.hours !== usualWeek[weekdayOf(e.date)];
+  // the key names only the tints this month shows, and none when it has
+  // none: a line about a mark that isn't there reads as a rule to look for
+  const shown = new Set(
+    exceptions
+      .filter((e) => e.date.startsWith(`${month}-`) && differs(e))
+      .map((e) => tintOf(e.hours)),
+  );
+  const keys = tints.filter((tint) => shown.has(tint));
 
   return (
     <Section
       title="Working hours"
-      description="Their usual week, and the days that differ. Pick a day to change it."
+      // what the calendar shows, it shows: the line says only what to do
+      // (U47), the key under it what a tint means
+      description="Pick a day to change it."
       actions={
         <UsualWeek key={usualWeek.join()} member={member} usual={usualWeek} />
       }
@@ -412,14 +431,13 @@ function Availability({ member }: { member: StaffDetail }) {
               if (day === null) return <span key={`blank ${i}`} />;
               const exception = exceptionOn(day);
               const hours = exception?.hours ?? usualWeek[weekdayOf(day)]!;
+              const tinted = exception && differs(exception);
               const past = day < now;
-              const tone = exception
-                ? hours > 0
-                  ? "bg-info-subtle"
-                  : "bg-warning-subtle"
+              const tone = tinted
+                ? tintOf(hours).tone
                 : hours > 0
                   ? "bg-surface"
-                  : "bg-surface-sunken text-fg-muted";
+                  : "bg-surface text-fg-muted";
               return (
                 <button
                   key={day}
@@ -439,7 +457,7 @@ function Availability({ member }: { member: StaffDetail }) {
                   <span className="text-sm font-semibold sm:text-base">
                     {" "}
                     {hoursLabel(hours)}
-                    {exception && (
+                    {tinted && (
                       <span className="sr-only">
                         (differs from the usual week)
                       </span>
@@ -449,10 +467,26 @@ function Availability({ member }: { member: StaffDetail }) {
               );
             })}
           </div>
-          <p className="text-sm text-fg-muted">
-            Tinted days differ from the usual week: amber for time off, blue for
-            more hours.
-          </p>
+          {/* a legend, each tint's swatch by its words and kept whole, so
+              a phone's line breaks between them, never under one (U48) */}
+          {keys.length > 0 && (
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-fg-muted">
+              Unlike the usual week:
+              {keys.map((tint) => (
+                <span
+                  key={tint.key}
+                  className="inline-flex items-center gap-1.5 whitespace-nowrap"
+                >
+                  {/* a space a screen reader reads, which a flex row drops */}{" "}
+                  <span
+                    aria-hidden
+                    className={`size-3 rounded-sm border border-border ${tint.tone}`}
+                  />
+                  {tint.key}
+                </span>
+              ))}
+            </p>
+          )}
         </div>
       </Card>
       {open && (

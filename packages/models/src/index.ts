@@ -1169,7 +1169,38 @@ export type RevisionSummary = {
   proposedStartsAt: string;
   sentAt: string;
   expiresAt: string;
+  // what it changed of the Revision sent before it, in the order the Office
+  // reads them; empty when it was sent again as it was, null on the first
+  changed: RevisionChange[] | null;
+  // a one-off Quote's other Service, offered beside its own, whose price
+  // changed: "Deep Clean price changed"; null otherwise
+  offeredServiceName: string | null;
+  // the crew it was sent with, which with its price and time decides
+  // whether the clean fits: a one-off's, at its time, or a Service Plan
+  // Quote's on each weekday, by its first clean, in the order they come
+  crew: { startsAt: string; crewSize: number }[];
 };
+
+// what a Sent Revision can change of the one before it: its terms, as the
+// Draft names them, and "price", its headline's (a Service Plan Quote's, any
+// weekday's), and "offeredPrice", a one-off Quote's other Service's, as when
+// the Price List moved between the two sends
+export const REVISION_CHANGES = [
+  "service",
+  "price",
+  "offeredPrice",
+  "time",
+  "weekdays",
+  "cleaners",
+  "extras",
+  "area",
+  "condition",
+  "deposit",
+  "planDiscount",
+  "recurrence",
+  "validity",
+] as const;
+export type RevisionChange = (typeof REVISION_CHANGES)[number];
 
 // A Quote in full, for the Office (ADR-0017): what was asked, the Revision
 // being drafted, the offer, and every Sent Revision before it

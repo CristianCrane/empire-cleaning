@@ -623,7 +623,7 @@ describe("every email to a Client or a Cleaner, in their Preferred Language", ()
     expect(left).toEqual([]);
   });
 
-  test('in Spanish, ends no sentence with a second stop after a time ("9:00 a.m..")', async () => {
+  test('in Spanish, ends no sentence with a second stop after a time ("9:00\u00a0a.m..")', async () => {
     for (const spanish of emailsIn("es")) {
       const { subject, text } = await renderEmail(spanish, "logo.png");
       expect(`${subject}\n${text}`, subject).not.toContain("..");

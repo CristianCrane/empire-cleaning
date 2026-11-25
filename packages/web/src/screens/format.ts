@@ -22,12 +22,14 @@ import {
   dayOf,
   formats,
   HOUR_MS,
+  inLine,
   type Language,
+  lineOf,
   messages,
   quarterHours,
-  quarterHoursText,
   timeOf,
   upperFirst,
+  weekdayOf,
 } from "@empire-cleaning/models";
 import { conditions, formWords } from "@empire-cleaning/quote-request";
 import { labels } from "./labels.ts";
@@ -38,18 +40,32 @@ export const addressOf = (
   p: Pick<PropertyView, "street" | "unit" | "postcode">,
 ) => [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
 
-// a row's line, from the parts it has: "12 Elm St · $184.50". A wrap never
-// starts a line with its dot
-export const lineOf = (parts: (string | false | null | undefined)[]) =>
-  parts.filter(Boolean).join("\u00a0· ");
+// things, those that read alike together, in the order they come: one
+// kind when all read alike (a plan's weekdays by length, a send's by crew)
+export const alike = <T>(things: T[], key: (thing: T) => string) => {
+  const kinds = new Map<string, T[]>();
+  for (const thing of things)
+    kinds.set(key(thing), [...(kinds.get(key(thing)) ?? []), thing]);
+  return [...kinds.values()];
+};
+
+// a row's line of parts as text, where a slot takes only text; a row's
+// own line is the kit's Line
+export { lineOf };
 
 // a Job's crew, or that it has none yet
 export const crewOf = (crew: { name: string }[]) =>
   crew.map((c) => c.name).join(", ") || "No cleaners yet";
 
+// so many of a thing, "2 bedrooms", "1 baño": the number held to its word,
+// so a narrow line never ends on "1.5" with "bathrooms" under it
+const countIn =
+  (lang: Language) => (n: number, forms: { one: string; other: string }) =>
+    `${n}\u00a0${formats[lang].plural(n, forms)}`;
+
 // "2 bedrooms", "1 bathroom", for the Office
 const count = (n: number, one: string) =>
-  `${n} ${formats.en.plural(n, { one, other: `${one}s` })}`;
+  countIn("en")(n, { one, other: `${one}s` });
 
 // a home's rooms in full, as a Client gives them, for the Office: "2 bedrooms, 1.5
 // bathrooms, 1 storey, pets"
@@ -71,22 +87,17 @@ export const clientName = (c: Pick<ClientName, "name" | "businessName">) =>
 export const shortClientName = (c: Pick<ClientName, "name" | "businessName">) =>
   c.businessName ?? c.name;
 
-// 3.75 -> "3.75 h", 4 -> "4 h"
-export const formatHours = (hours: number) => `${hours} h`;
+// a length as the Office reads it, to the minute, as the Schedule books
+// it: 1.63 -> "1 h 38 min", 3 -> "3 h", 0.75 -> "45 min" (a Client or a
+// Cleaner reads it to the quarter hour: howLong)
+export const formatHours = (hours: number) =>
+  formatMinutes(Math.round(hours * 60)) || "0 h";
 
-// how long a Job runs, as a person says it: to the quarter hour, and
-// "About" only when that rounded it: 6 -> "6 h", 3.3 -> "About 3¼ h";
-// several, a plan's weekdays, joined, "About" said once: 1.9, 3.75 ->
-// "About 2 h + 3¾ h"; the same on each, once, so it isn't read as a sum:
-// 3.75, 3.75 -> "3¾ h"
-export const howLong = (
-  t: { about: (hours: string) => string },
-  ...hours: number[]
-) => {
-  const each = hours.map((h) => `${quarterHoursText(quarterHours(h))} h`);
-  const text = each.every((e) => e === each[0]) ? each[0]! : each.join(" + ");
-  return hours.every((h) => quarterHours(h) === h) ? text : t.about(text);
-};
+// hours the Office types or prices at a rate, as she types them: the Price
+// list's, a working-out's sums, cleaning hours, extra time, a cleaner's
+// working day: 1.125 -> "1.125 h" (docs/ux.md, "A length of time")
+export const typedHours = (hours: number) =>
+  `${Math.round(hours * 10000) / 10000} h`;
 
 // when a Job is over: its start and its hours, to the quarter hour as
 // howLong says them
@@ -140,6 +151,13 @@ export function timeOfField(time: Time | null | undefined) {
 
 // an instant -> the New York day it falls on, "2026-01-12"
 export const dayOfInstant = (iso: string) => dayOf(new Date(iso));
+
+// a plan's day that comes round on the weekday of `day` ("2026-01-19"),
+// if any does
+export const planDayOn = <Day extends { startsAt: string }>(
+  days: Day[],
+  day: string,
+) => days.find((d) => weekdayOf(dayOfInstant(d.startsAt)) === weekdayOf(day));
 
 // a Site Visit's length: 30 -> "30 min", 90 -> "1 h 30 min"
 export const formatMinutes = (minutes: number) => {
@@ -214,7 +232,7 @@ const words = catalog({
     cleaner: { one: "cleaner", other: "cleaners" },
     moreCleaner: { one: "more cleaner", other: "more cleaners" },
     freeCleaner: { one: "free cleaner", other: "free cleaners" },
-    sqFt: (area: string) => `${area} sq ft`,
+    sqFt: (area: string) => `${area}\u00a0sq\u00a0ft`,
     floorAreaNotKnown: "floor area not known yet",
     roomsNotKnown: "rooms not known yet",
     studio: "Studio",
@@ -259,7 +277,7 @@ const words = catalog({
     cleaner: { one: "limpiador", other: "limpiadores" },
     moreCleaner: { one: "limpiador más", other: "limpiadores más" },
     freeCleaner: { one: "limpiador libre", other: "limpiadores libres" },
-    sqFt: (area: string) => `${area} pies²`,
+    sqFt: (area: string) => `${area}\u00a0pies²`,
     floorAreaNotKnown: "superficie aún sin saber",
     roomsNotKnown: "habitaciones aún sin saber",
     studio: "Estudio",
@@ -306,14 +324,11 @@ type PlanDays = { recurrence: Recurrence; days: PlanDaySummary[] };
 const screenWordsIn = (lang: Language) => {
   const w = words[lang];
   const l = labels[lang];
-  const { formatClock, formatList, formatMoney, formatNumber, plural } =
-    formats[lang];
+  const { formatClock, formatList, formatMoney, formatNumber } = formats[lang];
   const { weekdayName, weekdays } = formats[lang];
   const { planDaysWhen, recurrence } = messages[lang];
   const form = formWords[lang];
-  // "2 bedrooms", "1 baño"
-  const count = (n: number, forms: { one: string; other: string }) =>
-    `${n} ${plural(n, forms)}`;
+  const count = countIn(lang);
 
   const conditionLabel = Object.fromEntries(
     conditions[lang].map((c) => [c.value, c.label]),
@@ -377,6 +392,46 @@ const screenWordsIn = (lang: Language) => {
       ? null
       : priceOf(quote.headlineTotalCents, quote.plan?.days.length ?? null);
 
+  // what it's a Quote of, to the Office: a Service Plan of the Service its
+  // cleans are, or the Service its total is for, its Revision's own (the
+  // one asked for, unless the Office changed it) or, once Accepted, the one
+  // booked; the Service asked for until it has a total
+  const quoteService = (
+    quote: Pick<QuoteSummary, "headlineServiceName" | "service" | "kind">,
+  ) =>
+    serviceNamed(
+      quote.headlineServiceName ?? quote.service.name,
+      quote.kind === "service_plan",
+    );
+
+  // a Quote in one part, as the Office names it in a line (a list's row, a
+  // home's History): "Standard Clean $194.89", "Standard Clean plan
+  // $650.10 a week", or "Standard Clean" until it's priced
+  const quoteNamed = (
+    quote: Pick<
+      QuoteSummary,
+      "headlineServiceName" | "headlineTotalCents" | "service" | "kind" | "plan"
+    >,
+  ) => [quoteService(quote), quoteTotal(quote)].filter(Boolean).join(" ");
+
+  const propertyParts = (p: PropertyView, after = false) =>
+    p.kind === "commercial"
+      ? [
+          p.premisesType.name,
+          p.floorArea === null
+            ? w.floorAreaNotKnown
+            : formatFloorArea(p.floorArea),
+        ]
+      : [
+          after ? inLine(form[p.type]) : form[p.type],
+          ...(p.bedrooms === null
+            ? [w.roomsNotKnown]
+            : [
+                p.bedrooms === 0 ? w.studio : count(p.bedrooms, w.bedroom),
+                count(p.bathrooms!, w.bathroom),
+              ]),
+        ];
+
   return {
     // "Tue, Oct 20" and "Oct 20" for an instant: New York's day
     dayOf: (iso: string) => formats[lang].formatDay(dayOfInstant(iso)),
@@ -399,26 +454,14 @@ const screenWordsIn = (lang: Language) => {
             : w.cleaner,
       ),
     formatFloorArea,
-    // what a Property is: "Apartment · 2 bedrooms · 1.5 bathrooms"
-    // ("Apartment · rooms not known yet" before they're given), or "Office ·
-    // 4,500 sq ft" for business premises
-    propertySummary: (p: PropertyView) =>
-      p.kind === "commercial"
-        ? lineOf([
-            p.premisesType.name,
-            p.floorArea === null
-              ? w.floorAreaNotKnown
-              : formatFloorArea(p.floorArea),
-          ])
-        : lineOf([
-            form[p.type],
-            ...(p.bedrooms === null
-              ? [w.roomsNotKnown]
-              : [
-                  p.bedrooms === 0 ? w.studio : count(p.bedrooms, w.bedroom),
-                  count(p.bathrooms!, w.bathroom),
-                ]),
-          ]),
+    // what a Property is, part by part for a row's Line: "Apartment · 2
+    // bedrooms · 1.5 bathrooms" ("Apartment · rooms not known yet" before
+    // they're given), or "Office · 4,500 sq ft" for business premises.
+    // `after` a part of a row's line, a home's kind reads on from the dot
+    // ("Quote sent · apartment · …"); a Premises Type's name, typed on the
+    // Price List as a Service's is, keeps its capitals. Parts, not one text:
+    // each is held whole, so a narrow line wraps between them
+    propertyParts,
     // when a business wants cleaning: "Monday, Wednesday and Friday at 6:00
     // PM", or a one-off
     wantedCleaning: (request: {
@@ -454,6 +497,8 @@ const screenWordsIn = (lang: Language) => {
     recurrenceLabel,
     planName,
     quoteTotal,
+    quoteService,
+    quoteNamed,
     servicePrice,
     serviceNamed,
     // what a Sent Revision led with, as servicePrice says
@@ -468,9 +513,10 @@ const screenWordsIn = (lang: Language) => {
         revision.headlineTotalCents,
         revision.planDays,
       ),
-    // how a Quote reads in a list: "Standard Clean $194.89", the Service it
-    // leads with, or "Cleaning plan, Standard Clean, every 2 weeks: $201.85
-    // a clean", or for several weekdays "...: $650.10 a week"
+    // how a Quote reads to its Client, on their Home: "Standard Clean
+    // $194.89", the Service it leads with, or "Cleaning plan, Standard
+    // Clean, every 2 weeks: $201.85 a clean", or for several weekdays
+    // "...: $650.10 a week" (the Office names it as quoteNamed says)
     quoteHeadline: (
       quote: Pick<
         QuoteSummary,

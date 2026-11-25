@@ -1,12 +1,13 @@
 import {
   catalog,
+  howLong,
+  inLine,
   type CleanerJobs,
   type CleanerNeeded,
 } from "@empire-cleaning/models";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import { Inbox } from "lucide-react";
-import { ListPage, type ListRow } from "@empire-cleaning/ui";
-import { formatHours } from "../format.ts";
+import { Line, ListPage, type ListRow } from "@empire-cleaning/ui";
 import { tabShown, useListUrl } from "../list-search.ts";
 import { useSaid } from "../words.ts";
 import { crewSizeOf } from "./CleanerNeededScreen.tsx";
@@ -67,12 +68,17 @@ export function CleanerOffers() {
       ? {
           id: job.jobId,
           at: job.startsAt,
-          title: job.postcode,
-          description: [
-            job.serviceName,
-            c.hoursOnSite(formatHours(job.hoursOnSite)),
-            crewSizeOf(t, job),
-          ].join(" · "),
+          // read on from the time before it: "código postal 11375"
+          title: inLine(c.zip(job.postcode)),
+          description: (
+            <Line
+              parts={[
+                job.serviceName,
+                inLine(howLong(t, job.hoursOnSite)),
+                inLine(crewSizeOf(t, job)),
+              ]}
+            />
+          ),
           onOpen: () =>
             void navigate({
               to: "/cleaner/open/$jobId",
@@ -82,8 +88,12 @@ export function CleanerOffers() {
       : {
           id: job.id,
           at: job.startsAt,
-          title: job.property.postcode,
-          description: `${job.serviceName} · ${c.hoursOnSite(formatHours(job.hoursOnSite))}`,
+          title: inLine(c.zip(job.property.postcode)),
+          description: (
+            <Line
+              parts={[job.serviceName, inLine(howLong(t, job.hoursOnSite))]}
+            />
+          ),
           onOpen: () =>
             void navigate({
               to: "/cleaner/jobs/$jobId",

@@ -110,17 +110,16 @@ import {
   firstCleansOf,
   hasCompletedJob,
   isOpen,
-  isOwnOption,
   needSiteVisit,
   offers,
   optionsIn,
-  ownOption,
   revisionHistory,
   siteVisitOf,
   sourceOf,
   statusOf,
   whatClosed,
 } from "./quote-state.ts";
+import { isOwnOption, ownOption } from "./own-option.ts";
 import {
   pendingDeposits,
   quoteRevisions,

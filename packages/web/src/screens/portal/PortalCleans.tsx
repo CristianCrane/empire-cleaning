@@ -5,9 +5,9 @@ import type {
   ClientSiteVisit,
   ClientUpcomingJob,
 } from "@empire-cleaning/models";
-import { catalog } from "@empire-cleaning/models";
-import { ListPage, type ListRow } from "@empire-cleaning/ui";
-import { addressOf, formatMinutes, howLong, lineOf } from "../format.ts";
+import { catalog, howLong, inLine } from "@empire-cleaning/models";
+import { Line, ListPage, type ListRow } from "@empire-cleaning/ui";
+import { addressOf, formatMinutes } from "../format.ts";
 import { tabShown, useListUrl } from "../list-search.ts";
 import { type Said, useSaid } from "../words.ts";
 import { cleanBadge, upcomingBadge } from "./clean-badge.tsx";
@@ -15,8 +15,10 @@ import { cleanBadge, upcomingBadge } from "./clean-badge.tsx";
 // in the Client's language (ADR-0025)
 const words = catalog({
   en: {
-    visit: (visitor: string, length: string) =>
-      `${visitor}, about ${length}, free`,
+    // a Site Visit's parts: who comes, for how long, and that it costs
+    // nothing, "with Cory · about 30 min · no charge"
+    visitWith: (visitor: string) => `with ${visitor}`,
+    about: (length: string) => `about ${length}`,
     fee: (amount: string) => `${amount} fee`,
     noCharge: "No charge",
     upcoming: "Upcoming",
@@ -24,8 +26,8 @@ const words = catalog({
     noneYet: "No cleans yet",
   },
   es: {
-    visit: (visitor: string, length: string) =>
-      `${visitor}, cerca de ${length}, gratis`,
+    visitWith: (visitor: string) => `con ${visitor}`,
+    about: (length: string) => `cerca de ${length}`,
     fee: (amount: string) => `cargo de ${amount}`,
     noCharge: "Sin cargo",
     upcoming: "Próximas",
@@ -49,10 +51,17 @@ const upcomingRow =
     id: job.id,
     at: job.startsAt,
     title: job.serviceName,
-    description: lineOf([
-      homes > 1 && addressOf(job.property),
-      howLong(t, job.hoursOnSite),
-    ]),
+    description: (
+      <Line
+        parts={[
+          homes > 1 && addressOf(job.property),
+          // after the address, it reads on from the dot
+          homes > 1
+            ? inLine(howLong(t, job.hoursOnSite))
+            : howLong(t, job.hoursOnSite),
+        ]}
+      />
+    ),
     badges: [upcomingBadge(t, job)],
     onOpen: () => open(job.id),
   });
@@ -62,38 +71,54 @@ const visitRow =
   (visit: ClientSiteVisit): ListRow => ({
     id: visit.id,
     at: visit.startsAt,
-    title: t.siteVisit,
-    description: lineOf([
-      homes > 1 && addressOf(visit.property),
-      t.w.visit(visit.visitorName, formatMinutes(visit.minutes)),
-    ]),
+    // read on from the time before it: "Thu 9:00 AM · site visit"
+    title: inLine(t.siteVisit),
+    description: (
+      <Line
+        parts={[
+          homes > 1 && addressOf(visit.property),
+          t.w.visitWith(visit.visitorName),
+          t.w.about(formatMinutes(visit.minutes)),
+          inLine(t.w.noCharge),
+        ]}
+      />
+    ),
   });
 
 const pastRow =
   (t: T, homes: number, open: (jobId: string) => void) =>
-  (job: ClientPastJob): ListRow => ({
-    id: job.id,
-    at: job.startsAt,
-    title: job.serviceName,
-    description: lineOf([
-      homes > 1 && addressOf(job.property),
+  (job: ClientPastJob): ListRow => {
+    const cost =
       job.status === "completed"
         ? t.formatMoney(job.totalCents)
         : job.feeCents > 0
           ? t.w.fee(t.formatMoney(job.feeCents))
-          : t.w.noCharge,
-    ]),
-    badges: [
-      cleanBadge(t, {
-        status: job.status,
-        unpaid: job.unpaid,
-        priceChange: job.waiting.length > 0,
-        skipped: job.skipped,
-        moveAsked: false,
-      }),
-    ],
-    onOpen: () => open(job.id),
-  });
+          : t.w.noCharge;
+    return {
+      id: job.id,
+      at: job.startsAt,
+      title: job.serviceName,
+      description: (
+        <Line
+          parts={[
+            homes > 1 && addressOf(job.property),
+            // after the address, it reads on from the dot
+            homes > 1 ? inLine(cost) : cost,
+          ]}
+        />
+      ),
+      badges: [
+        cleanBadge(t, {
+          status: job.status,
+          unpaid: job.unpaid,
+          priceChange: job.waiting.length > 0,
+          skipped: job.skipped,
+          moveAsked: false,
+        }),
+      ],
+      onOpen: () => open(job.id),
+    };
+  };
 
 export function PortalCleans() {
   const { client, jobs, pastJobs, siteVisits } = useLoaderData({

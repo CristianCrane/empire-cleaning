@@ -3,6 +3,8 @@ import {
   firstNameOf,
   formats,
   oneStop,
+  howLong,
+  inLine,
   quarterHours,
   quarterHoursText,
   stopAfter,
@@ -129,4 +131,30 @@ test("hours round to the quarter hour, written with their fraction", () => {
   expect(quarterHoursText(4.75)).toBe("4¾");
   expect(quarterHoursText(0.5)).toBe("½");
   expect(quarterHoursText(6)).toBe("6");
+});
+
+test("howLong says About only when the quarter hour rounded it", () => {
+  const t = { about: (hours: string) => `About ${hours}` };
+  expect(howLong(t, 6)).toBe("6 h");
+  expect(howLong(t, 3.75)).toBe("3¾ h");
+  expect(howLong(t, 3.3)).toBe("About 3¼ h");
+  expect(howLong(t, 1.875)).toBe("About 2 h");
+});
+
+test("howLong spells its unit out where an email asks it to", () => {
+  const t = {
+    about: (hours: string) => `about ${hours}`,
+    hours: (hours: string, n: number) =>
+      n === 1 ? `${hours} hour` : `${hours} hours`,
+  };
+  expect(howLong(t, 1.63)).toBe("about 1¾ hours");
+  expect(howLong(t, 1)).toBe("1 hour");
+});
+
+test("inLine reads a part on from the dot before it", () => {
+  expect(inLine("About 1¾ h")).toBe("about 1¾ h");
+  expect(inLine("Cerca de 1¾ h")).toBe("cerca de 1¾ h");
+  expect(inLine("3 h")).toBe("3 h");
+  expect(inLine("ZIP code 11375")).toBe("ZIP code 11375");
+  expect(inLine("Código postal 11375")).toBe("código postal 11375");
 });

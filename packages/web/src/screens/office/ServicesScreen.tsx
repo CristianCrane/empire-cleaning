@@ -25,6 +25,7 @@ import {
   StatusBadge,
   TextField,
   FieldRow,
+  Line,
 } from "@empire-cleaning/ui";
 import { postJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
@@ -96,7 +97,14 @@ export function ServicesScreen() {
       row={(service) => ({
         id: service.key,
         title: service.name,
-        description: `${methodLabel[service.method]} · ${formatMoney(service.hourlyRateCents)} an hour`,
+        description: (
+          <Line
+            parts={[
+              methodLabel[service.method],
+              `${formatMoney(service.hourlyRateCents)} an hour`,
+            ]}
+          />
+        ),
         onOpen: () =>
           void navigate({
             to: "/office/services/$serviceKey",
@@ -353,12 +361,15 @@ function ServiceForm({
         <FormPart
           title="What it is"
           summary={
-            service &&
-            [
-              draft.name,
-              offeredForSaid[draft.offeredFor],
-              ...(draft.nameEs ? ["in Spanish too"] : []),
-            ].join(" · ")
+            service && (
+              <Line
+                parts={[
+                  draft.name,
+                  offeredForSaid[draft.offeredFor],
+                  draft.nameEs && "in Spanish too",
+                ]}
+              />
+            )
           }
         >
           <TextField
@@ -484,13 +495,17 @@ function ServiceForm({
 
         <FormPart
           title="Booking"
-          summary={[
-            draft.canRecur ? "On a plan" : "Not on a plan",
-            draft.needsSiteVisit ? "a site visit first" : "no site visit",
-            firstVisit
-              ? `recommends ${firstVisit.name}`
-              : "recommends nothing else",
-          ].join(" · ")}
+          summary={
+            <Line
+              parts={[
+                draft.canRecur ? "On a plan" : "Not on a plan",
+                draft.needsSiteVisit ? "a site visit first" : "no site visit",
+                firstVisit
+                  ? `recommends ${firstVisit.name}`
+                  : "recommends nothing else",
+              ]}
+            />
+          }
         >
           <Checkbox
             isSelected={draft.canRecur}

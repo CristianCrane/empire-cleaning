@@ -9,7 +9,6 @@ import {
   Clock,
   PiggyBank,
   Receipt,
-  Users,
 } from "lucide-react";
 import {
   CANCELLATION_CUTOFF_HOURS,
@@ -18,8 +17,10 @@ import {
   type UnpaidKind,
   asksTheClient,
   catalog,
+  howLong,
   officeFix,
   oneStop,
+  quarterHours,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -32,6 +33,7 @@ import {
   Fact,
   DetailsCard,
   Facts,
+  Line,
   type Alert,
   type DialogState,
   type PageAction,
@@ -40,7 +42,7 @@ import {
 import { postJson } from "../api.ts";
 import { linkTo, sameHref, type AppHref } from "../links.ts";
 import { useAction } from "./action.ts";
-import { formatHours } from "./format.ts";
+import { alike, dayOfInstant, formatHours, planDayOn } from "./format.ts";
 import { type Said, useSaid } from "./words.ts";
 
 // what the Client reads, in their language (ADR-0025); what only the
@@ -74,11 +76,10 @@ const words = catalog({
     eachClean: "Each clean",
     taxOff: (each: string, percent: number) =>
       `${each}, tax included, ${percent}% off`,
-    onSiteEachDay: "On site, each day",
     towardsLast: "Deposit, put towards the last clean",
     offLast: "Deposit, comes off your last clean",
     started: (day: string) => `Started ${day}`,
-    endedAt: (day: string) => ` · Ended ${day}`,
+    endedAt: (day: string) => `ended ${day}`,
   },
   es: {
     cleanOn: (when: string, amount: string) =>
@@ -111,11 +112,10 @@ const words = catalog({
     eachClean: "Cada limpieza",
     taxOff: (each: string, percent: number) =>
       `${each}, impuestos incluidos, ${percent}% de descuento`,
-    onSiteEachDay: "En el lugar, cada día",
     towardsLast: "Depósito, aplicado a la última limpieza",
     offLast: "Depósito, se descuenta de su última limpieza",
     started: (day: string) => `Empezó el ${day}`,
-    endedAt: (day: string) => ` · Finalizó el ${day}`,
+    endedAt: (day: string) => `finalizó el ${day}`,
   },
 });
 type T = Said & { w: (typeof words)["en"] };
@@ -371,6 +371,76 @@ export function EndPlan({
   );
 }
 
+// which of a Client's cleans say their length in the list: none while each
+// runs as the card says for its weekday, as a row would repeat it; else, on
+// a plan of one length, every row, so the one that differs sits among
+// neighbours alike; on a plan of several, only the clean that isn't its
+// weekday's (booked longer, or moved to a day the card has no length
+// for), as neighbours of other weekdays aren't alike to compare and would
+// hide it
+export const cleansSayingLength = <
+  Clean extends { startsAt: string; hoursOnSite: number },
+>(
+  days: { startsAt: string; hoursOnSite: number }[],
+  cleans: Clean[],
+) => {
+  const oneLength =
+    alike(days, (d) => `${quarterHours(d.hoursOnSite)}`).length === 1;
+  // a clean moved off the plan's weekdays runs as the card says if it has
+  // one length; with several, the card can't say which is its
+  const differs = (clean: Clean) => {
+    const usual =
+      planDayOn(days, dayOfInstant(clean.startsAt)) ??
+      (oneLength ? days[0] : undefined);
+    return (
+      !usual ||
+      quarterHours(usual.hoursOnSite) !== quarterHours(clean.hoursOnSite)
+    );
+  };
+  return oneLength && cleans.some(differs)
+    ? new Set(cleans)
+    : new Set(cleans.filter(differs));
+};
+
+// how long a Client's cleans run, to the quarter hour, on their plan and on
+// the quote that offers it: one fact while every clean reads alike, else one
+// for each length, naming its weekdays, so none is read as a sum or matched
+// to a weekday by its place. Weekdays the same to the quarter hour read
+// alike, "About" if any of them isn't exactly that
+export function HowLongFacts({
+  days,
+}: {
+  days: { startsAt: string; hoursOnSite: number }[];
+}) {
+  const t = useSaid(words);
+  return (
+    <>
+      {alike(days, (d) => `${quarterHours(d.hoursOnSite)}`).map(
+        (these, _, kinds) => (
+          <Fact
+            key={these[0]!.startsAt}
+            icon={Clock}
+            label={t.howLong}
+            value={howLong(
+              t,
+              (
+                these.find(
+                  (d) => quarterHours(d.hoursOnSite) !== d.hoursOnSite,
+                ) ?? these[0]!
+              ).hoursOnSite,
+            )}
+            line={
+              kinds.length > 1
+                ? t.howLongOn(t.planDays(these.map((d) => d.startsAt)))
+                : undefined
+            }
+          />
+        ),
+      )}
+    </>
+  );
+}
+
 // The plan as its Client and the Office read it, its details card: when,
 // large, every weekday of it (one answer to "when is my clean?"), then its
 // facts (UX pass, #96), and anything else below
@@ -404,15 +474,17 @@ export function PlanCard({
         </span>
       }
       title={plan.days.map((day) => (
-        <span key={day.startsAt} className="block">
-          {t.planDayWhen(day.startsAt)}
-          {several && (
-            <span className="font-normal text-fg-muted">
-              {" "}
-              · {day.serviceName}
-            </span>
-          )}
-        </span>
+        <Line
+          key={day.startsAt}
+          parts={[
+            t.planDayWhen(day.startsAt),
+            several && (
+              <span key="service" className="font-normal text-fg-muted">
+                {day.serviceName}
+              </span>
+            ),
+          ]}
+        />
       ))}
       line={!several && one!.serviceName}
     >
@@ -429,20 +501,33 @@ export function PlanCard({
               : t.taxIncludedOf(each)
           }
         />
-        {several ? (
-          <Fact
-            icon={Users}
-            label={t.onSite}
-            value={plan.days.map((d) => formatHours(d.hoursOnSite)).join(" + ")}
-            line={t.w.onSiteEachDay}
-          />
+        {/* how long: the Client's to the quarter hour, the Office's to
+            the minute, with its crew, as the Schedule books it; once a
+            plan's weekdays differ in what the reader reads, each kind is
+            its own fact, naming its days, so nothing is matched by position
+            or read as a sum: "On site Mondays and Fridays, with 2 cleaners" */}
+        {forClient ? (
+          <HowLongFacts days={plan.days} />
         ) : (
-          <Fact
-            icon={Clock}
-            label={t.onSite}
-            value={t.about(formatHours(one!.hoursOnSite))}
-            line={t.onSiteWith(t.cleaners(one!.crewSize))}
-          />
+          alike(
+            plan.days,
+            (d) => `${formatHours(d.hoursOnSite)} ${d.crewSize}`,
+          ).map((days, _, kinds) => (
+            <Fact
+              key={days[0]!.startsAt}
+              icon={Clock}
+              label={t.onSite}
+              value={formatHours(days[0]!.hoursOnSite)}
+              line={
+                kinds.length > 1
+                  ? t.onSiteOnWith(
+                      t.planDays(days.map((d) => d.startsAt)),
+                      t.cleaners(days[0]!.crewSize),
+                    )
+                  : t.onSiteWith(t.cleaners(days[0]!.crewSize))
+              }
+            />
+          ))
         )}
         <Fact
           icon={CirclePlus}
@@ -467,8 +552,12 @@ export function PlanCard({
         />
       </Facts>
       <p className="text-sm text-fg-muted">
-        {t.w.started(t.formatDate(plan.startedAt))}
-        {plan.endedAt && t.w.endedAt(t.formatDate(plan.endedAt))}
+        <Line
+          parts={[
+            t.w.started(t.formatDate(plan.startedAt)),
+            plan.endedAt && t.w.endedAt(t.formatDate(plan.endedAt)),
+          ]}
+        />
       </p>
       {children}
     </DetailsCard>

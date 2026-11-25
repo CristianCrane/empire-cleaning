@@ -20,6 +20,8 @@ export const cleanerWords = catalog({
     directions: "Directions",
     crew: "Crew",
     justYou: "Just you",
+    // roughly where, before they've taken it
+    zip: (postcode: string) => `ZIP code ${postcode}`,
     // the reader, on a crew they're in
     you: "You",
     goBack: "Go back",
@@ -38,8 +40,6 @@ export const cleanerWords = catalog({
     done: "Done",
     // "until about 12:00 PM": when a Job or Site Visit should be over
     untilAbout: (time: string) => `until about ${time}`,
-    // "3.5 h on site"
-    hoursOnSite: (hours: string) => `${hours} on site`,
   },
   es: {
     yourJobs: "Tus trabajos",
@@ -55,6 +55,7 @@ export const cleanerWords = catalog({
     directions: "Cómo llegar",
     crew: "Equipo",
     justYou: "Solo tú",
+    zip: (postcode: string) => `Código postal ${postcode}`,
     you: "Tú",
     goBack: "Volver",
     callOffice: "Llamar a la oficina",
@@ -64,6 +65,5 @@ export const cleanerWords = catalog({
     available: "Disponible",
     done: "Terminado",
     untilAbout: (time: string) => `hasta cerca de ${theTimeEs(time)}`,
-    hoursOnSite: (hours: string) => `${hours} en el lugar`,
   },
 });

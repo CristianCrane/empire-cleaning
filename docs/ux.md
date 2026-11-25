@@ -69,7 +69,9 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   offered).
 - **The details card** (`DetailsCard`): what it is, large, behind its tile
   (a `DateTile` for when, an `IconTile` for what, an `Avatar` for who),
-  a muted line above and below; then its facts (`Facts`, each an icon, a
+  a muted line above and below; never what the page's title already says,
+  so a Staff member's card leads with their role, as their name is the
+  title (#548's UX review U46); then its facts (`Facts`, each an icon, a
   value and a muted line), with the time, the address and how to reach
   someone among them, not in a part of their own. A card that counts its
   facts (the Office's Job and its Money, a Bill) takes as many columns as
@@ -86,11 +88,31 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   (`Fold`); a Job's price changes are a part of their own after How it
   went, as they're what happened there (a list on a phone, a table wider).
 - **Its History**, a `Timeline` in a Card, newest first: last, at every
-  width: one column, as a side column competed with the page (#493). Each
-  entry says what happened on one line and when on the line under it, every
-  entry alike (`TimelineItem`, a Quote's story too); on a Job's, any more
-  there is goes after a colon in that line (a cancellation's reason), not
-  on a third. What happened (a drop-out, a Cleaner taken off) is told there, not
+  width: one column, as a side column competed with the page (#493). It
+  holds what has happened; what's booked to come is a part of its own (a
+  home's Booked jobs, soonest first, badged only when one needs cleaners),
+  so the log isn't mostly the future, each entry alike. Each
+  entry says what happened on one line and when on the line under it, then
+  what it was about, where it has a line of its own, under that ("Standard
+  Clean $194.89 · 2 cleaners · for Mon, Jan 12, 9:00 AM"), every entry alike
+  (`TimelineItem`, a Quote's story too); on a Job's, any more there is goes
+  after a colon in that line (a cancellation's reason), not on a third. A
+  home's History is the one exception: each entry there is a record, its
+  Quote, Job or Site visit, its state now a badge ("Quote · Deep Clean
+  $359.29", Accepted), dated by when it was sent or took place. A home
+  holds many records, each with its own story a tap away, and one entry
+  each keeps the home's short. Telling it as events, as every other
+  History does, is #555 (#548, U33). A
+  Quote sent again names what it changed of the send before it, in the
+  Draft's words for its fields and in the Draft's order: "Quote sent again ·
+  cleaners changed", "· Deep Clean price changed" where only the Service
+  offered beside it moved, "· nothing changed". It names what changed, not
+  what to: the entry's own line holds what decides whether the clean fits,
+  the price, the crew and the time it was sent for (a plan's crews each with
+  their weekdays once they differ), so two entries show a before and an
+  after, and **Now** the rest. The server works it out (`revisionChanges`),
+  field by field, so a price the Price list moved between sends reads "price
+  changed" (#548). What happened (a drop-out, a Cleaner taken off) is told there, not
   kept as a row elsewhere. A Quote's story is its
   body, **Now** on top holding it as it stands; its Draft is a Form page.
 - **On a phone, the page's next step pinned at the foot**, above the tab
@@ -117,8 +139,9 @@ order:
   opens on the first Tab that holds anything, or, where the server pages
   it (Jobs, Clients), on its first Tab, asked for before the counts are
   known.
-- **A search**, on an Office work list only: at the end of the Tabs' line
-  from `md`, behind an icon on a phone. It looks through every Tab: the Tabs
+- **A search**, on an Office work list only: at the end of the Tabs' line,
+  a field from `md` and an icon that opens one on a phone, so it never
+  takes a row of its own under the bar that names the list. It looks through every Tab: the Tabs
   step aside for "N found in every tab", every row then says where it
   stands, and Clear search brings them back. One that matches nothing says
   so, with Clear search.
@@ -645,6 +668,33 @@ stays as it is (#336).
   email in a Settings summary row breaks rather than running off a phone
   (#436). On a phone a row's badge (`end`) sits under its text rather than
   beside it (#305).
+- **A row's line is parts set apart by dots, each part whole where it
+  fits** (the kit's `Line`): a wrap moves a whole part to the next line, and
+  never leaves a dot at a line's end or start, as "Standard Clean ·" over
+  "$194.89" did on a phone (#548). What belongs together is one part: a
+  Service and its price ("Standard Clean $194.89"), a name and its role.
+  A part after the first reads on from its dot in lower case, as a
+  sentence does ("Deep Clean · about 1¾ h", models' `inLine`). A slot that
+  takes only text (a `TimelineItem`'s title, an email's line) takes
+  models' `lineOf`, whose dots are glued to both their neighbours, so they
+  never end or start a line either, though a long part may break inside
+  itself. A slot that takes more than text (a Fact's value or line, a card's
+  title) takes the `Line`: with each part held whole, `lineOf`'s one text
+  has nowhere to wrap, and "Apartment · 2 bedrooms · 1.5 bathrooms" ran a
+  320px Quote sideways, so its words give the parts (`propertyParts`). Inside any part or sentence, a number stays with its
+  word ("2 bedrooms", "1.5 bathrooms", "2 cleaners") and a clock time with
+  its AM or PM, held by a no-break space where the words are made (web's
+  `count`, models' time formats), so "1.5" or "9:00" never ends a line on
+  its own, nor "10:00 AM" or "9:00 a.m." wraps, on every screen and in
+  every email (#548, #534's UX review U19).
+- **Figures sit in a column**: a list of labels and their values (a
+  price's hours and Deposit, a plan clean against a one-off, a plan's
+  totals, a quote's extras, "How it's worked out", a receipt) is the kit's
+  `Figures`, at most 28rem wide from its card's start, each value at the
+  column's end, so on a wide card a value sits near its label rather than
+  across the card (the user's pick B, #548). On a phone, and in any card
+  narrower than that, it's the card's width; a long label wraps inside it,
+  its value staying at the end.
 - **Lean rows**: the fewest columns that drive the decision (who, where,
   status, money, age); no cell that means something different from row to
   row (and colour: the `ui` skill).
@@ -711,8 +761,12 @@ stays as it is (#336).
   mark beside the name (its icon from `screens/icons.ts`, in its colour; a
   Staffed Job, the usual case, has none), its words read out; a Site
   Visit's is its own icon, so it isn't told from a Staffed Job by colour
-  alone; the crew's names show only when someone's on it, and a block
-  draws only the lines that fit whole. The key draws each state as a block
+  alone; the crew's names show only when someone's on it, a name to a
+  line, and a block draws only the lines that fit whole, each wrapping in a
+  narrow lane rather than cut short ("Cory Cl…" names no one), and each
+  time or Site visit line whole or not drawn at all; the client's name, the
+  first line, always shows, cut at the block's foot when a short block can't
+  hold all of it. The key draws each state as a block
   (#493 G4.1). A Job or a Site Visit dragged on the Schedule carries a picture of its block, and an outline
   its size shows where it would land, snapped as the drop is: its own
   colours, a see-through fill inside a dashed edge, red where it can't go
@@ -748,9 +802,41 @@ stays as it is (#336).
   Client picks a day on a month, then that day's open times
   (`screens/AvailabilityPicker.tsx`). Both lists of times are the kit's
   `TimeTiles`. Clients never see the Schedule or anyone else's Jobs.
-- **A time stays whole**: "10:00 AM" and "9:00 a.m." never wrap away from
-  their AM, as models' formats write the space before it a no-break one,
-  for every screen and email (#534's UX review U19).
+- **A length of time is said as its reader needs it** (#548). The Office
+  books to the minute, so it reads a length that way: "1 h 38 min", "3 h",
+  "45 min" (`formatHours`), and a clean's end to the same minute ("9:00 AM
+  to 10:38 AM"). A Client or a Cleaner plans their day around it, so they
+  read it to the quarter hour, "About" only when that rounded it: "About
+  1¾ h", "3 h" (models' `howLong`, the emails too), and "until about
+  10:45 AM". Hours she types or prices at a rate aren't a length on the
+  clock, so they read as she types them, decimal (`typedHours`): the
+  Price list's figures, the working-out of a price, each row's running
+  total too ("2.3375 h"), so it adds up against what was typed; the
+  cleaning hours it comes to, on the price card and the Job ("3.25 h",
+  a crew's hours together, priced at a rate), shown only for a crew of
+  more than one, as a crew of one's are its time on site, said once;
+  extra time on the day ("+1.5 h"); and a cleaner's working hours on their
+  Staff page ("7.5 h", where she types 7.5), while the Schedule reads
+  what's booked and free of them as lengths. A plan on several weekdays
+  whose cleans are all alike says it once, as a one-weekday plan does;
+  once they differ, its card, the Office's and the Client's, and the
+  Client's quote give each kind of clean its own fact, naming its
+  weekdays: "On site Mondays and Fridays, with 2 cleaners" beside "On
+  site Wednesdays, with 1 cleaner", and "About 2 h, How long on Mondays".
+  A "+" between them reads as a sum and leaves the reader matching days
+  by position. Weekdays alike to their reader go together, so a Client
+  may read one where the Office reads two ("About 2 h" for 1 h 57 min and
+  2 h 3 min). So with a plan quote's price cards: the Client's weekdays
+  alike in all a card draws (its Service and every figure) share one
+  card, titled with each, "Mondays at 9:00 AM and Wednesdays at 1:00 PM ·
+  Standard Clean", as two cards the same say each price twice; the
+  Office's card per weekday stays, as each has its own hours. The Client's list of cleans leaves how long to the card
+  while each runs as its weekday's there. Once one doesn't (booked
+  longer, or moved to a day the card has no length for), a plan of one
+  length gives every row its own, so the one that differs sits among
+  neighbours alike; a plan of several lengths gives it to that clean
+  alone, as its neighbours are other weekdays, unlike to compare, and
+  every row's length would hide it.
 
 ### Status and colour
 

@@ -585,7 +585,7 @@ describe("Home's tiles: what else waits on the Client comes first", () => {
       ],
     });
     expect(tiles.map((s) => [s.label, s.hint])).toEqual([
-      ["See your 3 quotes", "Deep Clean $391.04 · 2 more"],
+      ["See your 3 quotes", "Deep Clean $391.04\u00a0·\u00a02 more"],
       ["Review 3 price changes", "$179.64 more, answer by Wed, Nov 4"],
       ["Move or cancel", expect.any(String)],
       ["How we get in", "Key under the mat"],

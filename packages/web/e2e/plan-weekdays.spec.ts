@@ -93,23 +93,33 @@ test(
       ).toBeVisible();
     }
     await expect(page.getByRole("region", { name: "Each week" })).toContainText(
-      "A week, with a clean on each day",
+      "A week's cleans",
     );
 
     await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
     await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
-    // how often; each weekday's card names its day and time
+    // how often; each weekday's card names its day and time, and its
+    // cleaning hours only for a crew of more than one: a crew of one's are
+    // its time on site
     await expect(
       page.getByRole("region", { name: "Current quote" }),
     ).toContainText("Every week");
+    const mondayCard = page.getByRole("region", {
+      name: "Mondays at 9:00 AM · Standard Clean",
+    });
+    await expect(mondayCard.getByRole("term")).toContainText([
+      "Cleaning hours",
+      "On site, with 2 cleaners",
+    ]);
+    const wednesdayCard = page.getByRole("region", {
+      name: "Wednesdays at 1:00 PM · Standard Clean",
+    });
+    await expect(wednesdayCard.getByRole("term")).toContainText([
+      "On site, with 1 cleaner",
+    ]);
     await expect(
-      page.getByRole("region", { name: "Mondays at 9:00 AM: Standard Clean" }),
-    ).toContainText("On site, with 2 cleaners");
-    await expect(
-      page.getByRole("region", {
-        name: "Wednesdays at 1:00 PM: Standard Clean",
-      }),
-    ).toContainText("On site, with 1 cleaner");
+      wednesdayCard.getByRole("term").filter({ hasText: "Cleaning hours" }),
+    ).toHaveCount(0);
     // the Current Quote ends with the plan's Deposit
     const deposit = (await page
       .getByRole("region", { name: "Current quote" })
@@ -125,20 +135,26 @@ test(
     await expect(quote).toContainText(
       "Every week, on Mondays at 9:00 AM and Wednesdays at 1:00 PM",
     );
-    await expect(quote).toContainText("One clean a day.");
+    // a week's money, never "each day", which reads as every day of it
+    await expect(quote).toContainText("A week's cleans, tax included");
+    await expect(quote).not.toContainText(/each day|a day\b/);
     // how long each weekday's crew is there, in the facts as a clean says
-    // it: not the Office's cleaning hours and crew, on each weekday's card
-    await expect(quote).toContainText("About 2 h + 3¾ hHow long");
-    for (const name of [
-      "Mondays at 9:00 AM: Standard Clean",
-      "Wednesdays at 1:00 PM: Standard Clean",
-    ])
-      await expect(client.getByRole("region", { name })).not.toContainText(
-        /On site|Cleaning hours|cleaner/,
-      );
+    // it, each length naming its weekdays: not the Office's cleaning hours
+    // and crew, on each weekday's card
+    await expect(quote).toContainText("About 2 hHow long on Mondays");
+    await expect(quote).toContainText("3¾ hHow long on Wednesdays");
+    // and weekdays whose cleans cost the same share one card, naming each,
+    // so no card repeats another
+    const cleans = client.getByRole("region", {
+      name: "Mondays at 9:00 AM and Wednesdays at 1:00 PM · Standard Clean",
+    });
+    await expect(cleans).not.toContainText(/On site|Cleaning hours|cleaner/);
+    await expect(
+      client.getByRole("region", { name: /· Standard Clean$/ }),
+    ).toHaveCount(1);
     await expect(
       client.getByRole("region", { name: "Quote details" }),
-    ).toContainText(`Deposit (25% of a clean on each day)`);
+    ).toContainText(`Deposit (25% of a week's cleans)`);
     await noViolations(client);
 
     // and accepts it whole, with nothing to choose
@@ -158,18 +174,36 @@ test(
     );
     await expect(
       client
-        .getByRole("grid", { name: "Your upcoming cleans" })
+        .getByRole("region", { name: "Your upcoming cleans" })
         .getByRole("row"),
     ).toHaveText([
-      /Mon, Jan 19, 9:00\sAM/,
-      /Wed, Jan 21, 1:00\sPM/,
-      /Mon, Jan 26, 9:00\sAM/,
-      /Wed, Jan 28, 1:00\sPM/,
-      /Mon, Feb 2, 9:00\sAM/,
-      /Wed, Feb 4, 1:00\sPM/,
-      /Mon, Feb 9, 9:00\sAM/,
+      // how long is the card's to say, each weekday named, as no clean
+      // runs other than its weekday's
+      /Jan 19, 2026, Mon 9:00\sAM$/,
+      /Jan 21, 2026, Wed 1:00\sPM$/,
+      /Jan 26, 2026, Mon 9:00\sAM$/,
+      /Jan 28, 2026, Wed 1:00\sPM$/,
+      /Feb 2, 2026, Mon 9:00\sAM$/,
+      /Feb 4, 2026, Wed 1:00\sPM$/,
+      /Feb 9, 2026, Mon 9:00\sAM$/,
     ]);
+    await expect(details).toContainText("About 2 hHow long on Mondays");
+    await expect(details).toContainText("3¾ hHow long on Wednesdays");
     await noViolations(client);
+
+    // the Office's plan says each weekday's time there and crew, each
+    // named, as they differ
+    const planId = new URL(client.url()).pathname.split("/").pop();
+    await page.goto(`/office/service-plans/${planId}`);
+    await expect(
+      page
+        .getByRole("region", { name: "Cleaning plan" })
+        .getByRole("definition")
+        .filter({ hasText: /^On site/ }),
+    ).toHaveText([
+      "On site Mondays, with 2 cleaners",
+      "On site Wednesdays, with 1 cleaner",
+    ]);
   },
 );
 

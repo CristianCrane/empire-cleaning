@@ -51,6 +51,7 @@ import type {
 import {
   clientPaying,
   firstNameOf,
+  inLine,
   noEmailYet,
   notSeenYet,
   placeOwner,
@@ -99,6 +100,7 @@ import {
   type DialogState,
   type PageAction,
   type PageActions,
+  Line,
 } from "@empire-cleaning/ui";
 import {
   ApiError,
@@ -148,6 +150,7 @@ import {
   visitSummary,
 } from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
+import { sentAgain, sentWith } from "./sent-again.ts";
 import { reportUnexpected } from "../../monitoring.ts";
 import { useWhilePaying } from "../paying.ts";
 
@@ -671,7 +674,7 @@ type Moment = {
   at: string;
   icon: LucideIcon;
   title: string;
-  description?: string;
+  description?: ReactNode;
   details?: ReactNode;
 };
 
@@ -713,15 +716,24 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
     });
   }
   // oldest first, as they happened (quote.revisions is newest first); a
-  // send after the first says so, as two sends can match word for word
+  // send after the first says so, and what it changed
   for (const [i, revision] of [...quote.revisions].reverse().entries()) {
     moments.push({
       key: revision.id,
       at: revision.sentAt,
       icon: Send,
-      title: i === 0 ? "Quote sent" : "Quote sent again",
-      // what it was sent for, and when: "Standard Clean $194.89 · for …"
-      description: `${revisionHeadline(revision)} · for ${formatDateTime(revision.proposedStartsAt)}`,
+      title: i === 0 ? "Quote sent" : sentAgain(revision),
+      // what it was sent for, with whom, and when: "Standard Clean
+      // $194.89 · 2 cleaners · for …"
+      description: (
+        <Line
+          parts={[
+            revisionHeadline(revision),
+            sentWith(revision.crew),
+            `for ${formatDateTime(revision.proposedStartsAt)}`,
+          ]}
+        />
+      ),
     });
   }
   if (quote.status === "expired" && shown?.expiresAt) {
@@ -762,11 +774,22 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
       ...(unbooked.amountCents
         ? {
             title: "Deposit refunded",
-            description: `${formatMoney(unbooked.amountCents)} · ${name} paid it as ${as}`,
+            description: (
+              <Line
+                parts={[
+                  formatMoney(unbooked.amountCents),
+                  `${name} paid it as ${as}`,
+                ]}
+              />
+            ),
           }
         : {
             title: "Acceptance not booked",
-            description: `Nothing charged · ${name} accepted it as ${as}`,
+            description: (
+              <Line
+                parts={["Nothing charged", `${name} accepted it as ${as}`]}
+              />
+            ),
           }),
     });
   });
@@ -791,12 +814,13 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
 };
 
 // what the Client (or a caller) asked for: open while the Quote's being
-// written from it, else folded away, the Quote saying what's offered
+// written from it, else folded away, the Quote saying what's offered. Its
+// entry says when, and whether by phone
 function WhatWasAsked({ quote }: { quote: OfficeQuote }) {
   return (
     <Fold label="What was asked" defaultOpen={unsent(quote)}>
       <Card>
-        <AskedFacts quote={quote} />
+        <AskedFacts quote={quote} dated={false} />
       </Card>
     </Fold>
   );
@@ -918,7 +942,7 @@ function Offer({ quote }: { quote: ShownQuote }) {
             return (
               <OfferPrice
                 key={day?.startsAt ?? option.serviceKey}
-                title={day ? planDayTitle("en", day) : option.serviceName}
+                title={day ? planDayTitle("en", [day]) : option.serviceName}
               >
                 {day ? (
                   <PlanFigures
@@ -1069,7 +1093,10 @@ function DraftPrices({
                     recurrence: plan.recurrence,
                     days: [{ startsAt: null, serviceName: option.serviceName }],
                   })
-                : `${dayTitles[i] ?? `Weekday ${i + 1}`}: ${option.serviceName}`
+                : lineOf([
+                    dayTitles[i] ?? `Weekday ${i + 1}`,
+                    option.serviceName,
+                  ])
             }
             badge={
               <PlanSaving day={day} discountPercent={plan.discountPercent} />
@@ -2309,12 +2336,16 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
 
         <FormPart
           title="Terms"
-          summary={lineOf([
-            // each of a plan's weekdays has its own
-            !plan && cleaners(fields.crewSize),
-            `${fields.depositPercent}% deposit`,
-            `valid ${fields.validityDays} days`,
-          ])}
+          summary={
+            <Line
+              parts={[
+                // each of a plan's weekdays has its own
+                !plan && cleaners(fields.crewSize),
+                `${fields.depositPercent}% deposit`,
+                `valid for ${fields.validityDays} days`,
+              ]}
+            />
+          }
         >
           <FieldRow>
             {!plan && (
@@ -2459,7 +2490,14 @@ const timeFold = ({
   const ends =
     hoursOnSite === undefined ? undefined : endsAt(time, hoursOnSite);
   return {
-    summary: `${formatDay(date)} · ${formatClock(time)}${ends ? ` to ${ends}` : ""}`,
+    summary: (
+      <Line
+        parts={[
+          formatDay(date),
+          `${formatClock(time)}${ends ? ` to ${ends}` : ""}`,
+        ]}
+      />
+    ),
     defaultOpen:
       hoursOnSite === undefined || problem !== undefined || untimely.length > 0,
   };
@@ -2517,7 +2555,7 @@ const noteOf = (
   saved: string | undefined,
 ) => {
   const hold = live ?? (state === "saved" ? saved : undefined);
-  return hold ? `${saveStateLabel[state]} · ${hold}` : saveStateLabel[state];
+  return lineOf([saveStateLabel[state], hold && inLine(hold)]);
 };
 
 // A plan's weekday: its Cleaners, then its proposed time, picked from the
@@ -2649,13 +2687,16 @@ function PlanDayFields({
 
 // what the home's first clean found, in a line: "The home was heavy · 2
 // price changes"
-const firstCleanSummary = ({ condition, adjustments }: FirstCleanFindings) =>
-  [
-    `The home was ${conditionLabel[condition].toLowerCase()}`,
-    adjustments.length === 0
-      ? "no price changes"
-      : `${adjustments.length} price change${adjustments.length > 1 ? "s" : ""}`,
-  ].join(" · ");
+const firstCleanSummary = ({ condition, adjustments }: FirstCleanFindings) => (
+  <Line
+    parts={[
+      `The home was ${conditionLabel[condition].toLowerCase()}`,
+      adjustments.length === 0
+        ? "no price changes"
+        : `${adjustments.length} price change${adjustments.length > 1 ? "s" : ""}`,
+    ]}
+  />
+);
 
 function FirstCleanFacts({ firstClean }: { firstClean: FirstCleanFindings }) {
   const { job } = firstClean;

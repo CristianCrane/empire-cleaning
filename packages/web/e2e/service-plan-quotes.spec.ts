@@ -172,7 +172,7 @@ test(
     await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
 
     const offer = page.getByRole("region", {
-      name: "Mondays at 9:00 AM: Standard Clean",
+      name: "Mondays at 9:00 AM · Standard Clean",
     });
     await expect(offer).toContainText("$231.36");
     await expect(offer).toContainText("$272.19");
@@ -197,7 +197,7 @@ test(
       "Your cleaning plan quote",
     );
     const plan = client.getByRole("region", {
-      name: "Mondays at 9:00 AM: Standard Clean",
+      name: "Mondays at 9:00 AM · Standard Clean",
     });
     await expect(plan).toContainText("$231.36 a clean");
     await expect(plan).toContainText("As a one-off clean$272.19");
@@ -240,18 +240,20 @@ test("a Service Plan of Deep Cleans", async ({ page, browser }) => {
   await expect(current).toContainText("Every 2 weeks");
   await expect(current).not.toContainText("Every 2 weeks, on");
   await expect(
-    current.getByRole("region", { name: "Mondays at 9:00 AM: Deep Clean" }),
+    current.getByRole("region", { name: "Mondays at 9:00 AM · Deep Clean" }),
   ).toBeVisible();
   // its story names the plan's Service, and the round's unit
   await expect(
-    page.getByText(/^Deep Clean plan \$[\d,.]+ a clean · for /),
+    page.getByText(
+      /^Deep Clean plan \$[\d,.]+ a clean\s·\s2\scleaners\s·\sfor /,
+    ),
   ).toHaveCount(1);
 
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
   await client.goto(await quoteLink());
   await expect(
-    client.getByRole("region", { name: "Mondays at 9:00 AM: Deep Clean" }),
+    client.getByRole("region", { name: "Mondays at 9:00 AM · Deep Clean" }),
   ).toBeVisible();
   await expect(
     client.getByRole("region", { name: "Quote details" }),
@@ -291,6 +293,10 @@ test("the Client screen lists each home, whose own page holds its history and of
   await expect(
     history.getByRole("listitem").filter({ hasText: "Job ·" }),
   ).toContainText(["Done"]);
+  // each dated to its day and time, as every History is
+  await expect(
+    history.getByRole("listitem").filter({ hasText: "Job ·" }),
+  ).toContainText([/\w{3}, \w{3} \d+, \d+:\d\d\s[AP]M/]);
 
   await page.getByRole("button", { name: "Quote a cleaning plan" }).click();
   await atPlanDraft(page);
@@ -299,9 +305,11 @@ test("the Client screen lists each home, whose own page holds its history and of
   await expect(
     page.getByRole("button", { name: "Carry on with the draft" }),
   ).toBeVisible();
-  await expect(
-    history.getByRole("listitem").filter({ hasText: "Cleaning plan" }),
-  ).toContainText("Draft");
+  // named as the Office's other screens name it, its price's unit said
+  const draft = history
+    .getByRole("listitem")
+    .filter({ hasText: "Quote · Standard Clean plan $201.85 a clean" });
+  await expect(draft).toContainText("Draft");
 });
 
 test("a request for a home whose First Clean is done can be answered with either kind of Quote", async ({
@@ -409,13 +417,12 @@ test("a plan quoted at no discount says no saving, on its quote and on the plan"
   await signedInAs(client, casey.email);
   await client.goto(await quoteLink());
   const plan = client.getByRole("region", {
-    name: "Mondays at 9:00 AM: Standard Clean",
+    name: "Mondays at 9:00 AM · Standard Clean",
   });
   await expect(plan).toContainText(
     "As a one-off clean$224.28On the plan$224.28",
   );
   await expect(plan).not.toContainText("Save $");
-  await expect(client.getByText(/% off what it would cost/)).toHaveCount(0);
 
   // started, its page says the price with no discount either
   await payAndBook(client, "Pay and start your plan").accept.click();
@@ -423,6 +430,12 @@ test("a plan quoted at no discount says no saving, on its quote and on the plan"
   const details = client.getByRole("region", { name: "Plan details" });
   await expect(details).toContainText("$224.28Each clean, tax included");
   await expect(details).not.toContainText("% off");
+  // how long a clean runs is said once, on the plan, as every clean on its
+  // one weekday runs as long
+  await expect(details).toContainText(/[\d¼½¾] hHow long/);
+  const cleans = client.getByRole("region", { name: "Your upcoming cleans" });
+  await expect(cleans.getByRole("row").first()).toContainText("9:00 AM");
+  await expect(cleans).not.toContainText(/[\d¼½¾] h/);
 });
 
 test("the Client Declines a Service Plan Quote", async ({ page, browser }) => {

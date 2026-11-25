@@ -76,9 +76,11 @@ test(
     await dialog.getByRole("button", { name: "End plan" }).click();
 
     await expect(page.getByText("Your cleaning plan has ended")).toBeVisible();
-    await expect(page.getByText(/Ended Jan 18/)).toBeVisible();
+    await expect(page.getByText(/ended Jan 18/)).toBeVisible();
     await expect(
-      page.getByRole("grid", { name: "Your upcoming cleans" }).getByRole("row"),
+      page
+        .getByRole("region", { name: "Your upcoming cleans" })
+        .getByRole("row"),
     ).toHaveCount(1);
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
       "Your cleaning plan has ended",
@@ -122,9 +124,9 @@ test("a plan's clean with a move asked is badged so, as the Cleans list badges i
   await signedInAs(page, casey.email);
   await page.goto(`/portal/plans/${planId}`);
 
-  const cleans = page.getByRole("grid", { name: "Your upcoming cleans" });
+  const cleans = page.getByRole("region", { name: "Your upcoming cleans" });
   await expect(
-    cleans.getByRole("row").filter({ hasText: "Mon, Jan 19" }),
+    cleans.getByRole("row").filter({ hasText: "Jan 19, 2026, Mon" }),
   ).toContainText("Move asked");
   // one simply booked says nothing more
   await expect(cleans.getByRole("row").nth(1)).not.toContainText(
@@ -195,9 +197,9 @@ test(
     // the next week's clean, skipped late too
     await page.goto(`/portal/plans/${planId}`);
     await page
-      .getByRole("grid", { name: "Your upcoming cleans" })
+      .getByRole("region", { name: "Your upcoming cleans" })
       .getByRole("row")
-      .filter({ hasText: "Mon, Jan 26" })
+      .filter({ hasText: "Jan 26, 2026, Mon" })
       .click();
     await expect(page).toHaveURL(/\/portal\/jobs\//);
     const secondJob = page.url().split("/").pop()!;
@@ -283,7 +285,7 @@ test(
     const held = (await openTile(page, "Money"))
       .getByRole("row")
       .filter({ hasText: "Collect what's owed to resume the plan" });
-    await expect(held).toContainText("Cleaning plan paused: $50.46 unpaid");
+    await expect(held).toContainText("cleaning plan paused: $50.46 unpaid");
     await held.click();
     // the plan is on its home's page
     await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
