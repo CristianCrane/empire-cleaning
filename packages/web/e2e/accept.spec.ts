@@ -17,6 +17,7 @@ import {
   expectNoPageAction,
   expectNextStep,
   setClock,
+  titleBadge,
 } from "./harness.ts";
 import type { Browser, Page } from "@playwright/test";
 
@@ -95,9 +96,13 @@ test("a declined Deposit books nothing, and another try goes through", async ({
   const { form, accept } = payAndBook(client);
   await accept.click();
 
+  // the page's alert, where the payment stands, answering the press
   await expect(
-    form.getByText("Your card didn't go through, so nothing was booked"),
-  ).toBeVisible();
+    client.getByRole("alert").filter({
+      hasText:
+        "Your payment didn't go through. Please try again, or use another card.",
+    }),
+  ).toBeFocused();
   await expect(client.getByText("Open until", { exact: false })).toBeVisible();
   // a declined card isn't kept: the form is there for another
   await expect(form.getByText("Test payments: no card")).toBeVisible();
@@ -120,13 +125,16 @@ test("a Deposit the bank asks the Client to approve is booked once approved", as
   await client.goto(
     await linkIn(casey.email, "Your quote from Empire Cleaning"),
   );
-  const { form, accept } = payAndBook(client);
+  const { accept } = payAndBook(client);
 
   await requireApproval("refused");
   await accept.click();
   await expect(
-    form.getByText("Your bank didn't approve the payment"),
-  ).toBeVisible();
+    client.getByRole("status").filter({
+      hasText:
+        "Your payment wasn't approved, so nothing was taken. Please try again, or use another card.",
+    }),
+  ).toBeFocused();
 
   await requireApproval("approved");
   await accept.click();
@@ -334,7 +342,7 @@ const payingOnline = async (page: Page, browser: Browser) => {
   await requireApproval("pending");
   await accept.click();
   await expect(
-    form.getByText("Your bank hasn't approved the payment yet."),
+    client.getByText(/^Your bank hasn't approved your payment yet\./),
   ).toBeVisible();
   return { client, form, accept };
 };
@@ -370,7 +378,7 @@ test("Office Staff can't record acceptance while the Client's bank approves thei
   await requireApproval("pending");
   await accept.click();
   await expect(
-    form.getByText("Your bank hasn't approved the payment yet."),
+    client.getByText(/^Your bank hasn't approved your payment yet\./),
   ).toBeVisible();
 
   // refused, the dialog says why in the page's words, greyed
@@ -515,10 +523,64 @@ test("a Client back from their bank before approving the Deposit is told how it 
   await quoteSent(page, olive, casey);
   await signedInAs(page, casey.email);
   await page.goto(await linkIn(casey.email, "Your quote from Empire Cleaning"));
+  const { accept } = payAndBook(page);
+  await requireApproval("pending");
+  await accept.click();
+  // the page's alert, answering the press: its wait ends 15 minutes on,
+  // 4:15 AM in New York
+  const said = page
+    .getByRole("status")
+    .filter({ hasText: /^Your bank hasn't/ });
+  await expect(said).toHaveText(
+    "Your bank hasn't approved your payment yet. Approve it in your bank's app by 4:15 AM to book your Deep Clean, or press Accept and pay to start over: you're only charged once.",
+  );
+  await expect(said).toBeFocused();
+});
+
+// #534's UX design, Screens 1b and 1c: declining calls off a payment their
+// bank still asks them to approve; once their bank is finishing it, it
+// can't be, and the quote asks nothing more of them till it books
+test("a Client's quote their bank is finishing the Deposit on asks nothing more, and can't be declined meanwhile", async ({
+  page,
+}) => {
+  await quoteSent(page, olive, casey);
+  await signedInAs(page, casey.email);
+  await page.goto(await linkIn(casey.email, "Your quote from Empire Cleaning"));
   const { form, accept } = payAndBook(page);
   await requireApproval("pending");
   await accept.click();
-  await expect(form.getByRole("status").last()).toHaveText(
-    "Your bank hasn't approved the payment yet. Approve it in your bank's app to book your clean. Or press Accept and pay to start over: the first payment is called off, so you're only charged once.",
+  await expect(
+    page.getByText(/^Your bank hasn't approved your payment yet\./),
+  ).toBeVisible();
+
+  await form.getByRole("button", { name: "Decline this quote" }).click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toContainText(
+    "The payment waiting on your bank is called off, so you won't be charged.",
   );
+  // approved in their bank's app at 15 minutes, the bank finishing it
+  await setClock("2026-01-05T09:16:00Z");
+  await requireApproval("processing");
+  await dialog.getByRole("button", { name: "Decline", exact: true }).click();
+  await expect(dialog.getByRole("status")).toHaveText(
+    "Your payment is still going through with your bank, so this quote can't be declined now. We'll email you as soon as your clean is booked, usually within half an hour.",
+  );
+  await expect(
+    dialog.getByRole("button", { name: "Decline", exact: true }),
+  ).toBeDisabled();
+
+  await dialog.getByRole("button", { name: "Keep it" }).click();
+  await expect(titleBadge(page, "Payment pending")).toBeVisible();
+  await expect(
+    page.getByRole("status").filter({ hasText: /^We'll email you/ }),
+  ).toHaveText(
+    "We'll email you as soon as your clean is booked, usually within half an hour.",
+  );
+  await expect(form).toBeHidden();
+  await expect(page.getByText("Open until", { exact: false })).toBeHidden();
+  await expect(
+    page
+      .getByRole("region", { name: "Quote details" })
+      .getByRole("radio", { name: "Deep Clean" }),
+  ).toBeHidden();
 });

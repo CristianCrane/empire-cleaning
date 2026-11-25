@@ -1,5 +1,5 @@
 import { useState, type ComponentProps, type ReactNode } from "react";
-import { useLoaderData } from "@tanstack/react-router";
+import { useLoaderData, useRouter } from "@tanstack/react-router";
 import {
   CalendarClock,
   Clock,
@@ -43,7 +43,8 @@ import {
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
-import { useAction } from "../action.ts";
+import { type Action, useAction } from "../action.ts";
+import { useWhilePaying } from "../paying.ts";
 import { addressOf, formatMinutes, lineOf } from "../format.ts";
 import { ConditionIcon, QuoteIcon } from "../icons.ts";
 import { type Said, useSaid } from "../words.ts";
@@ -56,7 +57,14 @@ import {
 } from "../QuoteParts.tsx";
 import { HowLongFacts } from "../PlanParts.tsx";
 import { ConsentNote, usePaymentForm } from "./CardForm.tsx";
-import { catalog, howLong, inLine, oneStop } from "@empire-cleaning/models";
+import {
+  catalog,
+  depositAlertOf,
+  depositGoalOf,
+  howLong,
+  inLine,
+  oneStop,
+} from "@empire-cleaning/models";
 import { requestQuoteHref } from "./whats-next.ts";
 
 // in the Client's language (ADR-0025)
@@ -75,8 +83,9 @@ const words = catalog({
     yourKind: (kind: string) => `Your ${kind.toLowerCase()}`,
     // its badge, once its day filled up: it waits on us for a new quote
     fullyBooked: "Fully booked",
+    // then that a new quote comes (NEW_QUOTE)
     bookedUp: (planDays: boolean, when: string) =>
-      `Sorry, ${planDays ? "one of the days your plan starts on has" : `${when} has`} been fully booked since we sent this quote, so it can't be accepted. We'll send you a new quote for another time.`,
+      `Sorry, ${planDays ? "one of the days your plan starts on has" : `${when} has`} been fully booked since we sent this quote, so it can't be accepted.`,
     details: "Quote details",
     aWeekTax: "A week's cleans, tax included",
     aCleanTax: (service: string) => `${service}, a clean, tax included`,
@@ -152,6 +161,12 @@ const words = catalog({
     declineQ: "Decline this quote?",
     thanks:
       "Thanks for letting us know. You can ask us for a new quote whenever you like.",
+    // declining a quote their bank still asks them to approve a payment
+    // on, or a card (a 0% Deposit), for
+    callsOff: (card: boolean) =>
+      card
+        ? "Your bank's request to approve your card is called off, so your card isn't saved."
+        : "The payment waiting on your bank is called off, so you won't be charged.",
     keep: "Keep it",
   },
   es: {
@@ -168,7 +183,7 @@ const words = catalog({
     yourKind: (kind: string) => `Su ${kind.toLowerCase()}`,
     fullyBooked: "Día lleno",
     bookedUp: (planDays: boolean, when: string) =>
-      `Lo sentimos, ${planDays ? "uno de los días en que empieza su plan se llenó" : `el ${when} se llenó`} después de que le enviamos esta cotización, así que no se puede aceptar. Le enviaremos una nueva cotización para otra hora.`,
+      `Lo sentimos, ${planDays ? "uno de los días en que empieza su plan se llenó" : `el ${when} se llenó`} después de que le enviamos esta cotización, así que no se puede aceptar.`,
     details: "Detalles de la cotización",
     aWeekTax: "Las limpiezas de una semana, impuestos incluidos",
     aCleanTax: (service: string) =>
@@ -248,6 +263,10 @@ const words = catalog({
     declineQ: "¿Rechazar esta cotización?",
     thanks:
       "Gracias por avisarnos. Puede pedirnos una nueva cotización cuando quiera.",
+    callsOff: (card: boolean) =>
+      card
+        ? "La solicitud de su banco para aprobar su tarjeta se cancela, así que su tarjeta no se guarda."
+        : "El pago pendiente en su banco se cancela, así que no se le cobrará.",
     keep: "Conservarla",
   },
 });
@@ -394,30 +413,66 @@ function OfferedQuote({
   paymentMethod: PaymentMethodView | null;
 }) {
   const t = useSaid(words);
-  // the clean chosen: the one accepted, or the recommended one, unless
-  // only the other still fits
+  const router = useRouter();
+  const { paying } = quote;
+  const open = quote.status === "sent";
+  // their bank finishing a payment on it (#534's UX design, Screen 1b): it
+  // books on its own, so nothing on the page asks anything more of them,
+  // and its clean is the one paid for
+  const going = open && paying?.status === "goingThrough" ? paying : null;
+  // the clean chosen: the one accepted, or the one they last paid for, or
+  // the recommended one, unless only the other still fits
   const [serviceKey, setServiceKey] = useState(
     quote.acceptedServiceKey ??
-      (
-        quote.options.find((o) => quote.bookable.includes(o.serviceKey)) ??
-        quote.options[0]!
-      ).serviceKey,
+      (paying && quote.bookable.includes(paying.serviceKey)
+        ? paying.serviceKey
+        : (
+            quote.options.find((o) => quote.bookable.includes(o.serviceKey)) ??
+            quote.options[0]!
+          ).serviceKey),
   );
   const chosen =
-    quote.options.find((o) => o.serviceKey === serviceKey) ?? quote.options[0]!;
+    quote.options.find(
+      (o) => o.serviceKey === (going ? going.serviceKey : serviceKey),
+    ) ?? quote.options[0]!;
+  // the page looks again while their bank has it, so it reads booked, or
+  // free again, once it is
+  useWhilePaying(
+    open && paying?.status === "approving"
+      ? paying
+      : going
+        ? { finishing: true }
+        : null,
+    () => router.invalidate(),
+  );
 
-  const open = quote.status === "sent";
+  // Accept and pay, here so the page's alert can answer it: where the
+  // payment stands, in the words the server answers with (Screen 1d), said
+  // once, the alert's, and focused on each press; what else went wrong
+  // stays by the button
+  const action = useAction(t.p.didntWork, { reloadOnFailure: true });
+  const [answer, setAnswer] = useState<{ n: number; said?: string }>();
+  const alert = depositAlertOf(t.lang, quote);
+  const problem = action.problem !== alert?.text ? action.problem : undefined;
+
   // its day filled up after it was sent: nothing to pay for, and nothing
   // waits on them, as we send a new quote; saying no is what's left
-  const bookedUp = open && quote.bookable.length === 0;
+  const bookedUp = open && !going && quote.bookable.length === 0;
+  // a payment refunded as its time filled says so, and that a new quote
+  // comes, itself
+  const filled = paying?.status === "refunded" && paying.why === "no_room";
   return (
     <QuotePage
       quote={quote}
       title={t.w.yourKind(t.quoteKindName(quote.kind))}
       updatedAt={quote.updatedAt}
-      openUntil={open && !bookedUp ? quote.expiresAt : null}
+      openUntil={open && !bookedUp && !going ? quote.expiresAt : null}
       badge={
-        bookedUp ? (
+        going ? (
+          <StatusBadge tone="info">
+            {going.depositCents > 0 ? t.paymentPending : t.bookingPending}
+          </StatusBadge>
+        ) : bookedUp ? (
           <StatusBadge tone="info">{t.w.fullyBooked}</StatusBadge>
         ) : undefined
       }
@@ -433,7 +488,17 @@ function OfferedQuote({
           : undefined
       }
       alerts={[
-        standing(t, quote, chosen),
+        // an expiry its payment's alert says, with what became of it
+        !(quote.status === "expired" && alert) && standing(t, quote, chosen),
+        alert && {
+          // a new key for each press, so the alert answers each
+          key: `paying ${answer?.n ?? 0}`,
+          tone: alert.tone,
+          answers: !!answer && !problem,
+          // pressed from a page opened before their bank took the first:
+          // that nothing more was taken
+          children: (going && answer?.said) || alert.text,
+        },
         quote.changesPlan &&
           open && {
             key: "plan change",
@@ -441,29 +506,41 @@ function OfferedQuote({
               <PlanChangeText quote={quote} change={quote.changesPlan} />
             ),
           },
-        bookedUp && {
-          key: "booked up",
-          children: t.w.bookedUp(
-            Boolean(quote.plan && quote.plan.days.length > 1),
-            t.formatDateTime(quote.proposedStartsAt),
-          ),
-        },
+        bookedUp &&
+          !filled && {
+            key: "booked up",
+            children: `${t.w.bookedUp(
+              Boolean(quote.plan && quote.plan.days.length > 1),
+              t.formatDateTime(quote.proposedStartsAt),
+            )} ${t.NEW_QUOTE}`,
+          },
       ]}
       details={
         <QuoteDetails
           quote={quote}
           chosen={chosen}
           bookedUp={bookedUp}
+          going={!!going}
           onChoose={setServiceKey}
         />
       }
     >
       {open &&
+        !going &&
         quote.bookable.length > 0 &&
         (quote.changesPlan ? (
           <AcceptChange quote={quote} />
         ) : (
-          <Accept quote={quote} chosen={chosen} paymentMethod={paymentMethod} />
+          <Accept
+            quote={quote}
+            chosen={chosen}
+            paymentMethod={paymentMethod}
+            action={action}
+            problem={problem}
+            onAnswer={(said) =>
+              setAnswer((a) => ({ n: (a?.n ?? 0) + 1, said }))
+            }
+          />
         ))}
     </QuotePage>
   );
@@ -475,18 +552,22 @@ function QuoteDetails({
   quote,
   chosen,
   bookedUp = false,
+  going = false,
   onChoose,
 }: {
   quote: QuoteView;
   chosen: QuoteOption;
   // no option fits its day any more: the page's alert says so
   bookedUp?: boolean;
+  // their bank finishing a payment for `chosen`: nothing left to choose
+  going?: boolean;
   onChoose: (serviceKey: string) => void;
 }) {
   const t = useSaid(words);
   const { plan } = quote;
   const cards = plan ? planCards(plan.days, quote.options) : [];
-  const choosing = !plan && quote.options.length > 1 && quote.status === "sent";
+  const choosing =
+    !plan && !going && quote.options.length > 1 && quote.status === "sent";
   const [recommended, own] = quote.options;
   const extras = chosen.addOns.map((a) => a.name).join(", ");
 
@@ -742,39 +823,40 @@ function PlanChangeText({
 // and the Job booked, or none of it. If their bank wants them to approve the
 // payment, that happens here too, then the booking is finished. A Service
 // Plan Quote is accepted whole, with a clean on each of its weekdays, and
-// starts the plan, whose Deposit is held for as long as it runs.
+// starts the plan, whose Deposit is held for as long as it runs. Where a
+// payment that didn't book stands is the page's alert's to say (#534):
+// `onAnswer` tells it of each press, with the server's own words when they
+// say more than the page's
 function Accept({
   quote,
   chosen,
   paymentMethod,
+  action,
+  problem,
+  onAnswer,
 }: {
   quote: QuoteView;
   chosen: QuoteOption;
   paymentMethod: PaymentMethodView | null;
+  // reloading on a failure, as what's bookable may have changed since the
+  // page loaded
+  action: Action;
+  // what went wrong that the page's alert doesn't say
+  problem: string | undefined;
+  onAnswer: (said?: string) => void;
 }) {
   const t = useSaid(words);
   const [newCard, setNewCard] = useState(!paymentMethod);
-  // what's bookable may have changed since the page loaded
-  const action = useAction(t.p.didntWork, {
-    reloadOnFailure: true,
-  });
   const depositCents = quote.plan?.depositCents ?? chosen.depositCents;
   const payment = usePaymentForm({
     amountCents: depositCents,
     showCard: newCard,
   });
-  // nothing booked, as a payment is still out (#534): an earlier one their
-  // bank is finishing, info as it waits on us, or this one they haven't
-  // approved yet, a warning as it waits on them; the server says what next
-  const [still, setStill] = useState<{
-    tone: "info" | "warning";
-    message: string;
-  }>();
 
-  const accept = () =>
-    action.run(
+  const accept = async () => {
+    let said: string | undefined;
+    await action.run(
       async () => {
-        setStill(undefined);
         const done = await payment.pay({
           start: (paymentToken) =>
             postJson<AcceptOutcome>(
@@ -788,20 +870,15 @@ function Accept({
                     paymentToken,
                   },
             ),
-          // not approved: nothing is booked, and the bank's words say why
-          finish: (refused) => {
-            if (refused) throw refused;
-            return postJson<AcceptOutcome>(
+          // approved or not, their bank's answer is the server's to find,
+          // and the page's alert to say, as one press tells of it as the
+          // page then does
+          finish: () =>
+            postJson<AcceptOutcome>(
               `/api/quotes/mine/${quote.id}/accept/finalize`,
-            );
-          },
+            ),
         });
-        if (done.status === "processing" || done.status === "waiting") {
-          setStill({
-            tone: done.status === "waiting" ? "warning" : "info",
-            message: done.message,
-          });
-        }
+        if (done.status === "processing") said = done.message;
         return done;
       },
       (done) =>
@@ -811,6 +888,8 @@ function Accept({
             ? t.w.planStartedToast
             : t.w.bookedToast,
     );
+    onAnswer(said);
+  };
 
   return (
     <Section
@@ -857,8 +936,7 @@ function Accept({
             : `${oneOffPayment(t, quote, chosen)}${t.w.bookedFor(t.formatDateTime(quote.proposedStartsAt))}`}
         </p>
         {newCard && <ConsentNote action="paying" />}
-        {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-        {still && <Notice tone={still.tone}>{still.message}</Notice>}
+        {problem && <Notice tone="danger">{problem}</Notice>}
         <Actions>
           <Decline quote={quote} />
           <Button
@@ -964,7 +1042,17 @@ function DeclineDialog({
   ...state
 }: { quote: QuoteView } & Partial<DialogState>) {
   const t = useSaid(words);
+  const router = useRouter();
+  // not reloading on a failure, which would close the dialog before it
+  // says why: its page catches up as it closes
   const action = useAction(t.p.didntWork);
+  const { paying } = quote;
+  // their bank started finishing a payment on it since the page loaded:
+  // too far on to call off, so it may still book (#534's UX design,
+  // Screen 1c). Not an error, and declining waits till it's done
+  const finishing = [false, true].some(
+    (card) => action.problem === t.depositNoDecline(depositGoalOf(quote), card),
+  );
 
   const decline = async (close: () => void) => {
     const ok = await action.run(
@@ -973,19 +1061,33 @@ function DeclineDialog({
     );
     if (ok) close();
   };
+  const keep = (close: () => void) => {
+    close();
+    if (action.problem) void router.invalidate();
+  };
 
   return (
     <Dialog title={t.w.declineQ} role="alertdialog" {...state}>
       {({ close }) => (
         <>
           <p>{t.w.thanks}</p>
-          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          {/* what declining does to a payment their bank still asks them
+              to approve (Screen 1b) */}
+          {paying?.status === "approving" && (
+            <p>{t.w.callsOff(paying.depositCents === 0)}</p>
+          )}
+          {action.problem && (
+            <Notice tone={finishing ? "info" : "danger"}>
+              {action.problem}
+            </Notice>
+          )}
           <Actions>
-            <Button variant="quiet" onPress={close}>
+            <Button variant="quiet" onPress={() => keep(close)}>
               {t.w.keep}
             </Button>
             <Button
               isPending={action.isPending}
+              isDisabled={finishing}
               onPress={() => void decline(close)}
             >
               {t.p.decline}

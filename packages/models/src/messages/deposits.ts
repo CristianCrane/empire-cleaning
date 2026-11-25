@@ -88,6 +88,12 @@ export const deposits = catalog({
     // the quote (#534's UX design, Screen 1c)
     depositNoDecline: (goal: DepositGoal, card: boolean) =>
       `${finishingEn(card)}, so this quote can't be declined now. ${emailEn(goal)}`,
+    // the quote's time ran out meanwhile, so what their bank finishes is
+    // turned away: a payment refunded, a card left unused
+    depositExpiring: (card: boolean) =>
+      card
+        ? "This quote expired while your bank was still approving your card, so nothing will be booked."
+        : "This quote expired while your payment was still going through with your bank, so nothing will be booked. If your bank takes the payment, we'll refund it.",
     // their bank asking them to approve it, till `until` (formatted), when
     // it's called off; pressing again starts over, calling it off
     depositWaiting: (p: {
@@ -146,6 +152,10 @@ export const deposits = catalog({
         : `Su primer pago aún no termina de pasar con su banco, así que no se cobró nada más. ${emailEs(goal)}`,
     depositNoDecline: (goal: DepositGoal, card: boolean) =>
       `${finishingEs(card)}, así que esta cotización no se puede rechazar ahora. ${emailEs(goal)}`,
+    depositExpiring: (card: boolean) =>
+      card
+        ? "Esta cotización venció mientras su banco aún aprobaba su tarjeta, así que no se reservará nada."
+        : "Esta cotización venció mientras su pago aún pasaba con su banco, así que no se reservará nada. Si su banco cobra el pago, se lo devolveremos.",
     depositWaiting: (p: {
       goal: DepositGoal;
       service: string | null;
@@ -226,7 +236,15 @@ export const depositAlertOf = (
   const goal = depositGoalOf(quote);
   switch (paying.status) {
     case "goingThrough":
-      return { tone: "info", text: said.depositFinishing(goal) };
+      // only its time runs out meanwhile, as the one rule holds the rest
+      // (ADR-0022), and booking turns a closed quote's payment away
+      return {
+        tone: "info",
+        text:
+          quote.status === "sent"
+            ? said.depositFinishing(goal)
+            : said.depositExpiring(card),
+      };
     case "approving": {
       const waiting = {
         goal,

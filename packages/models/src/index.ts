@@ -1489,10 +1489,14 @@ export type AcceptQuoteInput = {
 export type AcceptOutcome =
   | { status: "accepted"; quote: QuoteView }
   | { status: "needs_approval"; secret: string }
-  // nothing was taken, as an earlier payment on it is still going through
-  // (#534): their bank is finishing it ("processing"), or hasn't approved
-  // it yet ("waiting", from .../finalize); `message` says what happens next
-  | { status: "processing" | "waiting"; message: string };
+  // not booked yet, as a payment on it is still out (#534): their bank
+  // hasn't approved it yet ("waiting", from .../finalize), which the
+  // Quote's page says (DepositPaying), or is finishing it ("processing"),
+  // `message` saying what happens next: the page's words for it, or, for a
+  // press from a page opened before their bank took the first payment,
+  // that nothing more was taken
+  | { status: "waiting" }
+  | { status: "processing"; message: string };
 
 // POST /api/quotes/:id/accept: the Quote, accepted, and whether it was by
 // the Client's own payment online, which their bank approved just before

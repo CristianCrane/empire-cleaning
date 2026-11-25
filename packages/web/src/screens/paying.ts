@@ -13,13 +13,14 @@ const PAYING_LOOK_MS = 15_000;
 // their bank finishes it, every PAYING_LOOK_MS alone, as nothing says when
 // that ends. A look that fails says nothing on the page: the next tries
 // again. One at a time, as two at once would both tell of what they found,
-// twice
+// twice. One with no `until` is their bank's to finish, from the start
 export function useWhilePaying(
-  paying: { until: string; finishing?: boolean } | null | undefined,
+  paying: { until?: string; finishing?: boolean } | null | undefined,
   look: () => Promise<unknown>,
 ) {
+  const on = Boolean(paying);
   const until = paying?.until;
-  const finishing = paying?.finishing ?? false;
+  const finishing = paying?.finishing ?? !until;
   const looking = useRef(false);
   const lookNow = useEffectEvent(() => {
     if (looking.current) return;
@@ -31,16 +32,17 @@ export function useWhilePaying(
       });
   });
   useEffect(() => {
-    if (!until) return;
+    if (!on) return;
     const timer = setInterval(() => {
       if (document.visibilityState === "visible") lookNow();
     }, PAYING_LOOK_MS);
     const end =
       !finishing &&
+      until &&
       setTimeout(lookNow, Math.max(0, Date.parse(until) - Date.now()) + 1000);
     return () => {
       clearInterval(timer);
       if (end) clearTimeout(end);
     };
-  }, [until, finishing]);
+  }, [on, until, finishing]);
 }

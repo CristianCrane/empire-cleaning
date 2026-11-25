@@ -43,6 +43,10 @@ export const labels = catalog({
     // with nothing for the Client to do (#534's UX review U1). "Payment",
     // so beside a clean it doesn't read as the clean not done
     paymentPending: "Payment pending",
+    // a quote their bank is finishing approving a card for, with nothing
+    // charged (a 0% Deposit): it books on its own, and no payment is
+    // pending (#534's UX design, Screen 1b)
+    bookingPending: "Booking pending",
     howWeGetIn: "How we get in",
     // a Job's header card, as a screen reader names it (JobLead)
     jobDetails: "Job details",
@@ -86,6 +90,7 @@ export const labels = catalog({
     payBill: (n: string) => `Pagar la factura ${n}`,
     seeBill: (n: string) => `Ver la factura ${n}`,
     paymentPending: "Pago pendiente",
+    bookingPending: "Reserva pendiente",
     howWeGetIn: "Cómo entramos",
     jobDetails: "Detalles del trabajo",
     jobStatus: {

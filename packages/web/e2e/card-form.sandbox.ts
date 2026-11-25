@@ -148,10 +148,13 @@ test("a 3D Secure check that fails books nothing, and says so", async ({
   await enterCard(form, CARD.approvalFails);
   await accept.click();
   await approveIn3DSecure(client, "Fail");
-  // Stripe's own words for it, which the form shows as they come
+  // the page's alert, as the server reads it from Stripe
   await expect(
-    form.getByText(/^We are unable to authenticate your payment method\./),
-  ).toBeVisible();
+    client.getByRole("status").filter({
+      hasText:
+        "Your payment wasn't approved, so nothing was taken. Please try again, or use another card.",
+    }),
+  ).toBeFocused();
   await expect(client.getByText(booked)).toBeHidden();
 });
 
@@ -163,7 +166,9 @@ test("a declined card books nothing and takes nothing", async ({
   await enterCard(form, CARD.declined);
   await accept.click();
   await expect(
-    form.getByText("Your card didn't go through, so nothing was booked"),
+    client.getByRole("alert").filter({
+      hasText: /^Your payment didn't go through/,
+    }),
   ).toBeVisible();
 
   await client.goto("/portal/payments");

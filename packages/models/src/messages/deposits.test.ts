@@ -76,6 +76,24 @@ describe("where a Deposit payment stands, as the Client's Quote page says it", (
       `Your bank hasn't approved your card yet. Approve it in your bank's app by ${twoTwentyNine} to start your plan, or press Accept and book to start over. Nothing is charged.`,
     );
   });
+
+  test("going through on a quote that expired meanwhile promises no booking", () => {
+    const going = (depositCents: number) =>
+      depositAlertOf(
+        "en",
+        quote(
+          { status: "goingThrough", serviceKey: STANDARD, depositCents },
+          "expired",
+        ),
+      );
+    expect(going(4872)).toEqual({
+      tone: "info",
+      text: "This quote expired while your payment was still going through with your bank, so nothing will be booked. If your bank takes the payment, we'll refund it.",
+    });
+    expect(going(0)?.text).toBe(
+      "This quote expired while your bank was still approving your card, so nothing will be booked.",
+    );
+  });
 });
 
 describe("how a Deposit payment that didn't book ended, as the Client is told", () => {

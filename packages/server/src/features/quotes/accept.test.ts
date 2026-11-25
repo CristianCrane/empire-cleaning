@@ -759,10 +759,10 @@ describe("paying the Deposit with a card entered just now", () => {
     expect(early.body.status).toBe("waiting");
     // by when, for which Service: called off 15 minutes from the press
     const until = formats.en.formatTime("2026-01-05T09:15:00.000Z");
-    expect(early.body.message).toBe(
+    // which the page says, its alert answering the press
+    expect(await pageSays(client, quote)).toBe(
       `Your bank hasn't approved your payment yet. Approve it in your bank's app by ${until} to book your Deep Clean, or press Accept and pay to start over: you're only charged once.`,
     );
-    expect(await pageSays(client, quote)).toBe(early.body.message);
 
     testPayments().requireApproval("refused");
     const refused = await finalize(client, quote).expect(409);
