@@ -22,6 +22,53 @@ export const prototype = (drawn: Prototype) => drawn;
 export const indexPath = (screen: string, lang: Language = "en") =>
   `${landingHome[lang]}prototype/${screen}/`;
 
+// every prototype on the branch, by name; loaded when asked for, as each
+// one's list imports `prototype` from here
+const lists = import.meta.glob<{ default: Prototype }>("./prototypes/*.ts");
+export const prototypes = async () =>
+  Object.fromEntries(
+    await Promise.all(
+      Object.entries(lists).map(
+        async ([file, load]) =>
+          [file.replace(/^.*\/|\.ts$/g, ""), (await load()).default] as const,
+      ),
+    ),
+  );
+
+// the prototype an address is under, in either language, and the page
+// (<layout>-<case>) it asks for there
+export const prototypeAt = (pathname: string) => {
+  for (const home of Object.values(landingHome)) {
+    const under = `${home}prototype/`;
+    if (!pathname.startsWith(under)) continue;
+    const [screen, page] = pathname.slice(under.length).split("/");
+    if (screen) return { screen, page: page || undefined };
+  }
+  return undefined;
+};
+
+// what a page's address asks for that its prototype hasn't, as the index
+// says it ("case 99"); the whole address when each part is there but not
+// in that language
+export const missingAt = (drawn: Prototype, pathname: string) => {
+  const page = prototypeAt(pathname)?.page ?? "";
+  const dash = page.indexOf("-");
+  const layout = page.slice(0, Math.max(dash, 0));
+  const shown = page.slice(dash + 1);
+  const missing = [
+    ...(drawn.cases[shown] ? [] : [`case ${shown}`]),
+    ...(drawn.layouts.some(({ key }) => key === layout)
+      ? []
+      : [`layout ${layout}`]),
+  ];
+  return dash > 0 && missing.length ? missing : [`page ${pathname}`];
+};
+
+// the address of one layout × case of a prototype, in its case's language
+export const pageOf =
+  (screen: string, drawn: Prototype) => (layout: string, shown: string) =>
+    shotPath(screen, layout, shown, drawn.cases[shown]?.lang);
+
 export const shotPath = (
   screen: string,
   layout: string,

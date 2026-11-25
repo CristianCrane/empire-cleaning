@@ -1,0 +1,17 @@
+---
+import { PrototypeIndex } from "@empire-cleaning/ui";
+import { pageOf, type Prototype } from "../prototype.ts";
+
+// a prototype's list of every layout × case (src/prototype.ts), at its
+// address and, in development, where an address under it isn't a page
+type Props = { screen: string; drawn: Prototype; missing?: string[] };
+const { screen, drawn, missing } = Astro.props;
+---
+
+<PrototypeIndex
+  screen={screen}
+  layouts={drawn.layouts}
+  cases={Object.entries(drawn.cases).map(([key, { name }]) => ({ key, name }))}
+  hrefOf={pageOf(screen, drawn)}
+  missing={missing}
+/>

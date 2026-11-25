@@ -20,14 +20,16 @@ export function PrototypeIndex({
   layouts: Choice[];
   cases: Choice[];
   hrefOf: (layout: string, shown: string) => LinkProps["href"];
-  // a case or layout asked for in the address that the prototype hasn't
-  missing?: string;
+  // what the address asks for that the prototype hasn't ("case 99")
+  missing?: string[];
 }) {
   const cell = "px-2 py-1 text-start align-top";
   return (
     <main className="mx-auto max-w-3xl p-4 text-sm">
       <p className="mb-1 text-base font-semibold">{screen}</p>
-      {missing && <p className="mb-1">{missing}</p>}
+      {missing?.length ? (
+        <p className="mb-1">It has no {missing.join(" or ")}: pick one here.</p>
+      ) : null}
       <table className="-mx-2">
         <thead>
           <tr>

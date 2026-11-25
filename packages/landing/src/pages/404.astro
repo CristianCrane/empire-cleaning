@@ -2,19 +2,21 @@
 import { buttonStyles, PrototypeUnknown } from "@empire-cleaning/ui";
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
+import PrototypeList from "../components/PrototypeList.astro";
 import QuoteOrCall from "../components/QuoteOrCall.astro";
 import Page from "../layouts/Page.astro";
-import { indexPath } from "../prototype.ts";
+import { indexPath, missingAt, prototypeAt, prototypes } from "../prototype.ts";
 import { pathOf } from "../routes.ts";
 
-// in development, a prototype address with a name the branch has no
-// prototype of (src/prototype.ts) lists the ones it has, as the web app's
-// does; a build has the one 404 page for every address
-const prototype = import.meta.env.DEV
-  ? /^\/(?:es\/)?prototype\/([^/]+)/.exec(Astro.url.pathname)?.[1]
-  : undefined;
-const known = Object.keys(import.meta.glob("../prototypes/*.ts"))
-  .map((file) => file.replace(/^.*\/|\.ts$/g, ""))
+// in development, an address under a prototype (src/prototype.ts) that
+// isn't a page says what it lacks, as the web app's does: a known name's
+// list, with the case or layout it hasn't, or else the names the branch
+// has; a build has the one 404 page for every address
+const { pathname } = Astro.url;
+const at = import.meta.env.DEV ? prototypeAt(pathname) : undefined;
+const all = at ? await prototypes() : {};
+const drawn = at && all[at.screen];
+const known = Object.keys(all)
   .sort()
   .map((name) => ({ name, href: indexPath(name) }));
 ---
@@ -24,9 +26,17 @@ const known = Object.keys(import.meta.glob("../prototypes/*.ts"))
      Quote form or the phone; the footer carries the logo. The host serves
      this one page for every unknown address, /es/ ones too, so it says so
      in Spanish as well, leading to the Spanish home page (ADR-0025) -->
-{prototype ? (
+{at && drawn ? (
+  <Page title={at.screen} page={null}>
+    <PrototypeList
+      screen={at.screen}
+      drawn={drawn}
+      missing={missingAt(drawn, pathname)}
+    />
+  </Page>
+) : at ? (
   <Page title="No such prototype" page={null}>
-    <PrototypeUnknown screen={prototype} known={known} />
+    <PrototypeUnknown screen={at.screen} known={known} />
   </Page>
 ) : (
   <Page title="Page not found" page={null}>

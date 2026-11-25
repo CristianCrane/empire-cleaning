@@ -115,9 +115,7 @@ export function PrototypeScreen() {
           name: drawn.cases[key]?.name ?? "",
         }))}
         hrefOf={hrefOf}
-        {...(missing.length && {
-          missing: `It has no ${missing.join(" or ")}: pick one here.`,
-        })}
+        missing={missing}
       />
     );
   }

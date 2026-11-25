@@ -1,17 +1,20 @@
 ---
 import type { AstroComponentFactory } from "astro/runtime/server/index.js";
-import { PrototypeBar, PrototypeIndex } from "@empire-cleaning/ui";
+import { PrototypeBar } from "@empire-cleaning/ui";
+import PrototypeList from "../components/PrototypeList.astro";
 import Page from "../layouts/Page.astro";
-import { indexPath, shotPath, type Prototype } from "../prototype.ts";
+import {
+  indexPath,
+  pageOf,
+  prototypes,
+  shotPath,
+  type Prototype,
+} from "../prototype.ts";
 
 // every prototype's pages, on a prototype-* branch (src/prototype.ts): main
 // has none, so this makes no page there
-export const getStaticPaths = () => {
-  const lists = import.meta.glob<{ default: Prototype }>("../prototypes/*.ts", {
-    eager: true,
-  });
-  return Object.entries(lists).flatMap(([file, { default: drawn }]) => {
-    const screen = file.replace(/^.*\/|\.ts$/g, "");
+export const getStaticPaths = async () =>
+  Object.entries(await prototypes()).flatMap(([screen, drawn]) => {
     const index = {
       params: { prototype: indexPath(screen).slice(1, -1) },
       props: { screen, drawn },
@@ -26,7 +29,6 @@ export const getStaticPaths = () => {
     );
     return [index, ...shots];
   });
-};
 
 type Props = {
   screen: string;
@@ -40,8 +42,7 @@ const views = import.meta.glob<{ default: AstroComponentFactory }>(
   { eager: true },
 );
 const View = views[`../prototypes/${screen}.astro`]?.default;
-const hrefOf = (to: string, at: string) =>
-  shotPath(screen, to, at, drawn.cases[at]?.lang);
+const hrefOf = pageOf(screen, drawn);
 ---
 
 <Page page={null} title={screen}>
@@ -71,14 +72,6 @@ const hrefOf = (to: string, at: string) =>
       )}
     </>
   ) : (
-    <PrototypeIndex
-      screen={screen}
-      layouts={drawn.layouts}
-      cases={Object.entries(drawn.cases).map(([key, { name }]) => ({
-        key,
-        name,
-      }))}
-      hrefOf={hrefOf}
-    />
+    <PrototypeList screen={screen} drawn={drawn} />
   )}
 </Page>
