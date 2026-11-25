@@ -737,6 +737,18 @@ test("a Client whose Deposit is going through sees it by their home and on its q
   await expect(home).toContainText("Payment pending");
   await expect(home).toContainText("Deposit for Deep Clean");
   await home.click();
+  // short of room, its button moves under the title before the street
+  // breaks in two (#534's UX review U6)
+  const title = page.getByRole("heading", { level: 1 });
+  await expect(title).toHaveText("41-12 Austin St");
+  expect(
+    await title.evaluate((h) => {
+      const r = document.createRange();
+      r.selectNodeContents(h);
+      return new Set([...r.getClientRects()].map((b) => Math.round(b.top)))
+        .size;
+    }),
+  ).toBe(1);
   const quotes = page.getByRole("grid", { name: "Quotes" });
   await expect(quotes.getByRole("row")).toContainText("Payment pending");
   await expect(quotes.getByText("Ready", { exact: true })).toHaveCount(0);

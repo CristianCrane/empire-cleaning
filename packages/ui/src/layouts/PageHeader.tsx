@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { Breadcrumbs, type Crumb } from "../Breadcrumbs.tsx";
-import { Heading } from "../Heading.tsx";
+import { Heading, heading } from "../Heading.tsx";
 import { useWide } from "../wide.ts";
 import { FrameColumn } from "./PageFrame.tsx";
 import {
@@ -27,7 +27,8 @@ import {
 // title row, on the title's line, the page's actions: its next step as a
 // split button, the rest behind its arrow; with nothing next, the rest as
 // RareActions; or a List's one primary (New …). Short of room, the badge
-// drops under the title before the button moves. Beside the actions, a
+// drops under the title, then the button moves under it, so the title
+// breaks only where it can't fit alone (#534's UX review U6). Beside the actions, a
 // line read out as it changes (`note`: whether a Draft's saved). From md,
 // once the window's top reaches the title row's actions, a slim header
 // sticks at the top with the title, the badge, what the next step rests on
@@ -114,8 +115,11 @@ export function PageHeader({
           <Breadcrumbs trail={trail} />
         </div>
       )}
-      <div className="flex items-start gap-3">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <div className="flex flex-wrap items-start gap-3">
+        {/* never narrower than the title on one line, while that fits the
+            row: so the button beside it moves under before the title
+            breaks, the lesser part giving way first (the ui skill) */}
+        <div className="flex max-w-full flex-1 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             {/* the title's line as tall as the button at its end, so the
                 button sits on it */}
@@ -129,6 +133,18 @@ export function PageHeader({
             {status}
           </div>
           {subtitle && <p className="text-lg text-fg-muted">{subtitle}</p>}
+          {/* the title on one line, unseen, as wide as the column's least */}
+          <div
+            aria-hidden
+            className={heading({
+              size: 1,
+              inBar,
+              className:
+                "invisible -mt-1 h-0 overflow-hidden whitespace-nowrap",
+            })}
+          >
+            {title}
+          </div>
         </div>
         {primary && (
           <div className="shrink-0 print:hidden">
