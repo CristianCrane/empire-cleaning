@@ -11,12 +11,16 @@ import {
   cpSync,
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   rmSync,
 } from "node:fs";
 import { basename, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+// leases a block of e2e ports for this run, which both sides use: the
+// processes it starts find it in E2E_PORT_LEASE (../ports.ts)
+import { E2E_PORTS, holdEndedRun } from "../ports.ts";
 
 const USAGE = [
   'Usage: pnpm pr:shots <spec> "<test title>" [--desktop] [--viewport]',
@@ -38,6 +42,18 @@ const top = fileURLToPath(new URL("../../../..", import.meta.url)).replace(
   "",
 );
 const CONFIG = join(top, "packages/server/tests/e2e/shots.config.ts");
+// where each run keeps a copy of its shots, in a folder named for its block
+const COPIES = git(
+  top,
+  "rev-parse",
+  "--path-format=absolute",
+  "--git-path",
+  "pr-shots",
+);
+
+// and in E2E_PORT_BASE, for a base whose ports.ts (once tests/checkout.ts)
+// predates the lease and reads only that
+process.env.E2E_PORT_BASE = String(E2E_PORTS);
 
 type Side = "before" | "after";
 type Shot = { project: string; file: string };
@@ -287,15 +303,17 @@ const slug = (title: string) =>
     .replace(/^-|-$/g, "")
     .slice(0, 60);
 
-// the base checked out in a worktree of its own for the length of `run`, at
-// the same path every time, so a killed run's is found and removed, and its
-// block of ports stays the same (tests/checkout.ts)
+const removeWorktree = (path: string) => {
+  if (existsSync(path)) git(top, "worktree", "remove", "--force", path);
+  git(top, "worktree", "prune");
+};
+
+// the base checked out in a worktree of its own for the length of `run`,
+// named for this run's block of ports, which no other run holds while it
+// lives: so a worktree found there is a killed run's, and is removed
 const withBase = <T>(sha: string, run: (base: string) => T): T => {
-  const base = `${top}-shots-base`;
-  const remove = () => {
-    if (existsSync(base)) git(top, "worktree", "remove", "--force", base);
-    git(top, "worktree", "prune");
-  };
+  const base = `${top}-shots-base-${E2E_PORTS}`;
+  const remove = () => removeWorktree(base);
   remove(); // a killed run's
   git(top, "worktree", "add", "--quiet", "--detach", base, sha);
   try {
@@ -615,13 +633,7 @@ const main = () => {
   )
     throw new Stop(USAGE);
 
-  const dir = git(
-    top,
-    "rev-parse",
-    "--path-format=absolute",
-    "--git-path",
-    "pr-shots",
-  );
+  const dir = join(COPIES, String(E2E_PORTS));
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   git(top, "fetch", "--quiet", "origin", "main");
@@ -649,7 +661,39 @@ const main = () => {
   else one(spec ?? "", title ?? "", context);
 };
 
+// What earlier runs left in this checkout, each named for its run's block:
+// copies of their shots, kept until the next run as a person may still be
+// looking, and a base worktree, which a run removes as it ends unless it was
+// killed. Those whose block no run holds go, the block's lease held meanwhile
+// so no run takes it first; so do those from before runs leased their blocks
+// (a worktree `<checkout>-shots-base`, copies straight in pr-shots/)
+const clearEndedRuns = async () => {
+  const worktrees = git(top, "worktree", "list", "--porcelain")
+    .split("\n")
+    .flatMap((line) => (line.startsWith("worktree ") ? [line.slice(9)] : []))
+    .filter(
+      (path) =>
+        path.startsWith(top) &&
+        /^-shots-base(-\d+)?$/.test(path.slice(top.length)),
+    );
+  const copies = existsSync(COPIES)
+    ? readdirSync(COPIES).map((name) => join(COPIES, name))
+    : [];
+  for (const path of [...worktrees, ...copies]) {
+    const block = /(?:^|[/-])(\d+)$/.exec(path)?.[1];
+    const lease = block ? await holdEndedRun(Number(block)) : undefined;
+    if (lease === null) continue; // a run going on
+    try {
+      if (worktrees.includes(path)) removeWorktree(path);
+      else rmSync(path, { recursive: true, force: true });
+    } finally {
+      await lease?.release();
+    }
+  }
+};
+
 try {
+  await clearEndedRuns();
   main();
 } catch (error) {
   if (!(error instanceof Stop)) throw error;

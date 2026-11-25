@@ -1,5 +1,5 @@
 import { availableParallelism } from "node:os";
-import { E2E_PORTS } from "@empire-cleaning/server/checkout";
+import { E2E_PORTS, MAX_SLOTS, slotPorts } from "@empire-cleaning/server/ports";
 
 // Tests run in parallel, and each Playwright worker has a slot of its own: an
 // API with its control server and database, and the built app in front of it
@@ -18,9 +18,7 @@ const workersFlag = () => {
   return String(Math.max(1, Math.floor(availableParallelism() * share)));
 };
 
-// the slots this checkout's block of ports has room for (slotOf)
-const MAX_SLOTS = 60;
-
+// at most the slots the block of ports has room for (MAX_SLOTS)
 const workerCount = (value: string | undefined) => {
   // two: alone it's as fast as 6 for the specs a change touches, and two
   // runs at once (two checkouts) stay green, where at 6 each both slowed and
@@ -45,14 +43,22 @@ export const WORKERS = workerCount(process.env.E2E_WORKERS ?? workersFlag());
 export const E2E_DB_URL =
   "postgresql://postgres:password@localhost:5433/empire_e2e_test";
 
-// each slot's three servers on ports from this checkout's block (the server's
-// tests/checkout.ts), three to a slot; the landing site's e2e tests take the
-// block's last ones
-export const slotOf = (slot: number) => ({
-  apiUrl: `http://localhost:${E2E_PORTS + slot * 3}`,
-  controlUrl: `http://127.0.0.1:${E2E_PORTS + slot * 3 + 1}`,
-  appUrl: `http://localhost:${E2E_PORTS + slot * 3 + 2}`,
-});
+// each slot's three servers, on its ports from the block (the server's
+// tests/ports.ts)
+export const slotOf = (slot: number) => {
+  const { api, control, app } = slotPorts(slot);
+  return {
+    apiUrl: `http://localhost:${api}`,
+    controlUrl: `http://127.0.0.1:${control}`,
+    appUrl: `http://localhost:${app}`,
+  };
+};
+
+// where the run builds the app, and e2e/preview.ts serves it from: a folder
+// named for the run's block, as another run in this checkout may be building
+// at the same time, and a build empties its folder first. Inside dist/, so
+// every tool that skips a build skips it
+export const appBuild = `dist/e2e-${E2E_PORTS}`;
 
 // the slot of the worker this runs in (Playwright numbers them from 0); slot 0
 // in Playwright's own process

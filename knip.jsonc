@@ -1,10 +1,23 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
   "workspaces": {
+    // knip's Playwright plugin would run each playwright.config.ts to read
+    // it, and loading one leases a block of e2e ports (server's
+    // tests/ports.ts): off, with the files it would find named here
     "packages/web": {
-      // started inside playwright.config.ts's webServer command (bash -c),
-      // where knip doesn't look
-      "entry": ["e2e/preview.ts"],
+      "entry": [
+        // started inside playwright.config.ts's webServer command (bash -c),
+        // where knip doesn't look
+        "e2e/preview.ts",
+        "playwright.config.ts",
+        "e2e/*.spec.ts",
+        "e2e/*.sandbox.ts",
+      ],
+      "playwright": false,
+    },
+    "packages/landing": {
+      "entry": ["playwright.config.ts", "tests/*.spec.ts"],
+      "playwright": false,
     },
     "packages/server": {
       "entry": [

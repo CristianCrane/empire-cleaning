@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 import { MINUTE_MS } from "@empire-cleaning/models";
-import { E2E_DB_URL, slot, slotOf, WORKERS } from "./e2e/slots.ts";
+import { appBuild, E2E_DB_URL, slot, slotOf, WORKERS } from "./e2e/slots.ts";
+import { E2E_PORTS } from "@empire-cleaning/server/ports";
 
 // Keep headless Chromium off the WSLg display so it doesn't steal Windows focus
 delete process.env.DISPLAY;
@@ -26,6 +27,9 @@ export default defineConfig({
   testDir: "./e2e",
   workers: WORKERS,
   fullyParallel: true,
+  // the run's own, as Playwright empties it at the start of a run, and
+  // another run in this checkout may be going (as appBuild)
+  outputDir: `test-results/${E2E_PORTS}`,
   // CI also keeps an HTML report, and the trace of every failed test
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   // reduced motion, so the app stills its animations (ui's tokens.css): a
@@ -44,8 +48,7 @@ export default defineConfig({
   // output open and Playwright would wait out its timeout
   webServer: [
     {
-      command:
-        "bash -c 'trap \"kill 0\" EXIT; pnpm --filter @empire-cleaning/server e2e:servers & (vite build && node e2e/preview.ts) & wait -n'",
+      command: `bash -c 'trap "kill 0" EXIT; pnpm --filter @empire-cleaning/server e2e:servers & (vite build --outDir ${appBuild} && node e2e/preview.ts) & wait -n'`,
       wait: { stdout: /(?=[\s\S]*e2e APIs ready)(?=[\s\S]*e2e apps ready)/ },
       timeout: 2 * MINUTE_MS,
       env: {

@@ -1,20 +1,23 @@
 import { defineConfig, devices } from "@playwright/test";
 import { MINUTE_MS } from "@empire-cleaning/models";
-import { E2E_PORTS } from "@empire-cleaning/server/checkout";
+import { E2E_PORTS, landingPorts } from "@empire-cleaning/server/ports";
 
 // Keep headless Chromium off the WSLg display so it doesn't steal Windows focus
 delete process.env.DISPLAY;
 delete process.env.WAYLAND_DISPLAY;
 
-// the last ports of this checkout's block (the server's tests/checkout.ts),
-// after the web e2e slots' (packages/web/e2e/slots.ts)
-const API_PORT = E2E_PORTS + 190;
-const CONTROL_PORT = E2E_PORTS + 191;
-const SITE_PORT = E2E_PORTS + 192;
+// this site's ports in the block (the server's tests/ports.ts)
+const { api: API_PORT, control: CONTROL_PORT, site: SITE_PORT } = landingPorts;
 export const siteUrl = `http://localhost:${SITE_PORT}`;
 export const controlUrl = `http://127.0.0.1:${CONTROL_PORT}`;
 // where the header's Sign in goes, as built for these tests
 export const appUrl = "https://app.example.test";
+
+// where the run builds the site and serves it from: a folder named for the
+// run's block, as the build bakes in this run's API (PUBLIC_API_URL below),
+// and another run in this checkout may be building at the same time. Inside
+// dist/, so every tool that skips a build skips it
+const siteBuild = `dist/e2e-${E2E_PORTS}`;
 
 // tests the built site in a real Chromium, as a visitor gets it, on a phone
 // and a desktop. Its Request a Quote form talks to the real API and a database
@@ -28,6 +31,9 @@ export default defineConfig({
   testDir: "./tests",
   workers: 2,
   fullyParallel: true,
+  // the run's own, as Playwright empties it at the start of a run (as
+  // siteBuild)
+  outputDir: `test-results/${E2E_PORTS}`,
   // CI also keeps an HTML report, and the trace of every failed test
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   // reduced motion, as the web app's (docs/testing.md, "Every test browser")
@@ -43,7 +49,7 @@ export default defineConfig({
     {
       // the site built here, so its form points at this run's API, and Sign
       // in at a known address
-      command: `bash -c 'trap "kill 0" EXIT; pnpm --filter @empire-cleaning/server e2e:servers & (ASTRO_TELEMETRY_DISABLED=1 astro build && ASTRO_TELEMETRY_DISABLED=1 astro preview --port ${SITE_PORT} --ignore-lock) & wait -n'`,
+      command: `bash -c 'trap "kill 0" EXIT; pnpm --filter @empire-cleaning/server e2e:servers & (ASTRO_TELEMETRY_DISABLED=1 astro build --outDir ${siteBuild} && ASTRO_TELEMETRY_DISABLED=1 astro preview --outDir ${siteBuild} --port ${SITE_PORT} --ignore-lock) & wait -n'`,
       wait: {
         stdout: new RegExp(
           `(?=[\\s\\S]*e2e APIs ready)(?=[\\s\\S]*Local\\s+${siteUrl})`,

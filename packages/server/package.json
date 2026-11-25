@@ -10,7 +10,7 @@
   },
   "exports": {
     "./api-clock": "./tests/e2e/api-clock.ts",
-    "./checkout": "./tests/checkout.ts",
+    "./ports": "./tests/ports.ts",
     "./fake-payments": "./tests/fakes/payment-gateway.ts"
   },
   "scripts": {
