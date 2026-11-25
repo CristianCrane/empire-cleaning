@@ -93,8 +93,6 @@ const words = catalog({
       lineOf([hours, `${deposit} deposit`]),
     noLongerFits:
       "No longer fits on that day: it's been booked up since we sent this quote",
-    eachOff: (percent: number) =>
-      `Each clean is ${percent}% off what it would cost as a one-off.`,
     onEvery: (extras: string) => `On every clean, included: ${extras}`,
     includes: (extras: string) => `Includes ${extras}`,
     tax: "Tax",
@@ -188,8 +186,6 @@ const words = catalog({
       lineOf([hours, `${deposit} de depósito`]),
     noLongerFits:
       "Ya no cabe ese día: se llenó después de que le enviamos esta cotización",
-    eachOff: (percent: number) =>
-      `Cada limpieza cuesta un ${percent}% menos que como una sola limpieza.`,
     onEvery: (extras: string) => `En cada limpieza, incluido: ${extras}`,
     includes: (extras: string) => `Incluye ${extras}`,
     tax: "Impuestos",
@@ -597,11 +593,6 @@ function QuoteDetails({
 
       {plan && (
         <div className="flex flex-col gap-3 border-t border-border pt-4">
-          {plan.discountPercent > 0 && (
-            <p className="text-sm text-fg-muted">
-              {t.w.eachOff(plan.discountPercent)}
-            </p>
-          )}
           <div
             className={`grid gap-4 ${cards.length > 1 ? "lg:grid-cols-2" : ""}`}
           >

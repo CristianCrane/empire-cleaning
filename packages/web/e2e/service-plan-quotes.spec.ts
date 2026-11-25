@@ -421,7 +421,6 @@ test("a plan quoted at no discount says no saving, on its quote and on the plan"
     "As a one-off clean$224.28On the plan$224.28",
   );
   await expect(plan).not.toContainText("Save $");
-  await expect(client.getByText(/% off what it would cost/)).toHaveCount(0);
 
   // started, its page says the price with no discount either
   await payAndBook(client, "Pay and start your plan").accept.click();
