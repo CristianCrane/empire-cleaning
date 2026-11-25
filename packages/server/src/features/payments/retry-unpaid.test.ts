@@ -4,9 +4,8 @@ import { tookOf } from "./retry-unpaid.ts";
 // critical review C11: settleJob can record money an earlier try
 // took (recordTakenEarlier: balance.ts, `chargedCents: found…`) and then fail
 // to take the rest (`settled.failure = charged.reason`), so retryJob returns
-// takenCents > 0 beside a failure. Before ff64cb3a, clientRetry's 409 said
-// "We took $X, but not the rest"; tookOf now drops the item, so the 409
-// says only the failure
+// takenCents > 0 beside a failure. tookOf counts what was taken, so the 409
+// says "We took $X, but not the rest"
 describe("what a retry took", () => {
   test("counts money taken for a payment whose rest failed (critical review C11)", () => {
     const took = tookOf([

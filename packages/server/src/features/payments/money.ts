@@ -205,7 +205,7 @@ const keep = async (
         : null;
   if (processing) {
     await update(attempt, { status: "processing", gatewayRef: processing });
-    return { status: "unknown", reason: "processing" };
+    return { status: "unknown", reason: PROCESSING };
   }
   // a card paying a Bill whose bank finishes it from the first: going
   // through, as one approved and finishing is (approvalOf), not theirs to
@@ -225,7 +225,7 @@ const keep = async (
       gatewayRef: reply.ref,
       bankFinishingAt: clock.now(),
     });
-    return { status: "unknown", reason: "processing" };
+    return { status: "unknown", reason: PROCESSING };
   }
   switch (said.status) {
     case "succeeded":
@@ -363,7 +363,7 @@ const approving = async (
       return { status: "unknown", reason: "approving" };
     // the bank finishing it: read like a processing Charge's, till it ends
     case "finishing":
-      return { status: "unknown", reason: "processing" };
+      return { status: "unknown", reason: PROCESSING };
     case "unknown":
       return { status: "unknown", reason: approval.reason };
     case "ended":

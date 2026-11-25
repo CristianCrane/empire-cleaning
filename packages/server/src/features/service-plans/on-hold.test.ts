@@ -252,10 +252,9 @@ describe("saving a card that takes one payment while another can't reach the pro
       }),
     ]);
     expect(res.body.took).toHaveLength(1);
-    // Your card's cardNotice reads { took: [one], goingThrough: false } with
-    // nothing it lists as "Paid. We took $50.46 for your … clean": the
-    // answer must say the rest isn't through (as goingThrough does for
-    // "processing", or a field of its own)
+    // the one the payment service couldn't reach is still to come, so the
+    // answer says it's going through, as it does for "processing", and
+    // Your card doesn't read Paid
     expect(res.body.goingThrough).toBe(true);
   });
 });

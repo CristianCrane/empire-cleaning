@@ -25,6 +25,9 @@ const words = catalog({
     // and nothing to do (UX review U7)
     stillGoing: (what: string) => `Still going through: ${what}.`,
     restGoing: "The rest is still going through.",
+    // a payment Your card didn't list, as it asks nothing of them, so
+    // nothing named and nothing taken (review F20)
+    triedGoing: "We tried your card, and it's still going through.",
     howUsed: "How your card is used",
     about:
       "We take a deposit from this card when you book. Each clean is charged to it when it's done, or goes on your weekly bill if you have one. If a payment didn't go through, saving a card here tries it again.",
@@ -48,6 +51,7 @@ const words = catalog({
     saved: "Tarjeta guardada",
     stillGoing: (what: string) => `Todavía en proceso: ${what}.`,
     restGoing: "El resto todavía está en proceso.",
+    triedGoing: "Intentamos con su tarjeta y todavía está en proceso.",
     howUsed: "Cómo se usa su tarjeta",
     about:
       "Cobramos un depósito de esta tarjeta cuando reserva. Cada limpieza se cobra a ella cuando está terminada, o va en su factura semanal si tiene una. Si un pago no pasó, guardar una tarjeta aquí lo vuelve a intentar.",
@@ -265,7 +269,9 @@ export function PortalPaymentMethod() {
                       `${t.w.took(owedList(t, tried.took), saved.label)} `}
                     {pendingOf(tried).length > 0
                       ? t.w.stillGoing(owedList(t, pendingOf(tried)))
-                      : t.w.restGoing}{" "}
+                      : tried.took.length > 0
+                        ? t.w.restGoing
+                        : t.w.triedGoing}{" "}
                     {t.NOTHING_TO_DO}
                   </p>
                 ),
