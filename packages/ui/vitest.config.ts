@@ -16,11 +16,14 @@ delete process.env.WAYLAND_DISPLAY;
 // frame is 414px wide, so everything is also exercised at phone width. The
 // browser is in UTC whatever the machine's zone, so a component that says the
 // viewer's day where it should say New York's (DateTile) fails everywhere,
-// not only away from New York, as in web's browser tests
+// not only away from New York, as in web's browser tests. It prefers reduced
+// motion, as every test browser does (docs/testing.md, "Every test browser")
 const browser = (name: string) => ({
   enabled: true,
   headless: true,
-  provider: playwright({ contextOptions: { timezoneId: "UTC" } }),
+  provider: playwright({
+    contextOptions: { timezoneId: "UTC", reducedMotion: "reduce" },
+  }),
   instances: [{ browser: "chromium" as const, name }],
 });
 
