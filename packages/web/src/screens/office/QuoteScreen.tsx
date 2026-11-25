@@ -49,6 +49,7 @@ import type {
   ServicePlanInput,
 } from "@empire-cleaning/models";
 import {
+  acceptedWith,
   clientPaying,
   firstNameOf,
   inLine,
@@ -186,15 +187,6 @@ const payingOf = (
   quote: Pick<OfficeQuote, "paying" | "client">,
 ): PayingFor | null =>
   quote.paying && payingFor(quote.client.name, quote.paying);
-
-// the Service a Quote was accepted with, by name; none for a cleaning plan,
-// accepted whole
-const acceptedService = (quote: OfficeQuote) =>
-  quote.offer?.plan
-    ? null
-    : (quote.offer?.options.find(
-        (o) => o.serviceKey === quote.acceptedServiceKey,
-      )?.serviceName ?? null);
 
 // The Quote with one of its Revisions in hand: the one being drafted, or
 // else the offer, so it's edited while there's a Draft Revision and
@@ -1310,10 +1302,8 @@ function RecordAcceptanceDialog({
             tone: "info",
             title: clientPaying.recorded(
               quote.client.name,
-              acceptedService(accepted),
+              acceptedWith(accepted),
               quote.plan ? null : chosen.serviceName,
-              // a 0% Deposit: their card approved, with nothing charged
-              depositCents === 0,
             ),
           });
           return "";
@@ -2059,11 +2049,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
         sent.status === "accepted"
           ? {
               tone: "info",
-              title: clientPaying.sent(
-                sent.client.name,
-                acceptedService(sent),
-                sent.offer?.depositPercent === 0,
-              ),
+              title: clientPaying.sent(sent.client.name, acceptedWith(sent)),
             }
           : { tone: "success", title: `Quote sent to ${quote.client.email}` },
       );

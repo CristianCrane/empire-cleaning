@@ -76,6 +76,8 @@ export {
 } from "./jobs.ts";
 export { asksTheClient, because, officeFix } from "./payments.ts";
 export {
+  acceptedWith,
+  type AcceptedWith,
   clientPaying,
   filledDaysOf,
   type FilledDays,

@@ -1,5 +1,6 @@
 import type { PropertyKind, TurnDownReason } from "../index.ts";
 import { formats } from "../format.ts";
+import { depositOnAccepting } from "../deposit.ts";
 import { catalog } from "../language.ts";
 import { because } from "./payments.ts";
 
@@ -205,6 +206,42 @@ const payingWhat = ({
     ? `${name}'s online payment of the ${deposit} deposit, ${what}, ${goingThrough}.`
     : `${name} is paying the ${deposit} deposit online, ${what}, waiting on their bank to approve it.`;
 };
+// what the Client's own payment online took, once it booked the quote just
+// before the Office pressed (`recorded`, `sent`): the Service they paid
+// for (null on a plan), whether it changed their plan rather than started
+// it, and `card`, their card approved with nothing charged, as a 0% Deposit
+// or a plan change takes none (depositOnAccepting, the server's rule; #534
+// review F10)
+export type AcceptedWith = {
+  paid: string | null;
+  changedPlan: boolean;
+  card: boolean;
+};
+export const acceptedWith = (quote: {
+  offer: {
+    plan: { depositCents: number } | null;
+    options: {
+      serviceKey: string;
+      serviceName: string;
+      depositCents: number;
+    }[];
+  } | null;
+  acceptedServiceKey: string | null;
+  changedPlan: boolean;
+}): AcceptedWith => {
+  const option = quote.offer?.options.find(
+    (o) => o.serviceKey === quote.acceptedServiceKey,
+  );
+  return {
+    paid: quote.offer?.plan ? null : (option?.serviceName ?? null),
+    changedPlan: quote.changedPlan,
+    card:
+      depositOnAccepting(
+        quote.offer?.plan?.depositCents ?? option?.depositCents ?? 0,
+        quote.changedPlan,
+      ) === 0,
+  };
+};
 // the Office's acceptance of a quote, which `service` names when it's not
 // what the Client paid for (`paid`); `card`, approving a card with nothing
 // charged
@@ -212,6 +249,12 @@ const wentThrough = (name: string, card: boolean) =>
   card
     ? `${name}'s card was approved just before you pressed, so the quote is accepted`
     : `${name}'s payment went through just before you pressed, so the quote is accepted`;
+// what it booked: the Service they paid for, or their plan, started or
+// changed
+const tookWhat = ({ paid, changedPlan, card }: AcceptedWith) =>
+  paid
+    ? ` with the ${paid} they ${card ? "picked" : "paid for"}`
+    : ` and their cleaning plan is ${changedPlan ? "changed" : "started"} as they chose it`;
 // once their bank is finishing it, what the Office can do if it doesn't go
 // through: said as what's next, not what's barred, as the greyed action
 // beside it says that, and nothing waits on anyone (#534's UX design,
@@ -274,13 +317,8 @@ export const clientPaying = {
       : `${name}'s online payment ${goingThrough}, so you can't record acceptance yet. Nothing more was charged.`,
   // or found it approved, and accepted the quote with it: what the Client
   // paid for, `paid`, which may not be what was picked, `picked`
-  recorded: (
-    name: string,
-    paid: string | null,
-    picked: string | null,
-    card: boolean,
-  ) =>
-    `${wentThrough(name, card)}${paid ? (paid !== picked ? ` with the ${paid} they ${card ? "picked" : "paid for"}, not the ${picked}` : "") : " and their cleaning plan is started as they chose it"}.${card ? "" : " Nothing more was charged."}`,
+  recorded: (name: string, accepted: AcceptedWith, picked: string | null) =>
+    `${wentThrough(name, accepted.card)}${accepted.paid === null ? tookWhat(accepted) : accepted.paid === picked ? "" : `${tookWhat(accepted)}, not the ${picked}`}.${accepted.card ? "" : " Nothing more was charged."}`,
   // or found it approved, but then it couldn't be booked: a card approved
   // with nothing charged is refused as the Office's own press is
   // (unbookableMessage), as nothing's refunded
@@ -292,8 +330,8 @@ export const clientPaying = {
   unsure: (name: string, card: boolean) =>
     `We couldn't reach the payment service to see whether ${card ? `${name}'s card was approved` : `${name}'s deposit payment went through`}, so your changes weren't sent. ${booksDraft} Please try again in a few minutes.`,
   // sending changes found it approved, and accepted the quote with it
-  sent: (name: string, paid: string | null, card: boolean) =>
-    `${wentThrough(name, card)}${paid ? ` with the ${paid} they ${card ? "picked" : "paid for"}` : " and their cleaning plan is started as they chose it"}, and your changes weren't sent.`,
+  sent: (name: string, accepted: AcceptedWith) =>
+    `${wentThrough(name, accepted.card)}${tookWhat(accepted)}, and your changes weren't sent.`,
   // the draft's page, once the Client's payment accepted the quote
   draftGone: (name: string) =>
     `${name} accepted the quote you sent, so your draft was deleted.`,

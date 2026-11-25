@@ -12,6 +12,7 @@ import {
   clientPaying as clientPayingWords,
   dayOf,
   depositAlertOf,
+  depositOnAccepting,
   formats,
   inLanguage,
   messages,
@@ -577,7 +578,10 @@ export const acceptQuote = async (
   };
 
   // changing a plan takes no Deposit: the plan's carries over
-  const depositCents = changing ? 0 : offer.depositCents;
+  const depositCents = depositOnAccepting(
+    offer.depositCents,
+    changing !== null,
+  );
   // what booking it does, as the Client is told while it waits
   const goal: DepositGoal = changing
     ? "change"

@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import {
+  acceptedWith,
   clientPaying,
   filledDaysOf,
   payingFor,
@@ -111,5 +112,57 @@ test("a Deposit paid online that took nothing says how it ended, and what's next
   );
   expect(clientPaying.ended({ ...failed, card: true }, open)).toBe(
     "Robin Diaz's card, entered to accept online on Nov 25, was declined, so nothing was booked. They can try again on their quote, or you can record acceptance.",
+  );
+});
+
+// #534 review F10: once the Client's own payment online booked the quote
+// just before the Office pressed, the Office is told what it took. A plan
+// change takes no Deposit (depositOnAccepting): their card was approved, and
+// their plan changed, not started
+test("a payment online that booked the quote just before the Office pressed says what it took: a plan change's card, a plan's Deposit, a clean's Service", () => {
+  const plan = { plan: { depositCents: 4872 }, options: [] };
+  const changed = acceptedWith({
+    offer: plan,
+    acceptedServiceKey: null,
+    changedPlan: true,
+  });
+  expect(clientPaying.recorded("Robin Diaz", changed, null)).toBe(
+    "Robin Diaz's card was approved just before you pressed, so the quote is accepted and their cleaning plan is changed as they chose it.",
+  );
+  expect(clientPaying.sent("Robin Diaz", changed)).toBe(
+    "Robin Diaz's card was approved just before you pressed, so the quote is accepted and their cleaning plan is changed as they chose it, and your changes weren't sent.",
+  );
+  const started = acceptedWith({
+    offer: plan,
+    acceptedServiceKey: null,
+    changedPlan: false,
+  });
+  expect(clientPaying.recorded("Robin Diaz", started, null)).toBe(
+    "Robin Diaz's payment went through just before you pressed, so the quote is accepted and their cleaning plan is started as they chose it. Nothing more was charged.",
+  );
+  // a clean: the Service they paid for, which may not be the one picked
+  const clean = (depositCents: number) => ({
+    plan: null,
+    options: [
+      { serviceKey: "standard", serviceName: "Standard Clean", depositCents },
+      { serviceKey: "deep", serviceName: "Deep Clean", depositCents },
+    ],
+  });
+  const deep = acceptedWith({
+    offer: clean(1500),
+    acceptedServiceKey: "deep",
+    changedPlan: false,
+  });
+  expect(clientPaying.recorded("Robin Diaz", deep, "Standard Clean")).toBe(
+    "Robin Diaz's payment went through just before you pressed, so the quote is accepted with the Deep Clean they paid for, not the Standard Clean. Nothing more was charged.",
+  );
+  // a 0% Deposit: their card approved, with nothing charged
+  const card = acceptedWith({
+    offer: clean(0),
+    acceptedServiceKey: "standard",
+    changedPlan: false,
+  });
+  expect(clientPaying.sent("Robin Diaz", card)).toBe(
+    "Robin Diaz's card was approved just before you pressed, so the quote is accepted with the Standard Clean they picked, and your changes weren't sent.",
   );
 });

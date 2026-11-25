@@ -2395,6 +2395,10 @@ export * from "./format.ts";
 // the Suggested Price, worked out the same on the server and on screen
 export * from "./suggested-price.ts";
 
+// the Deposit accepting a Quote takes, booked by the server and told on the
+// Office's page alike
+export * from "./deposit.ts";
+
 // the Schedule's room, asked the same on the server and on screen (the
 // Schedule's drag), and who's free, worked out over the same spans of time
 export * from "./schedule-rules.ts";
