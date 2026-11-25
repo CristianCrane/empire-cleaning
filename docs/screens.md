@@ -497,10 +497,13 @@ Keeps: what you owe first, fixed header Button (ux-portal). Renders through
 `HomePage` (#435).
 
 - Header: "Payments" in the bar; Your card (secondary), standing aside while the card asks something of them (its tile stays).
-- Body: what you owe (`AnswerCard`: `IconTile`, the primary; for a payment we try again ourselves, or their bank payment on its way, Payment pending, one line (and one while it pauses a plan), its link outlined; while their bank asks them to approve a payment, a line under when it's due saying so; a Bill whose payment on its page didn't go through leads, in red, saying why, and naming the Bill when the card's line doesn't; Pay the bill when its line names it) or all paid;
+- Body: what you owe (`AnswerCard`: `IconTile`, the primary; for a payment we try again ourselves, their bank payment on its way, or a quote's Deposit going through, Payment pending, one line (and one while it pauses a plan), its link outlined (See your quote for a Deposit); while their bank asks them to approve a payment, a line under when it's due saying so; a Bill whose payment on its page didn't go through leads, in red, saying why, and naming the Bill when the card's line doesn't; Pay the bill when its line names it) or all paid;
   Notices of payments clearing, each naming its Bill only when the card
-  doesn't (beside another, or under a card about something else); tiles All payments (`?open=history`, the
-  Statement by month in place) and Your card (a link).
+  doesn't (beside another, or under a card about something else), and of
+  a quote's Deposit going through under a card that asks something else,
+  in Home's News words; tiles All payments (`?open=history`, the
+  Statement by month in place: a Deposit given back unbooked, "Not
+  booked", and its refund, each opening its quote) and Your card (a link).
 
 #### Client portal > Your details
 

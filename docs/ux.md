@@ -204,7 +204,11 @@ Cleaner's Your jobs render through `HomePage`
   falls through to "Nothing booked" for one who just paid; with any of
   those ahead of it, a News notice naming the quote (#534). Its home's
   standing on Your details and its row on the home's page say the same,
-  in the same order (after the home's booked clean). A quote ready
+  in the same order (after the home's booked clean). On Payments its
+  Deposit going through is money owed that asks nothing, the calm card
+  (See your quote), or, under a card that asks, a Notice in Home's News
+  words; one given back unbooked is in All payments with its refund, by
+  its quote. A quote ready
   whose payment their bank is approving, or whose payment ended without
   booking, leads the quotes ready, so its alert and card are about one
   quote.

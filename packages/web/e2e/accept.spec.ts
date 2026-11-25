@@ -12,6 +12,7 @@ import {
   payAndBook,
   requestQuoteAsGuest,
   openTile,
+  listRows,
   saveACard,
   pageAction,
   expectNoPageAction,
@@ -630,4 +631,58 @@ test("a Client whose Deposit is going through sees it by their home and on its q
   const quotes = page.getByRole("grid", { name: "Quotes" });
   await expect(quotes.getByRole("row")).toContainText("Payment pending");
   await expect(quotes.getByText("Ready", { exact: true })).toHaveCount(0);
+});
+
+// Screen 4: Payments, where they look for their money, says it's on its
+// way, not that they're all paid up. Ends there, for its picture
+test("a Client whose Deposit is going through sees it pending on Payments, with nothing to do", async ({
+  page,
+}) => {
+  await depositGoingThrough(page);
+  const quote = page.url();
+  await page.goto("/portal/payments");
+  await expect(
+    page.getByText("Payment pending", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Deposit for Deep Clean · Nothing you need to do."),
+  ).toBeVisible();
+  await expect(page.getByText("You're all paid up")).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "See your quote" }),
+  ).toHaveAttribute("href", new URL(quote).pathname);
+});
+
+// Screen 4: a Deposit taken as their bank approved it, but given back as
+// the time filled up meanwhile, is in All payments with its refund, by its
+// quote, as there's no clean to list it by. Ends there, for its picture
+test("a Client whose Deposit was given back as the time filled up sees it and its refund in All payments", async ({
+  page,
+}) => {
+  await quoteSent(page, olive, casey);
+  await signedInAs(page, casey.email);
+  await page.goto(await linkIn(casey.email, "Your quote from Empire Cleaning"));
+  const quote = new URL(page.url()).pathname;
+  await requireApproval("approved");
+  // another booking takes all of Monday's 16 hours while their bank asks
+  await page.route("**/accept/finalize", async (route) => {
+    await bookJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 16 });
+    await route.fallback();
+  });
+  await payAndBook(page).accept.click();
+  await expect(titleBadge(page, "Fully booked")).toBeVisible();
+
+  await page.goto("/portal/payments");
+  await expect(page.getByText("You're all paid up")).toBeVisible();
+  await openTile(page, "All payments");
+  const rows = listRows(page, "All payments");
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toContainText("Refund on Deep Clean");
+  await expect(rows.nth(0)).toContainText(/−\$\d/);
+  await expect(rows.nth(1)).toContainText("Deposit for Deep Clean");
+  await expect(rows.nth(1)).toContainText("Not booked");
+  await rows.nth(1).click();
+  await expect(page).toHaveURL(quote);
+  await page.goBack();
+  await openTile(page, "All payments");
 });
