@@ -27,7 +27,9 @@ export type Hero = {
 };
 
 // why the answer is what it is, when that needs saying (a payment late, a
-// plan paused): an alert above the card, its tone the state's
+// plan paused): an alert above the card, its tone the state's. Its lead is
+// bold only when more follows it: alone, it's the whole alert, which reads
+// as every other alert does, as the Bill's own (#534's UX review U7)
 export type Why = {
   tone: "info" | "warning" | "danger";
   lead: string;
@@ -40,8 +42,13 @@ export const whyAlert = (why: Why | undefined): Alert | false =>
     tone: why.tone,
     children: (
       <p>
-        <strong>{why.lead}</strong>
-        {why.more && ` ${why.more}`}
+        {why.more ? (
+          <>
+            <strong>{why.lead}</strong> {why.more}
+          </>
+        ) : (
+          why.lead
+        )}
       </p>
     ),
   };

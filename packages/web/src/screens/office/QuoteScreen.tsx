@@ -149,6 +149,7 @@ import {
 } from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
 import { reportUnexpected } from "../../monitoring.ts";
+import { useWhilePaying } from "../paying.ts";
 
 const {
   cleaners,
@@ -187,49 +188,6 @@ const payingFor = (
     until: formatTime(quote.paying.until),
     finishing: quote.paying.finishing,
   };
-
-// how often a Quote's pages look again while its Client pays (#534), so
-// the Office sees it accepted, or free again, within seconds
-const PAYING_LOOK_MS = 15_000;
-
-// While the Client pays the Quote's Deposit online (#534), `look` again
-// every PAYING_LOOK_MS while the page is shown, and once the wait ends, as
-// then what was held is free again: the one rule's alert gone, its action
-// live. A second after `until`, as the server's clock may run behind ours,
-// and the looks go on till its answer comes; past it, while their bank
-// finishes it, every PAYING_LOOK_MS alone, as nothing says when that ends.
-// A look that fails says nothing on the page: the next tries again. One at
-// a time, as two at once would both tell of what they found, twice
-function useWhilePaying(
-  paying: OfficeQuote["paying"] | undefined,
-  look: () => Promise<unknown>,
-) {
-  const until = paying?.until;
-  const finishing = paying?.finishing ?? false;
-  const looking = useRef(false);
-  const lookNow = useEffectEvent(() => {
-    if (looking.current) return;
-    looking.current = true;
-    void look()
-      .catch(reportUnexpected)
-      .finally(() => {
-        looking.current = false;
-      });
-  });
-  useEffect(() => {
-    if (!until) return;
-    const timer = setInterval(() => {
-      if (document.visibilityState === "visible") lookNow();
-    }, PAYING_LOOK_MS);
-    const end =
-      !finishing &&
-      setTimeout(lookNow, Math.max(0, Date.parse(until) - Date.now()) + 1000);
-    return () => {
-      clearInterval(timer);
-      if (end) clearTimeout(end);
-    };
-  }, [until, finishing]);
-}
 
 // the Service a Quote was accepted with, by name; none for a cleaning plan,
 // accepted whole

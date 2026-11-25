@@ -181,7 +181,7 @@ describe("Home's hero, with nothing booked", () => {
       label: "Your quote is ready",
       headline: "Deep Clean $391.04",
       lines: [
-        "For Sun, Nov 8, 10:00 AM at 12 Elm St, 4B, 11375",
+        "For Sun, Nov 8, 10:00\u00a0AM at 12 Elm St, 4B, 11375",
         "Open until Fri, Nov 13",
       ],
       action: { label: "See your quote" },
@@ -331,7 +331,7 @@ describe("Home's hero, with something booked", () => {
     expect(hero).toMatchObject({
       label: "Your next clean",
       startsAt: TUESDAY,
-      headline: "Tue, Nov 3, 9:00 AM",
+      headline: "Tue, Nov 3, 9:00\u00a0AM",
       lines: [
         "Standard Clean at 12 Elm St, 4B, 11375",
         "Part of your cleaning plan, every 2 weeks",
@@ -356,7 +356,7 @@ describe("Home's hero, with something booked", () => {
   test("leads with a Site Visit when it's sooner", () => {
     expect(next({ jobs: [job()], siteVisits: [visit] }).hero).toMatchObject({
       label: "Your site visit",
-      headline: "Mon, Nov 2, 2:00 PM",
+      headline: "Mon, Nov 2, 2:00\u00a0PM",
     });
   });
 
@@ -364,7 +364,7 @@ describe("Home's hero, with something booked", () => {
     const { hero, tiles } = next({
       jobs: [job({ startsAt: "2026-11-01T19:00:00.000Z" })],
     });
-    expect(hero).toMatchObject({ label: "Today", headline: "2:00 PM" });
+    expect(hero).toMatchObject({ label: "Today", headline: "2:00\u00a0PM" });
     expect(tiles.map((s) => s.label)).toEqual([
       "Call us",
       "How we get in",
@@ -377,7 +377,7 @@ describe("Home's hero, with something booked", () => {
       jobs: [job({ movingTo: "2026-11-04T19:00:00.000Z" })],
     });
     expect(news).toEqual([
-      "You asked to move your Tue, Nov 3 clean to Wed, Nov 4, 2:00 PM. We'll confirm, usually within a working day.",
+      "You asked to move your Tue, Nov 3 clean to Wed, Nov 4, 2:00\u00a0PM. We'll confirm, usually within a working day.",
     ]);
     // the news says it: no tile says it again, nor offers another move
     expect(tiles.map((t) => t.label)).toEqual([
@@ -504,7 +504,7 @@ describe("Home's card: what waits on the Client leads (#493)", () => {
     });
     expect(why).toEqual({
       tone: "warning",
-      lead: "The crew came at 9:20 AM today, but couldn't get in: \"The code didn't open the door\".",
+      lead: "The crew came at 9:20\u00a0AM today, but couldn't get in: \"The code didn't open the door\".",
       more: "As with a late cancellation, your $68.06 deposit is kept as the fee.",
     });
     expect(asks).toBe(true);
@@ -538,7 +538,7 @@ describe("Home's card: what waits on the Client leads (#493)", () => {
         new Date("2026-11-01T19:00:00Z"),
       ).why?.lead,
     ).toBe(
-      'El equipo llegó hoy a la 1:20 p.m., pero no pudo entrar: "The code didn\'t open the door".',
+      'El equipo llegó hoy a la 1:20\u00a0p.m., pero no pudo entrar: "The code didn\'t open the door".',
     );
     // the day after, the clean's page says it
     expect(
@@ -676,8 +676,8 @@ describe("Home's card: what's owed first, when it asks anything of them", () => 
     expect(due.hero).toMatchObject({
       label: "To pay",
       headline: "$214.50",
-      lines: ["Bill EC-000041 is due by Nov 14"],
-      action: { label: "Pay bill EC-000041" },
+      lines: ["Bill EC-000041 is due by Sat, Nov 14"],
+      action: { label: "Pay the bill" },
     });
     expect(due.why).toBeUndefined();
     expect(

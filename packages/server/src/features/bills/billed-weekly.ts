@@ -20,14 +20,15 @@ export const billNumber = (number: number) =>
   `EC-${String(number).padStart(6, "0")}`;
 
 // a Job's lines on Bills not voided, each with its Bill: what's billed it,
-// what for, and where those Bills stand
+// what for, and where those Bills stand, in the order they were billed, so
+// a correction's rows come in its Bill's order, a Deposit under its clean
 export const billLinesOf = (jobId: string, tx: Tx | typeof db) =>
   tx
     .select({ line: billLines, bill: bills })
     .from(billLines)
     .innerJoin(bills, eq(bills.id, billLines.billId))
     .where(and(eq(billLines.jobId, jobId), ne(bills.status, "void")))
-    .orderBy(asc(bills.number));
+    .orderBy(asc(bills.number), asc(billLines.position));
 
 // how a Client pays for their cleans: on a weekly Bill, charged or paid on
 // its page (ADR-0016), or null when each is charged when it's done

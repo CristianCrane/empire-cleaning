@@ -120,7 +120,7 @@ describe("Offering Assignments", () => {
     expect(email.subject).toBe("You've been offered a job");
     expect(email.text).toContain("Hi Cory,");
     expect(email.text).toMatch(
-      /When: Thursday, January 8 at 9:00 AM\nWhere: \d+ Austin St, 4B, 11375\nService: Deep Clean/,
+      /When: Thursday, January 8 at 9:00\u00a0AM\nWhere: \d+ Austin St, 4B, 11375\nService: Deep Clean/,
     );
     expect(email.text).toContain(
       `http://localhost:5173/cleaner/jobs/${job.id}`,
@@ -722,7 +722,7 @@ describe("Confirming an Offered Job (#242)", () => {
     );
 
     expect(refused.body.message).toBe(
-      "This job moved to Wednesday, January 7 at 10:00 AM. Check the new time, then confirm again.",
+      "This job moved to Wednesday, January 7 at 10:00\u00a0AM. Check the new time, then confirm again.",
     );
     expect(await statusOf(assignmentId)).toBe("offered");
     await confirmAt(asDee, assignmentId, "2026-01-07T15:00:00.000Z").expect(

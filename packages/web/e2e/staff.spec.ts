@@ -285,7 +285,7 @@ test("a day off frees a Cleaner's Jobs, and so does deactivating them, each said
   // saving straight from the field first shows what it frees
   await day.getByRole("button", { name: "Save day" }).click();
   await expect(day).toContainText(
-    /Cory is on Deep Clean at .+, Thu, Jan 8, 9:00 AM\. Saving opens it to other cleaners\./,
+    /Cory is on Deep Clean at .+, Thu, Jan 8, 9:00\sAM\. Saving opens it to other cleaners\./,
   );
   await day.getByRole("button", { name: "Take them off and save" }).click();
   await expect(page.getByText("Thu, Jan 8 saved")).toBeVisible();
@@ -299,7 +299,7 @@ test("a day off frees a Cleaner's Jobs, and so does deactivating them, each said
     name: "Deactivate Cory Cleaner?",
   });
   await expect(deactivate).toContainText(
-    /Cory is on Deep Clean at .+, Fri, Jan 9, 9:00 AM\. Deactivating them opens it/,
+    /Cory is on Deep Clean at .+, Fri, Jan 9, 9:00\sAM\. Deactivating them opens it/,
   );
   await expect(deactivate).not.toContainText("Thu, Jan 8");
   await deactivate.getByRole("button", { name: "Deactivate" }).click();
@@ -323,7 +323,7 @@ test("a Cleaner's Site Visit has to go to someone else before their day off, or 
   await signInAsOffice(page);
   await openStaffMember(page, "Cory Cleaner");
   const why =
-    /Cory has a site visit at 200 Park Ave S.* on Wed, Jan 7, 3:00 PM\. Give it to someone else first\./;
+    /Cory has a site visit at 200 Park Ave S.* on Wed, Jan 7, 3:00\sPM\. Give it to someone else first\./;
 
   await dayOnCalendar(page, "Wed, Jan 7").click();
   const day = page.getByRole("dialog");

@@ -2,8 +2,7 @@ import { timestamp } from "drizzle-orm/pg-core";
 import { clock } from "../services/clock/index.ts";
 
 // every table's created and updated times: the database's own record of a
-// row's writes, which orders rows and is shown only where a Bill's debit
-// began before clearing_since (payments' history.ts). Apart from the pools
+// row's writes, which orders rows and is never shown. Apart from the pools
 // (index.ts) so a schema file loads nothing that needs the server's
 // environment: drizzle-kit loads every schema file to generate a migration
 // (#389)

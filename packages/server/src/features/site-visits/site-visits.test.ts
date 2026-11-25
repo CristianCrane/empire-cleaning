@@ -118,7 +118,7 @@ describe("booking a Site Visit", () => {
     });
     const sent = testEmail().lastTo(casey.email);
     expect(sent.subject).toBe("Your site visit is booked");
-    expect(sent.text).toContain("Tuesday, January 6 at 10:00 AM");
+    expect(sent.text).toContain("Tuesday, January 6 at 10:00\u00a0AM");
     expect(sent.text).toContain("Olive from Empire Cleaning");
     expect(sent.text).toContain("There's no charge");
 
@@ -242,7 +242,7 @@ describe("booking a Site Visit", () => {
     const clash = await book(office, home.id, olive.id, "10:15");
     expect(clash.status).toBe(409);
     expect(clash.body.message).toBe(
-      "Olive Owner has another site visit at 10:00 AM. Pick another time or person.",
+      "Olive Owner has another site visit at 10:00\u00a0AM. Pick another time or person.",
     );
     await book(office, home.id, olive.id, "10:30").expect(201);
     expect((await quoteOf(office, home.id)).siteVisit).toBe("booked");
@@ -287,7 +287,7 @@ describe("booking a Site Visit", () => {
     const clash = await book(office, quote.id, cory.id, "11:30");
     expect(clash.status).toBe(409);
     expect(clash.body.message).toBe(
-      "Cory Cleaner is on a job at 11:00 AM. Pick another time or person.",
+      "Cory Cleaner is on a job at 11:00\u00a0AM. Pick another time or person.",
     );
     await book(office, quote.id, cory.id, "13:00").expect(201);
   });
@@ -395,7 +395,7 @@ describe("moving and cancelling a Site Visit", () => {
     const sent = testEmail().lastTo(casey.email);
     expect(sent.subject).toBe("Your site visit has moved");
     expect(sent.text).toContain(
-      "When: Tuesday, January 6 at 4:30 PM\nWas: Tuesday, January 6 at 4:00 PM",
+      "When: Tuesday, January 6 at 4:30\u00a0PM\nWas: Tuesday, January 6 at 4:00\u00a0PM",
     );
 
     // but it can't grow past the day's hours

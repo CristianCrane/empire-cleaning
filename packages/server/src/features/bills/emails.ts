@@ -10,6 +10,7 @@ import {
 } from "../../services/email/blocks.ts";
 import {
   addDays,
+  because,
   asksTheClient,
   catalog,
   type Card,
@@ -23,14 +24,20 @@ import {
 import type { Settled } from "../completion/balance.ts";
 import { changeLabel, type Changed } from "../completion/emails.ts";
 import { cardOf } from "../payments/emails.ts";
-import { unpaidKind } from "../payments/unpaid.ts";
+import { unpaidKind, whyNotPaid } from "../payments/unpaid.ts";
 
 // what a Bill's Unpaid did to the Client's Service Plan, or will: paused,
 // back on, or paused if it isn't paid by its due date
 export type PlanNote = "paused" | "back_on" | "pauses_if_late";
 
 export type Occasion =
-  "made" | "unpaid" | "reminder" | "paid" | "voided" | "debit_failed";
+  | "made"
+  | "unpaid"
+  | "reminder"
+  | "paid"
+  | "voided"
+  // a payment on its page the Client left going through, which then failed
+  | "not_through";
 
 // a Bill, as much of it as its email shows
 export type BillToSend = {
@@ -69,36 +76,45 @@ export type LineToSay = {
 const lineWords = catalog({
   en: {
     corrected: (line: string) => `Corrected: ${line}`,
-    floor: (what: string) => `The price can't go below $0: ${what}`,
-    deposit: (what: string) => `Deposit paid: ${what}`,
-    paid: (what: string) => `Already paid: ${what}`,
+    FLOOR: "The price can't go below $0",
+    DEPOSIT: "Deposit paid",
+    PAID: "Already paid",
     credit: (number: string) => `Credit from ${number}`,
   },
   es: {
     corrected: (line: string) => `Corrección: ${line}`,
-    floor: (what: string) => `El precio no puede bajar de $0: ${what}`,
-    deposit: (what: string) => `Depósito pagado: ${what}`,
-    paid: (what: string) => `Ya pagado: ${what}`,
+    FLOOR: "El precio no puede bajar de $0",
+    DEPOSIT: "Depósito pagado",
+    PAID: "Ya pagado",
     credit: (number: string) => `Crédito de ${number}`,
   },
 });
 
-// A line in `lang`, for the Bill's page and its email: "Deep Clean at 41-12
-// Austin St, 4B, 11375, Monday, January 12 at 9:00 AM", "Inside the oven,
-// not done: …", "Corrected: Late cancellation fee: …", "Credit from
-// EC-000011"
-export const lineLabel = (lang: Language, line: LineToSay) => {
+// A line in `lang`, for the Bill's email: "Deep Clean at 41-12 Austin St,
+// 4B, 11375, Monday, January 12 at 9:00 AM", "Inside the oven, not done:
+// …", "Corrected: Late cancellation fee: …", "Credit from EC-000011". On
+// its page (`onPage`), a row, a Job's are short: "Deep Clean, Mon, Jan 12,
+// 9:00 AM", its home when `onPage.home` says (billView: when its Jobs are
+// at more than one of the Client's homes; #534's UX review U8, F16). One
+// about the Job the row above names (`onPage.named`) says only what it is,
+// "Deposit paid", as that row names it (U8)
+export const lineLabel = (
+  lang: Language,
+  line: LineToSay,
+  onPage?: { home: boolean; named?: boolean },
+) => {
   const w = lineWords[lang];
   const kind = line.key.startsWith("adjustment:") ? "adjustment" : line.key;
-  const what = () => jobNamed(lang, { clean: line.clean!, fee: null });
+  const what = () => jobNamed(lang, { clean: line.clean!, fee: null }, onPage);
+  const about = (lead: string) => (onPage?.named ? lead : `${lead}: ${what()}`);
   const said: Record<string, () => string> = {
     price: what,
-    adjustment: () => `${changeLabel(lang, line.change!)}: ${what()}`,
-    floor: () => w.floor(what()),
-    reschedule_fee: () => `${messages[lang].LATE_MOVE_FEE}: ${what()}`,
-    fee: () => jobNamed(lang, { clean: line.clean!, fee: line.fee }),
-    deposit: () => w.deposit(what()),
-    paid: () => w.paid(what()),
+    adjustment: () => about(changeLabel(lang, line.change!)),
+    floor: () => about(w.FLOOR),
+    reschedule_fee: () => about(messages[lang].LATE_MOVE_FEE),
+    fee: () => jobNamed(lang, { clean: line.clean!, fee: line.fee }, onPage),
+    deposit: () => about(w.DEPOSIT),
+    paid: () => about(w.PAID),
     credit: () => w.credit(line.creditFrom!),
   };
   const words = said[kind]!();
@@ -146,10 +162,10 @@ const words = catalog({
       "Anything on it that's still owed will be on your next bill.",
     OWED_PER_CLEAN:
       "Anything on it that's still owed is charged to your card per clean, as before.",
-    debitFailedSubject: (number: string) =>
-      `Your bank payment for bill ${number} didn't go through`,
-    debitFailed: (total: string, number: string) =>
-      `Your bank payment of ${total} for bill ${number} didn't go through. Please pay it again on its page, by card or from another account.`,
+    notThroughSubject: (number: string) =>
+      `Your payment for bill ${number} didn't go through`,
+    notThrough: (total: string, number: string, because: string) =>
+      `Your payment of ${total} for bill ${number} didn't go through${because}. Please try again on its page, or use another card or bank account.`,
     INSTEAD: "Here's what we've done about each clean on it instead:",
     PAUSES_IF_LATE:
       "If it isn't paid by then, your cleaning plan is paused until it is.",
@@ -164,6 +180,7 @@ const words = catalog({
     // a Job, as its Bill's lines name it
     jobAt: (service: string, address: string, when: string) =>
       `${service} at ${address}, ${when}`,
+    jobOn: (service: string, when: string) => `${service}, ${when}`,
     // what settling a Job moved
     chargedCents: (amount: string) => `charged ${amount}`,
     refundedCents: (amount: string) => `refunded ${amount}`,
@@ -228,10 +245,10 @@ const words = catalog({
     OWED_NEXT_BILL: "Lo que todavía se deba de ella irá en su próxima factura.",
     OWED_PER_CLEAN:
       "Lo que todavía se deba de ella se cobra a su tarjeta por cada limpieza, como antes.",
-    debitFailedSubject: (number: string) =>
-      `Su pago bancario de la factura ${number} no se realizó`,
-    debitFailed: (total: string, number: string) =>
-      `Su pago bancario de ${total} de la factura ${number} no se realizó. Por favor, páguela otra vez en su página, con tarjeta o desde otra cuenta.`,
+    notThroughSubject: (number: string) =>
+      `Su pago de la factura ${number} no pasó`,
+    notThrough: (total: string, number: string, because: string) =>
+      `Su pago de ${total} de la factura ${number} no pasó${because}. Vuelva a intentarlo en su página, o use otra tarjeta o cuenta bancaria.`,
     INSTEAD:
       "Esto es lo que hicimos en cambio con cada limpieza de la factura:",
     PAUSES_IF_LATE:
@@ -245,6 +262,7 @@ const words = catalog({
     SEE_BILL: "Ver su factura",
     jobAt: (service: string, address: string, when: string) =>
       `${service} en ${address}, ${when}`,
+    jobOn: (service: string, when: string) => `${service}, ${when}`,
     chargedCents: (amount: string) => `se cobraron ${amount}`,
     refundedCents: (amount: string) => `se reembolsaron ${amount}`,
     couldntTake: (amount: string) => `no se pudieron cobrar ${amount}`,
@@ -282,11 +300,13 @@ const aboutBill = (
     today,
     billedWeekly,
     creditRefundDays,
+    failed,
   }: {
     card: string;
     today: string;
     billedWeekly: boolean;
     creditRefundDays: number;
+    failed?: string;
   },
 ): string[] => {
   const w = words[lang];
@@ -346,8 +366,13 @@ const aboutBill = (
         `${w.voided(number)}${bill.voidReason ? ` ${bill.voidReason}` : ""}`,
         billedWeekly ? w.OWED_NEXT_BILL : w.OWED_PER_CLEAN,
       ];
-    case "debit_failed":
-      return [w.debitFailedSubject(number), w.debitFailed(total, number)];
+    case "not_through": {
+      const { why } = whyNotPaid(lang, failed ?? "");
+      return [
+        w.notThroughSubject(number),
+        w.notThrough(total, number, because(why)),
+      ];
+    }
   }
 };
 
@@ -390,6 +415,8 @@ export const billEmail = (
     // they're billed weekly still
     billedWeekly: boolean;
     creditRefundDays: number;
+    // why a payment on its page failed, as recorded (not_through)
+    failed?: string;
   },
 ): Email => {
   const w = words[lang];
@@ -448,16 +475,20 @@ export type SettledJob = {
 
 // a Job, as its lines on a Bill name it, and a fee for one that didn't
 // happen: "Deep Clean at 41-12 Austin St, 4B, 11375, Monday, January 12 at
-// 9:00 AM"
+// 9:00 AM"; on the Bill's page (`onPage`), short, as lineLabel says
 export const jobNamed = (
   lang: Language,
   { clean, fee }: { clean: Clean; fee: SettledJob["fee"] },
+  onPage?: { home: boolean },
 ) => {
-  const what = words[lang].jobAt(
-    inLanguage(lang, clean.service).name,
-    clean.address,
-    formats[lang].formatWhen(clean.startsAt),
-  );
+  const w = words[lang];
+  const service = inLanguage(lang, clean.service).name;
+  const { formatDateTime, formatWhen } = formats[lang];
+  const what = !onPage
+    ? w.jobAt(service, clean.address, formatWhen(clean.startsAt))
+    : onPage.home
+      ? w.jobAt(service, clean.address, formatDateTime(clean.startsAt))
+      : w.jobOn(service, formatDateTime(clean.startsAt));
   return fee ? `${messages[lang].feeName[fee]}: ${what}` : what;
 };
 

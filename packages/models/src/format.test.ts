@@ -35,15 +35,15 @@ test("English reads as it always has", () => {
     "Sunday",
   ]);
   expect(en.formatMonth("2026-11-01")).toBe("November 2026");
-  expect(en.formatTime(MORNING)).toBe("9:00 AM");
-  expect(en.formatTime(new Date(LATE_EVENING))).toBe("10:30 PM");
-  expect(en.formatClock("00:30")).toBe("12:30 AM");
-  expect(en.formatClock("09:05")).toBe("9:05 AM");
-  expect(en.formatClock("12:00")).toBe("12:00 PM");
-  expect(en.formatClock("18:00")).toBe("6:00 PM");
-  expect(en.formatDateTime(MORNING)).toBe("Mon, Jan 12, 9:00 AM");
+  expect(en.formatTime(MORNING)).toBe("9:00\u00a0AM");
+  expect(en.formatTime(new Date(LATE_EVENING))).toBe("10:30\u00a0PM");
+  expect(en.formatClock("00:30")).toBe("12:30\u00a0AM");
+  expect(en.formatClock("09:05")).toBe("9:05\u00a0AM");
+  expect(en.formatClock("12:00")).toBe("12:00\u00a0PM");
+  expect(en.formatClock("18:00")).toBe("6:00\u00a0PM");
+  expect(en.formatDateTime(MORNING)).toBe("Mon, Jan 12, 9:00\u00a0AM");
   expect(en.formatWhen(new Date(MORNING))).toBe(
-    "Monday, January 12 at 9:00 AM",
+    "Monday, January 12 at 9:00\u00a0AM",
   );
   expect(en.dateTile(LATE_EVENING)).toEqual({
     month: "Nov",
@@ -71,8 +71,8 @@ test("Spanish reads as es-US writes it", () => {
   expect(es.weekdayName("2026-01-05")).toBe("lunes");
   expect(es.weekdays[6]).toBe("domingo");
   expect(es.formatMonth("2026-11-01")).toBe("noviembre de 2026");
-  expect(es.formatTime(MORNING)).toBe("9:00 a.m.");
-  expect(es.formatClock("18:00")).toBe("6:00 p.m.");
+  expect(es.formatTime(MORNING)).toBe("9:00\u00a0a.m.");
+  expect(es.formatClock("18:00")).toBe("6:00\u00a0p.m.");
   expect(es.formatList(["lunes", "miércoles", "viernes"])).toBe(
     "lunes, miércoles y viernes",
   );
@@ -85,23 +85,23 @@ describe("oneStop", () => {
   test("ends a Spanish sentence once after a time", () => {
     const at = new Date("2026-01-12T14:00:00Z");
     expect(oneStop(`Cancelada el ${formats.es.formatDateTime(at)}.`)).toBe(
-      "Cancelada el lun, 12 de ene, 9:00 a.m.",
+      "Cancelada el lun, 12 de ene, 9:00\u00a0a.m.",
     );
     expect(oneStop(`Cancelled ${formats.en.formatDateTime(at)}.`)).toBe(
-      "Cancelled Mon, Jan 12, 9:00 AM.",
+      "Cancelled Mon, Jan 12, 9:00\u00a0AM.",
     );
   });
 });
 
 test("stopAfter ends what came before once, whether or not it has its own", () => {
-  expect(stopAfter("lun, 12 de ene, 9:00 a.m.")).toBe("");
-  expect(stopAfter("Mon, Jan 12, 9:00 AM")).toBe(".");
+  expect(stopAfter("lun, 12 de ene, 9:00\u00a0a.m.")).toBe("");
+  expect(stopAfter("Mon, Jan 12, 9:00\u00a0AM")).toBe(".");
 });
 
 test("theTimeEs says one o'clock with la, the rest with las", () => {
-  expect(theTimeEs("1:30 p.m.")).toBe("la 1:30 p.m.");
-  expect(theTimeEs("9:00 a.m.")).toBe("las 9:00 a.m.");
-  expect(theTimeEs("11:00 a.m.")).toBe("las 11:00 a.m.");
+  expect(theTimeEs("1:30\u00a0p.m.")).toBe("la 1:30\u00a0p.m.");
+  expect(theTimeEs("9:00\u00a0a.m.")).toBe("las 9:00\u00a0a.m.");
+  expect(theTimeEs("11:00\u00a0a.m.")).toBe("las 11:00\u00a0a.m.");
 });
 
 test("a person's first name is what's before the first space", () => {
@@ -112,8 +112,12 @@ test("a person's first name is what's before the first space", () => {
 
 test("a time range gives both ends in New York's time", () => {
   const threePm = "2026-01-12T20:00:00Z";
-  expect(en.formatTimeRange(MORNING, threePm)).toBe("9:00 AM – 3:00 PM");
-  expect(es.formatTimeRange(MORNING, threePm)).toBe("9:00 a.m. – 3:00 p.m.");
+  expect(en.formatTimeRange(MORNING, threePm)).toBe(
+    "9:00\u00a0AM – 3:00\u00a0PM",
+  );
+  expect(es.formatTimeRange(MORNING, threePm)).toBe(
+    "9:00\u00a0a.m. – 3:00\u00a0p.m.",
+  );
 });
 
 test("hours round to the quarter hour, written with their fraction", () => {

@@ -11,6 +11,7 @@ import { crewWords, jobsButton } from "../assignments/emails.ts";
 import type { Settled } from "../completion/balance.ts";
 import { bookAnother } from "../quotes/emails.ts";
 import {
+  because,
   asksTheClient,
   cancelCostForOffice,
   catalog,
@@ -84,7 +85,7 @@ const words = catalog({
 // a fee that didn't go through, for the Office, and why
 const feeNotPaid = (failure: string) => {
   const { why } = whyNotPaid("en", failure);
-  return `The fee didn't go through${why ? ` (${why})` : ""}, so the job is unpaid.`;
+  return `The fee didn't go through${because(why)}, so the job is unpaid.`;
 };
 
 // what was refunded, as a line for the Client

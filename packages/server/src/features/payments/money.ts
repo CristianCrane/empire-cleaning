@@ -1,4 +1,14 @@
-import { and, eq, inArray, isNull, lte, notExists, or, sql } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  lte,
+  notExists,
+  or,
+  sql,
+} from "drizzle-orm";
 import { DAY_MS, MINUTE_MS } from "@empire-cleaning/models";
 import { apart, db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
@@ -6,9 +16,10 @@ import { monitoring } from "../../services/monitoring/index.ts";
 import {
   paymentGateway,
   type CallingOff,
+  type BillInput,
   type ChargeInput,
   type ChargeResult,
-  type DepositAttempt,
+  type OnSessionResult,
   type DepositInput,
   type RefundResult,
   type SavedPaymentMethod,
@@ -64,18 +75,42 @@ export const NO_CARD = "no Payment Method is saved";
 // long enough after asking that a try still waiting on its reply has had it
 export const SETTLED_AFTER_MS = 15 * MINUTE_MS;
 
-// How long a Deposit waits on the Client's bank, from when they pressed,
+// How long a payment waits on the Client's bank, from when they pressed,
 // before anyone may call it off (#534, Q1): time to find their bank's app
 // and approve it, and not so long that Office Staff, on the phone with
-// them, wait long to record their acceptance or send changes. The Clock
-// calls off one left longer, on its sweep of what's been open
-// SETTLED_AFTER_MS (giveBackUnbookedDeposits)
+// them, wait long to record their acceptance, send changes, or cancel or
+// record a payment on a Bill. The Clock calls off one left longer, on its
+// sweep of what's been open SETTLED_AFTER_MS (giveBackUnbookedDeposits,
+// settleOpenPayments)
 export const APPROVAL_MS = 15 * MINUTE_MS;
 
-// the provider call an attempt makes, as asked but for its key
+// How a payment the Client's bank was asked to approve holds its Quote or
+// Bill (ADR-0022's one rule), the one reading of APPROVAL_MS: it waits
+// `onClient` till `until`, APPROVAL_MS after they pressed Pay; their bank
+// finishing it, or anything but a wait on them, isn't (#534 critical
+// review C2); `past`, on them and waited out, it holds nothing, as whoever
+// acts next calls it off first (#534 review F11, F12)
+export const waitOf = (
+  attempt: Pick<ChargeAttempt, "status" | "askedAt" | "bankFinishingAt">,
+) => {
+  const until = new Date(attempt.askedAt.getTime() + APPROVAL_MS);
+  const onClient =
+    attempt.status === "approving" && attempt.bankFinishingAt === null;
+  return { until, onClient, past: onClient && until <= clock.now() };
+};
+
+// why a payment made with the Client there wasn't taken, when it's because
+// it was never approved: they left their bank's check, failed it, or it was
+// called off. Theirs to try again, not a payment that didn't go through
+export const NOT_APPROVED = (reason: string | null) =>
+  reason === "canceled" || !!reason?.endsWith("_authentication_failure");
+
+// the provider call an attempt makes, as asked but for its key: a saved
+// card charged, a Deposit, or a Bill the Client pays on its page
 type Asked =
   | { call: "charge"; input: Omit<ChargeInput, "idempotencyKey"> }
-  | { call: "deposit"; input: Omit<DepositInput, "idempotencyKey"> };
+  | { call: "deposit"; input: Omit<DepositInput, "idempotencyKey"> }
+  | { call: "bill"; input: Omit<BillInput, "idempotencyKey"> };
 
 // what a try would ask the provider for now, against which an earlier
 // attempt it never heard the end of is sent again or only looked up: the
@@ -88,16 +123,21 @@ type Now = { amount: number; card: string | null } | null;
 const savedCardOf = (asked: Asked) =>
   asked.call === "charge"
     ? asked.input.paymentMethodId
-    : "paymentMethodId" in asked.input.source
+    : asked.call === "deposit" && "paymentMethodId" in asked.input.source
       ? asked.input.source.paymentMethodId
       : null;
 
 // whether an earlier attempt asks what a try would ask now: as much, on the
-// same saved card. One on a card typed in names a token, used once, which
-// can't be told from the next one, so only the amount counts
+// same saved card. A Deposit on a card typed in names a token, used once,
+// which can't be told from the next one, so only the amount counts. A Bill
+// paid on its page is never sent again, only looked up: the Client may have
+// paid it since, or paid another way, and sending it would take it twice
+// (#534 critical review C2)
 const asksNow = (attempt: ChargeAttempt, now: Now) => {
   if (now?.amount !== attempt.amountCents) return false;
-  const card = savedCardOf(attempt.request as Asked);
+  const asked = attempt.request as Asked;
+  if (asked.call === "bill") return false;
+  const card = savedCardOf(asked);
   return !card || card === now.card;
 };
 
@@ -110,7 +150,7 @@ type Outcome =
       saved: SavedPaymentMethod | null;
     }
   | { status: "unknown"; reason: string }
-  | Extract<DepositAttempt, { status: "needs_approval" }>
+  | Extract<OnSessionResult, { status: "needs_approval" }>
   | { status: "failed"; reason: string };
 
 // written outside the caller's transaction, so it stands whatever that does
@@ -128,9 +168,10 @@ const update = async (
     >
   >,
 ) => {
+  const ended = set.status === "taken" || set.status === "failed";
   const [updated] = await apart
     .update(chargeAttempts)
-    .set(set)
+    .set(ended ? { ...set, endedAt: clock.now() } : set)
     .where(eq(chargeAttempts.id, attempt.id))
     .returning();
   return updated!;
@@ -139,16 +180,49 @@ const update = async (
 // keeps what the provider said of an attempt
 const keep = async (
   attempt: ChargeAttempt,
-  reply: ChargeResult | DepositAttempt,
+  reply: ChargeResult | OnSessionResult,
 ): Promise<Outcome> => {
-  const said: DepositAttempt =
+  const said: OnSessionResult =
     "ok" in reply
       ? reply.ok
         ? { status: "succeeded", chargeId: reply.chargeId, saved: null }
         : { status: "failed", reason: reply.reason }
       : reply;
-  if ("ok" in reply && !reply.ok && "chargeId" in reply) {
-    await update(attempt, { status: "processing", gatewayRef: reply.chargeId });
+  const onBill = (attempt.request as Asked).call === "bill";
+  // not taken yet, nor declined: a Charge or a Bill's bank debit, which
+  // chargeOutcome reads until it clears or fails, days later
+  const processing =
+    "ok" in reply
+      ? !reply.ok && "chargeId" in reply
+        ? reply.chargeId
+        : null
+      : reply.status === "needs_approval" &&
+          reply.processing === "bank" &&
+          onBill
+        ? reply.ref
+        : null;
+  if (processing) {
+    await update(attempt, { status: "processing", gatewayRef: processing });
+    return { status: "unknown", reason: "processing" };
+  }
+  // a card paying a Bill whose bank finishes it from the first: going
+  // through, as one approved and finishing is (approvalOf), not theirs to
+  // approve, nor a bank debit on its way (#534's critical review C6). A
+  // Deposit's is left as it was, kept approving till approvalOf reads it
+  // finishing: its Quote's acceptance answers each status its own way, a
+  // flow this change doesn't touch (#534's review F21, the survey's Seen
+  // nearby)
+  if (
+    !("ok" in reply) &&
+    reply.status === "needs_approval" &&
+    reply.processing === "card" &&
+    onBill
+  ) {
+    await update(attempt, {
+      status: "approving",
+      gatewayRef: reply.ref,
+      bankFinishingAt: clock.now(),
+    });
     return { status: "unknown", reason: "processing" };
   }
   switch (said.status) {
@@ -182,10 +256,15 @@ const ask = async (attempt: ChargeAttempt): Promise<Outcome> => {
       attempt,
       asked.call === "charge"
         ? await paymentGateway.charge({ ...asked.input, idempotencyKey: key })
-        : await paymentGateway.takeDeposit({
-            ...asked.input,
-            idempotencyKey: key,
-          }),
+        : asked.call === "deposit"
+          ? await paymentGateway.takeDeposit({
+              ...asked.input,
+              idempotencyKey: key,
+            })
+          : await paymentGateway.payBill({
+              ...asked.input,
+              idempotencyKey: key,
+            }),
     );
   } catch (error) {
     monitoring.signal("payment_gateway_error", {
@@ -206,14 +285,17 @@ const ask = async (attempt: ChargeAttempt): Promise<Outcome> => {
 // (https://docs.stripe.com/error-low-level#content-errors): not found, it
 // may still be on its way for a quarter hour after it was last sent (the
 // Clock may have sent it again since it was asked), and after that it was
-// never made.
+// never made. One waiting on the Client's bank is read by approvalOf, and
+// called off as `callOff` says (approving).
 const outcomeOf = async (
   attempt: ChargeAttempt,
   now: Now,
+  callOff: CallingOff | null = null,
 ): Promise<Outcome> => {
   if (attempt.status === "taken") {
     return { status: "taken", attempt, saved: null };
   }
+  if (attempt.status === "approving") return approving(attempt, callOff);
   const pending = attempt.status === "pending";
   const fresh = clock.now().getTime() - attempt.askedAt.getTime() < DAY_MS;
   if (pending && fresh && asksNow(attempt, now)) {
@@ -228,6 +310,21 @@ const outcomeOf = async (
     })
     .catch(() => undefined);
   if (found === undefined) return { status: "unknown", reason: UNREACHABLE };
+  // a payment made with the Client there, found waiting on their bank
+  if (
+    found !== null &&
+    !found.ok &&
+    "chargeId" in found &&
+    found.reason === "requires_action"
+  ) {
+    return approving(
+      await update(attempt, {
+        status: "approving",
+        gatewayRef: found.chargeId,
+      }),
+      callOff,
+    );
+  }
   if (found !== null) return keep(attempt, found);
   const since = clock.now().getTime() - attempt.sentAt.getTime();
   if (pending && since < SETTLED_AFTER_MS) {
@@ -235,6 +332,43 @@ const outcomeOf = async (
   }
   await update(attempt, { status: "failed", reason: "never_made" });
   return { status: "failed", reason: "never_made" };
+};
+
+// The one rule's wait (ADR-0022): only the Client calls off a payment
+// waiting on their bank at once, by paying again; anyone else, Office Staff
+// or the Clock, once it's waited APPROVAL_MS. Until then it stays open, and
+// what's asked waits on it.
+const approving = async (
+  attempt: ChargeAttempt,
+  callOff: CallingOff | null,
+): Promise<Outcome> => {
+  const approval = await approvalOf(
+    attempt.gatewayRef!,
+    attempt,
+    callOff === "client_retried" || waitOf(attempt).past ? callOff : null,
+  );
+  switch (approval.status) {
+    case "approved":
+      return {
+        status: "taken",
+        attempt: await update(attempt, {
+          status: "taken",
+          gatewayRef: approval.chargeId ?? attempt.gatewayRef,
+        }),
+        saved: approval.saved,
+      };
+    case "waiting":
+      return { status: "unknown", reason: "approving" };
+    // the bank finishing it: read like a processing Charge's, till it ends
+    case "finishing":
+      return { status: "unknown", reason: "processing" };
+    case "unknown":
+      return { status: "unknown", reason: approval.reason };
+    case "ended":
+      return { status: "failed", reason: approval.reason };
+    case "called_off":
+      return { status: "failed", reason: "canceled" };
+  }
 };
 
 // an attempt we never heard the end of, or waiting on the Client's bank,
@@ -273,20 +407,52 @@ const openAttempts = (tx: Tx | typeof db, forId: string) =>
 export const chargeOpen = async (forId: string, tx: Tx | typeof db = db) =>
   (await openAttempts(tx, forId)).length > 0;
 
-// ---- a Deposit waiting on the Client's bank (#534) ----
+// every attempt for these Bills (or Jobs, or Quotes), newest first, each
+// with whether it's open (chargeOpen's), and the provider call it made: what
+// a Bill's pages read to say where its payments stand (payingOn)
+export const attemptsFor = async (
+  kind: ChargeAttempt["kind"],
+  forIds: string[],
+  tx: Tx | typeof db = db,
+) =>
+  forIds.length === 0
+    ? []
+    : (
+        await tx
+          .select({
+            attempt: chargeAttempts,
+            open: sql<boolean>`${isOpen(tx)}`.mapWith(Boolean),
+          })
+          .from(chargeAttempts)
+          .where(
+            and(
+              eq(chargeAttempts.kind, kind),
+              inArray(chargeAttempts.forId, forIds),
+            ),
+          )
+          // the write order (created_at) breaks the Clock's tie, as in the
+          // payment history
+          .orderBy(desc(chargeAttempts.askedAt), desc(chargeAttempts.createdAt))
+      ).map((row) => ({
+        ...row,
+        call: (row.attempt.request as Asked).call,
+      }));
+
+// ---- a payment waiting on the Client's bank (#534) ----
 //
-// An attempt "approving" may still be approved, for as long as the bank
-// lets it, so it's open: nothing else that moves money on its Quote starts
-// until it's booked, refused or called off. Within APPROVAL_MS only the
-// Client may call it off, by paying again; after it, anyone acting on the
-// Quote calls it off first, and the Clock does if nobody does. Calling off
+// An attempt "approving", a Deposit or a Bill paid on its page, may still
+// be approved, for as long as the bank lets it, so it's open: nothing else
+// that moves money on its Quote or Bill starts until it's taken, refused or
+// called off. Within APPROVAL_MS only the Client may call it off, by paying
+// again; after it, anyone acting on it calls it off first, and the Clock
+// does if nobody does. Calling off
 // can lose to the bank approving it just then, so it's read again after:
 // one approved is the Deposit (https://docs.stripe.com/api/payment_intents/cancel).
 
-// where a Deposit waiting on the Client's bank stands
+// where a payment waiting on the Client's bank stands
 export type Approval =
-  // their bank approved it: the Deposit, taken; no charge when it only
-  // saved their card, at 0%
+  // their bank approved it: taken; no charge when it only saved their
+  // card, a 0% Deposit
   | {
       status: "approved";
       chargeId: string | null;
@@ -305,7 +471,7 @@ export type Approval =
   | { status: "unknown"; reason: string };
 
 /**
- * Where a Deposit waiting on the Client's bank, `ref`, stands, asking the
+ * Where a payment waiting on the Client's bank, `ref`, stands, asking the
  * provider; one that ended is written so on its `attempt`. One that only
  * saves a card, no money moving, has none. `callOff` calls off one still
  * waiting, saying why. One the bank refused is called off too, so it can't
@@ -316,13 +482,13 @@ export const approvalOf = async (
   attempt: ChargeAttempt | undefined,
   callOff: CallingOff | null,
 ): Promise<Approval> => {
-  const read = () => paymentGateway.depositOutcome(ref).catch(() => undefined);
+  const read = () => paymentGateway.paymentOutcome(ref).catch(() => undefined);
   let said = await read();
   let calledOff = false;
   if (said?.status === "needs_approval" && !said.processing && callOff) {
     // refused when it's just been taken, or has started processing, or the
     // provider couldn't be reached: read again
-    calledOff = await paymentGateway.cancelDeposit(ref, callOff).then(
+    calledOff = await paymentGateway.cancelPayment(ref, callOff).then(
       () => true,
       () => false,
     );
@@ -333,9 +499,9 @@ export const approvalOf = async (
       return { status: "unknown", reason: UNREACHABLE };
     }
   }
-  if (said?.status === "needs_approval" && said.processing && callOff) {
-    // too far on to call off: the Office's pages hold the Quote till it
-    // ends (payingOf)
+  if (said?.status === "needs_approval" && said.processing) {
+    // approved, and too far on to call off: the pages hold its Quote or
+    // Bill till it ends, saying so (payingOf, payingOn)
     if (attempt?.status === "approving" && !attempt.bankFinishingAt) {
       await update(attempt, { bankFinishingAt: clock.now() });
     }
@@ -365,7 +531,7 @@ export const approvalOf = async (
       // a call-off that failed is tried again on each read (#534 review F20)
       if (said.reason !== "canceled") {
         await paymentGateway
-          .cancelDeposit(ref, "abandoned")
+          .cancelPayment(ref, "abandoned")
           .catch(() => undefined);
       }
       return calledOff ? { status: "called_off" } : { status: "ended", reason };
@@ -448,17 +614,19 @@ const record = async (
  * records yet, asking the provider how each ended: the Charges, or why
  * that isn't known yet. `owed` is what the Job or Bill owes without them,
  * on the card a try would ask now (outcomeOf); each found taken takes it
- * down.
+ * down. One waiting on the Client's bank is called off as `callOff` says
+ * (approving).
  */
 export const recordTakenEarlier = async (
   tx: Tx,
   chargeFor: ChargeFor,
   owed: Now,
+  callOff: CallingOff | null = null,
 ): Promise<Charge[] | { unknown: string }> => {
   const recorded: Charge[] = [];
   let now = owed;
   for (const earlier of await openAttempts(tx, forIdOf(chargeFor))) {
-    const outcome = await outcomeOf(earlier, now);
+    const outcome = await outcomeOf(earlier, now, callOff);
     if (outcome.status === "unknown") return { unknown: outcome.reason };
     if (outcome.status === "taken") {
       recorded.push(await record(tx, chargeFor, outcome.attempt, null));
@@ -469,40 +637,59 @@ export const recordTakenEarlier = async (
   return recorded;
 };
 
+// what's charged: a Client's saved Payment Method, without them there; or,
+// on a Bill's page, the card or bank account they just entered (`token`),
+// for the Bill `reference` names
+export type PaySource = PaymentMethodRow | { token: string; reference: string };
+
+// a Bill paid on its page whose bank wants the Client to approve it in the
+// browser, with `secret`; the attempt waits on it (approving)
+export type NeedsApproval = {
+  ok: false;
+  reason: "needs_approval";
+  secret: string;
+};
+
 /**
- * Charges a Client's saved Payment Method, without them there, and records
- * the Charge. What an earlier try for the same thing took, whose reply was
- * lost or whose transaction rolled back, is recorded first and counts
- * towards `amount`; only the rest is asked for, and if that isn't taken
- * it's why, as the rest is still owed. Never throws for money that
- * couldn't be taken: no Payment Method saved, a decline, or the provider
- * unreachable (or an earlier try still unknown) each come back as why, for
- * the caller to make what it charged for Unpaid.
+ * Charges a Client, from `source`, and records the Charge. What an earlier
+ * try for the same thing took, whose reply was lost or whose transaction
+ * rolled back, is recorded first and counts towards `amount`; only the
+ * rest is asked for, and if that isn't taken it's why, as the rest is still
+ * owed. An earlier one waiting on the Client's bank is called off as
+ * `callOff` says, or else waits (approving). Never throws for money that
+ * couldn't be taken: no Payment Method saved, a decline, the provider
+ * unreachable (or an earlier try still unknown), or a bank debit processing
+ * each come back as why, for the caller to make what it charged for Unpaid.
  */
 export const chargeSaved = async (
   tx: Tx,
   {
     client,
-    method,
+    source,
     amount,
     description,
     for: chargeFor,
     item = null,
+    callOff = "abandoned",
   }: {
     client: Pick<Client, "id" | "name" | "email" | "preferredLanguage">;
-    method: PaymentMethodRow | null;
+    source: PaySource | null;
     amount: number;
     description: string;
     for: ChargeFor;
     // the one change to the price it's for, by name, if it is
     item?: ChargeItem | null;
+    callOff?: CallingOff;
   },
-): Promise<Taken> => {
-  if (!method) return { ok: false, reason: NO_CARD };
-  const earlier = await recordTakenEarlier(tx, chargeFor, {
-    amount,
-    card: method.gatewayRef,
-  });
+): Promise<Taken | NeedsApproval> => {
+  if (!source) return { ok: false, reason: NO_CARD };
+  const saved = "gatewayRef" in source ? source.gatewayRef : null;
+  const earlier = await recordTakenEarlier(
+    tx,
+    chargeFor,
+    { amount, card: saved },
+    callOff,
+  );
   // it may yet take the money, so nothing more is asked for meanwhile
   if ("unknown" in earlier) return { ok: false, reason: earlier.unknown };
   let cents = earlier.reduce((sum, c) => sum + c.amountCents, 0);
@@ -516,24 +703,32 @@ export const chargeSaved = async (
     return null;
   });
   if (!payerId) return { ok: false, reason: UNREACHABLE };
-  const outcome = await attempt(chargeFor.kind, forIdOf(chargeFor), {
-    call: "charge",
-    input: {
-      payerId,
-      paymentMethodId: method.gatewayRef,
-      amount: amount - cents,
-      description,
-    },
-  });
+  const rest = amount - cents;
+  const outcome = await attempt(
+    chargeFor.kind,
+    forIdOf(chargeFor),
+    saved
+      ? {
+          call: "charge",
+          input: { payerId, paymentMethodId: saved, amount: rest, description },
+        }
+      : {
+          call: "bill",
+          input: {
+            payerId,
+            token: (source as { token: string }).token,
+            amount: rest,
+            description,
+            reference: (source as { reference: string }).reference,
+          },
+        },
+  );
   // what an earlier try took is recorded, but the rest is still owed
   // (#534, F2)
-  if (outcome.status !== "taken") {
-    return {
-      ok: false,
-      reason:
-        outcome.status === "needs_approval" ? "needs_approval" : outcome.reason,
-    };
+  if (outcome.status === "needs_approval") {
+    return { ok: false, reason: "needs_approval", secret: outcome.secret };
   }
+  if (outcome.status !== "taken") return { ok: false, reason: outcome.reason };
   await record(tx, chargeFor, outcome.attempt, item);
   return { ok: true, cents: cents + outcome.attempt.amountCents };
 };
@@ -543,7 +738,7 @@ export const chargeSaved = async (
 // pending Deposit to book (finalizeDeposit); or nothing more taken, as an
 // earlier one their bank is finishing can't be called off
 export type DepositTaken =
-  | DepositAttempt
+  | OnSessionResult
   | { status: "approved"; ref: string }
   | { status: "finishing" };
 
@@ -557,7 +752,7 @@ const withSaved = async (outcome: Outcome): Promise<Outcome> => {
     return outcome;
   }
   const said = await paymentGateway
-    .depositOutcome(outcome.attempt.gatewayRef!)
+    .paymentOutcome(outcome.attempt.gatewayRef!)
     .catch(() => undefined);
   if (said === undefined) return { status: "unknown", reason: UNREACHABLE };
   return said.status === "succeeded"
@@ -612,10 +807,11 @@ export const takeDepositOnce = async (
         : { status: "finishing" };
     }
     const outcome = await withSaved(
-      await outcomeOf(earlier, {
-        amount: asked.input.amount,
-        card: savedCardOf(asked),
-      }),
+      await outcomeOf(
+        earlier,
+        { amount: asked.input.amount, card: savedCardOf(asked) },
+        callOff,
+      ),
     );
     if (outcome.status === "unknown") {
       return { status: "failed", reason: outcome.reason };
@@ -623,7 +819,7 @@ export const takeDepositOnce = async (
     if (outcome.status !== "taken") continue;
     const before = earlier.request as Asked;
     const savedNothing =
-      before.call === "charge" || "paymentMethodId" in before.input.source;
+      before.call !== "deposit" || "paymentMethodId" in before.input.source;
     if (
       outcome.attempt.amountCents === asked.input.amount &&
       (savedNothing || outcome.saved)
@@ -712,12 +908,11 @@ export const giveBackUnbookedDeposits = async (
   quoteId: string,
   unsettled: Set<string>,
 ) => {
-  const after = clock.now().getTime() - APPROVAL_MS;
   const givenBack: string[] = [];
   const calledOff: string[] = [];
   for (const earlier of await openAttempts(tx, quoteId)) {
     if (earlier.status === "approving") {
-      if (earlier.askedAt.getTime() > after) continue;
+      if (waitOf(earlier).until > clock.now()) continue;
       const approval = await approvalOf(
         earlier.gatewayRef!,
         earlier,

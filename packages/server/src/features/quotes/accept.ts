@@ -6,6 +6,7 @@ import type {
   QuoteStatus,
 } from "@empire-cleaning/models";
 import {
+  because,
   catalog,
   clientPaying as clientPayingWords,
   dayOf,
@@ -25,7 +26,7 @@ import { clock } from "../../services/clock/index.ts";
 import { email } from "../../services/email/index.ts";
 import {
   paymentGateway,
-  type DepositAttempt,
+  type OnSessionResult,
 } from "../../services/payment-gateway/index.ts";
 import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
@@ -455,7 +456,7 @@ type Booked = {
 const recordAcceptance = async (
   tx: Tx,
   booking: Booking,
-  paid: Extract<DepositAttempt, { status: "succeeded" }>,
+  paid: Extract<OnSessionResult, { status: "succeeded" }>,
   change: Change | null,
 ): Promise<Booked> => {
   const { quote, revision, property, offer } = booking;
@@ -650,7 +651,7 @@ export const acceptQuote = async (
               idempotencyKey: idempotencyKey.savingCard(id, token!),
             })
             // nothing is taken, so trying again is safe
-            .catch((): DepositAttempt => ({
+            .catch((): OnSessionResult => ({
               status: "failed",
               reason: UNREACHABLE,
             }))
@@ -721,13 +722,12 @@ export const acceptQuote = async (
         // the Client is told only that their card wasn't charged
         log.info(`Deposit for Quote ${id} not taken (${attempt.reason})`);
         const { kind, why } = whyNotPaid(currentLanguage(), attempt.reason);
-        const because = why ? ` (${why})` : "";
         throw new ConflictError(
           kind === "waiting"
             ? said().PAYMENT_DOWN
             : acceptor.by === "client"
-              ? said().cardFailed(because)
-              : `${client.name}'s ${messages.en.card(saved!)} didn't go through${because}, so nothing was booked. Email them a link to add another card.`,
+              ? said().cardFailed(because(why))
+              : `${client.name}'s ${messages.en.card(saved!)} didn't go through${because(why)}, so nothing was booked. Email them a link to add another card.`,
         );
       }
       if (attempt.status === "needs_approval") {

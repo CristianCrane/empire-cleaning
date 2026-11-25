@@ -36,7 +36,6 @@ const sandbox = sandboxKeys && {
     webhookSecret: "whsec_unused",
   }),
 };
-export const inPaymentsSandbox = sandbox !== null;
 
 type Fakes = {
   clock: FakeClock;

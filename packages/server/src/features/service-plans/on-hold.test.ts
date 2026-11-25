@@ -147,7 +147,7 @@ describe("a plan Job left Unpaid", () => {
     )!;
     const booked = testEmail().lastTo(casey.email);
     expect(booked.subject).toBe("Your next clean is booked");
-    expect(booked.text).toContain("Monday, February 16 at 9:00 AM");
+    expect(booked.text).toContain("Monday, February 16 at 9:00\u00a0AM");
     expect(booked.text).toContain("you can skip it for free");
     const { cancelTerms } = (
       await client.get(`/api/jobs/mine/${monday.id}`).expect(200)

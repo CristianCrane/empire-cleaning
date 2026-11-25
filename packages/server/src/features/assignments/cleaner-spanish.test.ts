@@ -65,7 +65,7 @@ describe("a Cleaner reading in Spanish", () => {
       .send({ startsAt: "2026-01-12T15:00:00Z" })
       .expect(409);
     expect(moved.body.message).toBe(
-      "Este trabajo cambió al lunes, 12 de enero, 9:00 a.m. Revisa la nueva hora y vuelve a confirmar.",
+      "Este trabajo cambió al lunes, 12 de enero, 9:00\u00a0a.m. Revisa la nueva hora y vuelve a confirmar.",
     );
 
     await agent
