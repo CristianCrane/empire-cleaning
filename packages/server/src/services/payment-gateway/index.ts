@@ -54,14 +54,7 @@ export type PaymentResult =
       saved: SavedPaymentMethod | null;
     }
   | { status: "approving"; ref: string; secret: string }
-  | {
-      status: "finishing";
-      ref: string;
-      by: "card" | "bank";
-      // the browser's, as for approving: only a Deposit's first reply reads
-      // it, till #534's F21 is fixed in the commit after this one
-      secret: string;
-    }
+  | { status: "finishing"; ref: string; by: "card" | "bank" }
   | { status: "failed"; reason: string };
 
 export type ChargeInput = {

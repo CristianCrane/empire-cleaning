@@ -148,9 +148,15 @@ const words = catalog({
     // payment we take). The email it names is the booking's own, sent once
     // it books; one refunded or refused is emailed too (tellUnbooked,
     // tellNotApproved), so nothing to come back for. It promises no
-    // booking (#534 review F5, F15, F17, UX U3)
-    processing: (what: Paying) =>
-      `Your first payment is still going through with your bank, so nothing more was charged. It usually takes a few minutes, and we'll email you as soon as ${{ clean: "your clean is booked", plan: "your plan starts", change: "your plan is changed" }[what]}.`,
+    // booking (#534 review F5, F15, F17, UX U3). The Clock books one whose
+    // event never came on its next run past 15 minutes, so half an hour,
+    // as the Bill's card payment says
+    processing: (what: Paying): string =>
+      `Your first payment is still going through with your bank, so nothing more was charged. ${words.en.finishing(what)}`,
+    // a first press their bank finishes on its own, nothing to approve
+    // (#534's F21)
+    finishing: (what: Paying): string =>
+      `We'll email you as soon as ${{ clean: "your clean is booked", plan: "your plan is booked", change: "your plan is changed" }[what]}, usually within half an hour.`,
     calledOff: (minutes: number) =>
       `This payment was called off, as it wasn't approved within ${minutes} minutes, so nothing was charged. Please pay again.`,
     bankFailed:
@@ -184,8 +190,10 @@ const words = catalog({
     pick: (services: string) => `Elija ${services}`,
     waiting: (what: Paying) =>
       `Su banco aún no ha aprobado el pago. Apruébelo en la app de su banco para ${{ clean: "reservar su limpieza", plan: "empezar su plan", change: "cambiar su plan" }[what]}. O presione Aceptar y pagar para empezar de nuevo: el primer pago se cancela, así que solo se le cobra una vez.`,
-    processing: (what: Paying) =>
-      `Su primer pago aún se está procesando con su banco, así que no se cobró nada más. Suele tardar unos minutos, y le enviaremos un correo en cuanto ${{ clean: "su limpieza quede reservada", plan: "su plan empiece", change: "su plan cambie" }[what]}.`,
+    processing: (what: Paying): string =>
+      `Su primer pago aún no termina de pasar con su banco, así que no se cobró nada más. ${words.es.finishing(what)}`,
+    finishing: (what: Paying): string =>
+      `Le enviaremos un correo en cuanto ${{ clean: "su limpieza quede reservada", plan: "su plan quede reservado", change: "su plan cambie" }[what]}, normalmente en menos de media hora.`,
     calledOff: (minutes: number) =>
       `Este pago se canceló porque no se aprobó en ${minutes} minutos, así que no se cobró nada. Vuelva a pagar.`,
     bankFailed:
@@ -650,14 +658,6 @@ export const acceptQuote = async (
               source,
               idempotencyKey: idempotencyKey.savingCard(id, token!),
             })
-            // a card saved whose bank finishes it is kept as one to
-            // approve, as keep() keeps a Deposit's: #534's F21, fixed in
-            // the commit after this one
-            .then((said): DepositTaken =>
-              said.status === "finishing"
-                ? { status: "approving", ref: said.ref, secret: said.secret }
-                : said,
-            )
             // nothing is taken, so trying again is safe
             .catch((): DepositTaken => ({
               status: "failed",
@@ -714,14 +714,13 @@ export const acceptQuote = async (
       // their bank approved an earlier one: it's the Deposit, booked as it
       // asked, once this lets go of the day (finalizeDeposit)
       if (attempt.status === "approved") return attempt;
-      if (attempt.status === "finishing") {
+      const what = quote.kind === "service_plan" ? "plan" : "clean";
+      if (attempt.status === "still_finishing") {
         // nothing more was taken, and nothing to do but wait
         if (acceptor.by === "client") {
           return {
             status: "processing",
-            message: said().processing(
-              quote.kind === "service_plan" ? "plan" : "clean",
-            ),
+            message: said().processing(what),
           } as const;
         }
         throw new ConflictError(clientPayingWords.finishing(client.name));
@@ -738,7 +737,10 @@ export const acceptQuote = async (
               : `${client.name}'s ${messages.en.card(saved!)} didn't go through${because(why)}, so nothing was booked. Email them a link to add another card.`,
         );
       }
-      if (attempt.status === "approving") {
+      // waiting on the Client's bank, or going through with nothing to
+      // approve (#534's F21): booked once it's done, by the browser, the
+      // webhook or the Clock (finalizeDeposit)
+      if (attempt.status === "approving" || attempt.status === "finishing") {
         await tx.insert(pendingDeposits).values({
           gatewayRef: attempt.ref,
           quoteId: id,
@@ -748,7 +750,12 @@ export const acceptQuote = async (
           changingPlanId: changing,
           acceptedBy: acceptor.accountId,
         });
-        return { status: "needs_approval", secret: attempt.secret } as const;
+        return attempt.status === "approving"
+          ? ({ status: "needs_approval", secret: attempt.secret } as const)
+          : ({
+              status: "processing",
+              message: said().finishing(what),
+            } as const);
       }
 
       chargeId = attempt.chargeId;

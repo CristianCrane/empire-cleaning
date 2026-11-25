@@ -969,7 +969,7 @@ describe("while the Client's bank is approving the Deposit", () => {
     expect(again.body).toEqual({
       status: "processing",
       message:
-        "Your first payment is still going through with your bank, so nothing more was charged. It usually takes a few minutes, and we'll email you as soon as your clean is booked.",
+        "Your first payment is still going through with your bank, so nothing more was charged. We'll email you as soon as your clean is booked, usually within half an hour.",
     });
     expect(testPayments().paymentAttempts).toHaveLength(1);
     expect(testPayments().charges).toEqual([]);
@@ -2459,6 +2459,62 @@ describe("when a Quote's day fills up before it's accepted", () => {
         .to("olive@example.com")
         .filter((m) => m.subject.includes("another time")),
     ).toEqual([]);
+  });
+});
+
+// a Deposit whose card's bank finishes it on its first reply, with nothing
+// to approve, is kept as one going through, not one to approve: the Client
+// told so, the Office too, and booked once it's done (#534's F21)
+describe("a Deposit their bank finishes from its first reply", () => {
+  const paid = async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().finishCards();
+    const pressed = await payNow(client, quote).expect(200);
+    const [ref] = (
+      await db.execute(
+        sql`select gateway_ref from charge_attempts where kind = 'deposit'`,
+      )
+    ).rows.map((r) => r.gateway_ref as string);
+    return { office, quote, client, pressed, ref: ref! };
+  };
+
+  test("says it's going through, to the Client and the Office, and the webhook books it once", async () => {
+    const { office, quote, pressed, ref } = await paid();
+    const held = (await quoteOf(office, quote.id)).paying;
+    testPayments().finishCards(false);
+
+    await webhook({ kind: "deposit_succeeded", ref }).expect(200);
+
+    expect({
+      pressed: pressed.body,
+      finishing: held?.finishing,
+      charges: testPayments().charges.length,
+      jobs: (await scheduleOn(office, MONDAY)).jobs.length,
+    }).toEqual({
+      pressed: {
+        status: "processing",
+        message:
+          "We'll email you as soon as your clean is booked, usually within half an hour.",
+      },
+      finishing: true,
+      charges: 1,
+      jobs: 1,
+    });
+  });
+
+  test("with neither the webhook nor the browser back, the Clock books it", async () => {
+    const { office } = await paid();
+    testPayments().finishCards(false);
+
+    testClock().advance({ minutes: 16 });
+    await settleOpenPayments();
+
+    expect(testPayments().charges).toHaveLength(1);
+    expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
+    expect(testPayments().refunds).toEqual([]);
   });
 });
 

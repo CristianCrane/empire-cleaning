@@ -719,7 +719,6 @@ export const paymentGatewayContract = (
           status: "finishing",
           ref: expect.any(String),
           by: "bank",
-          secret: expect.any(String),
         });
         if (paid.status !== "finishing") return;
         expect(await t.gateway.paymentOutcome(paid.ref)).toEqual(paid);

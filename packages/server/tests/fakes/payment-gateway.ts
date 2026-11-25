@@ -79,7 +79,6 @@ const finishing = (ref: string, by: "card" | "bank"): PaymentResult => ({
   status: "finishing",
   ref,
   by,
-  secret: `${ref}_secret`,
 });
 
 /**
@@ -106,8 +105,9 @@ export class FakePaymentGateway implements PaymentGateway {
   private chargeFailure: string | null = null;
   private refundFailure: string | null = null;
   private approval: Approval | null = null;
-  // a card paying a Bill that its bank finishes before it's taken, from its
-  // first reply, until finishCards(false) (#534's critical review C6)
+  // a card entered just now, paying a Deposit or a Bill, that its bank
+  // finishes before it's taken, from its first reply, until
+  // finishCards(false) (#534's critical review C6, F21)
   private cardsFinishing = false;
   // what the browser's test payment form enters for a Bill (payBillsBy())
   private billsBy: "card" | "bank" = "card";
@@ -249,7 +249,8 @@ export class FakePaymentGateway implements PaymentGateway {
     this.approval = then;
   }
 
-  // each card paying a Bill from now is processing from its first reply,
+  // each card entered just now, paying a Deposit or a Bill, is processing
+  // from now from its first reply,
   // its bank finishing it, as Stripe can say it, until finishCards(false),
   // when it's taken
   finishCards(finishing = true) {
@@ -554,7 +555,7 @@ export class FakePaymentGateway implements PaymentGateway {
       return failed(declined);
     }
     const byCard = card === "approvalOnSetup" || card === "alwaysApproval";
-    const finishes = banks && this.cardsFinishing && input.amount > 0;
+    const finishes = this.cardsFinishing && input.amount > 0;
     if ("token" in source && (this.approval || byCard || finishes)) {
       const ref = this.id(input.amount > 0 ? "pi" : "seti");
       this.waiting.set(ref, {

@@ -164,7 +164,8 @@ const asksNow = (attempt: ChargeAttempt, now: Now) => {
 };
 
 // where an attempt stands once asked: taken (with the card a Deposit saved,
-// when it's known), or not yet known, or not taken
+// when it's known), or not yet known, or not taken; or, asked just now,
+// waiting on the Client's bank, or going through (finishing)
 type Outcome =
   | {
       status: "taken";
@@ -172,8 +173,16 @@ type Outcome =
       saved: SavedPaymentMethod | null;
     }
   | { status: "unknown"; reason: string }
-  | Extract<PaymentResult, { status: "approving" }>
+  | Extract<PaymentResult, { status: "approving" | "finishing" }>
   | { status: "failed"; reason: string };
+
+// where an earlier attempt stands, as a try reads it before asking anew:
+// one going through is waited on, as one not yet known (#534's F21)
+type Earlier = Exclude<Outcome, { status: "finishing" }>;
+const asEarlier = (outcome: Outcome): Earlier =>
+  outcome.status === "finishing"
+    ? { status: "unknown", reason: "processing" }
+    : outcome;
 
 // written outside the caller's transaction, so it stands whatever that does
 const update = async (
@@ -222,21 +231,15 @@ const keep = async (
       return said;
     // not taken yet, nor declined, and too far on to call off: a card
     // whose bank finishes it, or a bank debit, which clears or fails days
-    // later (readByApproval says which reads it till it ends)
+    // later (readByApproval says which reads it till it ends). A Deposit's
+    // is the Client's, with nothing to approve (#534's F21)
     case "finishing":
-      // a Deposit's is kept approving, its secret sent to the browser as
-      // one to approve, till approvalOf reads it finishing: #534's F21,
-      // fixed in the commit after this one
-      if ((attempt.request as Asked).call === "deposit") {
-        await update(attempt, { status: "approving", gatewayRef: said.ref });
-        return { status: "approving", ref: said.ref, secret: said.secret };
-      }
       await update(attempt, {
         status: "processing",
         gatewayRef: said.ref,
         processingBy: said.by,
       });
-      return { status: "unknown", reason: "processing" };
+      return said;
     case "failed":
       await update(attempt, { status: "failed", reason: said.reason });
       return said;
@@ -287,7 +290,7 @@ const outcomeOf = async (
   attempt: ChargeAttempt,
   now: Now,
   callOff: CallingOff | null = null,
-): Promise<Outcome> => {
+): Promise<Earlier> => {
   if (attempt.status === "taken") {
     return { status: "taken", attempt, saved: null };
   }
@@ -295,7 +298,7 @@ const outcomeOf = async (
   const pending = attempt.status === "pending";
   const fresh = clock.now().getTime() - attempt.askedAt.getTime() < DAY_MS;
   if (pending && fresh && asksNow(attempt, now)) {
-    return ask(await update(attempt, { sentAt: clock.now() }));
+    return asEarlier(await ask(await update(attempt, { sentAt: clock.now() })));
   }
   const found = await paymentGateway
     .chargeOutcome({
@@ -313,7 +316,7 @@ const outcomeOf = async (
       callOff,
     );
   }
-  if (found !== null) return keep(attempt, found);
+  if (found !== null) return asEarlier(await keep(attempt, found));
   const since = clock.now().getTime() - attempt.sentAt.getTime();
   if (pending && since < SETTLED_AFTER_MS) {
     return { status: "unknown", reason: UNREACHABLE };
@@ -328,7 +331,7 @@ const outcomeOf = async (
 const approving = async (
   attempt: ChargeAttempt,
   callOff: CallingOff | null,
-): Promise<Outcome> => {
+): Promise<Earlier> => {
   const approval = await approvalOf(
     attempt.gatewayRef!,
     attempt,
@@ -752,24 +755,29 @@ export const chargeSaved = async (
   if (outcome.status === "approving") {
     return { ok: false, reason: "needs_approval", secret: outcome.secret };
   }
+  if (outcome.status === "finishing") {
+    return { ok: false, reason: "processing" };
+  }
   if (outcome.status !== "taken") return { ok: false, reason: outcome.reason };
   await record(tx, chargeFor, outcome.attempt, item);
   return { ok: true, cents: cents + outcome.attempt.amountCents };
 };
 
-// what taking a Deposit came to: as the provider says; or an earlier
-// Deposit the Client's bank approved, `ref`, which is the Deposit, for its
-// pending Deposit to book (finalizeDeposit); or nothing more taken, as an
-// earlier one their bank is finishing can't be called off
+// what taking a Deposit came to: as the provider says, a Client's going
+// through (finishing) for its pending Deposit to book once it's done; or
+// an earlier Deposit the Client's bank approved, `ref`, which is the
+// Deposit, for its pending Deposit to book (finalizeDeposit); or nothing
+// more taken, as an earlier one their bank is still finishing can't be
+// called off
 export type DepositTaken =
-  | Exclude<PaymentResult, { status: "finishing" }>
+  | PaymentResult
   | { status: "approved"; ref: string }
-  | { status: "finishing" };
+  | { status: "still_finishing" };
 
 // The card a taken Deposit on a card typed in saved, as the provider has
 // it: a reply lost, or a booking rolled back, kept none (#534, B#1b), and
 // without it the Deposit would be given back and taken again
-const withSaved = async (outcome: Outcome): Promise<Outcome> => {
+const withSaved = async (outcome: Earlier): Promise<Earlier> => {
   if (outcome.status !== "taken" || outcome.saved) return outcome;
   const asked = outcome.attempt.request as Asked;
   if (asked.call !== "deposit" || "paymentMethodId" in asked.input.source) {
@@ -830,7 +838,7 @@ export const takeDepositOnce = async (
       }
       return approval.status === "unknown"
         ? { status: "failed", reason: approval.reason }
-        : { status: "finishing" };
+        : { status: "still_finishing" };
     }
     const outcome = await withSaved(
       await outcomeOf(
@@ -877,6 +885,12 @@ export const takeDepositOnce = async (
       };
     case "unknown":
       return { status: "failed", reason: outcome.reason };
+    // the Office's Charge going through has no pending Deposit to book it,
+    // so it's read again, as any Charge processing is (outcomeOf)
+    case "finishing":
+      return asked.call === "deposit"
+        ? outcome
+        : { status: "failed", reason: "processing" };
     default:
       return outcome;
   }

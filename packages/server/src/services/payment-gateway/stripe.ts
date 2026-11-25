@@ -532,7 +532,6 @@ const outcomeOf = (
           typeof method !== "string" && method?.type === "us_bank_account"
             ? "bank"
             : "card",
-        secret: intent.client_secret!,
       };
     // called off by us (cancelPayment), whatever the bank had said before
     case "canceled":
