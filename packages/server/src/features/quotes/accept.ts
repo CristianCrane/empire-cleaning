@@ -848,8 +848,9 @@ const unsettledDeposits = async (quoteId: string, tx: Tx | typeof db = db) =>
 // how finishing a Deposit that needed approval went
 export type Finalized =
   | { status: "accepted"; job: Job }
-  // their bank is still asking them, or finishing it
-  | { status: "approving"; paying: Paying }
+  // their bank is still asking them ("approving"), or approved it and is
+  // finishing it, which asks nothing more of them (#534's N5)
+  | { status: "approving" | "finishing"; paying: Paying }
   // their bank refused it; `endedHere` when this call settled it, so the
   // Client is emailed it once however many settle at once (#534 critical C7)
   | { status: "failed"; reason: string; endedHere: boolean }
@@ -949,7 +950,7 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
         case "approving":
         case "finishing":
           return {
-            status: "approving",
+            status: standing.status,
             paying: pending.changingPlanId
               ? "change"
               : quote.kind === "service_plan"
@@ -1039,6 +1040,8 @@ export const finalizeProblem = (finalized: Finalized) => {
   switch (finalized.status) {
     case "approving":
       return said().waiting(finalized.paying);
+    case "finishing":
+      return said().finishing(finalized.paying);
     case "called_off":
       return said().calledOff(APPROVAL_MS / MINUTE_MS);
     case "unknown":

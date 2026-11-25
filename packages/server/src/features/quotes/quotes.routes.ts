@@ -130,10 +130,10 @@ router.post(
       res.json(outcome);
       return;
     }
-    // still theirs to approve: not an error
-    if (finalized.status === "approving") {
+    // still theirs to approve, or their bank's to finish: not an error
+    if (finalized.status === "approving" || finalized.status === "finishing") {
       const outcome: AcceptOutcome = {
-        status: "waiting",
+        status: finalized.status === "approving" ? "waiting" : "processing",
         message: finalizeProblem(finalized),
       };
       res.json(outcome);

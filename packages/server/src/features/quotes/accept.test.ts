@@ -976,6 +976,28 @@ describe("while the Client's bank is approving the Deposit", () => {
     expect((await scheduleOn(office, MONDAY)).jobs).toEqual([]);
   });
 
+  // #534's N5: back from their bank's pop-up, they were asked to approve
+  // what they just had
+  test("coming back once they've approved, while their bank finishes it, asks nothing more", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+    testPayments().requireApproval("processing");
+
+    const back = await finalize(client, quote).expect(200);
+
+    expect(back.body).toEqual({
+      status: "processing",
+      message:
+        "We'll email you as soon as your clean is booked, usually within half an hour.",
+    });
+    expect(testPayments().charges).toEqual([]);
+    expect((await scheduleOn(office, MONDAY)).jobs).toEqual([]);
+  });
+
   // review F17: told "we'll email you", they're emailed whichever way it
   // ends, and can pay again on the same page
   test("a payment their bank refuses after finishing it emails them, and they can pay again", async () => {
