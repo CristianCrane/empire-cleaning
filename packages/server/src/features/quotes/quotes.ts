@@ -1,16 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import { currentLanguage } from "#services/request";
-import {
-  and,
-  asc,
-  desc,
-  eq,
-  inArray,
-  isNotNull,
-  isNull,
-  max,
-  ne,
-} from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, max, ne } from "drizzle-orm";
 import type {
   AddOnChoice,
   ClientQuoteView,
@@ -61,7 +51,6 @@ import { email } from "../../services/email/index.ts";
 import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { officeCompletionOf } from "../completion/completion.ts";
-import { waitOf } from "../payments/money.ts";
 import { paymentMethodOf, toPaymentMethodView } from "../payments/payments.ts";
 import { chargeAttempts } from "../payments/payments.schema.ts";
 import {
@@ -101,7 +90,7 @@ import {
 } from "../site-visits/site-visits.ts";
 import { siteVisitViews } from "../site-visits/views.ts";
 import { askedAddOns } from "./asked-add-ons.ts";
-import { depositPaying } from "./deposit-paying.ts";
+import { clientHolds, depositPaying } from "./deposit-paying.ts";
 import { quoteEmail, turnDownEmail } from "./emails.ts";
 import { percentOf } from "./plan-days.ts";
 import { bookableFor, openTimesOf, optionRoomsOf } from "./offer-room.ts";
@@ -689,41 +678,16 @@ const homePlanIdOf = async (propertyId: string) => {
   return plan?.id ?? null;
 };
 
-// The Deposit the Client's bank was asked to approve on a Quote, the one
-// check of whether the Client is paying it now (ADR-0022's one rule):
-// within APPROVAL_MS of their pressing, till `until`; after it, while
-// their bank finishes it (`finishing`, too far on to call off; #534
-// critical review C2); or `past` it, as settling it couldn't reach the
-// provider to call it off or read it, so it may yet pay the offer sent
-// (#534 review F28, critical review C9). How much, and for which Service
-// (the Office's English; null for a cleaning plan). Its pending Deposit is
-// saved as the Client's try lets go of the Quote; once settled, it's booked
-// or ended, as its attempt waits on giving it back (C3), so it's none
+// The Client paying a Quote's Deposit now (clientHolds, the check their own
+// pages make too), as the Office reads it: how much, and for which Service
+// (the Office's English; null for a cleaning plan)
 const clientPaying = async (
   quote: Pick<Quote, "id" | "kind">,
   tx: Tx | typeof db,
 ) => {
-  const [found] = await tx
-    .select({ attempt: chargeAttempts, pending: pendingDeposits })
-    .from(chargeAttempts)
-    .innerJoin(
-      pendingDeposits,
-      eq(pendingDeposits.gatewayRef, chargeAttempts.gatewayRef),
-    )
-    .where(
-      and(
-        eq(chargeAttempts.kind, "deposit"),
-        eq(chargeAttempts.forId, quote.id),
-        // waiting on their bank, or approved and their card's finishing it
-        inArray(chargeAttempts.status, ["approving", "processing"]),
-        isNull(pendingDeposits.settledAt),
-      ),
-    )
-    .orderBy(desc(chargeAttempts.askedAt))
-    .limit(1);
-  if (!found) return null;
-  const { attempt, pending } = found;
-  const { until, onClient, past } = waitOf(attempt);
+  const held = (await clientHolds([quote.id], tx))(quote.id);
+  if (!held) return null;
+  const { pending, until, onClient, past } = held;
   const row =
     quote.kind === "one_off"
       ? (await optionsOf(pending.revisionId, tx)).find(

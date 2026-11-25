@@ -2952,6 +2952,24 @@ describe("the Client's Deposit payment, as their pages read it", () => {
     });
   });
 
+  // #534 review F9: their page said it was going through, with nothing to
+  // do, as they were told to try again in a few minutes, and the Office's
+  // page said nothing; pressing again reads it, and books with it (#241)
+  test("one whose reply never came isn't going through, on their pages or the Office's, as pressing again reads it", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+    testPayments().loseNextReply();
+    await accept(client, quote, "standard").expect(409);
+
+    expect((await mine(client, quote.id)).paying).toBeNull();
+    expect((await listed(client, quote.id)).paying).toBeNull();
+    expect((await quoteOf(office, quote.id)).paying).toBeNull();
+    await accept(client, quote, "standard").expect(200);
+  });
+
   test("past the wait, never approved, on their page and the Office's", async () => {
     await cleaners();
     const office = await signInAsOffice();
