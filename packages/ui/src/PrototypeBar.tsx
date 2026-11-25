@@ -15,8 +15,9 @@ import { readStored, store } from "./stored.ts";
 type Choice = { key: string; name: string; href: LinkProps["href"] };
 
 // each row's step links, and the arrow keys that press them: each link
-// carries its key (aria-keyshortcuts), which the keys find it by, and is
-// drawn as that key, so the marks say which key steps what
+// carries its key (data-key: React Aria's Link drops aria-keyshortcuts),
+// which the keys find it by, and is drawn as that key, so the marks say
+// which key steps what
 const MARKS = {
   layout: { back: ArrowUp, on: ArrowDown, keys: ["ArrowUp", "ArrowDown"] },
   case: { back: ArrowLeft, on: ArrowRight, keys: ["ArrowLeft", "ArrowRight"] },
@@ -78,7 +79,7 @@ export function PrototypeBar({
       )
         return;
       const link = bar.current?.querySelector<HTMLElement>(
-        `[aria-keyshortcuts="${CSS.escape(event.key)}"]`,
+        `[data-key="${CSS.escape(event.key)}"]`,
       );
       if (!link) return;
       event.preventDefault();
@@ -167,7 +168,7 @@ function Row({
         <Link
           href={step(-1)?.href}
           aria-label={`Previous ${what}`}
-          aria-keyshortcuts={keys[0]}
+          data-key={keys[0]}
           className={link}
         >
           <Back size={16} aria-hidden />
@@ -183,7 +184,7 @@ function Row({
         <Link
           href={step(1)?.href}
           aria-label={`Next ${what}`}
-          aria-keyshortcuts={keys[1]}
+          data-key={keys[1]}
           className={`${link} ms-auto`}
         >
           <On size={16} aria-hidden />
