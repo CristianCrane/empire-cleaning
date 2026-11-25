@@ -51,11 +51,12 @@ import {
   type PageAction,
   Card,
   useWide,
+  Line,
 } from "@empire-cleaning/ui";
 import { deleteJson, patchJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { dollars, lineOf, typedHours } from "../format.ts";
+import { dollars, typedHours } from "../format.ts";
 import { ConditionField } from "./PropertyFields.tsx";
 
 const { formatDate, formatMoney } = formats.en;
@@ -273,7 +274,7 @@ export function Adjustments({ job }: { job: OfficeJob }) {
             <ListItem
               id={a.id}
               title={whatOf(a)}
-              description={lineOf([changeOf(a), signed(a.totalCents)])}
+              description={<Line parts={[changeOf(a), signed(a.totalCents)]} />}
               end={statusBadge[a.status]}
             />
           )}
