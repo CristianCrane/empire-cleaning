@@ -145,8 +145,8 @@ const W = {
       `Nothing has been taken from your ${card} yet.`,
     nothingTaken: "Nothing has been taken yet.",
     paused: "Until it's paid, we won't book more cleans on your plan.",
-    refusedTitle: "Your bank didn't approve the payment.",
-    refusedLine: "Nothing was taken. You can try again, or use another card.",
+    refusedTitle: "The payment wasn't approved.",
+    refusedLine: "Nothing was taken. You can try again.",
     paidClean: "Thank you, your clean is paid",
     paidBill: "Thank you, your bill is paid",
     pay: (amount: string) => `Pay ${amount}`,
@@ -179,7 +179,8 @@ const W = {
     couldntTake: (amount: string) =>
       `We couldn't take ${amount} from your card.`,
     addCardFix: "Please add a card and we'll try again straight away.",
-    updateCard: "Update your card",
+    addCard: "Add a card",
+    forClean: "For this clean",
     payments: "Payments",
   },
   es: {
@@ -194,9 +195,8 @@ const W = {
     nothingYet: (card: string) => `Aún no se ha cobrado nada de su ${card}.`,
     nothingTaken: "Aún no se ha cobrado nada.",
     paused: "Hasta que se pague, no reservaremos más limpiezas de su plan.",
-    refusedTitle: "Su banco no aprobó el pago.",
-    refusedLine:
-      "No se cobró nada. Puede intentarlo de nuevo o usar otra tarjeta.",
+    refusedTitle: "El pago no se aprobó.",
+    refusedLine: "No se cobró nada. Puede intentarlo de nuevo.",
     paidClean: "Gracias, su limpieza está pagada",
     paidBill: "Gracias, su factura está pagada",
     pay: (amount: string) => `Pagar ${amount}`,
@@ -229,7 +229,8 @@ const W = {
     couldntTake: (amount: string) =>
       `No pudimos cobrar ${amount} de su tarjeta.`,
     addCardFix: "Agregue una tarjeta y lo intentaremos de nuevo de inmediato.",
-    updateCard: "Actualizar tarjeta",
+    addCard: "Agregar una tarjeta",
+    forClean: "Por esta limpieza",
     payments: "Pagos",
   },
 };
@@ -501,11 +502,18 @@ function CleanPage({
             ),
           },
         ]
-      : layout === "A"
+      : layout !== "B"
         ? [
             {
               key: "approve",
               tone: "warning",
+              action:
+                layout === "A" && moment === "refused" ? (
+                  <ButtonLink variant="text" href={cardPage}>
+                    <CreditCard aria-hidden size={18} />
+                    {t.useAnother}
+                  </ButtonLink>
+                ) : undefined,
               children: (
                 <p>
                   {moment === "refused" ? (
@@ -522,25 +530,11 @@ function CleanPage({
               ),
             },
           ]
-        : layout === "C"
-          ? [
-              {
-                key: "approve",
-                tone: "danger",
-                children: (
-                  <p>
-                    <strong>{t.paymentNeeded}</strong> {t.bankWants}{" "}
-                    {t.nothingYet(card)}
-                    {paused}
-                  </p>
-                ),
-              },
-            ]
-          : [];
+        : [];
 
   const status = approved ? (
     <StatusBadge tone="success">{t.done}</StatusBadge>
-  ) : noCard || layout === "C" ? (
+  ) : noCard ? (
     <StatusBadge tone="danger">{t.unpaid}</StatusBadge>
   ) : (
     <StatusBadge tone="warning">{t.needsApproval}</StatusBadge>
@@ -549,7 +543,7 @@ function CleanPage({
   const next: PageAction | undefined = approved
     ? undefined
     : noCard
-      ? { label: t.updateCard, icon: CreditCard, href: cardPage }
+      ? { label: t.addCard, icon: CreditCard, href: cardPage }
       : layout === "A"
         ? approve
         : layout === "C"
@@ -601,6 +595,7 @@ function CleanPage({
                 checking={checking}
                 refused={moment === "refused"}
                 onApprove={toCheck}
+                kicker={t.forClean}
                 other={
                   <ButtonLink variant="text" href={cardPage}>
                     <CreditCard aria-hidden size={18} />
@@ -647,7 +642,7 @@ function CleanPage({
               />
               {!approved && (
                 <Figure
-                  label={noCard || layout === "C" ? t.unpaid : t.needsApproval}
+                  label={noCard ? t.unpaid : t.needsApproval}
                   value={owed}
                   strong
                 />
@@ -691,7 +686,9 @@ function PayPart({
   refused,
   onApprove,
   other,
+  kicker,
 }: {
+  kicker: string;
   lang: Lang;
   amount: string;
   plan: boolean;
@@ -707,7 +704,7 @@ function PayPart({
         <div className="flex items-center gap-4">
           <IconTile icon={ShieldCheck} tone="warning" size="lg" />
           <div className="flex min-w-0 flex-col gap-1">
-            <p className="text-sm text-fg-muted">{t.toApprove}</p>
+            <p className="text-sm text-fg-muted">{kicker}</p>
             <p className="text-xl font-semibold text-fg tabular-nums">
               {amount}
             </p>
@@ -781,12 +778,12 @@ function PayDialog({
             </Radio>
           </RadioGroup>
           {refused && (
-            <Notice tone="danger" answers>
+            <Notice tone="warning" answers>
               <strong>{t.refusedTitle}</strong> {t.refusedLine}
             </Notice>
           )}
           <Actions>
-            <Button variant="secondary" onPress={close}>
+            <Button variant="quiet" onPress={close}>
               {t.cancel}
             </Button>
             <Button
@@ -917,7 +914,7 @@ function BillPage({
 
   const alerts: Alert[] = approved
     ? []
-    : layout === "A"
+    : layout !== "B"
       ? [
           {
             key: "approve",
@@ -930,26 +927,11 @@ function BillPage({
             ),
           },
         ]
-      : layout === "C"
-        ? [
-            {
-              key: "approve",
-              tone: "danger",
-              children: (
-                <p>
-                  <strong>{t.bankWants}</strong> {t.nothingYet(CARD.en)}{" "}
-                  {t.paused}
-                </p>
-              ),
-            },
-          ]
-        : [];
+      : [];
 
   const line = approved
     ? `Paid ${f.formatDate("2026-11-25T15:00:00Z")} from your ${CARD.en}`
-    : layout === "C"
-      ? `Payment didn't go through ${f.formatDate(BILL.madeAt)}`
-      : "Not paid yet";
+    : "Not paid yet";
 
   return (
     <ClientFrame lang="en" current={t.payments}>
@@ -962,8 +944,6 @@ function BillPage({
         status={
           approved ? (
             <StatusBadge tone="success">{t.paidBadge}</StatusBadge>
-          ) : layout === "C" ? (
-            <StatusBadge tone="danger">{t.unpaid}</StatusBadge>
           ) : (
             <StatusBadge tone="warning">{t.needsApproval}</StatusBadge>
           )
@@ -983,6 +963,7 @@ function BillPage({
                 checking={checking}
                 refused={false}
                 onApprove={toCheck}
+                kicker={`For bill ${BILL.number}`}
                 other={
                   <Button variant="text" onPress={say(t.payAnother)}>
                     <CreditCard aria-hidden size={18} />
@@ -1034,24 +1015,17 @@ function PaymentsPage({ layout }: { layout: Layout }) {
       <HomePage
         title={t.payments}
         alerts={[
-          whyAlert(
-            layout === "C"
-              ? {
-                  tone: "danger",
-                  lead: `${t.bankWants} ${t.nothingYet(CARD.en)}`,
-                }
-              : {
-                  tone: "warning",
-                  lead: `${t.bankWants} ${t.nothingYet(CARD.en)}`,
-                },
-          ),
+          whyAlert({
+            tone: "warning",
+            lead: `Your bank wants you to approve your clean's payment. ${t.nothingYet(CARD.en)}`,
+          }),
         ]}
         answer={
           <HeroCard
             hero={{
-              label: "To pay",
+              label: t.toApprove,
               icon: Wallet,
-              tone: layout === "C" ? "danger" : "warning",
+              tone: "warning",
               headline: f.formatMoney(14250),
               lines: [`Your clean on ${day}`],
               action: {
@@ -1144,7 +1118,7 @@ function EmailsPage({ layout }: { layout: Layout }) {
             it's taken from your {CARD.en}. Nothing has been taken yet.
           </p>
           <p className="text-fg-muted">
-            Standard Clean · Tuesday, November 25 at 9:00 AM · {HOME}
+            Standard Clean · Wednesday, November 25 at 9:00 AM · {HOME}
           </p>
           <p>{press}</p>
         </Email>
@@ -1162,7 +1136,10 @@ function EmailsPage({ layout }: { layout: Layout }) {
         </Email>
         {/* the real skipped email (cancellation/emails.ts): its lines as
             they are, with the fee's line said the new way */}
-        <Email subject="Your clean is skipped" button={button(fee)}>
+        <Email
+          subject="Your clean is skipped: please approve its fee"
+          button={button(fee)}
+        >
           <p>Hi Ada,</p>
           <p>We've skipped your clean, as you asked.</p>
           <p>
@@ -1203,7 +1180,7 @@ function OfficeJobPage() {
                   Ada's bank wants her to approve the {f.formatMoney(14250)}{" "}
                   payment.
                 </strong>{" "}
-                Nothing was taken. We've emailed her to approve it on her
+                None of it was taken. We've emailed her to approve it on her
                 clean's page.
               </p>
             ),
@@ -1289,8 +1266,8 @@ function OfficeBillPage() {
                   {f.formatMoney(BILL.totalCents)} payment.
                 </strong>{" "}
                 Nothing was taken. We've emailed her to approve it on the bill's
-                page. Until it's paid, the client's cleaning plan at 41-12
-                Austin St is paused.
+                page. Until it's paid, Ada's cleaning plan at 41-12 Austin St is
+                paused.
               </p>
             ),
           },
@@ -1331,12 +1308,14 @@ function OfficeQuotePage({ layout }: { layout: Layout }) {
         next={{
           label: "Record acceptance",
           icon: CircleCheck,
+          isDisabled: !open,
+          why: "Ada approves it on her quote's page",
           onAction: () => setOpen(true),
         }}
         alerts={
-          layout === "B"
-            ? [{ key: "approve", tone: "warning", children: <p>{why}</p> }]
-            : []
+          open
+            ? []
+            : [{ key: "approve", tone: "warning", children: <p>{why}</p> }]
         }
         details={
           <DetailsCard
@@ -1366,43 +1345,35 @@ function OfficeQuotePage({ layout }: { layout: Layout }) {
       />
       {layout !== "B" && (
         <Dialog
-          title="Record acceptance?"
+          title="Ada needs to approve the deposit"
           role="alertdialog"
           isOpen={open}
           onOpenChange={setOpen}
         >
           {({ close }) => (
             <>
-              <p>
-                This charges the {deposit} deposit to Ada Okafor's {CARD.en} and
-                books their Standard Clean for{" "}
-                {f.formatDateTime("2026-12-02T14:00:00Z")}. Only do this if
-                they've told you they accept.
-              </p>
-              <Notice
-                tone="warning"
-                answers
-                action={
-                  layout === "C" ? (
-                    <Button
-                      variant="text"
-                      onPress={say("Email Ada her quote again")}
-                    >
-                      <Mail aria-hidden size={16} />
-                      Email Ada her quote again
-                    </Button>
-                  ) : undefined
-                }
-              >
+              <Notice tone="warning" answers>
                 {why}
               </Notice>
               <Actions>
-                <Button variant="secondary" onPress={close}>
-                  Close
-                </Button>
-                <Button variant="primary" isDisabled>
-                  Charge and book
-                </Button>
+                {layout === "C" ? (
+                  <>
+                    <Button variant="quiet" onPress={close}>
+                      Close
+                    </Button>
+                    <Button
+                      variant="primary"
+                      onPress={say("Email Ada her quote again")}
+                    >
+                      <Mail aria-hidden size={18} />
+                      Email Ada her quote again
+                    </Button>
+                  </>
+                ) : (
+                  <Button variant="primary" onPress={close}>
+                    Close
+                  </Button>
+                )}
               </Actions>
             </>
           )}
