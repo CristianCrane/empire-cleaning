@@ -47,6 +47,9 @@ export const labels = catalog({
     // charged (a 0% Deposit): it books on its own, and no payment is
     // pending (#534's UX design, Screen 1b)
     bookingPending: "Booking pending",
+    // a quote whose day filled up after it was sent: it waits on us for a
+    // new quote, on each screen that lists it
+    fullyBooked: "Fully booked",
     howWeGetIn: "How we get in",
     // a Job's header card, as a screen reader names it (JobLead)
     jobDetails: "Job details",
@@ -91,6 +94,7 @@ export const labels = catalog({
     seeBill: (n: string) => `Ver la factura ${n}`,
     paymentPending: "Pago pendiente",
     bookingPending: "Reserva pendiente",
+    fullyBooked: "Día lleno",
     howWeGetIn: "Cómo entramos",
     jobDetails: "Detalles del trabajo",
     jobStatus: {

@@ -81,9 +81,8 @@ const words = catalog({
     askedFor: "What you asked for",
     asked: "Asked",
     yourKind: (kind: string) => `Your ${kind.toLowerCase()}`,
-    // its badge, once its day filled up: it waits on us for a new quote
-    fullyBooked: "Fully booked",
-    // then that a new quote comes (NEW_QUOTE)
+    // once its day filled up (its badge: fullyBooked); then that a new
+    // quote comes (NEW_QUOTE)
     bookedUp: (planDays: boolean, when: string) =>
       `Sorry, ${planDays ? "one of the days your plan starts on has" : `${when} has`} been fully booked since we sent this quote, so it can't be accepted.`,
     details: "Quote details",
@@ -181,7 +180,6 @@ const words = catalog({
     askedFor: "Lo que pidió",
     asked: "Pedida",
     yourKind: (kind: string) => `Su ${kind.toLowerCase()}`,
-    fullyBooked: "Día lleno",
     bookedUp: (planDays: boolean, when: string) =>
       `Lo sentimos, ${planDays ? "uno de los días en que empieza su plan se llenó" : `el ${when} se llenó`} después de que le enviamos esta cotización, así que no se puede aceptar.`,
     details: "Detalles de la cotización",
@@ -473,7 +471,7 @@ function OfferedQuote({
             {going.depositCents > 0 ? t.paymentPending : t.bookingPending}
           </StatusBadge>
         ) : bookedUp ? (
-          <StatusBadge tone="info">{t.w.fullyBooked}</StatusBadge>
+          <StatusBadge tone="info">{t.fullyBooked}</StatusBadge>
         ) : undefined
       }
       actions={
