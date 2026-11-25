@@ -256,11 +256,9 @@ test(
     );
     // a usual day off set off again reads as the usual week does
     await expect(fifteenth()).toHaveAccessibleName(/ 15 Off$/);
-    // the key names the one tint the month shows, and goes with it
+    // the key goes and comes with the one tint the month shows
     const key = page.getByText(/^Tinted days differ from the usual week/);
-    await expect(key).toHaveText(
-      "Tinted days differ from the usual week: amber for a day off.",
-    );
+    await expect(key).toBeVisible();
     await sixteenth().click();
     await expect(page.getByRole("dialog")).toContainText("Usually");
     await expect(
@@ -274,6 +272,18 @@ test(
     ).toBeVisible();
     await expect(sixteenth()).not.toHaveAccessibleName(/differs/);
     await expect(key).toHaveCount(0);
+
+    // off again, the month ends tinted, its key naming the tint
+    await sixteenth().click();
+    await day.getByRole("textbox", { name: "Hours that day" }).fill("0");
+    await day.getByRole("button", { name: "Save day" }).click();
+    await expect(page.getByText(/ 16 saved$/)).toBeVisible();
+    await expect(sixteenth()).toHaveAccessibleName(
+      / 16 Off \(differs from the usual week\)$/,
+    );
+    await expect(key).toHaveText(
+      "Tinted days differ from the usual week: amber for a day off.",
+    );
   },
 );
 
