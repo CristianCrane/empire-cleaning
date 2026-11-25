@@ -1587,15 +1587,26 @@ export const billView = async (
   const { bill, client } = found;
   const on = (await payingOn([bill.id]))(bill.id);
   const lines = await linesToSay(bill);
-  // each clean's home for the Office; for the Client only when they have
-  // more than one, as their rows say (docs/ux.md, Lists)
-  const home = clientId ? (await homesOf(clientId)) > 1 : true;
+  // where its cleans were, for the Office, and for a Client only when they
+  // have more than one home, as their rows say (docs/ux.md, Lists): once,
+  // as a fact, when they were all at one, else on each row (#534's UX
+  // review U8, F16)
+  const tells = clientId ? (await homesOf(clientId)) > 1 : true;
+  const homes = new Set(
+    lines.flatMap((l) => (l.clean ? [l.clean.address] : [])),
+  );
+  const home = tells && homes.size > 1;
   return {
     ...toSummary(bill, client, on),
-    // worded in the reply's language: the Office's English, the Client's own
-    lines: lines.map((l) => ({
+    home: tells && homes.size === 1 ? [...homes][0]! : null,
+    // worded in the reply's language: the Office's English, the Client's
+    // own; a row about the Job the row above names says only what it is
+    lines: lines.map((l, i) => ({
       jobId: l.jobId,
-      label: lineLabel(currentLanguage(), l, { home }),
+      label: lineLabel(currentLanguage(), l, {
+        home,
+        named: l.jobId !== null && lines[i - 1]?.jobId === l.jobId,
+      }),
       amountCents: l.amountCents,
       taxCents: l.taxCents,
     })),

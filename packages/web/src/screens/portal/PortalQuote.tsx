@@ -78,7 +78,6 @@ const words = catalog({
     when: "When",
     from: (when: string) => `From ${when}`,
     yourClean: "Your clean",
-    where: "Where",
     recommend: (recommended: string, own: string) =>
       `We recommend a ${recommended} for a first visit: it brings your home up to standard. A ${own} costs less.`,
     recommended: "Recommended",
@@ -173,7 +172,6 @@ const words = catalog({
     when: "Cuándo",
     from: (when: string) => `Desde el ${when}`,
     yourClean: "Su limpieza",
-    where: "Dónde",
     recommend: (recommended: string, own: string) =>
       `Le recomendamos una ${recommended} para la primera visita: deja su casa en buen estado. Una ${own} cuesta menos.`,
     recommended: "Recomendada",
@@ -352,7 +350,7 @@ function AskedQuote({ quote }: { quote: AskedQuoteView }) {
           <Facts>
             <Fact
               icon={MapPin}
-              label={t.w.where}
+              label={t.p.where}
               value={addressOf(quote.property)}
               line={t.p.yourHome}
             />
@@ -517,7 +515,7 @@ function QuoteDetails({
         />
         <Fact
           icon={MapPin}
-          label={t.w.where}
+          label={t.p.where}
           value={addressOf(quote.property)}
           line={t.p.yourHome}
         />

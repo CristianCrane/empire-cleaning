@@ -76,16 +76,16 @@ export type LineToSay = {
 const lineWords = catalog({
   en: {
     corrected: (line: string) => `Corrected: ${line}`,
-    floor: (what: string) => `The price can't go below $0: ${what}`,
-    deposit: (what: string) => `Deposit paid: ${what}`,
-    paid: (what: string) => `Already paid: ${what}`,
+    FLOOR: "The price can't go below $0",
+    DEPOSIT: "Deposit paid",
+    PAID: "Already paid",
     credit: (number: string) => `Credit from ${number}`,
   },
   es: {
     corrected: (line: string) => `Corrección: ${line}`,
-    floor: (what: string) => `El precio no puede bajar de $0: ${what}`,
-    deposit: (what: string) => `Depósito pagado: ${what}`,
-    paid: (what: string) => `Ya pagado: ${what}`,
+    FLOOR: "El precio no puede bajar de $0",
+    DEPOSIT: "Depósito pagado",
+    PAID: "Ya pagado",
     credit: (number: string) => `Crédito de ${number}`,
   },
 });
@@ -94,25 +94,27 @@ const lineWords = catalog({
 // 4B, 11375, Monday, January 12 at 9:00 AM", "Inside the oven, not done:
 // …", "Corrected: Late cancellation fee: …", "Credit from EC-000011". On
 // its page (`onPage`), a row, a Job's are short: "Deep Clean, Mon, Jan 12,
-// 9:00 AM", its home when `onPage.home` says (billView: the Office's, or a
-// Client's with more than one, as docs/ux.md's rows say; #534's UX review
-// U8, F16)
+// 9:00 AM", its home when `onPage.home` says (billView: when its Jobs are
+// at more than one of the Client's homes; #534's UX review U8, F16). One
+// about the Job the row above names (`onPage.named`) says only what it is,
+// "Deposit paid", as that row names it (U8)
 export const lineLabel = (
   lang: Language,
   line: LineToSay,
-  onPage?: { home: boolean },
+  onPage?: { home: boolean; named?: boolean },
 ) => {
   const w = lineWords[lang];
   const kind = line.key.startsWith("adjustment:") ? "adjustment" : line.key;
   const what = () => jobNamed(lang, { clean: line.clean!, fee: null }, onPage);
+  const about = (lead: string) => (onPage?.named ? lead : `${lead}: ${what()}`);
   const said: Record<string, () => string> = {
     price: what,
-    adjustment: () => `${changeLabel(lang, line.change!)}: ${what()}`,
-    floor: () => w.floor(what()),
-    reschedule_fee: () => `${messages[lang].LATE_MOVE_FEE}: ${what()}`,
+    adjustment: () => about(changeLabel(lang, line.change!)),
+    floor: () => about(w.FLOOR),
+    reschedule_fee: () => about(messages[lang].LATE_MOVE_FEE),
     fee: () => jobNamed(lang, { clean: line.clean!, fee: line.fee }, onPage),
-    deposit: () => w.deposit(what()),
-    paid: () => w.paid(what()),
+    deposit: () => about(w.DEPOSIT),
+    paid: () => about(w.PAID),
     credit: () => w.credit(line.creditFrom!),
   };
   const words = said[kind]!();

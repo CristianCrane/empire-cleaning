@@ -345,8 +345,11 @@ Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432
   its bank payment on its way. None gives the amount, which is the total
   below.
 - Body: the Bill (`DetailsCard`: what it comes to, where that stands, a
-  payment going through started to the minute; icon facts; the lines, each
-  clean with its home and its time short).
+  payment going through started to the minute; icon facts, Where among
+  them when its cleans were all at one home; the lines, each clean with its
+  time short and its home when they were at more than one, a Deposit or
+  change under its clean saying only what it is, "Deposit paid"; every
+  date "Mon, Jan 12").
 
 #### Office > Staff
 
@@ -602,7 +605,11 @@ Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432
   payment on its way, named, and how long it usually takes (the badge
   Payment pending, as for any payment going through, and the line under the
   total when it started).
-- Body: the Bill (`DetailsCard`).
+- Body: the Bill (`DetailsCard`: what it comes to and where that stands;
+  icon facts, Where among them for a Client with more than one home when
+  its cleans were all at one; the lines, each clean with its time short and
+  its home only when they were at more than one of theirs, a Deposit or
+  change under its clean saying only what it is; every date "Mon, Jan 12").
 
 ### Signed out and signed in
 

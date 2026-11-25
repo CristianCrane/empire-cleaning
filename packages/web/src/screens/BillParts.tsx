@@ -5,6 +5,7 @@ import {
   CalendarRange,
   CreditCard,
   FileText,
+  MapPin,
   Printer,
 } from "lucide-react";
 import type { BillSummary, BillView } from "@empire-cleaning/models";
@@ -163,7 +164,7 @@ export const billLine = (lang: Language, bill: BillSummary) => {
 // how it was paid, for whoever is looking
 const paidHow = (t: T, bill: BillView, forClient: boolean) => {
   const { w } = t;
-  const on = bill.paidAt ? `, ${t.formatDate(bill.paidAt)}` : "";
+  const on = bill.paidAt ? `, ${t.dayOf(bill.paidAt)}` : "";
   switch (bill.paidVia) {
     case "charge":
       return `${forClient ? w.chargedToYour : "Charged to their card"}${on}`;
@@ -188,18 +189,18 @@ const nowLine = (t: T, bill: BillView, forClient: boolean) => {
   if (bill.status === "void") return w.wasCancelled;
   // since when, as its alert says how long it usually takes (U2)
   if (bill.status === "processing")
-    return w.notYet(t.formatDate(bill.clearingSince!));
+    return w.notYet(t.dayOf(bill.clearingSince!));
   if (bill.unpaid)
     return bill.unpaid.kind === "late"
       ? w.notPaidBy(t.formatDay(bill.dueOn))
       : asksTheClient(bill.unpaid.kind)
-        ? w.didntGo(t.formatDate(bill.unpaid.since))
+        ? w.didntGo(t.dayOf(bill.unpaid.since))
         : // to the minute for the Office, whose alert says it usually
           // takes under half an hour, so Olive can tell when it's stuck
           // (#534's UX review U9)
           w.notYet(
             forClient
-              ? t.formatDate(bill.unpaid.since)
+              ? t.dayOf(bill.unpaid.since)
               : t.formatDateTime(bill.unpaid.since),
           );
   if (bill.status === "due")
@@ -220,7 +221,7 @@ const cancelledFact = (t: T, bill: BillView) =>
   bill.status === "void" && {
     icon: Ban,
     label: t.w.cancelled,
-    value: t.w.cancelledOn(t.formatDate(bill.voidedAt!)),
+    value: t.w.cancelledOn(t.dayOf(bill.voidedAt!)),
     line: bill.voidReason ?? t.w.cancelled,
   };
 
@@ -242,7 +243,7 @@ export function BillDetail({
   jobHref: (jobId: string) => AppHref;
 }) {
   const t = useSaid(words);
-  const { w, formatDate, formatDay, formatMoney, taxIncludedOf, total } = t;
+  const { w, p, dayOf, formatDay, formatMoney, taxIncludedOf, total } = t;
   const credit = bill.totalCents < 0;
   const standing = cancelledFact(t, bill);
   const row = "flex items-start justify-between gap-6";
@@ -271,11 +272,10 @@ export function BillDetail({
           )}
           line={w.covers}
         />
-        <Fact
-          icon={CalendarDays}
-          label={w.made}
-          value={formatDate(bill.madeAt)}
-        />
+        <Fact icon={CalendarDays} label={w.made} value={dayOf(bill.madeAt)} />
+        {/* its cleans' home, when all at one and it's worth saying; else
+            each row says its own (#534's UX review U8) */}
+        {bill.home && <Fact icon={MapPin} label={p.where} value={bill.home} />}
         <Fact
           icon={CreditCard}
           label={w.howPaid}

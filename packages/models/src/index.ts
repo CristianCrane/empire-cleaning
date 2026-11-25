@@ -2179,6 +2179,10 @@ export type BillPaying =
 
 export type BillView = BillSummary & {
   lines: BillLineView[];
+  // where its cleans were, when all at one home and it's worth saying: to
+  // the Office, and to a Client with more than one home; null when its
+  // rows each say theirs, or there's only the one (#534's UX review U8)
+  home: string | null;
   // Office Staff's note on a payment made another way
   paymentNote: string | null;
   voidedAt: string | null;

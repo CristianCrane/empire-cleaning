@@ -228,11 +228,14 @@ describe("making Bills", () => {
       priceCents,
       -depositCents,
     ]);
-    // on its page the Office's lines say where, with the short time (#534's
-    // UX review U8, F16); its email has the long one, below
+    // on its page the Office reads where once, its cleans all at one home,
+    // and each line with the short time, one about the clean above saying
+    // only what it is (#534's UX review U8, F16); its email has each in
+    // full, below
+    expect(bill.home).toBe("41-12 Austin St, 4B, 11375");
     expect(bill.lines.map((l) => l.label)).toEqual([
-      "Deep Clean at 41-12 Austin St, 4B, 11375, Wed, Jan 7, 9:00 AM",
-      "Deposit paid: Deep Clean at 41-12 Austin St, 4B, 11375, Wed, Jan 7, 9:00 AM",
+      "Deep Clean, Wed, Jan 7, 9:00 AM",
+      "Deposit paid",
     ]);
     expect(bill.taxCents).toBeGreaterThan(0);
     expect(testPayments().charges.at(-1)!.amount).toBe(
@@ -1861,14 +1864,12 @@ describe("putting Bills right", () => {
         .set("Accept-Language", "es")
         .expect(200)
     ).body as BillView;
-    // which say where, as Casey has her home and her premises
+    // which say where once, as Casey has her home and her premises, and
+    // the Deposit only what it is, under its clean
+    expect(theirs.home).toBe("41-12 Austin St, 4B, 11375");
     expect(theirs.lines.map((l) => l.label).sort()).toEqual([
-      expect.stringMatching(
-        /^Corrección: Depósito pagado: Limpieza profunda en 41-12 Austin St, /,
-      ),
-      expect.stringMatching(
-        /^Corrección: Limpieza profunda en 41-12 Austin St, /,
-      ),
+      "Corrección: Depósito pagado",
+      expect.stringMatching(/^Corrección: Limpieza profunda, /),
     ]);
     expect(testEmail().lastTo(BILLING_EMAIL).subject).toBe(
       "Your bill EC-000002: a credit",
@@ -2270,6 +2271,22 @@ describe("a Bill's lines", () => {
     amountCents: 26947,
   };
 
+  test("a line about the clean the row above names says only what it is, and in full in an email", () => {
+    const deposit = { ...line, key: "deposit", amountCents: -5000 };
+    expect(lineLabel("en", deposit, { home: false, named: true })).toBe(
+      "Deposit paid",
+    );
+    expect(lineLabel("es", deposit, { home: false, named: true })).toBe(
+      "Depósito pagado",
+    );
+    expect(lineLabel("en", deposit, { home: false })).toBe(
+      "Deposit paid: Deep Clean, Wed, Jan 7, 9:00 AM",
+    );
+    expect(lineLabel("en", deposit)).toMatch(
+      /^Deposit paid: Deep Clean at 41-12 Austin St, 4B, 11375, Wednesday/,
+    );
+  });
+
   test("name a clean's home on its page only when asked, and in full in an email", () => {
     expect(lineLabel("en", line, { home: false })).toBe(
       "Deep Clean, Wed, Jan 7, 9:00 AM",
@@ -2282,24 +2299,34 @@ describe("a Bill's lines", () => {
     );
   });
 
-  test("a Client with one property reads each line without where, and the Office with it", async () => {
+  test("a Client with one property reads no where, and with two, and the Office, read it once", async () => {
     const { office, clientId } = await billedJob();
     testClock().set(NEXT_MONDAY);
     await makeDueBills();
     const [bill] = await billsOf(office, clientId);
+    const client = await signIn(casey.email);
+    const mine = async () =>
+      (await client.get(`/api/bills/mine/${bill!.id}`).expect(200))
+        .body as BillView;
+    // a home and premises: the Bill's cleans, all at the home, name it once
+    const both = await mine();
+    expect(both.home).toBe("41-12 Austin St, 4B, 11375");
+    expect(both.lines.map((l) => l.label).sort()).toEqual([
+      "Deep Clean, Wed, Jan 7, 9:00 AM",
+      "Deposit paid",
+    ]);
     // one property, as a business with only its premises has: the
     // fixture's clean is at a home, so its premises go
     await db.delete(properties).where(eq(properties.kind, "commercial"));
 
-    const client = await signIn(casey.email);
-    const theirs = (await client.get(`/api/bills/mine/${bill!.id}`).expect(200))
-      .body as BillView;
+    const theirs = await mine();
+    expect(theirs.home).toBeNull();
     expect(theirs.lines.map((l) => l.label).sort()).toEqual([
       "Deep Clean, Wed, Jan 7, 9:00 AM",
-      "Deposit paid: Deep Clean, Wed, Jan 7, 9:00 AM",
+      "Deposit paid",
     ]);
     const ours = await billOf(office, bill!.id);
-    expect(ours.lines[0]!.label).toMatch(/^Deep Clean at 41-12 Austin St, /);
+    expect(ours.home).toBe("41-12 Austin St, 4B, 11375");
   });
 });
 

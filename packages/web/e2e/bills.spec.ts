@@ -143,11 +143,11 @@ test(
     ).toContainText("To pay by Mon, Jan 26");
     await expectNothingNext(page);
     const lines = page.getByRole("region", { name: "Bill details" });
+    // the Office reads where, once, as all its cleans were at one home, and
+    // the lines say what and when (#534's review F16, UX review U8)
+    await expect(lines).toContainText("41-12 Austin St, 4B, 11375");
     await expect(
-      // the Office's lines say where (#534's review F16)
-      lines.getByRole("link", {
-        name: /^Deep Clean at 41-12 Austin St, 4B, 11375, Wed, Jan 7, /,
-      }),
+      lines.getByRole("link", { name: /^Deep Clean, Wed, Jan 7, / }),
     ).toBeVisible();
     await expect(lines).toContainText("Tax included");
     await expect(lines).toContainText("Total");
@@ -230,11 +230,13 @@ test(
     // paying it is the page's next step
     const details = page.getByRole("region", { name: "Bill details" });
     await expect(details).toContainText("To pay by Mon, Jan 26");
-    // Casey has her home and her premises, so each line says where; with one
-    // property it wouldn't (#534's UX review U8; bills.test.ts)
+    // Casey has her home and her premises, so it says where, once, as its
+    // cleans were all at one; with one property it wouldn't (#534's UX
+    // review U8; bills.test.ts)
+    await expect(details).toContainText("41-12 Austin St, 4B, 11375");
     await expect(
       details.getByRole("link", {
-        name: "Deep Clean at 41-12 Austin St, 4B, 11375, Wed, Jan 7, 9:00 AM",
+        name: "Deep Clean, Wed, Jan 7, 9:00 AM",
         exact: true,
       }),
     ).toBeVisible();
@@ -353,7 +355,7 @@ test("a Bill paid from a bank account is processing until it clears", async ({
   await expect(titleBadge(page, "Payment pending")).toBeVisible();
   await expect(
     page.getByRole("region", { name: "Bill details" }),
-  ).toContainText("Payment started Jan 12, 2026");
+  ).toContainText("Payment started Mon, Jan 12");
   await expect(
     page
       .getByRole("main")
