@@ -1,8 +1,10 @@
 import { describe, expect, test } from "vitest";
 import type {
   ClientUpcomingJob,
+  PropertyView,
   QuoteSummary,
   ServicePlanSummary,
+  UnsentQuoteSummary,
 } from "@empire-cleaning/models";
 import { standingOf, type PropertiesData } from "./properties.ts";
 
@@ -23,17 +25,39 @@ const plan = (over: Partial<ServicePlanSummary> = {}) =>
     ...over,
   }) as ServicePlanSummary;
 
-const quote = (over: Partial<QuoteSummary> = {}) =>
-  ({
-    id: "quote",
-    kind: "one_off",
-    status: "sent",
-    service: { key: "deep", name: "Deep Clean" },
-    property: home,
-    sentAt: "2026-10-28T14:00:00.000Z",
-    createdAt: "2026-10-27T14:00:00.000Z",
-    ...over,
-  }) as QuoteSummary;
+// a Quote they asked for, with nothing Sent yet
+const quote = (over: Partial<UnsentQuoteSummary> = {}): QuoteSummary => ({
+  id: "quote",
+  kind: "one_off",
+  status: "requested",
+  origin: "client",
+  asked: null,
+  service: { key: "deep", name: "Deep Clean", method: "rooms" },
+  client: { id: "client", name: "Dana Reyes", businessName: null },
+  property: home as PropertyView,
+  homePlanId: null,
+  headlineTotalCents: null,
+  headlineServiceName: null,
+  plan: null,
+  proposedStartsAt: null,
+  sentAt: null,
+  expiresAt: null,
+  drafting: false,
+  siteVisit: null,
+  turnDownReason: null,
+  createdAt: "2026-10-27T14:00:00.000Z",
+  ...over,
+});
+// one Sent to them
+const sent: QuoteSummary = {
+  ...quote(),
+  status: "sent",
+  headlineTotalCents: 39104,
+  headlineServiceName: "Deep Clean",
+  proposedStartsAt: "2026-11-08T15:00:00.000Z",
+  sentAt: "2026-10-28T14:00:00.000Z",
+  expiresAt: "2026-11-14T04:59:00.000Z",
+};
 
 const job = {
   id: "job",
@@ -51,7 +75,7 @@ const data = (over: Partial<PropertiesData> = {}): PropertiesData => ({
 describe("where a Client's home stands", () => {
   test("on a plan, its weekdays", () => {
     expect(
-      standingOf("en", home, data({ plans: [plan()], quotes: [quote()] })),
+      standingOf("en", home, data({ plans: [plan()], quotes: [sent] })),
     ).toEqual({
       tone: "success",
       label: "Cleaning plan",
@@ -80,7 +104,7 @@ describe("where a Client's home stands", () => {
 
   test("a Quote ready comes before a clean booked", () => {
     expect(
-      standingOf("en", home, data({ quotes: [quote()], jobs: [job] })),
+      standingOf("en", home, data({ quotes: [sent], jobs: [job] })),
     ).toEqual({
       tone: "warning",
       label: "Quote ready",
