@@ -6,11 +6,20 @@ export class ApiError extends Error {
   readonly status: number;
   // the API's per-field messages, keyed by the field's path (e.g. "email")
   readonly fieldErrors: Record<string, string>;
+  // what sort of 409 it is, where its message alone can't tell a screen:
+  // "approve", a payment the Client's bank wants them to approve (#534 Q7)
+  readonly kind?: "approve";
 
-  constructor(status: number, message: string, fieldErrors = {}) {
+  constructor(
+    status: number,
+    message: string,
+    fieldErrors = {},
+    kind?: "approve",
+  ) {
     super(message);
     this.status = status;
     this.fieldErrors = fieldErrors;
+    this.kind = kind;
   }
 }
 
@@ -32,6 +41,7 @@ const call = async <T>(method: string, path: string, body?: unknown) => {
       res.status,
       data?.message ?? res.statusText,
       Object.fromEntries(details.map((d) => [d.path, d.issue])),
+      data?.kind,
     );
   }
   return data as T;

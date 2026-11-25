@@ -19,6 +19,7 @@ import type {
   CancellationTerms,
   ClientJobDetail,
   JobPayment,
+  JobPayOutcome,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -61,6 +62,11 @@ import {
 } from "@empire-cleaning/models";
 import { cleanBadge } from "./clean-badge.tsx";
 import { BillStatusBadge } from "../BillParts.tsx";
+import {
+  approveAlert,
+  otherCard,
+  useApprovePayment,
+} from "./approve-payment.tsx";
 
 // in the Client's language (ADR-0025)
 const words = catalog({
@@ -138,6 +144,7 @@ const words = catalog({
     chargedTo: (card: string) => `Charged to your ${card}.`,
     restOnBill: (amount: string) =>
       `The rest, ${amount}, goes on your weekly bill.`,
+    cleanPaid: "Thank you, your clean is paid",
   },
   es: {
     details: "Detalles de la limpieza",
@@ -213,6 +220,7 @@ const words = catalog({
     chargedTo: (card: string) => `Cobrado a su ${card}.`,
     restOnBill: (amount: string) =>
       `El resto, ${amount}, va en su factura semanal.`,
+    cleanPaid: "Gracias, su limpieza está pagada",
   },
 });
 
@@ -261,7 +269,8 @@ export function PortalJob() {
 
 // What the page asks of them now (docs/ux.md, Page structure): its next
 // step is the first of these that asks something, the primary: a payment
-// to put right (unless we try again ourselves); a price change to answer,
+// their bank wants them to approve, or to put right (unless we try again
+// ourselves); a price change to answer,
 // the one that lapses first; how we get in, after the crew couldn't; while
 // it's booked, a new time. The rest wait behind its arrow, and each alert
 // says only why, a price change that isn't the next step keeping its own
@@ -286,8 +295,26 @@ function useNow(job: ClientJobDetail): {
     .sort((a, b) => a.lapsesAt!.localeCompare(b.lapsesAt!));
   const [first] = proposed;
 
+  // their bank wants them to approve it: here, with them there (#534 Q7)
+  const approving = payment.unpaid?.kind === "approve";
+  const approval = useApprovePayment({
+    needed: approving,
+    start: async () => {
+      const outcome = await postJson<JobPayOutcome>(
+        `/api/jobs/mine/${job.id}/balance/retry`,
+      );
+      return outcome.status === "done" ? outcome.job : outcome;
+    },
+    finish: (approved) =>
+      postJson<ClientJobDetail>(`/api/jobs/mine/${job.id}/balance/finish`, {
+        approved,
+      }),
+    paid: () => t.w.cleanPaid,
+  });
+  const approve = approving && approval.approve;
   const updateCard: PageAction | false = !!payment.unpaid &&
-    asksTheClient(payment.unpaid.kind) && {
+    asksTheClient(payment.unpaid.kind) &&
+    !approving && {
       label: t.UPDATE_CARD,
       icon: CreditCard,
       href: linkTo({ to: "/portal/payment-method" }),
@@ -354,10 +381,16 @@ function useNow(job: ClientJobDetail): {
           href: requestQuoteHref,
         });
 
-  const steps: (PageAction | false)[] = [updateCard, review, getIn, move];
+  const steps: (PageAction | false)[] = [
+    approve,
+    updateCard,
+    review,
+    getIn,
+    move,
+  ];
   const next = steps.find((a) => a !== false);
   // a price change that isn't the next step keeps its Review in its alert
-  const actions = [...steps, after, cancel].filter(
+  const actions = [...steps, approving && otherCard(t), after, cancel].filter(
     (a): a is PageAction => a !== false && a !== next && a !== review,
   );
   return {
@@ -367,7 +400,12 @@ function useNow(job: ClientJobDetail): {
     actions,
     // what's needed of them first, before what the clean is
     alerts: [
-      payment.unpaid && unpaid(t, payment),
+      approving
+        ? approveAlert(t, {
+            refused: approval.refused,
+            card: payment.paymentMethod ?? t.p.card,
+          })
+        : payment.unpaid && unpaid(t, payment),
       job.noAccess && noAccess(t, job),
       ...proposed.map((a): Alert => ({
         key: a.id,
@@ -931,7 +969,7 @@ function Receipt({ job }: { job: ClientJobDetail }) {
                 >
                   {t.p.bill(bill.number)}
                 </Link>
-                <BillStatusBadge bill={bill} />
+                <BillStatusBadge bill={bill} forClient />
                 {bill.refundedCents > 0 && (
                   <span className="text-sm text-fg-muted">
                     {t.w.refunded(t.formatMoney(bill.refundedCents))}
@@ -954,9 +992,11 @@ function Receipt({ job }: { job: ClientJobDetail }) {
         {owed && (
           <Figure
             label={
-              payment.unpaid && asksTheClient(payment.unpaid.kind)
-                ? t.unpaid
-                : t.paymentPending
+              payment.unpaid?.kind === "approve"
+                ? t.p.needsApproval
+                : payment.unpaid && asksTheClient(payment.unpaid.kind)
+                  ? t.unpaid
+                  : t.paymentPending
             }
             value={t.formatMoney(payment.owedCents)}
             strong

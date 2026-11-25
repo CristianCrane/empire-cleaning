@@ -83,6 +83,13 @@ export const requireApproval = (answer: Approval | null = "approved") =>
     body: JSON.stringify({ answer }),
   });
 
+// every card saved so far is one whose bank asks its holder to approve
+// each payment: one taken without them is stopped, as Unpaid for them to
+// approve, and one they make on a page asks them there (requireApproval
+// sets how it answers)
+export const savedCardsAsk = () =>
+  control("/payments/saved-cards-ask", { method: "POST" });
+
 // a booked Job at a home of its own, straight onto the Schedule, a crew of
 // 2 unless said: one Cleaner Confirmed on it can't mark it done alone
 export const bookJob = (job: {

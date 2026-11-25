@@ -45,9 +45,9 @@ import {
   moneyNow,
   namedFor,
   owedAnswer,
-  waitOf,
   yourCardTile,
 } from "./payments.ts";
+import { waitOf } from "../QuoteParts.tsx";
 
 // Home's words, in the Client's language (ADR-0025)
 const words = catalog({

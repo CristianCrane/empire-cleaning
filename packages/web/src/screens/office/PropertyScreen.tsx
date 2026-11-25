@@ -49,7 +49,7 @@ import {
 } from "../format.ts";
 import { AccessFact, ConditionFact, FloorAreaFact } from "../Fact.tsx";
 import { homeIcon, JobIcon, QuoteIcon, SiteVisitIcon } from "../icons.ts";
-import { QuoteStatusBadge } from "../QuoteParts.tsx";
+import { QuoteStatusBadge, waitOf } from "../QuoteParts.tsx";
 import {
   BookSiteVisit,
   RecordFindingsWithoutVisit,
@@ -419,7 +419,7 @@ const historyOf = (home: OfficePropertyView): HistoryEvent[] =>
       icon: QuoteIcon,
       kind: "Quote",
       what: quoteNamed(quote),
-      status: <QuoteStatusBadge status={quote.status} />,
+      status: <QuoteStatusBadge status={quote.status} wait={waitOf(quote)} />,
       href: linkTo({
         to: "/office/quotes/$quoteId",
         params: { quoteId: quote.id },

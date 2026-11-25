@@ -711,11 +711,12 @@ const payWords = catalog({
 });
 
 // a payment on a Bill's page that took nothing, as the dialog says it: never
-// approved, or why it didn't go through when that's known
+// approved (kind "approve", for the page to offer it again), or why it didn't
+// go through when that's known
 const nothingTaken = (reason: string) => {
   const lang = currentLanguage();
   if (NOT_APPROVED(reason))
-    return new ConflictError(payWords[lang].notApproved);
+    return new ConflictError(payWords[lang].notApproved, "approve");
   const { why } = whyNotPaid(lang, reason);
   return new ConflictError(payWords[lang].notThrough(because(why)));
 };

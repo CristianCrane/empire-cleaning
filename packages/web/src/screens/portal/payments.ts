@@ -16,11 +16,20 @@ import { linkTo, type AppHref } from "../../links.ts";
 import { addressOf, lineOf, pausedPlans } from "../format.ts";
 import type { Hero, Why } from "./HeroCard.tsx";
 import { said, saidWith, type Said } from "../words.ts";
+import { waitOf } from "../QuoteParts.tsx";
 
 // in the Client's language (ADR-0025)
 const words = catalog({
   en: {
     toPay: "To pay",
+    // a payment their bank wants them to approve on its page (#534 Q7):
+    // the card's label, and its alert's sentence
+    toApprove: "To approve",
+    approveClean: "Your bank wants you to approve your clean's payment",
+    approveBill: (n: string) =>
+      `Your bank wants you to approve your payment for bill ${n}`,
+    approveMany: (n: number) => `Your bank wants you to approve ${n} payments`,
+    nothingTakenYet: "Nothing has been taken yet.",
     billDue: (n: string, day: string) => `Bill ${n} is due by ${day}`,
     andMore: (first: string, n: number) => `${first}, and ${n} more`,
     // their last payment on a Bill's page, for a sentence to end (#534)
@@ -59,6 +68,12 @@ const words = catalog({
   },
   es: {
     toPay: "Por pagar",
+    toApprove: "Por aprobar",
+    approveClean: "Su banco quiere que apruebe el pago de su limpieza",
+    approveBill: (n: string) =>
+      `Su banco quiere que apruebe su pago de la factura ${n}`,
+    approveMany: (n: number) => `Su banco quiere que apruebe ${n} pagos`,
+    nothingTakenYet: "Aún no se ha cobrado nada.",
     billDue: (n: string, day: string) => `La factura ${n} vence el ${day}`,
     andMore: (first: string, n: number) => `${first}, y ${n} más`,
     failedFor: (n: string, why: string | null) =>
@@ -113,6 +128,9 @@ type Owed = {
   cents: number;
   // something failed or is past its due date, not just waiting on them
   late: boolean;
+  // all of it a payment their bank wants them to approve, on its page
+  // (#534 Q7): theirs to do, and no failure
+  approve: boolean;
   // whether it asks anything of them: false for a payment we try again
   // ourselves (a Bill's or a clean's), which waits on us, and the card
   // says so calmly (owedAnswer)
@@ -137,6 +155,8 @@ type Owing = {
   cents: number;
   late: boolean;
   asks: boolean;
+  // a payment their bank wants them to approve, on its page
+  approve?: boolean;
   line?: string;
   news?: string;
   failed?: boolean;
@@ -200,6 +220,19 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
       .filter((b) => b.unpaid && b.status === "due")
       .map((b): Owing => {
         const asks = asksTheClient(b.unpaid!.kind);
+        // their bank wants them to approve it: they do, on its page
+        if (b.unpaid!.kind === "approve") {
+          return {
+            cents: b.totalCents,
+            late: false,
+            asks,
+            approve: true,
+            bill: b.id,
+            line: t.p.bill(b.number),
+            news: w.approveBill(b.number),
+            action: { label: t.APPROVE_PAYMENT, href: billLink(b.id) },
+          };
+        }
         return {
           cents: b.totalCents,
           // one the payment service is trying again asks nothing yet, and
@@ -250,6 +283,21 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
       .filter((j) => j.unpaid)
       .map((j): Owing => {
         const asks = asksTheClient(j.unpaid!);
+        const page = linkTo({
+          to: "/portal/jobs/$jobId",
+          params: { jobId: j.id },
+        });
+        if (j.unpaid === "approve") {
+          return {
+            cents: j.owedCents,
+            late: false,
+            asks,
+            approve: true,
+            line: t.p.yourClean(shortDayOf(j.startsAt)),
+            news: w.approveClean,
+            action: { label: t.APPROVE_PAYMENT, href: page },
+          };
+        }
         return {
           cents: j.owedCents,
           late: asks,
@@ -259,13 +307,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
             : { line: t.p.yourClean(shortDayOf(j.startsAt)) }),
           // we try one waiting on the payment service again ourselves
           action: !asks
-            ? {
-                label: t.p.seeTheClean,
-                href: linkTo({
-                  to: "/portal/jobs/$jobId",
-                  params: { jobId: j.id },
-                }),
-              }
+            ? { label: t.p.seeTheClean, href: page }
             : { label: t.UPDATE_CARD, href: cardLink },
         };
       }),
@@ -298,8 +340,13 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         action: { label: t.p.payTheBill, href: billLink(b.id) },
       })),
   ];
-  // what asks something of them leads (the sort keeps the order otherwise)
-  owing.sort((a, b) => Number(b.asks) - Number(a.asks));
+  // what asks something of them leads, and of that, what's late, before a
+  // payment their bank wants them to approve (the sort keeps the order
+  // otherwise)
+  owing.sort(
+    (a, b) =>
+      Number(b.asks) - Number(a.asks) || Number(b.late) - Number(a.late),
+  );
   const [first] = owing;
   // the card is the one that leads, and what's like it: one we try again
   // ourselves isn't added to what asks to be paid, as it can't be (#533)
@@ -310,13 +357,16 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         ? first.line
         : w.andMore(first.line, alike.length - 1)
       : null;
+  const approve = alike.length > 0 && alike.every((o) => o.approve);
+  const why = whyOf(alike, line !== null, w);
   const owed: Owed | null = first
     ? {
         cents: alike.reduce((sum, o) => sum + o.cents, 0),
         late: alike.some((o) => o.late),
+        approve,
         asks: first.asks,
         line,
-        why: whyOf(alike, line !== null, w),
+        why: approve && why ? `${why} ${w.nothingTakenYet}` : why,
         waiting: waitingOf(alike, w),
         action: first.action,
       }
@@ -356,6 +406,10 @@ function whyOf(
   const sentence = (() => {
     if (news.length === 0) return null;
     if (lineShown || failed.length === alike.length) {
+      // only what their bank wants them to approve is news (#534 Q7)
+      if (failed.length === 0) {
+        return news.length === 1 ? news[0]!.news! : w.approveMany(news.length);
+      }
       if (failed.length > 1) return w.failedMany(failed.length);
       // the card's line names the one Bill, so its alert needn't
       return (
@@ -409,30 +463,6 @@ export function pausedLine(
 // design, Screen 2: Home's card while one goes through)
 export const depositOf = (lang: Language, service: string | null) =>
   service ? words[lang].depositFor(service) : words[lang].planDeposit;
-
-// what a Sent Quote waits on when it's nothing of theirs (#534's UX design,
-// Screens 2 to 4): its Deposit going through, a card saved with it (a 0%
-// Deposit) finishing, or its time filled since it was sent. Home, a home's
-// page, the quote's own page and Payments name it alike, and none asks them
-// anything
-export type QuoteWait = "payment" | "booking" | "filled";
-export function waitOf(
-  q: Pick<QuoteSummary, "status" | "paying" | "bookable">,
-): QuoteWait | null {
-  if (q.status !== "sent") return null;
-  if (q.paying?.status === "goingThrough") {
-    return q.paying.depositCents === 0 ? "booking" : "payment";
-  }
-  return q.bookable?.length === 0 ? "filled" : null;
-}
-export const waitLabelOf = (lang: Language, wait: QuoteWait) => {
-  const { paymentPending, bookingPending, timeUnavailable } = said[lang];
-  return {
-    payment: paymentPending,
-    booking: bookingPending,
-    filled: timeUnavailable,
-  }[wait];
-};
 
 // a quote's payment as Home names it: a plan by its home; a clean by the
 // Service paid for (the server's, there with any one-off's payment) and, in
@@ -489,7 +519,7 @@ export function owedAnswer(
   }
   return {
     hero: {
-      label: t.w.toPay,
+      label: owed.approve ? t.w.toApprove : t.w.toPay,
       // money, not a warning: the warning's triangle is a Notice's
       icon: Wallet,
       tone: owed.late ? "danger" : "warning",
@@ -501,7 +531,11 @@ export function owedAnswer(
       ],
       action: owed.action,
     },
-    ...(owed.why && { why: { tone: "danger", lead: owed.why } }),
+    // what went wrong; or, nothing late, their bank wanting them to approve
+    // a payment, theirs to do and no failure
+    ...(owed.why && {
+      why: { tone: owed.late ? "danger" : "warning", lead: owed.why },
+    }),
   };
 }
 

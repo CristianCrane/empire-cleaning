@@ -22,7 +22,8 @@ export type CleanState = {
 };
 
 // A clean's badge: where two states hold, the one waiting on the Client
-// first (unpaid, then a price change to OK), then what happened, a payment
+// first (a payment their bank wants them to approve, amber as it's no
+// failure; unpaid; then a price change to OK), then what happened, a payment
 // we try again ourselves after those, as it waits on us ("Payment pending",
 // a Bill's word for it too), and the same word on each of
 // their screens, the Cleans list and the clean's page (the `ui` skill, a
@@ -31,6 +32,8 @@ export type CleanState = {
 // (`plain`), and a row with none has none, so a list's Status shows only
 // while a row has one.
 export function cleanBadge(t: Said, clean: CleanState, plain = false) {
+  if (clean.unpaid === "approve")
+    return <StatusBadge tone="warning">{t.p.needsApproval}</StatusBadge>;
   if (clean.unpaid && asksTheClient(clean.unpaid))
     return <StatusBadge tone="danger">{t.unpaid}</StatusBadge>;
   if (clean.priceChange)

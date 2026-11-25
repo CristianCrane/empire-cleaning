@@ -74,7 +74,12 @@ export {
   whyNoRoom,
   type NoRoom,
 } from "./jobs.ts";
-export { asksTheClient, because, officeFix } from "./payments.ts";
+export {
+  asksTheClient,
+  because,
+  CLIENT_TO_APPROVE,
+  officeFix,
+} from "./payments.ts";
 export {
   acceptedWith,
   type AcceptedWith,

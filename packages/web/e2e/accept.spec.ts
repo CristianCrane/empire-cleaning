@@ -14,6 +14,7 @@ import {
   openTile,
   listRows,
   saveACard,
+  savedCardsAsk,
   pageAction,
   expectNoPageAction,
   expectNextStep,
@@ -554,7 +555,7 @@ const recordAcceptance = (page: Page) =>
 
 // it waits on no one, so it's calm, info, as the Office's Bill says the
 // same wait, and Record acceptance waits till it's done
-test("Office Staff see a Deposit the Client's bank is finishing as going through, calm, with Record acceptance waiting on it", async ({
+test("Office Staff see a Deposit the Client's bank is finishing as going through, calm, with Record acceptance waiting on it, and its badge says so on the list", async ({
   page,
   browser,
 }) => {
@@ -578,6 +579,14 @@ test("Office Staff see a Deposit the Client's bank is finishing as going through
     page.getByText(/^Also offered: Standard Clean \$[\d,.]+$/),
   ).toBeVisible();
   await expect(page.getByText(/^Also offered: Deep Clean/)).toHaveCount(0);
+
+  // the Office's badge, on the quote and its list, says what Casey's does
+  // while it goes through: it's on its way, and nothing of hers (#534 Q7)
+  await page.goto("/office/quotes");
+  const row = listRows(page, "Quotes").filter({ hasText: "Casey Client" });
+  await expect(row).toContainText("Payment pending");
+  await row.click();
+  await expect(titleBadge(page, "Payment pending")).toBeVisible();
 });
 
 // one that took nothing says how it ended, in the Office's Bill's words for
@@ -614,6 +623,41 @@ test("Office Staff see a Deposit payment the Client's bank never approved took n
       .getByRole("alertdialog", { name: "Record acceptance?" })
       .getByRole("radio", { name: "Deep Clean" }),
   ).toBeChecked();
+});
+
+// #534 Q7: Casey's saved card is one whose bank asks them to approve each
+// payment, so Olive's charge for their yes by phone is stopped: it's
+// theirs to accept on their quote, and the dialog says so, with nothing
+// left to press but Close
+test("Office Staff recording acceptance on a card whose bank asks the Client to approve are told it's theirs to accept", async ({
+  page,
+  browser,
+}) => {
+  await quoteSent(page, olive, casey);
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  await client.goto("/portal/payment-method");
+  await saveACard(client).save.click();
+  await expect(
+    client.getByText("Your Test card ending 4242 is saved"),
+  ).toBeVisible();
+  await savedCardsAsk();
+
+  await page.reload();
+  await pageAction(page, "Record acceptance");
+  const confirm = page.getByRole("alertdialog", { name: "Record acceptance?" });
+  await confirm.getByRole("button", { name: "Charge and book" }).click();
+
+  await expect(confirm).toContainText(
+    /Casey Client's bank wants them to approve the \$[\d.]+ deposit themselves\. Nothing was charged or booked\. They can accept on their quote's page, and their bank will ask them there\./,
+  );
+  // its only action, beside the title row's X
+  await expect(confirm.getByRole("button").filter({ hasText: /./ })).toHaveText(
+    ["Close"],
+  );
+  await expect(emailsTo(casey.email)).resolves.not.toContainEqual(
+    expect.objectContaining({ subject: "Your clean is booked" }),
+  );
 });
 
 test("Office Staff see why a Client's Deposit payment didn't go through", async ({

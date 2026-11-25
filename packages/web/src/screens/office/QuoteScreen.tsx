@@ -132,6 +132,7 @@ import {
   PlanSaving,
   PlanTotals,
   QuoteStatusBadge,
+  goingThrough,
   planDayTitle,
 } from "../QuoteParts.tsx";
 import { homeCrumbs } from "./trails.ts";
@@ -237,7 +238,15 @@ export function QuoteScreen() {
       title={`${kind} for ${clientName(quote.client)}`}
       status={
         <>
-          <QuoteStatusBadge status={quote.status} />
+          <QuoteStatusBadge
+            status={quote.status}
+            // the Deposit going through, as the Client's page says
+            wait={
+              quote.paying?.finishing
+                ? goingThrough(quote.paying.depositCents)
+                : null
+            }
+          />
           {revising && <DraftChangesBadge />}
         </>
       }
@@ -1279,7 +1288,9 @@ function EmailCardLink({ quote }: { quote: OfficeQuote }) {
 // finishing it past its end time (#534), the page reloads under it, and
 // it's greyed with the one rule's alert in place of the refusal; or, their
 // bank having approved it just before, the quote is accepted with what
-// they paid for, which a toast says
+// they paid for, which a toast says. Refused as the Client's bank wants
+// them to approve the Deposit themselves, that's all it says, with Close,
+// as there's nothing to press again (#534 Q7)
 function RecordAcceptanceDialog({
   quote,
   drafting,
@@ -1335,6 +1346,25 @@ function RecordAcceptanceDialog({
     );
     if (ok) close();
   };
+
+  if (action.problemKind === "approve") {
+    // its first sentence, what happened, the lead
+    const [lead, ...rest] = action.problem!.split(/(?<=\.) /);
+    return (
+      <Dialog title="Record acceptance?" role="alertdialog" {...state}>
+        {({ close }) => (
+          <>
+            <Notice tone="warning" answers>
+              <strong>{lead}</strong> {rest.join(" ")}
+            </Notice>
+            <Actions>
+              <Button onPress={close}>Close</Button>
+            </Actions>
+          </>
+        )}
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog title="Record acceptance?" role="alertdialog" {...state}>

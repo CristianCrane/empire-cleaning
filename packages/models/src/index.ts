@@ -817,10 +817,13 @@ export type NeedsAttentionItem =
       job: ScheduledJob;
     }
   | {
-      // a Completed Job whose Balance, or part of it, couldn't be charged
+      // a Completed Job whose Balance, or part of it, couldn't be charged;
+      // `unpaid` why, as the row says (one the Client's bank wants them to
+      // approve is theirs to do, #534 Q7)
       kind: "job_unpaid";
       since: string;
       job: ScheduledJob;
+      unpaid: UnpaidKind;
       owedCents: number;
     }
   | {

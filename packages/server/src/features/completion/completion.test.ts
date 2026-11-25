@@ -690,6 +690,7 @@ describe("an Unpaid Job", () => {
       expect.objectContaining({
         kind: "job_unpaid",
         since: MONDAY_11AM.toISOString(),
+        unpaid: "declined",
         owedCents: deep.totalCents - deep.depositCents,
       }),
     );
@@ -989,6 +990,13 @@ describe("a Job's payment the Client's bank wants them to approve", () => {
           .send({ approved })
           .expect(200)
           .then((r) => r.body as ClientJobDetail),
+      // not approved: nothing taken, said so, as a Bill's page says it
+      refuse: () =>
+        booked.client
+          .post(`/api/jobs/mine/${booked.jobId}/balance/finish`)
+          .send({ approved: false })
+          .expect(409)
+          .then((r) => r.body as { message: string; kind?: string }),
     };
   };
 
@@ -1019,13 +1027,18 @@ describe("a Job's payment the Client's bank wants them to approve", () => {
   });
 
   test("turned down at their bank, takes nothing and is called off, and the next press starts afresh", async () => {
-    const { deep, pay, finish } = await doneOnApprovalCard();
+    const { office, jobId, deep, pay, finish, refuse } =
+      await doneOnApprovalCard();
     const first = await pay();
     if (first.status !== "needs_approval") throw new Error("not asked");
     testPayments().requireApproval("refused");
 
-    const refused = await finish(false);
-    expect(refused.completion!.payment.unpaid).toMatchObject({
+    expect(await refuse()).toEqual({
+      message:
+        "Your payment wasn't approved, so nothing was taken. Please try again, or use another card.",
+      kind: "approve",
+    });
+    expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
       kind: "approve",
     });
     expect(amounts()).toEqual([deep.depositCents]);

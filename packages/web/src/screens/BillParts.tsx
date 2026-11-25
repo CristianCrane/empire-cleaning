@@ -1,4 +1,9 @@
-import { asksTheClient, catalog, type Language } from "@empire-cleaning/models";
+import {
+  CLIENT_TO_APPROVE,
+  asksTheClient,
+  catalog,
+  type Language,
+} from "@empire-cleaning/models";
 import {
   Ban,
   CalendarDays,
@@ -45,6 +50,7 @@ const words = catalog({
     wasCancelled: "Nothing to pay: it was cancelled",
     notPaidBy: (day: string) => `Not paid by ${day}`,
     didntGo: (day: string) => `Payment didn't go through ${day}`,
+    notPaidYet: "Not paid yet",
     // one the payment service is trying again, which we see to, or a bank
     // debit on its way: the badge says it's pending; "started", as "tried"
     // reads as failed
@@ -88,6 +94,7 @@ const words = catalog({
     wasCancelled: "Nada que pagar: se canceló",
     notPaidBy: (day: string) => `No se pagó antes del ${day}`,
     didntGo: (day: string) => `El pago no pasó el ${day}`,
+    notPaidYet: "Aún no se ha pagado",
     notYet: (day: string) => `Pago iniciado el ${day}`,
     toPayBy: (day: string) => `A pagar antes del ${day}`,
     toBeCharged: "Se cobrará a su tarjeta",
@@ -113,10 +120,12 @@ type T = Said & { w: (typeof words)["en"] };
 // where a Bill stands: what's left to do about it, or how it ended
 export function BillStatusBadge({
   bill,
+  forClient = false,
 }: {
   bill: Pick<BillSummary, "status" | "unpaid" | "paying" | "totalCents">;
+  forClient?: boolean;
 }) {
-  const { w, unpaid, paymentPending } = useSaid(words);
+  const { w, p, unpaid, paymentPending } = useSaid(words);
   if (bill.status === "void") return <StatusBadge>{w.cancelled}</StatusBadge>;
   // a bank debit on its way, and one we try again ourselves, wait on us
   // (ADR-0022), as a clean's does: one word for one wait, however long it
@@ -126,6 +135,14 @@ export function BillStatusBadge({
     (bill.unpaid && !asksTheClient(bill.unpaid.kind))
   )
     return <StatusBadge tone="info">{paymentPending}</StatusBadge>;
+  // the Client's bank wants them to approve its payment (#534 Q7): theirs
+  // to do, on its page, and no failure, as a clean's says
+  if (bill.unpaid?.kind === "approve" && bill.paying?.status !== "failed")
+    return (
+      <StatusBadge tone="warning">
+        {forClient ? p.needsApproval : CLIENT_TO_APPROVE}
+      </StatusBadge>
+    );
   // the Client's last payment on its page didn't go through, as a card we
   // charged that was declined: one event, one badge, however it's paid.
   // One their bank asks them to approve is still Due, theirs to finish
@@ -197,16 +214,19 @@ const nowLine = (t: T, bill: BillView, forClient: boolean) => {
   if (bill.unpaid)
     return bill.unpaid.kind === "late"
       ? w.notPaidBy(t.formatDay(bill.dueOn))
-      : asksTheClient(bill.unpaid.kind)
-        ? w.didntGo(t.dayOf(bill.unpaid.since))
-        : // to the minute for the Office, whose alert says it usually
-          // takes under half an hour, so Olive can tell when it's stuck
-          // (#534's UX review U9)
-          w.notYet(
-            forClient
-              ? t.dayOf(bill.unpaid.since)
-              : t.formatDateTime(bill.unpaid.since),
-          );
+      : // its alert says why: the Client's bank wants them to approve it
+        bill.unpaid.kind === "approve"
+        ? w.notPaidYet
+        : asksTheClient(bill.unpaid.kind)
+          ? w.didntGo(t.dayOf(bill.unpaid.since))
+          : // to the minute for the Office, whose alert says it usually
+            // takes under half an hour, so Olive can tell when it's stuck
+            // (#534's UX review U9)
+            w.notYet(
+              forClient
+                ? t.dayOf(bill.unpaid.since)
+                : t.formatDateTime(bill.unpaid.since),
+            );
   if (bill.status === "due")
     return bill.payment === "on_page"
       ? w.toPayBy(t.formatDay(bill.dueOn))

@@ -176,6 +176,15 @@ function standing(bill: BillView): Alert | null {
       children: `The client's payment on ${formatShortDay(dayOfInstant(bill.paying.at))} wasn't approved, so nothing was taken. They can try again on its page.`,
     };
   }
+  // the Client's bank wants them to approve its payment (#534 Q7): theirs
+  // to do on its page, as we've emailed them, and no failure
+  if (bill.unpaid?.kind === "approve") {
+    return {
+      key: "unpaid",
+      tone: "warning",
+      children: `${firstNameOf(bill.client.name)}'s bank wants them to approve this bill's payment. Nothing was taken. We've emailed them to approve it on the bill's page.${plansPaused(bill)}`,
+    };
+  }
   if (bill.unpaid) {
     const { kind, why } = bill.unpaid;
     // when is the line under its total's (UX review U5)

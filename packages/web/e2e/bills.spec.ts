@@ -28,6 +28,7 @@ import {
   payThisBill,
   requireApproval,
   returnToTab,
+  savedCardsAsk,
   setClock,
   settleOpenPayments,
   titleBadge,
@@ -544,6 +545,69 @@ test("a Client's payment their bank asks them to approve: refused, left waiting 
   await expect(titleBadge(page, "Paid")).toBeVisible();
   await office.reload();
   await expect(titleBadge(office, "Paid")).toBeVisible();
+});
+
+// #534 Q7: Casey's card is one whose bank asks them to approve each
+// payment, so the Bill's automatic Charge was stopped, for them to approve
+// on its page; meanwhile their plan is paused, as for any Bill unpaid
+const billedOnACardThatAsks = async () => {
+  const billed_ = await billed({
+    plan: true,
+    failing: "authentication_required",
+  });
+  await failCharges(null);
+  await savedCardsAsk();
+  return billed_;
+};
+
+test("a Bill's payment the Client's bank wants them to approve is theirs to approve on its page, and turned down takes nothing", async ({
+  page,
+}) => {
+  const { billId } = await billedOnACardThatAsks();
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/bills/${billId}`);
+  await expect(titleBadge(page, "Needs approval")).toBeVisible();
+  await expect(
+    page.getByText(
+      /^Your bank wants you to approve this payment\. Nothing has been taken from your card yet\. Until it's paid, we won't book more cleans on your plan\.$/,
+    ),
+  ).toBeVisible();
+  await expectNextStep(page, "Approve payment");
+
+  await requireApproval("refused");
+  await pageAction(page, "Approve payment");
+  await expect(
+    page.getByText(
+      /^The payment wasn't approved\. Nothing was taken\. You can try again\. Until it's paid, we won't book more cleans on your plan\.$/,
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Use a different card" }),
+  ).toBeVisible();
+  await expectNextStep(page, "Approve payment");
+});
+
+test("Office Staff see a Bill's payment is the Client's to approve, emailed so, its plan paused", async ({
+  page,
+}) => {
+  const { billId } = await billedOnACardThatAsks();
+  await signedInAs(page, olive.email);
+  const attention = await openTile(page, "Money");
+  const row = attention
+    .getByRole("row")
+    .filter({ hasText: "Bill EC-000001 ·" });
+  await expect(row).toContainText("Client to approve");
+  await row.click();
+  await expect(page).toHaveURL(`/office/bills/${billId}`);
+
+  await expect(titleBadge(page, "Client to approve")).toBeVisible();
+  await expect(
+    page.getByText(
+      /^Casey's bank wants them to approve this bill's payment\. Nothing was taken\. We've emailed them to approve it on the bill's page\. Until it's paid, the client's cleaning plan at 41-12 Austin St, 4B, 11375 is paused\.$/,
+    ),
+  ).toBeVisible();
+  // a payment made another way is still hers to record
+  await expectNextStep(page, "Record a payment");
 });
 
 test("only the Client can open their Bill", async ({ page }) => {

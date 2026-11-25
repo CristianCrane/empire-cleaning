@@ -32,10 +32,9 @@ import { useAction } from "../action.ts";
 import { addressOf } from "../format.ts";
 import { useSaid } from "../words.ts";
 import { AccessFact, ConditionFact, FloorAreaFact } from "../Fact.tsx";
-import { waitLabelOf, waitOf } from "./payments.ts";
 import { planWhen, quoteTitle, standingOf } from "./properties.ts";
 import { PlanStatusBadge } from "../PlanParts.tsx";
-import { ClientQuoteStatusBadge } from "../QuoteParts.tsx";
+import { ClientQuoteStatusBadge, waitLabelOf, waitOf } from "../QuoteParts.tsx";
 import { requestQuoteHref } from "./whats-next.ts";
 
 // in the Client's language (ADR-0025)

@@ -671,9 +671,12 @@ describe("a Bill payment the Client's bank asks them to approve", () => {
     // pressed Pay again: the first is called off, and a new one asked
     await pay().expect(200);
     // they closed their bank's box
-    expect((await finish(false).expect(409)).body.message).toBe(
-      "Your payment wasn't approved, so nothing was taken. Please try again, or use another card or bank account.",
-    );
+    // of kind "approve", for the page to offer it again
+    expect((await finish(false).expect(409)).body).toEqual({
+      message:
+        "Your payment wasn't approved, so nothing was taken. Please try again, or use another card or bank account.",
+      kind: "approve",
+    });
     const notApproved = { status: "notApproved" };
     expect(await billOf(office, id)).toMatchObject({
       status: "due",

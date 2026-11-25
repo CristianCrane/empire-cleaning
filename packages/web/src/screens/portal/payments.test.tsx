@@ -11,10 +11,9 @@ import {
   owedAnswer as owedAnswerIn,
   pausedLine as pausedLineIn,
   paymentRow as paymentRowIn,
-  waitLabelOf,
-  waitOf,
   type PaymentsData,
 } from "./payments.ts";
+import { waitLabelOf, waitOf } from "../QuoteParts.tsx";
 
 // in English, as these tests read them; the Spanish follows the same rules
 const moneyNow = (data: PaymentsData) => moneyNowIn(data, "en");
@@ -393,6 +392,74 @@ describe("the owed card", () => {
     const { hero } = owedAnswer(data({ bills: [bill()] }));
     expect(hero).toMatchObject({ label: "To pay", tone: "warning" });
     expect(hero.action?.secondary).toBeUndefined();
+  });
+});
+
+// #534 Q7: their bank wants them to approve a payment we tried, which they
+// do on its page; theirs to do, and no failure
+describe("a payment their bank wants them to approve", () => {
+  const clean = { ...unpaidClean, unpaid: "approve" } as ClientPastJob;
+  const approveBill = bill({
+    unpaid: { since: "", kind: "approve", why: null },
+  });
+
+  test("a clean's: to approve, amber, on the clean's page", () => {
+    const answer = owedAnswer(data({ pastJobs: [clean] }));
+    expect(answer).toEqual({
+      hero: expect.objectContaining({
+        label: "To approve",
+        tone: "warning",
+        headline: "$184.50",
+        lines: ["Your Oct 20 clean"],
+        action: {
+          label: "Approve payment",
+          href: { to: "/portal/jobs/$jobId", params: { jobId: "job" } },
+        },
+      }),
+      why: {
+        tone: "warning",
+        lead: "Your bank wants you to approve your clean's payment. Nothing has been taken yet.",
+      },
+    });
+  });
+
+  test("a Bill's: on the Bill's page, named", () => {
+    const answer = owedAnswer(data({ bills: [approveBill] }));
+    expect(answer.hero).toMatchObject({
+      label: "To approve",
+      tone: "warning",
+      lines: ["Bill EC-000041"],
+      action: {
+        label: "Approve payment",
+        href: { to: "/portal/bills/$billId", params: { billId: "bill" } },
+      },
+    });
+    expect(answer.why?.lead).toBe(
+      "Your bank wants you to approve your payment for bill EC-000041. Nothing has been taken yet.",
+    );
+  });
+
+  test("two are counted", () => {
+    expect(
+      owedAnswer(data({ pastJobs: [clean], bills: [approveBill] })).why?.lead,
+    ).toBe(
+      "Your bank wants you to approve 2 payments. Nothing has been taken yet.",
+    );
+  });
+
+  test("beside a declined clean, that's what's late and leads, red", () => {
+    const answer = owedAnswer(
+      data({ pastJobs: [unpaidClean], bills: [approveBill] }),
+    );
+    expect(answer.hero).toMatchObject({
+      label: "To pay",
+      tone: "danger",
+      action: { label: "Update your card" },
+    });
+    expect(answer.why).toEqual({
+      tone: "danger",
+      lead: "We couldn't take payment for your Oct 20 clean, and 1 more.",
+    });
   });
 });
 

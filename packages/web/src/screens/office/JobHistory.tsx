@@ -5,6 +5,7 @@ import {
   CalendarClock,
   CalendarX,
   CircleAlert,
+  ShieldAlert,
   CircleCheck,
   CircleX,
   CreditCard,
@@ -231,7 +232,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
     moments.push({
       key: "unpaid",
       at: unpaid.since,
-      icon: CircleAlert,
+      icon: unpaid.kind === "approve" ? ShieldAlert : CircleAlert,
       // named as its charge would be once it goes through: what's owed once
       // done is the Balance, once it didn't happen its fee
       title: `${
@@ -240,7 +241,13 @@ const momentsOf = (job: OfficeJob): Moment[] => {
           : wontHappen(job)
             ? feeNameOf(job)
             : "Payment"
-      } of ${formatMoney(job.payment!.owedCents)} didn't go through`,
+      } of ${formatMoney(job.payment!.owedCents)} ${
+        // their bank wanting them to approve it took nothing, and isn't a
+        // failure (#534 Q7)
+        unpaid.kind === "approve"
+          ? `needs ${firstNameOf(job.client.name)}'s approval`
+          : "didn't go through"
+      }`,
     });
   }
   // newest first; of two at the same moment, the later told first: a

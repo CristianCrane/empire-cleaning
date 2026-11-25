@@ -7,7 +7,8 @@ import type {
 } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
 import { said, saidWith } from "../words.ts";
-import { depositOf, waitLabelOf, waitOf } from "./payments.ts";
+import { depositOf } from "./payments.ts";
+import { waitLabelOf, waitOf } from "../QuoteParts.tsx";
 
 // in the Client's language (ADR-0025)
 const words = catalog({

@@ -254,6 +254,13 @@ export class FakePaymentGateway implements PaymentGateway {
     return { kind: "refund_failed", chargeId, refundId };
   }
 
+  // every card saved so far is one whose bank asks its holder to approve
+  // each payment (alwaysApproval): one taken without them is stopped, and
+  // one they make on a page asks them there
+  savedCardsAsk() {
+    for (const id of this.cards.keys()) this.cards.set(id, "alwaysApproval");
+  }
+
   // a card entered just now needs its holder's approval from now on, which
   // their bank then gives, refuses, or is still waiting on; null to stop
   requireApproval(then: Approval | null = "approved") {

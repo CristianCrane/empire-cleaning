@@ -2,6 +2,7 @@ import {
   clientPaying as clientPayingWords,
   depositAlertOf,
   formats,
+  HOUR_MS,
 } from "@empire-cleaning/models";
 import { describe, expect, test, vi } from "vitest";
 import { sql } from "drizzle-orm";
@@ -1073,6 +1074,28 @@ describe("while the Client's bank is approving the Deposit", () => {
     expect(
       (await client.get(`/api/quotes/mine/${quote.id}`).expect(200)).body,
     ).toMatchObject({ status: "sent", paying: { status: "goingThrough" } });
+  });
+
+  // the Office's Today, as her badge says Payment pending (#534 Q7)
+  test("while their bank finishes it, Today asks the Office nothing of it", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testClock().set(new Date(Date.parse(quote.offer!.expiresAt!) - HOUR_MS));
+    const expiring = async () =>
+      (await needsAttention(office)).filter(
+        (i) => i.kind === "quote_expiring" || i.kind === "quote_no_room",
+      );
+    expect(await expiring()).toHaveLength(1);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+    testPayments().requireApproval("processing");
+    await finalize(client, quote).expect(200);
+    // and its day fills meanwhile
+    await bookedJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 16 });
+
+    expect(await expiring()).toEqual([]);
   });
 
   test("declining once their bank has just approved it books it, and says so", async () => {

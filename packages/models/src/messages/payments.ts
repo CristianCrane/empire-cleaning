@@ -183,6 +183,11 @@ export const payments = catalog({
 // server and every screen that offers a way to put it right
 export const asksTheClient = (kind: UnpaidKind) => kind !== "waiting";
 
+// a payment the Client's bank wants them to approve, as the Office names it
+// on a Job's and a Bill's badge and Money (#534 Q7): theirs to do, on its
+// page, and no failure
+export const CLIENT_TO_APPROVE = "Client to approve";
+
 // what happens next, once a payment didn't go through, as the Office reads
 // it, in English (ADR-0025)
 export const officeFix: Record<UnpaidKind, string> = {

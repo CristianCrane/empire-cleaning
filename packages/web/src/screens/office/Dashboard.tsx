@@ -10,7 +10,7 @@ import type {
   NeedsAttentionKind,
   ScheduleDay,
 } from "@empire-cleaning/models";
-import { MINUTE_MS, formats } from "@empire-cleaning/models";
+import { CLIENT_TO_APPROVE, MINUTE_MS, formats } from "@empire-cleaning/models";
 import {
   CalendarClock,
   CalendarDays,
@@ -339,11 +339,14 @@ function useRowFor() {
       }
       case "job_unpaid": {
         const { job } = item;
+        // the Client's bank wants them to approve it: theirs to do, as
+        // we've emailed them, and no failure (#534 Q7)
+        const approve = item.unpaid === "approve";
         return {
           key: `job_unpaid ${job.id}`,
-          action: "Collect the balance",
+          action: approve ? CLIENT_TO_APPROVE : "Collect the balance",
           icon: CircleDollarSign,
-          tone: "danger",
+          tone: approve ? "warning" : "danger",
           client: clientName(job.client),
           line: [
             `${formatMoney(item.owedCents)} owed`,
@@ -437,11 +440,12 @@ function useRowFor() {
       }
       case "bill_unpaid": {
         const { bill } = item;
+        const approve = bill.unpaid?.kind === "approve";
         return {
           key: `bill_unpaid ${bill.id}`,
-          action: "Collect the bill",
+          action: approve ? CLIENT_TO_APPROVE : "Collect the bill",
           icon: Receipt,
-          tone: "danger",
+          tone: approve ? "warning" : "danger",
           client: clientName(bill.client),
           line: [
             `Bill ${bill.number}`,

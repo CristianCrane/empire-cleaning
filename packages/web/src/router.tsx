@@ -841,10 +841,14 @@ const portalPaymentMethodRoute = createRoute({
       getJson<ClientPastJob[]>("/api/jobs/mine/past"),
     ]);
     // the cleans a card puts right; one waiting on the payment service we
-    // try again ourselves
+    // try again ourselves, and one their bank wants them to approve is
+    // approved on its own page, where trying it here would only ask again
+    // (#534 Q7)
     return {
       saved,
-      unpaid: pastJobs.filter((j) => j.unpaid && asksTheClient(j.unpaid)),
+      unpaid: pastJobs.filter(
+        (j) => j.unpaid && asksTheClient(j.unpaid) && j.unpaid !== "approve",
+      ),
     };
   },
   component: PortalPaymentMethod,

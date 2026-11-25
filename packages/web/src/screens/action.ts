@@ -50,6 +50,8 @@ export const useActionWith = (
   { reloadOnFailure = false, fieldsProblem, toast = false }: ActionOptions = {},
 ) => {
   const [problem, setProblem] = useState<string>();
+  // what kind of refusal `problem` is, when the API says (ApiError's kind)
+  const [problemKind, setProblemKind] = useState<ApiError["kind"]>();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState<string>();
 
@@ -62,6 +64,7 @@ export const useActionWith = (
   ) => {
     setPending(which);
     setProblem(undefined);
+    setProblemKind(undefined);
     setFieldErrors({});
     try {
       const result = await change();
@@ -87,6 +90,7 @@ export const useActionWith = (
         setProblem(fieldsProblem);
       } else {
         setProblem(said);
+        setProblemKind(e instanceof ApiError ? e.kind : undefined);
       }
       return false;
     } finally {
@@ -104,6 +108,7 @@ export const useActionWith = (
     run,
     fail,
     problem,
+    problemKind,
     fieldErrors,
     isPending: pending !== undefined,
     pending,

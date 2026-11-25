@@ -117,12 +117,14 @@ const words = catalog({
     LAPSED: "It wasn't answered in time, so you won't pay it.",
     stillNot: (because: string) => `It still didn't go through${because}.`,
     UPDATE_OR_ANOTHER: "Please update your card, or use another one.",
+    notApproved: `${messages.en.NOT_APPROVED} Please try again, or use another card.`,
   },
   es: {
     ANSWERED: "Ya respondió a esto.",
     LAPSED: "No se respondió a tiempo, así que no lo pagará.",
     stillNot: (because: string) => `Todavía no pasó${because}.`,
     UPDATE_OR_ANOTHER: "Actualice su tarjeta, o use otra.",
+    notApproved: `${messages.es.NOT_APPROVED} Vuelva a intentarlo, o use otra tarjeta.`,
   },
 });
 const NOT_DONE = "This job hasn't been marked done.";
@@ -1051,9 +1053,10 @@ export const clientRetryBalance = async (
 
 /**
  * The Client's browser, once their bank's check on paying a Job on its page
- * is done: approved, it's read and recorded; not, it's called off, nothing
- * taken, and the Job stays as it was, for its page to say so. Declined once
- * approved, as a bank can: why, as an error.
+ * is done: approved, it's read and recorded. Not approved, it's called off,
+ * nothing taken, and the Job stays as it was: said as an error of kind
+ * "approve", as a Bill's page says it, for the page to offer it again.
+ * Declined once approved, as a bank can: why, as an error.
  */
 export const clientFinishBalance = async (
   clientId: string,
@@ -1066,9 +1069,12 @@ export const clientFinishBalance = async (
   const settled = await settleJob(jobId, {
     by: approved ? "approved" : "refused",
   });
-  if (settled.failure && unpaidKind(settled.failure) === "declined") {
-    throw stillNotPaid(settled.failure);
+  if (!settled.failure) return;
+  const kind = unpaidKind(settled.failure);
+  if (kind === "approve") {
+    throw new ConflictError(words[currentLanguage()].notApproved, "approve");
   }
+  if (kind === "declined") throw stillNotPaid(settled.failure);
 };
 
 // Settles a Job again, and tells its Client the payment went through: as
@@ -1198,6 +1204,7 @@ export const unpaidJobs = async () => {
     rows.map(async (job) => ({
       jobId: job.id,
       since: job.unpaidSince!.toISOString(),
+      kind: unpaidKind(job.unpaidReason ?? ""),
       owedCents: (await paymentOf(job)).owedCents,
     })),
   );
