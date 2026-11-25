@@ -346,15 +346,19 @@ function useNow(quote: OfficeQuote): Now {
   // it: amber while it waits on the Client approving it, calm once their
   // bank is finishing it, as it waits on no one, as the Office's Bill says
   // the same wait (#534's UX design, Screen 5)
-  const payingAlert: Alert | false = !!paying && {
+  const said =
+    paying &&
+    clientPaying.page(paying, {
+      card: recordable,
+      drafting: quote.draft !== null && quote.offer !== null,
+    });
+  const payingAlert: Alert | false = !!said && {
     key: "paying",
-    tone: paying.finishing ? "info" : "warning",
+    tone: paying!.finishing ? "info" : "warning",
     children: (
       <p>
-        {clientPaying.page(paying, {
-          card: recordable,
-          drafting: quote.draft !== null && quote.offer !== null,
-        })}
+        {said.more ? <strong>{said.lead}</strong> : said.lead}
+        {said.more}
       </p>
     ),
   };

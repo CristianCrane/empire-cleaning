@@ -386,6 +386,71 @@ test("a Client trying their card again, whose bank now asks them to approve it, 
   await expect(titleBadge(page, "Done")).toBeVisible();
 });
 
+// critical-review-payment-truth.md C11: "Try this card again" tries each
+// Unpaid clean in turn. One approved and taken, then the next turned down
+// at their bank: the page says nothing was taken, and still asks for both
+test("a Client trying their card again for two cleans, approving the first and turning down the second, isn't told nothing was taken", async ({
+  page,
+}) => {
+  const FRIDAY_9AM = "2026-01-09T14:00:00Z";
+  await createStaff(olive);
+  await signUp(olive.email);
+  const cory = await addCleaner("Cory Cleaner");
+  const monday = await acceptedJob({
+    startsAt: MONDAY_9AM,
+    officeEmail: olive.email,
+    addOns: ["Inside the oven"],
+  });
+  const friday = await acceptedJob({
+    startsAt: FRIDAY_9AM,
+    officeEmail: olive.email,
+  });
+  await offerJob(monday.id, cory.id, { confirmed: true });
+  await offerJob(friday.id, cory.id, { confirmed: true });
+  await setClock(MONDAY_11AM);
+  await failCharges();
+  await completeJob(friday.id, cory.id, { condition: "moderate", reports: [] });
+  await completeJob(monday.id, cory.id, { condition: "moderate", reports: [] });
+  // the money's there now, but their bank asks them to approve each payment
+  await failCharges(null);
+  await savedCardsAsk();
+
+  await signedInAs(page, casey.email);
+  await page.goto("/portal/payment-method");
+  const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
+  await expect(needed).toContainText("and 1 more");
+
+  // the first clean's payment they approve; the second's they turn down
+  let finishes = 0;
+  await page.route("**/balance/finish", async (route) => {
+    finishes += 1;
+    if (finishes === 2) await requireApproval("refused");
+    await route.continue();
+  });
+  await needed.getByRole("button", { name: "Try this card again" }).click();
+  const told = page.getByText(
+    "Your payment wasn't approved, so nothing was taken. Please try again, or use another card.",
+  );
+  await expect(told.or(page.getByText("Payment taken"))).toBeVisible();
+  const saidNothingTaken = await told.isVisible();
+  expect(finishes).toBe(2);
+
+  // one of the two was taken
+  const paid: string[] = [];
+  for (const id of [monday.id, friday.id]) {
+    const job = await page.context().newPage();
+    await job.goto(`/portal/jobs/${id}`);
+    await expect(job.getByRole("heading", { level: 1 })).toBeVisible();
+    if ((await titleBadge(job, "Done").count()) > 0) paid.push(id);
+    await job.close();
+  }
+  expect(paid).toHaveLength(1);
+
+  // so the page doesn't say nothing was taken, nor still ask for both
+  expect.soft(saidNothingTaken, "told nothing was taken").toBe(false);
+  await expect.soft(needed).not.toContainText("and 1 more");
+});
+
 test("the email about a payment the Client's bank wants them to approve opens their clean, to approve it there", async ({
   page,
 }) => {

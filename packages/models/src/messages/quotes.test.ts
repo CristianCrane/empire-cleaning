@@ -50,8 +50,10 @@ const finishing = (over: Partial<PayingFor> = {}): PayingFor => ({
   }),
   ...over,
 });
-const page = (p: PayingFor, card: boolean, drafting = false) =>
-  clientPaying.page(p, { card, drafting });
+const page = (p: PayingFor, card: boolean, drafting = false) => {
+  const { lead, more } = clientPaying.page(p, { card, drafting });
+  return lead + more;
+};
 
 test("a Deposit the Client's bank is finishing says how long it usually takes, and what's next once it's done (#534)", () => {
   expect(page(finishing(), true)).toBe(

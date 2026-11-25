@@ -283,16 +283,20 @@ const ifNot = (p: PayingFor, card: boolean, drafting: boolean) => {
 };
 export const clientPaying = {
   // the Quote's alert: with Record acceptance greyed beside it (`card`, a
-  // card saved to charge), or with a new version being drafted
+  // card saved to charge), or with a new version being drafted. Its lead,
+  // what's happening, bold when `more` follows, as every alert's (#534's
+  // UX review U12)
   page: (
     p: PayingFor,
     { card, drafting }: { card: boolean; drafting: boolean },
-  ) =>
-    p.finishing
-      ? `${payingWhat(p)}${ifNot(p, card, drafting)}`
+  ) => ({
+    lead: payingWhat(p),
+    more: p.finishing
+      ? ifNot(p, card, drafting)
       : drafting
-        ? `${payingWhat(p)} ${booksDraft} Until ${p.until}, you can't send your changes or record acceptance.`
-        : `${payingWhat(p)} If it isn't approved by ${p.until}, it's called off${card ? " and you can record acceptance" : ""}.`,
+        ? ` ${booksDraft} Until ${p.until}, you can't send your changes or record acceptance.`
+        : ` If it isn't approved by ${p.until}, it's called off${card ? " and you can record acceptance" : ""}.`,
+  }),
   // the Record acceptance dialog's, and the server's refusal of it from a
   // page opened before the Client started paying
   record: (p: PayingFor) =>
