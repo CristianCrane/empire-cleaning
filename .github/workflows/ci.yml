@@ -35,10 +35,12 @@ jobs:
       - name: Typecheck
         run: pnpm check
       # log-rows tells a log's new rows from its old ones by origin/main,
-      # which a pull request's checkout leaves out
+      # which a pull request's checkout leaves out; the + takes main's tip
+      # though main moved since a push's checkout, as a depth-1 fetch can't
+      # show that as a fast-forward
       - name: Lint
         run: |
-          git fetch --depth=1 origin main:refs/remotes/origin/main
+          git fetch --depth=1 origin +main:refs/remotes/origin/main
           pnpm lint
       - name: Unused files, exports and dependencies
         run: pnpm lint:unused
