@@ -371,10 +371,13 @@ export const settleJob = async (
     );
     const found = "unknown" in earlier ? [] : earlier;
     const ledger = found.length > 0 ? await ledgerOf(job!, tx) : before;
+    // a refund unheard holds the Job's money, and only a charge it held
+    // back, which the Client owes, makes the Job Unpaid: one we owe them
+    // doesn't (#534 critical review C8)
     const unknown =
       "unknown" in earlier
         ? earlier.unknown
-        : given.unknown
+        : given.unknown && before.owedCents > 0
           ? UNREACHABLE
           : null;
     const settled: Settled = {
@@ -389,7 +392,7 @@ export const settleJob = async (
       plan: null,
       billed,
     };
-    const moves = !settled.billed && !settled.failure;
+    const moves = !settled.billed && !settled.failure && !given.unknown;
 
     // billed weekly, nothing moves: the next Bill takes it, and a Job
     // Unpaid before weekly billing was switched on this week no longer is.

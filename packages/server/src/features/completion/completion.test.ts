@@ -1222,6 +1222,39 @@ describe("Office Staff correcting a completion", () => {
     expect((await officeJob(office, jobId)).payment!.owedCents).toBe(0);
   });
 
+  // a refund we owe them, unheard while the provider is down, holds the
+  // Job's money; it doesn't make the Client owe us (#534 critical review C8)
+  test("lower the price while the provider is down: the Job owes nothing, so it isn't Unpaid while the refund waits", async () => {
+    const { office, cory, client, jobId } = await bookedJob();
+    await complete(cory.agent, jobId, {
+      reports: [{ kind: "extra_time", hours: 1, reason: "Ran over" }],
+    }).expect(200);
+    const [time] = (await officeJob(office, jobId)).completion!.adjustments;
+    await office
+      .post(`/api/jobs/${jobId}/adjustments/${time!.id}/propose`)
+      .send({})
+      .expect(200);
+    await client
+      .post(`/api/jobs/mine/${jobId}/adjustments/${time!.id}/approve`)
+      .expect(200);
+    testPayments().goDown();
+    await office
+      .patch(`/api/jobs/${jobId}/adjustments/${time!.id}`)
+      .send({ priceCents: 2750, reason: "Half was our fault" })
+      .expect(200);
+    expect((await officeJob(office, jobId)).payment!.unpaid).toBe(null);
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+
+    expect((await officeJob(office, jobId)).payment!.unpaid).toBe(null);
+    testPayments().goDown(false);
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    expect(refunded()).toEqual([EXTRA_HOUR - HALF_HOUR_ADD_ON]);
+    expect((await officeJob(office, jobId)).payment!.unpaid).toBe(null);
+  });
+
   test("is only for Office Staff", async () => {
     const { cory, client, jobId } = await bookedJob();
     await complete(cory.agent, jobId).expect(200);
