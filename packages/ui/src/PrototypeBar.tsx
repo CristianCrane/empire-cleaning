@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button, Link, type LinkProps } from "react-aria-components";
-import { ChevronLeft, ChevronRight, LayoutGrid, Minus } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  LayoutGrid,
+  Minus,
+} from "lucide-react";
 import { readStored, store } from "./stored.ts";
 
 // one of a prototype's layouts or cases, and the link that draws it
@@ -15,7 +22,14 @@ const STEPS: Record<string, string> = {
   ArrowRight: "case-on",
 };
 
-// whether the bar is folded to its pill, kept across the pages a person
+// each row's step links are drawn as the keys that press them, so the
+// marks say which key steps what
+const MARKS = {
+  layout: { back: ArrowUp, on: ArrowDown, keys: ["ArrowUp", "ArrowDown"] },
+  case: { back: ArrowLeft, on: ArrowRight, keys: ["ArrowLeft", "ArrowRight"] },
+};
+
+// whether the bar is folded to its tab, kept across the pages a person
 // steps through (the landing site's are each a page load); a browser that
 // keeps nothing starts it open
 const FOLDED = "prototype-bar-folded";
@@ -25,11 +39,13 @@ const FOLDED = "prototype-bar-folded";
 // pressed by ↑/↓ (layouts) and ←/→ (cases) unless a field has the keys or a
 // modifier is held (Alt+← is the browser's Back), and a link to the list of
 // them all. The web app's prototype shell and the landing site's prototype
-// page each place it once, in the bottom left corner, above all a case draws
+// page each place it once, in the bottom left corner, one width whatever the
+// names, so its links stay put from case to case, above all a case draws
 // (a dialog's backdrop, a bank's pop-up), and in React Aria's top layer, as
 // the toasts are, which an open dialog leaves pressable, so a press reaches
-// it as the keys do. It covers what's under it, so it folds to a pill
-// naming the layout and case, and the keys still step. It's drawn in the
+// it as the keys do. It covers what's under it, so it folds to a narrow tab
+// naming the layout and case, halfway down the right edge, clear of a
+// frame's bars and corners, and the keys still step. It's drawn in the
 // browser alone (the landing site's client:only). Its links go through the
 // web app's router there, and are plain links on the landing site. Each
 // places it in development alone (import.meta.env.DEV): an e2e run, and so
@@ -84,13 +100,17 @@ export function PrototypeBar({
     <div
       ref={bar}
       data-react-aria-top-layer=""
-      className="fixed bottom-2 left-2 z-[2147483647] max-w-[calc(100vw-1rem)] rounded-lg bg-fg/90 p-1 text-xs text-bg shadow-lg"
+      className={`fixed z-[2147483647] bg-fg text-xs text-bg shadow-lg ${
+        folded
+          ? "end-0 top-1/2 -translate-y-1/2 rounded-s-lg"
+          : "bottom-2 start-2 w-[min(24rem,calc(100vw-1rem))] rounded-lg p-1"
+      }`}
     >
       {/* folded, the rows stay in the page, hidden, for the keys to press */}
       <div hidden={folded} className="flex items-stretch gap-1">
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <Row what="layout" keys="↑ ↓" choices={layouts} shown={layout} />
-          <Row what="case" keys="← →" choices={cases} shown={shown} />
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <Row what="layout" choices={layouts} shown={layout} />
+          <Row what="case" choices={cases} shown={shown} />
         </div>
         <div className="flex flex-col justify-between border-s border-bg/30 ps-1">
           <Link
@@ -113,7 +133,7 @@ export function PrototypeBar({
         <Button
           onPress={() => fold(false)}
           aria-label="Unfold the bar"
-          className="rounded px-1.5 py-0.5 font-semibold hover:opacity-70"
+          className="px-0.5 py-1.5 font-semibold [writing-mode:vertical-rl] hover:opacity-70"
         >
           {layout} · {shown}
         </Button>
@@ -125,12 +145,10 @@ export function PrototypeBar({
 
 function Row({
   what,
-  keys,
   choices,
   shown,
 }: {
   what: "layout" | "case";
-  keys: string;
   choices: Choice[];
   shown: string;
 }) {
@@ -143,6 +161,7 @@ function Row({
   const choice = choices[at];
   if (!choice) return null;
   const many = choices.length > 1;
+  const { back: Back, on: On, keys } = MARKS[what];
   const link = "rounded p-1 hover:opacity-70";
   // a key that's its place says it once: "2/14", not "2 (2/14)"
   const place =
@@ -156,13 +175,13 @@ function Row({
           href={step(-1)?.href}
           data-step={`${what}-back`}
           aria-label={`Previous ${what}`}
-          aria-keyshortcuts={what === "layout" ? "ArrowUp" : "ArrowLeft"}
+          aria-keyshortcuts={keys[0]}
           className={link}
         >
-          <ChevronLeft size={16} aria-hidden />
+          <Back size={16} aria-hidden />
         </Link>
       )}
-      <span className="truncate" title={`${choice.name} (${keys})`}>
+      <span className="truncate" title={choice.name}>
         <span className="opacity-70">
           {what === "layout" ? "Layout" : "Case"}
         </span>{" "}
@@ -173,10 +192,10 @@ function Row({
           href={step(1)?.href}
           data-step={`${what}-on`}
           aria-label={`Next ${what}`}
-          aria-keyshortcuts={what === "layout" ? "ArrowDown" : "ArrowRight"}
+          aria-keyshortcuts={keys[1]}
           className={`${link} ms-auto`}
         >
-          <ChevronRight size={16} aria-hidden />
+          <On size={16} aria-hidden />
         </Link>
       )}
     </div>
