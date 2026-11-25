@@ -3,13 +3,8 @@ import type { AstroComponentFactory } from "astro/runtime/server/index.js";
 import { PrototypeBar } from "@empire-cleaning/ui";
 import PrototypeList from "../components/PrototypeList.astro";
 import Page from "../layouts/Page.astro";
-import {
-  indexPath,
-  pageOf,
-  prototypes,
-  shotPath,
-  type Prototype,
-} from "../prototype.ts";
+import { prototypes } from "../branch-prototypes.ts";
+import { indexPath, pageOf, shotPath, type Prototype } from "../prototype.ts";
 
 // every prototype's pages, on a prototype-* branch (src/prototype.ts): main
 // has none, so this makes no page there

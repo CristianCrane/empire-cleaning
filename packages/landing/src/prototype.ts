@@ -22,19 +22,6 @@ export const prototype = (drawn: Prototype) => drawn;
 export const indexPath = (screen: string, lang: Language = "en") =>
   `${landingHome[lang]}prototype/${screen}/`;
 
-// every prototype on the branch, by name; loaded when asked for, as each
-// one's list imports `prototype` from here
-const lists = import.meta.glob<{ default: Prototype }>("./prototypes/*.ts");
-export const prototypes = async () =>
-  Object.fromEntries(
-    await Promise.all(
-      Object.entries(lists).map(
-        async ([file, load]) =>
-          [file.replace(/^.*\/|\.ts$/g, ""), (await load()).default] as const,
-      ),
-    ),
-  );
-
 // the prototype an address is under, in either language, and the page
 // (<layout>-<case>) it asks for there
 export const prototypeAt = (pathname: string) => {
