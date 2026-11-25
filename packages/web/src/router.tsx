@@ -62,6 +62,7 @@ import {
 } from "./language.ts";
 import { linkTo } from "./links.ts";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
+import { ApprovePaymentPrototype } from "./screens/portal/approve-payment.prototype.tsx";
 import { CleanerHome, yourJobsTiles } from "./screens/cleaner/CleanerHome.tsx";
 import { ConfirmEmail } from "./screens/ConfirmEmail.tsx";
 import { SignInLink, type SignInLinkSearch } from "./screens/SignInLink.tsx";
@@ -887,8 +888,24 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: a Client approving a payment their bank asked about, on made-up data, signed out
+const approvePaymentPrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/approve-payment",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string; shot?: string } => ({
+    // ?case=1 arrives as a number
+    case: search.case === undefined ? undefined : String(search.case),
+    layout: search.layout === undefined ? undefined : String(search.layout),
+    shot: search.shot === undefined ? undefined : String(search.shot),
+  }),
+  component: ApprovePaymentPrototype,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  approvePaymentPrototypeRoute,
   signInRoute,
   signInLinkRoute,
   confirmEmailRoute,
