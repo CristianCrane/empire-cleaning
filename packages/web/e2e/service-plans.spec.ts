@@ -98,10 +98,10 @@ test(
     ]);
     const upcoming = cleans.getByRole("row");
     await expect(upcoming).toHaveText([
-      /^Mon, Jan 19, .*9:00 AM/,
-      /^Mon, Jan 26, .*9:00 AM/,
-      /^Mon, Feb 2, .*9:00 AM/,
-      /^Mon, Feb 9, .*9:00 AM/,
+      /Jan 19, 2026, Mon 9:00\sAM$/,
+      /Jan 26, 2026, Mon 9:00\sAM$/,
+      /Feb 2, 2026, Mon 9:00\sAM$/,
+      /Feb 9, 2026, Mon 9:00\sAM$/,
     ]);
     await noViolations(client);
 
@@ -121,7 +121,7 @@ test(
     // and its Jobs booked, soonest first, apart from its History of what
     // has happened, which holds none of them yet
     const jobs = page
-      .getByRole("grid", { name: "Booked jobs" })
+      .getByRole("region", { name: "Booked jobs" })
       .getByRole("row")
       .filter({ hasText: "Standard Clean" });
     await expect(jobs).toHaveCount(4);
@@ -134,7 +134,7 @@ test(
     await generatePlanJobs();
     await page.reload();
     await expect(jobs).toHaveCount(5);
-    await expect(jobs.last()).toContainText("Mon, Feb 16");
+    await expect(jobs.last()).toContainText("Feb 16, 2026, Mon");
   },
 );
 
@@ -178,11 +178,10 @@ test("the Office records a plan's acceptance, then books a visit its day had no 
   await expect(page.getByText("Visit booked")).toBeVisible();
 
   await expect(waiting).toHaveCount(0);
-  // booked on Tuesday the 3rd, not the full Monday: in the home's History
+  // booked on Tuesday the 3rd, not the full Monday: in the home's Booked jobs
   const jobs = page
-    .getByRole("list", { name: /^History/ })
-    .getByRole("listitem")
-    .filter({ hasText: "Job ·" });
-  await expect(jobs.filter({ hasText: "Feb 3, 2026" })).toHaveCount(1);
+    .getByRole("region", { name: "Booked jobs" })
+    .getByRole("row");
+  await expect(jobs.filter({ hasText: "Feb 3, 2026, Tue" })).toHaveCount(1);
   await expect(jobs.filter({ hasText: "Feb 2, 2026" })).toHaveCount(0);
 });

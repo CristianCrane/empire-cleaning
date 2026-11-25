@@ -51,6 +51,7 @@ export {
   ListPage,
   DatedItem,
   DatedLists,
+  listRowItem,
   byMonth,
   type ListColumn,
   type ListRow,

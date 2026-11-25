@@ -17,11 +17,14 @@ import {
   Button,
   ButtonLink,
   Card,
+  DatedLists,
   Dialog,
   Form,
   IconTile,
   List,
   ListItem,
+  listRowItem,
+  type ListRow,
   Notice,
   Section,
   TextField,
@@ -66,7 +69,7 @@ import { useOnHold } from "../PlanParts.tsx";
 import { OfferServicePlan, QUOTE_A_PLAN } from "./StartDraft.tsx";
 import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
 import { clientTrail } from "./trails.ts";
-import { JobBadge, JobStatusBadge } from "../JobBadges.tsx";
+import { jobStatus, JobStatusBadge } from "../JobBadges.tsx";
 
 const { propertySummary, quoteHeadline } = screenWords.en;
 
@@ -360,45 +363,37 @@ function VisitPart({
   );
 }
 
-// the Jobs booked at the home, soonest first, each opening its page: a
-// plan's cleans to come, and any one-off; badged only when it still needs
-// cleaners, as a crew in place is the usual case. Once one is done or
-// called off, it's in the History
+// the Jobs booked at the home, soonest first by month, each opening its
+// page: a plan's cleans to come, and any one-off; badged only when it still
+// needs cleaners, as the Jobs list badges it. Once one is done or called
+// off, it's in the History
 function BookedJobs({ home }: { home: OfficePropertyView }) {
   const navigate = useNavigate();
   const booked = home.jobs
     .filter((job) => job.status === "booked")
-    .sort((a, b) => (a.startsAt < b.startsAt ? -1 : 1));
+    .sort((a, b) => (a.startsAt < b.startsAt ? -1 : 1))
+    .map((job): ListRow => ({
+      id: job.id,
+      at: job.startsAt,
+      title: job.serviceName,
+      description: job.crew.length > 0 ? crewOf(job.crew) : undefined,
+      status: jobStatus(job),
+      onOpen: () =>
+        void navigate({
+          to: "/office/jobs/$jobId",
+          params: { jobId: job.id },
+        }),
+    }));
   if (booked.length === 0) return null;
   return (
     <Section title="Booked jobs">
-      <List
-        aria-label="Booked jobs"
-        onAction={(jobId) =>
-          void navigate({
-            to: "/office/jobs/$jobId",
-            params: { jobId: String(jobId) },
-          })
-        }
-      >
-        {booked.map((job) => (
-          <ListItem
-            key={job.id}
-            id={job.id}
-            start={<IconTile icon={JobIcon} />}
-            title={formatDateTime(job.startsAt)}
-            description={
-              <Line
-                parts={[
-                  job.serviceName,
-                  job.crew.length > 0 && crewOf(job.crew),
-                ]}
-              />
-            }
-            end={job.assignment === "unassigned" && <JobBadge job={job} />}
-          />
-        ))}
-      </List>
+      <DatedLists
+        label="Booked jobs"
+        level={3}
+        items={booked}
+        at={(row) => row.at!}
+        item={(row) => listRowItem(row)}
+      />
     </Section>
   );
 }

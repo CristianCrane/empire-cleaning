@@ -126,7 +126,7 @@ test("a plan's clean with a move asked is badged so, as the Cleans list badges i
 
   const cleans = page.getByRole("region", { name: "Your upcoming cleans" });
   await expect(
-    cleans.getByRole("row").filter({ hasText: "Mon, Jan 19" }),
+    cleans.getByRole("row").filter({ hasText: "Jan 19, 2026, Mon" }),
   ).toContainText("Move asked");
   // one simply booked says nothing more
   await expect(cleans.getByRole("row").nth(1)).not.toContainText(
@@ -199,7 +199,7 @@ test(
     await page
       .getByRole("region", { name: "Your upcoming cleans" })
       .getByRole("row")
-      .filter({ hasText: "Mon, Jan 26" })
+      .filter({ hasText: "Jan 26, 2026, Mon" })
       .click();
     await expect(page).toHaveURL(/\/portal\/jobs\//);
     const secondJob = page.url().split("/").pop()!;
