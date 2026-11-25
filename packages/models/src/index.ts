@@ -1375,7 +1375,7 @@ export type OfferedQuoteSummary = {
     // refuses a weekday without one); null otherwise
     plan: {
       recurrence: Recurrence;
-      days: (PlanDaySummary & { startsAt: string })[];
+      days: TimedPlanDay[];
     } | null;
   };
 }[OfferedStatus];
@@ -2035,6 +2035,9 @@ export type ServicePlanStatus = "active" | "on_hold" | "ended";
 // and time every later one repeats (null on a Draft until chosen), and its
 // Service
 export type PlanDaySummary = { startsAt: string | null; serviceName: string };
+// a weekday whose first clean has its time: a Sent Quote's (sending refuses
+// one without) or a Service Plan's
+export type TimedPlanDay = PlanDaySummary & { startsAt: string };
 
 // a Service Plan in a line: on the Property page, and the Client's home screen
 export type ServicePlanSummary = {
@@ -2042,7 +2045,7 @@ export type ServicePlanSummary = {
   status: ServicePlanStatus;
   recurrence: Recurrence;
   // on its current terms, earliest first
-  days: PlanDaySummary[];
+  days: TimedPlanDay[];
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
   // its next booked Job, if one is on the Schedule
   nextStartsAt: string | null;

@@ -637,14 +637,15 @@ export const quotesAwaitingOffice = async () =>
     )
   ).reverse();
 
+// a Quote Sent and not yet Expired at `now`, as a condition on quotes
+// joined with their offers
+export const sentUnexpired = (now: Date) =>
+  and(eq(quotes.status, "sent"), gt(offers.expiresAt, now));
+
 // every Sent Quote still open (not yet Expired), newest first; `where`
 // narrows them
 export const openQuotes = async (where?: SQL): Promise<OfferedQuoteSummary[]> =>
-  (
-    await summaries(
-      and(eq(quotes.status, "sent"), gt(offers.expiresAt, clock.now()), where),
-    )
-  ).map((q) => {
+  (await summaries(and(sentUnexpired(clock.now()), where))).map((q) => {
     // a stored "sent" reads as Sent, or Expired once the Clock passes it
     // (statusOf): never anything else
     if (q.status !== "sent" && q.status !== "expired") {
