@@ -1,27 +1,41 @@
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { ephemeralStart, leaseRunPorts } from "./lease.ts";
 
-// The ports the e2e servers listen on, and what keeps checkouts of this repo
-// on one machine (worktrees, other clones) apart when their e2e tests run at
-// once: they share the machine's ports, so each serves its e2e tests from a
-// block of ports of its own, read from where the checkout is. The same
-// checkout always gets the same one. The web and landing e2e configs import
-// it (`@empire-cleaning/server/ports`). Their databases need no id from here:
-// each run claims names of its own (tests/setup/testDatabase.ts).
+// The ports the e2e servers listen on. Every e2e run on the machine (in any
+// checkout: worktrees, other clones) needs ports no other run is using, so
+// each leases a block of 200 for as long as it lives (tests/lease.ts): the
+// first free one, trying this checkout's own first. Nobody picks one. The web
+// and landing e2e configs import it (`@empire-cleaning/server/ports`), and the
+// processes a run starts find its block in E2E_PORT_LEASE. Their databases
+// need nothing from here: each run claims names of its own
+// (tests/setup/testDatabase.ts).
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const hash = createHash("sha256").update(root).digest();
 
-// the first of this checkout's 200 ports for e2e servers: one of 110 blocks
-// from 10000, all below where Linux picks ports for outgoing connections
-// (32768). Two checkouts can draw the same block, and then the second's
-// servers fail to start on ports in use: E2E_PORT_BASE gives it another
-export const E2E_PORTS = Number(
-  process.env.E2E_PORT_BASE ?? 10_000 + (hash.readUInt16BE(4) % 110) * 200,
-);
+const BLOCK = 200;
+// 110 blocks from 10000, below where Linux picks ports for outgoing
+// connections (32768 up)
+const blocks = Array.from({ length: 110 }, (_, i) => 10_000 + i * BLOCK);
+
+// held, so the lease lasts as long as this process
+const lease = await leaseRunPorts({
+  env: process.env,
+  // this checkout's own block, read from where it is, so a checkout keeps the
+  // same ports while no other run has them
+  own: 10_000 + (hash.readUInt16BE(4) % blocks.length) * BLOCK,
+  blocks,
+  size: BLOCK,
+  ephemeral: ephemeralStart(),
+});
+
+// the first of the run's 200 ports. E2E_PORT_BASE pins a block (one of
+// `blocks`), still leased, and refused when it can't be (tests/lease.ts)
+export const E2E_PORTS = lease.base;
 
 // The block, from its first port: the web app's slots (packages/web/e2e/slots.ts),
 // three ports each, then the landing site's three
-// (packages/landing/playwright.config.ts)
+// (packages/landing/playwright.config.ts), and last (+199) the lease's own
 
 // the slots the block has room for, before the landing site's ports
 export const MAX_SLOTS = 60;

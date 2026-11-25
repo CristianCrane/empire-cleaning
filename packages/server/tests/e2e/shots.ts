@@ -17,6 +17,9 @@ import {
 import { basename, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+// leases a block of e2e ports for this run, which both sides use: the
+// processes it starts find it in E2E_PORT_LEASE (../ports.ts)
+import { E2E_PORTS } from "../ports.ts";
 
 const USAGE = [
   'Usage: pnpm pr:shots <spec> "<test title>" [--desktop] [--viewport]',
@@ -38,6 +41,10 @@ const top = fileURLToPath(new URL("../../../..", import.meta.url)).replace(
   "",
 );
 const CONFIG = join(top, "packages/server/tests/e2e/shots.config.ts");
+
+// and in E2E_PORT_BASE, for a base whose ports.ts (once tests/checkout.ts)
+// predates the lease and reads only that
+process.env.E2E_PORT_BASE = String(E2E_PORTS);
 
 type Side = "before" | "after";
 type Shot = { project: string; file: string };
@@ -288,8 +295,7 @@ const slug = (title: string) =>
     .slice(0, 60);
 
 // the base checked out in a worktree of its own for the length of `run`, at
-// the same path every time, so a killed run's is found and removed, and its
-// block of ports stays the same (tests/ports.ts)
+// the same path every time, so a killed run's is found and removed
 const withBase = <T>(sha: string, run: (base: string) => T): T => {
   const base = `${top}-shots-base`;
   const remove = () => {

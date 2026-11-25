@@ -4,8 +4,9 @@ import { resolve } from "node:path";
 // with: the package's own playwright.config.ts (PR_SHOTS_PACKAGE names the
 // package's folder in that checkout, packages/web or packages/landing), with a
 // screenshot at the end of each test, the whole page or (PR_SHOTS_VIEWPORT,
-// --viewport) the screen. That checkout's slots, databases and ports stay its
-// own, and so does its Playwright: run it with the package's own runner, as a
+// --viewport) the screen. That checkout's slots and databases stay its own,
+// on the block of ports pr:shots leased for both sides (shots.ts), and so
+// does its Playwright: run it with the package's own runner, as a
 // spec loads its own checkout's @playwright/test, so this file imports none.
 // It works on any commit's checkout, whose config needs nothing for it.
 const folder = process.env.PR_SHOTS_PACKAGE;
