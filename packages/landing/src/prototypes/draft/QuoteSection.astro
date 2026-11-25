@@ -1,0 +1,46 @@
+---
+import { languageOf, messages } from "@empire-cleaning/models";
+import { business } from "../../business.ts";
+import Section from "../../components/Section.astro";
+import { words } from "../../words.ts";
+import { QuoteDraft, type Moment } from "./QuoteDraft.tsx";
+import { draft } from "./words.ts";
+
+// the home page's Request a quote section, drawn still (#505): its title,
+// one line on what happens, the form at one moment, and the phone for those
+// who'd rather talk; once sent, only the thanks
+interface Props {
+  layout: "tiles" | "rows";
+  moment: Moment;
+}
+const { layout, moment } = Astro.props;
+const lang = languageOf(Astro.currentLocale);
+const { REQUEST_A_QUOTE } = messages[lang];
+const t = words[lang].quote;
+---
+
+<Section
+  id="quote"
+  title={REQUEST_A_QUOTE}
+  intro={moment === "sent" ? undefined : draft[lang].quote.intro}
+  align="center"
+>
+  <div class="w-full text-left">
+    <QuoteDraft
+      layout={layout}
+      moment={moment}
+      lang={lang}
+      phone={business.phone}
+      submit={REQUEST_A_QUOTE}
+      callTo={words[lang].call(business.phone.display)}
+    />
+  </div>
+  {moment !== "nolist" && moment !== "sent" && (
+    <p class="text-center text-fg-muted">
+      {t.preferToTalk}{" "}
+      <a href={business.phone.href} class="font-semibold text-primary">
+        {business.phone.display}
+      </a>
+    </p>
+  )}
+</Section>

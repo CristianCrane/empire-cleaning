@@ -1,0 +1,17 @@
+---
+import QuoteSection from "./draft/QuoteSection.astro";
+import type { Moment } from "./draft/QuoteDraft.tsx";
+
+// one layout × case of the Quote form (quote-form.ts), alone on the page in
+// its band, as a stranger meets it under the home page's How it works
+interface Props {
+  layout: string;
+  case: string;
+}
+const { layout, case: shown } = Astro.props;
+const moment = (shown === "spanish" ? "pick" : shown) as Moment;
+---
+
+<main>
+  <QuoteSection layout={layout as "tiles" | "rows"} moment={moment} />
+</main>

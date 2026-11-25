@@ -1,0 +1,299 @@
+---
+import { formats, languageOf, messages } from "@empire-cleaning/models";
+import {
+  BadgePercent,
+  ChevronRight,
+  Gem,
+  MapPin,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
+import { areas } from "../areas/index.ts";
+import { glint, ripples, skyline, towersPath } from "../backdrop.ts";
+import { card } from "../band.ts";
+import Faqs from "../components/Faqs.astro";
+import Footer from "../components/Footer.astro";
+import QuoteOrCall from "../components/QuoteOrCall.astro";
+import Reviews from "../components/Reviews.astro";
+import Section from "../components/Section.astro";
+import { faqs } from "../faqs.ts";
+import { pathOf } from "../routes.ts";
+import { pageOf } from "../service-pages/index.ts";
+import { serviceWords, services } from "../services.ts";
+import { words } from "../words.ts";
+import Header from "./draft/Header.astro";
+import QuoteSection from "./draft/QuoteSection.astro";
+import { draft } from "./draft/words.ts";
+
+// one layout × case of the home page (home.ts): the layout is the header's
+// shape; the hero leads with what we clean and where, the slogan under it
+// where the case keeps it
+interface Props {
+  layout: string;
+  case: string;
+}
+const { layout, case: shown } = Astro.props;
+const shape = layout as "bar" | "none" | "sticky";
+const lang = languageOf(Astro.currentLocale);
+const t = words[lang];
+const d = draft[lang];
+// the areas in a sentence, each a link to its page
+const areaList = formats[lang].listParts(areas.map((_, i) => String(i)));
+const whole = shown === "slogan" || shown === "spanish";
+const landed = shown === "landed";
+const icons = [ShieldCheck, Gem, Users];
+// the first step is the Request a quote button's
+const steps = [messages[lang].REQUEST_A_QUOTE, ...t.howItWorks.names];
+const rowCard = "flex items-center gap-4 rounded-lg border border-border p-4";
+---
+
+{shape !== "none" && (!landed || shape === "sticky") && (
+  <Header shape={shape} />
+)}
+<main>
+  {!landed && (
+    <section
+      aria-labelledby="hero-title"
+      class:list={[
+        "relative overflow-hidden pb-28 sm:pb-36",
+        shape === "none" ? "pt-0" : "pt-12 sm:pt-20",
+      ]}
+    >
+      <div aria-hidden="true" class="pointer-events-none absolute inset-0">
+        <div
+          class="absolute inset-0"
+          style="background: radial-gradient(ellipse 70% 80% at 50% 35%, var(--color-surface) 0%, transparent 70%)"
+        />
+        <svg
+          viewBox={`0 0 ${skyline.width} ${skyline.height}`}
+          class="absolute bottom-16 left-1/2 w-[360px] -translate-x-1/2 text-fg [mask-image:linear-gradient(to_right,transparent,#000_20%,#000_80%,transparent)] sm:w-[620px]"
+          style="filter: blur(.6px)"
+        >
+          <defs>
+            <linearGradient id="haze" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0" stop-color="currentColor" stop-opacity="0" />
+              <stop offset=".3" stop-color="currentColor" stop-opacity=".1" />
+              <stop
+                offset=".65"
+                stop-color="currentColor"
+                stop-opacity=".055"
+              />
+              <stop offset="1" stop-color="currentColor" stop-opacity="0" />
+            </linearGradient>
+          </defs>
+          <path d={towersPath} fill="url(#haze)" />
+        </svg>
+        <svg
+          viewBox="1330 0 110 720"
+          preserveAspectRatio="xMaxYMid meet"
+          class="absolute top-0 right-0 hidden h-full lg:block"
+        >
+          <path
+            d="M1440 20C1360 170 1345 420 1440 640C1372 420 1382 170 1440 60Z"
+            fill="var(--color-primary)"
+            opacity=".35"
+          />
+        </svg>
+        <svg
+          viewBox="0 0 1440 160"
+          preserveAspectRatio="none"
+          class="absolute inset-x-0 bottom-0 h-28 w-full text-fg sm:h-36"
+        >
+          <g fill="none" stroke="currentColor" stroke-width="1.2">
+            {ripples.map((r, i) => (
+              <path
+                d={r}
+                opacity={0.03 + (i % 3) * 0.02}
+                vector-effect="non-scaling-stroke"
+              />
+            ))}
+          </g>
+        </svg>
+        <svg
+          viewBox="0 0 1440 100"
+          preserveAspectRatio="none"
+          class="absolute inset-x-0 bottom-0 h-12 w-full sm:h-20"
+        >
+          <defs>
+            <linearGradient id="swoosh" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="var(--color-primary)" />
+              <stop
+                offset=".7"
+                stop-color="var(--color-primary)"
+                stop-opacity=".7"
+              />
+              <stop
+                offset="1"
+                stop-color="var(--color-primary)"
+                stop-opacity="0"
+              />
+            </linearGradient>
+          </defs>
+          <path d="M0 50C380 80 820 96 1440 96V100H0Z" fill="var(--color-bg)" />
+          <path
+            d="M0 26C380 66 820 90 1440 94C820 96 380 86 0 60Z"
+            fill="url(#swoosh)"
+          />
+        </svg>
+        <svg
+          viewBox="-30 -30 60 60"
+          class="absolute top-[14%] left-[78%] hidden size-12 lg:block"
+        >
+          <path
+            d={glint(0, 0, 22)}
+            fill="#fff"
+            style="filter: blur(4px)"
+            opacity=".9"
+          />
+          <path d={glint(0, 0, 14)} fill="#fff" />
+        </svg>
+      </div>
+      {shape === "none" && <Header shape="none" />}
+      <div
+        class:list={[
+          "relative mx-auto flex max-w-3xl flex-col items-center gap-6 px-4 text-center",
+          shape === "none" && "pt-8 sm:pt-14",
+        ]}
+      >
+        <h1 id="hero-title" class="flex flex-col items-center gap-4">
+          <span class="font-display text-5xl leading-none font-bold tracking-wide uppercase sm:text-7xl">
+            {d.what}
+          </span>
+          <span class="text-xl font-semibold sm:text-2xl">{d.where}</span>
+        </h1>
+        {shown !== "plain" && (
+          <p class="font-display text-lg tracking-widest text-primary uppercase">
+            {t.slogan.join(" ")}
+          </p>
+        )}
+        <div class="pt-2">
+          <QuoteOrCall href="#quote" />
+        </div>
+      </div>
+    </section>
+  )}
+
+  {!landed && (
+    <Section id="services" title={t.services.title}>
+      {/* each service a row, its icon beside its name, leading to its page;
+          one with no page (custom) to the form, where it's asked for */}
+      <ul class="grid gap-3 sm:grid-cols-2">
+        {services.map(({ key, icon: Icon }) => {
+          const href = pageOf(key)
+            ? pathOf({ kind: "service", service: key }, lang)
+            : "#quote";
+          return (
+            <li class:list={[rowCard, card, "relative hover:border-primary"]}>
+              <Icon aria-hidden size={24} className="shrink-0 text-primary" />
+              {
+                <a
+                  href={href}
+                  class="flex flex-1 items-center justify-between gap-2 font-semibold after:absolute after:inset-0"
+                >
+                  {serviceWords[lang][key].name}
+                  <ChevronRight
+                    aria-hidden
+                    size={18}
+                    className="shrink-0 text-primary"
+                  />
+                </a>
+              }
+            </li>
+          );
+        })}
+      </ul>
+    </Section>
+  )}
+
+  {whole && <Reviews />}
+
+  {whole && (
+    <Section id="why-empire" title={t.why.title}>
+      <ul class="grid gap-4 sm:grid-cols-2">
+        <li
+          class:list={[
+            "flex items-start gap-4 rounded-lg border border-border p-5",
+            card,
+          ]}
+        >
+          <MapPin aria-hidden size={28} className="shrink-0 text-primary" />
+          <div class="flex flex-col gap-1">
+            <h3 class="text-lg font-semibold">{d.whereTitle}</h3>
+            <p class="text-fg-muted">
+              {areaList.map(({ type, value }) => {
+                const area = areas[Number(value)];
+                return type === "literal" || !area ? (
+                  value
+                ) : (
+                  <a
+                    href={pathOf({ kind: "area", area: area.en.key }, lang)}
+                    class="font-semibold text-primary underline underline-offset-4"
+                  >
+                    {area[lang].short}
+                  </a>
+                );
+              })}
+              {"."}
+              {t.why.spanish && <span lang="es"> {t.why.spanish}</span>}
+            </p>
+          </div>
+        </li>
+        {t.why.points.map(({ name, text }, i) => {
+          const Icon = icons[i]!;
+          return (
+            <li
+              class:list={[
+                "flex items-start gap-4 rounded-lg border border-border p-5",
+                card,
+              ]}
+            >
+              <Icon aria-hidden size={28} className="shrink-0 text-primary" />
+              <div class="flex flex-col gap-1">
+                <h3 class="text-lg font-semibold">{name}</h3>
+                <p class="text-fg-muted">{text}</p>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </Section>
+  )}
+
+  {whole && (
+    <Section id="how-it-works" title={t.howItWorks.title}>
+      <ol class="grid gap-6 sm:grid-cols-3">
+        {[d.firstStep, ...t.howItWorks.steps.slice(1)].map((text, i) => (
+          <li class="flex flex-col items-center gap-3 text-center">
+            <span
+              aria-hidden="true"
+              class="flex size-12 items-center justify-center rounded-full bg-primary font-display text-2xl font-bold text-primary-fg"
+            >
+              {i + 1}
+            </span>
+            <h3 class="text-lg font-semibold">{steps[i]}</h3>
+            <p class="text-fg-muted">{text}</p>
+          </li>
+        ))}
+      </ol>
+    </Section>
+  )}
+
+  {(whole || landed) && <QuoteSection layout="tiles" moment="pick" />}
+
+  {(whole || landed) && (
+    <Section id="service-plans" title={d.plans.title}>
+      <div
+        class:list={[
+          "flex items-start gap-4 rounded-lg border border-border p-5",
+          card,
+        ]}
+      >
+        <BadgePercent aria-hidden size={28} className="shrink-0 text-primary" />
+        <p class="text-lg">{d.plans.text}</p>
+      </div>
+    </Section>
+  )}
+
+  {whole && <Faqs faqs={faqs[lang]} />}
+</main>
+{whole && <Footer />}

@@ -1,0 +1,63 @@
+---
+import { languageNames, languageOf } from "@empire-cleaning/models";
+import { Logo, buttonStyles } from "@empire-cleaning/ui";
+import { Languages, LogIn, Phone } from "lucide-react";
+import { appUrl } from "../../app-url.ts";
+import { business } from "../../business.ts";
+import { ThemeToggleIn } from "../../components/InLanguage.tsx";
+import { pathOf } from "../../routes.ts";
+import { words } from "../../words.ts";
+
+// the home page's header, in each shape the prototype (#505) offers: "bar",
+// a slim band that scrolls away; "none", the logo and the quiet actions on
+// the hero's own backdrop; "sticky", the band, held at the top, with Call
+interface Props {
+  shape: "bar" | "none" | "sticky";
+}
+const { shape } = Astro.props;
+const lang = languageOf(Astro.currentLocale);
+const other = lang === "en" ? "es" : "en";
+const t = words[lang];
+const quiet = buttonStyles({ variant: "quiet", className: "px-2 sm:px-4" });
+---
+
+<header
+  class:list={[
+    shape !== "none" && "border-b border-border bg-surface",
+    shape === "sticky" && "sticky top-0 z-20",
+    shape === "none" && "relative z-10",
+  ]}
+>
+  <div class="mx-auto flex max-w-5xl items-center gap-1 px-4 py-2 sm:gap-2">
+    <a href={pathOf({ kind: "home" }, lang)} class="me-auto shrink-0">
+      <Logo className={shape === "none" ? "w-16 sm:w-20" : "w-12 sm:w-14"} />
+    </a>
+    <a
+      href={pathOf({ kind: "home" }, other)}
+      hreflang={other}
+      lang={other}
+      class={quiet}
+    >
+      <Languages aria-hidden size={18} />
+      {languageNames[other]}
+    </a>
+    <a href={`${appUrl}/?lang=${lang}`} class={quiet}>
+      <LogIn aria-hidden size={18} />
+      {t.signIn}
+    </a>
+    <ThemeToggleIn client:idle lang={lang} />
+    {shape === "sticky" && (
+      <a
+        href={business.phone.href}
+        aria-label={t.call(business.phone.display)}
+        class={buttonStyles({
+          variant: "secondary",
+          className: "ms-1 px-3 sm:px-4",
+        })}
+      >
+        <Phone aria-hidden size={18} />
+        <span class="hidden sm:inline">{t.call(business.phone.display)}</span>
+      </a>
+    )}
+  </div>
+</header>
