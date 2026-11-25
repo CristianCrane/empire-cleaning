@@ -2253,9 +2253,10 @@ describe("switching weekly billing off", () => {
   });
 });
 
-// a Bill's page names each clean's time short, and its home for the Office,
-// or a Client with more than one (#534's UX review U8, F16); its email in
-// full
+// a Bill's page names each clean's time short, and its home on its row only
+// when its cleans were at more than one home, as billView says (for the
+// Office, or a Client with more than one; #534's UX review U8, F16); a row
+// about the clean above says only what it is; its email in full
 describe("a Bill's lines", () => {
   const line = {
     key: "price",
