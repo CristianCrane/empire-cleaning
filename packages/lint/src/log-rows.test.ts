@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { doubled, logs } from "./log-rows.ts";
+import { doubled, logs, long } from "./log-rows.ts";
 
 const ux = logs.find((log) => log.path === "docs/ux-log.md")!.key;
 const testing = logs.find((log) => log.path === "docs/testing-log.md")!.key;
@@ -80,5 +80,50 @@ describe("doubled", () => {
     expect(doubled(text, testing)).toEqual([
       { key: ["2026-11-23", start.slice(0, 80)], lines: [5, 6] },
     ]);
+  });
+});
+
+describe("long", () => {
+  const uxLogEntry = logs.find((log) => log.path === "docs/ux-log.md")!;
+  const testingLogEntry = logs.find(
+    (log) => log.path === "docs/testing-log.md",
+  )!;
+  const old =
+    "| Office > Today | Which sections? | A / B | **A** | why | — | #94 |";
+
+  it("finds a new row's Why or Picked over 500 characters, by line and column", () => {
+    const text = uxLog(
+      old,
+      `| Office > Bills | What leads? | A / B | **B** | ${"w".repeat(501)} | — | #95 |`,
+      `| Office > Jobs | What shows? | A / B | **${"p".repeat(497)}** | ${"w".repeat(500)} | — | #96 |`,
+    );
+    expect(long(text, uxLog(old), uxLogEntry)).toEqual([
+      { line: 6, column: "Why", length: 501 },
+      { line: 7, column: "Picked", length: 501 },
+    ]);
+  });
+
+  it("passes a row origin/main has by its key, though edited in place past 500", () => {
+    const text = uxLog(
+      `| Office > Today | Which sections? | A / B | **A** (narrowed 2026-11-25: ${"n".repeat(500)}) | why | — | #94 |`,
+    );
+    expect(long(text, uxLog(old), uxLogEntry)).toEqual([]);
+  });
+
+  it("finds a new finding over 500 characters, by its date and finding", () => {
+    const testingLog = (...rows: string[]) =>
+      ["| Date | Finding | Where |", "| --- | --- | --- |", ...rows].join("\n");
+    const finding = `A flake ${"f".repeat(493)}`;
+    const text = testingLog(
+      `| 2026-11-24 | ${finding} | #533 |`,
+      `| 2026-11-25 | ${finding} | #534 |`,
+    );
+    expect(
+      long(
+        text,
+        testingLog(`| 2026-11-24 | ${finding} | #533 |`),
+        testingLogEntry,
+      ),
+    ).toEqual([{ line: 4, column: "Finding", length: 501 }]);
   });
 });

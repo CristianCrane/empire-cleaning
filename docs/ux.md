@@ -919,7 +919,10 @@ stays as it is (#336).
    layout drops nothing by accident (the `ui` skill, "Reworking a
    screen"): #432's review found three such drops, and #434's two more. A
    part dropped on purpose gives its reason in its `docs/ux-log.md` row.
-5. **Record it**: a row in `docs/ux-log.md`; a new rule above (a
+5. **Record it**: a row in `docs/ux-log.md`, its Picked and Why each
+   in one or two sentences (500 characters, which `pnpm lint` checks), its
+   PR or issue holding the rest, as agents search the log and read each
+   row they find whole; a new rule above (a
    type's own under its entry in Screen types), and a
    pattern in Storybook, if it carries over to other screens; and in
    `docs/screens.md`, a new route's row in the Route index and its entry, or

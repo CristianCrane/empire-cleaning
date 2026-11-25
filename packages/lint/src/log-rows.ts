@@ -13,17 +13,37 @@
 // finding rewritten from its first words, or the same finding two branches
 // logged in their own words (Date and Where would catch the last two, but two
 // findings of a day share a Where).
+//
+// And a new row's long cell: a UX decision's Picked or Why, or a finding,
+// over 500 characters. Agents search the logs and read the rows that match
+// (CLAUDE.md), so a row is read in full each time a search finds it: one or
+// two sentences, its PR or issue holding the rest. A row is new when
+// origin/main has no row of its key, so an old row edited in place isn't
+// held to it; a Question reworded in place reads as new.
 
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export type Log = { path: string; key: string[] };
+// `capped`: the columns a new row keeps to CAP characters
+export type Log = { path: string; key: string[]; capped: string[] };
 
 export const logs: Log[] = [
-  { path: "docs/ux-log.md", key: ["Question"] },
-  { path: "docs/testing-log.md", key: ["Date", "Finding"] },
+  { path: "docs/ux-log.md", key: ["Question"], capped: ["Picked", "Why"] },
+  {
+    path: "docs/testing-log.md",
+    key: ["Date", "Finding"],
+    capped: ["Finding"],
+  },
 ];
+
+// a little over two sentences of the logs' Whys as written (median 355, p90
+// 602 on 2026-11-25), where a Why's median was 418 and 80 of 197 ran past it
+const CAP = 500;
+
+// a new row's cell over CAP, by its line, column and length
+export type Long = { line: number; column: string; length: number };
 
 // rows sharing a key, by the key's cells and the rows' line numbers
 export type Doubled = { key: string[]; lines: number[] };
@@ -77,15 +97,50 @@ export function doubled(text: string, key: string[]): Doubled[] {
   return [...rows.values()].filter((found) => found.lines.length > 1);
 }
 
+// the cells over CAP in rows whose key `base`, the log on origin/main, lacks
+export function long(text: string, base: string, log: Log): Long[] {
+  const keys = log.key.length;
+  const old = new Set(
+    [...rowsOf(base, log.key)].map((row) => JSON.stringify(keyOf(row.cells))),
+  );
+  const found: Long[] = [];
+  for (const row of rowsOf(text, [...log.key, ...log.capped])) {
+    if (old.has(JSON.stringify(keyOf(row.cells.slice(0, keys))))) continue;
+    log.capped.forEach((column, i) => {
+      const { length } = row.cells[keys + i]!;
+      if (length > CAP) found.push({ line: row.line, column, length });
+    });
+  }
+  return found;
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const top = fileURLToPath(new URL("../../..", import.meta.url));
   for (const log of logs) {
-    for (const found of doubled(
-      readFileSync(join(top, log.path), "utf8"),
-      log.key,
-    )) {
+    const text = readFileSync(join(top, log.path), "utf8");
+    for (const found of doubled(text, log.key)) {
       console.error(
         `empire(log-rows): ${log.path}:${found.lines.join(", :")}: the same ${log.key.join(" and ")} (${found.key.join(", ")}) on ${found.lines.length} rows, as a union merge keeps a row edited in place beside its old text: fold them into one row that keeps every edit`,
+      );
+      process.exitCode = 1;
+    }
+    let base: string;
+    try {
+      base = execFileSync("git", ["show", `origin/main:${log.path}`], {
+        cwd: top,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      });
+    } catch {
+      console.error(
+        `empire(log-rows): no ${log.path} on origin/main to tell a new row from: git fetch origin, then run it again.`,
+      );
+      process.exitCode = 1;
+      continue;
+    }
+    for (const found of long(text, base, log)) {
+      console.error(
+        `empire(log-rows): ${log.path}:${found.line}: a new row's ${found.column} is ${found.length} characters, over ${CAP}: keep it to one or two sentences and link its PR or issue for the rest`,
       );
       process.exitCode = 1;
     }
