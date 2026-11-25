@@ -57,6 +57,16 @@ paymentGatewayContract(
     fillCardForm: (secret, card) =>
       fillCardForm(stripe, secret, PAYMENT_METHOD[card]),
     abandonCardForm: async (secret) => secret.split("_secret_")[0]!,
+    // attached as it is, as the save-only form can't approve saving it here
+    approvedCard: async (payerId, card) => {
+      const method = await stripe.paymentMethods.attach(PAYMENT_METHOD[card], {
+        customer: payerId,
+      });
+      return {
+        paymentMethodId: method.id,
+        card: { brand: method.card!.brand, last4: method.card!.last4 },
+      };
+    },
     // a test bank account, linked at once, as the Payment Element would
     // hand it over with its mandate
     enterBank: async () =>

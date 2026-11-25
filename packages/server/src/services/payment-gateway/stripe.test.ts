@@ -172,7 +172,8 @@ describe("Stripe's refusals", () => {
     await expect(
       stripe.payBill({
         payerId: "cus_1",
-        token: "ctoken_1",
+        source: { token: "ctoken_1" },
+        again: null,
         amount: 4200,
         description: "Bill EC-000001",
         reference: "bill_1",

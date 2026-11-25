@@ -4,6 +4,7 @@ import { stripeLocales } from "@empire-cleaning/models";
 import { MINUTE_MS, upperFirst } from "@empire-cleaning/models";
 import { monitoring } from "#services/monitoring";
 import {
+  APPROVE,
   PaymentMethodError,
   type BillInput,
   type CallingOff,
@@ -11,6 +12,7 @@ import {
   type ChargeLookup,
   type DepositInput,
   type EventHeaders,
+  type JobInput,
   type PaymentEvent,
   type PaymentGateway,
   type PaymentResult,
@@ -63,10 +65,13 @@ const BILL_ALLOWED: ("card" | "us_bank_account")[] = [
 //   approve it (3D Secure), the browser runs handleNextAction with the
 //   client secret and we ask again how it ended.
 // - Later Charges (the Office recording acceptance, the Balance) are
-//   off-session PaymentIntents on the saved card.
+//   off-session PaymentIntents on the saved card. One the bank wants the
+//   Client to approve stays open (requires_payment_method), and is confirmed
+//   on-session when they approve it on their clean's or Bill's page.
 // - A Bill paid on its page is a PaymentIntent confirmed here the same way,
-//   by card or bank debit, saving neither; a bank debit is processing until
-//   it clears or fails, days later, which a webhook tells us.
+//   by card or bank debit, saving neither, or by the saved card; a bank
+//   debit is processing until it clears or fails, days later, which a
+//   webhook tells us.
 // - Our charge ids are PaymentIntent ids.
 export class StripePaymentGateway implements PaymentGateway {
   private readonly stripe: Stripe;
@@ -195,7 +200,8 @@ export class StripePaymentGateway implements PaymentGateway {
 
   async payBill({
     payerId,
-    token,
+    source,
+    again,
     amount,
     description,
     reference,
@@ -204,7 +210,11 @@ export class StripePaymentGateway implements PaymentGateway {
     return withClient("a Bill payment", () =>
       this.payWithClient({
         payerId,
-        confirmFrom: { confirmation_token: token },
+        confirmFrom:
+          "token" in source
+            ? { confirmation_token: source.token }
+            : { payment_method: source.paymentMethodId },
+        again,
         amount,
         description,
         allowed: BILL_ALLOWED,
@@ -218,12 +228,42 @@ export class StripePaymentGateway implements PaymentGateway {
     );
   }
 
+  async payJob({
+    payerId,
+    paymentMethodId,
+    again,
+    amount,
+    description,
+    idempotencyKey,
+  }: JobInput): Promise<PaymentResult> {
+    return withClient("a Job payment", () =>
+      this.payWithClient({
+        payerId,
+        confirmFrom: { payment_method: paymentMethodId },
+        again,
+        amount,
+        description,
+        allowed: ALLOWED,
+        saves: false,
+        metadata: {},
+        idempotencyKey,
+      }),
+    );
+  }
+
   // a PaymentIntent confirmed here, on-session, from what the Client
   // entered in the browser's Payment Element (or a card they saved),
-  // saving a card entered now when `saves`
+  // saving a card entered now when `saves`. A saved card's is `again`, an
+  // off-session Charge their bank wanted them to approve, if it's still
+  // waiting on a card for the same payment: confirmed now with them there,
+  // with no return_url, so it asks the browser's handleNextAction to
+  // approve it (https://docs.stripe.com/payments/save-and-reuse, "Handle
+  // post-payment events"; shown in the sandbox, #534 Q7). Its metadata
+  // becomes this payment's, so a Bill's events find the Bill
   private async payWithClient({
     payerId,
     confirmFrom,
+    again = null,
     amount,
     description,
     allowed,
@@ -234,6 +274,7 @@ export class StripePaymentGateway implements PaymentGateway {
   }: {
     payerId: string;
     confirmFrom: { confirmation_token: string } | { payment_method: string };
+    again?: string | null;
     amount: number;
     description: string;
     allowed: Stripe.PaymentIntentCreateParams["allowed_payment_method_types"];
@@ -242,6 +283,24 @@ export class StripePaymentGateway implements PaymentGateway {
     idempotencyKey: string;
     options?: Stripe.PaymentIntentCreateParams.PaymentMethodOptions;
   }): Promise<PaymentResult> {
+    if (again && "payment_method" in confirmFrom) {
+      const open = await this.stripe.paymentIntents.retrieve(again);
+      if (
+        open.status === "requires_payment_method" &&
+        open.amount === amount &&
+        idOf(open.customer) === payerId
+      ) {
+        await this.stripe.paymentIntents.update(again, {
+          metadata: { ...metadata, [KEY]: idempotencyKey },
+        });
+        const intent = await this.stripe.paymentIntents.confirm(
+          again,
+          { ...confirmFrom, expand: ["payment_method"] },
+          { idempotencyKey },
+        );
+        return outcomeOf(intent, false);
+      }
+    }
     const intent = await this.stripe.paymentIntents.create(
       {
         amount,
@@ -318,8 +377,14 @@ export class StripePaymentGateway implements PaymentGateway {
       return outcomeOf(intent, false);
     } catch (error) {
       // declined, or the bank wants the cardholder there to approve it
-      // (authentication_required): either way, not charged
-      return { status: "failed", reason: reasonOf(error, "a Charge") };
+      // (APPROVE): either way, not charged. That one's PaymentIntent stays
+      // open for them to approve (payJob's `again`)
+      const reason = reasonOf(error, "a Charge");
+      const open =
+        reason === APPROVE && error instanceof Stripe.errors.StripeCardError
+          ? error.payment_intent?.id
+          : undefined;
+      return { status: "failed", reason, ...(open && { ref: open }) };
     }
   }
 
@@ -328,6 +393,7 @@ export class StripePaymentGateway implements PaymentGateway {
     idempotencyKey,
     chargeId,
     since,
+    again,
   }: ChargeLookup): Promise<PaymentResult | null> {
     if (chargeId) {
       return outcomeOf(
@@ -348,7 +414,16 @@ export class StripePaymentGateway implements PaymentGateway {
       })
       .autoPagingToArray({ limit: 1000 });
     const intent = made.find((i) => i.metadata?.[KEY] === idempotencyKey);
-    return intent ? outcomeOf(intent, false) : null;
+    if (intent) return outcomeOf(intent, false);
+    // made before `since`: it's this payment once payWithClient gave it
+    // this one's key, before confirming it
+    if (!again) return null;
+    const earlier = await this.stripe.paymentIntents.retrieve(again, {
+      expand: ["payment_method"],
+    });
+    return earlier.metadata?.[KEY] === idempotencyKey
+      ? outcomeOf(earlier, false)
+      : null;
   }
 
   async refund({
@@ -536,15 +611,15 @@ const outcomeOf = (
     // called off by us (cancelPayment), whatever the bank had said before
     case "canceled":
       return { status: "failed", reason: "canceled" };
+    // declined, or a Charge left open for the Client to approve (charge())
     default: {
       const error =
         intent.object === "payment_intent"
           ? intent.last_payment_error
           : intent.last_setup_error;
-      return {
-        status: "failed",
-        reason: error?.decline_code ?? error?.code ?? intent.status,
-      };
+      const reason = error?.decline_code ?? error?.code ?? intent.status;
+      const open = reason === APPROVE && intent.object === "payment_intent";
+      return { status: "failed", reason, ...(open && { ref: intent.id }) };
     }
   }
 };

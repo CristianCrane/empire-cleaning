@@ -1,5 +1,6 @@
 import type { CardForm, Language, PaymentForm } from "@empire-cleaning/models";
 import {
+  APPROVE,
   PaymentMethodError,
   type BillInput,
   type CallingOff,
@@ -7,7 +8,9 @@ import {
   type ChargeLookup,
   type DepositInput,
   type EventHeaders,
+  type JobInput,
   type PaymentEvent,
+  type PaymentSource,
   type PaymentGateway,
   type PaymentResult,
   type RefundElsewhere,
@@ -66,9 +69,10 @@ const taken = (
   chargeId: string | null,
   saved: SavedPaymentMethod | null = null,
 ): PaymentResult => ({ status: "taken", chargeId, saved });
-const failed = (reason: string): PaymentResult => ({
+const failed = (reason: string, ref?: string): PaymentResult => ({
   status: "failed",
   reason,
+  ...(ref && { ref }),
 });
 const approving = (ref: string): PaymentResult => ({
   status: "approving",
@@ -117,19 +121,26 @@ export class FakePaymentGateway implements PaymentGateway {
   private readonly forms = new Map<string, TestCard | null>();
   private readonly cards = new Map<string, TestCard>();
   private readonly refundStatus = new Map<string, RefundStatus>();
-  // payments needing approval, the key each was asked with, and whether
-  // it saves the card once approved; by card when the card itself asks for
-  // it, which nothing here gives
+  // payments needing approval, the key each was asked with, the saved card
+  // it's from (if it is), and whether it saves the card once approved; by
+  // card when the card itself asks for it, which nothing here gives
   private readonly waiting = new Map<
     string,
     {
       input: Payment;
       key: string;
       card: TestCard;
+      paymentMethodId: string | null;
       byCard: boolean;
       saves: boolean;
       finishing?: boolean;
     }
+  >();
+  // Charges the Client's bank wanted them to approve (APPROVE), each left
+  // open, by ref, until a payment on its page approves it again
+  private readonly toApprove = new Map<
+    string,
+    { payerId: string; amount: number }
   >();
   // and those called off, never to be taken
   readonly canceled = new Set<string>();
@@ -300,6 +311,11 @@ export class FakePaymentGateway implements PaymentGateway {
       this.made.set(debit.key, failed("insufficient_funds"));
       debit.ended = "insufficient_funds";
     }
+  }
+
+  // a card the payer saved, as if they'd approved saving it with their bank
+  approvedCard(payerId: string, card: TestCard) {
+    return this.save(payerId, card);
   }
 
   // a card set up in the save-only card form, for any payer
@@ -484,26 +500,58 @@ export class FakePaymentGateway implements PaymentGateway {
   async payBill(input: BillInput): Promise<PaymentResult> {
     this.check();
     const { idempotencyKey, ...request } = input;
-    const token =
-      this.billsBy === "bank" && !input.token.startsWith(BANK)
-        ? this.bankToken()
-        : input.token;
+    const { source } = input;
+    const paid =
+      "token" in source &&
+      this.billsBy === "bank" &&
+      !source.token.startsWith(BANK)
+        ? { token: this.bankToken() }
+        : source;
     return this.once(
       idempotencyKey,
       request,
-      () => this.payWithClient(input, { token }, { saves: false, banks: true }),
+      () =>
+        this.payWithClient(input, paid, {
+          saves: false,
+          banks: true,
+          again: input.again,
+        }),
+      () => failed("idempotency_error"),
+    );
+  }
+
+  async payJob(input: JobInput): Promise<PaymentResult> {
+    this.check();
+    const { idempotencyKey, ...request } = input;
+    return this.once(
+      idempotencyKey,
+      request,
+      () =>
+        this.payWithClient(
+          input,
+          { paymentMethodId: input.paymentMethodId },
+          { saves: false, banks: false, again: input.again },
+        ),
       () => failed("idempotency_error"),
     );
   }
 
   // A payment made with the Client there, from a card they entered just
   // now (or, when it `banks`, a bank account), saved by it when `saves`,
-  // or from a card they saved before. Each one asked for is kept by its key
-  // in `made`, for chargeOutcome to find, as the provider's metadata keeps it
+  // or from a card they saved before, which asks them to approve it only
+  // when it always does (alwaysApproval), as their bank does then
+  // (requireApproval). A saved card's is `again`, a Charge their bank
+  // wanted approved, while it's for the same payment, as Stripe confirms
+  // that PaymentIntent. Each one asked for is kept by its key in `made`,
+  // for chargeOutcome to find, as the provider's metadata keeps it
   private payWithClient(
     input: Payment & { idempotencyKey: string },
-    source: { token: string } | { paymentMethodId: string },
-    { saves, banks }: { saves: boolean; banks: boolean },
+    source: PaymentSource,
+    {
+      saves,
+      banks,
+      again = null,
+    }: { saves: boolean; banks: boolean; again?: string | null },
   ): PaymentResult {
     const { idempotencyKey: key } = input;
     if ("token" in source && !source.token.startsWith("tok_test")) {
@@ -521,7 +569,18 @@ export class FakePaymentGateway implements PaymentGateway {
     ) {
       return failed("unknown_payment_method");
     }
-    if (input.amount > 0) this.attempt(input.payerId, input.amount);
+    const savedId = "paymentMethodId" in source ? source.paymentMethodId : null;
+    const open = again ? this.toApprove.get(again) : undefined;
+    const reused =
+      again &&
+      savedId &&
+      open?.payerId === input.payerId &&
+      open.amount === input.amount &&
+      !this.canceled.has(again)
+        ? again
+        : undefined;
+    // the same payment confirmed again is no new one
+    if (input.amount > 0 && !reused) this.attempt(input.payerId, input.amount);
     if (this.chargeFailure) {
       if (input.amount > 0) this.made.set(key, failed(this.chargeFailure));
       return failed(this.chargeFailure);
@@ -553,14 +612,21 @@ export class FakePaymentGateway implements PaymentGateway {
       this.made.set(key, failed(declined));
       return failed(declined);
     }
-    const byCard = card === "approvalOnSetup" || card === "alwaysApproval";
+    if (reused) this.toApprove.delete(reused);
+    const byCard =
+      "token" in source &&
+      (card === "approvalOnSetup" || card === "alwaysApproval");
     const finishes = this.cardsFinishing && input.amount > 0;
-    if ("token" in source && (this.approval || byCard || finishes)) {
-      const ref = this.id(input.amount > 0 ? "pi" : "seti");
+    if (
+      ("token" in source && (this.approval || byCard || finishes)) ||
+      (savedId && card === "alwaysApproval")
+    ) {
+      const ref = reused ?? this.id(input.amount > 0 ? "pi" : "seti");
       this.waiting.set(ref, {
         input,
         key,
         card,
+        paymentMethodId: savedId,
         byCard,
         saves,
         finishing: finishes,
@@ -574,8 +640,8 @@ export class FakePaymentGateway implements PaymentGateway {
       "token" in source && saves ? this.save(input.payerId, card) : null;
     const chargeId = this.take(
       input,
-      saved?.paymentMethodId ??
-        ("paymentMethodId" in source ? source.paymentMethodId : null),
+      saved?.paymentMethodId ?? savedId,
+      reused,
     );
     const said = taken(chargeId, saved);
     if (chargeId) {
@@ -625,7 +691,7 @@ export class FakePaymentGateway implements PaymentGateway {
           : null;
         const chargeId = this.take(
           waiting.input,
-          saved?.paymentMethodId ?? null,
+          saved?.paymentMethodId ?? waiting.paymentMethodId,
           ref,
         );
         if (chargeId) this.made.set(waiting.key, taken(chargeId));
@@ -640,6 +706,10 @@ export class FakePaymentGateway implements PaymentGateway {
   // what decides
   async cancelPayment(ref: string, _why: CallingOff) {
     this.check();
+    if (this.toApprove.has(ref) && !this.canceled.has(ref)) {
+      this.canceled.add(ref);
+      return;
+    }
     const waiting = this.waiting.get(ref);
     if (!waiting || this.canceled.has(ref)) {
       throw new Error(`no payment ${ref} to call off`);
@@ -681,6 +751,13 @@ export class FakePaymentGateway implements PaymentGateway {
         if (declined === "processing") {
           this.processing.set(idempotencyKey, { ...input, chargeId });
           this.made.set(idempotencyKey, finishing(chargeId, "card"));
+        } else if (declined === APPROVE) {
+          // left open for the Client to approve on its page
+          this.toApprove.set(chargeId, {
+            payerId: input.payerId,
+            amount: input.amount,
+          });
+          this.made.set(idempotencyKey, failed(declined, chargeId));
         } else if (declined) {
           this.made.set(idempotencyKey, failed(declined));
         } else {
@@ -707,6 +784,9 @@ export class FakePaymentGateway implements PaymentGateway {
       if (this.debits.has(chargeId) || this.waiting.has(chargeId)) {
         const said = await this.paymentOutcome(chargeId);
         return said.status === "taken" ? { ...said, saved: null } : said;
+      }
+      if (this.toApprove.has(chargeId)) {
+        return failed(this.canceled.has(chargeId) ? "canceled" : APPROVE);
       }
       return this.charges.some((c) => c.chargeId === chargeId)
         ? taken(chargeId)

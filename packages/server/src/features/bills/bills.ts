@@ -764,7 +764,7 @@ export const payBillOnPage = async (
 
     const charged = await chargeSaved(tx, {
       client,
-      source: { token, reference: bill.id },
+      source: { token },
       amount: bill.totalCents,
       description: `Empire Cleaning bill ${billNumber(bill.number)}`,
       for: { billId: bill.id, kind: "bill" },

@@ -15,10 +15,12 @@ import { apart, db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 import {
+  APPROVE,
   paymentGateway,
   type CallingOff,
   type BillInput,
   type ChargeInput,
+  type JobInput,
   type PaymentResult,
   type DepositInput,
   type RefundResult,
@@ -134,7 +136,7 @@ export const NOT_APPROVED = (reason: string | null) =>
 export type Offered = { revisionId: string; serviceKey: string };
 
 // the provider call an attempt makes, as asked but for its key: a saved
-// card charged, a Deposit, or a Bill the Client pays on its page; a
+// card charged, a Deposit, or a Job or Bill the Client pays on its page; a
 // Deposit's, by the Client or the Office, with the offer it's for
 type Asked =
   | {
@@ -147,7 +149,12 @@ type Asked =
       input: Omit<DepositInput, "idempotencyKey">;
       offer?: Offered;
     }
+  | { call: "job"; input: Omit<JobInput, "idempotencyKey"> }
   | { call: "bill"; input: Omit<BillInput, "idempotencyKey"> };
+
+// the Charge a payment on a Job's or Bill's page approves again, if any
+const againOf = (asked: Asked) =>
+  asked.call === "job" || asked.call === "bill" ? asked.input.again : null;
 
 // what a try would ask the provider for now, against which an earlier
 // attempt it never heard the end of is sent again or only looked up: the
@@ -157,23 +164,29 @@ type Now = { amount: number; card: string | null } | null;
 
 // the saved card a request names; a card typed in is a token, used once,
 // so it names none
-const savedCardOf = (asked: Asked) =>
-  asked.call === "charge"
-    ? asked.input.paymentMethodId
-    : asked.call === "deposit" && "paymentMethodId" in asked.input.source
-      ? asked.input.source.paymentMethodId
-      : null;
+const savedCardOf = (asked: Asked) => {
+  switch (asked.call) {
+    case "charge":
+    case "job":
+      return asked.input.paymentMethodId;
+    case "deposit":
+    case "bill":
+      return "paymentMethodId" in asked.input.source
+        ? asked.input.source.paymentMethodId
+        : null;
+  }
+};
 
 // whether an earlier attempt asks what a try would ask now: as much, on the
 // same saved card. A Deposit on a card typed in names a token, used once,
-// which can't be told from the next one, so only the amount counts. A Bill
-// paid on its page is never sent again, only looked up: the Client may have
-// paid it since, or paid another way, and sending it would take it twice
-// (#534 critical review C2)
+// which can't be told from the next one, so only the amount counts. A Job
+// or Bill paid on its page is never sent again, only looked up: the Client
+// may have paid it since, or paid another way, and sending it would take it
+// twice (#534 critical review C2); and only they, there, can approve it
 const asksNow = (attempt: ChargeAttempt, now: Now) => {
   if (now?.amount !== attempt.amountCents) return false;
   const asked = attempt.request as Asked;
-  if (asked.call === "bill") return false;
+  if (asked.call === "bill" || asked.call === "job") return false;
   const card = savedCardOf(asked);
   return !card || card === now.card;
 };
@@ -255,9 +268,29 @@ const keep = async (
         processingBy: said.by,
       });
       return said;
+    // one the Client's bank wants them to approve keeps the payment it
+    // left open (toApprove)
     case "failed":
-      await update(attempt, { status: "failed", reason: said.reason });
-      return said;
+      await update(attempt, {
+        status: "failed",
+        reason: said.reason,
+        ...(said.ref && { gatewayRef: said.ref }),
+      });
+      return { status: "failed", reason: said.reason };
+  }
+};
+
+// the provider call an attempt asked for, with its key
+const call = (asked: Asked, idempotencyKey: string) => {
+  switch (asked.call) {
+    case "charge":
+      return paymentGateway.charge({ ...asked.input, idempotencyKey });
+    case "deposit":
+      return paymentGateway.takeDeposit({ ...asked.input, idempotencyKey });
+    case "job":
+      return paymentGateway.payJob({ ...asked.input, idempotencyKey });
+    case "bill":
+      return paymentGateway.payBill({ ...asked.input, idempotencyKey });
   }
 };
 
@@ -266,20 +299,7 @@ const ask = async (attempt: ChargeAttempt): Promise<Outcome> => {
   const asked = attempt.request as Asked;
   const key = idempotencyKey.charge(attempt);
   try {
-    return await keep(
-      attempt,
-      asked.call === "charge"
-        ? await paymentGateway.charge({ ...asked.input, idempotencyKey: key })
-        : asked.call === "deposit"
-          ? await paymentGateway.takeDeposit({
-              ...asked.input,
-              idempotencyKey: key,
-            })
-          : await paymentGateway.payBill({
-              ...asked.input,
-              idempotencyKey: key,
-            }),
-    );
+    return await keep(attempt, await call(asked, key));
   } catch (error) {
     monitoring.signal("payment_gateway_error", {
       what: `a Charge for ${attempt.kind} ${attempt.forId}`,
@@ -321,6 +341,7 @@ const outcomeOf = async (
       idempotencyKey: idempotencyKey.charge(attempt),
       chargeId: attempt.gatewayRef,
       since: attempt.askedAt,
+      again: againOf(attempt.request as Asked),
     })
     .catch(() => undefined);
   if (found === undefined) return { status: "unknown", reason: UNREACHABLE };
@@ -684,18 +705,82 @@ export const recordTakenEarlier = async (
   return recorded;
 };
 
-// what's charged: a Client's saved Payment Method, without them there; or,
-// on a Bill's page, the card or bank account they just entered (`token`),
-// for the Bill `reference` names
-export type PaySource = PaymentMethodRow | { token: string; reference: string };
+// what's charged: a Client's saved Payment Method; or, on a Bill's page,
+// the card or bank account they just entered (`token`)
+export type PaySource = PaymentMethodRow | { token: string };
 
-// a Bill paid on its page whose bank wants the Client to approve it in the
-// browser, with `secret`; the attempt waits on it (approving). Its reason
-// is an Unpaid one, which unpaid.ts words, should it ever be stored
+// a payment on a Job's or Bill's page whose bank wants the Client to
+// approve it in the browser, with `secret`; the attempt waits on it
+// (approving). Never stored: the Job or Bill keeps why it was Unpaid
 export type NeedsApproval = {
   ok: false;
   reason: "needs_approval";
   secret: string;
+};
+
+// The payment a Job's or Bill's newest Charge left open for the Client to
+// approve (APPROVE), as they now pay `amount` on `card` on its page: that
+// one is confirmed with them there, as the provider advises, so their bank
+// asks once for one payment. Once they've refused it, or it's been called
+// off, a new one is asked for (#534 Q7, the user's call: a fresh payment
+// after a refusal)
+const toApprove = async (
+  tx: Tx,
+  forId: string,
+  amount: number,
+  card: string,
+) => {
+  const [newest] = await tx
+    .select()
+    .from(chargeAttempts)
+    .where(eq(chargeAttempts.forId, forId))
+    .orderBy(desc(chargeAttempts.askedAt), desc(chargeAttempts.createdAt))
+    .limit(1);
+  return newest?.status === "failed" &&
+    newest.reason === APPROVE &&
+    newest.amountCents === amount &&
+    savedCardOf(newest.request as Asked) === card
+    ? newest.gatewayRef
+    : null;
+};
+
+// what's asked of the provider for `paying`: a saved card charged without
+// the Client there, or with them on the Job's or Bill's page, or a card
+// or bank account they entered on a Bill's page
+const askFor = async (
+  tx: Tx,
+  chargeFor: ChargeFor,
+  source: PaySource,
+  withClient: boolean,
+  paying: { payerId: string; amount: number; description: string },
+): Promise<Asked> => {
+  if ("token" in source) {
+    if (!("billId" in chargeFor)) {
+      throw new Error("only a Bill is paid with a card entered on its page");
+    }
+    const input = { ...paying, source, again: null };
+    return { call: "bill", input: { ...input, reference: chargeFor.billId } };
+  }
+  const paymentMethodId = source.gatewayRef;
+  if (!withClient)
+    return { call: "charge", input: { ...paying, paymentMethodId } };
+  const again = await toApprove(
+    tx,
+    forIdOf(chargeFor),
+    paying.amount,
+    paymentMethodId,
+  );
+  return "billId" in chargeFor
+    ? {
+        call: "bill",
+        input: {
+          ...paying,
+          again,
+          source: { paymentMethodId },
+          reference: chargeFor.billId,
+        },
+      }
+    : { call: "job", input: { ...paying, again, paymentMethodId } };
 };
 
 /**
@@ -708,6 +793,9 @@ export type NeedsApproval = {
  * couldn't be taken: no Payment Method saved, a decline, the provider
  * unreachable (or an earlier try still unknown), or a bank debit processing
  * each come back as why, for the caller to make what it charged for Unpaid.
+ * A saved card is charged without the Client there, unless `withClient`:
+ * they're paying on the Job's or Bill's page, there for their bank to ask
+ * them to approve it (NeedsApproval), as a card they just entered is.
  */
 export const chargeSaved = async (
   tx: Tx,
@@ -719,6 +807,7 @@ export const chargeSaved = async (
     for: chargeFor,
     item = null,
     callOff = "abandoned",
+    withClient = false,
   }: {
     client: Pick<Client, "id" | "name" | "email" | "preferredLanguage">;
     source: PaySource | null;
@@ -728,6 +817,7 @@ export const chargeSaved = async (
     // the one change to the price it's for, by name, if it is
     item?: ChargeItem | null;
     callOff?: CallingOff;
+    withClient?: boolean;
   },
 ): Promise<Taken | NeedsApproval> => {
   if (!source) return { ok: false, reason: NO_CARD };
@@ -751,26 +841,12 @@ export const chargeSaved = async (
     return null;
   });
   if (!payerId) return { ok: false, reason: UNREACHABLE };
-  const rest = amount - cents;
-  const outcome = await attempt(
-    chargeFor.kind,
-    forIdOf(chargeFor),
-    saved
-      ? {
-          call: "charge",
-          input: { payerId, paymentMethodId: saved, amount: rest, description },
-        }
-      : {
-          call: "bill",
-          input: {
-            payerId,
-            token: (source as { token: string }).token,
-            amount: rest,
-            description,
-            reference: (source as { reference: string }).reference,
-          },
-        },
-  );
+  const asked = await askFor(tx, chargeFor, source, withClient, {
+    payerId,
+    amount: amount - cents,
+    description,
+  });
+  const outcome = await attempt(chargeFor.kind, forIdOf(chargeFor), asked);
   // what an earlier try took is recorded, but the rest is still owed
   // (#534, F2)
   if (outcome.status === "approving") {

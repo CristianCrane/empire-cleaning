@@ -85,7 +85,8 @@ const onPage = async (card: string, reference: string) => {
   });
   await gateway.payBill({
     payerId,
-    token,
+    source: { token },
+    again: null,
     amount: 12000,
     description: "Recording: Bill",
     reference,

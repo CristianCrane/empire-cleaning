@@ -18,14 +18,14 @@ export type SavedPaymentMethod = {
   card: Card;
 };
 
-// where a Deposit comes from: what the Client just entered in the browser's
-// payment form (which also saves it for later), or a Payment Method they
-// saved before
-type DepositSource = { token: string } | { paymentMethodId: string };
+// where a payment made with the Client there comes from: what they just
+// entered in the browser's payment form (a Deposit's also saves it for
+// later), or a Payment Method they saved before
+export type PaymentSource = { token: string } | { paymentMethodId: string };
 
 export type DepositInput = {
   payerId: string;
-  source: DepositSource;
+  source: PaymentSource;
   // 0 takes nothing, and only saves the Payment Method
   amount: number;
   description: string;
@@ -44,7 +44,9 @@ export type DepositInput = {
 //   far on to call off: by "card", which settles soon, or by "bank", a bank
 //   debit, for days until it clears or fails. A Bill's page says the two
 //   apart (#534's critical review C6)
-// - failed: never taken, and why
+// - failed: never taken, and why. A Charge the Client's bank wants them
+//   there to approve (APPROVE) leaves its payment open for that, as `ref`,
+//   for an `again` to confirm with them on the page (#534 Q7)
 export type PaymentResult =
   | {
       status: "taken";
@@ -55,7 +57,11 @@ export type PaymentResult =
     }
   | { status: "approving"; ref: string; secret: string }
   | { status: "finishing"; ref: string; by: "card" | "bank" }
-  | { status: "failed"; reason: string };
+  | { status: "failed"; reason: string; ref?: string };
+
+// why a Charge to a saved card wasn't taken when the Client's bank wants
+// them there to approve it (e.g. 3D Secure), as the provider says it
+export const APPROVE = "authentication_required";
 
 export type ChargeInput = {
   payerId: string;
@@ -65,6 +71,13 @@ export type ChargeInput = {
   idempotencyKey: string;
 };
 
+// a Job's payment the Client makes on its page, from their saved card, as
+// when their bank wants them to approve it: `again`, a Charge it wanted
+// approved, which is confirmed with them there if it still can be, as the
+// provider advises (https://docs.stripe.com/payments/save-and-reuse), or
+// else a new payment is
+export type JobInput = ChargeInput & { again: string | null };
+
 export type RefundInput = {
   chargeId: string;
   amount: number;
@@ -72,12 +85,14 @@ export type RefundInput = {
 };
 
 // how to find a Charge asked for before: by its id, once known, or else by
-// the idempotency key it was asked with, at or after `since`
+// the idempotency key it was asked with, at or after `since`, or on the
+// earlier payment it was asked to approve `again` (JobInput)
 export type ChargeLookup = {
   payerId: string;
   idempotencyKey: string;
   chargeId: string | null;
   since: Date;
+  again: string | null;
 };
 
 export type RefundResult =
@@ -92,11 +107,13 @@ export type RefundLookup = { chargeId: string; idempotencyKey: string };
 export type RefundElsewhere = { refundId: string; amount: number; at: Date };
 
 // a Bill the Client pays on its page (ADR-0016), by a card or bank account
-// entered just now in the browser's payment form, which saves neither;
-// `reference` is ours (the Bill), and comes back in its events
+// entered just now in the browser's payment form, which saves neither, or
+// by their saved card, `again` as a Job's (JobInput); `reference` is ours
+// (the Bill), and comes back in its events
 export type BillInput = {
   payerId: string;
-  token: string;
+  source: PaymentSource;
+  again: string | null;
   amount: number;
   description: string;
   reference: string;
@@ -149,6 +166,8 @@ export interface PaymentGateway {
   // a Bill paid on its page, likewise; a bank debit is finishing until it
   // clears or fails, days later, which its events tell
   payBill(input: BillInput): Promise<PaymentResult>;
+  // a Job's payment on its page, from the saved card, likewise
+  payJob(input: JobInput): Promise<PaymentResult>;
   // how a payment made with the Client there, that needed approval or was
   // finishing, stands now, with the card it saved
   paymentOutcome(ref: string): Promise<PaymentResult>;
@@ -196,6 +215,7 @@ export const paymentGateway: PaymentGateway = {
   savePaymentMethod: (input) => current.savePaymentMethod(input),
   takeDeposit: (input) => current.takeDeposit(input),
   payBill: (input) => current.payBill(input),
+  payJob: (input) => current.payJob(input),
   paymentOutcome: (ref) => current.paymentOutcome(ref),
   cancelPayment: (ref, why) => current.cancelPayment(ref, why),
   charge: (input) => current.charge(input),
