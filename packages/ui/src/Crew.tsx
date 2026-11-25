@@ -1,18 +1,15 @@
 import { Check, UserRound } from "lucide-react";
-import type { ReactNode } from "react";
 import { Avatar } from "./Avatar.tsx";
 import { Card } from "./Card.tsx";
 import { useUiWords } from "./language.ts";
 import { Section } from "./Section.tsx";
 
 // someone on a Job's crew: their name as this reader calls them ("You",
-// "Dee"), their picture if any, whether they've confirmed, and what this
-// reader can do about them, if anything (the Office's ✕ to take them off)
+// "Dee"), their picture if any, and whether they've confirmed
 export type CrewMember = {
   name: string;
   confirmed: boolean;
   picture?: string | null;
-  action?: ReactNode;
 };
 
 // A Cleaner Needed on a crew: a ghost of a face, its person faint and thin in
@@ -40,13 +37,21 @@ export function NeededMark() {
 // One person on a crew: every face the same, a green tick on it once
 // they've confirmed and nothing till then: the tick says it once, so no
 // word beside it but for a screen reader
-export function CrewFace({ member }: { member: CrewMember }) {
+// On a Job that's over (`over`), who was there: no tick, and nothing read
+// out of whether they'd confirmed
+export function CrewFace({
+  member,
+  over = false,
+}: {
+  member: CrewMember;
+  over?: boolean;
+}) {
   const words = useUiWords();
   return (
     <span className="inline-flex items-center gap-2">
       <span className="relative">
         <Avatar src={member.picture} />
-        {member.confirmed && (
+        {member.confirmed && !over && (
           <span
             aria-hidden
             className="absolute -right-1 -bottom-1 flex size-5 items-center justify-center rounded-full bg-success-strong text-surface ring-2 ring-surface"
@@ -57,44 +62,60 @@ export function CrewFace({ member }: { member: CrewMember }) {
       </span>
       <span className="font-semibold text-fg">
         {member.name}
-        <span className="sr-only">
-          , {member.confirmed ? words.confirmed : words.notConfirmedYet}
-        </span>
+        {!over && (
+          <span className="sr-only">
+            , {member.confirmed ? words.confirmed : words.notConfirmedYet}
+          </span>
+        )}
       </span>
-      {member.action}
     </span>
   );
 }
 
 // A Job's crew, a part of its own (a Section titled `title`, "Crew"): a
-// line saying where it stands ("1 of 2 confirmed, 1 needed"), then a face
-// for each member and a ghost for each Cleaner Needed, in a card. `size`
-// is how many the Job takes; `actions` sit on its title's line
+// line saying where it stands ("1 of 2 confirmed, 1 needed"), and under it
+// `line`, what this reader needs to know too (the Office's: when free
+// cleaners can take it), a line of its own so it doesn't read as the
+// count's; then a face for each member and a ghost for each Cleaner Needed,
+// in a card. `size` is how many the Job takes. The line says nothing of a
+// crew all confirmed: the ticks say it. On a Job that's over (`over`), only
+// who was there, those who'd confirmed: no line, no ghosts, no ticks; none,
+// no part at all
 export function CrewSection({
   title,
   members,
   size,
-  actions,
+  line,
+  over = false,
 }: {
   title: string;
   members: CrewMember[];
   size: number;
-  actions?: ReactNode;
+  line?: string;
+  over?: boolean;
 }) {
   const words = useUiWords();
-  const needed = Math.max(0, size - members.length);
+  const shown = over ? members.filter((m) => m.confirmed) : members;
+  if (over && shown.length === 0) return null;
+  const needed = over ? 0 : Math.max(0, size - members.length);
   const confirmed = members.filter((m) => m.confirmed).length;
+  const stands =
+    needed === 0 && confirmed === members.length
+      ? null
+      : words.crewLine(confirmed, members.length + needed, needed);
+  const description = !over && (stands || line) && (
+    <>
+      {stands && <span className="block">{stands}</span>}
+      {line && <span className="block">{line}</span>}
+    </>
+  );
   return (
-    <Section
-      title={title}
-      description={words.crewLine(confirmed, members.length + needed, needed)}
-      actions={actions}
-    >
+    <Section title={title} description={description || undefined}>
       <Card>
         <ul className="flex flex-wrap gap-x-6 gap-y-3">
-          {members.map((m, i) => (
+          {shown.map((m, i) => (
             <li key={`${m.name}-${i}`}>
-              <CrewFace member={m} />
+              <CrewFace member={m} over={over} />
             </li>
           ))}
           {Array.from({ length: needed }, (_, i) => (

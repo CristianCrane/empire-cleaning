@@ -1,4 +1,4 @@
-import { Sparkles, ClipboardList } from "lucide-react";
+import { MessageSquareText } from "lucide-react";
 import { useState } from "react";
 import {
   type AddOnChoice,
@@ -29,6 +29,7 @@ import {
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
+import { ConditionFact } from "../Fact.tsx";
 import { useSaid } from "../words.ts";
 
 const words = catalog({
@@ -37,7 +38,7 @@ const words = catalog({
     fixDetails: "Some details need fixing.",
     marked: "Job marked done",
     title: "Mark this job done",
-    howWasHome: "How was the home?",
+    howWasPlace: "How was the place?",
     couldntDo: "Extras you couldn't do",
     whyNot: "Why not?",
     didMore: "Extras you did that weren't asked for",
@@ -52,14 +53,13 @@ const words = catalog({
       `${name} marked it done at ${time}. Thanks!`,
     markedAt: (time: string) => `Marked done at ${time}. Thanks!`,
     reported: "Reported",
-    nothingToReport: "Nothing to report",
   },
   es: {
     notMarked: "El trabajo no se marcó como terminado. Vuelve a intentarlo.",
     fixDetails: "Hay que corregir algunos datos.",
     marked: "Trabajo marcado como terminado",
     title: "Marcar este trabajo como terminado",
-    howWasHome: "¿Cómo estaba la casa?",
+    howWasPlace: "¿Cómo estaba el lugar?",
     couldntDo: "Adicionales que no pudiste hacer",
     whyNot: "¿Por qué no?",
     didMore: "Adicionales que hiciste sin que se pidieran",
@@ -77,7 +77,6 @@ const words = catalog({
     markedAt: (time: string) =>
       oneStop(`Marcado como terminado a ${theTimeEs(time)}. ¡Gracias!`),
     reported: "Lo que se informó",
-    nothingToReport: "Nada que informar",
   },
 });
 
@@ -151,7 +150,7 @@ export function CompleteJob({
           }}
         >
           <RadioGroup
-            label={w.howWasHome}
+            label={w.howWasPlace}
             name="condition"
             value={condition}
             onChange={(value) => setCondition(value as Condition)}
@@ -241,7 +240,7 @@ function AddOnReports({
   };
 
   return (
-    // its question a field's label, as How was the home? is: one rank
+    // its question a field's label, as How was the place? is: one rank
     <fieldset className="flex flex-col gap-2">
       <legend className="mb-1 text-sm font-semibold text-fg">{title}</legend>
       {addOns.map((addOn) => (
@@ -271,8 +270,9 @@ function AddOnReports({
 }
 
 // what was reported once it's Completed, first on the page, never with
-// prices: who marked it done, as the reader calls them, then the home and
-// what was different. Its badge says Done, so no title says it again
+// prices: who marked it done, as the reader calls them, then the place and
+// what was different, when anything was: nothing, no row. Its badge says
+// Done, so no title says it again
 export function Completed({ job }: { job: CleanerJob }) {
   const completion = job.completion!;
   const t = useSaid(words);
@@ -288,18 +288,12 @@ export function Completed({ job }: { job: CleanerJob }) {
         })}
       </p>
       <Facts>
-        <Fact
-          icon={Sparkles}
-          label={t.condition}
-          value={t.conditionLabel[completion.condition]}
-        />
-        <Fact
-          icon={ClipboardList}
-          label={w.reported}
-          value={
-            completion.reports.length === 0 ? (
-              w.nothingToReport
-            ) : (
+        <ConditionFact property={completion} found />
+        {completion.reports.length > 0 && (
+          <Fact
+            icon={MessageSquareText}
+            label={w.reported}
+            value={
               <ul>
                 {completion.reports.map((r, i) => (
                   <li key={i}>
@@ -307,9 +301,9 @@ export function Completed({ job }: { job: CleanerJob }) {
                   </li>
                 ))}
               </ul>
-            )
-          }
-        />
+            }
+          />
+        )}
       </Facts>
     </Card>
   );

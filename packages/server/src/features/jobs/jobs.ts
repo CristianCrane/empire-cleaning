@@ -40,10 +40,16 @@ export const lockDay = async (tx: Tx, day: string) => {
 
 // puts a Job on the Schedule. Accepting a Quote calls this once it has locked
 // the day, checked it has room and taken the Deposit.
-export const bookJob = async (job: NewJob, tx: Tx | typeof db = db) => {
+// `at` is the moment it's booked: the caller's, when it took the Deposit
+// in the same moment, so the Job's story tells them as one
+export const bookJob = async (
+  job: NewJob,
+  tx: Tx | typeof db = db,
+  at: Date = clock.now(),
+) => {
   const [booked] = await tx
     .insert(jobs)
-    .values({ ...job, bookedAt: clock.now() })
+    .values({ ...job, bookedAt: at })
     .returning();
   return booked!;
 };

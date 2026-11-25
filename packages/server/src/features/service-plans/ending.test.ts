@@ -190,9 +190,9 @@ describe("Ending a Service Plan", () => {
     expect(
       (
         (await office.get(`/api/jobs/${jobId}`).expect(200)).body as {
-          completion: { payment: { unpaid: unknown } };
+          payment: { unpaid: unknown };
         }
-      ).completion.payment.unpaid,
+      ).payment.unpaid,
     ).not.toBeNull();
     expect(testEmail().lastTo(casey.email).subject).toBe(
       "Your cleaning plan has ended",

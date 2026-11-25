@@ -44,7 +44,6 @@ export const portalWords = catalog({
     card: "card",
     decline: "Decline",
     // a clean's badges (cleanBadge), on the Cleans list and its page
-    moveAsked: "Move asked",
     needsOk: "Needs your OK",
     // by when a price change proposed to them wants their answer
     answerBy: (day: string) => `Please answer by ${day}.`,
@@ -89,7 +88,6 @@ export const portalWords = catalog({
     yourClean: (day: string) => `Su limpieza del ${day}`,
     card: "tarjeta",
     decline: "Rechazar",
-    moveAsked: "Reprogramación pedida",
     needsOk: "Necesita su aprobación",
     answerBy: (day: string) => `Responda antes del ${day}.`,
     reviewThe: (n: number) =>

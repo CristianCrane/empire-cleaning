@@ -42,7 +42,7 @@ export function cleanBadge(t: Said, clean: CleanState, plain = false) {
   if (clean.status === "cancelled")
     return <StatusBadge>{t.cancelledLabel(clean.skipped)}</StatusBadge>;
   if (clean.moveAsked)
-    return <StatusBadge tone="info">{t.p.moveAsked}</StatusBadge>;
+    return <StatusBadge tone="info">{t.moveAsked}</StatusBadge>;
   if (!plain) return null;
   return clean.status === "completed" ? (
     <StatusBadge tone="success">{t.jobStatusLabel.completed}</StatusBadge>

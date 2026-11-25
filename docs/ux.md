@@ -78,12 +78,15 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   action is the page's next step, in the header: then the part waits until
   it has something (a Site Visit that has been, Record findings; each
   action once). Money is one
-  part: its facts, the price changes in it, "How it's worked out" folded
-  (`Fold`).
+  part: its facts, one line a fact, "How it's worked out" folded
+  (`Fold`); a Job's price changes are a part of their own after How it
+  went, as they're what happened there (a list on a phone, a table wider).
 - **Its History**, a `Timeline` in a Card, newest first: last, at every
   width: one column, as a side column competed with the page (#493). Each
   entry says what happened on one line and when on the line under it, every
-  entry alike (`TimelineItem`, a Quote's story too). What happened (a drop-out, a Cleaner taken off) is told there, not
+  entry alike (`TimelineItem`, a Quote's story too); on a Job's, any more
+  there is goes after a colon in that line (a cancellation's reason), not
+  on a third. What happened (a drop-out, a Cleaner taken off) is told there, not
   kept as a row elsewhere. A Quote's story is its
   body, **Now** on top holding it as it stands; its Draft is a Form page.
 - **On a phone, the page's next step pinned at the foot**, above the tab
@@ -474,7 +477,7 @@ The `ui` skill's rules hold here too; these are this product's.
 
 - **A Notice holds at most one action**, a text Button (or `ButtonLink`) on
   the right of its text, never primary, and not the page's next step,
-  which is the page's primary (the `ui` skill; #493 builds it). Two
+  which is the page's primary (the `ui` skill). Two
   things to say or do are two Notices. ("Notices hold one action")
 - **Tone means what a status's does**: warning for something waiting on
   someone, danger for something that failed or is late, info for what
@@ -610,9 +613,10 @@ stays as it is (#336).
 ### Dialogs and rows
 
 - **A row holds no Buttons.** Pressing it opens one dialog that does the
-  work. A row that opens nothing (someone on a Job's crew) may hold one
-  quiet icon Button where the chevron would be, opening its dialog (an ✕
-  takes someone off). ("Rows open one dialog, two Buttons")
+  work. What's done to something that opens nothing (someone on a Job's
+  crew) is in the page's actions menu, named for whom ("Take Cory Cleaner
+  off"): an ✕ by a face sat mid-card, where no chevron goes (#493).
+  ("Rows open one dialog, two Buttons")
 - **A dialog has at most two Buttons**, one filled (primary, or danger) and
   one quiet (Cancel, or an alternative like Dismiss), plus the ✕.
 - **A dialog keeps its title and its Buttons in view** while what's between

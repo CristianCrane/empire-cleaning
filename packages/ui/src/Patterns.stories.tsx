@@ -23,11 +23,10 @@ import {
   Repeat,
   Send,
   Store,
+  UserMinus,
   UserX,
   Trash2,
-  X,
 } from "lucide-react";
-import { Avatar } from "./Avatar.tsx";
 import { ActionFooter } from "./ActionFooter.tsx";
 import { AppLayout } from "./layouts/AppLayout.tsx";
 import { MessagePage } from "./layouts/MessagePage.tsx";
@@ -35,6 +34,7 @@ import { DetailsCard, RecordPage } from "./layouts/RecordPage.tsx";
 import { Fact, Facts } from "./Facts.tsx";
 import { Button } from "./Button.tsx";
 import { Card } from "./Card.tsx";
+import { CrewSection } from "./Crew.tsx";
 import { Checkbox } from "./Checkbox.tsx";
 import { DateTile } from "./DateTile.tsx";
 import { AnswerCard, HomeTiles } from "./layouts/HomePage.tsx";
@@ -530,10 +530,8 @@ function RowsOpenOneDialog() {
           done to it.
         </p>
         <p>
-          A row that opens nothing (someone on a Job's crew) can hold one action
-          instead: a quiet icon Button where the chevron would be (
-          <code>ListItem</code>'s <code>action</code>), named for screen
-          readers, opening its dialog: an ✕ takes someone off.
+          What's done to something that opens nothing (someone on a Job's crew)
+          is in the page's actions menu, named for whom: Take Ben Cleaner off.
         </p>
         <p>
           A dialog ends with at most two Buttons: one filled (
@@ -631,6 +629,7 @@ function HistoryLast() {
         status={<StatusBadge tone="warning">Needs cleaners</StatusBadge>}
         actions={[
           { label: "Ask for a new time", icon: CalendarClock, onAction() {} },
+          { label: "Take Ben Cleaner off", icon: UserMinus, onAction() {} },
           { label: "Cancel job", icon: CalendarX, danger: true, onAction() {} },
         ]}
         details={
@@ -665,30 +664,26 @@ function HistoryLast() {
           </Timeline>
         }
       >
-        <Section title="Crew" description="1 of 2 cleaners confirmed">
-          <List aria-label="Crew">
-            <ListItem
-              id="ben"
-              title="Ben Cleaner"
-              start={<Avatar />}
-              description="Confirmed Oct 21"
-              action={
-                <Button
-                  variant="quiet"
-                  size="icon"
-                  aria-label="Remove Ben Cleaner"
-                >
-                  <X aria-hidden size={20} className="text-fg-muted" />
-                </Button>
-              }
-            />
-          </List>
-        </Section>
+        <CrewSection
+          title="Crew"
+          size={2}
+          members={[{ name: "Ben Cleaner", confirmed: true }]}
+        />
         <Section title="Money">
           <Card>
             <Facts>
-              <Fact icon={CircleDollarSign} label="Total" value="$194.89" />
-              <Fact icon={CreditCard} label="Deposit paid" value="$48.72" />
+              <Fact
+                icon={Receipt}
+                label="Price"
+                value="$194.89"
+                line="Price, tax included"
+              />
+              <Fact
+                icon={CreditCard}
+                label="Deposit"
+                value="$48.72"
+                line="Deposit, paid"
+              />
             </Facts>
           </Card>
         </Section>
