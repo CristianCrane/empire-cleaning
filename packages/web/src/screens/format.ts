@@ -5,6 +5,7 @@ import type {
   Condition,
   HomeRooms,
   JobStatus,
+  OfferedQuoteSummary,
   PlanDaySummary,
   PropertyView,
   QuoteKind,
@@ -256,7 +257,6 @@ const words = catalog({
     } satisfies Record<ServicePlanStatus, string>,
     everyWeekOn: (what: string, days: string) =>
       `${what}, every week${days ? ` on ${days}` : ""}`,
-    notPriced: "Not priced yet",
     planPrice: (price: string, perWeek: boolean) =>
       `${price} ${perWeek ? "a week" : "a clean"}`,
     planOf: (service: string) => `${service} plan`,
@@ -300,7 +300,6 @@ const words = catalog({
     planStatus: { active: "Activo", on_hold: "En pausa", ended: "Finalizado" },
     everyWeekOn: (what: string, days: string) =>
       `${what}, cada semana${days ? ` los ${days}` : ""}`,
-    notPriced: "Aún sin precio",
     planPrice: (price: string, perWeek: boolean) =>
       `${price} ${perWeek ? "por semana" : "por limpieza"}`,
     planOf: (service: string) => `Plan de ${service}`,
@@ -519,15 +518,16 @@ const screenWordsIn = (lang: Language) => {
     // "...: $650.10 a week" (the Office names it as quoteNamed says)
     quoteHeadline: (
       quote: Pick<
-        QuoteSummary,
+        OfferedQuoteSummary,
         "headlineTotalCents" | "headlineServiceName" | "plan"
       >,
     ) =>
-      quote.headlineTotalCents === null
-        ? w.notPriced
-        : quote.plan
-          ? w.planHeadline(planName(quote.plan), quoteTotal(quote)!)
-          : servicePrice(quote.headlineServiceName!, quote.headlineTotalCents),
+      quote.plan
+        ? w.planHeadline(
+            planName(quote.plan),
+            priceOf(quote.headlineTotalCents, quote.plan.days.length),
+          )
+        : servicePrice(quote.headlineServiceName, quote.headlineTotalCents),
     // when a Service Plan's cleans come round, each weekday from its first:
     // "Every week, on Mondays at 9:00 AM", or "Every week, on Mondays at
     // 9:00 AM and Wednesdays at 1:00 PM"

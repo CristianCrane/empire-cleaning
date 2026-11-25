@@ -82,6 +82,14 @@ export const statusOf = (quote: {
 export const isOpen = (status: QuoteStatus) =>
   status === "requested" || status === "draft" || status === "sent";
 
+// whether a Revision of it was Sent: it's Sent, or Accepted, Declined or
+// Expired since (a Sent Quote can't be Turned Down)
+const isOffered = (status: QuoteStatus) =>
+  status === "sent" ||
+  status === "accepted" ||
+  status === "declined" ||
+  status === "expired";
+
 // what happened to a Quote that can't be accepted, revised or declined
 // now; each refusal adds what to do
 const closedWords = catalog({
@@ -455,11 +463,9 @@ const summaries = async (
                 : (quote.acceptedServiceKey ?? shown.serviceKey),
             )
           : null;
-      return {
+      const fields = {
         id: quote.id,
         kind: quote.kind,
-        // a Draft is still being written: to its Client it's as they asked
-        status: forClient && status === "draft" ? "requested" : status,
         origin: quote.origin,
         asked: askedOf(quote, addOns.get(quote.id) ?? [], all),
         service: choiceOf(
@@ -468,8 +474,6 @@ const summaries = async (
         client,
         property: toPropertyView(property, list),
         homePlanId,
-        headlineTotalCents: headline?.totalCents ?? null,
-        headlineServiceName: headline?.serviceName ?? null,
         plan:
           plan && shown
             ? {
@@ -480,9 +484,6 @@ const summaries = async (
                 })),
               }
             : null,
-        proposedStartsAt: shown?.proposedStartsAt?.toISOString() ?? null,
-        sentAt: offer?.sentAt?.toISOString() ?? null,
-        expiresAt: offer?.expiresAt?.toISOString() ?? null,
         drafting: !forClient && draft !== undefined,
         siteVisit: siteVisitOf(
           status,
@@ -494,6 +495,33 @@ const summaries = async (
         ),
         turnDownReason: quote.turnDownReason,
         createdAt: quote.madeAt.toISOString(),
+      };
+      if (!isOffered(status)) {
+        return {
+          ...fields,
+          // a Draft is still being written: to its Client it's as they asked
+          status: forClient && status === "draft" ? "requested" : status,
+          headlineTotalCents: headline?.totalCents ?? null,
+          headlineServiceName: headline?.serviceName ?? null,
+          proposedStartsAt: shown?.proposedStartsAt?.toISOString() ?? null,
+          sentAt: null,
+          expiresAt: null,
+        };
+      }
+      // sending writes the offer, its dates and its options at once
+      // (sendQuote), so a Quote offered without them is broken data: said
+      // here, not shown as a Quote with no price
+      if (!offer || !headline) {
+        throw new Error(`Quote ${quote.id} is ${status} with no offer`);
+      }
+      return {
+        ...fields,
+        status,
+        headlineTotalCents: headline.totalCents,
+        headlineServiceName: headline.serviceName,
+        proposedStartsAt: offer.proposedStartsAt!.toISOString(),
+        sentAt: offer.sentAt!.toISOString(),
+        expiresAt: offer.expiresAt!.toISOString(),
       };
     },
   );

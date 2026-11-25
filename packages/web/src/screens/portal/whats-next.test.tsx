@@ -5,9 +5,11 @@ import type {
   ClientSiteVisit,
   ClientUpcomingJob,
   ClientView,
+  OfferedQuoteSummary,
   PropertyView,
   QuoteSummary,
   ServicePlanSummary,
+  UnsentQuoteSummary,
 } from "@empire-cleaning/models";
 import { whatsNext, type HomeData } from "./whats-next.ts";
 
@@ -78,32 +80,41 @@ const plan = (over: Partial<ServicePlanSummary> = {}): ServicePlanSummary => ({
   nextStartsAt: TUESDAY,
   ...over,
 });
-const quote = (over: Partial<QuoteSummary> = {}): QuoteSummary =>
-  ({
-    id: "quote",
-    kind: "one_off",
-    status: "requested",
-    service: { key: "deep", name: "Deep Clean" },
-    property: home,
-    headlineTotalCents: null,
-    headlineServiceName: null,
-    plan: null,
-    proposedStartsAt: null,
-    sentAt: null,
-    expiresAt: null,
-    siteVisit: null,
-    turnDownReason: null,
-    createdAt: "2026-10-31T13:00:00.000Z",
-    ...over,
-  }) as QuoteSummary;
-const sentQuote = quote({
+// a Quote they asked for, with nothing Sent yet
+const quote = (over: Partial<UnsentQuoteSummary> = {}): QuoteSummary => ({
+  id: "quote",
+  kind: "one_off",
+  status: "requested",
+  origin: "client",
+  asked: null,
+  service: { key: "deep", name: "Deep Clean", method: "rooms" },
+  client: { id: "client", name: "Dana Reyes", businessName: null },
+  property: home,
+  homePlanId: null,
+  headlineTotalCents: null,
+  headlineServiceName: null,
+  plan: null,
+  proposedStartsAt: null,
+  sentAt: null,
+  expiresAt: null,
+  drafting: false,
+  siteVisit: null,
+  turnDownReason: null,
+  createdAt: "2026-10-31T13:00:00.000Z",
+  ...over,
+});
+// one with an offer: Sent, or Accepted, Declined or Expired since
+const offered = (over: Partial<OfferedQuoteSummary> = {}): QuoteSummary => ({
+  ...quote(),
   status: "sent",
   headlineTotalCents: 39104,
   headlineServiceName: "Deep Clean",
   proposedStartsAt: "2026-11-08T15:00:00.000Z",
   sentAt: "2026-10-31T19:00:00.000Z",
   expiresAt: "2026-11-14T04:59:00.000Z",
+  ...over,
 });
+const sentQuote = offered();
 const visit: ClientSiteVisit = {
   id: "visit",
   startsAt: "2026-11-02T19:00:00.000Z",
@@ -195,11 +206,10 @@ describe("Home's hero, with nothing booked", () => {
   });
 
   test("names the Service a one-off Quote leads with", () => {
-    const standard = {
-      ...sentQuote,
+    const standard = offered({
       headlineTotalCents: 20185,
       headlineServiceName: "Standard Clean",
-    };
+    });
     expect(next({ quotes: [standard] }).hero.headline).toBe(
       "Standard Clean $201.85",
     );
@@ -224,7 +234,7 @@ describe("Home's hero, with nothing booked", () => {
 
   test("offers a past Client a new Quote", () => {
     const { hero } = next({
-      quotes: [quote({ status: "accepted" })],
+      quotes: [offered({ status: "accepted" })],
       pastJobs: [pastJob()],
     });
     expect(hero).toMatchObject({
@@ -241,7 +251,7 @@ describe("Home's hero, with nothing booked", () => {
 
   test("says how the last Quote ended: Expired, Declined or Turned Down", () => {
     expect(
-      next({ quotes: [{ ...sentQuote, status: "expired" }] }).hero,
+      next({ quotes: [offered({ status: "expired" })] }).hero,
     ).toMatchObject({
       label: "Your quote expired",
       headline: "Deep Clean $391.04",
@@ -250,7 +260,7 @@ describe("Home's hero, with nothing booked", () => {
       ],
     });
     expect(
-      next({ quotes: [quote({ status: "declined" })] }).hero,
+      next({ quotes: [offered({ status: "declined" })] }).hero,
     ).toMatchObject({
       headline: "Changed your mind?",
       lines: [

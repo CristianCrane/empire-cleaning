@@ -97,7 +97,6 @@ const words = catalog({
     expired: "Your quote expired",
     wasOpenUntil: (day: string) =>
       `It was open until ${day}. Ask again and we'll price it afresh.`,
-    askAgain: "Ask again and we'll price it afresh.",
     couldntTake: "We couldn't take this one on",
     sorry: "Sorry, we can't take this one on",
     changedMind: "Changed your mind?",
@@ -168,7 +167,6 @@ const words = catalog({
     expired: "Su cotización venció",
     wasOpenUntil: (day: string) =>
       `Estuvo abierta hasta el ${day}. Pídala de nuevo y le daremos un precio nuevo.`,
-    askAgain: "Pídala de nuevo y le daremos un precio nuevo.",
     couldntTake: "No pudimos aceptar este trabajo",
     sorry: "Lo sentimos, no podemos aceptar este trabajo",
     changedMind: "¿Cambió de opinión?",
@@ -446,10 +444,12 @@ export function whatsNext(
 // the tile it makes a repeat
 type Answer = { hero: Hero; why?: Why; aside?: string };
 
+type SentQuote = Extract<QuoteSummary, { status: "sent" }>;
+
 type Context = {
   next: Booked | undefined;
   paused: ServicePlanSummary | undefined;
-  leadingQuote?: QuoteSummary;
+  leadingQuote?: SentQuote;
   now: Date;
 };
 
@@ -466,15 +466,10 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Answer {
         headline: t.quoteHeadline(leadingQuote),
         lines: [
           [
-            leadingQuote.proposedStartsAt &&
-              w.forWhen(formatDateTime(leadingQuote.proposedStartsAt)),
+            w.forWhen(formatDateTime(leadingQuote.proposedStartsAt)),
             addressOf(leadingQuote.property),
-          ]
-            .filter(Boolean)
-            .join(w.at),
-          ...(leadingQuote.expiresAt
-            ? [t.p.openUntil(dayOf(leadingQuote.expiresAt))]
-            : []),
+          ].join(w.at),
+          t.p.openUntil(dayOf(leadingQuote.expiresAt)),
         ],
         action: seeQuote(t, leadingQuote.id),
       },
@@ -617,9 +612,7 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Answer {
         icon: CalendarClock,
         tone: "neutral",
         headline: t.quoteHeadline(last),
-        lines: [
-          last.expiresAt ? w.wasOpenUntil(dayOf(last.expiresAt)) : w.askAgain,
-        ],
+        lines: [w.wasOpenUntil(dayOf(last.expiresAt))],
         action: requestQuote(t),
       },
     };
