@@ -15,6 +15,7 @@ import {
 import { ownClient } from "../clients/clients.ts";
 import {
   acceptQuote,
+  declineQuote,
   finalizeDeposit,
   finalizeProblem,
   latestDepositFor,
@@ -26,7 +27,6 @@ import { openQuoteList, quotesForClient } from "./quote-state.ts";
 import {
   clientQuote,
   clientQuoteView,
-  declineQuote,
   discardDraft,
   draftOpenTimes,
   offerServicePlan,

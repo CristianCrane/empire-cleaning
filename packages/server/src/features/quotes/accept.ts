@@ -4,6 +4,7 @@ import type {
   DepositRefundedWhy,
   QuoteOption,
   QuoteStatus,
+  QuoteView,
 } from "@empire-cleaning/models";
 import {
   because,
@@ -26,7 +27,10 @@ import {
 } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
 import { email } from "../../services/email/index.ts";
-import { type PaymentResult } from "../../services/payment-gateway/index.ts";
+import type {
+  CallingOff,
+  PaymentResult,
+} from "../../services/payment-gateway/index.ts";
 import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { bookJob, lockDay } from "../jobs/jobs.ts";
@@ -83,6 +87,7 @@ import { warnOfficeOfQuotesWithoutRoom } from "./quote-room.ts";
 import { offers, statusOf, whatClosed } from "./quote-state.ts";
 import { whyClosed, whyUnbookable, type Unbookable } from "./rules.ts";
 import {
+  clientQuote,
   dropDraftRevision,
   inOrder,
   optionsOf,
@@ -148,6 +153,10 @@ const words = catalog({
     refundedClosed:
       "This quote closed while your bank was approving the payment, so we've refunded your deposit.",
     nothingWaiting: "There's no payment waiting on this quote.",
+    // declining, their payment couldn't be called off: the provider
+    // couldn't be reached
+    declineDown:
+      "Something went wrong calling off your payment, so this quote wasn't declined. Please try again in a few minutes.",
   },
   es: {
     PAYMENT_DOWN:
@@ -181,6 +190,8 @@ const words = catalog({
     refundedClosed:
       "Esta cotización se cerró mientras su banco aprobaba el pago, así que le devolvimos el depósito.",
     nothingWaiting: "No hay ningún pago pendiente en esta cotización.",
+    declineDown:
+      "Algo salió mal al cancelar su pago, así que esta cotización no se rechazó. Vuelva a intentarlo en unos minutos.",
   },
 });
 const said = () => words[currentLanguage()];
@@ -821,8 +832,9 @@ const unsettledDeposits = async (quoteId: string, tx: Tx | typeof db = db) =>
 export type Finalized =
   | { status: "accepted"; job: Job }
   // their bank is still asking them ("approving"), or approved it and is
-  // finishing it, which asks nothing more of them (#534's N5)
-  | { status: "approving" | "finishing"; paying: DepositGoal }
+  // finishing it, which asks nothing more of them (#534's N5); `card` when
+  // it only saves their card (0%)
+  | { status: "approving" | "finishing"; paying: DepositGoal; card: boolean }
   // their bank refused it; `endedHere` when this call settled it, so the
   // Client is emailed it once however many settle at once (#534 critical C7)
   | { status: "failed"; reason: string; endedHere: boolean }
@@ -928,6 +940,7 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
               : quote.kind === "service_plan"
                 ? "plan"
                 : "clean",
+            card: pending.depositCents === 0,
           } as const;
         case "unknown":
           return { status: "unknown" } as const;
@@ -1042,17 +1055,22 @@ export const finalizeProblem = (finalized: Finalized) => {
 
 /**
  * Settles the Deposits on a Quote that waited on the Client's bank, as the
- * Clock does once APPROVAL_MS has gone by and Office Staff do before
- * sending changes: those still waiting are called off, those approved are
- * booked (finalizeDeposit), or given back if they can't be; and whatever
- * else an earlier try took unbooked is given back. Emails the Client of
- * each given back; those called off, and those their bank refused after
- * all, are returned, for the caller to say what's become of the Quote
+ * Clock does once APPROVAL_MS has gone by, Office Staff do before sending
+ * changes, and the Client does declining it (`by`): those still waiting are
+ * called off as mayCallOff lets `by`, those approved are booked
+ * (finalizeDeposit), or given back if they can't be; and whatever else an
+ * earlier try took unbooked is given back. Emails the Client of each given
+ * back; those called off, and those their bank refused after all, are
+ * returned, for the caller to say what's become of the Quote
  * (tellNotApproved, #534 review F17). Whether the Quote is now Accepted.
  * One their bank is still finishing, too far on to call off, holds the
- * Quote till it ends (payingOf; #534 critical C2).
+ * Quote till it ends (payingOf; #534 critical C2): those still holding it
+ * are returned too, as finalizeDeposit read them.
  */
-export const settleQuotePayments = async (quoteId: string) => {
+export const settleQuotePayments = async (
+  quoteId: string,
+  by: CallingOff = "abandoned",
+) => {
   const { givenBack, calledOff } = await db.transaction(async (tx) => {
     // as accepting it does, so the two never both have its Deposit
     await tx
@@ -1064,13 +1082,25 @@ export const settleQuotePayments = async (quoteId: string) => {
       tx,
       quoteId,
       await unsettledDeposits(quoteId, tx),
+      by,
     );
   });
   // each apart, holding the day, never inside the Quote's lock
   const refused: string[] = [];
+  const holding: Extract<
+    Finalized,
+    { status: "approving" | "finishing" | "unknown" }
+  >[] = [];
   for (const ref of await unsettledDeposits(quoteId)) {
     const finalized = await finalizeDeposit(ref);
     if (finalized.status === "failed" && finalized.endedHere) refused.push(ref);
+    if (
+      finalized.status === "approving" ||
+      finalized.status === "finishing" ||
+      finalized.status === "unknown"
+    ) {
+      holding.push(finalized);
+    }
   }
   for (const ref of givenBack) {
     const [pending] = await db
@@ -1094,7 +1124,65 @@ export const settleQuotePayments = async (quoteId: string) => {
       calledOff: await pendingsOf(calledOff),
       refused: await pendingsOf(refused),
     },
+    holding,
   };
+};
+
+/**
+ * The Client says no to a Sent Quote; nothing else can be Declined. A
+ * payment for it waiting on their bank is called off first, so approving it
+ * later books nothing, and they're emailed nothing of it: they said no. One
+ * their bank approved meanwhile has booked it; one their bank is finishing,
+ * too far on to call off, may yet, so the Quote can't be declined till it
+ * ends (#534's UX design, Screens 1b and 1c).
+ */
+export const declineQuote = async (
+  id: string,
+  clientId: string,
+): Promise<QuoteView> => {
+  const quote = await clientQuote(id, clientId);
+  if (quote.status !== "sent") {
+    throw new ConflictError(whatClosed(quote.status));
+  }
+  const { accepted, holding } = await settleQuotePayments(
+    id,
+    "client_declined",
+  );
+  if (accepted) throw new ConflictError(whatClosed("accepted"));
+  const [paying] = holding;
+  if (paying) {
+    throw new ConflictError(
+      paying.status === "finishing"
+        ? messages[currentLanguage()].depositNoDecline(
+            paying.paying,
+            paying.card,
+          )
+        : said().declineDown,
+    );
+  }
+  const declined = await db.transaction(async (tx) => {
+    // takes turns with a send of a newer Revision, and, as accepting does,
+    // with a payment for it
+    await lockProperty(tx, quote.property.id);
+    await tx
+      .select({ id: quotes.id })
+      .from(quotes)
+      .where(eq(quotes.id, id))
+      .for("update");
+    // one paid for since, on another page, is called off on another try
+    if ((await unsettledDeposits(id, tx)).size) return "paying" as const;
+    const [row] = await tx
+      .update(quotes)
+      .set({ status: "declined", declinedAt: clock.now() })
+      .where(and(eq(quotes.id, id), eq(quotes.status, "sent")))
+      .returning({ id: quotes.id });
+    if (row) await dropDraftRevision(tx, id);
+    return row ? ("declined" as const) : null;
+  });
+  if (declined === "paying") return declineQuote(id, clientId);
+  const now = await clientQuote(id, clientId);
+  if (!declined) throw new ConflictError(whatClosed(now.status));
+  return now;
 };
 
 type PendingDeposit = typeof pendingDeposits.$inferSelect;

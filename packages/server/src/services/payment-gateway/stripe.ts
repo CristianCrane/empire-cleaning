@@ -284,7 +284,7 @@ export class StripePaymentGateway implements PaymentGateway {
   // the dashboard
   async cancelPayment(ref: string, why: CallingOff) {
     const cancellation_reason =
-      why === "client_retried" ? "requested_by_customer" : "abandoned";
+      why === "abandoned" ? "abandoned" : "requested_by_customer";
     if (ref.startsWith("seti_")) {
       await this.stripe.setupIntents.cancel(ref, { cancellation_reason });
     } else {

@@ -153,6 +153,10 @@ const payNow = (
 const finalize = (client: Agent, quote: { id: string }) =>
   client.post(`/api/quotes/mine/${quote.id}/accept/finalize`);
 
+// the Client says no
+const decline = (client: Agent, quote: { id: string }) =>
+  client.post(`/api/quotes/mine/${quote.id}/decline`);
+
 // what the provider's webhook would send
 const webhook = (event: unknown, signature = FAKE_SIGNATURE) =>
   api()
@@ -618,7 +622,7 @@ describe("accepting a First Clean Quote", () => {
     const declined = await sentQuote(office);
     const client = await signIn(casey.email);
     await addCard(client);
-    await client.post(`/api/quotes/mine/${declined.id}/decline`).expect(200);
+    await decline(client, declined).expect(200);
     expect((await accept(client, declined).expect(409)).body.message).toBe(
       "This quote was declined. Ask us for a new one.",
     );
@@ -996,6 +1000,73 @@ describe("while the Client's bank is approving the Deposit", () => {
     });
     expect(testPayments().charges).toEqual([]);
     expect((await scheduleOn(office, MONDAY)).jobs).toEqual([]);
+  });
+
+  // #534's UX design, Screen 1b: declined while their bank still asked,
+  // the payment stayed open, so approving it later booked a quote they'd
+  // said no to
+  test("declining calls the payment off first, so approving it later books nothing", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    const first = await payNow(client, quote).expect(200);
+
+    const declined = await decline(client, quote).expect(200);
+
+    expect(declined.body).toMatchObject({ status: "declined", paying: null });
+    expect([...testPayments().canceled]).toEqual([refOf(first.body)]);
+    await webhook({
+      kind: "deposit_succeeded",
+      ref: refOf(first.body),
+    }).expect(200);
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    expect(testPayments().charges).toEqual([]);
+    expect((await scheduleOn(office, MONDAY)).jobs).toEqual([]);
+    // they said no: nothing tells them it wasn't approved
+    expect(testEmail().lastTo(casey.email).subject).not.toMatch(/approved/);
+  });
+
+  // #534's UX design, Screen 1c: too far on to call off, so it may still
+  // book the quote
+  test("declining while their bank finishes it is refused, and says why", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+    testPayments().requireApproval("processing");
+
+    const refused = await decline(client, quote).expect(409);
+
+    expect(refused.body.message).toBe(
+      "Your payment is still going through with your bank, so this quote can't be declined now. We'll email you as soon as your clean is booked, usually within half an hour.",
+    );
+    expect([...testPayments().canceled]).toEqual([]);
+    expect(
+      (await client.get(`/api/quotes/mine/${quote.id}`).expect(200)).body,
+    ).toMatchObject({ status: "sent", paying: { status: "goingThrough" } });
+  });
+
+  test("declining once their bank has just approved it books it, and says so", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+    // approved in their bank's app, the page not yet back
+    testPayments().requireApproval(null);
+
+    const refused = await decline(client, quote).expect(409);
+
+    expect(refused.body.message).toBe("This quote has already been accepted.");
+    expect([...testPayments().canceled]).toEqual([]);
+    expect(testPayments().charges).toHaveLength(1);
+    expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
   });
 
   // review F17: told "we'll email you", they're emailed whichever way it
@@ -1775,6 +1846,41 @@ describe("while the Client's bank is approving the card for a 0% Deposit", () =>
     expect((await scheduleOn(office, MONDAY)).jobs).toEqual([]);
   });
 
+  test("declining calls the card's approval off first, so approving it later books nothing", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await zeroQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    const first = await payNow(client, quote).expect(200);
+
+    await decline(client, quote).expect(200);
+
+    expect([...testPayments().canceled]).toEqual([refOf(first.body)]);
+    await webhook({
+      kind: "deposit_succeeded",
+      ref: refOf(first.body),
+    }).expect(200);
+    expect((await scheduleOn(office, MONDAY)).jobs).toEqual([]);
+  });
+
+  test("declining while their bank finishes approving the card is refused, in its words", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await zeroQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+    testPayments().requireApproval("processing");
+
+    const refused = await decline(client, quote).expect(409);
+
+    expect(refused.body.message).toBe(
+      "Your bank is still finishing approving your card, so this quote can't be declined now. We'll email you as soon as your clean is booked, usually within half an hour.",
+    );
+    expect((await mine(client, quote.id)).status).toBe("sent");
+  });
+
   test("the Office can't record acceptance meanwhile, and sees why", async () => {
     await cleaners();
     const office = await signInAsOffice();
@@ -2506,7 +2612,7 @@ describe("when a Quote's day fills up before it's accepted", () => {
     expect((await ownView()).bookable).toEqual([]);
 
     // a closed Quote can't be booked at all
-    await client.post(`/api/quotes/mine/${quote.id}/decline`).expect(200);
+    await decline(client, quote).expect(200);
     expect((await ownView()).bookable).toEqual([]);
   });
 

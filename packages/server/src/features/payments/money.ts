@@ -90,16 +90,16 @@ const waitUntil = (attempt: Pick<ChargeAttempt, "askedAt">) =>
   new Date(attempt.askedAt.getTime() + APPROVAL_MS);
 
 // Who may call off a payment waiting on the Client's bank (ADR-0022's one
-// rule): the Client at once, by paying again ("client_retried"); anyone
-// else, Office Staff or the Clock ("abandoned"), once it's waited
-// APPROVAL_MS. Their bank finishing it, or anything but a wait on them,
-// nobody may (#534 critical review C2)
+// rule): the Client at once, by paying again ("client_retried") or
+// declining the Quote ("client_declined"); anyone else, Office Staff or the
+// Clock ("abandoned"), once it's waited APPROVAL_MS. Their bank finishing
+// it, or anything but a wait on them, nobody may (#534 critical review C2)
 export const mayCallOff = (
   attempt: Pick<ChargeAttempt, "status" | "askedAt">,
   by: CallingOff,
 ) =>
   attempt.status === "approving" &&
-  (by === "client_retried" || waitUntil(attempt) <= clock.now());
+  (by !== "abandoned" || waitUntil(attempt) <= clock.now());
 
 // How a payment the Client's bank was asked to approve holds its Quote or
 // Bill, as the pages say it: it waits `onClient` till `until`; `past`,
@@ -962,7 +962,9 @@ export const giveBackDeposit = async (
  * no booking recorded it: their reply was lost, and the Client didn't try
  * again. Hold the Quote, so no try to accept it is taking one meanwhile.
  *
- * One waiting on the Client's bank longer than APPROVAL_MS is called off.
+ * One waiting on the Client's bank is called off as mayCallOff lets `by`:
+ * by the Clock or the Office once it's waited APPROVAL_MS, by the Client
+ * declining the Quote at once.
  * One their bank approved is left to its pending Deposit to book, while
  * it's among the `unsettled` refs; once that's settled without booking it
  * (giving it back failed), it's given back here. The refs of those given
@@ -974,17 +976,19 @@ export const giveBackUnbookedDeposits = async (
   tx: Tx,
   quoteId: string,
   unsettled: Set<string>,
+  by: CallingOff,
 ) => {
   const givenBack: string[] = [];
   const calledOff: string[] = [];
   for (const earlier of await openAttempts(tx, quoteId)) {
     if (readByApproval(earlier)) {
-      // not asked after within its wait, whatever it's doing
-      if (waitUntil(earlier) > clock.now()) continue;
+      // anyone but the Client leaves it alone within its wait, whatever
+      // it's doing, as their page may still be on it
+      if (by === "abandoned" && waitUntil(earlier) > clock.now()) continue;
       const approval = await approvalOf(
         earlier.gatewayRef!,
         earlier,
-        mayCallOff(earlier, "abandoned") ? "abandoned" : null,
+        mayCallOff(earlier, by) ? by : null,
       );
       if (approval.status === "called_off") calledOff.push(earlier.gatewayRef!);
       if (

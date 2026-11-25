@@ -2078,28 +2078,6 @@ export const dropDraftRevision = (tx: Tx | typeof db, quoteId: string) =>
       and(eq(quoteRevisions.quoteId, quoteId), isNull(quoteRevisions.sentAt)),
     );
 
-// the Client says no to a Sent Quote; nothing else can be Declined
-export const declineQuote = async (
-  id: string,
-  clientId: string,
-): Promise<QuoteView> => {
-  const quote = await clientQuote(id, clientId);
-  if (quote.status !== "sent") {
-    throw new ConflictError(whatClosed(quote.status));
-  }
-  await db.transaction(async (tx) => {
-    // takes turns with a send of a newer Revision
-    await lockProperty(tx, quote.property.id);
-    const [declined] = await tx
-      .update(quotes)
-      .set({ status: "declined", declinedAt: clock.now() })
-      .where(and(eq(quotes.id, id), eq(quotes.status, "sent")))
-      .returning({ id: quotes.id });
-    if (declined) await dropDraftRevision(tx, id);
-  });
-  return clientQuote(id, clientId);
-};
-
 /**
  * Office Staff Turn Down a Quote before any Revision of it is Sent, with a
  * reason, and the Client is emailed (unless the Office entered them without

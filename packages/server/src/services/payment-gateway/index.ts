@@ -118,8 +118,9 @@ export type PaymentEvent =
   | { kind: "refund_failed"; chargeId: string; refundId: string }
   | { kind: "dispute_opened"; chargeId: string };
 
-// why a payment waiting on the Client's bank is called off
-export type CallingOff = "client_retried" | "abandoned";
+// why a payment waiting on the Client's bank is called off: they tried
+// again, they declined the Quote it was for, or nobody came back to it
+export type CallingOff = "client_retried" | "client_declined" | "abandoned";
 
 export interface PaymentGateway {
   // which browser form takes a payment, for the web app to show
@@ -152,8 +153,8 @@ export interface PaymentGateway {
   // finishing, stands now, with the card it saved
   paymentOutcome(ref: string): Promise<PaymentResult>;
   // calls off a payment waiting on the Client's bank, or one it refused, so
-  // it's never taken, or a 0 Deposit's card save, so it's never saved:
-  // because the Client tried again, or nobody came back to approve it.
+  // it's never taken, or a 0 Deposit's card save, so it's never saved, as
+  // `why` says.
   // Throws if it can't be (taken, or a card's still processing): then
   // paymentOutcome(ref) says how it stands
   cancelPayment(ref: string, why: CallingOff): Promise<void>;

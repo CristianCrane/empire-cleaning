@@ -32,7 +32,10 @@ const startOverEn = (goal: DepositGoal) =>
 const startOverEs = (goal: DepositGoal) =>
   goal === "change" ? "Aceptar las nuevas condiciones" : "Aceptar y reservar";
 
-// while it books: the clean or plan they'll be emailed about
+// while it books: the clean or plan they'll be emailed about. The
+// booking's own email is sent once it books; the Clock books one whose
+// event never came on its next run past 15 minutes, so half an hour, as
+// the Bill's card payment says
 const bookedEn = {
   clean: "your clean is booked",
   plan: "your plan is booked",
@@ -43,6 +46,20 @@ const bookedEs = {
   plan: "su plan quede reservado",
   change: "su plan cambie",
 };
+const emailEn = (goal: DepositGoal) =>
+  `We'll email you as soon as ${bookedEn[goal]}, usually within half an hour.`;
+const emailEs = (goal: DepositGoal) =>
+  `Le enviaremos un correo en cuanto ${bookedEs[goal]}, normalmente en menos de media hora.`;
+// what's still going on: their bank finishing a payment, or approving a
+// card saved with nothing charged (a 0% Deposit)
+const finishingEn = (card: boolean) =>
+  card
+    ? "Your bank is still finishing approving your card"
+    : "Your payment is still going through with your bank";
+const finishingEs = (card: boolean) =>
+  card
+    ? "Su banco aún está terminando de aprobar su tarjeta"
+    : "Su pago aún no termina de pasar con su banco";
 
 // their bank approved what couldn't then be booked: a Deposit, refunded,
 // or a card saved with nothing charged (a 0% Deposit), each in its own words
@@ -59,17 +76,17 @@ const soEs = (card: boolean) =>
 export const deposits = catalog({
   en: {
     // their bank is finishing it, with nothing to approve: a first press
-    // (#534's F21), or the page coming back to it. The booking's own email
-    // is sent once it books; the Clock books one whose event never came
-    // on its next run past 15 minutes, so half an hour, as the Bill's card
-    // payment says
-    depositFinishing: (goal: DepositGoal) =>
-      `We'll email you as soon as ${bookedEn[goal]}, usually within half an hour.`,
+    // (#534's F21), or the page coming back to it
+    depositFinishing: emailEn,
     // pressed again from a page opened before it: nothing more was taken
     depositProcessing: (goal: DepositGoal, card: boolean) =>
       card
-        ? `Your bank is still finishing approving your card, so nothing is booked twice. We'll email you as soon as ${bookedEn[goal]}, usually within half an hour.`
-        : `Your first payment is still going through with your bank, so nothing more was charged. We'll email you as soon as ${bookedEn[goal]}, usually within half an hour.`,
+        ? `${finishingEn(card)}, so nothing is booked twice. ${emailEn(goal)}`
+        : `Your first payment is still going through with your bank, so nothing more was charged. ${emailEn(goal)}`,
+    // Decline pressed meanwhile: too far on to call off, it may still book
+    // the quote (#534's UX design, Screen 1c)
+    depositNoDecline: (goal: DepositGoal, card: boolean) =>
+      `${finishingEn(card)}, so this quote can't be declined now. ${emailEn(goal)}`,
     // their bank asking them to approve it, till `until` (formatted), when
     // it's called off; pressing again starts over, calling it off
     depositWaiting: (p: {
@@ -121,12 +138,13 @@ export const deposits = catalog({
       `Your cleaning plan started ${whileEn(card)}, ${soEn(card)}.`,
   },
   es: {
-    depositFinishing: (goal: DepositGoal) =>
-      `Le enviaremos un correo en cuanto ${bookedEs[goal]}, normalmente en menos de media hora.`,
+    depositFinishing: emailEs,
     depositProcessing: (goal: DepositGoal, card: boolean) =>
       card
-        ? `Su banco aún está terminando de aprobar su tarjeta, así que nada se reserva dos veces. Le enviaremos un correo en cuanto ${bookedEs[goal]}, normalmente en menos de media hora.`
-        : `Su primer pago aún no termina de pasar con su banco, así que no se cobró nada más. Le enviaremos un correo en cuanto ${bookedEs[goal]}, normalmente en menos de media hora.`,
+        ? `${finishingEs(card)}, así que nada se reserva dos veces. ${emailEs(goal)}`
+        : `Su primer pago aún no termina de pasar con su banco, así que no se cobró nada más. ${emailEs(goal)}`,
+    depositNoDecline: (goal: DepositGoal, card: boolean) =>
+      `${finishingEs(card)}, así que esta cotización no se puede rechazar ahora. ${emailEs(goal)}`,
     depositWaiting: (p: {
       goal: DepositGoal;
       service: string | null;
