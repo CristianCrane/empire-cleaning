@@ -171,9 +171,11 @@ Cleaner's Your jobs render through `HomePage`
 
 - **The greeting**: "Hi, Jen", by the person's first name, on an area's
   first page; Payments keeps its name, hidden on a phone where the bar
-  says it. Its one secondary action on the title row (Request a quote, Your
-  card), which stands aside while the card asks something out of the
-  usual of them (below; #493).
+  says it. Home's one secondary action on the title row (Request a
+  quote) stands aside while the card asks something out of the usual of
+  them (below; #493). Payments has none: its Your card tile is the way
+  there, as a button to the same place beside it read as two ways (#534's
+  UX review U7).
 - **One answer card** (`AnswerCard`): what's next or what's owed, read left
   to right behind its tile (a `DateTile` for when, an `IconTile` for
   what), the kind of answer muted above, the answer large, a line or two,
@@ -198,7 +200,10 @@ Cleaner's Your jobs render through `HomePage`
   plan."), and its way to see it outlined, as the page has no next step.
   A quote that no longer waits on their answer (its Deposit going through,
   "Payment pending"; a card saved with it while it books, "Booking
-  pending"; or its time filled since it was sent, "Fully booked") is a
+  pending"; or its time filled since it was sent, "Time unavailable", its
+  answer "We'll send a new quote" before which time filled and at which
+  home, as "Fully booked" beside their clean read as that clean booked: UX
+  review U1) is a
   state card on a Client's Home, calm as a paused plan's: after a booked
   clean, a Site Visit or a paused plan, before the rest, so Home never
   falls through to "Nothing booked" for one who just paid; with any of
@@ -207,7 +212,9 @@ Cleaner's Your jobs render through `HomePage`
   in the same order (after the home's booked clean). On Payments its
   Deposit going through is money owed that asks nothing, the calm card
   (See your quote), or, under a card that asks, a Notice in Home's News
-  words; one given back unbooked is in All payments with its refund, by
+  words; in All payments, one going through is Payment pending (as a
+  Bill's bank debit on its way is, the money gone from their bank: UX
+  review U3), and one given back unbooked is there with its refund, by
   its quote. A quote ready
   whose payment their bank is approving, or whose payment ended without
   booking, leads the quotes ready, so its alert and card are about one
@@ -274,7 +281,10 @@ for a dialog. It renders through `FormPage`
   which the sent Quote offers too (ADR-0018), is an aside: one quiet
   line under it ("Also offered: Deep Clean $299.41"), its price and
   working folded behind it, and in the Service part its own price behind
-  a fold (the user, on #527: "The recommendation is an aside"). Under
+  a fold (the user, on #527: "The recommendation is an aside"). Once the
+  Client pays online for the one recommended, it leads instead, as they
+  picked it, and the one asked for is the aside, "What Casey asked for."
+  (#534's UX review U2). Under
   each option's price, unfolded, the one asked for and that line both,
   why the client can't pick it at the time proposed ("The client can't
   pick it at this time: that day is too full."), a warning; in danger
@@ -400,7 +410,8 @@ The `ui` skill's rules hold here too; these are this product's.
   whose only action destroys has no primary, that action in the same
   place, outlined in red (`danger-outline`) (the `ui` skill); the
   destructive last in red after a rule. Short of room, the badge drops
-  under the title before the button moves. From md, once the window's top
+  under the title, then the button moves under it, so the title breaks
+  only where it can't fit alone (#534's UX review U6). From md, once the window's top
   reaches the title row's actions, a slim header sticks at the top with
   the title, the badge and the same actions (the split button, or the ⋯ or
   lone Button when nothing is next), lined up with the page's column (a

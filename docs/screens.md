@@ -482,7 +482,7 @@ Keeps: what's next, date tile, shortcut tiles (ux-portal). Renders through
   morning's How we get in, else a quote ready, else the next clean
   (`DateTile`, the primary), else the plan paused (its way to it outlined),
   else a quote that waits on nothing of theirs (Payment pending, Booking
-  pending, Fully booked; See your quote outlined), or where they stand;
+  pending, Time unavailable; See your quote outlined), or where they stand;
   news (info Notices); up to four link tiles, what else waits on them
   first (a quote, a price change with what it adds and by when), then
   shortcuts.
@@ -502,14 +502,15 @@ Keeps: Tabs, by month, date tiles (ux-portal). Renders through `ListPage`
 Keeps: what you owe first, fixed header Button (ux-portal). Renders through
 `HomePage` (#435).
 
-- Header: "Payments" in the bar; Your card (secondary), standing aside while the card asks something of them (its tile stays).
+- Header: "Payments" in the bar, with no action: Your card is its tile (#534's UX review U7).
 - Body: what you owe (`AnswerCard`: `IconTile`, the primary; for a payment we try again ourselves, their bank payment on its way, or a quote's Deposit going through, Payment pending, one line (and one while it pauses a plan), its link outlined (See your quote for a Deposit); while their bank asks them to approve a payment, a line under when it's due saying so; a Bill whose payment on its page didn't go through leads, in red, saying why, and naming the Bill when the card's line doesn't; Pay the bill when its line names it) or all paid;
   Notices of payments clearing, each naming its Bill only when the card
   doesn't (beside another, or under a card about something else), and of
   a quote's Deposit going through under a card that asks something else,
   in Home's News words; tiles All payments (`?open=history`, the
-  Statement by month in place: a Deposit given back unbooked, "Not
-  booked", and its refund, each opening its quote) and Your card (a link).
+  Statement by month in place: a Deposit going through, Payment
+  pending, and one given back unbooked, "Not booked", and its refund,
+  each opening its quote) and Your card (a link).
 
 #### Client portal > Your details
 
@@ -573,7 +574,7 @@ Keeps: the Record (ux-portal). Renders through `RecordPage` (#432).
 Keeps: read like a Quote, paying under it (#165). Renders through `RecordPage` (#432).
 
 - Header: Home › Your quote; the title and its status (Ready while it's
-  theirs to answer, Fully booked once its day filled up); "updated · open
+  theirs to answer, Time unavailable once its time filled up); "updated · open
   until", while it applies.
 - Actions: turned down, Request a quote the primary; booked up, Decline
   this quote its one action (a Button); else none.
