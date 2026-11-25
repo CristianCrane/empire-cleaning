@@ -1,16 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
 import { MINUTE_MS } from "@empire-cleaning/models";
-import { E2E_PORTS } from "@empire-cleaning/server/checkout";
+import { landingPorts } from "@empire-cleaning/server/ports";
 
 // Keep headless Chromium off the WSLg display so it doesn't steal Windows focus
 delete process.env.DISPLAY;
 delete process.env.WAYLAND_DISPLAY;
 
-// the last ports of this checkout's block (the server's tests/checkout.ts),
-// after the web e2e slots' (packages/web/e2e/slots.ts)
-const API_PORT = E2E_PORTS + 190;
-const CONTROL_PORT = E2E_PORTS + 191;
-const SITE_PORT = E2E_PORTS + 192;
+// this site's ports in the block (the server's tests/ports.ts)
+const { api: API_PORT, control: CONTROL_PORT, site: SITE_PORT } = landingPorts;
 export const siteUrl = `http://localhost:${SITE_PORT}`;
 export const controlUrl = `http://127.0.0.1:${CONTROL_PORT}`;
 // where the header's Sign in goes, as built for these tests

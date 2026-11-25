@@ -289,7 +289,7 @@ const slug = (title: string) =>
 
 // the base checked out in a worktree of its own for the length of `run`, at
 // the same path every time, so a killed run's is found and removed, and its
-// block of ports stays the same (tests/checkout.ts)
+// block of ports stays the same (tests/ports.ts)
 const withBase = <T>(sha: string, run: (base: string) => T): T => {
   const base = `${top}-shots-base`;
   const remove = () => {
