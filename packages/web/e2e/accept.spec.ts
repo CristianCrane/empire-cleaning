@@ -1,5 +1,6 @@
 import {
   bookJob,
+  bookedClean,
   emailsTo,
   expect,
   failCharges,
@@ -72,13 +73,6 @@ test(
     await expect(client.getByText("Your first clean")).toBeVisible();
     await expect(client.getByText("Mon, Jan 12, 9:00 AM")).toBeVisible();
     await expect(client.getByText(/^Standard Clean at /)).toBeVisible();
-    // Payments owes nothing now, and says what's still to come: the rest,
-    // charged once it's done (#508), never "all paid up"
-    await client.getByRole("link", { name: "Payments" }).first().click();
-    await expect(client.getByText("Next payment")).toBeVisible();
-    await expect(
-      client.getByText("Charged to your card after your Mon, Jan 12 clean"),
-    ).toBeVisible();
 
     await page.reload();
     await expect(page.getByText(/ accepted it$/)).toBeVisible();
@@ -86,6 +80,22 @@ test(
     await expect(page.getByText(casey.name)).toBeVisible();
   },
 );
+
+test("after the Deposit, Payments says what's still to be charged, never all paid up", async ({
+  page,
+}) => {
+  await bookedClean(olive);
+  await signedInAs(page, casey.email);
+  await page.goto("/portal/payments");
+  // nothing owed now, and the rest of the clean's price is still to come,
+  // charged once it's done (#508)
+  const next = page.getByRole("region", { name: "Next payment" });
+  await expect(next).toContainText(/\$[\d,]+\.\d\d/);
+  await expect(next).toContainText(
+    "Charged to your card after your Mon, Jan 12 clean",
+  );
+  await expect(page.getByText(/all paid up|Nothing owed/)).toHaveCount(0);
+});
 
 test("a declined Deposit books nothing, and another try goes through", async ({
   page,

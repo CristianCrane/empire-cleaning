@@ -199,6 +199,9 @@ describe("a Client's Payment Method", () => {
       label: "Test card ending 4242",
       savedAt: "2026-01-05T09:00:00.000Z",
       consentedAt: "2026-01-05T09:00:00.000Z",
+      // with nothing failed, the retry saving runs took nothing
+      took: [],
+      goingThrough: false,
     });
     testClock().advance({ days: 1 });
     await addCard(client);

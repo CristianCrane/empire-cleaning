@@ -197,8 +197,9 @@ Cleaner's Your jobs render through `HomePage`
   it pauses a plan, "Until it goes through, we won't book more cleans on your
   plan."), and its way to see it outlined, as the page has no next step.
   With nothing waiting anywhere,
-  offers to answer included, it's a green all-clear card, as a screen says only what's true (the
-  `ui` skill). The Office's is its first
+  offers to answer included, it says what's taken next (Next payment, Next bill)
+  or, with nothing to come, To pay: Nothing, never "all paid up" while money
+  is still to be charged, as a screen says only what's true (the `ui` skill; #508). The Office's is its first
   to-do, the server's order.
 - **News** under it, an info Notice each, never an action (a move asked
   for, a bank payment on its way).

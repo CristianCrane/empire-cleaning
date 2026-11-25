@@ -495,7 +495,7 @@ Keeps: what you owe first, fixed header Button (ux-portal). Renders through
 `HomePage` (#435).
 
 - Header: "Payments" in the bar; Your card (secondary), standing aside while the card asks something of them (its tile stays).
-- Body: what you owe (`AnswerCard`: `IconTile`, the primary; for a payment we try again ourselves, or their bank payment on its way, Payment pending, one line (and one while it pauses a plan), its link outlined; while their bank asks them to approve a payment, a line under when it's due saying so; a Bill whose payment on its page didn't go through leads, in red, saying why, and naming the Bill when the card's line doesn't; Pay the bill when its line names it); else what's taken next (#508), in blue: the rest of the next clean's price, after it; the next weekly Bill's so far, and its Monday; or, with only a clean booked, the Monday of the Bill it goes on; else To pay, Nothing, in green;
+- Body: what you owe (`AnswerCard`: `IconTile`, the primary; for a payment we try again ourselves, or their bank payment on its way, Payment pending, one line (and one while it pauses a plan), its link outlined; while their bank asks them to approve a payment, a line under when it's due saying so; a Bill whose payment on its page didn't go through leads, in red, saying why, and naming the Bill when the card's line doesn't; Pay the bill when its line names it); else what's taken next (#508), in blue: the rest of the next clean's price, after it; the next weekly Bill's so far, charged to their card or billed to them, and its Monday; or, with only a clean booked, the Monday of the Bill it goes on; else To pay, Nothing, in green;
   Notices of payments clearing, each naming its Bill only when the card
   doesn't (beside another, or under a card about something else); tiles All payments (`?open=history`, the
   Statement by month in place) and Your card (a link).
@@ -518,8 +518,10 @@ Keeps: on the Payment Method page (ux-portal). Renders through `FormPage`
 - Header: Payments › Your card; the title; "How your card is used", folded.
 - Notices: what the card failed to take, its cleans and weekly Bills, each
   with its amount, and why when they share one (Try this card again, a
-  text Button, its problem a Toast); or Paid, what that press or save
-  took; or the card saved; or info.
+  text Button, its problem a Toast, only for a declined card: an expired one
+  asks for a new card below); or Paid, what the server says that press or
+  save took; or that the payment is still going through; or the card saved;
+  or info.
 - Body: one Card: the card field; what saving agrees to, and Save card, at
   its foot.
 
