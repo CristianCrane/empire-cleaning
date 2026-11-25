@@ -638,8 +638,9 @@ const prototypeIn = (screen: string) => {
 
 // every layout × case of a prototype at each width, at rest (#502): this
 // checkout alone, as a prototype has no before, and nothing published, as a
-// prototype branch is no PR. The copies and an index.md listing them stay
-// in the git dir's pr-shots/, for the ux-reviewer and the user to read
+// prototype branch is no PR. The copies and an index.md showing them, case
+// by case, stay in the git dir's pr-shots/, for the ux-reviewer and the user
+// to read
 const prototype = (screen: string, context: Context) => {
   const { dir, after } = context;
   const { pkg, spec } = prototypeIn(screen);
@@ -671,25 +672,40 @@ const prototype = (screen: string, context: Context) => {
   const widths = [...new Set(shots.map(({ width }) => width))].sort(
     (a, b) => a - b,
   );
+  // a heading a case, a line a layout under it, its widths side by side,
+  // each a link to the shot at full size
+  const byCase = Map.groupBy(shots, (shot) => shot.case);
   const rows = Map.groupBy(shots, (shot) => `${shot.case}\n${shot.layout}`);
   const index = [
     `# ${screen}, at ${after}`,
     "",
-    `| Case | Layout | ${widths.map((w) => `${w} px`).join(" | ")} |`,
-    `| --- | --- | ${widths.map(() => "---").join(" | ")} |`,
-    ...[...rows.values()].map((row) => {
-      const [first] = row;
-      const at = (width: number) => {
-        const shot = row.find((each) => each.width === width);
-        return shot ? `[shot](${fileOf(shot)})` : "";
-      };
-      return `| ${first?.case} ${first?.caseName} | ${first?.layout} ${first?.layoutName} | ${widths.map(at).join(" | ")} |`;
+    `Each layout at ${widths.join(", ")} px, left to right.`,
+    ...[...byCase.values()].flatMap((ofCase) => {
+      const [first] = ofCase;
+      const layouts = Map.groupBy(ofCase, (shot) => shot.layout);
+      return [
+        "",
+        `## ${first?.case} ${first?.caseName}`,
+        ...[...layouts.values()].flatMap((row) => [
+          "",
+          `**${row[0]?.layout}** ${row[0]?.layoutName}`,
+          "",
+          widths
+            .map((width) => row.find((each) => each.width === width))
+            .filter((shot) => shot !== undefined)
+            .map(
+              (shot) =>
+                `<a href="${fileOf(shot)}"><img src="${fileOf(shot)}" alt="Case ${shot.case}, layout ${shot.layout}, at ${shot.width} px" width="24%"></a>`,
+            )
+            .join(" "),
+        ]),
+      ];
     }),
     "",
   ].join("\n");
   writeFileSync(join(dir, "index.md"), index);
   console.log(
-    `\n${shots.length} shots of ${screen} (${rows.size} layout × case, at ${widths.join(", ")} px), at ${after}: ${join(dir, "index.md")} lists them.`,
+    `\n${shots.length} shots of ${screen} (${rows.size} layout × case, at ${widths.join(", ")} px), at ${after}: ${join(dir, "index.md")} shows them.`,
   );
 };
 

@@ -17,7 +17,8 @@ import { writeFileSync } from "node:fs";
 import { atRest } from "./at-rest.ts";
 
 // a phone's width on the phone project; on desktop, a tablet's, a small
-// laptop's and a laptop's, where the app's frames change (docs/ux.md)
+// laptop's and a laptop's, where the app's frames change: the one list of
+// them, which docs/ux.md and packages/web/README.md point to
 const WIDTHS = [
   { project: "phone", width: 412 },
   { project: "desktop", width: 768 },
@@ -64,9 +65,10 @@ export const prototypeShots = (
           })),
         );
       if (!links.length) throw new Error(`${screen}'s index lists no case`);
-      // a test per width, each shooting every layout × case, a few seconds
-      // a shot (14 cases × 3 layouts on approve-payment's), past the
-      // project's 30 s, which is for one flow
+      // a test per width, each shooting every layout × case, past the
+      // project's 30 s, which is for one flow: approve-payment's 42 took
+      // 19 s a width (51 s in all, load 0.5 to 3.0, 2026-11-25), and 5 s
+      // each leaves room for a loaded machine
       test.setTimeout(30_000 + links.length * 5_000);
       const height = page.viewportSize()?.height ?? 900;
       for (const { href, ...shot } of links) {
