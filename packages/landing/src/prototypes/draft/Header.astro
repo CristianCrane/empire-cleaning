@@ -43,9 +43,17 @@ const quiet = buttonStyles({ variant: "quiet", className: "px-2 sm:px-4" });
       <Languages aria-hidden size={18} />
       {languageNames[other]}
     </a>
-    <a href={`${appUrl}/?lang=${lang}`} class={quiet}>
+    {/* where the bar holds Call, Sign in, the least of its parts, gives
+        way to its icon on a phone so the row fits in either language */}
+    <a
+      href={`${appUrl}/?lang=${lang}`}
+      aria-label={shape === "sticky" ? t.signIn : undefined}
+      class={quiet}
+    >
       <LogIn aria-hidden size={18} />
-      {t.signIn}
+      <span class:list={[shape === "sticky" && "hidden sm:inline"]}>
+        {t.signIn}
+      </span>
     </a>
     <ThemeToggleIn client:idle lang={lang} />
     {shape === "sticky" && (
