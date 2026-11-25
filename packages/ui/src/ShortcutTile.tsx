@@ -2,8 +2,10 @@ import type { LucideIcon } from "lucide-react";
 import { Link as AriaLink, type LinkProps } from "react-aria-components";
 import { focusRing } from "./utils.ts";
 
+// a CountTile's form, so the two side by side read as one kind of thing,
+// both raised as what can be pressed (#499's UX review U4)
 const tile =
-  "flex h-full min-h-touch flex-col items-start gap-3 rounded-lg border border-border bg-surface p-4 text-left no-underline hover:bg-surface-sunken";
+  "flex h-full min-h-touch w-full min-w-0 flex-col items-start gap-1 rounded-lg border border-border bg-surface p-3 text-left no-underline shadow-raised transition-colors hover:bg-surface-sunken sm:p-4";
 
 // one shortcut, a Home's tile that links (HomeTiles): what it does, and a
 // hint of what's there (the card on file, a phone number, how many), so a
@@ -24,12 +26,12 @@ export function ShortcutTile({
 }) {
   const body = (
     <>
-      <Icon aria-hidden size={22} className="text-primary" />
-      <span className="flex min-w-0 flex-col">
-        <span className="font-semibold text-fg">{label}</span>
-        <span className="text-sm text-fg-muted [overflow-wrap:anywhere]">
-          {hint}
-        </span>
+      <span className="flex items-center gap-2 text-sm font-semibold text-fg-muted">
+        <Icon aria-hidden size={18} className="shrink-0" />
+        {label}
+      </span>
+      <span className="font-semibold text-fg [overflow-wrap:anywhere]">
+        {hint}
       </span>
     </>
   );
