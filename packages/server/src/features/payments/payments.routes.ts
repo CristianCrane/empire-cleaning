@@ -4,8 +4,6 @@ import { say, validate } from "../../middleware/validation.ts";
 import { paymentGateway } from "../../services/payment-gateway/index.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { ownClient } from "../clients/clients.ts";
-import { retryUnpaidBillsFor } from "../bills/bills.ts";
-import { retryUnpaidJobsFor } from "../completion/completion.ts";
 import { paymentHistoryFor } from "./history.ts";
 import {
   cardWords,
@@ -15,6 +13,7 @@ import {
   startCardForm,
   toPaymentMethodView,
 } from "./payments.ts";
+import { retryUnpaidFor } from "./retry-unpaid.ts";
 
 export const router = Router();
 
@@ -54,8 +53,7 @@ router.put(
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
     const saved = await savePaymentMethod(client, req.body.token);
-    await retryUnpaidJobsFor(client.id);
-    await retryUnpaidBillsFor(client.id);
+    await retryUnpaidFor(client.id);
     res.json(saved);
   },
 );

@@ -56,7 +56,12 @@ import {
   rescheduleTermsOf,
 } from "../reschedule/reschedule.ts";
 import { staff } from "../staff/staff.schema.ts";
-import { unpaidKind, whyNotPaid } from "../payments/unpaid.ts";
+import {
+  NOT_SETTLED,
+  unpaidKind,
+  whyNotPaid,
+  type Retried,
+} from "../payments/unpaid.ts";
 import {
   counts,
   paymentOf,
@@ -1038,15 +1043,19 @@ export const clientRetryBalance = async (clientId: string, jobId: string) => {
 // Settles a Job again, and tells its Client the payment went through: as
 // after a new Payment Method, or a payment nobody heard the end of
 // (ADR-0022). One that still fails stays Unpaid, and isn't told again.
-export const retryJob = async (jobId: string) => {
+export const retryJob = async (jobId: string): Promise<Retried> => {
   const settled = await settleJob(jobId);
   // declined now, after the provider kept us waiting: told only now
   if (settled.becameUnpaid) await sendUnpaid(jobId, settled);
+  const retried = {
+    taken: settled.chargedCents > 0,
+    failure: settled.failure,
+  };
   if (
     settled.failure ||
     (settled.chargedCents === 0 && settled.refundedCents === 0)
   ) {
-    return;
+    return retried;
   }
   const { job, property, client } = await jobWithOwner(jobId);
   const payment = await paymentOf(job);
@@ -1062,24 +1071,28 @@ export const retryJob = async (jobId: string) => {
       }),
     }),
   );
+  return retried;
 };
 
 // After a Client saves a new Payment Method, tries each of their Unpaid Jobs
-// again with it
+// again with it, saying how each went
 export const retryUnpaidJobsFor = async (clientId: string) => {
   const unpaid = await db
     .select({ id: jobs.id })
     .from(jobs)
     .innerJoin(properties, eq(properties.id, jobs.propertyId))
     .where(and(eq(properties.clientId, clientId), isNotNull(jobs.unpaidSince)));
+  const retried: Retried[] = [];
   for (const { id } of unpaid) {
     try {
-      await retryJob(id);
+      retried.push(await retryJob(id));
     } catch (error) {
       // the rest are still tried; this one stays Unpaid
       monitoring.error(error, { what: `Unpaid Job ${id} not retried` });
+      retried.push({ taken: false, failure: NOT_SETTLED });
     }
   }
+  return retried;
 };
 
 // ---- the Clock ----

@@ -85,7 +85,13 @@ import {
   paymentMethods,
   refunds,
 } from "../payments/payments.schema.ts";
-import { LATE, nowTheirs, unpaidKind, whyNotPaid } from "../payments/unpaid.ts";
+import {
+  LATE,
+  nowTheirs,
+  unpaidKind,
+  whyNotPaid,
+  type Retried,
+} from "../payments/unpaid.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { currentPriceList, namedByKey } from "../price-list/price-list.ts";
 import { changedOf } from "../completion/emails.ts";
@@ -660,19 +666,23 @@ export const makeDueBills = async () => {
  * another way meanwhile, or voided, has what its payments came to settled
  * (settleBill).
  */
-export const retryBill = async (billId: string, { anyReason = false } = {}) => {
+export const retryBill = async (
+  billId: string,
+  { anyReason = false } = {},
+): Promise<Retried> => {
   const charged = await chargeBill(billId, { anyReason });
   if (!charged) {
     await settleBill(billId, "abandoned");
-    return;
+    return { taken: false, failure: null };
   }
   if (!charged.failure) await tellPaid(billId, charged.plan);
   // declined now, after the provider kept us waiting: told only now
   else if (charged.becameUnpaid) await tellUnpaid(billId, charged.plan);
+  return { taken: !charged.failure, failure: charged.failure };
 };
 
 // After a Client saves a new Payment Method, tries their Unpaid Bills again
-// with it, as their Jobs are
+// with it, as their Jobs are, saying how each went
 export const retryUnpaidBillsFor = async (clientId: string) => {
   const unpaid = await db
     .select({ id: bills.id })
@@ -685,7 +695,11 @@ export const retryUnpaidBillsFor = async (clientId: string) => {
         isNotNull(bills.unpaidSince),
       ),
     );
-  for (const { id } of unpaid) await retryBill(id, { anyReason: true });
+  const retried: Retried[] = [];
+  for (const { id } of unpaid) {
+    retried.push(await retryBill(id, { anyReason: true }));
+  }
+  return retried;
 };
 
 // ---- on its page ----

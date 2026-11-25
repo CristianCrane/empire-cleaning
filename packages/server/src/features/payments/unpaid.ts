@@ -61,6 +61,10 @@ const whyWords = catalog({
   },
 });
 
+// how trying a payment again went: whether it took anything, and why not
+// when it failed (a stored reason, as above)
+export type Retried = { taken: boolean; failure: string | null };
+
 // what kind of failure it is, whatever the language
 export const unpaidKind = (reason: string): UnpaidKind =>
   known[reason] ?? "declined";
