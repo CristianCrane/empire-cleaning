@@ -146,7 +146,7 @@ describe("what a Client owes now", () => {
     expect(owed).toMatchObject({
       cents: 125350,
       late: false,
-      line: "Bill EC-000041 is due by Nov 3",
+      line: "Bill EC-000041 is due by Tue, Nov 3",
       why: null,
       action: {
         label: "Pay the bill",
@@ -229,7 +229,7 @@ describe("what a Client owes now", () => {
       paying: { status: "approving", until: "2026-10-20T13:15:00.000Z" },
     });
     expect(owedAnswer(data({ bills: [approving] })).hero.lines).toEqual([
-      "Bill EC-000041 is due by Nov 3",
+      "Bill EC-000041 is due by Tue, Nov 3",
       "Your bank hasn't approved your payment yet",
     ]);
     // beside another Bill due, it names its own
@@ -274,7 +274,7 @@ describe("a payment on a Bill's page that didn't go through", () => {
       label: "To pay",
       tone: "danger",
       headline: "$1,253.50",
-      lines: ["Bill EC-000041 is due by Nov 3"],
+      lines: ["Bill EC-000041 is due by Tue, Nov 3"],
       action: { label: "Pay the bill" },
     });
     expect(answer.why).toEqual({
@@ -298,7 +298,7 @@ describe("a payment on a Bill's page that didn't go through", () => {
     expect(moneyNow(data({ bills: [due, failed()] })).owed).toMatchObject({
       cents: 250700,
       late: true,
-      line: "Bill EC-000041 is due by Nov 3, and 1 more",
+      line: "Bill EC-000041 is due by Tue, Nov 3, and 1 more",
       why: `Your payment for bill EC-000041 didn't go through (${WHY}).`,
       action: { label: "Pay the bill" },
     });

@@ -210,7 +210,7 @@ test(
 
     // their Home leads with it
     const owed = page.getByRole("region", { name: "To pay" });
-    await expect(owed).toContainText("Bill EC-000001 is due by Jan 26");
+    await expect(owed).toContainText("Bill EC-000001 is due by Mon, Jan 26");
     await expect(
       owed.getByRole("link", { name: "Pay the bill" }),
     ).toBeVisible();
@@ -218,7 +218,7 @@ test(
     await page.getByRole("link", { name: "Payments" }).click();
     await expect(page.getByText("To pay")).toBeVisible();
     await expect(
-      page.getByText("Bill EC-000001 is due by Jan 26"),
+      page.getByText("Bill EC-000001 is due by Mon, Jan 26"),
     ).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Pay the bill" }),
@@ -426,7 +426,7 @@ test("a Client's payment on a Bill's page that didn't go through says why, there
     "Your payment didn't go through (there wasn't enough money in the account).",
   );
   await expect(page.getByRole("region", { name: "To pay" })).toContainText(
-    "Bill EC-000001 is due by Jan 26",
+    "Bill EC-000001 is due by Mon, Jan 26",
   );
 
   const office = await (await browser.newContext()).newPage();

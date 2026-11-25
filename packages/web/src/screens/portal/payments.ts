@@ -169,7 +169,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
     w,
     billNotPaid,
     cleanNotPaid,
-    formatShortDay,
+    formatDay,
     payBill,
     payingFailed,
     shortDayOf,
@@ -257,7 +257,8 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         late: !!failedFor(b),
         asks: true,
         bill: b.id,
-        line: w.billDue(b.number, formatShortDay(b.dueOn)),
+        // the day as the Bill it opens writes it (#534's UX review U21)
+        line: w.billDue(b.number, formatDay(b.dueOn)),
         ...(b.paying?.status === "failed" && {
           news: failedFor(b)!,
           alone: payingFailed(b.paying.why),
