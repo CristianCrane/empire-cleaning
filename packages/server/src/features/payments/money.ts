@@ -94,7 +94,7 @@ const waitUntil = (attempt: Pick<ChargeAttempt, "askedAt">) =>
 // declining the Quote ("client_declined"); anyone else, Office Staff or the
 // Clock ("abandoned"), once it's waited APPROVAL_MS. Their bank finishing
 // it, or anything but a wait on them, nobody may (#534 critical review C2)
-export const mayCallOff = (
+const mayCallOff = (
   attempt: Pick<ChargeAttempt, "status" | "askedAt">,
   by: CallingOff,
 ) =>
@@ -114,7 +114,7 @@ export const waitOf = (attempt: Pick<ChargeAttempt, "status" | "askedAt">) => ({
 // An attempt approvalOf reads: made with the Client there, and waiting on
 // their bank, or approved and their card's bank finishing it. A bank debit
 // on its way, or a Charge processing, chargeOutcome reads till it ends
-export const readByApproval = (
+const readByApproval = (
   attempt: Pick<ChargeAttempt, "status" | "processingBy" | "request">,
 ) =>
   attempt.status === "approving" ||
