@@ -107,14 +107,14 @@ describe("a plan Job left Unpaid", () => {
   });
 
   test("resumes its plan once paid, booking Jobs again from the next date to come", async () => {
-    const { office, client, planId, jobId } = await heldPlan();
+    const { office, client, planId } = await heldPlan();
 
     // On Hold for weeks: 16 February to 2 March come and go unbooked
     testClock().set(new Date("2026-03-03T16:00:00Z"));
     expect(await generateServicePlanJobs()).toBe(0);
 
     testPayments().failCharges(null);
-    await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(200);
+    await client.post("/api/payments/mine/retry").expect(204);
     expect((await clientPlan(client, planId)).status).toBe("active");
     expect(
       (await needsAttention(office)).filter((i) => i.kind === "plan_on_hold"),
@@ -134,12 +134,12 @@ describe("a plan Job left Unpaid", () => {
   });
 
   test("resuming less than a day before its next date books it, tells the Client, and lets them skip it free (#242)", async () => {
-    const { client, planId, jobId } = await heldPlan();
+    const { client, planId } = await heldPlan();
 
     // paid at 3pm on Sunday 15 February: Monday's 9am clean comes next
     testClock().set(new Date("2026-02-15T20:00:00Z"));
     testPayments().failCharges(null);
-    await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(200);
+    await client.post("/api/payments/mine/retry").expect(204);
     await generateServicePlanJobs();
 
     const monday = (await clientPlan(client, planId)).upcoming.find(

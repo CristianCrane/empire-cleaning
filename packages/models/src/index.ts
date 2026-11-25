@@ -1870,6 +1870,9 @@ export type ClientPastJob = ClientJob & {
   feeCents: number;
   // why it's Unpaid, if it is
   unpaid: UnpaidKind | null;
+  // and the payment service's reason, as a clause ("the card was
+  // declined"), when it gave one we word; else null
+  unpaidWhy: string | null;
   // what an Unpaid one still owes; 0 otherwise
   owedCents: number;
   // increases proposed to them, waiting on their answer

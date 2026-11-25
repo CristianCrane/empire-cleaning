@@ -87,6 +87,7 @@ import {
 } from "../payments/payments.schema.ts";
 import {
   LATE,
+  NOT_SETTLED,
   nowTheirs,
   unpaidKind,
   whyNotPaid,
@@ -673,12 +674,19 @@ export const retryBill = async (
   const charged = await chargeBill(billId, { anyReason });
   if (!charged) {
     await settleBill(billId, "abandoned");
-    return { taken: false, failure: null };
+    return { takenCents: 0, failure: null };
   }
-  if (!charged.failure) await tellPaid(billId, charged.plan);
-  // declined now, after the provider kept us waiting: told only now
-  else if (charged.becameUnpaid) await tellUnpaid(billId, charged.plan);
-  return { taken: !charged.failure, failure: charged.failure };
+  if (charged.failure) {
+    // declined now, after the provider kept us waiting: told only now
+    if (charged.becameUnpaid) await tellUnpaid(billId, charged.plan);
+    return { takenCents: 0, failure: charged.failure };
+  }
+  await tellPaid(billId, charged.plan);
+  const [paid] = await db
+    .select({ totalCents: bills.totalCents })
+    .from(bills)
+    .where(eq(bills.id, billId));
+  return { takenCents: paid!.totalCents, failure: null };
 };
 
 // After a Client saves a new Payment Method, tries their Unpaid Bills again
@@ -697,7 +705,13 @@ export const retryUnpaidBillsFor = async (clientId: string) => {
     );
   const retried: Retried[] = [];
   for (const { id } of unpaid) {
-    retried.push(await retryBill(id, { anyReason: true }));
+    try {
+      retried.push(await retryBill(id, { anyReason: true }));
+    } catch (error) {
+      // the rest are still tried; this one stays Unpaid
+      monitoring.error(error, { what: `Unpaid Bill ${id} not retried` });
+      retried.push({ takenCents: 0, failure: NOT_SETTLED });
+    }
   }
   return retried;
 };

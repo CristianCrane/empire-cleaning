@@ -108,7 +108,11 @@ test("a Client skipping late is charged the fee, and pays it once their card wor
     /We couldn't take \$50\.46 for your .+ clean from your Test card ending 4242\./,
   );
   await needed.getByRole("button", { name: "Try this card again" }).click();
-  await expect(page.getByText("Payment taken")).toBeVisible();
+  await expect(
+    page.getByText(
+      /^Paid\. We took \$50\.46 for your .+ clean from your Test card ending 4242\.$/,
+    ),
+  ).toBeVisible();
   await expect(needed).toHaveCount(0);
   await page.goto(`/portal/jobs/${job.id}`);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();

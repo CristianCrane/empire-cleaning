@@ -1,4 +1,9 @@
-import type { AdjustmentKind, Card, UnpaidKind } from "../index.ts";
+import type {
+  AdjustmentKind,
+  BillSummary,
+  Card,
+  UnpaidKind,
+} from "../index.ts";
 import { formats } from "../format.ts";
 import { catalog } from "../language.ts";
 
@@ -163,6 +168,17 @@ export const payments = catalog({
 // not one we try again ourselves (ADR-0022), which waits on us. On the
 // server and every screen that offers a way to put it right
 export const asksTheClient = (kind: UnpaidKind) => kind !== "waiting";
+
+// a weekly Bill Your card offers to try again (#499): due, charged to their
+// card automatically, which failed in a way that asks them, and not one
+// their bank is asking them to approve on its page. One on its way, or one
+// we try again ourselves, asks nothing
+export const cardRetries = (bill: BillSummary) =>
+  bill.payment === "automatic" &&
+  bill.status === "due" &&
+  bill.unpaid !== null &&
+  asksTheClient(bill.unpaid.kind) &&
+  bill.paying?.status !== "approving";
 
 // what happens next, once a payment didn't go through, as the Office reads
 // it, in English (ADR-0025)

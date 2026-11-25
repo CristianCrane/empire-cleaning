@@ -36,6 +36,7 @@ const unpaidClean = {
   id: "job",
   startsAt: CLEAN,
   unpaid: "declined",
+  unpaidWhy: null,
   owedCents: 18450,
 } as ClientPastJob;
 

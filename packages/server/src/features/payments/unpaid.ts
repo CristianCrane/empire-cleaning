@@ -1,5 +1,6 @@
 import {
   asksTheClient,
+  because,
   catalog,
   type Language,
   type Unpaid,
@@ -61,13 +62,27 @@ const whyWords = catalog({
   },
 });
 
-// how trying a payment again went: whether it took anything, and why not
-// when it failed (a stored reason, as above)
-export type Retried = { taken: boolean; failure: string | null };
+// how trying a payment again went: what it took, and why not when it
+// failed (a stored reason, as above)
+export type Retried = { takenCents: number; failure: string | null };
 
 // what kind of failure it is, whatever the language
 export const unpaidKind = (reason: string): UnpaidKind =>
   known[reason] ?? "declined";
+
+// a payment tried again that failed again, as a sentence, whoever reads it
+export const stillNotPaid = (lang: Language, reason: string) =>
+  retryWords[lang].stillNot(because(whyNotPaid(lang, reason).why));
+
+const retryWords = catalog({
+  en: {
+    stillNot: (because: string) =>
+      `The payment still didn't go through${because}.`,
+  },
+  es: {
+    stillNot: (because: string) => `El pago todavía no pasó${because}.`,
+  },
+});
 
 export const whyNotPaid = (
   lang: Language,

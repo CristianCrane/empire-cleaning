@@ -52,6 +52,7 @@ const pastJob = (over: Partial<ClientPastJob> = {}): ClientPastJob => ({
   totalCents: 18450,
   feeCents: 0,
   unpaid: null,
+  unpaidWhy: null,
   owedCents: 0,
   waiting: [],
   noAccess: null,
@@ -132,6 +133,7 @@ const bill = (over: Partial<BillSummary> = {}): BillSummary =>
     status: "due",
     totalCents: 21450,
     unpaid: null,
+    unpaidWhy: null,
     ...over,
   }) as BillSummary;
 

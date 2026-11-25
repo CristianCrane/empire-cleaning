@@ -643,6 +643,63 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   await expect(client.getByText("Your cleaning plan is paused")).toBeHidden();
 });
 
+// a Bill its card failed is one Your card tries again, as it does a clean,
+// saying what for and why, and then that it's paid (#499)
+test("Your card tries a declined Bill again, and says it's paid", async ({
+  page,
+}) => {
+  const { billId } = await billed({ failing: "insufficient_funds" });
+  await failCharges(null);
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/bills/${billId}`);
+  await page.getByRole("link", { name: "Update your card" }).click();
+
+  const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
+  await expect(needed).toContainText(
+    /^Payment needed\. We couldn't take \$[\d.,]+ for bill EC-000001 from your Test card ending 4242 \(there wasn't enough money in the account\)\. Try it again, or save a different card below\./,
+  );
+  await needed.getByRole("button", { name: "Try this card again" }).click();
+  await expect(
+    page.getByText(
+      /^Paid\. We took \$[\d.,]+ for bill EC-000001 from your Test card ending 4242\.$/,
+    ),
+  ).toBeVisible();
+  await expect(needed).toHaveCount(0);
+});
+
+// one that fails again keeps the alert, and the toast says why and what to
+// do (#499)
+test("Your card's retry that fails again says why, and keeps the way out", async ({
+  page,
+}) => {
+  const { billId } = await billed({ failing: "expired_card" });
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/bills/${billId}`);
+  await page.getByRole("link", { name: "Update your card" }).click();
+
+  const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
+  await needed.getByRole("button", { name: "Try this card again" }).click();
+  await expect(
+    page.getByText(
+      "The payment still didn't go through (the card has expired). You can save a different card below.",
+    ),
+  ).toBeVisible();
+  await expect(needed).toContainText(
+    "We couldn't take $269.47 for bill EC-000001 from your Test card ending 4242 (the card has expired).",
+  );
+});
+
+// a clean done and not yet billed: Payments says what Monday's Bill holds
+// so far, not "all paid up" (#508)
+test("Payments says what's on the next Bill so far", async ({ page }) => {
+  await billed({ unbilled: true });
+  await signedInAs(page, casey.email);
+  await page.goto("/portal/payments");
+  const next = page.getByRole("region", { name: "Next bill" });
+  await expect(next).toContainText("$269.47");
+  await expect(next).toContainText("So far, on your bill of Mon, Jan 12");
+});
+
 // a Bill's payment we try again ourselves waits on us: its badge and its
 // alert say so alike, the Office's and the Client's (#493 PR 14), and that
 // its plan is paused, the Office's naming the plan's home and why; and the

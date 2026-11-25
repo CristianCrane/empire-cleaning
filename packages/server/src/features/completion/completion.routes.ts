@@ -8,7 +8,6 @@ import { staffForAccount } from "../staff/staff.ts";
 import {
   answerAdjustment,
   clientJob,
-  clientRetryBalance,
   completeJob,
   correctAdjustment,
   correctCondition,
@@ -177,15 +176,3 @@ for (const [answer, approve] of [
     },
   );
 }
-
-clientJobsRouter.post(
-  "/mine/:id/balance/retry",
-  authorize("client"),
-  validate({ params: byId }),
-  async (req, res) => {
-    const client = await ownClient(signedInAccount(res).id);
-    const id = req.params.id;
-    await clientRetryBalance(client.id, id);
-    res.json(await clientJob(client.id, id));
-  },
-);

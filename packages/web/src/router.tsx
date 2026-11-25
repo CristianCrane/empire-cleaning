@@ -47,7 +47,6 @@ import type {
   StaffDetail,
   StaffMember,
 } from "@empire-cleaning/models";
-import { asksTheClient } from "@empire-cleaning/models";
 import {
   LanguageProvider,
   Link,
@@ -121,7 +120,10 @@ import { PortalCleans, cleansTabs } from "./screens/portal/PortalCleans.tsx";
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
 import type { HomeData } from "./screens/portal/whats-next.ts";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
-import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
+import {
+  PortalPaymentMethod,
+  cardOwes,
+} from "./screens/portal/PortalPaymentMethod.tsx";
 import { PortalProperty } from "./screens/portal/PortalProperty.tsx";
 import {
   PortalPayments,
@@ -836,16 +838,12 @@ const portalPaymentMethodRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/payment-method",
   loader: async () => {
-    const [saved, pastJobs] = await Promise.all([
+    const [saved, pastJobs, bills] = await Promise.all([
       ownPaymentMethod(),
       getJson<ClientPastJob[]>("/api/jobs/mine/past"),
+      getJson<BillSummary[]>("/api/bills/mine"),
     ]);
-    // the cleans a card puts right; one waiting on the payment service we
-    // try again ourselves
-    return {
-      saved,
-      unpaid: pastJobs.filter((j) => j.unpaid && asksTheClient(j.unpaid)),
-    };
+    return { saved, unpaid: cardOwes(pastJobs, bills) };
   },
   component: PortalPaymentMethod,
 });

@@ -83,7 +83,7 @@ export const portalWords = catalog({
     nothingBooked: "Nada reservado",
     nextShowsHere: "Su próxima limpieza aparecerá aquí cuando esté reservada.",
     differentCard: "Usar otra tarjeta",
-    paymentNeeded: "Hay un pago pendiente.",
+    paymentNeeded: "Falta un pago.",
     didntWork: "No funcionó. Vuelva a intentarlo.",
     seeYourCleaningPlan: "Ver su plan de limpieza",
     seeTheClean: "Ver la limpieza",

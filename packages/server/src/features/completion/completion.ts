@@ -11,7 +11,6 @@ import {
 } from "drizzle-orm";
 import { currentLanguage } from "#services/request";
 import {
-  because,
   type AdjustmentCorrection,
   type AdjustmentProposal,
   type AdjustmentView,
@@ -58,9 +57,10 @@ import {
 import { staff } from "../staff/staff.schema.ts";
 import {
   NOT_SETTLED,
+  stillNotPaid,
   unpaidKind,
-  whyNotPaid,
   type Retried,
+  whyNotPaid,
 } from "../payments/unpaid.ts";
 import {
   counts,
@@ -120,14 +120,10 @@ const words = catalog({
   en: {
     ANSWERED: "You've already answered this.",
     LAPSED: "It wasn't answered in time, so you won't pay it.",
-    stillNot: (because: string) => `It still didn't go through${because}.`,
-    UPDATE_OR_ANOTHER: "Please update your card, or use another one.",
   },
   es: {
     ANSWERED: "Ya respondió a esto.",
     LAPSED: "No se respondió a tiempo, así que no lo pagará.",
-    stillNot: (because: string) => `Todavía no pasó${because}.`,
-    UPDATE_OR_ANOTHER: "Actualice su tarjeta, o use otra.",
   },
 });
 const NOT_DONE = "This job hasn't been marked done.";
@@ -786,10 +782,7 @@ export const retryBalance = async (jobId: string) => {
   if (!job.unpaidSince) return;
   const settled = await settleJob(jobId);
   if (settled.failure) {
-    const { why } = whyNotPaid(currentLanguage(), settled.failure);
-    throw new ConflictError(
-      `The payment still didn't go through${because(why)}.`,
-    );
+    throw new ConflictError(stillNotPaid(currentLanguage(), settled.failure));
   }
   await sendCorrection(jobId, settled);
 };
@@ -947,6 +940,9 @@ export const pastJobsFor = async (
             : 0,
         feeCents: job.status === "completed" ? 0 : (job.feeCents ?? 0),
         unpaid: job.unpaidSince ? unpaidKind(job.unpaidReason ?? "") : null,
+        unpaidWhy: job.unpaidSince
+          ? whyNotPaid(currentLanguage(), job.unpaidReason ?? "").why
+          : null,
         owedCents: job.unpaidSince ? (await paymentOf(job)).owedCents : 0,
         waiting: own
           .filter((a) => a.status === "proposed")
@@ -1024,22 +1020,6 @@ export const answerAdjustment = async (
   if (settled.becameUnpaid) await sendUnpaid(jobId, settled);
 };
 
-// the Client tries their Unpaid Job's Balance again
-export const clientRetryBalance = async (clientId: string, jobId: string) => {
-  await ownJob(clientId, jobId);
-  const job = await owingJob(jobId);
-  if (!job.unpaidSince) return;
-  const settled = await settleJob(jobId);
-  if (settled.failure) {
-    const lang = currentLanguage();
-    const said = words[lang];
-    const { kind, why } = whyNotPaid(lang, settled.failure);
-    throw new ConflictError(
-      `${said.stillNot(because(why))} ${kind === "declined" ? said.UPDATE_OR_ANOTHER : messages[lang].clientFix[kind]}`,
-    );
-  }
-};
-
 // Settles a Job again, and tells its Client the payment went through: as
 // after a new Payment Method, or a payment nobody heard the end of
 // (ADR-0022). One that still fails stays Unpaid, and isn't told again.
@@ -1048,7 +1028,7 @@ export const retryJob = async (jobId: string): Promise<Retried> => {
   // declined now, after the provider kept us waiting: told only now
   if (settled.becameUnpaid) await sendUnpaid(jobId, settled);
   const retried = {
-    taken: settled.chargedCents > 0,
+    takenCents: settled.chargedCents,
     failure: settled.failure,
   };
   if (
@@ -1089,7 +1069,7 @@ export const retryUnpaidJobsFor = async (clientId: string) => {
     } catch (error) {
       // the rest are still tried; this one stays Unpaid
       monitoring.error(error, { what: `Unpaid Job ${id} not retried` });
-      retried.push({ taken: false, failure: NOT_SETTLED });
+      retried.push({ takenCents: 0, failure: NOT_SETTLED });
     }
   }
   return retried;

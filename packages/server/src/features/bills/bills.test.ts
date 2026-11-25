@@ -2393,3 +2393,164 @@ describe("a Bill paid on its page before its due date, still going through after
       .toEqual([]);
   });
 });
+
+// A weekly Client's Your card and Payments (#499, #508): the Client's one
+// retry (POST /api/payments/mine/retry) and what's taken next (GET
+// /api/payments/mine/next)
+describe("a weekly Client's retry and next Bill", () => {
+  // Casey's Bill, charged automatically on Monday the 12th and declined
+  const declinedBill = async () => {
+    const billed = await billedJob();
+    testPayments().failCharges();
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const [summary] = await billsOf(billed.office, billed.clientId);
+    expect(summary).toMatchObject({
+      status: "due",
+      payment: "automatic",
+      unpaid: { kind: "declined" },
+    });
+    testPayments().failCharges(null);
+    return { ...billed, id: summary!.id, totalCents: summary!.totalCents };
+  };
+
+  test("the Client's retry takes a declined weekly Bill", async () => {
+    const { office, id, totalCents } = await declinedBill();
+    const client = await signIn(casey.email);
+    const before = testPayments().charges.length;
+
+    await client.post("/api/payments/mine/retry").expect(204);
+
+    expect(testPayments().charges.length).toBe(before + 1);
+    expect(testPayments().charges.at(-1)!.amount).toBe(totalCents);
+    expect(await billOf(office, id)).toMatchObject({ status: "paid" });
+  });
+
+  // the Client is approving a payment on the Bill's page: nothing to take,
+  // and it says so rather than "Paid"
+  test("a retry that takes nothing answers 409", async () => {
+    const { office, id } = await declinedBill();
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await client
+      .post(`/api/bills/mine/${id}/payment`)
+      .send({ token: testPayments().paymentToken() })
+      .expect(200);
+    const before = testPayments().charges.length;
+
+    const res = await client.post("/api/payments/mine/retry").expect(409);
+
+    expect(res.body.message).toBe(
+      "Nothing was taken: it's paid, or its payment is still going through.",
+    );
+    expect(testPayments().charges.length).toBe(before);
+    expect(await billOf(office, id)).toMatchObject({
+      status: "due",
+      paying: { status: "approving" },
+    });
+  });
+
+  // a clean done Wednesday is owed till Monday's Bill, with no booked Job,
+  // no Bill and nothing Unpaid: what's taken next is that Bill, for what
+  // makeBill will put on it
+  test("a weekly Client's done clean is the next Bill's, before it's made", async () => {
+    const { clientId, jobId, priceCents, depositCents } = await billedJob();
+    const client = await signIn(casey.email);
+
+    const theirs = await db
+      .select({ status: jobs.status })
+      .from(jobs)
+      .innerJoin(properties, eq(properties.id, jobs.propertyId))
+      .where(eq(properties.clientId, clientId));
+    expect(theirs.filter((j) => j.status === "booked")).toEqual([]);
+    expect((await client.get("/api/bills/mine").expect(200)).body).toEqual([]);
+    const [past] = (await client.get("/api/jobs/mine/past").expect(200))
+      .body as { id: string; unpaid: unknown; owedCents: number }[];
+    expect(past).toMatchObject({ id: jobId, unpaid: null, owedCents: 0 });
+
+    expect(
+      (await client.get("/api/payments/mine/next").expect(200)).body,
+    ).toEqual({
+      kind: "bill",
+      billOn: "2026-01-12",
+      cents: priceCents - depositCents,
+    });
+
+    // and Monday's run charges exactly that
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    expect(testPayments().charges.at(-1)!.amount).toBe(
+      priceCents - depositCents,
+    );
+  });
+
+  // a booked clean whose week's Bill run has gone goes on the next Monday's
+  // Bill: what's taken next never names a Monday gone
+  test("a clean marked done after its week's Bill run is on the next Monday's", async () => {
+    const office = await signInAsOffice();
+    const me = (await office.get("/api/me").expect(200))
+      .body as SignedInAccount;
+    const cleaner = await staffMember("Cory Cleaner");
+    const job = await acceptedJob({
+      startsAt: WEDNESDAY_9AM,
+      byAccountId: me.id,
+    });
+    const found = (await findClientByEmail(casey.email))!;
+    await addPremises(found.id);
+    await setBilling(office, found.id).expect(200);
+    const offered = await offerAssignment(job.id, cleaner.id, me.id);
+    await confirmAssignment(cleaner.id, offered.assignments[0]!.id);
+
+    // Monday the 12th: still booked, so no Bill
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    expect(await billsOf(office, found.id)).toEqual([]);
+
+    // Tuesday the 13th, still booked: the next Bill is the 19th's
+    testClock().set(new Date("2026-01-13T15:00:00Z"));
+    const client = await signIn(casey.email);
+    expect(
+      (await client.get("/api/payments/mine/next").expect(200)).body,
+    ).toMatchObject({ kind: "billedClean", billOn: "2026-01-19" });
+
+    // marked done Wednesday the 14th, it's on the 19th's Bill
+    testClock().set(new Date("2026-01-14T17:00:00Z"));
+    await completeJob(cleaner.id, job.id, {
+      condition: "moderate",
+      reports: [],
+    });
+    testClock().set(new Date("2026-01-19T15:00:00Z"));
+    await makeDueBills();
+    const [bill] = await billsOf(office, found.id);
+    expect(bill).toMatchObject({ weekStart: "2026-01-12" });
+    expect((await billOf(office, bill!.id)).lines[0]!.jobId).toBe(job.id);
+  });
+
+  // a declined automatic Bill the Client is paying by bank on its page
+  // reads, to the Client, as still Unpaid and declined, but no longer due:
+  // Your card's cardRetries leaves it out, and the retry has nothing to take
+  test("a Bill whose bank payment is on its way isn't one Your card offers to retry", async () => {
+    const { id } = await declinedBill();
+    const client = await signIn(casey.email);
+    await client
+      .post(`/api/bills/mine/${id}/payment`)
+      .send({ token: testPayments().bankToken() })
+      .expect(200);
+
+    const mine = (await client.get("/api/bills/mine").expect(200))
+      .body as BillSummary[];
+    expect(mine.find((b) => b.id === id)).toMatchObject({
+      status: "processing",
+      payment: "automatic",
+      unpaid: { kind: "declined" },
+      paying: null,
+    });
+
+    const before = testPayments().charges.length;
+    const res = await client.post("/api/payments/mine/retry").expect(409);
+    expect(res.body.message).toBe(
+      "Nothing was taken: it's paid, or its payment is still going through.",
+    );
+    expect(testPayments().charges.length).toBe(before);
+  });
+});
