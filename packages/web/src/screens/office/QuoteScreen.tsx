@@ -1135,7 +1135,10 @@ function DraftPrices({
                     recurrence: plan.recurrence,
                     days: [{ startsAt: null, serviceName: option.serviceName }],
                   })
-                : `${dayTitles[i] ?? `Weekday ${i + 1}`}: ${option.serviceName}`
+                : lineOf([
+                    dayTitles[i] ?? `Weekday ${i + 1}`,
+                    option.serviceName,
+                  ])
             }
             badge={
               <PlanSaving day={day} discountPercent={plan.discountPercent} />
