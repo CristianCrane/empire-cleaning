@@ -872,8 +872,12 @@ test.describe("on a phone", () => {
       });
     expect(await centred()).toEqual({ align: "center", numberCentred: true });
 
+    // the wide layout shows a frame after the resize (docs/testing.md,
+    // "Every test browser")
     await page.setViewportSize({ width: 1280, height: 900 });
-    expect(await centred()).toEqual({ align: "center", numberCentred: true });
+    await expect
+      .poll(centred)
+      .toEqual({ align: "center", numberCentred: true });
   });
 
   test("the footer is centred, its policies and © too", async ({ page }) => {
