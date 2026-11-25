@@ -9,6 +9,7 @@ import {
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
+import { APPROVE } from "../../services/payment-gateway/index.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 import {
   billLinesOf,
@@ -22,6 +23,8 @@ import { clients } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import {
   chargeSaved,
+  newestAttempt,
+  NOT_APPROVED,
   recordGivenEarlier,
   recordTakenEarlier,
   refundedAtProvider,
@@ -292,7 +295,16 @@ export type Settled = {
   // its money goes on its Client's weekly Bill instead (ADR-0016), so none
   // moved now
   billed: boolean;
+  // the Client paying on its page, whose bank wants them to approve it
+  // there: for their browser, then settleJob as "approved" or "refused"
+  secret?: string;
 };
+
+// The Client settling a Job on its page: "paying", there for their bank to
+// ask them to approve it; then "approved" or "refused", once their bank's
+// check is done, which asks for nothing new. Anyone else (the Clock, Office
+// Staff, a change to the Job) charges their saved card without them there
+export type ByClient = "paying" | "approved" | "refused";
 
 // what a Charge is for: the Balance of a Completed Job, or the fee for one
 // that didn't happen
@@ -326,19 +338,31 @@ const describe = async (tx: Tx, job: Job) => {
  * While that isn't known yet, nothing moves.
  *
  * A Charge is taken off-session from the Client's saved Payment Method. If
- * it can't be (declined, no card saved, the provider unreachable), the Job
- * is Unpaid until a later settling takes it. One settling of a Job at a
- * time: the Job is held while its money moves. A plan Job's plan is On Hold
- * while any of its Jobs is Unpaid.
+ * it can't be (declined, no card saved, the provider unreachable, their
+ * bank wanting them there to approve it), the Job is Unpaid until a later
+ * settling takes it. The Client paying on its page (`by`) is there for
+ * their bank to ask: the payment it wanted approved is confirmed with them,
+ * one waiting on them that they left is called off first, and one they
+ * refused leaves the Job as it was, for a fresh payment next time (#534
+ * Q7). One still waiting on them is called off by anyone else only once
+ * it's waited APPROVAL_MS (mayCallOff). One settling of a Job at a time:
+ * the Job is held while its money moves. A plan Job's plan is On Hold while
+ * any of its Jobs is Unpaid.
  *
  * A Job whose Client is billed weekly moves no money here: its next Bill
  * bills whatever is owed then (ADR-0016).
  */
 export const settleJob = async (
   jobId: string,
-  // the one change to its price that moved this money, by name, for the
-  // Client's Payments page to say
-  item: ChargeItem | null = null,
+  {
+    item = null,
+    by = null,
+  }: {
+    // the one change to its price that moved this money, by name, for the
+    // Client's Payments page to say
+    item?: ChargeItem | null;
+    by?: ByClient | null;
+  } = {},
 ): Promise<Settled> =>
   db.transaction(async (tx) => {
     const [job] = await tx
@@ -360,6 +384,13 @@ export const settleJob = async (
     const billed = isBilledWeekly(job!, client, {
       lines: before.bills.length,
     });
+    // what still waits on the Client's bank: why it was Unpaid before, a
+    // payment their bank wants them to approve, if not
+    const waiting = job!.unpaidReason ?? APPROVE;
+    // the Client paying again, or refusing, calls off what waits on them;
+    // anyone else, only once it's waited (mayCallOff)
+    const callOff =
+      by === "approved" ? null : by ? "client_retried" : "abandoned";
     // billed, owing nothing more, or with no card, a try would ask for
     // nothing now
     const earlier = await recordTakenEarlier(
@@ -368,6 +399,7 @@ export const settleJob = async (
       !billed && !given.unknown && before.owedCents > 0 && method
         ? { amount: before.owedCents, card: method.gatewayRef }
         : null,
+      callOff,
     );
     const found = "unknown" in earlier ? [] : earlier;
     const ledger = found.length > 0 ? await ledgerOf(job!, tx) : before;
@@ -376,7 +408,9 @@ export const settleJob = async (
     // doesn't (#534 critical review C8)
     const unknown =
       "unknown" in earlier
-        ? earlier.unknown
+        ? earlier.unknown === "approving"
+          ? waiting
+          : earlier.unknown
         : given.unknown && before.owedCents > 0
           ? UNREACHABLE
           : null;
@@ -414,7 +448,22 @@ export const settleJob = async (
         }));
     }
 
-    if (moves && ledger.owedCents > 0) {
+    // once their bank's check is done, nothing new is asked for: one they
+    // refused leaves the Job as it was; one their bank declined once it
+    // was approved is Unpaid for that
+    if (
+      moves &&
+      ledger.owedCents > 0 &&
+      (by === "approved" || by === "refused")
+    ) {
+      const newest = await newestAttempt(tx, jobId);
+      settled.failure =
+        newest?.status === "failed" &&
+        newest.reason !== APPROVE &&
+        !NOT_APPROVED(newest.reason)
+          ? (newest.reason ?? waiting)
+          : waiting;
+    } else if (moves && ledger.owedCents > 0) {
       const charged = await chargeSaved(tx, {
         client,
         source: method,
@@ -422,9 +471,14 @@ export const settleJob = async (
         description: await describe(tx, job!),
         for: { jobId, kind: kindOf(job!) },
         item,
+        callOff: by ? "client_retried" : "abandoned",
+        withClient: by === "paying",
       });
       if (charged.ok) settled.chargedCents += charged.cents;
-      else settled.failure = charged.reason;
+      else if ("secret" in charged) {
+        settled.secret = charged.secret;
+        settled.failure = waiting;
+      } else settled.failure = charged.reason;
     }
 
     if (settled.failure) {
@@ -466,7 +520,7 @@ export const settleAfterChange = async (
   item: ChargeItem | null = null,
 ): Promise<Settled> => {
   try {
-    return await settleJob(jobId, item);
+    return await settleJob(jobId, { item });
   } catch (error) {
     monitoring.error(error, { what: `Job ${jobId} not settled` });
     const plan = await db.transaction(async (tx) => {

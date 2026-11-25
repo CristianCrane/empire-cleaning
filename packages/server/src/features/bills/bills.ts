@@ -734,7 +734,9 @@ const clears = async (tx: Tx, billId: string) => {
 
 /**
  * The Client pays a Bill on its page, with the card or US bank account they
- * entered (`token`), as a Charge attempt, so the one ledger reads and
+ * entered (`token`), or with none their saved card, there for their bank to
+ * ask them to approve it (#534 Q7), as a Charge attempt, so the one ledger
+ * reads and
  * finishes it and nothing else that moves money on the Bill starts
  * meanwhile (ADR-0022's one rule; #534). A payment of theirs their bank
  * still asks them to approve is called off first, as they're starting over,
@@ -746,7 +748,7 @@ const clears = async (tx: Tx, billId: string) => {
 export const payBillOnPage = async (
   client: Client,
   billId: string,
-  token: string,
+  token: string | undefined,
 ): Promise<BillPayOutcome> => {
   const lang = currentLanguage();
   const paid = await db.transaction(async (tx) => {
@@ -762,13 +764,20 @@ export const payBillOnPage = async (
     );
     if (not) throw new ConflictError(payWords[lang][not]);
 
+    const [saved] = token
+      ? []
+      : await tx
+          .select()
+          .from(paymentMethods)
+          .where(eq(paymentMethods.clientId, client.id));
     const charged = await chargeSaved(tx, {
       client,
-      source: { token },
+      source: token ? { token } : (saved ?? null),
       amount: bill.totalCents,
       description: `Empire Cleaning bill ${billNumber(bill.number)}`,
       for: { billId: bill.id, kind: "bill" },
       callOff: "client_retried",
+      withClient: true,
     });
     if (charged.ok) {
       await tx

@@ -718,6 +718,18 @@ export type NeedsApproval = {
   secret: string;
 };
 
+// the newest payment asked for a Job or Bill, as the Client last paid or
+// was charged
+export const newestAttempt = async (tx: Tx, forId: string) => {
+  const [newest] = await tx
+    .select()
+    .from(chargeAttempts)
+    .where(eq(chargeAttempts.forId, forId))
+    .orderBy(desc(chargeAttempts.askedAt), desc(chargeAttempts.createdAt))
+    .limit(1);
+  return newest;
+};
+
 // The payment a Job's or Bill's newest Charge left open for the Client to
 // approve (APPROVE), as they now pay `amount` on `card` on its page: that
 // one is confirmed with them there, as the provider advises, so their bank
@@ -730,12 +742,7 @@ const toApprove = async (
   amount: number,
   card: string,
 ) => {
-  const [newest] = await tx
-    .select()
-    .from(chargeAttempts)
-    .where(eq(chargeAttempts.forId, forId))
-    .orderBy(desc(chargeAttempts.askedAt), desc(chargeAttempts.createdAt))
-    .limit(1);
+  const newest = await newestAttempt(tx, forId);
   return newest?.status === "failed" &&
     newest.reason === APPROVE &&
     newest.amountCents === amount &&

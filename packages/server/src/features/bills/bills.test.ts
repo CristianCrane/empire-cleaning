@@ -1226,6 +1226,59 @@ describe("Unpaid Bills", () => {
     );
   });
 
+  // #534 Q7: charged without them there, their bank wants them to approve
+  // it, which they do on the Bill's page with their saved card
+  test("one their bank wants them to approve asks them to, and is paid once they do on its page", async () => {
+    const { office, client } = await planOnBill();
+    const agent = await signIn(casey.email);
+    const form = (
+      await agent.post("/api/payment-methods/mine/card-form").expect(200)
+    ).body as { secret: string };
+    testPayments().fillCardForm(form.secret, "alwaysApproval");
+    await agent
+      .put("/api/payment-methods/mine")
+      .send({ token: form.secret })
+      .expect(200);
+
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const [summary] = await billsOf(office, client.id);
+    expect(summary).toMatchObject({
+      status: "due",
+      unpaid: { kind: "approve", why: null },
+    });
+    const notice = testEmail().lastTo(BILLING_EMAIL);
+    expect(notice.subject).toBe(
+      "Please approve your payment for bill EC-000001",
+    );
+    expect(notice.html).toContain(">Approve payment<");
+    const asked = testPayments().paymentAttempts.length;
+
+    const outcome = (
+      await agent
+        .post(`/api/bills/mine/${summary!.id}/payment`)
+        .send({})
+        .expect(200)
+    ).body as BillPayOutcome;
+    expect(outcome).toEqual({
+      status: "needs_approval",
+      secret: expect.any(String),
+    });
+    // the payment their bank stopped, confirmed again with them there
+    expect(testPayments().paymentAttempts).toHaveLength(asked);
+    await agent
+      .post(`/api/bills/mine/${summary!.id}/payment/finish`)
+      .send({ approved: true })
+      .expect(200);
+    expect(await billOf(office, summary!.id)).toMatchObject({
+      status: "paid",
+      unpaid: null,
+    });
+    expect(
+      testPayments().charges.filter((c) => c.amount === summary!.totalCents),
+    ).toHaveLength(1);
+  });
+
   // #241: nobody has to try again
   test("one declined once the provider is back says its plan is paused", async () => {
     await planOnBill();

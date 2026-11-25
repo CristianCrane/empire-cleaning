@@ -1862,10 +1862,12 @@ export type JobPayment = {
 };
 
 // why a payment didn't go through, by what puts it right: "declined", a new
-// card or another way to pay (a bank asking for approval too); "waiting",
-// nothing, as we try again ourselves (ADR-0022); "no_card", adding one;
-// "late", paying the Bill on its page
-export type UnpaidKind = "declined" | "waiting" | "no_card" | "late";
+// card or another way to pay; "approve", the Client approving it with their
+// bank on its page, as it was charged without them there (#534 Q7);
+// "waiting", nothing, as we try again ourselves (ADR-0022); "no_card",
+// adding one; "late", paying the Bill on its page
+export type UnpaidKind =
+  "declined" | "approve" | "waiting" | "no_card" | "late";
 
 // since when it's been Unpaid, and why: a clause for after "didn't go
 // through" ("the card has expired"), or null when there's no more to say
@@ -2329,8 +2331,9 @@ export type BillView = BillSummary & {
 
 // POST /api/bills/mine/:id/payment: what the Client entered in the payment
 // form (/api/payment-methods/form), a card or a US bank account, as its
-// token; nothing is saved for later
-export type PayBillInput = { token: string };
+// token; nothing is saved for later. None, their saved card, as when their
+// bank wants them to approve it (#534 Q7)
+export type PayBillInput = { token?: string };
 
 // what paying a Bill on its page came to: the Bill as it now stands (paid, a
 // bank payment on its way, or its payment pending), or waiting on their
@@ -2340,10 +2343,19 @@ export type BillPayOutcome =
   | { status: "done"; bill: BillView }
   | { status: "needs_approval"; secret: string };
 
-// POST /api/bills/mine/:id/payment/finish, once the Client's bank approved
-// it in the browser, or didn't (refused, or the Client closed it): one not
-// approved is called off, so nothing is taken
-export type FinishBillPaymentInput = { approved: boolean };
+// POST /api/jobs/mine/:id/balance/retry: what paying a Job's Balance on its
+// page came to, with their saved card: the Job as it now stands, or waiting
+// on their bank's approval in the browser with `secret`, then POST
+// .../balance/finish (#534 Q7)
+export type JobPayOutcome =
+  | { status: "done"; job: ClientJob }
+  | { status: "needs_approval"; secret: string };
+
+// POST /api/bills/mine/:id/payment/finish, or /api/jobs/mine/:id/balance/
+// finish, once the Client's bank approved it in the browser, or didn't
+// (refused, or the Client closed it): one not approved is called off, so
+// nothing is taken
+export type FinishPaymentInput = { approved: boolean };
 
 // POST /api/bills/:id/void
 export type VoidBillInput = { reason: string };

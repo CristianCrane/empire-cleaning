@@ -73,9 +73,21 @@ export const payments = catalog({
     // how a Client puts right a payment that didn't go through
     UPDATE_AND_RETRY,
     UPDATE_CARD: "Update your card",
+    // a payment their bank wants them to approve, made with them there: on
+    // its page, and the button of the email that asks them (#534 Q7)
+    APPROVE_PAYMENT: "Approve payment",
+    // the email asking for it: `amount` already formatted, with what it's
+    // for ("$50 for your clean"); then, before its button, what pressing
+    // it does
+    approveFirst: (amount: string, card: string) =>
+      `Your bank wants you to approve the ${amount} before it's taken from your ${card}. Nothing has been taken yet.`,
+    PRESS_TO_APPROVE:
+      "Press the button below, and your bank will ask you to approve it.",
     // what happens next, once a payment didn't go through, by why
     clientFix: {
       declined: `Please ${UPDATE_AND_RETRY}.`,
+      approve:
+        "Your bank wants you to approve it first. Please approve it on its page.",
       no_card: "Please add a card and we'll try again straight away.",
       waiting:
         "We'll try again by ourselves, so there's nothing you need to do.",
@@ -131,8 +143,15 @@ export const payments = catalog({
       `No pudimos cobrar el pago de su limpieza del ${day}`,
     UPDATE_AND_RETRY: UPDATE_AND_RETRY_ES,
     UPDATE_CARD: "Actualizar tarjeta",
+    APPROVE_PAYMENT: "Aprobar el pago",
+    approveFirst: (amount: string, card: string) =>
+      `Su banco quiere que apruebe ${amount} antes de cobrarlo de su ${card}. Aún no se ha cobrado nada.`,
+    PRESS_TO_APPROVE:
+      "Pulse el botón de abajo, y su banco le pedirá que lo apruebe.",
     clientFix: {
       declined: `Por favor, ${UPDATE_AND_RETRY_ES}.`,
+      approve:
+        "Su banco quiere que lo apruebe primero. Por favor, apruébelo en su página.",
       no_card:
         "Por favor, agregue una tarjeta y lo volvemos a intentar enseguida.",
       waiting:
@@ -169,6 +188,7 @@ export const asksTheClient = (kind: UnpaidKind) => kind !== "waiting";
 export const officeFix: Record<UnpaidKind, string> = {
   declined:
     "We've emailed the client to update their card. Once they do, we try the payment again.",
+  approve: "We've emailed the client to approve it on its page.",
   no_card:
     "We've emailed the client to add a card. Once they do, we try the payment again.",
   waiting: "We'll try again by ourselves.",

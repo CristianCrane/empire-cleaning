@@ -689,6 +689,15 @@ export const acceptQuote = async (
         // charged (0%) was declined, a payment didn't go through
         log.info(`Deposit for Quote ${id} not taken (${attempt.reason})`);
         const { kind, why } = whyNotPaid(currentLanguage(), attempt.reason);
+        // the Office's charge, made without them there, their bank wants
+        // them to approve: they accept on their quote's page, where it can
+        // ask them (#534 Q7)
+        if (kind === "approve") {
+          throw new ConflictError(
+            `${client.name}'s bank wants them to approve the ${formats.en.formatMoney(depositCents)} deposit themselves. Nothing was charged or booked. They can accept on their quote's page, and their bank will ask them there.`,
+            "approve",
+          );
+        }
         throw new ConflictError(
           kind === "waiting"
             ? said().PAYMENT_DOWN

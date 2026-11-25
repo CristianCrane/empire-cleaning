@@ -10,5 +10,6 @@ export default preview(
     owedCents: 32934,
     paymentMethod: { brand: "Visa", last4: "4242" },
     held: true,
+    approve: false,
   }),
 );

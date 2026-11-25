@@ -5,6 +5,7 @@ import {
   type Unpaid,
   type UnpaidKind,
 } from "@empire-cleaning/models";
+import { APPROVE } from "../../services/payment-gateway/index.ts";
 import { NO_CARD, UNREACHABLE } from "./money.ts";
 
 // Why a Job or a Bill is Unpaid, from the reason stored with it, in words a
@@ -19,14 +20,15 @@ export const NOT_SETTLED = "its payment couldn't be worked out";
 export const LATE = "not paid by its due date";
 
 // ours, and the provider's own that we know: each with its kind. A bank
-// asking for approval reads as a decline, as a new card is how they fix it
+// asking for a charge made without the Client there to be approved is theirs
+// to approve on its page (#534 Q7); its kind says so, so it has no "why"
 const known: Record<string, UnpaidKind> = {
   [UNREACHABLE]: "waiting",
   processing: "waiting",
   [NOT_SETTLED]: "waiting",
   [NO_CARD]: "no_card",
   [LATE]: "late",
-  needs_approval: "declined",
+  [APPROVE]: "approve",
 };
 
 // why, in words, in the reader's language (ADR-0025): ours, and the few
@@ -41,7 +43,6 @@ const whyWords = catalog({
     [NOT_SETTLED]: "something went wrong on our side",
     [NO_CARD]: "no card is saved",
     [LATE]: "it wasn't paid by its due date",
-    needs_approval: "the bank asked for it to be approved first",
     expired_card: "the card has expired",
     insufficient_funds: "there wasn't enough money in the account",
     account_closed: "that bank account is closed",
@@ -53,7 +54,6 @@ const whyWords = catalog({
     [NOT_SETTLED]: "algo salió mal de nuestra parte",
     [NO_CARD]: "no hay ninguna tarjeta guardada",
     [LATE]: "no se pagó antes de la fecha límite",
-    needs_approval: "el banco pidió aprobarlo primero",
     expired_card: "la tarjeta venció",
     insufficient_funds: "no había suficiente dinero en la cuenta",
     account_closed: "esa cuenta bancaria está cerrada",

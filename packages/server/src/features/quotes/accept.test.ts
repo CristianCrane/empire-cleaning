@@ -2419,6 +2419,35 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
     );
   });
 
+  // #534 Q7: their bank asks them, so the Office's screen says it's theirs
+  // to do, not a failure
+  test("tells the Office when the Client's bank wants them to approve the Deposit themselves", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    const form = (
+      await client.post("/api/payment-methods/mine/card-form").expect(200)
+    ).body as { secret: string };
+    testPayments().fillCardForm(form.secret, "alwaysApproval");
+    await client
+      .put("/api/payment-methods/mine")
+      .send({ token: form.secret })
+      .expect(200);
+
+    const refused = await office
+      .post(`/api/quotes/${quote.id}/accept`)
+      .send({ revisionId: quote.offer!.id, serviceKey: SEEDED.deep })
+      .expect(409);
+
+    expect(refused.body).toEqual({
+      kind: "approve",
+      message: `Casey Client's bank wants them to approve the ${formatMoney(option(quote, "deep").depositCents)} deposit themselves. Nothing was charged or booked. They can accept on their quote's page, and their bank will ask them there.`,
+    });
+    expect(testPayments().charges).toEqual([]);
+    expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(0);
+  });
+
   test("can't accept a Draft", async () => {
     const office = await signInAsOffice();
     const { body } = await submit(guestAsk()).expect(201);

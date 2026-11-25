@@ -10,6 +10,7 @@ import type {
   ClientPastJob,
   CompletionInput,
   Condition,
+  JobPayOutcome,
   NeedsAttentionItem,
   OfficeJob,
   OfficeQuote,
@@ -953,6 +954,141 @@ describe("an Unpaid Job", () => {
       owedCents: EXTRA_HOUR,
       unpaid: { kind: "declined" },
     });
+  });
+});
+
+// #534 Q7: the Balance, charged without the Client there, that their bank
+// wants them to approve, which they do on the Job's page
+describe("a Job's payment the Client's bank wants them to approve", () => {
+  // Casey's clean, done, with a card saved whose bank always asks
+  const doneOnApprovalCard = async () => {
+    const booked = await bookedJob();
+    const form = (
+      await booked.client
+        .post("/api/payment-methods/mine/card-form")
+        .expect(200)
+    ).body as { secret: string };
+    testPayments().fillCardForm(form.secret, "alwaysApproval");
+    await booked.client
+      .put("/api/payment-methods/mine")
+      .send({ token: form.secret })
+      .expect(200);
+    await complete(booked.cory.agent, booked.jobId).expect(200);
+    const deep = deepOf(booked.quote);
+    return {
+      ...booked,
+      deep,
+      pay: () =>
+        booked.client
+          .post(`/api/jobs/mine/${booked.jobId}/balance/retry`)
+          .expect(200)
+          .then((r) => r.body as JobPayOutcome),
+      finish: (approved: boolean) =>
+        booked.client
+          .post(`/api/jobs/mine/${booked.jobId}/balance/finish`)
+          .send({ approved })
+          .expect(200)
+          .then((r) => r.body as ClientJobDetail),
+    };
+  };
+
+  test("is Unpaid for them to approve, emailed so, and paid once they approve it on its page", async () => {
+    const { office, jobId, deep, pay, finish } = await doneOnApprovalCard();
+    expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
+      kind: "approve",
+      why: null,
+    });
+    const told = testEmail().lastTo(casey.email);
+    expect(told.subject).toBe("Please approve your payment");
+    expect(told.html).toContain(">Approve payment<");
+    const asked = testPayments().paymentAttempts.length;
+
+    // the payment their bank stopped, confirmed again with them there
+    expect(await pay()).toEqual({
+      status: "needs_approval",
+      secret: expect.any(String),
+    });
+    expect(testPayments().paymentAttempts).toHaveLength(asked);
+
+    const paid = await finish(true);
+    expect(paid.completion!.payment.unpaid).toBe(null);
+    expect(amounts()).toEqual([
+      deep.depositCents,
+      deep.totalCents - deep.depositCents,
+    ]);
+  });
+
+  test("turned down at their bank, takes nothing and is called off, and the next press starts afresh", async () => {
+    const { deep, pay, finish } = await doneOnApprovalCard();
+    const first = await pay();
+    if (first.status !== "needs_approval") throw new Error("not asked");
+    testPayments().requireApproval("refused");
+
+    const refused = await finish(false);
+    expect(refused.completion!.payment.unpaid).toMatchObject({
+      kind: "approve",
+    });
+    expect(amounts()).toEqual([deep.depositCents]);
+    expect(testPayments().canceled).toContain(
+      first.secret.replace(/_secret$/, ""),
+    );
+
+    testPayments().requireApproval(null);
+    const asked = testPayments().paymentAttempts.length;
+    const again = await pay();
+    expect(again).toEqual({
+      status: "needs_approval",
+      secret: expect.any(String),
+    });
+    expect(again).not.toEqual(first);
+    expect(testPayments().paymentAttempts).toHaveLength(asked + 1);
+    expect((await finish(true)).completion!.payment.unpaid).toBe(null);
+    expect(amounts()).toEqual([
+      deep.depositCents,
+      deep.totalCents - deep.depositCents,
+    ]);
+  });
+
+  test("left waiting on their bank, is held a quarter hour, then the Office's retry asks again", async () => {
+    const { office, jobId, deep, pay } = await doneOnApprovalCard();
+    await pay();
+    testPayments().requireApproval("pending");
+    const asked = testPayments().paymentAttempts.length;
+
+    await office.post(`/api/jobs/${jobId}/balance/retry`);
+    expect(testPayments().paymentAttempts).toHaveLength(asked);
+    expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
+      kind: "approve",
+    });
+
+    testClock().advance({ minutes: 16 });
+    await office.post(`/api/jobs/${jobId}/balance/retry`);
+    expect(testPayments().paymentAttempts).toHaveLength(asked + 1);
+    expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
+      kind: "approve",
+    });
+    expect(amounts()).toEqual([deep.depositCents]);
+  });
+
+  test("left waiting on their bank, is paid by a card they save a quarter hour on", async () => {
+    const { office, client, jobId, deep, pay } = await doneOnApprovalCard();
+    await pay();
+    testPayments().requireApproval("pending");
+
+    testClock().advance({ minutes: 16 });
+    const form = (
+      await client.post("/api/payment-methods/mine/card-form").expect(200)
+    ).body as { secret: string };
+    await client
+      .put("/api/payment-methods/mine")
+      .send({ token: form.secret })
+      .expect(200);
+
+    expect((await officeJob(office, jobId)).payment!.unpaid).toBe(null);
+    expect(amounts()).toEqual([
+      deep.depositCents,
+      deep.totalCents - deep.depositCents,
+    ]);
   });
 });
 
