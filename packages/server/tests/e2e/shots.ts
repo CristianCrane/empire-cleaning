@@ -672,37 +672,41 @@ const prototype = (screen: string, context: Context) => {
   const widths = [...new Set(shots.map(({ width }) => width))].sort(
     (a, b) => a - b,
   );
-  // a heading a case, a line a layout under it, its widths side by side,
-  // each a link to the shot at full size
+  // a heading a case, a row a width under it, its layouts side by side,
+  // as they're there to be weighed against each other, their tops in line
+  // (a GitHub page keeps an img's align, not a style); each a link to the
+  // shot at full size
   const byCase = Map.groupBy(shots, (shot) => shot.case);
-  const rows = Map.groupBy(shots, (shot) => `${shot.case}\n${shot.layout}`);
+  const layouts = [
+    ...new Map(shots.map((shot) => [shot.layout, shot.layoutName])),
+  ];
+  const share = `${Math.floor(96 / layouts.length)}%`;
   const index = [
     `# ${screen}, at ${after}`,
     "",
-    `Each layout at ${widths.join(", ")} px, left to right.`,
-    ...[...byCase.values()].flatMap((ofCase) => {
-      const [first] = ofCase;
-      const layouts = Map.groupBy(ofCase, (shot) => shot.layout);
-      return [
+    `Each width's layouts left to right: ${layouts.map(([key, name]) => `**${key}** ${name}`).join(", ")}.`,
+    ...[...byCase.values()].flatMap((ofCase) => [
+      "",
+      `## ${ofCase[0]?.case} ${ofCase[0]?.caseName}`,
+      ...widths.flatMap((width) => [
         "",
-        `## ${first?.case} ${first?.caseName}`,
-        ...[...layouts.values()].flatMap((row) => [
-          "",
-          `**${row[0]?.layout}** ${row[0]?.layoutName}`,
-          "",
-          widths
-            .map((width) => row.find((each) => each.width === width))
-            .filter((shot) => shot !== undefined)
-            .map(
-              (shot) =>
-                `<a href="${fileOf(shot)}"><img src="${fileOf(shot)}" alt="Case ${shot.case}, layout ${shot.layout}, at ${shot.width} px" width="24%"></a>`,
-            )
-            .join(" "),
-        ]),
-      ];
-    }),
+        `${width} px`,
+        "",
+        layouts
+          .map(([key]) =>
+            ofCase.find((each) => each.layout === key && each.width === width),
+          )
+          .filter((shot) => shot !== undefined)
+          .map(
+            (shot) =>
+              `<a href="${fileOf(shot)}"><img src="${fileOf(shot)}" alt="Case ${shot.case}, layout ${shot.layout}, at ${shot.width} px" width="${share}" align="top"></a>`,
+          )
+          .join(" "),
+      ]),
+    ]),
     "",
   ].join("\n");
+  const rows = new Set(shots.map((shot) => `${shot.case}\n${shot.layout}`));
   writeFileSync(join(dir, "index.md"), index);
   console.log(
     `\n${shots.length} shots of ${screen} (${rows.size} layout × case, at ${widths.join(", ")} px), at ${after}: ${join(dir, "index.md")} shows them.`,
