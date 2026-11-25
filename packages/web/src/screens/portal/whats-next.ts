@@ -42,6 +42,7 @@ import { addressOf, formatMinutes, lineOf, pausedPlans } from "../format.ts";
 import { saidWith } from "../words.ts";
 import type { Hero, Why } from "./HeroCard.tsx";
 import { depositOf, moneyNow, owedAnswer, yourCardTile } from "./payments.ts";
+import { waitOf } from "./properties.ts";
 
 // Home's words, in the Client's language (ADR-0025)
 const words = catalog({
@@ -397,14 +398,15 @@ export function whatsNext(
   // a Sent Quote whose Deposit is going through, or whose time filled since
   // it was sent, waits on nothing of theirs, so it's no quote to answer: a
   // state card, as a paused plan's, or News (#534's UX design, Screen 2)
-  const going = sent.filter((q) => q.paying?.status === "goingThrough");
-  const filled = sent.filter(
-    (q) => !going.includes(q) && q.bookable?.length === 0,
-  );
+  const going = sent.filter((q) => {
+    const wait = waitOf(q);
+    return wait === "payment" || wait === "booking";
+  });
+  const filled = sent.filter((q) => waitOf(q) === "filled");
   // among the rest, ready, one whose payment waits on their bank or ended
   // unbooked leads, so its alert and its card are of the same quote
   const ready = sent
-    .filter((q) => !going.includes(q) && !filled.includes(q))
+    .filter((q) => !waitOf(q))
     .sort((a, b) => Number(Boolean(b.paying)) - Number(Boolean(a.paying)));
   // a Sent Quote leads when nothing else waits on them, a clean booked or
   // not: it waits on their answer

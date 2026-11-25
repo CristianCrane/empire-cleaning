@@ -66,6 +66,7 @@ import {
   inLine,
   oneStop,
 } from "@empire-cleaning/models";
+import { waitLabelOf, waitOf } from "./properties.ts";
 import { requestQuoteHref } from "./whats-next.ts";
 
 // in the Client's language (ADR-0025)
@@ -448,9 +449,12 @@ function OfferedQuote({
   const alert = depositAlertOf(t.lang, quote);
   const problem = action.problem !== alert?.text ? action.problem : undefined;
 
-  // its day filled up after it was sent: nothing to pay for, and nothing
-  // waits on them, as we send a new quote; saying no is what's left
-  const bookedUp = open && !going && quote.bookable.length === 0;
+  // what it waits on that's nothing of theirs, its badge as Home's card and
+  // its home's row name it: its payment going through, or its day filled
+  // up after it was sent (bookedUp): nothing to pay for, as we send a new
+  // quote, so saying no is what's left
+  const wait = waitOf(quote);
+  const bookedUp = wait === "filled";
   // a payment refunded as its time filled says so, and that a new quote
   // comes, itself
   const filled = paying?.status === "refunded" && paying.why === "no_room";
@@ -459,14 +463,10 @@ function OfferedQuote({
       quote={quote}
       title={t.w.yourKind(t.quoteKindName(quote.kind))}
       updatedAt={quote.updatedAt}
-      openUntil={open && !bookedUp && !going ? quote.expiresAt : null}
+      openUntil={open && !wait ? quote.expiresAt : null}
       badge={
-        going ? (
-          <StatusBadge tone="info">
-            {going.depositCents > 0 ? t.paymentPending : t.bookingPending}
-          </StatusBadge>
-        ) : bookedUp ? (
-          <StatusBadge tone="info">{t.fullyBooked}</StatusBadge>
+        wait ? (
+          <StatusBadge tone="info">{waitLabelOf(t.lang, wait)}</StatusBadge>
         ) : undefined
       }
       actions={
