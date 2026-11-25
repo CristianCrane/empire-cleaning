@@ -41,31 +41,39 @@ const cells = (line: string) =>
 
 const separator = (row: string[]) => row.every((cell) => /^:?-+:?$/.test(cell));
 
-export function doubled(text: string, key: string[]): Doubled[] {
+// each of the table's rows, by its line and the cells of the columns named
+function* rowsOf(text: string, names: string[]) {
   let columns: number[] | undefined;
-  const rows = new Map<string, Doubled>();
-  text.split("\n").forEach((line, i) => {
-    if (!line.trim().startsWith("|")) return;
+  for (const [i, line] of text.split("\n").entries()) {
+    if (!line.trim().startsWith("|")) continue;
     const row = cells(line);
     if (!columns) {
-      const named = key.map((name) => ({ name, column: row.indexOf(name) }));
+      const named = names.map((name) => ({ name, column: row.indexOf(name) }));
       const missing = named.filter(({ column }) => column < 0);
       if (missing.length)
         throw new Error(
           `the table has no ${missing.map(({ name }) => name).join(" or ")} column`,
         );
       columns = named.map(({ column }) => column);
-      return;
+      continue;
     }
-    if (separator(row)) return;
-    const cellsOfKey = columns.map((column) =>
-      (row[column] ?? "").slice(0, KEY_CHARS),
-    );
+    if (separator(row)) continue;
+    yield { line: i + 1, cells: columns.map((column) => row[column] ?? "") };
+  }
+}
+
+const keyOf = (cellsOfKey: string[]) =>
+  cellsOfKey.map((cell) => cell.slice(0, KEY_CHARS));
+
+export function doubled(text: string, key: string[]): Doubled[] {
+  const rows = new Map<string, Doubled>();
+  for (const row of rowsOf(text, key)) {
+    const cellsOfKey = keyOf(row.cells);
     const id = JSON.stringify(cellsOfKey);
     const found = rows.get(id) ?? { key: cellsOfKey, lines: [] };
-    found.lines.push(i + 1);
+    found.lines.push(row.line);
     rows.set(id, found);
-  });
+  }
   return [...rows.values()].filter((found) => found.lines.length > 1);
 }
 
