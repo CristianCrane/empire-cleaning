@@ -91,7 +91,7 @@ test(
     const [email] = (await emailsTo(casey.email)).filter(
       (e) => e.subject === "Your site visit is booked",
     );
-    expect(email!.text).toContain("Tuesday, January 6 at 10:00 AM");
+    expect(email!.text).toContain("Tuesday, January 6 at 10:00\u00a0AM");
     const visit = page.url();
 
     await page.goto("/office/quotes");
