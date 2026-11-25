@@ -88,8 +88,16 @@ export const askedSummary = ({ asked, property }: OfficeQuote) => (
 );
 
 // what the Client (or a caller) asked for, unchanged, and the home it's
-// for (WEB-8, WEB-A); none on a Quote the Office offered unprompted
-export function AskedFacts({ quote }: { quote: OfficeQuote }) {
+// for (WEB-8, WEB-A); none on a Quote the Office offered unprompted. When
+// it was asked, and whether by phone, unless the story's entry it's under
+// says so
+export function AskedFacts({
+  quote,
+  dated = true,
+}: {
+  quote: OfficeQuote;
+  dated?: boolean;
+}) {
   const { asked, property } = quote;
   if (!asked) return null;
   const stated = asked.condition;
@@ -105,11 +113,13 @@ export function AskedFacts({ quote }: { quote: OfficeQuote }) {
         value={<Link href={propertyLink(quote)}>{addressOf(property)}</Link>}
         line={<Line parts={propertyParts(property)} />}
       />
-      <Fact
-        icon={CalendarDays}
-        label="Asked"
-        value={`${formatDate(quote.createdAt)}${quote.origin === "caller" ? ", by phone" : ""}`}
-      />
+      {dated && (
+        <Fact
+          icon={CalendarDays}
+          label="Asked"
+          value={`${formatDate(quote.createdAt)}${quote.origin === "caller" ? ", by phone" : ""}`}
+        />
+      )}
       {quote.source && (
         <Fact icon={Globe} label="From" value={sourceText(quote.source)} />
       )}

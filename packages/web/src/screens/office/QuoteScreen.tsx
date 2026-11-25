@@ -856,12 +856,13 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
 };
 
 // what the Client (or a caller) asked for: open while the Quote's being
-// written from it, else folded away, the Quote saying what's offered
+// written from it, else folded away, the Quote saying what's offered. Its
+// entry says when, and whether by phone
 function WhatWasAsked({ quote }: { quote: OfficeQuote }) {
   return (
     <Fold label="What was asked" defaultOpen={unsent(quote)}>
       <Card>
-        <AskedFacts quote={quote} />
+        <AskedFacts quote={quote} dated={false} />
       </Card>
     </Fold>
   );
@@ -983,7 +984,7 @@ function Offer({ quote }: { quote: ShownQuote }) {
             return (
               <OfferPrice
                 key={day?.startsAt ?? option.serviceKey}
-                title={day ? planDayTitle("en", day) : option.serviceName}
+                title={day ? planDayTitle("en", [day]) : option.serviceName}
               >
                 {day ? (
                   <PlanFigures

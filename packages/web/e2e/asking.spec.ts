@@ -505,6 +505,10 @@ test("Office Staff see which page and link a Guest asked from", async ({
   await expect(
     page.getByText("The website, /queens/, via gbp (profile)"),
   ).toBeVisible();
+  // when it was asked is its entry's, just above, not said again
+  await expect(
+    page.getByRole("term").filter({ hasText: /^Asked$/ }),
+  ).toHaveCount(0);
 });
 
 test(

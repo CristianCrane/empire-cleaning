@@ -73,7 +73,7 @@ import { jobStatus, JobStatusBadge } from "../JobBadges.tsx";
 
 const { propertyParts, quoteHeadline } = screenWords.en;
 
-const { formatDate, formatDateTime } = formats.en;
+const { formatDateTime } = formats.en;
 
 // A home for the Office (ADR-0011), a Record (docs/ux.md): what to know
 // first as alerts; then its details, its Service Plan, the Jobs booked
@@ -470,9 +470,9 @@ function History({
         <TimelineItem
           key={event.id}
           icon={event.icon}
-          title={`${event.kind} · ${event.what}`}
+          title={lineOf([event.kind, event.what])}
           href={event.href}
-          when={formatDate(event.on)}
+          when={formatDateTime(event.on)}
           description={event.status}
         />
       ))}

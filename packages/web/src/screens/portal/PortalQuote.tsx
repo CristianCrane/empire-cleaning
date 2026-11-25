@@ -50,6 +50,7 @@ import { type Said, useSaid } from "../words.ts";
 import {
   AskedRows,
   PlanDayCard,
+  planCards,
   PlanTotals,
   ClientQuoteStatusBadge,
 } from "../QuoteParts.tsx";
@@ -490,6 +491,7 @@ function QuoteDetails({
 }) {
   const t = useSaid(words);
   const { plan } = quote;
+  const cards = plan ? planCards(plan.days, quote.options) : [];
   const choosing = !plan && quote.options.length > 1 && quote.status === "sent";
   const [recommended, own] = quote.options;
   const extras = chosen.addOns.map((a) => a.name).join(", ");
@@ -600,12 +602,13 @@ function QuoteDetails({
               {t.w.eachOff(plan.discountPercent)}
             </p>
           )}
-          <div className="grid gap-4 lg:grid-cols-2">
-            {plan.days.map((day, i) => (
+          <div
+            className={`grid gap-4 ${cards.length > 1 ? "lg:grid-cols-2" : ""}`}
+          >
+            {cards.map((cleans) => (
               <PlanDayCard
-                key={day.startsAt}
-                option={quote.options[i]!}
-                day={day}
+                key={cleans[0]!.day.startsAt}
+                cleans={cleans}
                 discountPercent={plan.discountPercent}
               />
             ))}

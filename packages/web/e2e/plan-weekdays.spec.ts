@@ -105,14 +105,14 @@ test(
       page.getByRole("region", { name: "Current quote" }),
     ).toContainText("Every week");
     const mondayCard = page.getByRole("region", {
-      name: "Mondays at 9:00 AM: Standard Clean",
+      name: "Mondays at 9:00 AM · Standard Clean",
     });
     await expect(mondayCard.getByRole("term")).toContainText([
       "Cleaning hours",
       "On site, with 2 cleaners",
     ]);
     const wednesdayCard = page.getByRole("region", {
-      name: "Wednesdays at 1:00 PM: Standard Clean",
+      name: "Wednesdays at 1:00 PM · Standard Clean",
     });
     await expect(wednesdayCard.getByRole("term")).toContainText([
       "On site, with 1 cleaner",
@@ -143,13 +143,15 @@ test(
     // and crew, on each weekday's card
     await expect(quote).toContainText("About 2 hHow long on Mondays");
     await expect(quote).toContainText("3¾ hHow long on Wednesdays");
-    for (const name of [
-      "Mondays at 9:00 AM: Standard Clean",
-      "Wednesdays at 1:00 PM: Standard Clean",
-    ])
-      await expect(client.getByRole("region", { name })).not.toContainText(
-        /On site|Cleaning hours|cleaner/,
-      );
+    // and weekdays whose cleans cost the same share one card, naming each,
+    // so no card repeats another
+    const cleans = client.getByRole("region", {
+      name: "Mondays at 9:00 AM and Wednesdays at 1:00 PM · Standard Clean",
+    });
+    await expect(cleans).not.toContainText(/On site|Cleaning hours|cleaner/);
+    await expect(
+      client.getByRole("region", { name: /· Standard Clean$/ }),
+    ).toHaveCount(1);
     await expect(
       client.getByRole("region", { name: "Quote details" }),
     ).toContainText(`Deposit (25% of a week's cleans)`);

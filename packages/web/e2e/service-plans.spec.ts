@@ -128,7 +128,7 @@ test(
     await expect(
       page
         .getByRole("list", { name: /^History/ })
-        .getByText(/^Job · Standard Clean/),
+        .getByText(/^Job\s·\sStandard Clean/),
     ).toHaveCount(0);
 
     // a week on, the next Job comes within reach

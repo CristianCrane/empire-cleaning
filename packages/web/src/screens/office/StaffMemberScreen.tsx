@@ -376,6 +376,13 @@ function Availability({ member }: { member: StaffDetail }) {
   const [open, setOpen] = useState<string | null>(null);
   const { usualWeek, exceptions } = member.availability;
   const exceptionOn = (day: string) => exceptions.find((e) => e.date === day);
+  // the key names only the tints this month shows, and none when it has
+  // none: a line about a mark that isn't there reads as a rule to look for
+  const tinted = exceptions.filter((e) => e.date.startsWith(`${month}-`));
+  const tints = [
+    tinted.some((e) => e.hours === 0) && "amber for a day off",
+    tinted.some((e) => e.hours > 0) && "blue for other hours",
+  ].filter((tint) => tint !== false);
 
   return (
     <Section
@@ -444,10 +451,11 @@ function Availability({ member }: { member: StaffDetail }) {
               );
             })}
           </div>
-          <p className="text-sm text-fg-muted">
-            Tinted days differ from the usual week: amber for a day off, blue
-            for other hours.
-          </p>
+          {tints.length > 0 && (
+            <p className="text-sm text-fg-muted">
+              Tinted days differ from the usual week: {formatList(tints)}.
+            </p>
+          )}
         </div>
       </Card>
       {open && (

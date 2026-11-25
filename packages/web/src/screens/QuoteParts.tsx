@@ -17,9 +17,16 @@ import {
   useLanguage,
 } from "@empire-cleaning/ui";
 import { Building2, CirclePlus, NotebookPen, Repeat } from "lucide-react";
-import { catalog, type Language, messages } from "@empire-cleaning/models";
 import {
+  catalog,
+  type Language,
+  messages,
+  upperFirst,
+} from "@empire-cleaning/models";
+import {
+  alike,
   formatHours,
+  lineOf,
   quoteStatusLabel,
   quoteStatusTone,
   typedHours,
@@ -253,20 +260,44 @@ export function OptionRows({
   );
 }
 
-// One weekday of a Service Plan Quote: when, its clean's price, and the
-// saving against the same clean as a one-off Job
+// a plan's weekday and its clean's option, as a card shows them
+export type PlanCleanTerms = { day: PlanDayTerms; option: QuoteOption };
+
+// a Service Plan Quote's weekdays as the Client's cards show them: those
+// alike in all a card draws (its Service and every figure) share one, so
+// two cards never say the same thing twice (docs/ux.md, Numbers)
+export const planCards = (
+  days: PlanDayTerms[],
+  options: QuoteOption[],
+): PlanCleanTerms[][] =>
+  alike(
+    days.map((day, i) => ({ day, option: options[i]! })),
+    ({ day, option }) =>
+      [
+        day.serviceName,
+        option.totalCents,
+        option.taxCents,
+        day.oneOffTotalCents,
+        day.savingCents,
+      ].join(),
+  );
+
+// Weekdays of a Service Plan Quote whose cleans cost the same: when, their
+// clean's price, and the saving against the same clean as a one-off Job
 export function PlanDayCard({
-  option,
-  day,
+  cleans,
   discountPercent,
 }: {
-  option: QuoteOption;
-  day: PlanDayTerms;
+  cleans: PlanCleanTerms[];
   discountPercent: number;
 }) {
+  const { day, option } = cleans[0]!;
   return (
     <Card
-      title={planDayTitle(useLanguage(), day)}
+      title={planDayTitle(
+        useLanguage(),
+        cleans.map((c) => c.day),
+      )}
       headingLevel={3}
       description={<PlanSaving day={day} discountPercent={discountPercent} />}
     >
@@ -279,12 +310,16 @@ export function PlanDayCard({
   );
 }
 
-// "Mondays at 9:00 AM: Standard Clean", or a Draft's weekday with no time
-// yet, "Standard Clean"
-export const planDayTitle = (lang: Language, day: PlanDayTerms) =>
-  day.startsAt
-    ? `${messages[lang].planDayWhen(day.startsAt)}: ${day.serviceName}`
-    : day.serviceName;
+// "Mondays at 9:00 AM · Standard Clean", or a card's several weekdays,
+// "Mondays at 9:00 AM and Fridays at 1:00 PM · Standard Clean"; a Draft's
+// weekday with no time yet, "Standard Clean"
+export const planDayTitle = (lang: Language, days: PlanDayTerms[]) => {
+  const times = days.flatMap((day) => (day.startsAt ? [day.startsAt] : []));
+  return lineOf([
+    times.length > 0 && upperFirst(messages[lang].planDaysWhen(times)),
+    days[0]!.serviceName,
+  ]);
+};
 
 // what a plan clean saves, said only when the plan has a discount: a plan
 // can be quoted at none

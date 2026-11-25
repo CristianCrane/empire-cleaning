@@ -812,7 +812,11 @@ stays as it is (#336).
   A "+" between them reads as a sum and leaves the reader matching days
   by position. Weekdays alike to their reader go together, so a Client
   may read one where the Office reads two ("About 2 h" for 1 h 57 min and
-  2 h 3 min). The Client's list of cleans leaves how long to the card
+  2 h 3 min). So with a plan quote's price cards: the Client's weekdays
+  alike in all a card draws (its Service and every figure) share one
+  card, titled with each, "Mondays at 9:00 AM and Wednesdays at 1:00 PM ·
+  Standard Clean", as two cards the same say each price twice; the
+  Office's card per weekday stays, as each has its own hours. The Client's list of cleans leaves how long to the card
   while each runs as its weekday's there. Once one doesn't (booked
   longer, or moved to a day the card has no length for), a plan of one
   length gives every row its own, so the one that differs sits among
