@@ -58,10 +58,14 @@ export const payingOn = async (billIds: string[], tx: Tx | typeof db = db) => {
     // which the Bill's Unpaid tells
     decided.add(attempt.forId);
     if (attempt.status === "failed" && call === "bill") {
+      const approved = !NOT_APPROVED(attempt.reason);
       paying.failed = {
-        at: attempt.endedAt ?? attempt.askedAt,
+        // one that failed, when it did; one never approved, when it was
+        // made, as the Office reads "the client's payment on Jan 12", not
+        // the day the Clock called it off (#534's UX review U18)
+        at: (approved && attempt.endedAt) || attempt.askedAt,
         reason: attempt.reason ?? "",
-        approved: !NOT_APPROVED(attempt.reason),
+        approved,
       };
     }
   }

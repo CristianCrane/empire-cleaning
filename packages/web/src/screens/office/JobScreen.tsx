@@ -32,6 +32,7 @@ import {
   ExtrasSection,
   Fact,
   Facts,
+  factColumns,
   Form,
   Link,
   Notice,
@@ -404,11 +405,11 @@ function JobFacts({ job }: { job: OfficeJob }) {
   );
 }
 
-// the Job's facts grid's columns: four short facts sit two and two, not
-// three and one (U15); Money's grid, one card down, follows it, so the
-// page's columns line up (U34)
+// the Job's facts grid's columns, as many short facts take (factColumns);
+// Money's grid, one card down, follows it, so the page's columns line up
+// (U34)
 const factColumnsOf = (job: OfficeJob) =>
-  shortFactsOf(job).length === 4 ? 2 : 3;
+  factColumns(shortFactsOf(job).length) === 2 ? 2 : 3;
 
 function shortFactsOf(job: OfficeJob) {
   const { move, cancel } = freeUntilOf(

@@ -71,7 +71,9 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   (a `DateTile` for when, an `IconTile` for what, an `Avatar` for who),
   a muted line above and below; then its facts (`Facts`, each an icon, a
   value and a muted line), with the time, the address and how to reach
-  someone among them, not in a part of their own.
+  someone among them, not in a part of their own. As many columns as they
+  take (`factColumns`), so none sits alone in a part of a row squeezing
+  its words: a lone fact the whole row, four two and two.
 - **Its parts**, each a Section. An action on one part stays on that part's
   title line (End plan, red, on the plan; Billing's Edit). A part
   with nothing in it yet offers its action (`ActionRow`), unless that
@@ -744,6 +746,9 @@ stays as it is (#336).
   Client picks a day on a month, then that day's open times
   (`screens/AvailabilityPicker.tsx`). Both lists of times are the kit's
   `TimeTiles`. Clients never see the Schedule or anyone else's Jobs.
+- **A time stays whole**: "10:00 AM" and "9:00 a.m." never wrap away from
+  their AM, as models' formats write the space before it a no-break one,
+  for every screen and email (#534's UX review U19).
 
 ### Status and colour
 

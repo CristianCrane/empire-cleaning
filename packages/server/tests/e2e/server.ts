@@ -55,6 +55,7 @@ import {
 } from "../../src/features/reschedule/index.ts";
 import { generateServicePlanJobs } from "../../src/features/service-plans/index.ts";
 import { chaseBills } from "../../src/features/bills/index.ts";
+import { settleOpenPayments } from "../../src/features/payments/index.ts";
 import { bookSiteVisit } from "../../src/features/site-visits/index.ts";
 import { properties } from "../../src/features/properties/index.ts";
 import { quotes } from "../../src/features/quotes/quotes.schema.ts";
@@ -251,6 +252,13 @@ control.post("/bills/billed-week", async (req, res) => {
 // due date is late, and reminded
 control.post("/bills/chase", async (_req, res) => {
   res.json({ sent: await chaseBills() });
+});
+
+// what the server's Clock does every 10 minutes: a payment left waiting on
+// the Client's bank past its wait is called off, one gone quiet is looked up
+control.post("/payments/settle", async (_req, res) => {
+  await settleOpenPayments();
+  res.json({ status: "ok" });
 });
 
 // how the test payment form pays a Bill: by card, or a bank debit that stays

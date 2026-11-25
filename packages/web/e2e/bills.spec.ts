@@ -29,6 +29,7 @@ import {
   requireApproval,
   returnToTab,
   setClock,
+  settleOpenPayments,
   titleBadge,
 } from "./harness.ts";
 
@@ -356,6 +357,10 @@ test("a Bill paid from a bank account is processing until it clears", async ({
   await expect(
     page.getByRole("region", { name: "Bill details" }),
   ).toContainText("Payment started Mon, Jan 12");
+  // paid from their bank now, not on the page (UX review U17)
+  await expect(
+    page.getByRole("region", { name: "Bill details" }),
+  ).toContainText("From your bank account");
   await expect(
     page
       .getByRole("main")
@@ -365,6 +370,18 @@ test("a Bill paid from a bank account is processing until it clears", async ({
       ),
   ).toBeVisible();
   await expectNoPageAction(page, "Pay this bill");
+
+  // Payments' card names the Bill and its amount, so its alert needn't
+  // (UX review U16)
+  await page.goto("/portal/payments");
+  await expect(
+    page
+      .getByRole("main")
+      .getByText(
+        "Your bank payment is on its way. It usually takes a few working days to go through.",
+        { exact: true },
+      ),
+  ).toBeVisible();
 });
 
 // a payment on a Bill's page that took nothing, seen in the dialog (#534):
@@ -435,10 +452,11 @@ test("a Client's payment on a Bill's page that didn't go through says why, there
 
 // the Client's bank asking them to approve their payment (#534): refused,
 // nothing was taken, and the page says so once the dialog's closed (#534's
-// UX review U12); left waiting, both
-// pages say so, the Office can't cancel or record a payment meanwhile, and
-// paying again calls the first off
-test("a Client's payment their bank asks them to approve: refused, left waiting, then paid at once", async ({
+// UX review U12); left waiting, both pages say so and the Office can't
+// cancel or record a payment meanwhile; called off by the Clock once its
+// wait is up, both pages say it wasn't approved (UX review U18); then paid
+// (paying again while one waits calls it off: bills.test.ts)
+test("a Client's payment their bank asks them to approve: refused, left waiting until it's called off, then paid", async ({
   page,
   browser,
 }) => {
@@ -488,7 +506,7 @@ test("a Client's payment their bank asks them to approve: refused, left waiting,
     office
       .getByRole("main")
       .getByText(
-        /^Casey Client is paying this bill online, waiting on their bank to approve it\. If it isn't approved by \d+:\d\d [AP]M, it's called off and you can cancel the bill or record a payment\.$/,
+        /^Casey Client is paying this bill online, waiting on their bank to approve it\. If it isn't approved by \d+:\d\d\s[AP]M, it's called off and you can cancel the bill or record a payment\.$/,
       ),
   ).toBeVisible();
   await expectGreyedPageActions(
@@ -496,6 +514,29 @@ test("a Client's payment their bank asks them to approve: refused, left waiting,
     ["Record a payment", "Cancel bill"],
     clientPayingBill.item("Casey"),
   );
+
+  // the next day, the Clock has called it off
+  await setClock("2026-01-13T14:00:00Z");
+  await settleOpenPayments();
+  await page.reload();
+  await expect(titleBadge(page, "Due")).toBeVisible();
+  await expect(
+    page
+      .getByRole("main")
+      .getByText(
+        "Your payment wasn't approved, so nothing was taken. Please try again, or use another card or bank account.",
+        { exact: true },
+      ),
+  ).toBeVisible();
+  await office.reload();
+  await expect(
+    office
+      .getByRole("main")
+      .getByText(
+        "The client's payment on Jan 12 wasn't approved, so nothing was taken. They can try again on its page.",
+        { exact: true },
+      ),
+  ).toBeVisible();
 
   await requireApproval("approved");
   await (await payThisBill(page)).pay.click();

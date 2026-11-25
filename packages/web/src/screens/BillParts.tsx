@@ -17,6 +17,7 @@ import {
   Fact,
   DetailsCard,
   Facts,
+  factColumns,
   type PageAction,
 } from "@empire-cleaning/ui";
 import type { AppHref } from "../links.ts";
@@ -61,6 +62,8 @@ const words = catalog({
     // the Client reads it on that page, as "Paid on this page" (#534's UX
     // review U15); the Office reads where the Client pays it
     onThisPage: "On this page, by card or bank account",
+    // while its bank debit is on its way (#534's UX review U17)
+    fromYourBank: "From your bank account",
     whatFor: "What it's for",
     taxIncluded: "Tax included",
     print: "Print",
@@ -97,6 +100,7 @@ const words = catalog({
     made: "Emitida",
     howPaid: "Cómo se paga",
     onThisPage: "En esta página, con tarjeta o cuenta bancaria",
+    fromYourBank: "De su cuenta bancaria",
     whatFor: "Para qué es",
     taxIncluded: "Impuestos incluidos",
     print: "Imprimir",
@@ -247,6 +251,59 @@ export function BillDetail({
   const credit = bill.totalCents < 0;
   const standing = cancelledFact(t, bill);
   const row = "flex items-start justify-between gap-6";
+  // the week, when made, where when said, how it's paid, and how it stands
+  // when said
+  const facts = [
+    <Fact
+      key="week"
+      icon={CalendarRange}
+      label={w.week}
+      value={w.weekRange(formatDay(bill.weekStart), formatDay(bill.weekEnd))}
+      line={w.covers}
+    />,
+    <Fact
+      key="made"
+      icon={CalendarDays}
+      label={w.made}
+      value={dayOf(bill.madeAt)}
+    />,
+    // its cleans' home, when all at one and it's worth saying; else
+    // each row says its own (#534's UX review U8)
+    bill.home && (
+      <Fact key="where" icon={MapPin} label={p.where} value={bill.home} />
+    ),
+    <Fact
+      key="paid"
+      icon={CreditCard}
+      label={w.howPaid}
+      value={
+        bill.payment !== "on_page"
+          ? forClient
+            ? w.fromYourCard
+            : "From their card, automatically"
+          : // its bank debit on its way, from their bank, as there's
+            // no paying on its page meanwhile (#534's UX review U17)
+            bill.status === "processing"
+            ? forClient
+              ? w.fromYourBank
+              : "From their bank account"
+            : forClient
+              ? w.onThisPage
+              : "On its page, by card or bank account"
+      }
+    />,
+    standing && (
+      <Fact
+        key="standing"
+        icon={standing.icon}
+        label={standing.label}
+        value={
+          <span className="[overflow-wrap:anywhere]">{standing.value}</span>
+        }
+        line={standing.line}
+      />
+    ),
+  ].filter(Boolean);
 
   return (
     <DetailsCard
@@ -262,44 +319,9 @@ export function BillDetail({
       }
       line={nowLine(t, bill, forClient)}
     >
-      <Facts>
-        <Fact
-          icon={CalendarRange}
-          label={w.week}
-          value={w.weekRange(
-            formatDay(bill.weekStart),
-            formatDay(bill.weekEnd),
-          )}
-          line={w.covers}
-        />
-        <Fact icon={CalendarDays} label={w.made} value={dayOf(bill.madeAt)} />
-        {/* its cleans' home, when all at one and it's worth saying; else
-            each row says its own (#534's UX review U8) */}
-        {bill.home && <Fact icon={MapPin} label={p.where} value={bill.home} />}
-        <Fact
-          icon={CreditCard}
-          label={w.howPaid}
-          value={
-            bill.payment === "on_page"
-              ? forClient
-                ? w.onThisPage
-                : "On its page, by card or bank account"
-              : forClient
-                ? w.fromYourCard
-                : "From their card, automatically"
-          }
-        />
-        {standing && (
-          <Fact
-            icon={standing.icon}
-            label={standing.label}
-            value={
-              <span className="[overflow-wrap:anywhere]">{standing.value}</span>
-            }
-            line={standing.line}
-          />
-        )}
-      </Facts>
+      {/* as many columns as its facts take, so none sits alone in a part
+          of a row (#534's UX review U20) */}
+      <Facts columns={factColumns(facts.length)}>{facts}</Facts>
       <div className="flex flex-col gap-3 border-t border-border pt-4">
         {/* the tax is said by the total's label and its own line below */}
         <p className="font-semibold text-fg">{w.whatFor}</p>
