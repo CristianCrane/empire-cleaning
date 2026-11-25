@@ -7,6 +7,7 @@ import type {
 } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
 import { said, saidWith } from "../words.ts";
+import { depositOf } from "./payments.ts";
 
 // in the Client's language (ADR-0025)
 const words = catalog({
@@ -69,14 +70,16 @@ export const waitLabelOf = (lang: Language, wait: QuoteWait) => {
   }[wait];
 };
 
-// a Quote as a row's title: what it's for
+// a Quote as a row's title: what it's for, a one-off's the clean they paid
+// for when they did, as Home names it
 export const quoteTitle = (lang: Language, q: QuoteSummary) =>
   q.kind === "service_plan"
     ? `${said[lang].quoteKindName(q.kind)}, ${q.service.name}`
-    : saidWith(lang, words).w.quoteFor(q.service.name);
+    : saidWith(lang, words).w.quoteFor(q.payingServiceName ?? q.service.name);
 
 // the most pressing thing about a home: its plan, a Quote ready, the
-// next clean, a Quote we're preparing, or nothing
+// next clean, a Quote waiting on nothing of theirs, a Quote we're
+// preparing, or nothing
 export function standingOf(
   lang: Language,
   property: Pick<PropertyView, "id">,
@@ -97,12 +100,13 @@ export function standingOf(
       : { tone: "success", label: p.cleaningPlan, line: planWhen(lang, plan) };
   }
   const ours = data.quotes.filter((q) => q.property.id === property.id);
-  const sent = ours.find((q) => q.status === "sent");
-  if (sent) {
+  const sent = ours.filter((q) => q.status === "sent");
+  const ready = sent.find((q) => !waitOf(q));
+  if (ready) {
     return {
       tone: "warning",
       label: w.quote(clientQuoteStatus.sent.label),
-      line: w.sent(sent.service.name, shortDayOf(sent.sentAt)),
+      line: w.sent(ready.service.name, shortDayOf(ready.sentAt)),
     };
   }
   const next = data.jobs
@@ -113,6 +117,28 @@ export function standingOf(
       tone: "info",
       label: t.jobStatusLabel.booked,
       line: formatDateTime(next.startsAt),
+    };
+  }
+  // one waiting on nothing of theirs asks nothing, so after a clean booked,
+  // and as Home's card ranks it: money on its way first, the newest's
+  const waiting =
+    sent.find((q) => waitOf(q) !== "filled") ??
+    sent.find((q) => waitOf(q) === "filled");
+  const wait = waiting && waitOf(waiting);
+  if (waiting && wait) {
+    const plan = waiting.kind === "service_plan";
+    const service = waiting.payingServiceName ?? waiting.service.name;
+    return {
+      tone: "info",
+      label: waitLabelOf(lang, wait),
+      line:
+        wait === "payment"
+          ? depositOf(lang, plan ? null : service)
+          : wait === "booking"
+            ? plan
+              ? p.yourPlan
+              : service
+            : w.sent(waiting.service.name, shortDayOf(waiting.sentAt)),
     };
   }
   const asked = ours.find(

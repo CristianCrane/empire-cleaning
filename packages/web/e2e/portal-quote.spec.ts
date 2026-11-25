@@ -56,6 +56,35 @@ test("a quote ready to answer says Ready, each option's badge under its title", 
   await expect(payAndBook(page).form).toBeVisible();
 });
 
+// #534's UX design, Screens 2 and 3: Home and their home say so too, as
+// it waits on us, not on them. Ends on Home, for its picture
+test("a quote whose day filled up is told on Home and by its home, with nothing to do", async ({
+  page,
+  browser,
+}) => {
+  await quoteSent(await office(browser), olive, casey);
+  // another booking takes all of Monday's 16 hours, from 2pm
+  await bookJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 16 });
+  await signedInAs(page, casey.email);
+  await page.goto("/portal/details");
+  const home = page
+    .getByRole("grid", { name: "Your home" })
+    .getByRole("row")
+    .first();
+  await expect(home).toContainText("Fully booked");
+  await home.click();
+  await expect(
+    page.getByRole("grid", { name: "Quotes" }).getByRole("row"),
+  ).toContainText("Fully booked");
+
+  await page.goto("/portal");
+  await expect(page.getByText("Fully booked", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("We'll send you a new quote for another time."),
+  ).toBeVisible();
+  await expect(page.getByText("Quote ready", { exact: true })).toHaveCount(0);
+});
+
 test("a quote whose day filled up has nothing next, declining its one action", async ({
   page,
   browser,

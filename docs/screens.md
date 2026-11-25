@@ -597,7 +597,9 @@ Keeps: a list of homes, each with its own page (ux-portal). Renders through `Rec
 - Header: Your details › street; the street and its standing.
 - Actions: one Button (Edit how we get in).
 - Body: Details (`DetailsCard`: the full address, icon facts); Plans
-  (Section: List, or an `ActionRow`); Quotes (Section: List).
+  (Section: List, or an `ActionRow`); Quotes (Section: List, each row's
+  badge its state, or what it waits on that's nothing of theirs, as Home
+  names it).
 
 #### Client portal > Bill
 

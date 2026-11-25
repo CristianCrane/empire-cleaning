@@ -32,7 +32,13 @@ import { useAction } from "../action.ts";
 import { addressOf } from "../format.ts";
 import { useSaid } from "../words.ts";
 import { AccessFact, ConditionFact, FloorAreaFact } from "../Fact.tsx";
-import { planWhen, quoteTitle, standingOf } from "./properties.ts";
+import {
+  planWhen,
+  quoteTitle,
+  standingOf,
+  waitLabelOf,
+  waitOf,
+} from "./properties.ts";
 import { PlanStatusBadge } from "../PlanParts.tsx";
 import { ClientQuoteStatusBadge } from "../QuoteParts.tsx";
 import { requestQuoteHref } from "./whats-next.ts";
@@ -197,20 +203,33 @@ export function PortalProperty() {
               })
             }
           >
-            {quotes.map((q) => (
-              <ListItem
-                key={q.id}
-                id={q.id}
-                start={<IconTile icon={QuoteIcon} />}
-                title={quoteTitle(t.lang, q)}
-                description={
-                  q.sentAt
-                    ? w.sent(t.shortDayOf(q.sentAt))
-                    : w.askedFor(t.shortDayOf(q.createdAt))
-                }
-                end={<ClientQuoteStatusBadge status={q.status} />}
-              />
-            ))}
+            {quotes.map((q) => {
+              // one waiting on nothing of theirs says what, as its page
+              // and Home do, in place of Ready (#534's UX design, Screen 3)
+              const wait = waitOf(q);
+              return (
+                <ListItem
+                  key={q.id}
+                  id={q.id}
+                  start={<IconTile icon={QuoteIcon} />}
+                  title={quoteTitle(t.lang, q)}
+                  description={
+                    q.sentAt
+                      ? w.sent(t.shortDayOf(q.sentAt))
+                      : w.askedFor(t.shortDayOf(q.createdAt))
+                  }
+                  end={
+                    wait ? (
+                      <StatusBadge tone="info">
+                        {waitLabelOf(t.lang, wait)}
+                      </StatusBadge>
+                    ) : (
+                      <ClientQuoteStatusBadge status={q.status} />
+                    )
+                  }
+                />
+              );
+            })}
           </List>
         </Section>
       )}

@@ -584,3 +584,50 @@ test("a Client's quote their bank is finishing the Deposit on asks nothing more,
       .getByRole("radio", { name: "Deep Clean" }),
   ).toBeHidden();
 });
+
+// Casey accepts with a card their bank then finishes the Deposit on
+const depositGoingThrough = async (page: Page) => {
+  await quoteSent(page, olive, casey);
+  await signedInAs(page, casey.email);
+  await page.goto(await linkIn(casey.email, "Your quote from Empire Cleaning"));
+  await requireApproval("processing");
+  await payAndBook(page).accept.click();
+  await expect(titleBadge(page, "Payment pending")).toBeVisible();
+};
+
+// #534's UX design, Screen 2: a Deposit their bank is finishing asks
+// nothing of them, so Home says where it stands, calm, and no quote waits
+// on their answer. Ends on Home, for its picture (pr:shots)
+test("a Client whose Deposit is going through is told so on Home, with nothing to do", async ({
+  page,
+}) => {
+  await depositGoingThrough(page);
+  await page.goto("/portal");
+  await expect(
+    page.getByText("Payment pending", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Deposit for Deep Clean · Nothing you need to do."),
+  ).toBeVisible();
+  await expect(page.getByText("Quote ready", { exact: true })).toHaveCount(0);
+  await expectNoPageAction(page, "Accept and pay");
+});
+
+// Screen 3: their home says the same, as Home does, and so does the
+// quote's row on the home's page. Ends there, for its picture
+test("a Client whose Deposit is going through sees it by their home and on its quote's row", async ({
+  page,
+}) => {
+  await depositGoingThrough(page);
+  await page.goto("/portal/details");
+  const home = page
+    .getByRole("grid", { name: "Your home" })
+    .getByRole("row")
+    .first();
+  await expect(home).toContainText("Payment pending");
+  await expect(home).toContainText("Deposit for Deep Clean");
+  await home.click();
+  const quotes = page.getByRole("grid", { name: "Quotes" });
+  await expect(quotes.getByRole("row")).toContainText("Payment pending");
+  await expect(quotes.getByText("Ready", { exact: true })).toHaveCount(0);
+});
