@@ -14,6 +14,7 @@ import {
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type {
+  OfferedQuoteSummary,
   OpenQuote,
   QuoteAsked,
   QuoteSource,
@@ -463,6 +464,18 @@ const summaries = async (
                 : (quote.acceptedServiceKey ?? shown.serviceKey),
             )
           : null;
+      // a Service Plan Quote's weekdays, each with its first clean's start
+      // as `startOf` gives it
+      const planWith = <S>(startOf: (o: (typeof offered)[number]) => S) =>
+        plan && shown
+          ? {
+              recurrence: shown.recurrence!,
+              days: offered.map((o) => ({
+                startsAt: startOf(o),
+                serviceName: o.suggested.serviceName,
+              })),
+            }
+          : null;
       const fields = {
         id: quote.id,
         kind: quote.kind,
@@ -474,16 +487,6 @@ const summaries = async (
         client,
         property: toPropertyView(property, list),
         homePlanId,
-        plan:
-          plan && shown
-            ? {
-                recurrence: shown.recurrence!,
-                days: offered.map((o) => ({
-                  startsAt: o.startsAt?.toISOString() ?? null,
-                  serviceName: o.suggested.serviceName,
-                })),
-              }
-            : null,
         drafting: !forClient && draft !== undefined,
         siteVisit: siteVisitOf(
           status,
@@ -506,6 +509,8 @@ const summaries = async (
           proposedStartsAt: shown?.proposedStartsAt?.toISOString() ?? null,
           sentAt: null,
           expiresAt: null,
+          // a Draft's weekday has no start until the Office picks one
+          plan: planWith((o) => o.startsAt?.toISOString() ?? null),
         };
       }
       // sending writes the offer, its dates and its options at once
@@ -522,6 +527,8 @@ const summaries = async (
         proposedStartsAt: offer.proposedStartsAt!.toISOString(),
         sentAt: offer.sentAt!.toISOString(),
         expiresAt: offer.expiresAt!.toISOString(),
+        // sending refuses a weekday with no start (sendQuote's untimelyOf)
+        plan: planWith((o) => o.startsAt!.toISOString()),
       };
     },
   );
@@ -630,20 +637,25 @@ export const quotesAwaitingOffice = async () =>
     )
   ).reverse();
 
-// every Sent Quote still open (not yet Expired), newest first
-export const openQuotes = () =>
-  summaries(and(eq(quotes.status, "sent"), gt(offers.expiresAt, clock.now())));
+// every Sent Quote still open (not yet Expired), newest first; `where`
+// narrows them
+export const openQuotes = async (where?: SQL): Promise<OfferedQuoteSummary[]> =>
+  (
+    await summaries(
+      and(eq(quotes.status, "sent"), gt(offers.expiresAt, clock.now()), where),
+    )
+  ).map((q) => {
+    // a stored "sent" reads as Sent, or Expired once the Clock passes it
+    // (statusOf): never anything else
+    if (q.status !== "sent" && q.status !== "expired") {
+      throw new Error(`Quote ${q.id} is open but ${q.status}`);
+    }
+    return q;
+  });
 
 // Sent Quotes that Expire within this many hours, soonest first
 export const quotesExpiringWithin = async (hours: number) => {
-  const now = clock.now();
-  const until = new Date(now.getTime() + hours * HOUR_MS);
-  const expiring = await summaries(
-    and(
-      eq(quotes.status, "sent"),
-      gt(offers.expiresAt, now),
-      lte(offers.expiresAt, until),
-    ),
-  );
-  return expiring.sort((a, b) => a.expiresAt!.localeCompare(b.expiresAt!));
+  const until = new Date(clock.now().getTime() + hours * HOUR_MS);
+  const expiring = await openQuotes(lte(offers.expiresAt, until));
+  return expiring.sort((a, b) => a.expiresAt.localeCompare(b.expiresAt));
 };

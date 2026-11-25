@@ -293,7 +293,7 @@ function useRowFor() {
           client: clientName(quote.client),
           line: [
             addressOf(quote.property),
-            `expires ${formatDateTime(quote.expiresAt!)}`,
+            `expires ${formatDateTime(quote.expiresAt)}`,
           ],
           open: () =>
             navigate({
@@ -312,7 +312,7 @@ function useRowFor() {
           client: clientName(quote.client),
           line: [
             addressOf(quote.property),
-            `${formatDateTime(quote.proposedStartsAt!)} is full`,
+            `${formatDateTime(quote.proposedStartsAt)} is full`,
           ],
           open: () =>
             navigate({
