@@ -633,13 +633,15 @@ function CleanPage({
                   value={owed}
                 />
               )}
-              <Figure
-                label={t.paid}
-                value={f.formatMoney(
-                  approved ? totalCents : totalCents - owedCents,
-                )}
-                strong
-              />
+              {(approved || !plan) && (
+                <Figure
+                  label={t.paid}
+                  value={f.formatMoney(
+                    approved ? totalCents : totalCents - owedCents,
+                  )}
+                  strong
+                />
+              )}
               {!approved && (
                 <Figure
                   label={noCard ? t.unpaid : t.needsApproval}
@@ -805,9 +807,11 @@ function PayDialog({
 function BillDetails({
   forClient,
   line,
+  waiting = false,
 }: {
   forClient: boolean;
   line: string;
+  waiting?: boolean;
 }) {
   const f = formats.en;
   const row = "flex items-start justify-between gap-6";
@@ -837,9 +841,13 @@ function BillDetails({
           icon={CreditCard}
           label="How it's paid"
           value={
-            forClient
-              ? "From your card, automatically"
-              : "From their card, automatically"
+            waiting
+              ? forClient
+                ? "From your card, once you approve it"
+                : "From their card, once they approve it"
+              : forClient
+                ? "From your card, automatically"
+                : "From their card, automatically"
           }
         />
       </Facts>
@@ -971,10 +979,10 @@ function BillPage({
                   </Button>
                 }
               />
-              <BillDetails forClient line={line} />
+              <BillDetails forClient line={line} waiting={!approved} />
             </>
           ) : (
-            <BillDetails forClient line={line} />
+            <BillDetails forClient line={line} waiting={!approved} />
           )
         }
       />
@@ -1148,9 +1156,11 @@ function EmailsPage({ layout }: { layout: Layout }) {
             stays held.
           </p>
           <p>
-            Your bank wants you to approve it before it's taken from your{" "}
-            {CARD.en}. Until it's paid, we won't book more cleans on your plan.
+            We tried to take the {fee} fee from your {CARD.en}, and your bank
+            wants you to approve it first. Nothing has been taken yet. Until
+            it's paid, we won't book more cleans on your plan.
           </p>
+          <p>{press}</p>
         </Email>
       </div>
     </div>
@@ -1272,7 +1282,7 @@ function OfficeBillPage() {
             ),
           },
         ]}
-        details={<BillDetails forClient={false} line="Not paid yet" />}
+        details={<BillDetails forClient={false} line="Not paid yet" waiting />}
       />
     </OfficeFrame>
   );
@@ -1345,7 +1355,7 @@ function OfficeQuotePage({ layout }: { layout: Layout }) {
       />
       {layout !== "B" && (
         <Dialog
-          title="Ada needs to approve the deposit"
+          title="Record acceptance"
           role="alertdialog"
           isOpen={open}
           onOpenChange={setOpen}
