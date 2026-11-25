@@ -1,4 +1,6 @@
 import { describe, expect, test } from "vitest";
+import { sql } from "drizzle-orm";
+import { db } from "#db";
 import type {
   ClientPastJob,
   NeedsAttentionItem,
@@ -256,5 +258,80 @@ describe("saving a card that takes one payment while another can't reach the pro
     // answer says it's going through, as it does for "processing", and
     // Your card doesn't read Paid
     expect(res.body.goingThrough).toBe(true);
+  });
+});
+
+// critical review C10, its retry half: Try this card again, in the same
+// spot, answers as saving a card does, not with a 409
+describe("Try this card again, taking one payment while another can't reach the provider", () => {
+  test("answers what it took, and that the rest is still going through", async () => {
+    const { office, client, planId } = await heldPlan();
+    const second = (await officePlan(office, planId)).jobs.find(
+      (j) => j.startsAt === "2026-01-26T14:00:00.000Z",
+    )!;
+    testClock().set(new Date("2026-01-25T15:00:00Z"));
+    await client
+      .post(`/api/jobs/mine/${second.id}/cancel`)
+      .send({ feeCents: PLAN_DEPOSIT })
+      .expect(200);
+
+    testPayments().failCharges(null);
+    const held = testPayments().holdNextCharge();
+    const retrying = client.post("/api/payments/mine/retry").then((r) => r);
+    await held.reached;
+    testPayments().goDown();
+    held.release();
+    const res = await retrying;
+    testPayments().goDown(false);
+
+    expect(res.status).toBe(200);
+    expect(res.body.took).toHaveLength(1);
+    expect(res.body.goingThrough).toBe(true);
+  });
+});
+
+// critical review C12: a retry that errored on our side (retryJob threw,
+// so retryUnpaidJobsFor pushes NOT_SETTLED, completion.ts) leaves the Job
+// Unpaid for the reason it had, which nothing tries again by itself. Before
+// 5aea8c2b clientRetry answered 409 "We couldn't try again. Please try
+// later."; now NOT_SETTLED counts as goingThrough, so it answers 200 and
+// Your card, its alert still up, says nothing of the press
+describe("Try this card again, when trying a payment again errors on our side", () => {
+  test("says it couldn't try again, not that it's going through", async () => {
+    const { client, jobId } = await heldPlan();
+    testPayments().failCharges(null);
+    // recording the Charge fails, as a database error would
+    await db.execute(sql`
+      create or replace function c12_fail() returns trigger
+      language plpgsql as $$ begin raise exception 'C12: our own error'; end $$`);
+    await db.execute(sql`
+      create trigger c12_fail before insert on charges
+      for each row execute function c12_fail()`);
+    const asked = testPayments().paymentAttempts.length;
+    let res;
+    try {
+      res = await client.post("/api/payments/mine/retry");
+    } finally {
+      await db.execute(sql`drop trigger if exists c12_fail on charges`);
+      await db.execute(sql`drop function if exists c12_fail()`);
+    }
+
+    // still Unpaid, as before the press, and still theirs to read
+    const owed = (
+      (await client.get("/api/jobs/mine/past").expect(200))
+        .body as ClientPastJob[]
+    ).find((j) => j.id === jobId)!;
+    expect(owed.unpaid).toMatchObject({ kind: "declined" });
+    // the provider took it before our error: the next press records that
+    // and asks for nothing more
+    expect(testPayments().paymentAttempts.length).toBe(asked + 1);
+    expect(
+      (await client.post("/api/payments/mine/retry").expect(200)).body,
+    ).toMatchObject({ took: [expect.objectContaining({ id: jobId })] });
+    expect(testPayments().paymentAttempts.length).toBe(asked + 1);
+
+    expect(res.body).not.toMatchObject({ goingThrough: true });
+    expect(res.status).toBe(409);
+    expect(res.body.message).toBe("We couldn't try again. Please try later.");
   });
 });

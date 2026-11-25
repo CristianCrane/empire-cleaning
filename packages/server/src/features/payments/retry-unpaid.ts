@@ -2,12 +2,14 @@ import {
   asksTheClient,
   catalog,
   formats,
+  messages,
   type CardRetried,
 } from "@empire-cleaning/models";
 import { currentLanguage } from "#services/request";
 import { ConflictError } from "../../middleware/errors.ts";
 import { retryUnpaidBillsFor } from "../bills/bills.ts";
 import { retryUnpaidJobsFor } from "../completion/completion.ts";
+import { WAITING_ON_PROVIDER } from "./money.ts";
 import { stillNotPaid, unpaidKind, type CardTried } from "./unpaid.ts";
 
 // Tries again everything a Client's saved Payment Method failed to take:
@@ -17,11 +19,12 @@ export const retryUnpaidFor = async (clientId: string) => [
   ...(await retryUnpaidBillsFor(clientId)),
 ];
 
-// a failure that asks nothing of the Client: left processing, or the
-// payment service out of reach, which we try again ourselves (Payment
-// pending), so it may yet be taken (critical review C10)
+// a failure the payment service left waiting: processing, or out of reach,
+// which we try again ourselves (Payment pending), so it may yet be taken
+// (critical review C10). Not one that failed on our side, which nothing
+// tries again by itself (C12)
 const ours = (r: CardTried) =>
-  r.failure !== null && !asksTheClient(unpaidKind(r.failure));
+  !r.errored && r.failure !== null && WAITING_ON_PROVIDER.includes(r.failure);
 
 // what trying them again took, as Your card says it: each payment's money
 // taken, the rest of one failing included (critical review C11), and
@@ -63,7 +66,7 @@ const words = catalog({
  * happened, what was taken first. One the payment service left processing
  * or couldn't be reached for isn't theirs: we try it again ourselves, so it
  * answers as still going through, as saving a card does (critical review
- * C10).
+ * C10). One that failed on our side says to try later (C12).
  */
 export const clientRetry = async (clientId: string) => {
   const retried = await retryUnpaidFor(clientId);
@@ -73,11 +76,16 @@ export const clientRetry = async (clientId: string) => {
   const theirs = retried.find(
     (r) => r.failure && asksTheClient(unpaidKind(r.failure)),
   )?.failure;
-  if (!theirs) {
+  // theirs to put right first, else one that failed on our side (C12)
+  const failed = theirs
+    ? `${stillNotPaid(lang, theirs)} ${said.differentCard}`
+    : retried.some((r) => r.errored)
+      ? messages[lang].couldntRetry
+      : null;
+  if (!failed) {
     if (result.took.length > 0 || result.goingThrough) return result;
     throw new ConflictError(said.nothingToTake);
   }
-  const failed = `${stillNotPaid(lang, theirs)} ${said.differentCard}`;
   const takenCents = result.took.reduce((sum, p) => sum + p.cents, 0);
   throw new ConflictError(
     takenCents > 0

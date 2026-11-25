@@ -743,7 +743,12 @@ export const retryUnpaidBillsFor = async (clientId: string) => {
     } catch (error) {
       // the rest are still tried; this one stays Unpaid
       monitoring.error(error, { what: `Unpaid Bill ${id} not retried` });
-      retried.push({ ...bill, takenCents: 0, failure: NOT_SETTLED });
+      retried.push({
+        ...bill,
+        takenCents: 0,
+        failure: NOT_SETTLED,
+        errored: true,
+      });
     }
   }
   return retried;

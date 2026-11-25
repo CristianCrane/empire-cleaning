@@ -67,7 +67,13 @@ const whyWords = catalog({
 
 // how trying a payment again went: what it took, and why not when it
 // failed (a stored reason, as above)
-export type Retried = { takenCents: number; failure: string | null };
+// `errored`: trying it again failed on our side, so it stays Unpaid as it
+// was and nothing tries it again by itself (critical review C12)
+export type Retried = {
+  takenCents: number;
+  failure: string | null;
+  errored?: true;
+};
 
 // the same, for one of a Client's payments, as Your card names it
 export type CardTried = CardPayment extends infer P
