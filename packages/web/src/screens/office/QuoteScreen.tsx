@@ -900,15 +900,9 @@ function Offer({ quote }: { quote: ShownQuote }) {
   // once a one-off is accepted, the Service booked alone: the other was
   // never taken
   const booked = quote.status === "accepted" && !plan;
-  // until then a one-off's own Service, the one asked for, as every Office
-  // screen leads with it, and the one recommended an aside under it, as the
-  // Draft has it (#493, after #527); or, while the Client pays online for
-  // the one recommended, that one, as they picked it, the one they asked
-  // for the aside (#534's UX review U2); a plan's weekdays in their order
-  const lead = plan
-    ? undefined
-    : (quote.options.find((o) => o.serviceKey === quote.paying?.serviceKey) ??
-      ownOption(quote));
+  // until then a one-off's lead (leadOption), the other an aside under
+  // it; a plan's weekdays in their order
+  const lead = plan ? undefined : leadOption(quote);
   const options = booked
     ? quote.options.filter((o) => o.serviceKey === quote.acceptedServiceKey)
     : plan
@@ -1224,7 +1218,7 @@ function AlsoOffered({
 }: {
   option: OfficeQuoteOption;
   // what it is beside the one shown: the one recommended, or, once the
-  // Client's paying for that one, the one they asked for (UX review U2)
+  // Client picked that one, the one they asked for (leadOption)
   note?: string;
   under?: ReactNode;
   children: ReactNode;
@@ -1294,13 +1288,12 @@ function RecordAcceptanceDialog({
   quote: ShownQuote;
   drafting?: number;
 } & Partial<DialogState>) {
-  // a one-off's own Service first, the one asked for, as the card it's
-  // recorded from leads with it, and picked unless only the other still
-  // fits (#493)
-  const recommended = recommendedOption(quote);
+  // a one-off's lead first (leadOption), as the card it's recorded from
+  // leads with it, and picked unless only the other still fits (#493)
+  const lead = leadOption(quote);
   const choices = quote.plan
     ? quote.options
-    : [ownOption(quote), ...(recommended ? [recommended] : [])];
+    : [lead, ...quote.options.filter((o) => o !== lead)];
   const [serviceKey, setServiceKey] = useState(
     choices.find((o) => quote.bookable.includes(o.serviceKey))!.serviceKey,
   );
@@ -1836,6 +1829,17 @@ const ownOption = (quote: ShownQuote) =>
 // and the Service it recommends in its place for a first visit, if any
 const recommendedOption = (quote: ShownQuote) =>
   quote.options.find((o) => o.recommended);
+// the one a sent one-off leads with: its own, the one asked for, as every
+// Office screen leads with it, the one recommended an aside, as the Draft
+// has it (#493, after #527); or the one the Client picked, while they pay
+// online for it or its alert says their payment for it ended, as they
+// chose it (#534's UX review U2, U8)
+const leadOption = (quote: ShownQuote) =>
+  quote.options.find(
+    (o) =>
+      o.serviceKey ===
+      (quote.paying ? quote.paying.serviceKey : quote.paymentEnded?.serviceKey),
+  ) ?? ownOption(quote);
 
 // the price as last worked out: in a line, as a phone's foot shows it, and
 // in the fewest words, for the header that sticks on a wider screen. A

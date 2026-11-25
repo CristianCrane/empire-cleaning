@@ -282,9 +282,10 @@ for a dialog. It renders through `FormPage`
   line under it ("Also offered: Deep Clean $299.41"), its price and
   working folded behind it, and in the Service part its own price behind
   a fold (the user, on #527: "The recommendation is an aside"). Once the
-  Client pays online for the one recommended, it leads instead, as they
-  picked it, and the one asked for is the aside, "What Casey asked for."
-  (#534's UX review U2). Under
+  Client picks the one recommended, paying for it online or while the
+  alert says their payment for it ended, it leads instead, and Record
+  acceptance picks it, as they chose it; the one asked for is the aside,
+  "What Casey asked for." (#534's UX review U2, U8). Under
   each option's price, unfolded, the one asked for and that line both,
   why the client can't pick it at the time proposed ("The client can't
   pick it at this time: that day is too full."), a warning; in danger

@@ -603,7 +603,17 @@ test("Office Staff see a Deposit payment the Client's bank never approved took n
     /^On Jan 5, Casey Client's online payment of the \$[\d.]+ deposit, for the Deep Clean, wasn't approved, so nothing was taken\. They can try again on their quote, or you can record acceptance\.$/,
   );
   await expect(alert).toHaveClass(/bg-info-subtle/);
-  await expect(recordAcceptance(page)).toBeEnabled();
+  // it leads with the clean they picked, and recording their yes picks it
+  // too (#534's UX review U8)
+  await expect(
+    page.getByText(/^Also offered: Standard Clean \$[\d,.]+$/),
+  ).toBeVisible();
+  await recordAcceptance(page).click();
+  await expect(
+    page
+      .getByRole("alertdialog", { name: "Record acceptance?" })
+      .getByRole("radio", { name: "Deep Clean" }),
+  ).toBeChecked();
 });
 
 test("Office Staff see why a Client's Deposit payment didn't go through", async ({
@@ -625,6 +635,9 @@ test("Office Staff see why a Client's Deposit payment didn't go through", async 
     /^On Jan 5, Casey Client's online payment of the \$[\d.]+ deposit, for the Deep Clean, didn't go through \(there wasn't enough money in the account\)\. They can try again on their quote, or you can record acceptance\.$/,
   );
   await expect(recordAcceptance(page)).toBeEnabled();
+  await expect(
+    page.getByText(/^Also offered: Standard Clean \$[\d,.]+$/),
+  ).toBeVisible();
 });
 
 test("a Client back from their bank before approving the Deposit is told how it goes on", async ({
