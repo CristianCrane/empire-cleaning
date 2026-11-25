@@ -700,6 +700,15 @@ test("Your card asks for a new card in place of an expired one, with no retry", 
   const { billId } = await billed({ failing: "expired_card" });
   await signedInAs(page, casey.email);
   await page.goto(`/portal/bills/${billId}`);
+  // the Bill's own page still offers paying it there (review F12)
+  await expect(
+    page
+      .getByRole("main")
+      .getByText(
+        "We couldn't take $269.47 for this bill (the card has expired). Please pay it, or add a card and we'll try again straight away.",
+        { exact: true },
+      ),
+  ).toBeVisible();
   await page.getByRole("link", { name: "Update your card" }).click();
 
   const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });

@@ -39,6 +39,8 @@ const words = catalog({
     late: "This bill wasn't paid by its due date.",
     forBill: (amount: string) => `${amount} for this bill`,
     payOr: (fix: string) => `Please pay it, or ${fix}.`,
+    // no card saved, or one that has expired (review F12)
+    addAndRetry: "add a card and we'll try again straight away",
     // their bank asking them to approve it, as they come back to the page:
     // pressing Pay calls the first off (#534)
     approving:
@@ -55,6 +57,7 @@ const words = catalog({
     late: "Esta factura no se pagó antes de su fecha de vencimiento.",
     forBill: (amount: string) => `${amount} de esta factura`,
     payOr: (fix: string) => `Páguela, o ${fix}.`,
+    addAndRetry: "agregue una tarjeta y lo volvemos a intentar enseguida",
     approving:
       "Su banco aún no ha aprobado su pago. Apruébelo en la aplicación de su banco, o pulse Pagar esta factura para empezar de nuevo: el primer pago se cancela, así que solo se le cobra una vez.",
     bankOnWay: "Su pago bancario está en camino",
@@ -188,9 +191,12 @@ function useStanding(bill: BillView): Alert | null {
             kind === "no_card" ? null : t.p.card,
             why,
           )}{" "}
+          {/* paying it here puts it right too, whatever the card's problem */}
           {kind === "declined"
             ? t.w.payOr(t.UPDATE_AND_RETRY)
-            : t.clientFix[kind]}
+            : kind === "no_card"
+              ? t.w.payOr(t.w.addAndRetry)
+              : t.clientFix[kind]}
           {paused}
         </>
       ),
