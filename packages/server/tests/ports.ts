@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { ephemeralStart, leaseRunPorts } from "./lease.ts";
+import { ephemeralStart, holdLease, leaseRunPorts } from "./lease.ts";
 
 // The ports the e2e servers listen on. Every e2e run on the machine (in any
 // checkout: worktrees, other clones) needs ports no other run is using, so
@@ -29,8 +29,16 @@ const lease = await leaseRunPorts({
   ephemeral: ephemeralStart(),
 });
 
-// the first of the run's 200 ports
+// the first of the run's 200 ports. It also names what else is the run's own,
+// as no other run has it while this one lives: its builds and test results
+// (packages/web/e2e/slots.ts, packages/landing/playwright.config.ts), and
+// pr:shots' base worktree and copies (tests/e2e/shots.ts)
 export const E2E_PORTS = lease.base;
+
+// the lease of the block from `base` while no run holds it, so what a run
+// that ended left there can be cleared with no other run taking the block
+// meanwhile (tests/e2e/shots.ts); null while a run holds it
+export const holdEndedRun = (base: number) => holdLease(base, BLOCK);
 
 // The block, from its first port: the web app's slots (packages/web/e2e/slots.ts),
 // three ports each, then the landing site's three

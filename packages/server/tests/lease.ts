@@ -39,21 +39,32 @@ export const portsFree = async (ports: number[]) => {
   return held.every(Boolean);
 };
 
-// the block of `size` ports from `base`, leased by listening on its last:
-// "held" when another run has it, "busy" when a port of it is in use with no
-// run holding it
+// the lease of the block of `size` ports from `base`, its last port listened
+// on; null while a run holds it. Taken alone, whatever the block's other
+// ports, it says no run is using the block, and keeps any from taking it
+// meanwhile
+export const holdLease = async (
+  base: number,
+  size: number,
+): Promise<Lease | null> => {
+  const server = await hold(base + size - 1, "127.0.0.1");
+  return server && { base, release: () => close(server) };
+};
+
+// the block of `size` ports from `base`, leased: "held" when another run
+// has it, "busy" when a port of it is in use with no run holding it
 export const takeBlock = async (
   base: number,
   size: number,
 ): Promise<Lease | "held" | "busy"> => {
-  const lease = await hold(base + size - 1, "127.0.0.1");
+  const lease = await holdLease(base, size);
   if (!lease) return "held";
   const others = Array.from({ length: size - 1 }, (_, i) => base + i);
   if (!(await portsFree(others))) {
-    await close(lease);
+    await lease.release();
     return "busy";
   }
-  return { base, release: () => close(lease) };
+  return lease;
 };
 
 // where Linux picks the local ports of outgoing connections from: a server
