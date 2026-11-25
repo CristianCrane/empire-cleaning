@@ -119,14 +119,7 @@ test("a packed row keeps its fields at their own widths, side by side", async ()
   expect(box("Date").left).toBe(box("Start time").left - 14 * rem);
   expect(box("Start time").width).toBe(9 * rem);
 
-  // the phone's layout shows a frame after the resize: under reduced motion,
-  // the tests' default, a box's widths ease over 0.01ms (tokens.css)
   await page.viewport(390, 844);
-  await expect
-    .poll(() => {
-      const date = box("Date");
-      const start = box("Start time");
-      return { left: start.left - date.left, width: start.width - date.width };
-    })
-    .toEqual({ left: 0, width: 0 });
+  expect(box("Start time").left).toBe(box("Date").left);
+  expect(box("Start time").width).toBe(box("Date").width);
 });

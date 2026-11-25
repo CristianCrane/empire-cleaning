@@ -225,15 +225,6 @@ const problemsAtEveryWidth = async (page: Page, what: string) => {
   const problems: string[] = [];
   for (const width of widths) {
     await page.setViewportSize({ width, height: 900 });
-    // the new width's layout shows a frame after the resize: under reduced
-    // motion, the tests' default, a box's sizes ease over 0.01ms (tokens.css),
-    // and a check run at once can measure the last width's
-    await page.evaluate(
-      () =>
-        new Promise((done) =>
-          requestAnimationFrame(() => requestAnimationFrame(done)),
-        ),
-    );
     for (const problem of await problemsAt(page)) {
       problems.push(`${what} at ${width}px: ${problem}`);
     }

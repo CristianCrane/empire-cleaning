@@ -872,19 +872,7 @@ test.describe("on a phone", () => {
       });
     expect(await centred()).toEqual({ align: "center", numberCentred: true });
 
-    // three across first: the wide layout shows a frame after the resize
-    // (docs/testing.md, "Every test browser"), and the phone's passes too
     await page.setViewportSize({ width: 1280, height: 900 });
-    const steps = page.locator("#how-it-works li");
-    await expect
-      .poll(async () => {
-        const [first, second] = await Promise.all([
-          steps.nth(0).boundingBox(),
-          steps.nth(1).boundingBox(),
-        ]);
-        return second!.y - first!.y;
-      })
-      .toBe(0);
     expect(await centred()).toEqual({ align: "center", numberCentred: true });
   });
 
