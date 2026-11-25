@@ -872,13 +872,33 @@ stays as it is (#336).
 
 1. **Ask the question.** What is the screen for, and what's wrong with it
    now?
-2. **Prototype it** on a `prototype-<screen>` branch: a signed-out route
-   (`/prototype/<screen>?case=&layout=`) with made-up data for every state,
-   ↑/↓ to switch layouts and ←/→ to switch cases (`PrototypeSwitcher`,
-   copied from the latest `prototype-*` branch, as it isn't on main).
-   Usually three layouts. Push the branch; it's kept as the record. It never
-   becomes a PR, so it skips the change review (the `change` skill's
-   Prototype rule).
+2. **Prototype it** on a `prototype-<screen>` branch off main, which has
+   the kit (#502): one file of made-up data for every state, and nothing
+   else to copy or wire up. Usually three layouts. Push the branch; it's
+   kept as the record. It never becomes a PR, so it skips the change review
+   (the `change` skill's Prototype rule).
+   - **The web app:** `<screen>.prototype.tsx`, beside the screen in
+     `packages/web/src/screens/`, default-exports `prototype({ layouts,
+     cases })` (`screens/Prototype.tsx`), each case drawing itself for a
+     layout from made-up data, in the real frames through `AreaLayout`'s
+     `navFor`. It's at `/prototype/<screen>`, signed out, with
+     `?layout=&case=`.
+   - **The landing site:** `src/prototypes/<screen>.ts` default-exports
+     `prototype({ layouts, cases })` (`src/prototype.ts`), a Spanish case
+     with `lang: "es"`, and `src/prototypes/<screen>.astro` draws one, given
+     `layout` and `case`. It's at `/prototype/<screen>/`, each case a page
+     of its own, a Spanish one under `/es/`.
+   - **Looking at it:** `pnpm dev` (on a port of your own under 10000, with
+     `--strictPort`, when another may be running) draws a bar in the
+     corner, ↑/↓ for layouts and ←/→ for cases (`PrototypeBar`); with no
+     case, the address lists every one. The screen-layout lint is off in a
+     prototype, and the copies check skips its words.
+   - **Shots:** `pnpm pr:shots --prototype <screen>` shoots every layout ×
+     case at rest at 412, 768, 1024 and 1280 px, with no bar, and lists them
+     in an `index.md` (`packages/web/README.md`), for the `ux-reviewer`
+     and the pick.
+   - A package a prototype adds stays on its branch; one the pick needs
+     comes in with the build.
 3. **Pick one** with the user, and note any tweaks.
 4. **Build it** on a `ux-<screen>` branch, through the layout for its type
    (a change to how every screen of a type looks is a change to its layout),

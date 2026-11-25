@@ -45,6 +45,7 @@ export { IconTile } from "./IconTile.tsx";
 export { ButtonLink, ExternalButtonLink, Link, linkStyles } from "./Link.tsx";
 export { Line } from "./Line.tsx";
 export { Logo } from "./Logo.tsx";
+export { PrototypeBar } from "./PrototypeBar.tsx";
 export { MessagePage, SignInPage } from "./layouts/MessagePage.tsx";
 export {
   LIST_PAGE,

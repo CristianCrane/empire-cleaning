@@ -12,6 +12,7 @@
     "./api-clock": "./tests/e2e/api-clock.ts",
     "./at-rest": "./tests/e2e/at-rest.ts",
     "./ports": "./tests/ports.ts",
+    "./prototype-shots": "./tests/e2e/prototype-shots.ts",
     "./fake-payments": "./tests/fakes/payment-gateway.ts"
   },
   "scripts": {

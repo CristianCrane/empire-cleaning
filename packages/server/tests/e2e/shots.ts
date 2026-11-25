@@ -14,6 +14,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
 import { basename, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,12 +22,15 @@ import { parseArgs } from "node:util";
 // leases a block of e2e ports for this run, which both sides use: the
 // processes it starts find it in E2E_PORT_LEASE (../ports.ts)
 import { E2E_PORTS, holdEndedRun } from "../ports.ts";
+import { shotOf, type PrototypeShot } from "./prototype-shots.ts";
 
 const USAGE = [
   'Usage: pnpm pr:shots <spec> "<test title>" [--desktop] [--viewport]',
   "       pnpm pr:shots --same <spec>… [--desktop] [--viewport]",
+  "       pnpm pr:shots --prototype <screen>",
   '  e.g. pnpm pr:shots packages/web/e2e/bills.spec.ts "a Client pays a Bill by card"',
   "       pnpm pr:shots --same packages/web/e2e/bills.spec.ts packages/web/e2e/jobs.spec.ts",
+  "       pnpm pr:shots --prototype approve-payment",
 ].join("\n");
 
 const git = (cwd: string, ...args: string[]) =>
@@ -89,6 +93,8 @@ type Ran = {
   project: string;
   status: string;
   path?: string;
+  // every shot a prototype's test took (prototype-shots.ts)
+  prototype: (PrototypeShot & { path: string })[];
 };
 
 // the package a spec is in, in a checkout, and the spec's path from it
@@ -114,6 +120,8 @@ const run = (
     // the screen as the test left it, not the whole page
     viewport: boolean;
     out: string;
+    // the prototype whose every layout × case to shoot
+    prototype?: string;
   },
   checkout: string,
   side: Side,
@@ -143,6 +151,7 @@ const run = (
         PR_SHOTS_PACKAGE: folder,
         PR_SHOTS_OUT: join(options.out, "results"),
         ...(options.viewport && { PR_SHOTS_VIEWPORT: "1" }),
+        ...(options.prototype && { PR_SHOTS_PROTOTYPE: options.prototype }),
         PLAYWRIGHT_JSON_OUTPUT_NAME: reportFile,
       },
     },
@@ -174,6 +183,10 @@ const run = (
             result?.attachments.find(({ name }) => name === "pr-shot") ??
             result?.attachments.find(({ name }) => name === "screenshot")
           )?.path,
+          prototype: (result?.attachments ?? []).flatMap(({ name, path }) => {
+            const shot = shotOf(name);
+            return shot && path ? [{ ...shot, path }] : [];
+          }),
         });
       }
     }
@@ -609,6 +622,77 @@ const same = (specs: string[], context: Context) => {
   });
 };
 
+// where a prototype is, by its package: the web app's anywhere under its
+// screens, the landing site's in its prototypes folder (docs/ux.md)
+const prototypeIn = (screen: string) => {
+  const web = readdirSync(join(top, "packages/web/src/screens"), {
+    recursive: true,
+  }).some((file) => basename(String(file)) === `${screen}.prototype.tsx`);
+  if (web) return { pkg: "packages/web", spec: "e2e/prototype.shots.ts" };
+  if (existsSync(join(top, `packages/landing/src/prototypes/${screen}.ts`)))
+    return { pkg: "packages/landing", spec: "tests/prototype.shots.ts" };
+  throw new Stop(
+    `No prototype is named ${screen}: neither packages/web/src/screens/**/${screen}.prototype.tsx nor packages/landing/src/prototypes/${screen}.ts.`,
+  );
+};
+
+// every layout × case of a prototype at each width, at rest (#502): this
+// checkout alone, as a prototype has no before, and nothing published, as a
+// prototype branch is no PR. The copies and an index.md listing them stay
+// in the git dir's pr-shots/, for the ux-reviewer and the user to read
+const prototype = (screen: string, context: Context) => {
+  const { dir, after } = context;
+  const { pkg, spec } = prototypeIn(screen);
+  console.log(`\n› every layout × case of ${screen}, in ${top}`);
+  const { ran, errors } = run(
+    {
+      pkg,
+      files: [spec],
+      projects: ["phone", "desktop"],
+      viewport: false,
+      out: join(dir, "run"),
+      prototype: screen,
+    },
+    top,
+    "after",
+  );
+  const failed = ran.filter(
+    ({ status }) => !["passed", "skipped"].includes(status),
+  );
+  if (errors.length || failed.length || !ran.length) {
+    throw new Stop(
+      `The prototype's run failed: ${[...errors, ...failed.map(({ title, project }) => `${title}, ${project}`)].join("; ") || "no test ran"}. Its output above says why.`,
+    );
+  }
+  const shots = ran.flatMap((test) => test.prototype);
+  const fileOf = (shot: PrototypeShot) =>
+    `${slug(`${shot.case} ${shot.layout}`)}-${shot.width}.png`;
+  for (const shot of shots) copyFileSync(shot.path, join(dir, fileOf(shot)));
+  const widths = [...new Set(shots.map(({ width }) => width))].sort(
+    (a, b) => a - b,
+  );
+  const rows = Map.groupBy(shots, (shot) => `${shot.case}\n${shot.layout}`);
+  const index = [
+    `# ${screen}, at ${after}`,
+    "",
+    `| Case | Layout | ${widths.map((w) => `${w} px`).join(" | ")} |`,
+    `| --- | --- | ${widths.map(() => "---").join(" | ")} |`,
+    ...[...rows.values()].map((row) => {
+      const [first] = row;
+      const at = (width: number) => {
+        const shot = row.find((each) => each.width === width);
+        return shot ? `[shot](${fileOf(shot)})` : "";
+      };
+      return `| ${first?.case} ${first?.caseName} | ${first?.layout} ${first?.layoutName} | ${widths.map(at).join(" | ")} |`;
+    }),
+    "",
+  ].join("\n");
+  writeFileSync(join(dir, "index.md"), index);
+  console.log(
+    `\n${shots.length} shots of ${screen} (${rows.size} layout × case, at ${widths.join(", ")} px), at ${after}: ${join(dir, "index.md")} lists them.`,
+  );
+};
+
 const main = () => {
   // an option it doesn't know gets the usage, not a stack
   const { values, positionals } = (() => {
@@ -619,6 +703,7 @@ const main = () => {
           desktop: { type: "boolean", default: false },
           viewport: { type: "boolean", default: false },
           same: { type: "boolean", default: false },
+          prototype: { type: "string" },
         },
       });
     } catch (error) {
@@ -627,9 +712,11 @@ const main = () => {
   })();
   const [spec, title] = positionals;
   if (
-    values.same
-      ? !positionals.length
-      : !spec || !title || positionals.length > 2
+    values.prototype !== undefined
+      ? positionals.length || values.same || values.desktop || values.viewport
+      : values.same
+        ? !positionals.length
+        : !spec || !title || positionals.length > 2
   )
     throw new Stop(USAGE);
 
@@ -657,7 +744,8 @@ const main = () => {
     sha,
     after: `${head}${dirty}`,
   };
-  if (values.same) same(positionals, context);
+  if (values.prototype !== undefined) prototype(values.prototype, context);
+  else if (values.same) same(positionals, context);
   else one(spec ?? "", title ?? "", context);
 };
 

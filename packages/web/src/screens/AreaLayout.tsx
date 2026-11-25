@@ -101,8 +101,10 @@ type AreaNavItem = NavItem & {
 // tab bar holds five at most: the Office keeps the two it checks all day
 // there, the rest in its ☰ menu (#200). The Office's sections come in
 // groups of related ones, the busiest first. The portal's and the Cleaner
-// area's are in their person's language; the Office's English
-const navFor = (lang: Language): Record<AreaId, AreaNavItem[]> => ({
+// area's are in their person's language; the Office's English. A
+// prototype draws the real frames with it (screens/Prototype.tsx)
+/** @public */
+export const navFor = (lang: Language): Record<AreaId, AreaNavItem[]> => ({
   office: [
     { href: linkTo({ to: "/office" }), label: "Today", icon: LayoutDashboard },
     {

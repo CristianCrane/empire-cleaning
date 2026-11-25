@@ -12,11 +12,18 @@
         "playwright.config.ts",
         "e2e/*.spec.ts",
         "e2e/*.sandbox.ts",
+        // `pnpm pr:shots --prototype` alone runs it (shots.config.ts)
+        "e2e/prototype.shots.ts",
       ],
       "playwright": false,
     },
     "packages/landing": {
-      "entry": ["playwright.config.ts", "tests/*.spec.ts"],
+      "entry": [
+        "playwright.config.ts",
+        "tests/*.spec.ts",
+        // `pnpm pr:shots --prototype` alone runs it (shots.config.ts)
+        "tests/prototype.shots.ts",
+      ],
       "playwright": false,
     },
     "packages/server": {
@@ -32,9 +39,6 @@
       "drizzle": { "config": "src/db/drizzle.config.ts" },
       // pino loads it by name, in development (src/services/monitoring/log.ts)
       "ignoreDependencies": ["pino-pretty"],
-      // `pnpm pr:shots` runs the web app's or the landing site's own
-      // Playwright, from that package's folder (tests/e2e/shots.ts)
-      "ignoreBinaries": ["playwright"],
     },
   },
 }

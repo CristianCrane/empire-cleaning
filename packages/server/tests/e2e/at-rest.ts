@@ -15,7 +15,8 @@ export const atRest = async (
   await page.mouse.move(0, 0);
   await page.evaluate(() => {
     (document.activeElement as HTMLElement | null)?.blur();
-    // React Aria marks only the toast region as its top layer
+    // React Aria's top layer: the toast region (and, in dev alone, a
+    // prototype's bar, which no shot has)
     for (const toasts of document.querySelectorAll<HTMLElement>(
       "[data-react-aria-top-layer]",
     ))

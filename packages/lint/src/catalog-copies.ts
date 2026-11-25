@@ -169,11 +169,13 @@ export const catalogCopies = (
     }));
 };
 
-// where the screens' words are: the web app, and models' messages it shows
+// where the screens' words are: the web app, and models' messages it shows;
+// not a prototype's made-up words, on a prototype-* branch (docs/ux.md)
 const catalogFiles = [
   "packages/web/src/*.ts",
   "packages/web/src/*.tsx",
   "packages/models/src/messages/*.ts",
+  ":(exclude)*.prototype.tsx",
 ];
 
 // the catalog files in the checkout at `top`, by their paths from it: those
