@@ -142,7 +142,8 @@ export function ListPage<T>({
     : (tabs.find((t) => t.id === tab)?.count ?? 0);
   const nothing = !searching && tabs.every((t) => t.count === 0);
 
-  // kept where it is as a search starts, so typing goes on in it
+  // kept where it is as a search starts, so typing goes on in it: in the
+  // Tabs' line on a wide screen, under it on a phone
   const field = search && (
     <TextField
       label={search.label}
@@ -225,6 +226,8 @@ export function ListPage<T>({
             </Button>
           )}
         </div>
+        {/* a phone's field opens under the line whose icon opened it */}
+        {!wide && (opened || searching) && field}
         {!searching &&
           tabs.map((t) => (
             <TabPanel key={t.id} id={t.id}>
@@ -245,7 +248,6 @@ export function ListPage<T>({
         // with nothing in it, the empty state holds it instead
         primary={nothing ? undefined : primary}
       />
-      {!wide && (opened || searching) && field}
       {list}
       {found}
     </div>
