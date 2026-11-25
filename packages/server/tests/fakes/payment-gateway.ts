@@ -249,10 +249,9 @@ export class FakePaymentGateway implements PaymentGateway {
     this.approval = then;
   }
 
-  // each card entered just now, paying a Deposit or a Bill, is processing
-  // from now from its first reply,
-  // its bank finishing it, as Stripe can say it, until finishCards(false),
-  // when it's taken
+  // from now, each card entered just now, paying a Deposit or a Bill, is
+  // processing from its first reply, its bank finishing it, as Stripe can
+  // say it, until finishCards(false), when it's taken
   finishCards(finishing = true) {
     this.cardsFinishing = finishing;
   }
