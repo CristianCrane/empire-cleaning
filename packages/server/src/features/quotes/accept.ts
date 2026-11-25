@@ -14,6 +14,8 @@ import {
   inLanguage,
   messages,
   MINUTE_MS,
+  payingFor,
+  type DepositGoal,
 } from "@empire-cleaning/models";
 import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
@@ -24,10 +26,7 @@ import {
 } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
 import { email } from "../../services/email/index.ts";
-import {
-  paymentGateway,
-  type PaymentResult,
-} from "../../services/payment-gateway/index.ts";
+import { type PaymentResult } from "../../services/payment-gateway/index.ts";
 import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { bookJob, lockDay } from "../jobs/jobs.ts";
@@ -47,11 +46,9 @@ import {
   giveBackUnbookedDeposits,
   keepTaken,
   takeDepositOnce,
-  UNREACHABLE,
   type Approval,
   type DepositTaken,
 } from "../payments/money.ts";
-import { idempotencyKey } from "../payments/keys.ts";
 import { charges, type ChargeAttempt } from "../payments/payments.schema.ts";
 import { whyNotPaid } from "../payments/unpaid.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
@@ -111,10 +108,6 @@ export type Acceptor =
   | { by: "client"; clientId: string; accountId: string }
   | { by: "office"; accountId: string };
 
-// what a Deposit waiting on the Client's bank books: a one-off Quote's
-// clean, a plan started, or the home's plan changed
-type Paying = "clean" | "plan" | "change";
-
 // What the API says to someone accepting a Quote, in the request's language
 // (ADR-0025): the Client's words, and those the Office reads too. The
 // Office's own stay English, where they're said
@@ -140,23 +133,8 @@ const words = catalog({
     // back from their bank with the payment not yet approved: approving
     // it in their bank's app books it, and pressing again starts over, as
     // a closed pop-up may leave it either way (#534)
-    waiting: (what: Paying) =>
+    waiting: (what: DepositGoal) =>
       `Your bank hasn't approved the payment yet. Approve it in your bank's app to ${{ clean: "book your clean", plan: "start your plan", change: "change your plan" }[what]}. Or press Accept and pay to start over: the first payment is called off, so you're only charged once.`,
-    // pressed again while their bank finishes the first payment: its own
-    // words, as only here has the Client paid already, so "nothing more"
-    // (PAYMENT_DOWN is the provider unreachable, the Bill's `ours` a
-    // payment we take). The email it names is the booking's own, sent once
-    // it books; one refunded or refused is emailed too (tellUnbooked,
-    // tellNotApproved), so nothing to come back for. It promises no
-    // booking (#534 review F5, F15, F17, UX U3). The Clock books one whose
-    // event never came on its next run past 15 minutes, so half an hour,
-    // as the Bill's card payment says
-    processing: (what: Paying): string =>
-      `Your first payment is still going through with your bank, so nothing more was charged. ${words.en.finishing(what)}`,
-    // a first press their bank finishes on its own, nothing to approve
-    // (#534's F21)
-    finishing: (what: Paying): string =>
-      `We'll email you as soon as ${{ clean: "your clean is booked", plan: "your plan is booked", change: "your plan is changed" }[what]}, usually within half an hour.`,
     calledOff: (minutes: number) =>
       `This payment was called off, as it wasn't approved within ${minutes} minutes, so nothing was charged. Please pay again.`,
     bankFailed:
@@ -188,12 +166,8 @@ const words = catalog({
     planFor: (services: string) => `Este plan de limpieza es para ${services}.`,
     aService: (name: string) => name,
     pick: (services: string) => `Elija ${services}`,
-    waiting: (what: Paying) =>
+    waiting: (what: DepositGoal) =>
       `Su banco aún no ha aprobado el pago. Apruébelo en la app de su banco para ${{ clean: "reservar su limpieza", plan: "empezar su plan", change: "cambiar su plan" }[what]}. O presione Aceptar y pagar para empezar de nuevo: el primer pago se cancela, así que solo se le cobra una vez.`,
-    processing: (what: Paying): string =>
-      `Su primer pago aún no termina de pasar con su banco, así que no se cobró nada más. ${words.es.finishing(what)}`,
-    finishing: (what: Paying): string =>
-      `Le enviaremos un correo en cuanto ${{ clean: "su limpieza quede reservada", plan: "su plan quede reservado", change: "su plan cambie" }[what]}, normalmente en menos de media hora.`,
     calledOff: (minutes: number) =>
       `Este pago se canceló porque no se aprobó en ${minutes} minutos, así que no se cobró nada. Vuelva a pagar.`,
     bankFailed:
@@ -629,11 +603,18 @@ export const acceptQuote = async (
 
   // changing a plan takes no Deposit: the plan's carries over
   const depositCents = changing ? 0 : offer.depositCents;
+  // what booking it does, as the Client is told while it waits
+  const goal: DepositGoal = changing
+    ? "change"
+    : quote.kind === "service_plan"
+      ? "plan"
+      : "clean";
   // Once per attempt, however often accepting is tried (takeDepositOnce):
   // one still waiting on the Client's bank is called off, as they're
   // paying again or Office Staff are recording their yes. Nothing to take
-  // only saves a card entered just now, keyed by its token, which is used
-  // once
+  // only saves a card entered just now, an attempt of 0 held and called off
+  // as a payment is, as approving it books the Quote (#534's UX design
+  // review U40)
   const takeDeposit = async (tx: Tx): Promise<DepositTaken> => {
     // nothing to take or save from a saved card
     if (depositCents === 0 && !token) {
@@ -656,24 +637,12 @@ export const acceptQuote = async (
     };
     if (acceptor.by === "client") {
       const source = token ? { token } : { paymentMethodId: saved!.gatewayRef };
-      return depositCents === 0
-        ? paymentGateway
-            .takeDeposit({
-              ...input,
-              source,
-              idempotencyKey: idempotencyKey.savingCard(id, token!),
-            })
-            // nothing is taken, so trying again is safe
-            .catch((): DepositTaken => ({
-              status: "failed",
-              reason: UNREACHABLE,
-            }))
-        : takeDepositOnce(
-            tx,
-            id,
-            { call: "deposit", input: { ...input, source }, offer: offered },
-            once,
-          );
+      return takeDepositOnce(
+        tx,
+        id,
+        { call: "deposit", input: { ...input, source }, offer: offered },
+        once,
+      );
     }
     // the Office: off-session, so no approval can be asked for
     return takeDepositOnce(
@@ -706,13 +675,7 @@ export const acceptQuote = async (
       const paying = acceptor.by === "office" && (await payingOf(quote, tx));
       if (paying) {
         throw new ConflictError(
-          clientPayingWords.record({
-            name: client.name,
-            deposit: formats.en.formatMoney(paying.depositCents),
-            service: paying.serviceName,
-            until: formats.en.formatTime(paying.until),
-            finishing: paying.finishing,
-          }),
+          clientPayingWords.record(payingFor(client.name, paying)),
         );
       }
 
@@ -720,16 +683,19 @@ export const acceptQuote = async (
       // their bank approved an earlier one: it's the Deposit, booked as it
       // asked, once this lets go of the day (finalizeDeposit)
       if (attempt.status === "approved") return attempt;
-      const what = quote.kind === "service_plan" ? "plan" : "clean";
       if (attempt.status === "still_finishing") {
-        // nothing more was taken, and nothing to do but wait
+        // nothing more was taken, and nothing to do but wait. The one
+        // finishing was for this Revision, as sending another settles it
+        // first, so its Deposit's percent, and whether it's a card
+        // approved with nothing charged, is this one's
+        const card = depositCents === 0;
         if (acceptor.by === "client") {
           return {
             status: "processing",
-            message: said().processing(what),
+            message: messages[currentLanguage()].depositProcessing(goal, card),
           } as const;
         }
-        throw new ConflictError(clientPayingWords.finishing(client.name));
+        throw new ConflictError(clientPayingWords.finishing(client.name, card));
       }
       if (attempt.status === "failed") {
         // the Client is told only that their card wasn't charged
@@ -760,7 +726,7 @@ export const acceptQuote = async (
           ? ({ status: "needs_approval", secret: attempt.secret } as const)
           : ({
               status: "processing",
-              message: said().finishing(what),
+              message: messages[currentLanguage()].depositFinishing(goal),
             } as const);
       }
 
@@ -856,7 +822,7 @@ export type Finalized =
   | { status: "accepted"; job: Job }
   // their bank is still asking them ("approving"), or approved it and is
   // finishing it, which asks nothing more of them (#534's N5)
-  | { status: "approving" | "finishing"; paying: Paying }
+  | { status: "approving" | "finishing"; paying: DepositGoal }
   // their bank refused it; `endedHere` when this call settled it, so the
   // Client is emailed it once however many settle at once (#534 critical C7)
   | { status: "failed"; reason: string; endedHere: boolean }
@@ -998,7 +964,7 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
       // settled first, so a later webhook or Clock never books a Deposit
       // given back (#534, N3)
       await settle(ref);
-      await giveBackDeposit(approved.chargeId, pending.depositCents, quote.id);
+      await giveBackDeposit(ref, pending.depositCents, quote.id);
     }
     throw error;
   }
@@ -1008,18 +974,20 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
   }
   if (result.status === "refunded") {
     const { chargeId, saved } = approved!;
-    const why = result.unbookable.reason;
-    if (!chargeId) {
-      // nothing to give back, but they're told as one given back is: the
-      // only word for one who approved in their bank's app and never came
-      // back to the page (#534 critical review C5)
-      await tellUnbooked(pending, why, saved?.card ?? null);
-      return { status: "unbooked", unbookable: result.unbookable } as const;
+    // a card saved with nothing charged has nothing to give back, but is
+    // marked so, and they're told as one given back is: the only word for
+    // one who approved in their bank's app and never came back to the page
+    // (#534 critical review C5)
+    if (await giveBackDeposit(ref, pending.depositCents, quote.id)) {
+      await tellUnbooked(
+        pending,
+        result.unbookable.reason,
+        saved?.card ?? null,
+      );
     }
-    if (await giveBackDeposit(chargeId, pending.depositCents, quote.id)) {
-      await tellUnbooked(pending, why, saved?.card ?? null);
-    }
-    return result;
+    return chargeId
+      ? result
+      : ({ status: "unbooked", unbookable: result.unbookable } as const);
   }
   if (result.status !== "accepted") return result;
 
@@ -1047,7 +1015,7 @@ export const finalizeProblem = (finalized: Finalized) => {
     case "approving":
       return said().waiting(finalized.paying);
     case "finishing":
-      return said().finishing(finalized.paying);
+      return messages[currentLanguage()].depositFinishing(finalized.paying);
     case "called_off":
       return said().calledOff(APPROVAL_MS / MINUTE_MS);
     case "unknown":

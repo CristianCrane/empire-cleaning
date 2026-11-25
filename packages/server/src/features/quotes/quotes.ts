@@ -38,11 +38,11 @@ import {
   atTime,
   CANCELLATION_CUTOFF_HOURS,
   clientPaying as clientPayingWords,
-  formats,
   DAY_MS,
   dayOf,
   noEmailYet,
   notSeenYet,
+  payingFor,
   placeOwner,
   timeOf,
   weekdayOf,
@@ -735,6 +735,7 @@ const clientPaying = async (
     finishing: !onClient,
     past,
     serviceName: row ? await serviceNameOf("en", row.serviceId, tx) : null,
+    changing: pending.changingPlanId !== null,
     depositCents: pending.depositCents,
   };
 };
@@ -755,7 +756,8 @@ export const payingOf = async (
 // what the Client's bank approved on a Quote that couldn't be booked,
 // oldest first: what Office Staff on the phone with them see. A Deposit
 // once it's been given back (its charge is the pending row's ref), and a
-// card saved with nothing charged (no Deposit, so no attempt)
+// card saved with nothing charged (an attempt of 0, given back as nothing;
+// none at all on a row saved before #534)
 const unbookedPaymentsOf = async (quoteId: string) =>
   (
     await db
@@ -1885,14 +1887,13 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
     // settling it couldn't reach the provider (#534 review F28)
     const paying = await clientPaying(current, tx);
     if (paying?.past) {
-      throw new ConflictError(clientPayingWords.unsure(client.name));
+      throw new ConflictError(
+        clientPayingWords.unsure(client.name, paying.depositCents === 0),
+      );
     }
     if (paying) {
       throw new ConflictError(
-        clientPayingWords.draft(client.name, {
-          until: formats.en.formatTime(paying.until),
-          finishing: paying.finishing,
-        }),
+        clientPayingWords.draft(payingFor(client.name, paying)),
       );
     }
     const saved = await optionsOf(draft.id, tx);

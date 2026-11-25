@@ -2,6 +2,7 @@ import {
   and,
   desc,
   eq,
+  gt,
   inArray,
   isNull,
   lte,
@@ -376,12 +377,14 @@ const approving = async (
 };
 
 // an attempt we never heard the end of, or waiting on the Client's bank,
-// or that took money no Charge records yet
+// or that took money no Charge records yet: a 0% Deposit's card save took
+// none, so no Charge ever will
 const isOpen = (tx: Tx | typeof db) =>
   or(
     inArray(chargeAttempts.status, ["pending", "processing", "approving"]),
     and(
       eq(chargeAttempts.status, "taken"),
+      gt(chargeAttempts.amountCents, 0),
       notExists(
         tx
           .select({ one: sql`1` })
@@ -564,9 +567,8 @@ export const approvalOf = async (
       };
     case "failed": {
       // called off so it can't be paid later with the secret the browser
-      // holds, a 0 Deposit's card save too, which has no attempt (#534 plan
-      // review F1); a call-off that failed is tried again on each read
-      // (#534 review F20)
+      // holds, a 0% Deposit's card save too (#534 plan review F1); a
+      // call-off that failed is tried again on each read (#534 review F20)
       if (said.reason !== "canceled") {
         await paymentGateway
           .cancelPayment(ref, "abandoned")
@@ -846,7 +848,7 @@ export const takeDepositOnce = async (
         }
         if (
           !(await giveBackDeposit(
-            approval.chargeId,
+            earlier.gatewayRef,
             earlier.amountCents,
             quoteId,
           ))
@@ -915,27 +917,33 @@ export const takeDepositOnce = async (
   }
 };
 
-// A Deposit was taken but nothing was booked: give it back. Whether it
-// was given back: one that only saved a card, at 0%, has no charge, and
-// nothing to give (#534 critical review C1)
+// A Deposit was taken but nothing was booked: give it back, by the ref of
+// the attempt that took it, which is its charge's. Whether it was given
+// back: one that only saved a card, at 0%, has nothing to give, and is
+// marked given back all the same, so it holds its Quote no longer and the
+// Client is told of it once (#534 critical review C1). One saved with no
+// approval asked has no ref, and nothing that reads it as open
 export const giveBackDeposit = async (
-  chargeId: string | null,
+  ref: string | null,
   amount: number,
   quoteId: string,
 ) => {
-  if (!chargeId) return true;
-  const ofIt = eq(chargeAttempts.gatewayRef, chargeId);
-  const refunded = await paymentGateway
-    .refund({
-      chargeId,
-      amount,
-      idempotencyKey: idempotencyKey.givingBack(chargeId),
-    })
-    .catch((e: unknown) => ({ ok: false, reason: String(e) }) as const);
+  if (!ref) return true;
+  const ofIt = eq(chargeAttempts.gatewayRef, ref);
+  const refunded =
+    amount === 0
+      ? ({ ok: true } as const)
+      : await paymentGateway
+          .refund({
+            chargeId: ref,
+            amount,
+            idempotencyKey: idempotencyKey.givingBack(ref),
+          })
+          .catch((e: unknown) => ({ ok: false, reason: String(e) }) as const);
   if (!refunded.ok) {
     // taken but not booked: refund it by hand
     monitoring.signal("refund_failed", {
-      chargeId,
+      chargeId: ref,
       quoteId,
       cents: amount,
       reason: refunded.reason,
@@ -982,7 +990,11 @@ export const giveBackUnbookedDeposits = async (
       if (
         approval.status === "taken" &&
         !unsettled.has(earlier.gatewayRef!) &&
-        (await giveBackDeposit(approval.chargeId, earlier.amountCents, quoteId))
+        (await giveBackDeposit(
+          earlier.gatewayRef,
+          earlier.amountCents,
+          quoteId,
+        ))
       ) {
         givenBack.push(earlier.gatewayRef!);
       }

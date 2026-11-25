@@ -54,6 +54,7 @@ import {
   inLine,
   noEmailYet,
   notSeenYet,
+  payingFor,
   placeOwner,
   weekdayOf,
   whyNoRoom,
@@ -173,7 +174,6 @@ const {
   formatClock,
   formatDay,
   formatMoney,
-  formatTime,
   weekdayName,
   formatList,
 } = formats.en;
@@ -181,16 +181,10 @@ const {
 // the Deposit the Client is paying online while their bank asks them to
 // approve it, or finishes it, as the one rule's words name it (#534), if
 // they are
-const payingFor = (
+const payingOf = (
   quote: Pick<OfficeQuote, "paying" | "client">,
 ): PayingFor | null =>
-  quote.paying && {
-    name: quote.client.name,
-    deposit: formatMoney(quote.paying.depositCents),
-    service: quote.paying.serviceName,
-    until: formatTime(quote.paying.until),
-    finishing: quote.paying.finishing,
-  };
+  quote.paying && payingFor(quote.client.name, quote.paying);
 
 // the Service a Quote was accepted with, by name; none for a cleaning plan,
 // accepted whole
@@ -326,13 +320,13 @@ function useNow(quote: OfficeQuote): Now {
     acceptable && (offer.changesPlan !== null || quote.paymentMethod !== null);
   // the Client paying online holds it (the one rule): greyed, the alert
   // saying until when
-  const paying = payingFor(quote);
+  const paying = payingOf(quote);
 
   const recordAcceptance: PageAction | false = recordable && {
     label: "Record acceptance",
     icon: CircleCheck,
     isDisabled: paying !== null,
-    why: clientPaying.item(firstNameOf(name)),
+    why: clientPaying.item(firstNameOf(name), paying?.deposit === null),
     dialog: (state) => (
       <RecordAcceptanceDialog
         quote={offer!}
@@ -1269,7 +1263,7 @@ function RecordAcceptanceDialog({
   });
   const chosen = quote.options.find((o) => o.serviceKey === serviceKey)!;
   const depositCents = quote.plan?.depositCents ?? chosen.depositCents;
-  const paying = payingFor(quote);
+  const paying = payingOf(quote);
 
   const accept = async (close: () => void) => {
     const ok = await action.run(
@@ -1289,6 +1283,8 @@ function RecordAcceptanceDialog({
               quote.client.name,
               acceptedService(accepted),
               quote.plan ? null : chosen.serviceName,
+              // a 0% Deposit: their card approved, with nothing charged
+              depositCents === 0,
             ),
           });
           return "";
@@ -1875,7 +1871,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
   // the Client paying the quote sent holds Send (the one rule, #534), as
   // the page loaded it last: it looks again while they pay, and once the
   // payment accepts the quote, the draft is gone, so it goes to the quote
-  const paying = payingFor(loaded);
+  const paying = payingOf(loaded);
   const until = loaded.paying?.until;
   useWhilePaying(loaded.paying, async () => {
     const now = await getJson<OfficeQuote>(`/api/quotes/${loaded.id}`);
@@ -2032,7 +2028,11 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
         sent.status === "accepted"
           ? {
               tone: "info",
-              title: clientPaying.sent(sent.client.name, acceptedService(sent)),
+              title: clientPaying.sent(
+                sent.client.name,
+                acceptedService(sent),
+                sent.offer?.depositPercent === 0,
+              ),
             }
           : { tone: "success", title: `Quote sent to ${quote.client.email}` },
       );
@@ -2166,7 +2166,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
                 // again into this alert, which answers the press in its
                 // place (`failure` below), in view wherever Send was
                 answers: !!failure,
-                children: clientPaying.draft(paying.name, paying),
+                children: clientPaying.draft(paying),
               }
             : draft.offer && {
                 key: "sees",
@@ -2211,7 +2211,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
         price={priceOf(quote)}
         note={noteOf(
           saveState,
-          liveHold(quote, !!paying),
+          liveHold(quote, paying),
           sendHold(quote, dayTitles),
         )}
       >
@@ -2506,9 +2506,9 @@ const timeFold = ({
 // What Send waits on whatever's typed, said beside it in every save
 // state: the Client paying the quote sent (the one rule, #534), or their
 // email to add. None when neither holds it.
-const liveHold = (quote: ShownQuote, paying: boolean) => {
+const liveHold = (quote: ShownQuote, paying: PayingFor | null) => {
   const name = firstNameOf(quote.client.name);
-  if (paying) return clientPaying.send(name);
+  if (paying) return clientPaying.send(name, paying.deposit === null);
   if (!quote.client.email) return `Add ${name}'s email first`;
   return undefined;
 };

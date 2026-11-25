@@ -1084,6 +1084,7 @@ describe("while the Client's bank is approving the Deposit", () => {
     expect((await quoteOf(office, quote.id)).paying).toEqual({
       until: "2026-01-05T09:15:00.000Z",
       serviceName: option(quote, "deep").serviceName,
+      changing: false,
       depositCents: option(quote, "deep").depositCents,
       finishing: false,
     });
@@ -1402,12 +1403,12 @@ describe("while the Client's bank is approving the Deposit", () => {
     {
       when: "calling it off can't reach the provider",
       fails: "cancelPayment",
-      says: clientPayingWords.unsure(casey.name),
+      says: clientPayingWords.unsure(casey.name, false),
     },
     {
       when: "reading it can't reach the provider",
       fails: "paymentOutcome",
-      says: clientPayingWords.unsure(casey.name),
+      says: clientPayingWords.unsure(casey.name, false),
     },
   ] as const)(
     "changes can't be sent after 15 minutes while $when",
@@ -1480,6 +1481,7 @@ describe("while the Client's bank is approving the Deposit", () => {
       held: {
         until: "2026-01-05T09:15:00.000Z",
         serviceName: option(quote, "deep").serviceName,
+        changing: false,
         depositCents: option(quote, "deep").depositCents,
         finishing: true,
       },
@@ -1552,7 +1554,7 @@ describe("while the Client's bank is approving the Deposit", () => {
       send: 409,
       charges: 1,
       refunds: 0,
-      message: clientPayingWords.unsure(casey.name),
+      message: clientPayingWords.unsure(casey.name, false),
     });
   });
 
@@ -1643,7 +1645,7 @@ describe("while the Client's bank is approving the Deposit", () => {
       charges: 1,
       refunds: 1,
       send: 409,
-      message: clientPayingWords.unsure(casey.name),
+      message: clientPayingWords.unsure(casey.name, false),
     });
   });
 
@@ -1715,6 +1717,146 @@ describe("while the Client's bank is approving the Deposit", () => {
         quote: expect.objectContaining({ id: quote.id }),
       }),
     ]);
+  });
+});
+
+// a 0% Deposit charges nothing, but a card entered just now is saved only
+// once their bank approves it, and approving it books the Quote, so it's
+// held as a payment is: the one rule, for 15 minutes (#534's UX design
+// review U40, U41, U44). Before, nothing held it: a new press left the first
+// standing, the Office could record acceptance meanwhile, and nothing ended
+// the wait
+describe("while the Client's bank is approving the card for a 0% Deposit", () => {
+  const zeroQuote = async (office: Agent) =>
+    sentQuote(office, guestAsk(), { depositPercent: 0 });
+  const mine = async (client: Agent, id: string) =>
+    (await client.get(`/api/quotes/mine/${id}`).expect(200)).body as QuoteView;
+
+  test("their page says so till the wait ends, and pressing again calls the first off", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await zeroQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    const first = await payNow(client, quote).expect(200);
+    expect((await mine(client, quote.id)).paying).toEqual({
+      status: "approving",
+      until: "2026-01-05T09:15:00.000Z",
+      serviceKey: SEEDED.deep,
+      depositCents: 0,
+    });
+
+    const second = await payNow(client, quote).expect(200);
+
+    expect(second.body.status).toBe("needs_approval");
+    expect([...testPayments().canceled]).toEqual([refOf(first.body)]);
+    testPayments().requireApproval("approved");
+    await finalize(client, quote).expect(200);
+    expect(testPayments().charges).toEqual([]);
+    expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
+  });
+
+  test("pressing again while their bank is still finishing the first books nothing twice", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await zeroQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+    testPayments().requireApproval("processing");
+
+    const again = await payNow(client, quote).expect(200);
+
+    expect(again.body).toEqual({
+      status: "processing",
+      message:
+        "Your bank is still finishing approving your card, so nothing is booked twice. We'll email you as soon as your clean is booked, usually within half an hour.",
+    });
+    expect((await scheduleOn(office, MONDAY)).jobs).toEqual([]);
+  });
+
+  test("the Office can't record acceptance meanwhile, and sees why", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await zeroQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+
+    expect((await quoteOf(office, quote.id)).paying).toEqual({
+      until: "2026-01-05T09:15:00.000Z",
+      serviceName: option(quote, "deep").serviceName,
+      changing: false,
+      depositCents: 0,
+      finishing: false,
+    });
+    const refused = await recordAccepted(office, quote).expect(409);
+
+    expect(refused.body.message).toBe(
+      `Casey Client is accepting online, for the ${option(quote, "deep").serviceName}, waiting on their bank to approve their card. If it isn't approved by 4:15 AM, it's called off and you can record acceptance.`,
+    );
+    expect((await scheduleOn(office, MONDAY)).jobs).toEqual([]);
+  });
+
+  test("the Clock calls it off after 15 minutes, and tells the Client", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await zeroQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    const waiting = await payNow(client, quote).expect(200);
+    testClock().advance({ minutes: 15 });
+
+    await settleOpenPayments();
+
+    expect([...testPayments().canceled]).toEqual([refOf(waiting.body)]);
+    const email = testEmail().lastTo(casey.email);
+    expect(email.subject).toBe("Your card wasn't approved in time");
+    expect(email.text).toContain(
+      "Your bank asked you to approve your card, and 15 minutes went by without an approval, so we called it off. Nothing is booked yet.",
+    );
+    expect(email.text).toContain(
+      "Your quote is still open until Sunday, January 11 at 9:00 AM, so you can accept it again before then.",
+    );
+    expect((await mine(client, quote.id)).paying).toEqual({
+      status: "notApproved",
+      at: "2026-01-05T09:00:00.000Z",
+      serviceKey: SEEDED.deep,
+      depositCents: 0,
+    });
+    expect((await quoteOf(office, quote.id)).paying).toBeNull();
+  });
+
+  // a $0 card save never gets a Charge, so it mustn't stay open as one
+  // taken that no Charge records yet, nor be told of again on each Clock run
+  test("one approved after the day filled is told of once, and holds nothing after", async () => {
+    // 8 hours on Monday
+    await cleaners(2, 4);
+    const office = await signInAsOffice();
+    const quote = await zeroQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("approved");
+    const waiting = await payNow(client, quote).expect(200);
+    await bookedJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 7 });
+    await webhook({
+      kind: "deposit_succeeded",
+      ref: refOf(waiting.body),
+    }).expect(200);
+    const told = testEmail().to(casey.email).length;
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    await settleOpenPayments();
+
+    expect(testEmail().to(casey.email)).toHaveLength(told);
+    expect((await mine(client, quote.id)).paying).toMatchObject({
+      status: "refunded",
+      why: "no_room",
+      depositCents: 0,
+    });
+    expect((await quoteOf(office, quote.id)).paying).toBeNull();
+    expect(testPayments().refunds).toEqual([]);
   });
 });
 

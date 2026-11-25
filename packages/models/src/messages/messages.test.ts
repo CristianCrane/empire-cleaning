@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import { assignments } from "./assignments.ts";
 import { bills } from "./bills.ts";
 import { cancellation } from "./cancellation.ts";
+import { deposits } from "./deposits.ts";
 import { messages } from "./index.ts";
 import { jobs } from "./jobs.ts";
 import { payments } from "./payments.ts";
@@ -13,6 +14,7 @@ const subjects = [
   assignments,
   bills,
   cancellation,
+  deposits,
   jobs,
   payments,
   plans,

@@ -1275,15 +1275,17 @@ export type OfficeQuote = {
   // behalf charges; null until they add one
   paymentMethod: PaymentMethodView | null;
   // the Deposit the Client is paying online while their bank asks them to
-  // approve it (#534): what it's for (its Service, null on a cleaning plan),
-  // and until when it holds the Quote, as nothing else that moves money on
-  // it starts meanwhile (ADR-0022), or that it's past then and their bank
-  // is finishing it, holding it till it's done (`finishing`); null when
-  // there's none
+  // approve it (#534): what it's for (its Service, null on a cleaning plan,
+  // which it starts or, `changing`, changes), and until when it holds the
+  // Quote, as nothing else that moves money on it starts meanwhile
+  // (ADR-0022), or that it's past then and their bank is finishing it,
+  // holding it till it's done (`finishing`); null when there's none. A
+  // `depositCents` of 0 is a card entered to accept, with nothing charged
   paying: {
     until: string;
     finishing: boolean;
     serviceName: string | null;
+    changing: boolean;
     depositCents: number;
   } | null;
   // the Client's latest Deposit payment online, when it didn't go through

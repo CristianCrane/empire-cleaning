@@ -1,4 +1,5 @@
 import type { PropertyKind, TurnDownReason } from "../index.ts";
+import { formats } from "../format.ts";
 import { catalog } from "../language.ts";
 
 // What the server and the screens both say about a Quote
@@ -93,31 +94,76 @@ export const notSeenYet = (kind: PropertyKind) =>
 // ends, as it promises neither ending. Past `until`, one their bank is
 // finishing (`finishing`) waits till it's done, said in the words of the
 // refusal that found it (`finishing` below, #534 UX review U9). `service`
-// is the Service paid for; null on a cleaning plan. English, as the Office
-// reads (ADR-0025)
+// is the Service paid for; null on a cleaning plan, which `changing` says
+// it starts or changes. `deposit` is null for a card entered to accept
+// with nothing to charge (a 0% Deposit, or a plan changed), approved as a
+// payment is but in its own words, as no money moves (#534's UX design
+// review U40). English, as the Office reads (ADR-0025)
 export type PayingFor = {
   name: string;
-  deposit: string;
+  deposit: string | null;
   service: string | null;
+  changing: boolean;
   until: string;
   finishing: boolean;
 };
+// where the server says the Client's paying stands (OfficeQuote's
+// `paying`), as these words take it: one copy, so the server's refusals
+// and the Quote's page name it alike
+export const payingFor = (
+  name: string,
+  paying: {
+    until: string | Date;
+    finishing: boolean;
+    serviceName: string | null;
+    changing: boolean;
+    depositCents: number;
+  },
+): PayingFor => ({
+  name,
+  deposit:
+    paying.depositCents === 0
+      ? null
+      : formats.en.formatMoney(paying.depositCents),
+  service: paying.serviceName,
+  changing: paying.changing,
+  until: formats.en.formatTime(paying.until),
+  finishing: paying.finishing,
+});
 // a payment their bank is finishing, past `until`: too far on to call off
 const goingThrough =
   "is still going through with their bank, which usually takes a few minutes";
+// a card the same, with nothing charged
+const cardFinishing = "their bank is finishing approving their card";
 // what's at stake for a new version while the Client pays: said once, as
 // its five copies had drifted three ways (#534 review F34)
 const booksDraft = "If it books the quote you sent, your draft is deleted.";
-const payingWhat = ({ name, deposit, service, finishing }: PayingFor) => {
-  const what = service ? `for the ${service}` : "to start the cleaning plan";
+const payingWhat = ({
+  name,
+  deposit,
+  service,
+  changing,
+  finishing,
+}: PayingFor) => {
+  const what = service
+    ? `for the ${service}`
+    : `to ${changing ? "change" : "start"} the cleaning plan`;
+  if (deposit === null) {
+    return finishing
+      ? `${name} is accepting online, ${what}: ${cardFinishing}. It books on its own, usually within half an hour.`
+      : `${name} is accepting online, ${what}, waiting on their bank to approve their card.`;
+  }
   return finishing
     ? `${name}'s online payment of the ${deposit} deposit, ${what}, ${goingThrough}.`
     : `${name} is paying the ${deposit} deposit online, ${what}, waiting on their bank to approve it.`;
 };
 // the Office's acceptance of a quote, which `service` names when it's not
-// what the Client paid for (`paid`)
-const wentThrough = (name: string) =>
-  `${name}'s payment went through just before you pressed, so the quote is accepted`;
+// what the Client paid for (`paid`); `card`, approving a card with nothing
+// charged
+const wentThrough = (name: string, card: boolean) =>
+  card
+    ? `${name}'s card was approved just before you pressed, so the quote is accepted`
+    : `${name}'s payment went through just before you pressed, so the quote is accepted`;
 export const clientPaying = {
   // the Quote's alert: with Record acceptance greyed beside it (`card`, a
   // card saved to charge), or with a new version being drafted
@@ -134,44 +180,60 @@ export const clientPaying = {
   // page opened before the Client started paying
   record: (p: PayingFor) =>
     p.finishing
-      ? `${payingWhat(p)} Until it's done, you can't record acceptance. Nothing more was charged.`
+      ? `${payingWhat(p)} Until it's done, you can't record acceptance.${p.deposit === null ? "" : " Nothing more was charged."}`
       : `${payingWhat(p)} If it isn't approved by ${p.until}, it's called off and you can record acceptance.`,
   // the draft's, and the server's refusal of sending it
-  draft: (
-    name: string,
-    { until, finishing }: Pick<PayingFor, "until" | "finishing">,
-  ) =>
-    finishing
-      ? `${name}'s online payment ${goingThrough}. ${booksDraft} If not, you can send your changes then.`
-      : `${name} is paying the deposit online. ${booksDraft} If it isn't approved by ${until}, you can send your changes then.`,
+  draft: ({ name, until, finishing, deposit }: PayingFor) =>
+    deposit === null
+      ? finishing
+        ? `${name} is accepting online, and ${cardFinishing}. ${booksDraft} If not, you can send your changes then.`
+        : `${name} is accepting online. ${booksDraft} If it isn't approved by ${until}, you can send your changes then.`
+      : finishing
+        ? `${name}'s online payment ${goingThrough}. ${booksDraft} If not, you can send your changes then.`
+        : `${name} is paying the deposit online. ${booksDraft} If it isn't approved by ${until}, you can send your changes then.`,
   // under the greyed action, short, as the menu or a phone's foot may hide
   // the alert
-  item: (firstName: string) => `Not while ${firstName} is paying the deposit`,
+  item: (firstName: string, card: boolean) =>
+    card
+      ? `Not while ${firstName} is accepting online`
+      : `Not while ${firstName} is paying the deposit`,
   // the draft's line beside Send, after its save state, so it names what
   // waits: "Not while…" after "Give a reason…" read as the reason waiting
   // (#534 UX review U10)
-  send: (firstName: string) => `Send waits on ${firstName}'s deposit payment`,
+  send: (firstName: string, card: boolean) =>
+    card
+      ? `Send waits on ${firstName} accepting online`
+      : `Send waits on ${firstName}'s deposit payment`,
   // past `until`, recording acceptance was the first to find the Client's
   // bank approving it still, too far on to be called off: nothing more
   // charged, as their card is being (the PR's UX review U1). Marked so, the
   // payment holds the Quote, and the page loads again into `record`
-  finishing: (name: string) =>
-    `${name}'s online payment ${goingThrough}, so you can't record acceptance yet. Nothing more was charged.`,
+  finishing: (name: string, card: boolean) =>
+    card
+      ? `${name} is accepting online, and ${cardFinishing}, so you can't record acceptance yet.`
+      : `${name}'s online payment ${goingThrough}, so you can't record acceptance yet. Nothing more was charged.`,
   // or found it approved, and accepted the quote with it: what the Client
   // paid for, `paid`, which may not be what was picked, `picked`
-  recorded: (name: string, paid: string | null, picked: string | null) =>
-    `${wentThrough(name)}${paid ? (paid !== picked ? ` with the ${paid} they paid for, not the ${picked}` : "") : " and their cleaning plan is started as they chose it"}. Nothing more was charged.`,
-  // or found it approved, but then it couldn't be booked
+  recorded: (
+    name: string,
+    paid: string | null,
+    picked: string | null,
+    card: boolean,
+  ) =>
+    `${wentThrough(name, card)}${paid ? (paid !== picked ? ` with the ${paid} they ${card ? "picked" : "paid for"}, not the ${picked}` : "") : " and their cleaning plan is started as they chose it"}.${card ? "" : " Nothing more was charged."}`,
+  // or found it approved, but then it couldn't be booked: a card approved
+  // with nothing charged is refused as the Office's own press is
+  // (unbookableMessage), as nothing's refunded
   refunded: (name: string) =>
     `${name}'s online payment went through just before you pressed, but the quote couldn't be booked with it, so their deposit is being refunded.`,
   // or, past `until`, couldn't reach the provider to call it off or read
   // it: it may yet book the quote sent, so the changes wait, as the draft's
   // alert says while it's paid (#534 review F28, UX review U12)
-  unsure: (name: string) =>
-    `We couldn't reach the payment service to see whether ${name}'s deposit payment went through, so your changes weren't sent. ${booksDraft} Please try again in a few minutes.`,
+  unsure: (name: string, card: boolean) =>
+    `We couldn't reach the payment service to see whether ${card ? `${name}'s card was approved` : `${name}'s deposit payment went through`}, so your changes weren't sent. ${booksDraft} Please try again in a few minutes.`,
   // sending changes found it approved, and accepted the quote with it
-  sent: (name: string, paid: string | null) =>
-    `${wentThrough(name)}${paid ? ` with the ${paid} they paid for` : " and their cleaning plan is started as they chose it"}, and your changes weren't sent.`,
+  sent: (name: string, paid: string | null, card: boolean) =>
+    `${wentThrough(name, card)}${paid ? ` with the ${paid} they ${card ? "picked" : "paid for"}` : " and their cleaning plan is started as they chose it"}, and your changes weren't sent.`,
   // the draft's page, once the Client's payment accepted the quote
   draftGone: (name: string) =>
     `${name} accepted the quote you sent, so your draft was deleted.`,
