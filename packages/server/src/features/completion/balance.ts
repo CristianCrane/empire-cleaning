@@ -16,7 +16,8 @@ import {
   isBilledWeekly,
 } from "../bills/billed-weekly.ts";
 import type { Bill } from "../bills/bills.schema.ts";
-import { paymentOn, standing } from "../bills/standing.ts";
+import { standing } from "../bills/standing.ts";
+import { paymentOn } from "../payments/payment-on.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import {
@@ -231,7 +232,10 @@ export const paymentOf = async (job: Job): Promise<JobPayment> => {
       )
       .where(eq(properties.id, job.propertyId)),
   ]);
-  const onBills = await paymentOn(ledger.bills.map(({ bill }) => bill.id));
+  const onBills = await paymentOn(
+    "bill",
+    ledger.bills.map(({ bill }) => bill.id),
+  );
   return {
     quotedCents: ledger.quotedCents,
     adjustmentsCents: ledger.adjustmentsCents,

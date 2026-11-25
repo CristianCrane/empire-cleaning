@@ -61,7 +61,8 @@ import {
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { officeClientView } from "../clients/clients.ts";
 import { counts, paymentOf, settleAfterChange } from "../completion/balance.ts";
-import { holds, paymentOn, standing, type PaymentOn } from "./standing.ts";
+import { holds, paymentOn, type PaymentOn } from "../payments/payment-on.ts";
+import { standing } from "./standing.ts";
 import {
   adjustments,
   reportedChange,
@@ -509,7 +510,7 @@ const chargeBill = async (
     }
     // the Client paying it on its page: theirs to finish, or settleBill's
     // (#534 critical review C1)
-    if ((await paymentOn([bill.id], tx))(bill.id).onPage) return null;
+    if ((await paymentOn("bill", [bill.id], tx))(bill.id).onPage) return null;
     const [owner] = await tx
       .select({ client: clients, method: paymentMethods })
       .from(clients)
@@ -755,7 +756,10 @@ export const payBillOnPage = async (
       .where(and(eq(bills.id, billId), eq(bills.clientId, client.id)))
       .for("update");
     if (!bill) throw new NotFoundError("Bill not found");
-    const not = notPayable(bill, (await paymentOn([bill.id], tx))(bill.id));
+    const not = notPayable(
+      bill,
+      (await paymentOn("bill", [bill.id], tx))(bill.id),
+    );
     if (not) throw new ConflictError(payWords[lang][not]);
 
     const charged = await chargeSaved(tx, {
@@ -987,7 +991,7 @@ const refuseWhilePaying = async (
   what: "cancel" | "record",
   tx: Tx,
 ) => {
-  const on = (await paymentOn([bill.id], tx))(bill.id);
+  const on = (await paymentOn("bill", [bill.id], tx))(bill.id);
   if (on.approvingUntil) {
     const [client] = await tx
       .select({ name: clients.name })
@@ -1577,7 +1581,7 @@ export const billView = async (
     );
   if (!found) throw new NotFoundError("Bill not found");
   const { bill, client } = found;
-  const on = (await paymentOn([bill.id]))(bill.id);
+  const on = (await paymentOn("bill", [bill.id]))(bill.id);
   const lines = await linesToSay(bill);
   // where its cleans were, for the Office, and for a Client only when they
   // have more than one home, as their rows say (docs/ux.md, Lists): once,
@@ -1630,7 +1634,10 @@ export const listBills = async ({
       ),
     )
     .orderBy(desc(bills.weekStart), desc(bills.number));
-  const on = await paymentOn(rows.map((r) => r.bill.id));
+  const on = await paymentOn(
+    "bill",
+    rows.map((r) => r.bill.id),
+  );
   return rows.map(({ bill, client }) => toSummary(bill, client, on(bill.id)));
 };
 
