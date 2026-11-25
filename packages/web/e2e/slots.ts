@@ -1,5 +1,5 @@
 import { availableParallelism } from "node:os";
-import { MAX_SLOTS, slotPorts } from "@empire-cleaning/server/ports";
+import { E2E_PORTS, MAX_SLOTS, slotPorts } from "@empire-cleaning/server/ports";
 
 // Tests run in parallel, and each Playwright worker has a slot of its own: an
 // API with its control server and database, and the built app in front of it
@@ -53,6 +53,12 @@ export const slotOf = (slot: number) => {
     appUrl: `http://localhost:${app}`,
   };
 };
+
+// where the run builds the app, and e2e/preview.ts serves it from: a folder
+// named for the run's block, as another run in this checkout may be building
+// at the same time, and a build empties its folder first. Inside dist/, so
+// every tool that skips a build skips it
+export const appBuild = `dist/e2e-${E2E_PORTS}`;
 
 // the slot of the worker this runs in (Playwright numbers them from 0); slot 0
 // in Playwright's own process
