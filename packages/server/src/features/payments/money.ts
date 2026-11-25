@@ -390,19 +390,42 @@ const openAttempts = (tx: Tx | typeof db, forId: string) =>
 // Bill or recording a payment made another way. On a Quote, that's a
 // Deposit, waiting on the Client's bank too (`approving`): Office Staff
 // can't record acceptance or send changes meanwhile (payingOf). Two at
-// once would take it twice, or leave money to give back (ADR-0022). Which
-// of these Jobs, Bills or Quotes it holds, in one query for a list
-export const openOn = async (forIds: string[], tx: Tx | typeof db = db) =>
-  new Set(
-    forIds.length === 0
-      ? []
-      : (
-          await tx
-            .selectDistinct({ forId: chargeAttempts.forId })
-            .from(chargeAttempts)
-            .where(and(inArray(chargeAttempts.forId, forIds), isOpen(tx)))
-        ).map((row) => row.forId),
-  );
+// once would take it twice, or leave money to give back (ADR-0022). A
+// refund we never heard the end of holds it too, as it may have given the
+// money back: one for it, or from a Charge for it. Which of these Jobs,
+// Bills or Quotes it holds, in two queries for a list
+export const openOn = async (forIds: string[], tx: Tx | typeof db = db) => {
+  if (forIds.length === 0) return new Set<string>();
+  const charging = await tx
+    .selectDistinct({ forId: chargeAttempts.forId })
+    .from(chargeAttempts)
+    .where(and(inArray(chargeAttempts.forId, forIds), isOpen(tx)));
+  const refunding = await tx
+    .selectDistinct({
+      forId: refundAttempts.forId,
+      jobId: charges.jobId,
+      billId: charges.billId,
+    })
+    .from(refundAttempts)
+    .innerJoin(charges, eq(charges.id, refundAttempts.chargeId))
+    .where(
+      and(
+        or(
+          inArray(refundAttempts.forId, forIds),
+          inArray(charges.jobId, forIds),
+          inArray(charges.billId, forIds),
+        ),
+        isOpenRefund(tx),
+      ),
+    );
+  const asked = new Set(forIds);
+  return new Set([
+    ...charging.map((row) => row.forId),
+    ...refunding
+      .flatMap((row) => [row.forId, row.jobId, row.billId])
+      .filter((id): id is string => id !== null && asked.has(id)),
+  ]);
+};
 
 // whether it holds one
 export const chargeOpen = async (forId: string, tx: Tx | typeof db = db) =>
@@ -1035,6 +1058,40 @@ const openRefundAttempts = (tx: Tx | typeof db, forId: string) =>
     .where(and(eq(refundAttempts.forId, forId), isOpenRefund(tx)))
     .orderBy(refundAttempts.askedAt);
 
+const recordRefund = (
+  tx: Tx | typeof db,
+  attempt: RefundAttempt,
+  refundId: string,
+) =>
+  tx.insert(refunds).values({
+    chargeId: attempt.chargeId,
+    item: attempt.item,
+    jobId: attempt.jobId,
+    creditBillId: attempt.creditBillId,
+    amountCents: attempt.amountCents,
+    gatewayRef: refundId,
+    refundedAt: attempt.askedAt,
+  });
+
+/**
+ * What earlier refunds for something gave back that no Refund records yet,
+ * recorded now, in cents; and whether one may still give it back
+ * (`unknown`), which holds it, as an open Charge attempt does: nothing
+ * else that moves money on it starts meanwhile (the one rule, #534)
+ */
+export const recordGivenEarlier = async (tx: Tx | typeof db, forId: string) => {
+  let given = 0;
+  for (const { attempt, charge } of await openRefundAttempts(tx, forId)) {
+    const outcome = await refundOutcomeOf(attempt, charge.gatewayRef);
+    if (!outcome) return { given, unknown: true };
+    if (outcome.ok) {
+      await recordRefund(tx, attempt, outcome.refundId);
+      given += attempt.amountCents;
+    }
+  }
+  return { given, unknown: false };
+};
+
 // what a refund gives back for, and how its Refund is recorded
 type RefundFor = {
   // the Job, Bill or Bill's credit: a later try for the same thing finds
@@ -1063,28 +1120,12 @@ export const refundFrom = async (
   { for: forId, item = null, jobId = null, creditBillId = null }: RefundFor,
 ): Promise<number> => {
   if (amount <= 0) return 0;
-  const record = (attempt: RefundAttempt, refundId: string) =>
-    tx.insert(refunds).values({
-      chargeId: attempt.chargeId,
-      item: attempt.item,
-      jobId: attempt.jobId,
-      creditBillId: attempt.creditBillId,
-      amountCents: attempt.amountCents,
-      gatewayRef: refundId,
-      refundedAt: attempt.askedAt,
-    });
-
-  let left = amount;
-  for (const { attempt, charge } of await openRefundAttempts(tx, forId)) {
-    const outcome = await refundOutcomeOf(attempt, charge.gatewayRef);
-    // it may yet be given, so nothing more is meanwhile
-    if (!outcome) return amount - left;
-    if (outcome.ok) {
-      await record(attempt, outcome.refundId);
-      left = Math.max(left - attempt.amountCents, 0);
-    }
+  const earlier = await recordGivenEarlier(tx, forId);
+  let left = Math.max(amount - earlier.given, 0);
+  // it may yet be given, so nothing more is meanwhile
+  if (earlier.unknown || left === 0 || from.length === 0) {
+    return amount - left;
   }
-  if (left === 0 || from.length === 0) return amount - left;
 
   const given = await tx
     .select()
@@ -1136,7 +1177,7 @@ export const refundFrom = async (
       });
       break;
     }
-    await record(attempt!, refunded.refundId);
+    await recordRefund(tx, attempt!, refunded.refundId);
     left -= part;
   }
   return amount - left;

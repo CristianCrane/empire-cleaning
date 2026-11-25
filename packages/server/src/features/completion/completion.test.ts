@@ -1177,6 +1177,51 @@ describe("Office Staff correcting a completion", () => {
     expect((await officeJob(office, jobId)).payment!.owedCents).toBe(0);
   });
 
+  // #534, the one rule: a refund nobody heard the end of may have given the
+  // money back. Charging meanwhile counted it as still held, so the Client
+  // paid the raise less what that refund then gave back too
+  test("raise the price while a refund's reply was lost: the charge waits for it, and takes the whole raise", async () => {
+    const { office, cory, client, jobId, list } = await bookedJob();
+    await complete(cory.agent, jobId, {
+      reports: [
+        { kind: "extra_time", hours: 1, reason: "Ran over" },
+        {
+          kind: "add_on_not_done",
+          addOnKey: keyOf(list, "Inside the oven"),
+          reason: "Oven in use",
+        },
+      ],
+    }).expect(200);
+    const adjustments = (await officeJob(office, jobId)).completion!
+      .adjustments;
+    const time = adjustments.find((a) => a.kind === "extra_time")!;
+    const oven = adjustments.find((a) => a.kind === "add_on_not_done")!;
+    await office
+      .post(`/api/jobs/${jobId}/adjustments/${time.id}/propose`)
+      .send({})
+      .expect(200);
+    await client
+      .post(`/api/jobs/mine/${jobId}/adjustments/${time.id}/approve`)
+      .expect(200);
+    testPayments().loseNextReply();
+    await office
+      .patch(`/api/jobs/${jobId}/adjustments/${time.id}`)
+      .send({ priceCents: 2750, reason: "Half was our fault" })
+      .expect(200);
+    const before = amounts().length;
+
+    await office
+      .delete(`/api/jobs/${jobId}/adjustments/${oven.id}`)
+      .expect(200);
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    await settleOpenPayments();
+
+    expect(refunded()).toEqual([EXTRA_HOUR - HALF_HOUR_ADD_ON]);
+    expect(amounts().slice(before)).toEqual([QUOTED_OVEN]);
+    expect((await officeJob(office, jobId)).payment!.owedCents).toBe(0);
+  });
+
   test("is only for Office Staff", async () => {
     const { cory, client, jobId } = await bookedJob();
     await complete(cory.agent, jobId).expect(200);

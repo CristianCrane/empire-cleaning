@@ -22,9 +22,11 @@ import { clients } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import {
   chargeSaved,
+  recordGivenEarlier,
   recordTakenEarlier,
   refundedAtProvider,
   refundFrom,
+  UNREACHABLE,
 } from "../payments/money.ts";
 import {
   charges,
@@ -344,6 +346,9 @@ export const settleJob = async (
       .from(jobs)
       .where(eq(jobs.id, jobId))
       .for("update");
+    // a refund whose reply was lost first, as what it gave back counts
+    // whatever is charged now; while it isn't known, nothing moves
+    const given = await recordGivenEarlier(tx, jobId);
     const before = await ledgerOf(job!, tx);
     const [owner] = await tx
       .select({ client: clients, method: paymentMethods })
@@ -360,19 +365,25 @@ export const settleJob = async (
     const earlier = await recordTakenEarlier(
       tx,
       { jobId, kind: kindOf(job!) },
-      !billed && before.owedCents > 0 && method
+      !billed && !given.unknown && before.owedCents > 0 && method
         ? { amount: before.owedCents, card: method.gatewayRef }
         : null,
     );
     const found = "unknown" in earlier ? [] : earlier;
     const ledger = found.length > 0 ? await ledgerOf(job!, tx) : before;
+    const unknown =
+      "unknown" in earlier
+        ? earlier.unknown
+        : given.unknown
+          ? UNREACHABLE
+          : null;
     const settled: Settled = {
-      // what a lost reply took counts as charged now, as it's found
+      // what a lost reply took or gave back counts now, as it's found
       chargedCents: found.reduce((sum, c) => sum + c.amountCents, 0),
-      refundedCents: 0,
-      // it may yet take the money, so nothing more moves meanwhile; billed,
+      refundedCents: given.given,
+      // it may yet move the money, so nothing more moves meanwhile; billed,
       // nothing moves anyway, and the Clock asks after it (ADR-0022)
-      failure: "unknown" in earlier && !billed ? earlier.unknown : null,
+      failure: unknown && !billed ? unknown : null,
       becameUnpaid: false,
       paymentMethod: method && cardIn(method),
       plan: null,
@@ -392,7 +403,7 @@ export const settleJob = async (
         Math.min(-ledger.owedCents, ledger.billedCents),
         { for: jobId, item, jobId },
       );
-      settled.refundedCents =
+      settled.refundedCents +=
         fromBills +
         (await refundFrom(tx, ledger.charges, -ledger.owedCents - fromBills, {
           for: jobId,
