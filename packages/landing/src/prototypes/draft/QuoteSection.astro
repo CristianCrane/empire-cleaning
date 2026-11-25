@@ -1,20 +1,28 @@
 ---
-import { languageOf, messages } from "@empire-cleaning/models";
+import { languageNames, languageOf, messages } from "@empire-cleaning/models";
+import { Logo, buttonStyles } from "@empire-cleaning/ui";
+import { Languages } from "lucide-react";
 import { business } from "../../business.ts";
 import Section from "../../components/Section.astro";
+import { pathOf } from "../../routes.ts";
 import { words } from "../../words.ts";
 import { QuoteDraft, type Moment } from "./QuoteDraft.tsx";
 import { draft } from "./words.ts";
 
 // the home page's Request a quote section, drawn still (#505): its title,
 // one line on what happens, the form at one moment, and the phone for those
-// who'd rather talk; once sent, only the thanks
+// who'd rather talk; once sent, only the thanks. `brand` draws whose form it
+// is, with the language switch, for a reader who lands here from a link and
+// has no header in view; `callLine` is off where a header holds Call
 interface Props {
   layout: "tiles" | "rows";
   moment: Moment;
+  brand?: boolean;
+  callLine?: boolean;
 }
-const { layout, moment } = Astro.props;
+const { layout, moment, brand = false, callLine = true } = Astro.props;
 const lang = languageOf(Astro.currentLocale);
+const other = lang === "en" ? "es" : "en";
 const { REQUEST_A_QUOTE } = messages[lang];
 const t = words[lang].quote;
 ---
@@ -25,6 +33,22 @@ const t = words[lang].quote;
   intro={moment === "sent" ? undefined : draft[lang].quote.intro}
   align="center"
 >
+  {brand && (
+    <div slot="lead" class="flex items-center justify-between gap-2">
+      <a href={pathOf({ kind: "home" }, lang)}>
+        <Logo className="w-14" />
+      </a>
+      <a
+        href={pathOf({ kind: "home" }, other)}
+        hreflang={other}
+        lang={other}
+        class={buttonStyles({ variant: "quiet", className: "px-2" })}
+      >
+        <Languages aria-hidden size={18} />
+        {languageNames[other]}
+      </a>
+    </div>
+  )}
   <div class="w-full text-left">
     <QuoteDraft
       layout={layout}
@@ -35,7 +59,7 @@ const t = words[lang].quote;
       callTo={words[lang].call(business.phone.display)}
     />
   </div>
-  {moment !== "nolist" && moment !== "sent" && (
+  {callLine && moment !== "nolist" && moment !== "sent" && (
     <p class="text-center text-fg-muted">
       {t.preferToTalk}{" "}
       <a href={business.phone.href} class="font-semibold text-primary">

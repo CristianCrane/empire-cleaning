@@ -14,21 +14,9 @@ import {
   SegmentedControl,
   TextField,
 } from "@empire-cleaning/ui";
-import {
-  Building2,
-  CircleCheck,
-  House,
-  Building,
-  Home,
-  PaintRoller,
-  Phone,
-  Plus,
-  Sparkles,
-  Store,
-  Truck,
-  type LucideIcon,
-} from "lucide-react";
+import { CircleCheck, Phone, Plus, type LucideIcon } from "lucide-react";
 import { Fragment, type ReactNode } from "react";
+import { draftServices } from "./services.ts";
 import { draft } from "./words.ts";
 
 // the Quote form, drawn still for the public site prototype (#505): each
@@ -45,14 +33,6 @@ export type Moment =
   | "failed"
   | "nolist"
   | "sent";
-
-const serviceIcons: LucideIcon[] = [
-  Sparkles,
-  House,
-  Truck,
-  Building2,
-  PaintRoller,
-];
 
 const stepOf: Record<Moment, number> = {
   pick: 0,
@@ -75,7 +55,8 @@ type Props = {
   callTo: string;
 };
 
-// a still radio: what's picked shows it, nothing does anything
+// a still radio: what's picked shows it, nothing does anything; a choice
+// whose word says it all goes without an icon
 function Choice({
   layout,
   icon: Icon,
@@ -84,7 +65,7 @@ function Choice({
   picked,
 }: {
   layout: Props["layout"];
-  icon: LucideIcon;
+  icon?: LucideIcon;
   name: string;
   text?: string;
   picked: boolean;
@@ -98,7 +79,9 @@ function Choice({
         className={`flex cursor-pointer items-center gap-4 rounded-lg px-4 py-3 ${state}`}
       >
         <input type="radio" className="sr-only" checked={picked} readOnly />
-        <Icon aria-hidden size={28} strokeWidth={1.75} className="shrink-0" />
+        {Icon && (
+          <Icon aria-hidden size={28} strokeWidth={1.75} className="shrink-0" />
+        )}
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="font-semibold">{name}</span>
           {text && <span className="text-sm text-fg-muted">{text}</span>}
@@ -117,11 +100,9 @@ function Choice({
       className={`flex cursor-pointer flex-col items-center gap-2 rounded-lg px-3 py-4 text-center ${state}`}
     >
       <input type="radio" className="sr-only" checked={picked} readOnly />
-      <Icon aria-hidden size={28} strokeWidth={1.75} />
-      <span className="text-sm font-semibold">{name}</span>
-      {text && (
-        <span className="text-xs leading-snug text-fg-muted">{text}</span>
-      )}
+      {Icon && <Icon aria-hidden size={28} strokeWidth={1.75} />}
+      <span className="font-semibold">{name}</span>
+      {text && <span className="text-sm text-fg-muted">{text}</span>}
     </label>
   );
 }
@@ -159,7 +140,7 @@ export function QuoteDraft({
 }: Props) {
   const t = draft[lang].quote;
   const filled = draft[lang].filled;
-  const services = draft[lang].services;
+  const services = draftServices(lang);
   const at = stepOf[moment];
   const titles = [t.service, t.where, t.apartmentTitle, t.details];
 
@@ -171,23 +152,18 @@ export function QuoteDraft({
       </Notice>
     );
 
-  const kinds: [LucideIcon, string][] = [
-    [Home, t.house],
-    [Building, t.apartment],
-    [House, t.townhouse],
-    [Store, t.business],
-  ];
+  const kinds = [t.house, t.apartment, t.townhouse, t.business];
 
   const fields: ReactNode[] = [
     // what they need: each service with what it is, at its choice
     moment === "nolist" ? null : (
       <div key="service" className="flex flex-col gap-2">
         <Choices layout={layout} count={services.length}>
-          {services.map(({ name, text }, i) => (
+          {services.map(({ name, text, icon }, i) => (
             <Choice
               key={name}
               layout={layout}
-              icon={serviceIcons[i]!}
+              icon={icon}
               name={name}
               text={text}
               picked={moment === "picked" && i === 1}
@@ -202,11 +178,10 @@ export function QuoteDraft({
       <div className="flex flex-col gap-2">
         <span className="text-sm font-semibold">{t.what}</span>
         <Choices layout="tiles" count={4}>
-          {kinds.map(([icon, name], i) => (
+          {kinds.map((name, i) => (
             <Choice
               key={name}
               layout="tiles"
-              icon={icon}
               name={name}
               picked={moment === "zip" && i === 1}
             />
@@ -255,6 +230,7 @@ export function QuoteDraft({
       <ChipGroup label={t.extras} description={t.extrasNote} value={[]}>
         {t.addOns.map((name) => (
           <Chip key={name} value={name}>
+            <Plus aria-hidden size={16} />
             {name}
           </Chip>
         ))}

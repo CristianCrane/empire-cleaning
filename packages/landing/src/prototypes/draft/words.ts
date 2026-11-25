@@ -5,7 +5,8 @@ import { catalog } from "@empire-cleaning/models";
 export const draft = catalog({
   en: {
     what: "House and office cleaning",
-    where: "in Queens, Brooklyn, Manhattan and Long Island",
+    in: "in",
+    call: "Call",
     whereTitle: "Where we clean",
     plans: {
       title: "Save 10% with a cleaning plan",
@@ -55,33 +56,26 @@ export const draft = catalog({
       tryAgain: "Try again",
       failed: "Your request didn't go through. Please try again.",
       sent: "Thanks, we've got your request",
-      sentTo: "We'll email your quote to maria.lopez@example.com.",
+      sentTo:
+        "We'll email your quote to maria.lopez@example.com, usually within a working day.",
       step: (at: number, of: number) => `Step ${at} of ${of}`,
       back: "Back",
       next: "Next",
     },
-    services: [
-      {
-        name: "Standard Clean",
-        text: "The regular upkeep that keeps a clean home feeling that way. Once, or every week or two.",
-      },
-      {
-        name: "Deep Clean",
-        text: "Top to bottom, inside cabinets and behind appliances. Also after building work, or to disinfect.",
-      },
-      {
-        name: "Move-in/out Clean",
-        text: "An empty home made spotless, ready for keys to change hands.",
-      },
-      {
-        name: "Commercial cleaning",
-        text: "Offices, kitchens and restrooms kept clean for your team and visitors.",
-      },
-      {
-        name: "Painting",
-        text: "Walls, ceilings and trim painted cleanly, the room left as we found it.",
-      },
-    ],
+    // each service's describing line in the form, by the site's key; the
+    // names are the site's own (services.ts)
+    services: {
+      standard:
+        "The regular upkeep that keeps a clean home feeling that way. Once, or every week or two.",
+      deep: "Top to bottom, inside cabinets and behind appliances. Also after building work, or to disinfect.",
+      move: "An empty home made spotless, ready for keys to change hands.",
+      office:
+        "Offices, kitchens and restrooms kept clean for your team and visitors.",
+    },
+    painting: {
+      name: "Painting",
+      text: "Walls, ceilings and trim painted cleanly, the room left as we found it.",
+    },
     filled: {
       street: "41-12 Bell Blvd",
       unit: "Apt 3B",
@@ -94,7 +88,8 @@ export const draft = catalog({
   },
   es: {
     what: "Limpieza de casas y oficinas",
-    where: "en Queens, Brooklyn, Manhattan y Long Island",
+    in: "en",
+    call: "Llamar",
     whereTitle: "Dónde limpiamos",
     plans: {
       title: "Ahorre un 10% con un plan de limpieza",
@@ -148,33 +143,23 @@ export const draft = catalog({
       tryAgain: "Volver a intentar",
       failed: "Su solicitud no se envió. Vuelva a intentarlo.",
       sent: "Gracias, recibimos su solicitud",
-      sentTo: "Le enviaremos su cotización a maria.lopez@example.com.",
+      sentTo:
+        "Le enviaremos su cotización a maria.lopez@example.com, normalmente en un día hábil.",
       step: (at: number, of: number) => `Paso ${at} de ${of}`,
       back: "Atrás",
       next: "Siguiente",
     },
-    services: [
-      {
-        name: "Limpieza estándar",
-        text: "El mantenimiento regular de una casa limpia. Una vez, o cada semana o dos.",
-      },
-      {
-        name: "Limpieza profunda",
-        text: "De arriba abajo, dentro de gabinetes y detrás de electrodomésticos. También después de obras, o para desinfectar.",
-      },
-      {
-        name: "Limpieza de mudanza",
-        text: "Una casa vacía impecable, lista para entregar las llaves.",
-      },
-      {
-        name: "Limpieza comercial",
-        text: "Oficinas, cocinas y baños limpios para su equipo y sus visitas.",
-      },
-      {
-        name: "Pintura",
-        text: "Paredes, techos y molduras pintados con cuidado, y el cuarto queda como lo encontramos.",
-      },
-    ],
+    services: {
+      standard:
+        "El mantenimiento regular de una casa limpia. Una vez, o cada semana o dos.",
+      deep: "De arriba abajo, dentro de gabinetes y detrás de electrodomésticos. También después de obras, o para desinfectar.",
+      move: "Una casa vacía impecable, lista para entregar las llaves.",
+      office: "Oficinas, cocinas y baños limpios para su equipo y sus visitas.",
+    },
+    painting: {
+      name: "Pintura",
+      text: "Paredes, techos y molduras pintados con cuidado, y el cuarto queda como lo encontramos.",
+    },
     filled: {
       street: "41-12 Bell Blvd",
       unit: "Apt 3B",

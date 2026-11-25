@@ -28,6 +28,7 @@ const headingId = `${id}-title`;
       align === "center" ? "max-w-2xl" : "max-w-5xl",
     ]}
   >
+    <slot name="lead" />
     <div
       class:list={[
         "flex flex-col gap-3",

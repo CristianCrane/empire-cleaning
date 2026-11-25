@@ -1,5 +1,6 @@
 ---
 import { formats, languageOf, messages } from "@empire-cleaning/models";
+import { buttonStyles } from "@empire-cleaning/ui";
 import {
   BadgePercent,
   ChevronRight,
@@ -19,10 +20,10 @@ import Section from "../components/Section.astro";
 import { faqs } from "../faqs.ts";
 import { pathOf } from "../routes.ts";
 import { pageOf } from "../service-pages/index.ts";
-import { serviceWords, services } from "../services.ts";
 import { words } from "../words.ts";
 import Header from "./draft/Header.astro";
 import QuoteSection from "./draft/QuoteSection.astro";
+import { draftServices } from "./draft/services.ts";
 import { draft } from "./draft/words.ts";
 
 // one layout × case of the home page (home.ts): the layout is the header's
@@ -159,29 +160,57 @@ const rowCard = "flex items-center gap-4 rounded-lg border border-border p-4";
           <span class="font-display text-5xl leading-none font-bold tracking-wide uppercase sm:text-7xl">
             {d.what}
           </span>
-          <span class="text-xl font-semibold sm:text-2xl">{d.where}</span>
+          {/* the areas as the area card says them, none split over a line */}
+          <span class="text-xl font-semibold sm:text-2xl">
+            {d.in}{" "}
+            {areaList.map(({ type, value }) =>
+              type === "literal" ? (
+                value
+              ) : (
+                <span class="whitespace-nowrap">
+                  {areas[Number(value)]![lang].short}
+                </span>
+              ),
+            )}
+          </span>
         </h1>
+        <div class="w-full pt-2 sm:w-auto">
+          {/* where the bar holds Call, the hero doesn't say it again */}
+          {shape === "sticky" ? (
+            <a
+              href="#quote"
+              class={buttonStyles({
+                variant: "primary",
+                className: "w-full px-6 text-lg sm:w-auto",
+              })}
+            >
+              {messages[lang].REQUEST_A_QUOTE}
+            </a>
+          ) : (
+            <QuoteOrCall href="#quote" />
+          )}
+        </div>
+        {/* the slogan, where kept, after the action: the reader meets it
+            once they know what, where and how to ask */}
         {shown !== "plain" && (
-          <p class="font-display text-lg tracking-widest text-primary uppercase">
+          <p class="text-sm font-semibold tracking-widest text-fg-muted uppercase">
             {t.slogan.join(" ")}
           </p>
         )}
-        <div class="pt-2">
-          <QuoteOrCall href="#quote" />
-        </div>
       </div>
     </section>
   )}
 
   {!landed && (
     <Section id="services" title={t.services.title}>
-      {/* each service a row, its icon beside its name, leading to its page;
-          one with no page (custom) to the form, where it's asked for */}
+      {/* the form's services, each a row, its icon beside its name, leading
+          to its page; one with no page (painting) to the form */}
       <ul class="grid gap-3 sm:grid-cols-2">
-        {services.map(({ key, icon: Icon }) => {
-          const href = pageOf(key)
-            ? pathOf({ kind: "service", service: key }, lang)
-            : "#quote";
+        {draftServices(lang).map(({ key, name, icon: Icon }) => {
+          const href =
+            key !== "painting" && pageOf(key)
+              ? pathOf({ kind: "service", service: key }, lang)
+              : "#quote";
           return (
             <li class:list={[rowCard, card, "relative hover:border-primary"]}>
               <Icon aria-hidden size={24} className="shrink-0 text-primary" />
@@ -190,7 +219,7 @@ const rowCard = "flex items-center gap-4 rounded-lg border border-border p-4";
                   href={href}
                   class="flex flex-1 items-center justify-between gap-2 font-semibold after:absolute after:inset-0"
                 >
-                  {serviceWords[lang][key].name}
+                  {name}
                   <ChevronRight
                     aria-hidden
                     size={18}
@@ -278,13 +307,20 @@ const rowCard = "flex items-center gap-4 rounded-lg border border-border p-4";
     </Section>
   )}
 
-  {(whole || landed) && <QuoteSection layout="tiles" moment="pick" />}
+  {(whole || landed) && (
+    <QuoteSection
+      layout="tiles"
+      moment="pick"
+      brand={landed && shape !== "sticky"}
+      callLine={shape !== "sticky"}
+    />
+  )}
 
   {(whole || landed) && (
-    <Section id="service-plans" title={d.plans.title}>
+    <Section id="service-plans" title={d.plans.title} align="center">
       <div
         class:list={[
-          "flex items-start gap-4 rounded-lg border border-border p-5",
+          "flex w-full items-start gap-4 rounded-lg border border-border p-5",
           card,
         ]}
       >
@@ -294,6 +330,8 @@ const rowCard = "flex items-center gap-4 rounded-lg border border-border p-4";
     </Section>
   )}
 
-  {whole && <Faqs faqs={faqs[lang]} />}
+  {/* less the last two, where we clean and the Spanish we speak, which
+      the area card says */}
+  {whole && <Faqs faqs={faqs[lang].slice(0, -2)} />}
 </main>
 {whole && <Footer />}

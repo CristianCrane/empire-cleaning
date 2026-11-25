@@ -7,10 +7,12 @@ import { business } from "../../business.ts";
 import { ThemeToggleIn } from "../../components/InLanguage.tsx";
 import { pathOf } from "../../routes.ts";
 import { words } from "../../words.ts";
+import { draft } from "./words.ts";
 
 // the home page's header, in each shape the prototype (#505) offers: "bar",
 // a slim band that scrolls away; "none", the logo and the quiet actions on
-// the hero's own backdrop; "sticky", the band, held at the top, with Call
+// the hero's own backdrop; "sticky", the band, held at the top, with Call,
+// which the hero then doesn't repeat
 interface Props {
   shape: "bar" | "none" | "sticky";
 }
@@ -56,6 +58,7 @@ const quiet = buttonStyles({ variant: "quiet", className: "px-2 sm:px-4" });
         })}
       >
         <Phone aria-hidden size={18} />
+        <span class="sm:hidden">{draft[lang].call}</span>
         <span class="hidden sm:inline">{t.call(business.phone.display)}</span>
       </a>
     )}

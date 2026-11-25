@@ -9,7 +9,7 @@ export default prototype({
     { key: "sticky", name: "Bar that stays, with Call" },
   ],
   cases: {
-    slogan: { name: "Whole page, slogan under the headline" },
+    slogan: { name: "Whole page, slogan under the buttons" },
     plain: { name: "First screen, no slogan" },
     landed: { name: "Landed at the form, from a link" },
     spanish: { name: "Spanish, whole page, slogan", lang: "es" },
