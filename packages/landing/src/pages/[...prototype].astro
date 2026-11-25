@@ -1,0 +1,72 @@
+---
+import type { AstroComponentFactory } from "astro/runtime/server/index.js";
+import { PrototypeBar } from "@empire-cleaning/ui";
+import PrototypeList from "../components/PrototypeList.astro";
+import Page from "../layouts/Page.astro";
+import { prototypes } from "../branch-prototypes.ts";
+import { indexPath, pageOf, shotPath, type Prototype } from "../prototype.ts";
+
+// every prototype's pages, on a prototype-* branch (src/prototype.ts): main
+// has none, so this makes no page there
+export const getStaticPaths = async () =>
+  Object.entries(await prototypes()).flatMap(([screen, drawn]) => {
+    const index = {
+      params: { prototype: indexPath(screen).slice(1, -1) },
+      props: { screen, drawn },
+    };
+    const shots = Object.entries(drawn.cases).flatMap(([shown, { lang }]) =>
+      drawn.layouts.map(({ key: layout }) => ({
+        params: {
+          prototype: shotPath(screen, layout, shown, lang).slice(1, -1),
+        },
+        props: { screen, drawn, layout, shown },
+      })),
+    );
+    return [index, ...shots];
+  });
+
+type Props = {
+  screen: string;
+  drawn: Prototype;
+  layout?: string;
+  shown?: string;
+};
+const { screen, drawn, layout, shown } = Astro.props;
+const views = import.meta.glob<{ default: AstroComponentFactory }>(
+  "../prototypes/*.astro",
+  { eager: true },
+);
+const View = views[`../prototypes/${screen}.astro`]?.default;
+const hrefOf = pageOf(screen, drawn);
+---
+
+<Page page={null} title={screen}>
+  {layout && shown && View ? (
+    <>
+      {/* the shots wait for it (prototype-shots.ts) */}
+      <div data-prototype-case class="contents">
+        <View layout={layout} case={shown} />
+      </div>
+      {import.meta.env.DEV && (
+        <PrototypeBar
+          client:only="react"
+          layouts={drawn.layouts.map(({ key, name }) => ({
+            key,
+            name,
+            href: hrefOf(key, shown),
+          }))}
+          cases={Object.entries(drawn.cases).map(([key, { name }]) => ({
+            key,
+            name,
+            href: hrefOf(layout, key),
+          }))}
+          layout={layout}
+          case={shown}
+          index={indexPath(screen)}
+        />
+      )}
+    </>
+  ) : (
+    <PrototypeList screen={screen} drawn={drawn} />
+  )}
+</Page>

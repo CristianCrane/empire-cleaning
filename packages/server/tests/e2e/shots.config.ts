@@ -4,7 +4,8 @@ import { resolve } from "node:path";
 // with: the package's own playwright.config.ts (PR_SHOTS_PACKAGE names the
 // package's folder in that checkout, packages/web or packages/landing), with a
 // screenshot at the end of each test, the whole page or (PR_SHOTS_VIEWPORT,
-// --viewport) the screen. That checkout's slots and databases stay its own,
+// --viewport) the screen; or, with PR_SHOTS_PROTOTYPE (--prototype), its
+// prototype.shots.ts alone, which no other run takes. That checkout's slots and databases stay its own,
 // on the block of ports pr:shots leased for both sides (shots.ts), and so
 // does its Playwright: run it with the package's own runner, as a
 // spec loads its own checkout's @playwright/test, so this file imports none.
@@ -19,6 +20,7 @@ if (!folder) {
 // what this reads of a package's config
 type Config = {
   testDir?: string;
+  testMatch?: unknown;
   webServer?: object | object[];
   use?: object;
   projects?: { grep?: unknown; use?: { deviceScaleFactor?: number } }[];
@@ -31,6 +33,7 @@ export default {
   ...base,
   // its paths, from its own folder rather than this file's
   testDir: resolve(folder, base.testDir ?? "."),
+  ...(process.env.PR_SHOTS_PROTOTYPE && { testMatch: "prototype.shots.ts" }),
   webServer: [base.webServer ?? []]
     .flat()
     .map((server) => ({ ...server, cwd: folder })),

@@ -10,7 +10,9 @@
   },
   "exports": {
     "./api-clock": "./tests/e2e/api-clock.ts",
+    "./at-rest": "./tests/e2e/at-rest.ts",
     "./ports": "./tests/ports.ts",
+    "./prototype-shots": "./tests/e2e/prototype-shots.ts",
     "./fake-payments": "./tests/fakes/payment-gateway.ts"
   },
   "scripts": {
@@ -54,6 +56,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "@react-email/ui": "6.11.16",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

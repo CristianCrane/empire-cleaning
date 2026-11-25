@@ -64,6 +64,11 @@ import { linkTo } from "./links.ts";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
 import { CleanerHome, yourJobsTiles } from "./screens/cleaner/CleanerHome.tsx";
 import { ConfirmEmail } from "./screens/ConfirmEmail.tsx";
+import {
+  loadPrototype,
+  PrototypeScreen,
+  type PrototypeSearch,
+} from "./screens/Prototype.tsx";
 import { SignInLink, type SignInLinkSearch } from "./screens/SignInLink.tsx";
 import {
   CleanerOffers,
@@ -887,8 +892,27 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// a prototype on a prototype-* branch, signed out (screens/Prototype.tsx);
+// main has none, so its production build is always Not found there
+const prototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/$screen",
+  validateSearch: (search: Record<string, unknown>): PrototypeSearch => ({
+    // ?case=1 arrives as a number, and stays one, as the router writes back
+    // what this returns: a string would read case=%221%22 (Prototype.tsx)
+    layout: search.layout === undefined ? undefined : String(search.layout),
+    case:
+      search.case === undefined || typeof search.case === "number"
+        ? search.case
+        : String(search.case),
+  }),
+  loader: ({ params }) => loadPrototype(params.screen),
+  component: PrototypeScreen,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  prototypeRoute,
   signInRoute,
   signInLinkRoute,
   confirmEmailRoute,

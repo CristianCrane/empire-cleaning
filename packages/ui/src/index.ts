@@ -45,6 +45,9 @@ export { IconTile } from "./IconTile.tsx";
 export { ButtonLink, ExternalButtonLink, Link, linkStyles } from "./Link.tsx";
 export { Line } from "./Line.tsx";
 export { Logo } from "./Logo.tsx";
+export { PrototypeBar } from "./PrototypeBar.tsx";
+export { PrototypeIndex } from "./PrototypeIndex.tsx";
+export { PrototypeUnknown } from "./PrototypeUnknown.tsx";
 export { MessagePage, SignInPage } from "./layouts/MessagePage.tsx";
 export {
   LIST_PAGE,
@@ -110,7 +113,12 @@ export {
   type ThemePreference,
 } from "./theme.tsx";
 export { themeBootScript } from "./theme-boot.ts";
-export { ToastRegion, showToast, type ToastContent } from "./Toast.tsx";
+export {
+  ToastRegion,
+  clearToasts,
+  showToast,
+  type ToastContent,
+} from "./Toast.tsx";
 export { startTour, type TourStep } from "./Tour.ts";
 
 // wiring for the app's router: design-system links navigate through it, and
