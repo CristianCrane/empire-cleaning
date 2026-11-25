@@ -124,7 +124,7 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
     string,
     { bill: Bill; cents: number; refundedCents: number }
   >();
-  for (const { bill, line } of await billLinesOf(job.id, tx))
+  for (const { bill, line } of await billLinesOf([job.id], tx))
     onBills.set(bill.id, {
       bill,
       cents: (onBills.get(bill.id)?.cents ?? 0) + line.amountCents,

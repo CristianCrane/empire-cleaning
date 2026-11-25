@@ -1,4 +1,4 @@
-import { and, asc, eq, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import { addDays, dayOf, mondayOf, startOfDay } from "@empire-cleaning/models";
 import type { db, Tx } from "../../db/index.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
@@ -19,15 +19,15 @@ export const owesOnBill = (job: Pick<Job, "status" | "feeCents">) =>
 export const billNumber = (number: number) =>
   `EC-${String(number).padStart(6, "0")}`;
 
-// a Job's lines on Bills not voided, each with its Bill: what's billed it,
+// these Jobs' lines on Bills not voided, each with its Bill: what's billed it,
 // what for, and where those Bills stand, in the order they were billed, so
 // a correction's rows come in its Bill's order, a Deposit under its clean
-export const billLinesOf = (jobId: string, tx: Tx | typeof db) =>
+export const billLinesOf = (jobIds: string[], tx: Tx | typeof db) =>
   tx
     .select({ line: billLines, bill: bills })
     .from(billLines)
     .innerJoin(bills, eq(bills.id, billLines.billId))
-    .where(and(eq(billLines.jobId, jobId), ne(bills.status, "void")))
+    .where(and(inArray(billLines.jobId, jobIds), ne(bills.status, "void")))
     .orderBy(asc(bills.number), asc(billLines.position));
 
 // how a Client pays for their cleans: on a weekly Bill, charged or paid on

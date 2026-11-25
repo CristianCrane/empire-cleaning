@@ -72,6 +72,7 @@ import { REMINDER_TIME } from "../jobs/reminders.ts";
 import {
   attemptsFor,
   chargeOpen,
+  chargesOpen,
   chargeSaved,
   NOT_APPROVED,
   recordTakenEarlier,
@@ -136,28 +137,23 @@ const taxShare = (
     ? 0
     : Math.round((cents * option.taxCents) / option.totalCents);
 
-/**
- * Everything a Job should have billed in all, as parts: once Completed, its
- * price, the Adjustments that count and any Late Reschedule fee; once
- * Cancelled or No Access with a fee, that fee. Either way less its Deposit
- * and anything already charged for it on its own, as before weekly billing
- * was switched on. A Job that owes nothing a Bill bills, as when its
- * completion was undone, should have billed nothing.
- */
-const partsOf = async (job: Job, tx: Tx | typeof db): Promise<Part[]> => {
-  if (!owesOnBill(job)) return [];
-  // one after the other, as a transaction's queries share one connection
-  // (ADR-0024)
-  const [quoted] = await jobQuotes([job.id], tx);
-  const rows = await tx
-    .select()
-    .from(adjustments)
-    .where(eq(adjustments.jobId, job.id));
-  const taken = await tx
-    .select()
-    .from(charges)
-    .where(eq(charges.jobId, job.id));
-  if (!quoted) throw new ConflictError(NO_QUOTE);
+// what partsOf reads for these Jobs, a query each, whatever their number:
+// a Client billed weekly for years has hundreds, read on each Payments view
+// (#564). One after the other, as a transaction's queries share one
+// connection (ADR-0024)
+const readParts = async (jobIds: string[], tx: Tx | typeof db) => {
+  const quoted = await jobQuotes(jobIds, tx);
+  const rows =
+    jobIds.length === 0
+      ? []
+      : await tx
+          .select()
+          .from(adjustments)
+          .where(inArray(adjustments.jobId, jobIds));
+  const taken =
+    jobIds.length === 0
+      ? []
+      : await tx.select().from(charges).where(inArray(charges.jobId, jobIds));
   const given =
     taken.length === 0
       ? []
@@ -173,6 +169,30 @@ const partsOf = async (job: Job, tx: Tx | typeof db): Promise<Part[]> => {
               isNull(refunds.failedAt),
             ),
           );
+  return {
+    quoted: new Map(quoted.map((q) => [q.jobId, q])),
+    adjustments: Map.groupBy(rows, (a) => a.jobId),
+    charges: Map.groupBy(taken, (c) => c.jobId!),
+    refunds: Map.groupBy(given, (r) => r.chargeId),
+  };
+};
+type PartsRead = Awaited<ReturnType<typeof readParts>>;
+
+/**
+ * Everything a Job should have billed in all, as parts: once Completed, its
+ * price, the Adjustments that count and any Late Reschedule fee; once
+ * Cancelled or No Access with a fee, that fee. Either way less its Deposit
+ * and anything already charged for it on its own, as before weekly billing
+ * was switched on. A Job that owes nothing a Bill bills, as when its
+ * completion was undone, should have billed nothing.
+ */
+const partsOf = (job: Job, read: PartsRead): Part[] => {
+  if (!owesOnBill(job)) return [];
+  const quoted = read.quoted.get(job.id);
+  const rows = read.adjustments.get(job.id) ?? [];
+  const taken = read.charges.get(job.id) ?? [];
+  if (!quoted) throw new ConflictError(NO_QUOTE);
+  const given = taken.flatMap((c) => read.refunds.get(c.id) ?? []);
   // a refund made in the provider's dashboard is a discount: it still counts
   // as taken, so it's never billed back
   const net = (kind: "deposit" | "other") =>
@@ -258,12 +278,12 @@ type NewLine = Omit<
 // whatever was billed and is no longer owed comes off, as a correction.
 // Nothing for a Job never billed that nets to nothing, such as a fee its
 // Deposit already covers.
-const linesFor = async (
+const linesFor = (
   job: Job,
   before: Awaited<ReturnType<typeof billLinesOf>>,
-  tx: Tx | typeof db,
-): Promise<NewLine[]> => {
-  const parts = await partsOf(job, tx);
+  read: PartsRead,
+): NewLine[] => {
+  const parts = partsOf(job, read);
   const billed = new Map<string, Part>();
   for (const { line } of before) {
     const known = billed.get(line.key);
@@ -358,18 +378,29 @@ export const billedNow = async (
       ),
     )
     .orderBy(asc(jobs.startsAt), asc(jobs.id));
-  const lines: NewLine[] = [];
   // held while billed, in the order settling a Job holds it
-  for (const { job } of await (lock
-    ? candidates.for("update", { of: jobs })
-    : candidates)) {
-    // its own payment may still take the money (the one rule): it waits
-    // for the next Bill, so the Client isn't asked for it twice at once
-    if (await chargeOpen(job.id, tx)) continue;
-    const before = await billLinesOf(job.id, tx);
-    if (!isBilledWeekly(job, client, { lines: before.length })) continue;
-    lines.push(...(await linesFor(job, before, tx)));
-  }
+  const held = (
+    await (lock ? candidates.for("update", { of: jobs }) : candidates)
+  ).map((r) => r.job);
+  const ids = held.map((job) => job.id);
+  // its own payment may still take the money (the one rule): it waits for
+  // the next Bill, so the Client isn't asked for it twice at once
+  const open = await chargesOpen(ids, tx);
+  const onBills = Map.groupBy(await billLinesOf(ids, tx), (r) => r.line.jobId!);
+  const billing = held.filter(
+    (job) =>
+      !open.has(job.id) &&
+      isBilledWeekly(job, client, {
+        lines: onBills.get(job.id)?.length ?? 0,
+      }),
+  );
+  const read = await readParts(
+    billing.filter(owesOnBill).map((job) => job.id),
+    tx,
+  );
+  const lines = billing.flatMap((job) =>
+    linesFor(job, onBills.get(job.id) ?? [], read),
+  );
   if (lines.length === 0) return null;
 
   const credit = await openCreditOf(client.id, tx);

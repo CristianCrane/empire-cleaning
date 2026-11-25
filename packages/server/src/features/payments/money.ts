@@ -389,11 +389,11 @@ const isOpen = (tx: Tx | typeof db) =>
 
 // the open attempts for a Job, Bill or Quote, of any kind: a Job asked for
 // as a fee may be charged a Balance now
-const openAttempts = (tx: Tx | typeof db, forId: string) =>
+const openAttempts = (tx: Tx | typeof db, forIds: string[]) =>
   tx
     .select()
     .from(chargeAttempts)
-    .where(and(eq(chargeAttempts.forId, forId), isOpen(tx)))
+    .where(and(inArray(chargeAttempts.forId, forIds), isOpen(tx)))
     .orderBy(chargeAttempts.askedAt);
 
 // The one rule (#533, #534; the owner, 2026-11-23: "Yes, I think the one
@@ -405,7 +405,16 @@ const openAttempts = (tx: Tx | typeof db, forId: string) =>
 // can't record acceptance or send changes meanwhile (payingOf). Two at
 // once would take it twice, or leave money to give back (ADR-0022)
 export const chargeOpen = async (forId: string, tx: Tx | typeof db = db) =>
-  (await openAttempts(tx, forId)).length > 0;
+  (await openAttempts(tx, [forId])).length > 0;
+
+// which of these chargeOpen holds, in one look: for a Client's whole
+// history at once, as making a Bill reads it
+export const chargesOpen = async (forIds: string[], tx: Tx | typeof db = db) =>
+  new Set(
+    forIds.length === 0
+      ? []
+      : (await openAttempts(tx, forIds)).map((a) => a.forId),
+  );
 
 // every attempt for these Bills (or Jobs, or Quotes), newest first, each
 // with whether it's open (chargeOpen's), and the provider call it made: what
@@ -625,7 +634,7 @@ export const recordTakenEarlier = async (
 ): Promise<Charge[] | { unknown: string }> => {
   const recorded: Charge[] = [];
   let now = owed;
-  for (const earlier of await openAttempts(tx, forIdOf(chargeFor))) {
+  for (const earlier of await openAttempts(tx, [forIdOf(chargeFor)])) {
     const outcome = await outcomeOf(earlier, now, callOff);
     if (outcome.status === "unknown") return { unknown: outcome.reason };
     if (outcome.status === "taken") {
@@ -781,7 +790,7 @@ export const takeDepositOnce = async (
   asked: Asked,
   { callOff, unsettled }: { callOff: CallingOff; unsettled: Set<string> },
 ): Promise<DepositTaken> => {
-  for (const earlier of await openAttempts(tx, quoteId)) {
+  for (const earlier of await openAttempts(tx, [quoteId])) {
     if (earlier.status === "approving") {
       const approval = await approvalOf(earlier.gatewayRef!, earlier, callOff);
       if (approval.status === "ended" || approval.status === "called_off") {
@@ -910,7 +919,7 @@ export const giveBackUnbookedDeposits = async (
 ) => {
   const givenBack: string[] = [];
   const calledOff: string[] = [];
-  for (const earlier of await openAttempts(tx, quoteId)) {
+  for (const earlier of await openAttempts(tx, [quoteId])) {
     if (earlier.status === "approving") {
       if (waitOf(earlier).until > clock.now()) continue;
       const approval = await approvalOf(
