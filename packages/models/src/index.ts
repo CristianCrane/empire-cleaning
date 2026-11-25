@@ -1354,8 +1354,8 @@ export type QuoteSummary = OfferedQuoteSummary | UnsentQuoteSummary;
 type OfferedStatus = "sent" | "accepted" | "declined" | "expired";
 
 // A Quote with an offer, its latest Sent Revision, whose figures it shows.
-// Sending writes them all at once, so each is there. A member a status, so
-// that `status === "sent"` narrows to the Sent one.
+// Sending writes them all at once, so each is there. One member per status,
+// so that `status === "sent"` narrows to the Sent one.
 export type OfferedQuoteSummary = {
   [S in OfferedStatus]: QuoteSummaryFields & {
     status: S;
