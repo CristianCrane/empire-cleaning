@@ -576,10 +576,10 @@ Keeps: read like a Quote, paying under it (#165). Renders through `RecordPage` (
 - Header: Home › Your quote; the title and its status (Ready while it's
   theirs to answer, Time unavailable once its time filled up); "updated · open
   until", while it applies.
-- Actions: turned down, Request a quote the primary; booked up, Decline
+- Actions: turned down, Request a quote the primary; its time filled up, Decline
   this quote its one action (a Button); else none.
 - Alerts: each only why: how it ended (accepted, declined, expired, turned
-  down), what it does to the plan, booked up.
+  down), what it does to the plan, its time filled up.
 - Body: Quote details (`DetailsCard`: what it comes to, icon facts, how
   long its crew is there, on each option too, a plan's once when its
   weekdays match, else one fact per length naming its weekdays, no

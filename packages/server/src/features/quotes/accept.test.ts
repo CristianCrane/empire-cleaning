@@ -552,7 +552,7 @@ describe("accepting a First Clean Quote", () => {
 
     const refused = await accept(client, quote).expect(409);
 
-    expect(refused.body.message).toMatch(/that time just got booked up/);
+    expect(refused.body.message).toMatch(/that time just filled up/);
     expect(testPayments().charges).toEqual([]);
     expect((await client.get(`/api/quotes/mine/${quote.id}`)).body.status).toBe(
       "sent",
@@ -577,7 +577,7 @@ describe("accepting a First Clean Quote", () => {
 
     const refused = await accept(client, quote).expect(409);
 
-    expect(refused.body.message).toMatch(/that time just got booked up/);
+    expect(refused.body.message).toMatch(/that time just filled up/);
     expect(testPayments().charges).toEqual([]);
     expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
   });
@@ -819,7 +819,7 @@ describe("paying the Deposit with a card entered just now", () => {
     const refused = await finalize(client, quote).expect(409);
 
     expect(refused.body.message).toBe(
-      "Sorry, that time got booked up while your bank was approving the payment. We've refunded your deposit. We'll send you a new quote for another time.",
+      "Sorry, that time filled up while your bank was approving the payment. We've refunded your deposit. We'll send you a new quote for another time.",
     );
     expect(await pageSays(client, quote)).toBe(refused.body.message);
     const [charge] = testPayments().charges;
@@ -837,7 +837,7 @@ describe("paying the Deposit with a card entered just now", () => {
     const email = testEmail().lastTo(casey.email);
     expect(email.subject).toBe("We've refunded your deposit");
     expect(email.text).toContain(
-      "that time got booked up while your bank was approving the payment.",
+      "that time filled up while your bank was approving the payment.",
     );
     expect(email.text).toContain(
       `We've refunded your ${formatMoney(charge!.amount)} deposit to your Test card ending 4242. It can take a few days to reach you.`,
@@ -1482,7 +1482,7 @@ describe("while the Client's bank is approving the Deposit", () => {
     expect(testMonitoring().signalled("refund_failed")).toEqual([]);
     // nothing was paid, so nothing's said to be refunded
     expect(finalized.body.message).toBe(
-      "Sorry, that time got booked up while your bank was approving your card, so nothing was booked. We'll send you a new quote for another time.",
+      "Sorry, that time filled up while your bank was approving your card, so nothing was booked. We'll send you a new quote for another time.",
     );
     expect(await pageSays(client, quote)).toBe(finalized.body.message);
   });
@@ -1799,7 +1799,7 @@ describe("while the Client's bank is approving the Deposit", () => {
     const email = testEmail().lastTo(casey.email);
     expect(email.subject).toBe("We couldn't book your clean");
     expect(email.text).toContain(
-      "that time got booked up while your bank was approving your card.",
+      "that time filled up while your bank was approving your card.",
     );
     expect(email.text).toContain("Nothing was charged to your card.");
     expect(email.text).toContain(
@@ -2708,6 +2708,11 @@ describe("when a Quote's day fills up before it's accepted", () => {
 
     const notice = testEmail().lastTo("olive@example.com");
     expect(notice.subject).toBe("A quote needs another time");
+    // a time gone is "filled up": "booked" is a Client's own clean (#534's
+    // review F13)
+    expect(notice.text).toContain(
+      "Its time has filled up, so the client can't accept it:",
+    );
     expect(notice.text).toContain("Casey Client: 41-12 Austin St, 4B, 11375");
     expect(notice.text).toContain("/office");
     // and Casey's Quote can't be taken

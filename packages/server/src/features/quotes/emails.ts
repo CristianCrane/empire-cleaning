@@ -398,8 +398,8 @@ export const quotesWithoutRoomEmail = ({
   blocks: [
     paragraph(
       quotes.length === 1
-        ? "Its time is now booked up, so the client can't accept it:"
-        : "Their times are now booked up, so the clients can't accept them:",
+        ? "Its time has filled up, so the client can't accept it:"
+        : "Their times have filled up, so the clients can't accept them:",
     ),
     details(
       quotes.map((q) => ({
@@ -796,7 +796,7 @@ const depositWords = catalog({
       PAYMENT: "the payment",
       CARD: "your card",
       no_room: (what: string) =>
-        `: that time got booked up while your bank was approving ${what}.`,
+        `: that time filled up while your bank was approving ${what}.`,
       revised: (what: string) =>
         `: we updated your quote while your bank was approving ${what}.`,
       closed: (what: string) =>

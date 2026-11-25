@@ -131,12 +131,12 @@ describe("how a Deposit payment that didn't book ended, as the Client is told", 
 
   test("its time filled: a new quote to come when nothing's bookable, the other Service when it is", () => {
     expect(depositAlertOf("en", quote(refunded("no_room")))?.text).toBe(
-      "Sorry, that time got booked up while your bank was approving the payment. We've refunded your deposit. We'll send you a new quote for another time.",
+      "Sorry, that time filled up while your bank was approving the payment. We've refunded your deposit. We'll send you a new quote for another time.",
     );
     expect(
       depositAlertOf("en", quote(refunded("no_room"), "sent", [DEEP]))?.text,
     ).toBe(
-      "Sorry, that time got booked up for the Standard Clean while your bank was approving the payment, so we've refunded your deposit. The Deep Clean can still be booked then.",
+      "Sorry, that time filled up for the Standard Clean while your bank was approving the payment, so we've refunded your deposit. The Deep Clean can still be booked then.",
     );
   });
 
@@ -160,7 +160,7 @@ describe("how a Deposit payment that didn't book ended, as the Client is told", 
 
   test("a card saved with nothing charged (a 0% Deposit) leads with nothing booked, not a refund", () => {
     expect(depositAlertOf("en", quote(refunded("no_room", 0)))?.text).toBe(
-      "Sorry, that time got booked up while your bank was approving your card, so nothing was booked. We'll send you a new quote for another time.",
+      "Sorry, that time filled up while your bank was approving your card, so nothing was booked. We'll send you a new quote for another time.",
     );
     expect(depositAlertOf("en", quote(refunded("revised", 0)))?.text).toBe(
       "This quote was updated while your bank was approving your card, so nothing was booked. Please take a look at what's changed.",

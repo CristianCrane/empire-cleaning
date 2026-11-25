@@ -860,7 +860,7 @@ describe("Home, as a quote's deposit waits on their bank or ends unbooked (#534)
     expect(why).toEqual({
       tone: "info",
       lead: "We've refunded your deposit for Standard Clean.",
-      more: "That time got booked up for it while your bank was approving the payment. The Deep Clean can still be booked then.",
+      more: "That time filled up for it while your bank was approving the payment. The Deep Clean can still be booked then.",
     });
     // a quote ready leads over a clean booked, so only what asks puts it
     // in News
@@ -869,7 +869,7 @@ describe("Home, as a quote's deposit waits on their bank or ends unbooked (#534)
       `We've refunded your deposit for the Standard Clean ${ON}, as your quote was updated while your bank was approving the payment. Please take a look at what's changed.`,
     ]);
     expect(next({ ...asks, quotes: [fits] }).news).toEqual([
-      `We've refunded your deposit for the Standard Clean ${ON}, as that time got booked up for it while your bank was approving the payment. The Deep Clean can still be booked then.`,
+      `We've refunded your deposit for the Standard Clean ${ON}, as that time filled up for it while your bank was approving the payment. The Deep Clean can still be booked then.`,
     ]);
   });
 
@@ -979,11 +979,11 @@ describe("Home, with a quote whose time filled since it was sent (#534)", () => 
       why: {
         tone: "info",
         lead: "We've refunded your deposit for Standard Clean.",
-        more: "That time got booked up while your bank was approving the payment.",
+        more: "That time filled up while your bank was approving the payment.",
       },
     });
     expect(next({ jobs: [job()], quotes: [filled] }).news).toEqual([
-      `We've refunded your deposit for the Standard Clean ${ON}, as that time got booked up while your bank was approving the payment. ${NEW_QUOTE}`,
+      `We've refunded your deposit for the Standard Clean ${ON}, as that time filled up while your bank was approving the payment. ${NEW_QUOTE}`,
     ]);
   });
 

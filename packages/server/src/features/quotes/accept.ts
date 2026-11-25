@@ -130,7 +130,7 @@ const words = catalog({
       "This quote was just updated, so nothing was booked. Please reload the page to see it.",
     planChanged:
       "Your cleaning plan changed just now, so nothing was booked. Please reload the page and try again.",
-    bookedUp: `Sorry, that time just got booked up, so nothing was charged. ${messages.en.NEW_QUOTE}`,
+    bookedUp: `Sorry, that time just filled up, so nothing was charged. ${messages.en.NEW_QUOTE}`,
     addCard: "Add a card to accept this quote.",
     planFor: (services: string) => `This cleaning plan is for ${services}.`,
     aService: (name: string) => `a ${name}`,

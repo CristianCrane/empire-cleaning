@@ -97,7 +97,7 @@ const words = catalog({
     hoursDeposit: (hours: string, deposit: string) =>
       lineOf([hours, `${deposit} deposit`]),
     noLongerFits:
-      "No longer fits on that day: it's been booked up since we sent this quote",
+      "No longer fits on that day: it has filled up since we sent this quote",
     onEvery: (extras: string) => `On every clean, included: ${extras}`,
     includes: (extras: string) => `Includes ${extras}`,
     tax: "Tax",
@@ -501,7 +501,7 @@ function OfferedQuote({
           },
         bookedUp &&
           !filled && {
-            key: "booked up",
+            key: "filled up",
             children: `${t.bookedUp(
               filledDaysOf({
                 plan: quote.plan,
@@ -1020,7 +1020,7 @@ function AcceptChange({ quote }: { quote: QuoteView }) {
   );
 }
 
-// beside accepting, quietly, or the page's one action once it's booked up:
+// beside accepting, quietly, or the page's one action once its time filled up:
 // they're asked once more before it's done. Not red, as they can ask for a
 // quote again (the `ui` skill)
 function Decline({ quote }: { quote: QuoteView }) {

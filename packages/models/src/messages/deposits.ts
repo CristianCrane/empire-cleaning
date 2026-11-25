@@ -123,8 +123,8 @@ const unbookedEn = (u: DepositUnbooked) => {
   switch (u.why) {
     case "no_room":
       return u.plan
-        ? `one of the days it starts on got booked up ${whileEn(u.card)}`
-        : `that time got booked up${u.other ? " for it" : ""} ${whileEn(u.card)}`;
+        ? `one of the days it starts on filled up ${whileEn(u.card)}`
+        : `that time filled up${u.other ? " for it" : ""} ${whileEn(u.card)}`;
     case "revised":
       return `your quote was updated ${whileEn(u.card)}`;
     case "closed":
@@ -212,11 +212,11 @@ export const deposits = catalog({
         : `Your payment didn't go through${why ? ` (${why})` : ""}. Please try again, or use another card.`,
     depositNoRoom: (card: boolean) =>
       card
-        ? `Sorry, that time got booked up ${whileEn(card)}, ${soEn(card)}. ${NEW_QUOTE_EN}`
-        : `Sorry, that time got booked up ${whileEn(card)}. We've refunded your deposit. ${NEW_QUOTE_EN}`,
+        ? `Sorry, that time filled up ${whileEn(card)}, ${soEn(card)}. ${NEW_QUOTE_EN}`
+        : `Sorry, that time filled up ${whileEn(card)}. We've refunded your deposit. ${NEW_QUOTE_EN}`,
     // its Service's time filled while another option still fits then
     depositNoRoomFor: (card: boolean, service: string, other: string) =>
-      `Sorry, that time got booked up for the ${service} ${whileEn(card)}, ${soEn(card)}. The ${other} can still be booked then.`,
+      `Sorry, that time filled up for the ${service} ${whileEn(card)}, ${soEn(card)}. The ${other} can still be booked then.`,
     depositRevised: (card: boolean) =>
       `This quote was updated ${whileEn(card)}, ${soEn(card)}. Please take a look at what's changed.`,
     depositExpired: (card: boolean) =>
