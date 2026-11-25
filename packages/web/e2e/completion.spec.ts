@@ -263,7 +263,7 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   await page.goto(`/office/jobs/${job.id}`);
   await expect(
     page.getByText(
-      /^Its payment didn't go through.*\. We've emailed the client to update their card, which tries again\.$/,
+      /^Its payment didn't go through.*\. We've emailed the client to update their card\. Once they do, we try the payment again\.$/,
     ),
   ).toBeVisible();
   await expect(page.getByRole("region", { name: "History" })).toContainText(
