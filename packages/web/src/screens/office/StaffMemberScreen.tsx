@@ -98,8 +98,9 @@ export function StaffMemberScreen() {
         <DetailsCard
           label="Details"
           tile={<Avatar src={member.imageUrl} size="lg" />}
-          kicker={formatList(member.roles.map((r) => roleLabel[r]))}
-          title={member.name}
+          // the page's title is their name, so the card leads with what
+          // they are here (#548's UX review U46)
+          title={formatList(member.roles.map((r) => roleLabel[r]))}
           line={member.email}
         >
           <Facts>
@@ -401,7 +402,9 @@ function Availability({ member }: { member: StaffDetail }) {
   return (
     <Section
       title="Working hours"
-      description="Their usual week, and the days that differ. Pick a day to change it."
+      // what the calendar shows, it shows: the line says only what to do
+      // (U47), the key under it what a tint means
+      description="Pick a day to change it."
       actions={
         <UsualWeek key={usualWeek.join()} member={member} usual={usualWeek} />
       }

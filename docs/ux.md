@@ -69,7 +69,9 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   offered).
 - **The details card** (`DetailsCard`): what it is, large, behind its tile
   (a `DateTile` for when, an `IconTile` for what, an `Avatar` for who),
-  a muted line above and below; then its facts (`Facts`, each an icon, a
+  a muted line above and below; never what the page's title already says,
+  so a Staff member's card leads with their role, as their name is the
+  title (#548's UX review U46); then its facts (`Facts`, each an icon, a
   value and a muted line), with the time, the address and how to reach
   someone among them, not in a part of their own. A card that counts its
   facts (the Office's Job and its Money, a Bill) takes as many columns as
