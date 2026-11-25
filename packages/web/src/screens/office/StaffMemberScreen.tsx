@@ -371,8 +371,8 @@ const daysOf = (month: string) => {
 // calendar draws it in and what the key under it says that colour means,
 // one record each, so the two can't disagree
 const tints = [
-  { tone: "bg-warning-subtle", key: "amber for a day off" },
-  { tone: "bg-info-subtle", key: "blue for other hours" },
+  { tone: "bg-warning-subtle", key: "Day off" },
+  { tone: "bg-info-subtle", key: "Other hours" },
 ] as const;
 const tintOf = (hours: number) => (hours === 0 ? tints[0] : tints[1]);
 
@@ -397,7 +397,7 @@ function Availability({ member }: { member: StaffDetail }) {
       .filter((e) => e.date.startsWith(`${month}-`) && differs(e))
       .map((e) => tintOf(e.hours)),
   );
-  const keys = tints.filter((tint) => shown.has(tint)).map((t) => t.key);
+  const keys = tints.filter((tint) => shown.has(tint));
 
   return (
     <Section
@@ -467,9 +467,24 @@ function Availability({ member }: { member: StaffDetail }) {
               );
             })}
           </div>
+          {/* a legend, each tint's swatch by its words and kept whole, so
+              a phone's line breaks between them, never under one (U48) */}
           {keys.length > 0 && (
-            <p className="text-sm text-fg-muted">
-              Tinted days differ from the usual week: {formatList(keys)}.
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-fg-muted">
+              Unlike the usual week:
+              {keys.map((tint) => (
+                <span
+                  key={tint.key}
+                  className="inline-flex items-center gap-1.5 whitespace-nowrap"
+                >
+                  {/* a space a screen reader reads, which a flex row drops */}{" "}
+                  <span
+                    aria-hidden
+                    className={`size-3 rounded-sm border border-border ${tint.tone}`}
+                  />
+                  {tint.key}
+                </span>
+              ))}
             </p>
           )}
         </div>
