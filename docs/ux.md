@@ -881,24 +881,32 @@ stays as it is (#336).
      `packages/web/src/screens/`, default-exports `prototype({ layouts,
      cases })` (`screens/Prototype.tsx`), each case drawing itself for a
      layout from made-up data, in the real frames through `AreaLayout`'s
-     `navFor`. It's at `/prototype/<screen>`, signed out, with
+     `PrototypeFrame`. It's at `/prototype/<screen>`, signed out, with
      `?layout=&case=`.
    - **The landing site:** `src/prototypes/<screen>.ts` default-exports
      `prototype({ layouts, cases })` (`src/prototype.ts`), a Spanish case
      with `lang: "es"`, and `src/prototypes/<screen>.astro` draws one, given
      `layout` and `case`. It's at `/prototype/<screen>/`, each case a page
      of its own, a Spanish one under `/es/`.
-   - **Looking at it:** `pnpm dev` (on a port of your own under 10000, with
-     `--strictPort`, when another may be running) draws a bar in the
-     corner, ↑/↓ for layouts and ←/→ for cases (`PrototypeBar`); with no
-     case, the address lists every one. The screen-layout lint is off in a
-     prototype, and the copies check skips its words.
+   - **Looking at it:** `pnpm dev` draws a bar in the corner
+     (`PrototypeBar`): ↑/↓ for layouts and ←/→ for cases, a link to the
+     list of them all, and a fold to a small pill when it covers what's
+     under it. With no case, the address is that list, a grid of every
+     layout × case (`PrototypeIndex`). When another dev server may be
+     running, give yours a port under 10000 with `--strictPort`: the test
+     runs lease theirs from 10000 up (`packages/server/tests/ports.ts`), and
+     a port already taken then fails at once rather than moving on. The
+     screen-layout lint is off in a prototype, and the copies check skips
+     its words.
    - **Shots:** `pnpm pr:shots --prototype <screen>` shoots every layout ×
-     case at rest at 412, 768, 1024 and 1280 px, with no bar, and lists them
-     in an `index.md` (`packages/web/README.md`), for the `ux-reviewer`
-     and the pick.
-   - A package a prototype adds stays on its branch; one the pick needs
-     comes in with the build.
+     case at rest, with no bar, at a phone's width and each where the
+     frames change (`WIDTHS` in
+     `packages/server/tests/e2e/prototype-shots.ts`), and shows them case
+     by case in an `index.md` (`packages/web/README.md`), for the
+     `ux-reviewer` and the pick.
+   - A package a prototype adds stays on its branch, as main would carry a
+     dependency nothing uses, which `pnpm lint:unused` (knip) turns down;
+     one the pick needs comes in with the build.
 3. **Pick one** with the user, and note any tweaks.
 4. **Build it** on a `ux-<screen>` branch, through the layout for its type
    (a change to how every screen of a type looks is a change to its layout),
