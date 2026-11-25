@@ -3010,6 +3010,51 @@ describe("the Client's Deposit payment, as their pages read it", () => {
     });
   });
 
+  // with nothing booked, there's no clean to list it by, so it's listed by
+  // its quote, which says why, with its refund: the money came back
+  // (#534's UX design, Screen 4)
+  test("a Deposit refunded as the time filled up is in their payment history, with its refund, by its quote", async () => {
+    // 8 hours on Monday
+    await cleaners(2, 4);
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("approved");
+    await payNow(client, quote, "standard").expect(200);
+    await bookedJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 7 });
+    // their bank approves it minutes on, when it's taken and given back:
+    // dated then, not when they paid
+    testClock().advance({ minutes: 5 });
+    await finalize(client, quote).expect(409);
+
+    const { depositCents } = standard(quote);
+    const byQuote = {
+      job: null,
+      servicePlanId: null,
+      bill: null,
+      quote: { id: quote.id, serviceName: "Standard Clean" },
+      clearing: false,
+      item: null,
+    };
+    // newest first: the refund, given back the moment it was taken
+    expect((await client.get("/api/payments/mine").expect(200)).body).toEqual([
+      {
+        id: expect.any(String),
+        at: "2026-01-05T09:05:00.000Z",
+        kind: "refund",
+        amountCents: -depositCents,
+        ...byQuote,
+      },
+      {
+        id: expect.any(String),
+        at: "2026-01-05T09:05:00.000Z",
+        kind: "deposit",
+        amountCents: depositCents,
+        ...byQuote,
+      },
+    ]);
+  });
+
   test("none once a newer Revision is sent, as it was for the last offer", async () => {
     await cleaners();
     const office = await signInAsOffice();

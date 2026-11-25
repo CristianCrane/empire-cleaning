@@ -54,6 +54,8 @@ const words = catalog({
     fromYour: (day: string, service: string) => `From your ${day} ${service}`,
     refundOn: (service: string) => `Refund on ${service}`,
     fromYourClean: (day: string) => `From your ${day} clean`,
+    // a quote's Deposit given back, as nothing could be booked
+    notBooked: "Not booked",
   },
   es: {
     toPay: "Por pagar",
@@ -88,6 +90,7 @@ const words = catalog({
     fromYour: (day: string, service: string) => `De su ${service} del ${day}`,
     refundOn: (service: string) => `Devolución de ${service}`,
     fromYourClean: (day: string) => `De su limpieza del ${day}`,
+    notBooked: "No se reservó",
   },
 });
 
@@ -102,6 +105,8 @@ export type PaymentsData = {
   pastJobs: ClientPastJob[];
   bills: BillSummary[];
   paymentMethod: PaymentMethodView | null;
+  // a Sent Quote's Deposit going through is money on its way (#534)
+  quotes: QuoteSummary[];
 };
 
 type Owed = {
@@ -157,11 +162,17 @@ export type MoneyNow = {
   // name it again (#534's UX review U16); null for none, or for more than
   // one ("Bill EC-000040, and 1 more")
   cardsBill: string | null;
+  // a quote's Deposit going through, as a sentence each, while the card
+  // asks something else of them, as Home's News says it (#534's UX design,
+  // Screen 4); none while the card is for it
+  news: string[];
 };
 
 const cardLink = linkTo({ to: "/portal/payment-method" });
 const billLink = (billId: string) =>
   linkTo({ to: "/portal/bills/$billId", params: { billId } });
+const quoteLink = (quoteId: string) =>
+  linkTo({ to: "/portal/quotes/$quoteId", params: { quoteId } });
 
 // "Oct 22", New York's day
 
@@ -178,6 +189,9 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
   } = t;
   const failedFor = (b: BillSummary) =>
     b.paying?.status === "failed" ? w.failedFor(b.number, b.paying.why) : null;
+  // a quote's Deposit going through: its money's left their bank (a 0%
+  // one's card saved moved none)
+  const going = data.quotes.filter((q) => waitOf(q) === "payment");
   const owing: Owing[] = [
     // a Bill that couldn't be taken, or is past its due date: its alert
     // says which, its last payment on its page first when that didn't go
@@ -206,6 +220,19 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
           },
         };
       }),
+    // a quote's Deposit going through, asking nothing, as Payment pending,
+    // as its quote's page says: first of what's on its way, as the newest,
+    // minutes old where a bank debit takes days (#534's UX design, Screen 4)
+    ...going.map((q): Owing => {
+      const named = namedFor(t, q, false);
+      return {
+        cents: q.paying!.depositCents,
+        late: false,
+        asks: false,
+        line: depositOf(lang, named.plan ? null : named.service),
+        action: { label: t.p.seeYourQuote, href: quoteLink(q.id) },
+      };
+    }),
     // a Bill whose bank debit is on its way: owed till it clears, asking
     // nothing, as Payment pending, as its page says (#534's UX review U10)
     ...data.bills
@@ -308,6 +335,9 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
     paying,
     clearing: data.bills.filter((b) => b.status === "processing"),
     cardsBill: (alike.length === 1 && first?.bill) || null,
+    news: owed?.asks
+      ? going.map((q) => t.depositPendingNews(namedFor(t, q, true)))
+      : [],
   };
 }
 
@@ -517,6 +547,15 @@ export function paymentRow(p: ClientPayment, lang: Language): PaymentRow {
       ),
       href: billLink(p.bill.id),
     };
+  }
+  // a Deposit given back as nothing could be booked, and its refund: by
+  // the quote, which says why (#534's UX design, Screen 4)
+  if (p.quote) {
+    const { id, serviceName } = p.quote;
+    const href = quoteLink(id);
+    return p.kind === "refund"
+      ? { title: serviceName ? w.refundOn(serviceName) : w.planRefund, href }
+      : { title: depositOf(lang, serviceName), line: w.notBooked, href };
   }
   if (p.servicePlanId) {
     const href = linkTo({

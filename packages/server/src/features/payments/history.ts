@@ -1,15 +1,26 @@
 import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import type { ClientPayment, ClientPaymentKind } from "@empire-cleaning/models";
-import { addDays, catalog, messages } from "@empire-cleaning/models";
+import {
+  addDays,
+  catalog,
+  inLanguage,
+  messages,
+} from "@empire-cleaning/models";
 import { currentLanguage } from "#services/request";
 import { db } from "../../db/index.ts";
 import { billNumber } from "../bills/billed-weekly.ts";
 import { bills } from "../bills/bills.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
+import { pendingDeposits, quotes } from "../quotes/quotes.schema.ts";
 import { servicePlans } from "../service-plans/service-plans.schema.ts";
 import { addOnNamesIn } from "../price-list/price-list.ts";
-import { serviceNameOf } from "../services/services.ts";
+import {
+  currentServices,
+  serviceNameOf,
+  serviceOf,
+} from "../services/services.ts";
+import { attemptsFor } from "./money.ts";
 import {
   charges,
   refunds,
@@ -37,13 +48,16 @@ const howWords = catalog({
  * page: each Charge (a Job's Deposit, Balance and fees, a Service Plan's
  * Deposit, a Bill) and each refund from one. A Bill being paid by bank debit
  * shows while it clears, and one Office Staff recorded as paid another way
- * shows when it was paid. A Charge that failed moved no money, so it isn't
- * here: what's owed is on the page above it.
+ * shows when it was paid. A Quote's Deposit taken, but given back as
+ * nothing could be booked, has no Charge, as it was for no Job or plan: it
+ * shows by its Quote, taken and given back (#534's UX design, Screen 4). A
+ * Charge that failed moved no money, so it isn't here: what's owed is on
+ * the page above it.
  */
 export const paymentHistoryFor = async (
   clientId: string,
 ): Promise<ClientPayment[]> => {
-  const [ownJobs, ownPlans, ownBills] = await Promise.all([
+  const [ownJobs, ownPlans, ownBills, ownQuotes] = await Promise.all([
     db
       .select({ job: jobs })
       .from(jobs)
@@ -55,6 +69,15 @@ export const paymentHistoryFor = async (
       .innerJoin(properties, eq(properties.id, servicePlans.propertyId))
       .where(eq(properties.clientId, clientId)),
     db.select().from(bills).where(eq(bills.clientId, clientId)),
+    db
+      .select({
+        id: quotes.id,
+        kind: quotes.kind,
+        serviceKey: quotes.serviceKey,
+      })
+      .from(quotes)
+      .innerJoin(properties, eq(properties.id, quotes.propertyId))
+      .where(eq(properties.clientId, clientId)),
   ]);
   const jobIds = ownJobs.map((r) => r.job.id);
   const planIds = ownPlans.map((p) => p.id);
@@ -127,7 +150,50 @@ export const paymentHistoryFor = async (
     job: jobOf(charge.jobId),
     servicePlanId: charge.servicePlanId,
     bill: billOf(charge.billId),
+    quote: null,
   });
+
+  // a Quote's Deposit given back unbooked, with money in it (a 0%
+  // Deposit's card saved took none), by the Service it was to book: its
+  // pending Deposit's, else what it asked for, else the Quote's own (on
+  // one asked before attempts kept it), as its pages read it
+  // (depositPaying)
+  const givenBack = (
+    await attemptsFor(
+      "deposit",
+      ownQuotes.map((q) => q.id),
+    )
+  ).filter(
+    ({ attempt }) => attempt.status === "given_back" && attempt.amountCents > 0,
+  );
+  const refs = givenBack.flatMap(({ attempt }) => attempt.gatewayRef ?? []);
+  const pending =
+    refs.length === 0
+      ? []
+      : await db
+          .select({
+            gatewayRef: pendingDeposits.gatewayRef,
+            serviceKey: pendingDeposits.serviceKey,
+          })
+          .from(pendingDeposits)
+          .where(inArray(pendingDeposits.gatewayRef, refs));
+  const services = givenBack.length === 0 ? [] : await currentServices();
+  const quoteOf = ({
+    attempt,
+    offer,
+  }: (typeof givenBack)[number]): ClientPayment["quote"] => {
+    const quote = ownQuotes.find((q) => q.id === attempt.forId)!;
+    if (quote.kind === "service_plan")
+      return { id: quote.id, serviceName: null };
+    const key =
+      pending.find((p) => p.gatewayRef === attempt.gatewayRef)?.serviceKey ??
+      offer?.serviceKey ??
+      quote.serviceKey;
+    return {
+      id: quote.id,
+      serviceName: inLanguage(currentLanguage(), serviceOf(services, key)).name,
+    };
+  };
 
   // a Job's Balance taken after its first was for an increase approved later.
   // The charges come newest first, so its first is the last seen. Two
@@ -178,6 +244,36 @@ export const paymentHistoryFor = async (
         item: said(r.item),
       };
     }),
+    // taken when it was found taken, by the Clock; one their bank approved
+    // is found taken only as it's given back (finalizeDeposit), so then.
+    // The refund first, as newest, when both were at once
+    ...givenBack.flatMap((row) => {
+      const { attempt } = row;
+      const of = {
+        job: null,
+        servicePlanId: null,
+        bill: null,
+        quote: quoteOf(row),
+        clearing: false,
+        item: null,
+      };
+      return [
+        {
+          id: `${attempt.id}-back`,
+          at: attempt.givenBackAt!.toISOString(),
+          kind: "refund" as const,
+          amountCents: -attempt.amountCents,
+          ...of,
+        },
+        {
+          id: attempt.id,
+          at: (attempt.endedAt ?? attempt.givenBackAt!).toISOString(),
+          kind: "deposit" as const,
+          amountCents: attempt.amountCents,
+          ...of,
+        },
+      ];
+    }),
     // what hasn't a Charge (yet): a bank debit clearing, or paid another way
     ...ownBills
       .filter(
@@ -195,6 +291,7 @@ export const paymentHistoryFor = async (
         job: null,
         servicePlanId: null,
         bill: billOf(b.id),
+        quote: null,
         clearing: b.status === "processing",
         item: null,
       })),

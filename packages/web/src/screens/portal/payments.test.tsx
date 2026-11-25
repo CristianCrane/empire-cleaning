@@ -3,12 +3,16 @@ import type {
   BillSummary,
   ClientPastJob,
   ClientPayment,
+  DepositPaying,
+  QuoteSummary,
 } from "@empire-cleaning/models";
 import {
   moneyNow as moneyNowIn,
   owedAnswer as owedAnswerIn,
   pausedLine as pausedLineIn,
   paymentRow as paymentRowIn,
+  waitLabelOf,
+  waitOf,
   type PaymentsData,
 } from "./payments.ts";
 
@@ -50,15 +54,39 @@ const bill = (over: Partial<BillSummary> = {}): BillSummary =>
     ...over,
   }) as BillSummary;
 
+// a Sent Quote for a Deep Clean, its Deposit for the Standard Clean they
+// chose going through, as their bank finishes it
+const going = (over: Partial<QuoteSummary> = {}): QuoteSummary =>
+  ({
+    id: "quote",
+    kind: "one_off",
+    status: "sent",
+    service: { key: "deep", name: "Deep Clean", method: "rooms" },
+    property: { id: "home", street: "12 Elm St", unit: null, postcode: "" },
+    proposedStartsAt: "2026-11-09T14:00:00.000Z",
+    paying: {
+      status: "goingThrough",
+      serviceKey: "standard",
+      depositCents: 4872,
+    },
+    payingServiceName: "Standard Clean",
+    bookable: null,
+    ...over,
+  }) as QuoteSummary;
+const goingAt = (depositCents: number) =>
+  going({ paying: { ...going().paying!, depositCents } as DepositPaying });
+
 const data = (over: Partial<PaymentsData> = {}): PaymentsData => ({
   plans: [],
   pastJobs: [],
   bills: [],
+  quotes: [],
   paymentMethod: card,
   ...over,
 });
 
 const href = (to: string, params: object) => ({ to, params });
+const quoteHref = href("/portal/quotes/$quoteId", { quoteId: "quote" });
 
 describe("what a Client owes now", () => {
   test("nothing, with the card they pay with", () => {
@@ -66,6 +94,7 @@ describe("what a Client owes now", () => {
       owed: null,
       paying: "Visa ending 4242",
       clearing: [],
+      news: [],
       cardsBill: null,
     });
   });
@@ -367,6 +396,118 @@ describe("the owed card", () => {
   });
 });
 
+// #534's UX design, Screen 4: the money's left their bank, so it's said
+// where they look for it, calmly, as a Bill's payment pending is
+describe("a quote's Deposit going through", () => {
+  test("is pending, asking nothing: what it's for, and a way to its quote", () => {
+    expect(moneyNow(data({ quotes: [going()] }))).toMatchObject({
+      owed: {
+        cents: 4872,
+        asks: false,
+        late: false,
+        line: "Deposit for Standard Clean",
+        why: null,
+        action: { label: "See your quote", href: quoteHref },
+      },
+      news: [],
+      cardsBill: null,
+    });
+    expect(owedAnswer(data({ quotes: [going()] })).hero).toMatchObject({
+      label: "Payment pending",
+      tone: "info",
+      headline: "$48.72",
+      lines: ["Deposit for Standard Clean · Nothing you need to do."],
+      action: { label: "See your quote", secondary: true },
+    });
+  });
+
+  test("a plan's is the plan's", () => {
+    expect(
+      moneyNow(data({ quotes: [going({ kind: "service_plan" })] })).owed?.line,
+    ).toBe("Deposit for your cleaning plan");
+    expect(
+      moneyNowIn(data({ quotes: [going({ kind: "service_plan" })] }), "es").owed
+        ?.line,
+    ).toBe("Depósito de su plan de limpieza");
+  });
+
+  // a 0% Deposit's card saved, or a time filled, moves no money
+  test("is all that's owed of a quote: nothing for a card being saved or a day filled", () => {
+    expect(
+      moneyNow(
+        data({
+          quotes: [
+            goingAt(0),
+            going({ paying: null, bookable: [] }),
+            going({ paying: null }),
+          ],
+        }),
+      ),
+    ).toMatchObject({ owed: null, news: [] });
+  });
+
+  test("two, or one beside a Bill's payment pending, are one calm card, the Deposit, newest, leading", () => {
+    const other = going({ id: "other", payingServiceName: "Deep Clean" });
+    expect(moneyNow(data({ quotes: [going(), other] })).owed).toMatchObject({
+      cents: 9744,
+      line: "Deposit for Standard Clean, and 1 more",
+      action: { href: quoteHref },
+    });
+
+    const debit = bill({ status: "processing" });
+    expect(moneyNow(data({ bills: [debit], quotes: [going()] }))).toMatchObject(
+      {
+        owed: {
+          cents: 4872 + 125350,
+          asks: false,
+          line: "Deposit for Standard Clean, and 1 more",
+          action: { label: "See your quote", href: quoteHref },
+        },
+        clearing: [debit],
+        // so the bank debit's notice names its Bill
+        cardsBill: null,
+      },
+    );
+  });
+
+  test("under a card that asks, it's News, in Home's words", () => {
+    const money = moneyNow(data({ bills: [bill()], quotes: [going()] }));
+    expect(money.owed).toMatchObject({ cents: 125350, asks: true });
+    expect(money.news).toEqual([
+      "Your deposit for the Standard Clean on Mon, Nov 9, 9:00 AM at 12 Elm St is pending. We'll email you as soon as it's booked, usually within half an hour.",
+    ]);
+    expect(
+      moneyNow(
+        data({ bills: [bill()], quotes: [going({ kind: "service_plan" })] }),
+      ).news,
+    ).toEqual([
+      "Your deposit for your cleaning plan at 12 Elm St is pending. We'll email you as soon as it's booked, usually within half an hour.",
+    ]);
+  });
+});
+
+// one rule for each page that names it (#534's UX design, Screens 2 to 4)
+describe("what a Sent Quote waits on that's nothing of theirs", () => {
+  test("its Deposit, a card saved for a 0% one, or its time filled", () => {
+    expect(waitOf(going())).toBe("payment");
+    expect(waitOf(goingAt(0))).toBe("booking");
+    expect(waitOf(going({ paying: null, bookable: [] }))).toBe("filled");
+    expect(waitOf(going({ paying: null }))).toBeNull();
+    // their bank waiting on them is theirs to answer
+    expect(
+      waitOf(
+        going({
+          paying: { ...going().paying!, status: "approving", until: "" },
+        }),
+      ),
+    ).toBeNull();
+    // a quote answered or gone waits on nothing
+    expect(waitOf(going({ status: "declined" }))).toBeNull();
+    expect(waitLabelOf("en", "payment")).toBe("Payment pending");
+    expect(waitLabelOf("es", "filled")).toBe("Día lleno");
+  });
+});
+
 const job = {
   id: "job",
   serviceName: "Standard Clean",
@@ -381,6 +522,7 @@ const payment = (over: Partial<ClientPayment> = {}): ClientPayment => ({
   job,
   servicePlanId: null,
   bill: null,
+  quote: null,
   clearing: false,
   item: null,
   ...over,
@@ -513,6 +655,46 @@ describe("how a payment reads", () => {
       line: "Goes towards your plan's last clean",
       href: href("/portal/plans/$planId", { planId: "plan" }),
     });
+  });
+
+  // nothing was booked, so there's no clean or plan to open: its quote
+  // says why (#534's UX design, Screen 4)
+  test("a Deposit given back as it couldn't book, and its refund, open the quote", () => {
+    const unbooked = (over: Partial<ClientPayment>) =>
+      payment({
+        kind: "deposit",
+        amountCents: 4872,
+        job: null,
+        quote: { id: "quote", serviceName: "Standard Clean" },
+        ...over,
+      });
+    expect(paymentRow(unbooked({}))).toEqual({
+      title: "Deposit for Standard Clean",
+      line: "Not booked",
+      href: quoteHref,
+    });
+    expect(
+      paymentRow(unbooked({ kind: "refund", amountCents: -4872 })),
+    ).toEqual({
+      title: "Refund on Standard Clean",
+      line: undefined,
+      href: quoteHref,
+    });
+
+    const plan = { id: "quote", serviceName: null };
+    expect(paymentRow(unbooked({ quote: plan }))).toEqual({
+      title: "Deposit for your cleaning plan",
+      line: "Not booked",
+      href: quoteHref,
+    });
+    expect(
+      paymentRow(unbooked({ kind: "refund", amountCents: -4872, quote: plan })),
+    ).toEqual({
+      title: "Refund of your cleaning plan deposit",
+      line: undefined,
+      href: quoteHref,
+    });
+    expect(paymentRowIn(unbooked({}), "es").line).toBe("No se reservó");
   });
 
   test("a Bill says its week", () => {

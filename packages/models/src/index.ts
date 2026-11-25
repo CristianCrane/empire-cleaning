@@ -1464,7 +1464,9 @@ export type ClientPaymentKind =
 
 // money that moved between a Client and us, for their Payments page
 // (GET /api/payments/mine). It was for a Job, a Service Plan's
-// Deposit, or a Bill; a refund was for what its Charge was for.
+// Deposit, or a Bill; a refund was for what its Charge was for. A Quote's
+// Deposit taken but given back, as nothing could be booked, was for its
+// Quote, as its refund was.
 export type ClientPayment = {
   id: string;
   at: string;
@@ -1484,6 +1486,10 @@ export type ClientPayment = {
     weekStart: IsoDate;
     weekEnd: IsoDate;
   } | null;
+  // the Quote a Deposit given back unbooked was for, and the Service it
+  // was to book: null for a Service Plan Quote's, named as the plan's
+  // (#534)
+  quote: { id: string; serviceName: string | null } | null;
   // a Bill's bank debit, on its way but not yet cleared
   clearing: boolean;
   // the one change to the price it was for, by name ("Inside the fridge",

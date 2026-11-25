@@ -6,7 +6,6 @@ import type {
   ServicePlanSummary,
   UnsentQuoteSummary,
 } from "@empire-cleaning/models";
-import { waitLabelOf, waitOf } from "./payments.ts";
 import { quoteTitle, standingOf, type PropertiesData } from "./properties.ts";
 
 const home = { id: "home", street: "", unit: null, postcode: "" };
@@ -231,23 +230,6 @@ describe("a home whose quote waits on nothing of theirs (#534)", () => {
         data({ quotes: [filled, quote({ status: "requested" })] }),
       ).label,
     ).toBe("Fully booked");
-  });
-
-  test("what it waits on, named alike on Home, a home's page and its own", () => {
-    expect(waitOf(paying())).toBe("payment");
-    expect(waitOf(booking)).toBe("booking");
-    expect(waitOf(filled)).toBe("filled");
-    expect(waitOf(sent)).toBeNull();
-    // their bank waiting on them is theirs to answer
-    expect(
-      waitOf(paying({ status: "approving", until: "" } as Paying)),
-    ).toBeNull();
-    // a quote answered or gone waits on nothing
-    expect(
-      waitOf({ ...filled, status: "declined" } as QuoteSummary),
-    ).toBeNull();
-    expect(waitLabelOf("en", "payment")).toBe("Payment pending");
-    expect(waitLabelOf("es", "filled")).toBe("Día lleno");
   });
 
   test("its row in the home's quotes names the clean it's paying for", () => {
