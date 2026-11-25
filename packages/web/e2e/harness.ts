@@ -853,7 +853,11 @@ export const expectCurrentSection = async (
 // main landmark and heading included, from assistive technology)
 export const expectAccessible = async (page: Page, within?: string) => {
   await page.waitForFunction((selector) => {
-    if (document.getAnimations().length) return false;
+    // a finished one moves nothing, and Chromium can list one for good: a
+    // style change's 0.01ms transition under reduced motion (docs/testing.md,
+    // "Every test browser")
+    const moving = (a: Animation) => a.playState !== "finished";
+    if (document.getAnimations().some(moving)) return false;
     // an animation can be yet to start: also wait until what's checked,
     // and all around it, is no longer see-through
     const checked = selector ? document.querySelector(selector) : document.body;
