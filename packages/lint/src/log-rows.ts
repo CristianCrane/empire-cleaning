@@ -38,8 +38,9 @@ export const logs: Log[] = [
   },
 ];
 
-// a little over two sentences of the logs' Whys as written (median 355, p90
-// 602 on 2026-11-25), where a Why's median was 418 and 80 of 197 ran past it
+// holds the first two sentences of 186 of the ux-log's 197 Whys (median about
+// 240 characters, p90 about 425, on 2026-11-25), where a whole Why's median
+// was 418 and 80 ran past 500
 const CAP = 500;
 
 // a new row's cell over CAP, by its line, column and length
