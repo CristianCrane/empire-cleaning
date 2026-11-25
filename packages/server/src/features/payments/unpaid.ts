@@ -2,6 +2,7 @@ import {
   asksTheClient,
   because,
   catalog,
+  type CardPayment,
   type Language,
   type Unpaid,
   type UnpaidKind,
@@ -18,16 +19,20 @@ import { NO_CARD, UNREACHABLE } from "./money.ts";
 export const NOT_SETTLED = "its payment couldn't be worked out";
 // why a Bill paid on its page is Unpaid
 export const LATE = "not paid by its due date";
+// the provider's, for a charge it leaves processing (ADR-0022)
+export const PROCESSING = "processing";
 
 // ours, and the provider's own that we know: each with its kind. A bank
 // asking for approval reads as a decline, as a new card is how they fix it
 const known: Record<string, UnpaidKind> = {
   [UNREACHABLE]: "waiting",
-  processing: "waiting",
+  [PROCESSING]: "waiting",
   [NOT_SETTLED]: "waiting",
   [NO_CARD]: "no_card",
   [LATE]: "late",
   needs_approval: "declined",
+  // trying an expired card again can't take it: a new card puts it right
+  expired_card: "no_card",
 };
 
 // why, in words, in the reader's language (ADR-0025): ours, and the few
@@ -38,7 +43,7 @@ const whyWords = catalog({
     [UNREACHABLE]: "we couldn't reach the payment service",
     // a charge to the saved card the provider leaves processing (ADR-0022):
     // only a card is charged so, so no bank payment is clearing
-    processing: "it's still being processed",
+    [PROCESSING]: "it's still being processed",
     [NOT_SETTLED]: "something went wrong on our side",
     [NO_CARD]: "no card is saved",
     [LATE]: "it wasn't paid by its due date",
@@ -50,7 +55,7 @@ const whyWords = catalog({
   },
   es: {
     [UNREACHABLE]: "no pudimos comunicarnos con el servicio de pagos",
-    processing: "se está procesando",
+    [PROCESSING]: "se está procesando",
     [NOT_SETTLED]: "algo salió mal de nuestra parte",
     [NO_CARD]: "no hay ninguna tarjeta guardada",
     [LATE]: "no se pagó antes de la fecha límite",
@@ -65,6 +70,13 @@ const whyWords = catalog({
 // how trying a payment again went: what it took, and why not when it
 // failed (a stored reason, as above)
 export type Retried = { takenCents: number; failure: string | null };
+
+// the same, for one of a Client's payments, as Your card names it
+export type CardTried = CardPayment extends infer P
+  ? P extends CardPayment
+    ? Omit<P, "cents"> & Retried
+    : never
+  : never;
 
 // what kind of failure it is, whatever the language
 export const unpaidKind = (reason: string): UnpaidKind =>

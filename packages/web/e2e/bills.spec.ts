@@ -672,7 +672,7 @@ test("Your card tries a declined Bill again, and says it's paid", async ({
 test("Your card's retry that fails again says why, and keeps the way out", async ({
   page,
 }) => {
-  const { billId } = await billed({ failing: "expired_card" });
+  const { billId } = await billed({ failing: "insufficient_funds" });
   await signedInAs(page, casey.email);
   await page.goto(`/portal/bills/${billId}`);
   await page.getByRole("link", { name: "Update your card" }).click();
@@ -681,12 +681,53 @@ test("Your card's retry that fails again says why, and keeps the way out", async
   await needed.getByRole("button", { name: "Try this card again" }).click();
   await expect(
     page.getByText(
-      "The payment still didn't go through (the card has expired). You can save a different card below.",
+      "The payment still didn't go through (there wasn't enough money in the account). You can save a different card below.",
     ),
   ).toBeVisible();
   await expect(needed).toContainText(
-    "We couldn't take $269.47 for bill EC-000001 from your Test card ending 4242 (the card has expired).",
+    "We couldn't take $269.47 for bill EC-000001 from your Test card ending 4242 (there wasn't enough money in the account).",
   );
+  await expect(
+    needed.getByRole("button", { name: "Try this card again" }),
+  ).toBeVisible();
+});
+
+// an expired card can't be taken however often it's tried: Your card asks
+// for a new one, with no retry to press (#499's UX review U1)
+test("Your card asks for a new card in place of an expired one, with no retry", async ({
+  page,
+}) => {
+  const { billId } = await billed({ failing: "expired_card" });
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/bills/${billId}`);
+  await page.getByRole("link", { name: "Update your card" }).click();
+
+  const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
+  await expect(needed).toContainText(
+    "We couldn't take $269.47 for bill EC-000001 from your Test card ending 4242 (the card has expired). Save a new card below and we'll try again.",
+  );
+  await expect(needed.getByRole("button")).toHaveCount(0);
+});
+
+// the provider leaves the retried charge processing: it may yet be taken
+// or declined, so Your card says it's going through, never that it's paid
+// (critical diff review C7)
+test("Your card's retry still going through says so, not that it's paid", async ({
+  page,
+}) => {
+  const { billId } = await billed({ failing: "insufficient_funds" });
+  await failCharges("processing");
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/bills/${billId}`);
+  await page.getByRole("link", { name: "Update your card" }).click();
+
+  const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
+  await needed.getByRole("button", { name: "Try this card again" }).click();
+  await expect(
+    page.getByText("We tried your card. The payment is still going through."),
+  ).toBeVisible();
+  await expect(needed).toHaveCount(0);
+  await expect(page.getByText(/^Paid\. We took/)).toHaveCount(0);
 });
 
 // a clean done and not yet billed: Payments says what Monday's Bill holds
@@ -697,7 +738,9 @@ test("Payments says what's on the next Bill so far", async ({ page }) => {
   await page.goto("/portal/payments");
   const next = page.getByRole("region", { name: "Next bill" });
   await expect(next).toContainText("$269.47");
-  await expect(next).toContainText("So far, on your bill of Mon, Jan 12");
+  await expect(next).toContainText(
+    "So far, charged to your card on Mon, Jan 12",
+  );
 });
 
 // a Bill's payment we try again ourselves waits on us: its badge and its

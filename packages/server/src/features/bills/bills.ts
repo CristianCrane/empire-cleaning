@@ -91,6 +91,7 @@ import {
   nowTheirs,
   unpaidKind,
   whyNotPaid,
+  type CardTried,
   type Retried,
 } from "../payments/unpaid.ts";
 import { properties } from "../properties/properties.schema.ts";
@@ -693,7 +694,7 @@ export const retryBill = async (
 // with it, as their Jobs are, saying how each went
 export const retryUnpaidBillsFor = async (clientId: string) => {
   const unpaid = await db
-    .select({ id: bills.id })
+    .select({ id: bills.id, number: bills.number })
     .from(bills)
     .where(
       and(
@@ -703,14 +704,15 @@ export const retryUnpaidBillsFor = async (clientId: string) => {
         isNotNull(bills.unpaidSince),
       ),
     );
-  const retried: Retried[] = [];
-  for (const { id } of unpaid) {
+  const retried: CardTried[] = [];
+  for (const { id, number } of unpaid) {
+    const bill = { kind: "bill" as const, id, number: billNumber(number) };
     try {
-      retried.push(await retryBill(id, { anyReason: true }));
+      retried.push({ ...bill, ...(await retryBill(id, { anyReason: true })) });
     } catch (error) {
       // the rest are still tried; this one stays Unpaid
       monitoring.error(error, { what: `Unpaid Bill ${id} not retried` });
-      retried.push({ takenCents: 0, failure: NOT_SETTLED });
+      retried.push({ ...bill, takenCents: 0, failure: NOT_SETTLED });
     }
   }
   return retried;

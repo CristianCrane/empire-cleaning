@@ -1444,11 +1444,28 @@ export type ClientPaymentKind =
 export type NextCharge =
   // a clean charged once it's done: what it will charge then, and its start
   | { kind: "clean"; cents: number; startsAt: string }
-  // cleans done, on the next weekly Bill: what it holds so far, and its day
-  | { kind: "bill"; cents: number; billOn: IsoDate }
+  // cleans done, on the next weekly Bill: what it holds so far, its day,
+  // and how it's paid
+  | { kind: "bill"; cents: number; billOn: IsoDate; payment: BillPayment }
   // a clean booked on a weekly Bill: the earliest that Bill can be made, as
   // what it holds isn't known till then
-  | { kind: "billedClean"; startsAt: string; billOn: IsoDate };
+  | {
+      kind: "billedClean";
+      startsAt: string;
+      billOn: IsoDate;
+      payment: BillPayment;
+    };
+
+// a payment a Client's card is for, as Your card names it (#499): a clean,
+// by its day, or a weekly Bill, by its number
+export type CardPayment = { id: string; cents: number } & (
+  { kind: "clean"; startsAt: string } | { kind: "bill"; number: string }
+);
+
+// what trying their card again took (POST /api/payments/mine/retry, and
+// saving a card): each payment taken in full, and whether any is still
+// going through, which it may yet take or not
+export type CardRetried = { took: CardPayment[]; goingThrough: boolean };
 
 // money that moved between a Client and us, for their Payments page
 // (GET /api/payments/mine). It was for a Job, a Service Plan's
@@ -1831,7 +1848,8 @@ export type JobPayment = {
 
 // why a payment didn't go through, by what puts it right: "declined", a new
 // card or another way to pay (a bank asking for approval too); "waiting",
-// nothing, as we try again ourselves (ADR-0022); "no_card", adding one;
+// nothing, as we try again ourselves (ADR-0022); "no_card", adding one
+// (none is saved, or it's expired);
 // "late", paying the Bill on its page
 export type UnpaidKind = "declined" | "waiting" | "no_card" | "late";
 
@@ -1869,10 +1887,7 @@ export type ClientPastJob = ClientJob & {
   // what a Cancelled or No Access one cost; 0 if nothing
   feeCents: number;
   // why it's Unpaid, if it is
-  unpaid: UnpaidKind | null;
-  // and the payment service's reason, as a clause ("the card was
-  // declined"), when it gave one we word; else null
-  unpaidWhy: string | null;
+  unpaid: Unpaid | null;
   // what an Unpaid one still owes; 0 otherwise
   owedCents: number;
   // increases proposed to them, waiting on their answer

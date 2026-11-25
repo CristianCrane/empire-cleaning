@@ -170,7 +170,7 @@ describe("skipping a plan Job", () => {
     );
 
     testPayments().failCharges(null);
-    await client.post("/api/payments/mine/retry").expect(204);
+    await client.post("/api/payments/mine/retry").expect(200);
 
     const after = await clientJob(client, jobId);
     expect(after.cancellation!.payment).toEqual(

@@ -20,6 +20,7 @@ import {
 } from "@stripe/stripe-js";
 import {
   type CardForm,
+  type CardRetried,
   type PaymentForm,
   type PaymentMethodView,
   catalog,
@@ -510,7 +511,11 @@ export function useCardForm() {
       }
       token = setUp.current = result.setupIntent.id;
     }
-    return putJson<PaymentMethodView>("/api/payment-methods/mine", { token });
+    // and what saving it took of what it owed (#499)
+    return putJson<PaymentMethodView & CardRetried>(
+      "/api/payment-methods/mine",
+      { token },
+    );
   }, [form, ready, w]);
 
   const reset = useCallback(() => {

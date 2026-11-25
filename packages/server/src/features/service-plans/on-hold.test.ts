@@ -86,7 +86,7 @@ describe("a plan Job left Unpaid", () => {
         completedAt: null,
         totalCents: 0,
         feeCents: PLAN_DEPOSIT,
-        unpaid: "declined",
+        unpaid: expect.objectContaining({ kind: "declined" }),
       }),
       // its First Clean, before the plan
       expect.objectContaining({ status: "completed", skipped: false }),
@@ -114,7 +114,7 @@ describe("a plan Job left Unpaid", () => {
     expect(await generateServicePlanJobs()).toBe(0);
 
     testPayments().failCharges(null);
-    await client.post("/api/payments/mine/retry").expect(204);
+    await client.post("/api/payments/mine/retry").expect(200);
     expect((await clientPlan(client, planId)).status).toBe("active");
     expect(
       (await needsAttention(office)).filter((i) => i.kind === "plan_on_hold"),
@@ -139,7 +139,7 @@ describe("a plan Job left Unpaid", () => {
     // paid at 3pm on Sunday 15 February: Monday's 9am clean comes next
     testClock().set(new Date("2026-02-15T20:00:00Z"));
     testPayments().failCharges(null);
-    await client.post("/api/payments/mine/retry").expect(204);
+    await client.post("/api/payments/mine/retry").expect(200);
     await generateServicePlanJobs();
 
     const monday = (await clientPlan(client, planId)).upcoming.find(

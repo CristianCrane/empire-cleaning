@@ -4,8 +4,9 @@ import { LATE, NOT_SETTLED, whyNotPaid } from "./unpaid.ts";
 
 describe("why a payment didn't go through", () => {
   test("a decline worth naming says what's wrong", () => {
+    // trying it again can't take it: a new card puts it right
     expect(whyNotPaid("en", "expired_card")).toEqual({
-      kind: "declined",
+      kind: "no_card",
       why: "the card has expired",
     });
     expect(whyNotPaid("en", "insufficient_funds")).toEqual({
@@ -39,7 +40,7 @@ describe("why a payment didn't go through", () => {
 describe("why, in the reader's language (ADR-0025)", () => {
   test("a Spanish reader reads it in Spanish", () => {
     expect(whyNotPaid("es", "expired_card")).toEqual({
-      kind: "declined",
+      kind: "no_card",
       why: "la tarjeta venció",
     });
     expect(whyNotPaid("es", "card_declined").why).toBeNull();

@@ -14,7 +14,7 @@ import {
   startCardForm,
   toPaymentMethodView,
 } from "./payments.ts";
-import { clientRetry, retryUnpaidFor } from "./retry-unpaid.ts";
+import { clientRetry, retryUnpaidFor, tookOf } from "./retry-unpaid.ts";
 
 export const router = Router();
 
@@ -54,8 +54,8 @@ router.put(
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
     const saved = await savePaymentMethod(client, req.body.token);
-    await retryUnpaidFor(client.id);
-    res.json(saved);
+    // and what that took, for Your card to say
+    res.json({ ...saved, ...tookOf(await retryUnpaidFor(client.id)) });
   },
 );
 
@@ -75,12 +75,11 @@ historyRouter.get("/mine/next", authorize("client"), async (_req, res) => {
   res.json(await nextChargeFor(client));
 });
 
-// tries their saved card again for every payment it failed to take (#499);
-// a 409 says what still didn't go through
+// tries their saved card again for every payment it failed to take (#499),
+// saying what it took; a 409 says what still didn't go through
 historyRouter.post("/mine/retry", authorize("client"), async (_req, res) => {
   const client = await ownClient(signedInAccount(res).id);
-  await clientRetry(client.id);
-  res.status(204).end();
+  res.json(await clientRetry(client.id));
 });
 
 // ---- the Office ----

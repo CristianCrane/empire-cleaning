@@ -58,9 +58,9 @@ import { staff } from "../staff/staff.schema.ts";
 import {
   NOT_SETTLED,
   stillNotPaid,
-  unpaidKind,
+  unpaidOf,
+  type CardTried,
   type Retried,
-  whyNotPaid,
 } from "../payments/unpaid.ts";
 import {
   counts,
@@ -939,10 +939,7 @@ export const pastJobsFor = async (
             ? totalOf(quoted.get(job.id)!.totalCents, own)
             : 0,
         feeCents: job.status === "completed" ? 0 : (job.feeCents ?? 0),
-        unpaid: job.unpaidSince ? unpaidKind(job.unpaidReason ?? "") : null,
-        unpaidWhy: job.unpaidSince
-          ? whyNotPaid(currentLanguage(), job.unpaidReason ?? "").why
-          : null,
+        unpaid: unpaidOf(currentLanguage(), job.unpaidSince, job.unpaidReason),
         owedCents: job.unpaidSince ? (await paymentOf(job)).owedCents : 0,
         waiting: own
           .filter((a) => a.status === "proposed")
@@ -1058,18 +1055,23 @@ export const retryJob = async (jobId: string): Promise<Retried> => {
 // again with it, saying how each went
 export const retryUnpaidJobsFor = async (clientId: string) => {
   const unpaid = await db
-    .select({ id: jobs.id })
+    .select({ id: jobs.id, startsAt: jobs.startsAt })
     .from(jobs)
     .innerJoin(properties, eq(properties.id, jobs.propertyId))
     .where(and(eq(properties.clientId, clientId), isNotNull(jobs.unpaidSince)));
-  const retried: Retried[] = [];
-  for (const { id } of unpaid) {
+  const retried: CardTried[] = [];
+  for (const { id, startsAt } of unpaid) {
+    const clean = {
+      kind: "clean" as const,
+      id,
+      startsAt: startsAt.toISOString(),
+    };
     try {
-      retried.push(await retryJob(id));
+      retried.push({ ...clean, ...(await retryJob(id)) });
     } catch (error) {
       // the rest are still tried; this one stays Unpaid
       monitoring.error(error, { what: `Unpaid Job ${id} not retried` });
-      retried.push({ takenCents: 0, failure: NOT_SETTLED });
+      retried.push({ ...clean, takenCents: 0, failure: NOT_SETTLED });
     }
   }
   return retried;

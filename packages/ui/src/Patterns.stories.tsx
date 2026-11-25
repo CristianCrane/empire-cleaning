@@ -1078,8 +1078,8 @@ function OwedFirst() {
         <Example verdict="Do">
           <AnswerCard
             tile={<IconTile icon={CircleCheck} tone="success" size="lg" />}
-            label="You're all paid up"
-            headline="Nothing owed"
+            label="To pay"
+            headline="Nothing"
           />
           <HomeTiles
             label="Your payments"

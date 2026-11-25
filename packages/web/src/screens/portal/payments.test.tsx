@@ -35,8 +35,7 @@ const card = { label: "Visa ending 4242", savedAt: "", consentedAt: "" };
 const unpaidClean = {
   id: "job",
   startsAt: CLEAN,
-  unpaid: "declined",
-  unpaidWhy: null,
+  unpaid: { since: CLEAN, kind: "declined", why: null },
   owedCents: 18450,
 } as ClientPastJob;
 
@@ -88,7 +87,14 @@ describe("what a Client owes now", () => {
 
   test("a clean waiting on the payment service: nothing to do but see it", () => {
     const { owed } = moneyNow(
-      data({ pastJobs: [{ ...unpaidClean, unpaid: "waiting" }] }),
+      data({
+        pastJobs: [
+          {
+            ...unpaidClean,
+            unpaid: { since: CLEAN, kind: "waiting", why: null },
+          },
+        ],
+      }),
     );
 
     expect(owed).toMatchObject({
@@ -385,12 +391,26 @@ describe("what's taken next", () => {
 
   test("a weekly Bill: what's on it so far, and when it's made", () => {
     expect(
-      nextAnswer({ kind: "bill", cents: 26947, billOn: "2026-10-26" }),
+      nextAnswer({
+        kind: "bill",
+        cents: 26947,
+        billOn: "2026-10-26",
+        payment: "automatic",
+      }),
     ).toMatchObject({
       label: "Next bill",
       headline: "$269.47",
-      lines: ["So far, on your bill of Mon, Oct 26"],
+      lines: ["So far, charged to your card on Mon, Oct 26"],
     });
+    // one they pay on its page isn't said to be charged
+    expect(
+      nextAnswer({
+        kind: "bill",
+        cents: 26947,
+        billOn: "2026-10-26",
+        payment: "on_page",
+      }).lines,
+    ).toEqual(["So far, billed to you on Mon, Oct 26"]);
   });
 
   test("a weekly Bill with only a clean booked: its day, no amount yet", () => {
@@ -399,11 +419,12 @@ describe("what's taken next", () => {
         kind: "billedClean",
         startsAt: CLEAN,
         billOn: "2026-10-26",
+        payment: "automatic",
       }),
     ).toMatchObject({
       label: "Next bill",
       headline: "Mon, Oct 26",
-      lines: ["For your Tue, Oct 20 clean"],
+      lines: ["For your Tue, Oct 20 clean, charged to your card"],
     });
   });
 

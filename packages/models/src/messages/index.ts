@@ -63,7 +63,7 @@ export {
   whyNoRoom,
   type NoRoom,
 } from "./jobs.ts";
-export { asksTheClient, because, cardRetries, officeFix } from "./payments.ts";
+export { asksTheClient, because, officeFix } from "./payments.ts";
 export {
   clientPaying,
   needsVisit,

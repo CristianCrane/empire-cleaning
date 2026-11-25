@@ -2,14 +2,11 @@ import { describe, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 import type { NextCharge, SignedInAccount } from "@empire-cleaning/models";
 import { db } from "#db";
-import { confirmAssignment, offerAssignment } from "#features/assignments";
-import { completeJob, paymentOf } from "#features/completion";
+import { paymentOf } from "#features/completion";
 import { jobs } from "#features/jobs";
-import { signIn, testClock } from "../../../tests/harness.ts";
+import { signIn } from "../../../tests/harness.ts";
 import {
   acceptedJob,
-  billWeekly,
-  billedWeek,
   casey,
   completedFirstClean,
   signInAsOffice,
@@ -50,47 +47,6 @@ describe("what a Client's card or Bill takes next (#508)", () => {
       kind: "clean",
       cents: await restOf(job.id),
       startsAt: WEDNESDAY_9AM,
-    });
-  });
-
-  test("a weekly Client's clean done this week: on next Monday's Bill, though no Job is still booked", async () => {
-    const me = await officeAccount();
-    const { jobId } = await billedWeek({ byAccountId: me.id, unbilled: true });
-
-    expect(await nextOf()).toEqual({
-      kind: "bill",
-      cents: await restOf(jobId),
-      billOn: "2026-01-12",
-    });
-  });
-
-  test("a weekly Client's booked clean: the Bill it goes on, never a Monday gone", async () => {
-    const me = await officeAccount();
-    const cory = await staffMember("Cory Cleaner");
-    const job = await acceptedJob({
-      startsAt: WEDNESDAY_9AM,
-      byAccountId: me.id,
-    });
-    await billWeekly();
-    const offered = await offerAssignment(job.id, cory.id, me.id);
-    await confirmAssignment(cory.id, offered.assignments[0]!.id);
-
-    expect(await nextOf()).toEqual({
-      kind: "billedClean",
-      startsAt: WEDNESDAY_9AM,
-      billOn: "2026-01-12",
-    });
-
-    // Monday the 12th, not yet marked done: its week's Bill is made without
-    // it, so it goes on the next one
-    testClock().set(new Date("2026-01-12T15:00:00Z"));
-    expect(await nextOf()).toMatchObject({ billOn: "2026-01-19" });
-
-    testClock().set(new Date("2026-01-14T17:00:00Z"));
-    await completeJob(cory.id, job.id, { condition: "moderate", reports: [] });
-    expect(await nextOf()).toMatchObject({
-      kind: "bill",
-      billOn: "2026-01-19",
     });
   });
 

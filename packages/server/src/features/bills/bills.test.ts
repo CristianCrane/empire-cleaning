@@ -748,7 +748,7 @@ describe("a Bill payment the Client's bank asks them to approve", () => {
     expect(testPayments().paymentAttempts).toHaveLength(asked);
     // still Unpaid for the card that expired, as nothing more was tried
     expect((await billOf(office, id)).unpaid).toMatchObject({
-      kind: "declined",
+      kind: "no_card",
       why: "the card has expired",
     });
 
@@ -2414,16 +2414,54 @@ describe("a weekly Client's retry and next Bill", () => {
     return { ...billed, id: summary!.id, totalCents: summary!.totalCents };
   };
 
-  test("the Client's retry takes a declined weekly Bill", async () => {
+  test("the Client's retry takes a declined weekly Bill, and says so", async () => {
     const { office, id, totalCents } = await declinedBill();
     const client = await signIn(casey.email);
     const before = testPayments().charges.length;
 
-    await client.post("/api/payments/mine/retry").expect(204);
+    const res = await client.post("/api/payments/mine/retry").expect(200);
 
     expect(testPayments().charges.length).toBe(before + 1);
     expect(testPayments().charges.at(-1)!.amount).toBe(totalCents);
     expect(await billOf(office, id)).toMatchObject({ status: "paid" });
+    expect(res.body).toEqual({
+      took: [{ kind: "bill", id, number: "EC-000001", cents: totalCents }],
+      goingThrough: false,
+    });
+  });
+
+  // the card was tried, but the provider left the charge processing: it
+  // may yet be taken or declined, so it's neither said to be paid nor not
+  // tried (critical diff review C7)
+  test("a retry the provider leaves processing says it's going through, and took nothing", async () => {
+    const { office, id } = await declinedBill();
+    const client = await signIn(casey.email);
+    testPayments().failCharges("processing");
+
+    const res = await client.post("/api/payments/mine/retry").expect(200);
+
+    expect(res.body).toEqual({ took: [], goingThrough: true });
+    expect(await billOf(office, id)).toMatchObject({ status: "due" });
+  });
+
+  // saving a card tries it too, and says what it took
+  test("saving a card takes a declined weekly Bill, and says so", async () => {
+    const { id, totalCents } = await declinedBill();
+    const client = await signIn(casey.email);
+
+    const form = (
+      await client.post("/api/payment-methods/mine/card-form").expect(200)
+    ).body as { secret: string };
+
+    const res = await client
+      .put("/api/payment-methods/mine")
+      .send({ token: form.secret })
+      .expect(200);
+
+    expect(res.body).toMatchObject({
+      took: [{ kind: "bill", id, cents: totalCents }],
+      goingThrough: false,
+    });
   });
 
   // the Client is approving a payment on the Bill's page: nothing to take,
@@ -2474,6 +2512,7 @@ describe("a weekly Client's retry and next Bill", () => {
       kind: "bill",
       billOn: "2026-01-12",
       cents: priceCents - depositCents,
+      payment: "automatic",
     });
 
     // and Monday's run charges exactly that
@@ -2528,7 +2567,7 @@ describe("a weekly Client's retry and next Bill", () => {
 
   // a declined automatic Bill the Client is paying by bank on its page
   // reads, to the Client, as still Unpaid and declined, but no longer due:
-  // Your card's cardRetries leaves it out, and the retry has nothing to take
+  // Your card leaves it out, and the retry has nothing to take
   test("a Bill whose bank payment is on its way isn't one Your card offers to retry", async () => {
     const { id } = await declinedBill();
     const client = await signIn(casey.email);

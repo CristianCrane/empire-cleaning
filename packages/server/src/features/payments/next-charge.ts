@@ -29,13 +29,19 @@ export const nextChargeFor = async (
   client: Pick<Client, "id" | "billedWeeklyFrom" | "billPayment">,
 ): Promise<NextCharge | null> => {
   const today = dayOf(clock.now());
-  if (weeklyBillOf(client)) {
+  const billPayment = weeklyBillOf(client);
+  if (billPayment) {
     // next Monday's Bill is for this week
     const thisWeek = mondayOf(today);
     const billed = await billedNow(client, thisWeek, db, { lock: false });
     const cents = billed?.lines.reduce((s, l) => s + l.amountCents, 0) ?? 0;
     if (cents > 0) {
-      return { kind: "bill", cents, billOn: addDays(thisWeek, 7) };
+      return {
+        kind: "bill",
+        cents,
+        billOn: addDays(thisWeek, 7),
+        payment: billPayment,
+      };
     }
   }
   const booked = await db
@@ -46,8 +52,14 @@ export const nextChargeFor = async (
     .orderBy(asc(jobs.startsAt), asc(jobs.id));
   for (const { job } of booked) {
     const startsAt = job.startsAt.toISOString();
-    if (weeklyBillFor(job, client)) {
-      return { kind: "billedClean", startsAt, billOn: billMadeOn(job, today) };
+    const payment = weeklyBillFor(job, client);
+    if (payment) {
+      return {
+        kind: "billedClean",
+        startsAt,
+        billOn: billMadeOn(job, today),
+        payment,
+      };
     }
     const cents = await owedOnceDone(job);
     if (cents > 0) return { kind: "clean", cents, startsAt };

@@ -26,8 +26,12 @@ const words = catalog({
     chargedAfter: (day: string) =>
       `Charged to your card after your ${day} clean`,
     nextBill: "Next bill",
-    soFarOn: (day: string) => `So far, on your bill of ${day}`,
+    // what's on it so far, and when it's taken, by how it's paid
+    soFarCharged: (day: string) => `So far, charged to your card on ${day}`,
+    soFarBilled: (day: string) => `So far, billed to you on ${day}`,
     forYourClean: (day: string) => `For your ${day} clean`,
+    forCleanCharged: (day: string) =>
+      `For your ${day} clean, charged to your card`,
     billDue: (n: string, day: string) => `Bill ${n} is due by ${day}`,
     andMore: (first: string, n: number) => `${first}, and ${n} more`,
     // their last payment on a Bill's page, for a sentence to end (#534)
@@ -69,8 +73,12 @@ const words = catalog({
     chargedAfter: (day: string) =>
       `Se cobra a su tarjeta después de su limpieza del ${day}`,
     nextBill: "Próxima factura",
-    soFarOn: (day: string) => `Hasta ahora, en su factura del ${day}`,
+    soFarCharged: (day: string) =>
+      `Hasta ahora, se cobra a su tarjeta el ${day}`,
+    soFarBilled: (day: string) => `Hasta ahora, se le factura el ${day}`,
     forYourClean: (day: string) => `Por su limpieza del ${day}`,
+    forCleanCharged: (day: string) =>
+      `Por su limpieza del ${day}, cobrada a su tarjeta`,
     billDue: (n: string, day: string) => `La factura ${n} vence el ${day}`,
     andMore: (first: string, n: number) => `${first}, y ${n} más`,
     failedFor: (n: string, why: string | null) =>
@@ -236,7 +244,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
     ...data.pastJobs
       .filter((j) => j.unpaid)
       .map((j): Owing => {
-        const asks = asksTheClient(j.unpaid!);
+        const asks = asksTheClient(j.unpaid!.kind);
         return {
           cents: j.owedCents,
           late: asks,
@@ -459,7 +467,11 @@ export function nextAnswer(next: NextCharge | null, lang: Language): Hero {
         icon: Receipt,
         tone: "info",
         headline: t.formatMoney(next.cents),
-        lines: [w.soFarOn(t.formatDay(next.billOn))],
+        lines: [
+          (next.payment === "automatic" ? w.soFarCharged : w.soFarBilled)(
+            t.formatDay(next.billOn),
+          ),
+        ],
       };
     // its amount isn't known till the Bill is made: others may join it
     case "billedClean":
@@ -468,7 +480,11 @@ export function nextAnswer(next: NextCharge | null, lang: Language): Hero {
         icon: Receipt,
         tone: "info",
         headline: t.formatDay(next.billOn),
-        lines: [w.forYourClean(t.dayOf(next.startsAt))],
+        lines: [
+          (next.payment === "automatic" ? w.forCleanCharged : w.forYourClean)(
+            t.dayOf(next.startsAt),
+          ),
+        ],
       };
     default:
       return {

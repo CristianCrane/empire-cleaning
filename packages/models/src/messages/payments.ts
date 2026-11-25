@@ -1,9 +1,4 @@
-import type {
-  AdjustmentKind,
-  BillSummary,
-  Card,
-  UnpaidKind,
-} from "../index.ts";
+import type { AdjustmentKind, Card, UnpaidKind } from "../index.ts";
 import { formats } from "../format.ts";
 import { catalog } from "../language.ts";
 
@@ -68,6 +63,8 @@ export const payments = catalog({
       why: string | null = null,
     ) =>
       `We couldn't take ${amount}${card ? ` from your ${card}` : ""}${because(why)}.`,
+    // Your card's Try this card again, when it couldn't try (#499)
+    couldntRetry: "We couldn't try again. Please try later.",
     // a payment we try again ourselves, pending, as each screen says it
     // under its "Payment pending": all a Client needs (#536)
     NOTHING_TO_DO: "Nothing you need to do.",
@@ -125,6 +122,7 @@ export const payments = catalog({
       "Se escribe directamente en el formulario seguro de nuestro servicio de pagos, así que nunca vemos el número de su tarjeta.",
     cardConsent: (paying: boolean) =>
       `Al ${paying ? "pagar" : "guardar su tarjeta"}, acepta que Empire Cleaning cobre a esta tarjeta el resto cuando cada limpieza esté terminada, el monto del depósito por una cancelación tardía o si no pudimos entrar, y cualquier factura semanal que se cobre a ella.`,
+    couldntRetry: "No pudimos volver a intentarlo. Inténtelo más tarde.",
     notTaken: (
       amount: string,
       card: string | null,
@@ -168,17 +166,6 @@ export const payments = catalog({
 // not one we try again ourselves (ADR-0022), which waits on us. On the
 // server and every screen that offers a way to put it right
 export const asksTheClient = (kind: UnpaidKind) => kind !== "waiting";
-
-// a weekly Bill Your card offers to try again (#499): due, charged to their
-// card automatically, which failed in a way that asks them, and not one
-// their bank is asking them to approve on its page. One on its way, or one
-// we try again ourselves, asks nothing
-export const cardRetries = (bill: BillSummary) =>
-  bill.payment === "automatic" &&
-  bill.status === "due" &&
-  bill.unpaid !== null &&
-  asksTheClient(bill.unpaid.kind) &&
-  bill.paying?.status !== "approving";
 
 // what happens next, once a payment didn't go through, as the Office reads
 // it, in English (ADR-0025)

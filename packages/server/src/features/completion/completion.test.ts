@@ -695,7 +695,7 @@ describe("an Unpaid Job", () => {
     expect(
       ((await client.get("/api/jobs/mine/past")).body as ClientPastJob[])[0]!
         .unpaid,
-    ).toBe("declined");
+    ).toMatchObject({ kind: "declined" });
 
     // retrying with the same card still fails
     expect(
@@ -740,7 +740,7 @@ describe("an Unpaid Job", () => {
     await complete(cory.agent, jobId).expect(200);
     testPayments().failCharges(null);
 
-    await client.post("/api/payments/mine/retry").expect(204);
+    await client.post("/api/payments/mine/retry").expect(200);
     expect((await clientJob(client, jobId)).completion!.payment.unpaid).toBe(
       null,
     );
@@ -763,11 +763,14 @@ describe("an Unpaid Job", () => {
     });
     const asked = testPayments().paymentAttempts.length;
 
-    await client.post("/api/payments/mine/retry").expect(409);
+    // still going through: not paid, nor failed
+    expect(
+      (await client.post("/api/payments/mine/retry").expect(200)).body,
+    ).toEqual({ took: [], goingThrough: true });
     expect(testPayments().paymentAttempts).toHaveLength(asked);
 
     testPayments().clearCharges();
-    await client.post("/api/payments/mine/retry").expect(204);
+    await client.post("/api/payments/mine/retry").expect(200);
     expect(testPayments().paymentAttempts).toHaveLength(asked);
     expect(amounts()).toEqual([
       deep.depositCents,
@@ -785,7 +788,7 @@ describe("an Unpaid Job", () => {
       kind: "waiting",
     });
 
-    await client.post("/api/payments/mine/retry").expect(204);
+    await client.post("/api/payments/mine/retry").expect(200);
     expect(amounts()).toEqual([
       deep.depositCents,
       deep.totalCents - deep.depositCents,
