@@ -7,7 +7,7 @@ import {
   type Unpaid,
   type UnpaidKind,
 } from "@empire-cleaning/models";
-import { NO_CARD, UNREACHABLE } from "./money.ts";
+import { NO_CARD, PROCESSING, UNREACHABLE } from "./money.ts";
 
 // Why a Job or a Bill is Unpaid, from the reason stored with it, in words a
 // person reads (docs/ux.md, Words). The stored reason is the payment
@@ -19,8 +19,6 @@ import { NO_CARD, UNREACHABLE } from "./money.ts";
 export const NOT_SETTLED = "its payment couldn't be worked out";
 // why a Bill paid on its page is Unpaid
 export const LATE = "not paid by its due date";
-// the provider's, for a charge it leaves processing (ADR-0022)
-export const PROCESSING = "processing";
 
 // ours, and the provider's own that we know: each with its kind. A bank
 // asking for approval reads as a decline, as a new card is how they fix it

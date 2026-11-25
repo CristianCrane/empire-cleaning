@@ -55,9 +55,11 @@ export type Taken = { ok: true; cents: number } | { ok: false; reason: string };
 
 // why nothing was taken when the provider didn't answer
 export const UNREACHABLE = "the payment provider couldn't be reached";
+// the provider's, for a charge it leaves processing (ADR-0022)
+export const PROCESSING = "processing";
 // why nothing was taken when what the provider made of it isn't known yet:
 // a later try asks again
-export const WAITING_ON_PROVIDER = [UNREACHABLE, "processing"];
+export const WAITING_ON_PROVIDER = [UNREACHABLE, PROCESSING];
 // why nothing was taken from a Client with no card saved
 export const NO_CARD = "no Payment Method is saved";
 
