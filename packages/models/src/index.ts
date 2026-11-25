@@ -1280,10 +1280,13 @@ export type OfficeQuote = {
   // Quote, as nothing else that moves money on it starts meanwhile
   // (ADR-0022), or that it's past then and their bank is finishing it,
   // holding it till it's done (`finishing`); null when there's none. A
-  // `depositCents` of 0 is a card entered to accept, with nothing charged
+  // `depositCents` of 0 is a card entered to accept, with nothing charged.
+  // `serviceKey`, the offer's option it's for, which the page then leads
+  // with, as the Client picked it (#534's UX review U2); null on a plan
   paying: {
     until: string;
     finishing: boolean;
+    serviceKey: string | null;
     serviceName: string | null;
     changing: boolean;
     depositCents: number;

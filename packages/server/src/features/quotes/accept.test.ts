@@ -1178,6 +1178,7 @@ describe("while the Client's bank is approving the Deposit", () => {
     expect((await quoteOf(office, quote.id)).paying).toEqual({
       until: "2026-01-05T09:15:00.000Z",
       serviceName: option(quote, "deep").serviceName,
+      serviceKey: option(quote, "deep").serviceKey,
       changing: false,
       depositCents: option(quote, "deep").depositCents,
       finishing: false,
@@ -1577,6 +1578,7 @@ describe("while the Client's bank is approving the Deposit", () => {
       held: {
         until: "2026-01-05T09:15:00.000Z",
         serviceName: option(quote, "deep").serviceName,
+        serviceKey: option(quote, "deep").serviceKey,
         changing: false,
         depositCents: option(quote, "deep").depositCents,
         finishing: true,
@@ -1920,6 +1922,7 @@ describe("while the Client's bank is approving the card for a 0% Deposit", () =>
     expect((await quoteOf(office, quote.id)).paying).toEqual({
       until: "2026-01-05T09:15:00.000Z",
       serviceName: option(quote, "deep").serviceName,
+      serviceKey: option(quote, "deep").serviceKey,
       changing: false,
       depositCents: 0,
       finishing: false,

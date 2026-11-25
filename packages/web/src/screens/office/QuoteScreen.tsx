@@ -357,7 +357,14 @@ function useNow(quote: OfficeQuote): Now {
           {
             name,
             on: formatShortDay(dayOfInstant(ended.at)),
-            card: ended.depositCents === 0,
+            // what it was for, as while it went through (UX review U4)
+            deposit:
+              ended.depositCents === 0 ? null : formatMoney(ended.depositCents),
+            service: offer?.plan
+              ? null
+              : (offer?.options.find((o) => o.serviceKey === ended.serviceKey)
+                  ?.serviceName ?? null),
+            changing: offer?.changesPlan != null,
             ...(ended.status === "failed"
               ? { status: "failed" as const, why: ended.why }
               : { status: "notApproved" as const }),
@@ -895,13 +902,20 @@ function Offer({ quote }: { quote: ShownQuote }) {
   const booked = quote.status === "accepted" && !plan;
   // until then a one-off's own Service, the one asked for, as every Office
   // screen leads with it, and the one recommended an aside under it, as the
-  // Draft has it (#493, after #527); a plan's weekdays in their order
+  // Draft has it (#493, after #527); or, while the Client pays online for
+  // the one recommended, that one, as they picked it, the one they asked
+  // for the aside (#534's UX review U2); a plan's weekdays in their order
+  const lead = plan
+    ? undefined
+    : (quote.options.find((o) => o.serviceKey === quote.paying?.serviceKey) ??
+      ownOption(quote));
   const options = booked
     ? quote.options.filter((o) => o.serviceKey === quote.acceptedServiceKey)
     : plan
       ? quote.options
-      : [ownOption(quote)];
-  const aside = !booked && !plan ? recommendedOption(quote) : undefined;
+      : [lead!];
+  const aside =
+    !booked && !plan ? quote.options.find((o) => o !== lead) : undefined;
   return (
     <Section
       title="Current quote"
@@ -980,7 +994,14 @@ function Offer({ quote }: { quote: ShownQuote }) {
             );
           })}
           {aside && (
-            <AlsoOffered option={aside}>
+            <AlsoOffered
+              option={aside}
+              note={
+                aside.recommended
+                  ? undefined
+                  : `What ${firstNameOf(quote.client.name)} asked for.`
+              }
+            >
               <OptionRows
                 option={aside}
                 crewSize={quote.crewSize}
@@ -1197,10 +1218,14 @@ function OfferPrice({
 // `under` stays unfolded
 function AlsoOffered({
   option,
+  note = "Shown to the client as recommended; they pick one.",
   under,
   children,
 }: {
   option: OfficeQuoteOption;
+  // what it is beside the one shown: the one recommended, or, once the
+  // Client's paying for that one, the one they asked for (UX review U2)
+  note?: string;
   under?: ReactNode;
   children: ReactNode;
 }) {
@@ -1211,7 +1236,7 @@ function AlsoOffered({
       >
         <div className="flex flex-col gap-3">
           <p className="flex flex-col gap-1 text-fg-muted">
-            <span>Shown to the client as recommended; they pick one.</span>
+            <span>{note}</span>
             <span>Includes {formatMoney(option.taxCents)} tax</span>
           </p>
           {children}

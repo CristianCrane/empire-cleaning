@@ -81,37 +81,45 @@ test("a Deposit the Client's bank is finishing says how long it usually takes, a
 // Screen 5's endings: the Client's latest payment online that took
 // nothing, while the quote's open, in the Office's Bill's words for the
 // same endings, then who can do what next
-test("a Deposit paid online that took nothing says how it ended, and what's next (#534)", () => {
+test("a Deposit paid online that took nothing says how it ended, what it was for, and what's next (#534, UX review U4)", () => {
   const never = {
     name: "Robin Diaz",
     on: "Nov 25",
-    card: false,
+    deposit: "$48.72",
+    service: "Standard Clean",
+    changing: false,
     status: "notApproved",
   } as const;
   const failed = { ...never, status: "failed", why: null } as const;
   const open = { open: true, record: true };
   expect(clientPaying.ended(never, open)).toBe(
-    "Robin Diaz's online payment of the deposit on Nov 25 wasn't approved, so nothing was taken. They can try again on their quote, or you can record acceptance.",
+    "On Nov 25, Robin Diaz's online payment of the $48.72 deposit, for the Standard Clean, wasn't approved, so nothing was taken. They can try again on their quote, or you can record acceptance.",
   );
   expect(
     clientPaying.ended({ ...failed, why: "the card has expired" }, open),
   ).toBe(
-    "Robin Diaz's online payment of the deposit on Nov 25 didn't go through (the card has expired). They can try again on their quote, or you can record acceptance.",
+    "On Nov 25, Robin Diaz's online payment of the $48.72 deposit, for the Standard Clean, didn't go through (the card has expired). They can try again on their quote, or you can record acceptance.",
   );
   // no card saved, so no acceptance to record
   expect(clientPaying.ended(never, { open: true, record: false })).toBe(
-    "Robin Diaz's online payment of the deposit on Nov 25 wasn't approved, so nothing was taken. They can try again on their quote.",
+    "On Nov 25, Robin Diaz's online payment of the $48.72 deposit, for the Standard Clean, wasn't approved, so nothing was taken. They can try again on their quote.",
   );
   // its time filled since: there's nothing to try again on
   expect(clientPaying.ended(failed, { open: false, record: false })).toBe(
-    "Robin Diaz's online payment of the deposit on Nov 25 didn't go through.",
+    "On Nov 25, Robin Diaz's online payment of the $48.72 deposit, for the Standard Clean, didn't go through.",
+  );
+  // a plan's, by the plan it starts or changes
+  expect(
+    clientPaying.ended({ ...never, service: null, changing: true }, open),
+  ).toBe(
+    "On Nov 25, Robin Diaz's online payment of the $48.72 deposit, to change the cleaning plan, wasn't approved, so nothing was taken. They can try again on their quote, or you can record acceptance.",
   );
   // a card entered with nothing to charge, in the Client's words for it
-  expect(clientPaying.ended({ ...never, card: true }, open)).toBe(
-    "Robin Diaz's card, entered to accept online on Nov 25, wasn't approved, so nothing was booked. They can try again on their quote, or you can record acceptance.",
+  expect(clientPaying.ended({ ...never, deposit: null }, open)).toBe(
+    "On Nov 25, Robin Diaz's card, entered to accept online for the Standard Clean, wasn't approved, so nothing was booked. They can try again on their quote, or you can record acceptance.",
   );
-  expect(clientPaying.ended({ ...failed, card: true }, open)).toBe(
-    "Robin Diaz's card, entered to accept online on Nov 25, was declined, so nothing was booked. They can try again on their quote, or you can record acceptance.",
+  expect(clientPaying.ended({ ...failed, deposit: null }, open)).toBe(
+    "On Nov 25, Robin Diaz's card, entered to accept online for the Standard Clean, was declined, so nothing was booked. They can try again on their quote, or you can record acceptance.",
   );
 });
 

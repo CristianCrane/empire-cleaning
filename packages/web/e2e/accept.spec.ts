@@ -572,6 +572,12 @@ test("Office Staff see a Deposit the Client's bank is finishing as going through
   );
   await expect(alert).toHaveClass(/bg-info-subtle/);
   await expect(recordAcceptance(page)).toBeDisabled();
+  // the quote leads with the clean they're paying for, the one they asked
+  // for an aside (#534's UX review U2)
+  await expect(
+    page.getByText(/^Also offered: Standard Clean \$[\d,.]+$/),
+  ).toBeVisible();
+  await expect(page.getByText(/^Also offered: Deep Clean/)).toHaveCount(0);
 });
 
 // one that took nothing says how it ended, in the Office's Bill's words for
@@ -589,9 +595,12 @@ test("Office Staff see a Deposit payment the Client's bank never approved took n
   ).toBeVisible();
 
   await page.reload();
-  const alert = page.getByRole("status").filter({ hasText: /^Casey Client's/ });
+  const alert = page
+    .getByRole("status")
+    .filter({ hasText: /^On Jan 5, Casey Client's/ });
+  // what it was, as while it went through (#534's UX review U4)
   await expect(alert).toHaveText(
-    "Casey Client's online payment of the deposit on Jan 5 wasn't approved, so nothing was taken. They can try again on their quote, or you can record acceptance.",
+    /^On Jan 5, Casey Client's online payment of the \$[\d.]+ deposit, for the Deep Clean, wasn't approved, so nothing was taken\. They can try again on their quote, or you can record acceptance\.$/,
   );
   await expect(alert).toHaveClass(/bg-info-subtle/);
   await expect(recordAcceptance(page)).toBeEnabled();
@@ -611,9 +620,9 @@ test("Office Staff see why a Client's Deposit payment didn't go through", async 
 
   await page.reload();
   await expect(
-    page.getByRole("alert").filter({ hasText: /^Casey Client's/ }),
+    page.getByRole("alert").filter({ hasText: /^On Jan 5, Casey Client's/ }),
   ).toHaveText(
-    "Casey Client's online payment of the deposit on Jan 5 didn't go through (there wasn't enough money in the account). They can try again on their quote, or you can record acceptance.",
+    /^On Jan 5, Casey Client's online payment of the \$[\d.]+ deposit, for the Deep Clean, didn't go through \(there wasn't enough money in the account\)\. They can try again on their quote, or you can record acceptance\.$/,
   );
   await expect(recordAcceptance(page)).toBeEnabled();
 });

@@ -698,6 +698,7 @@ const clientPaying = async (
     until,
     finishing: !onClient,
     past,
+    serviceKey: row ? row.serviceKey : null,
     serviceName: row ? await serviceNameOf("en", row.serviceId, tx) : null,
     changing: pending.changingPlanId !== null,
     depositCents: pending.depositCents,

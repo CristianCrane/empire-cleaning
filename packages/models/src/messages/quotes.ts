@@ -187,6 +187,16 @@ const cardFinishing = "their bank is finishing approving their card";
 // what's at stake for a new version while the Client pays: said once, as
 // its five copies had drifted three ways (#534 review F34)
 const booksDraft = "If it books the quote you sent, your draft is deleted.";
+// what a payment online was for: a clean's Service, or a cleaning plan it
+// starts or changes, alike while it goes through and once it ended (#534's
+// UX review U4)
+const forWhat = ({
+  service,
+  changing,
+}: Pick<PayingFor, "service" | "changing">) =>
+  service
+    ? `for the ${service}`
+    : `to ${changing ? "change" : "start"} the cleaning plan`;
 const payingWhat = ({
   name,
   deposit,
@@ -194,9 +204,7 @@ const payingWhat = ({
   changing,
   finishing,
 }: PayingFor) => {
-  const what = service
-    ? `for the ${service}`
-    : `to ${changing ? "change" : "start"} the cleaning plan`;
+  const what = forWhat({ service, changing });
   if (deposit === null) {
     return finishing
       ? `${name} is accepting online, ${what}: ${cardFinishing}. It books on its own, usually within half an hour.`
@@ -337,25 +345,27 @@ export const clientPaying = {
     `${name} accepted the quote you sent, so your draft was deleted.`,
   // the Quote's alert once their latest payment online took nothing, while
   // the offer's open (OfficeQuote's paymentEnded), in the Office's Bill's
-  // words for the same endings: when (`on`, formatted), and why it didn't
-  // go through, if the payment service said; `card`, a card entered with
-  // nothing to charge (a 0% Deposit), in the Client's words for it. Then
-  // what's next: they can try again while it can be accepted (`open`), and
-  // the Office can record acceptance with a card saved (`record`) (#534's
-  // UX design, Screen 5)
+  // words for the same endings: when (`on`, formatted), what it was, as
+  // the alert while it went through names it (#534's UX review U4), and why
+  // it didn't go through, if the payment service said; a `deposit` of null,
+  // a card entered with nothing to charge (a 0% Deposit), in the Client's
+  // words for it. Then what's next: they can try again while it can be
+  // accepted (`open`), and the Office can record acceptance with a card
+  // saved (`record`) (#534's UX design, Screen 5)
   ended: (
-    e: { name: string; on: string; card: boolean } & (
-      { status: "notApproved" } | { status: "failed"; why: string | null }
-    ),
+    e: Pick<PayingFor, "name" | "deposit" | "service" | "changing"> & {
+      on: string;
+    } & ({ status: "notApproved" } | { status: "failed"; why: string | null }),
     { open, record }: { open: boolean; record: boolean },
   ) => {
-    const what = e.card
-      ? `${e.name}'s card, entered to accept online on ${e.on},`
-      : `${e.name}'s online payment of the deposit on ${e.on}`;
+    const card = e.deposit === null;
+    const what = card
+      ? `On ${e.on}, ${e.name}'s card, entered to accept online ${forWhat(e)},`
+      : `On ${e.on}, ${e.name}'s online payment of the ${e.deposit} deposit, ${forWhat(e)},`;
     const how =
       e.status === "notApproved"
-        ? `wasn't approved, so nothing was ${e.card ? "booked" : "taken"}`
-        : e.card
+        ? `wasn't approved, so nothing was ${card ? "booked" : "taken"}`
+        : card
           ? `was declined${because(e.why)}, so nothing was booked`
           : `didn't go through${because(e.why)}`;
     const next = open
