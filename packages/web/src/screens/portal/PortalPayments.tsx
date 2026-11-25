@@ -30,8 +30,10 @@ const words = catalog({
   en: {
     allPaid: "You're all paid up",
     nothingOwed: "Nothing owed",
-    bankOnWay: (amount: string, bill: string) =>
-      `Your bank payment of ${amount} for bill ${bill} is on its way.`,
+    bankOnWay: (bill: string | null) =>
+      bill
+        ? `Your bank payment for bill ${bill} is on its way.`
+        : "Your bank payment is on its way.",
     yourPayments: "Your payments",
     allPayments: "All payments",
     nothingPaid: "Nothing paid yet",
@@ -40,8 +42,10 @@ const words = catalog({
   es: {
     allPaid: "Está al día",
     nothingOwed: "No debe nada",
-    bankOnWay: (amount: string, bill: string) =>
-      `Su pago bancario de ${amount} de la factura ${bill} está en camino.`,
+    bankOnWay: (bill: string | null) =>
+      bill
+        ? `Su pago bancario de la factura ${bill} está en camino.`
+        : "Su pago bancario está en camino.",
     yourPayments: "Sus pagos",
     allPayments: "Todos los pagos",
     nothingPaid: "Aún no hay pagos",
@@ -65,7 +69,7 @@ export function PortalPayments() {
   const data = useLoaderData({ from: "/portal/payments" });
   const home = useHomeUrl();
   const money = moneyNow(data, t.lang);
-  const { owed, clearing } = money;
+  const { owed, clearing, cardsBill } = money;
   const owing = owed && owedAnswer(owed, t.lang, data.plans);
   const { history } = data;
 
@@ -97,9 +101,11 @@ export function PortalPayments() {
           }
         />
       }
+      // a bank debit on its way names its Bill only when the card above
+      // doesn't, as it names it with its amount (#534's UX review U16)
       notices={clearing.map((bill) => (
         <Notice key={bill.id}>
-          {t.w.bankOnWay(t.formatMoney(bill.totalCents), bill.number)}{" "}
+          {t.w.bankOnWay(bill.id === cardsBill ? null : bill.number)}{" "}
           {t.BANK_CLEARING}
         </Notice>
       ))}
@@ -192,7 +198,7 @@ function Rows({
           end={
             <span className="flex items-center gap-3">
               {p.clearing && (
-                <StatusBadge tone="info">{t.clearing}</StatusBadge>
+                <StatusBadge tone="info">{t.paymentPending}</StatusBadge>
               )}
               <span className="font-semibold text-fg tabular-nums">
                 {signedMoney(t.lang, p.amountCents)}

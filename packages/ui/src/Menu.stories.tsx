@@ -57,7 +57,7 @@ export const SomeNotYet: Story = {
       <MenuItem
         icon={Banknote}
         isDisabled
-        description="Not while its card payment is going through"
+        description="Not while its payment is going through"
       >
         Record a payment
       </MenuItem>
@@ -67,7 +67,7 @@ export const SomeNotYet: Story = {
         icon={Ban}
         danger
         isDisabled
-        description="Not while its card payment is going through"
+        description="Not while its payment is going through"
       >
         Cancel bill
       </MenuItem>

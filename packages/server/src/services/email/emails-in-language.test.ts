@@ -270,7 +270,6 @@ const emailsIn = (lang: Language): Email[] => [
       [{ paidVia: "outside" }, "paid"],
       [{ paidVia: "card" }, "paid"],
       [{}, "voided"],
-      [{}, "debit_failed"],
     ] as const
   ).flatMap(([change, occasion, today = "2026-01-12"]) =>
     [false, true].map((billedWeekly) =>
@@ -284,6 +283,21 @@ const emailsIn = (lang: Language): Email[] => [
         creditRefundDays: 30,
       }),
     ),
+  ),
+  // a payment on its page that didn't go through, with why, and with the
+  // plan paused when it's late
+  ...([undefined, "paused"] as const).map((plan) =>
+    billEmail(lang, {
+      name,
+      bill,
+      occasion: "not_through",
+      failed: "insufficient_funds",
+      plan,
+      card: null,
+      today: "2026-01-20",
+      billedWeekly: false,
+      creditRefundDays: 30,
+    }),
   ),
   ...(["paused", "back_on", "pauses_if_late"] as const).map((note) =>
     billEmail(lang, {

@@ -1772,10 +1772,10 @@ export type JobPayment = {
   // what weekly Bills have billed for it (ADR-0016), which they now owe
   billedCents: number;
   // those Bills, oldest first, each with what it billed for it and what
-  // its Charges gave back for it
+  // its Charges gave back for it, and where it stands as its own page says
   bills: (Pick<
     BillSummary,
-    "id" | "number" | "status" | "unpaid" | "totalCents"
+    "id" | "number" | "status" | "unpaid" | "paying" | "totalCents"
   > & {
     cents: number;
     refundedCents: number;
@@ -2186,37 +2186,70 @@ export type BillSummary = {
   // tax included; below 0 it's a credit on the next Bill
   totalCents: number;
   taxCents: number;
-  // its automatic Charge failed, and it hasn't been paid since
+  // why it's Unpaid: its automatic Charge failed, or it's late, and it
+  // hasn't been paid since; or, "waiting", a payment going through, from
+  // `since`, nothing to do but wait (ADR-0022)
   unpaid: Unpaid | null;
+  // the Client paying it on its page, as its pages tell it (#534): their
+  // bank asking them to approve it, which holds the Bill `until`
+  // (ADR-0022's one rule); or their last payment, which didn't go through
+  // `at`, and why (a clause, as Unpaid's, or null), or which they never
+  // approved with their bank, so it took nothing; null when none
+  paying: BillPaying | null;
+  // since when a bank debit on it has been on its way, while one is
+  // (status processing); else null
+  clearingSince: string | null;
   paidAt: string | null;
   paidVia: BillPaidVia | null;
 };
 
+export type BillPaying =
+  | { status: "approving"; until: string }
+  | { status: "failed"; at: string; why: string | null }
+  | { status: "notApproved"; at: string };
+
 export type BillView = BillSummary & {
   lines: BillLineView[];
+  // where its cleans were, when all at one home and it's worth saying: to
+  // the Office, and to a Client with more than one home; null when its
+  // rows each say theirs, or there's only the one (#534's UX review U8)
+  home: string | null;
   // Office Staff's note on a payment made another way
   paymentNote: string | null;
   voidedAt: string | null;
   voidReason: string | null;
   // whether the Client can pay it on its page now: due, owing something,
-  // and not a payment of ours, which our charge may still take or we try
-  // again ourselves (#533)
+  // and no payment going through, which may still take it or we try again
+  // ourselves (#533); one their bank asks them to approve they may start
+  // over, as that calls it off (#534)
   payable: boolean;
   // whether Office Staff can cancel it or record a payment made another way
-  // now: due, and no card payment of ours on it may still take the money
-  // (ADR-0022's one rule; cardNotDone says why not)
+  // now: due, and no payment on it may still take the money, going through
+  // or the Client's bank asking them to approve it (ADR-0022's one rule;
+  // paymentNotDone, clientPayingBill and bankPaymentOnWay say why not)
   canCancelOrRecord: boolean;
   // the Client's Service Plans with Jobs on it, oldest first: each On Hold
   // while it's Unpaid (ADR-0016), unless Ended
   plans: Pick<ServicePlanSummary, "id" | "status" | "property">[];
 };
 
-// the payment provider's form for paying a Bill on its page, by card or bank
-// debit, with what POST /api/bills/mine/:id/payment then sends back
-export type BillPaymentForm = PaymentForm & { secret: string; ref: string };
+// POST /api/bills/mine/:id/payment: what the Client entered in the payment
+// form (/api/payment-methods/form), a card or a US bank account, as its
+// token; nothing is saved for later
+export type PayBillInput = { token: string };
 
-// POST /api/bills/mine/:id/payment, once the form is done
-export type PayBillInput = { ref: string };
+// what paying a Bill on its page came to: the Bill as it now stands (paid, a
+// bank payment on its way, or its payment pending), or waiting on their
+// bank's approval (e.g. 3D Secure) in the browser with `secret`, then POST
+// .../payment/finish
+export type BillPayOutcome =
+  | { status: "done"; bill: BillView }
+  | { status: "needs_approval"; secret: string };
+
+// POST /api/bills/mine/:id/payment/finish, once the Client's bank approved
+// it in the browser, or didn't (refused, or the Client closed it): one not
+// approved is called off, so nothing is taken
+export type FinishBillPaymentInput = { approved: boolean };
 
 // POST /api/bills/:id/void
 export type VoidBillInput = { reason: string };

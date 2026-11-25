@@ -676,8 +676,8 @@ describe("Home's card: what's owed first, when it asks anything of them", () => 
     expect(due.hero).toMatchObject({
       label: "To pay",
       headline: "$214.50",
-      lines: ["Bill EC-000041 is due by Nov 14"],
-      action: { label: "Pay bill EC-000041" },
+      lines: ["Bill EC-000041 is due by Sat, Nov 14"],
+      action: { label: "Pay the bill" },
     });
     expect(due.why).toBeUndefined();
     expect(

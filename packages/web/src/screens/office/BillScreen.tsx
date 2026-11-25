@@ -1,9 +1,14 @@
-import { useLoaderData } from "@tanstack/react-router";
+import { useState } from "react";
+import { useLoaderData, useRouter } from "@tanstack/react-router";
 import { Ban, Banknote } from "lucide-react";
 import {
+  because,
   asksTheClient,
-  cardNotDone,
+  bankPaymentOnWay,
+  clientPayingBill,
+  firstNameOf,
   officeFix,
+  paymentNotDone,
   type BillView,
   formats,
 } from "@empire-cleaning/models";
@@ -20,7 +25,7 @@ import {
   type PageAction,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
-import { addressOf, pausedPlans } from "../format.ts";
+import { addressOf, dayOfInstant, pausedPlans } from "../format.ts";
 import { linkTo } from "../../links.ts";
 import {
   BillDetail,
@@ -29,31 +34,62 @@ import {
   usePrintBill,
 } from "../BillParts.tsx";
 import { useAction } from "../action.ts";
+import { useWhilePaying } from "../paying.ts";
 import { clientTrail } from "./trails.ts";
 
-const { formatList, formatMoney } = formats.en;
+const { formatList, formatMoney, formatShortDay, formatTime } = formats.en;
+
+// why Cancel bill and Record a payment are greyed, while they are: the
+// Client's bank debit on its way, which takes days; their bank asking them
+// to approve their payment on its page; or a payment going through
+// (ADR-0022's one rule), each in its own words: the menu's short line, and
+// each dialog's
+const heldBy = (bill: BillView) => {
+  if (bill.status === "processing") return bankPaymentOnWay;
+  if (bill.paying?.status === "approving") {
+    const first = firstNameOf(bill.client.name);
+    const until = formatTime(bill.paying.until);
+    return {
+      item: clientPayingBill.item(first),
+      cancel: clientPayingBill.cancel(first, until),
+      record: clientPayingBill.record(first, until),
+    };
+  }
+  return paymentNotDone;
+};
 
 // one weekly Bill for the Office (ADR-0016), a Record (docs/ux.md): the
 // whole Bill as the Client sees it, where it stands, and while it's due,
 // voiding it (cancelling, on screen) or recording a payment made another
 // way. Once its payment didn't go through or it's late, recording one is
 // the page's next step (the `ui` skill), unless it's a payment we try
-// again ourselves (ADR-0022). While our card payment on it may still take
-// the money, both are greyed, and its alert says until when
-// (canCancelOrRecord, the server's answer)
+// again ourselves (ADR-0022). While a payment on it may still take the
+// money, both are greyed, and its alert says why (canCancelOrRecord, the
+// server's answer), a bank debit on its way too, as it's due again if it
+// fails (#534's UX review U14); while the Client's bank asks them to
+// approve theirs, the page looks again, so it frees them once that's over
 export function BillScreen() {
   const bill = useLoaderData({ from: "/office/bills/$billId" });
+  const router = useRouter();
   const due = bill.status === "due";
+  const open = due || bill.status === "processing";
   const print = usePrintBill();
   const held = !bill.canCancelOrRecord;
-  const record: PageAction | false = due && {
+  const why = heldBy(bill).item;
+  useWhilePaying(bill.paying?.status === "approving" ? bill.paying : null, () =>
+    router.invalidate(),
+  );
+  const record: PageAction | false = open && {
     label: "Record a payment",
     icon: Banknote,
     isDisabled: held,
-    why: cardNotDone.item,
+    why,
     dialog: (state) => <RecordPayment bill={bill} {...state} />,
   };
-  const next = !!bill.unpaid && asksTheClient(bill.unpaid.kind);
+  const next =
+    due &&
+    ((!!bill.unpaid && asksTheClient(bill.unpaid.kind)) ||
+      bill.paying?.status === "failed");
 
   return (
     <>
@@ -66,12 +102,12 @@ export function BillScreen() {
         actions={[
           !next && record,
           print,
-          due && {
+          open && {
             label: "Cancel bill",
             icon: Ban,
             danger: true,
             isDisabled: held,
-            why: cardNotDone.item,
+            why,
             dialog: (state) => <VoidBill bill={bill} {...state} />,
           },
         ]}
@@ -95,17 +131,49 @@ function standing(bill: BillView): Alert | null {
   if (bill.status === "processing") {
     return {
       key: "processing",
-      children: `The client's bank payment of ${formatMoney(bill.totalCents)} is on its way. It's paid once it clears, usually in a few working days.`,
+      children: `The client's bank payment is on its way. It's paid once it goes through, usually in a few working days.`,
     };
   }
   if (bill.status !== "due") return null;
+  // the Client approving their payment with their bank, which waits on
+  // them, till `until`
+  if (bill.paying?.status === "approving") {
+    return {
+      key: "approving",
+      tone: "warning",
+      children: `${clientPayingBill.page(bill.client.name, formatTime(bill.paying.until))}${plansPaused(bill)}`,
+    };
+  }
   // over why it's unpaid, if it is: it's being tried now, and Office Staff
   // can do nothing about it until then (UX review U7)
   if (!bill.canCancelOrRecord) {
     return {
-      key: "cardNotDone",
+      key: "paymentNotDone",
       tone: "info",
-      children: `${cardNotDone.page}${plansPaused(bill)}`,
+      children: `${paymentNotDone.page}${plansPaused(bill)}`,
+    };
+  }
+  // the Client's last payment on its page didn't go through, as they were
+  // told (when, and why), and what's next: theirs to try again, or, once
+  // late, our weekly reminder. Before the due date it pauses no plan of
+  // theirs, so no plan line: one another Bill paused is that Bill's to say
+  if (bill.paying?.status === "failed") {
+    const { at, why } = bill.paying;
+    const late = bill.unpaid?.kind === "late";
+    return {
+      key: "failed",
+      tone: "danger",
+      children: `The client's payment didn't go through on ${formatShortDay(dayOfInstant(at))}${because(why)}. ${late ? `${officeFix.late}${plansPaused(bill)}` : "They can try again on its page."}`,
+    };
+  }
+  // their last one on its page never approved (by their bank, or they
+  // left it), so it took nothing, as the Client's page says (#534's UX review U12); once
+  // late, that's the news
+  if (bill.paying?.status === "notApproved" && !bill.unpaid) {
+    return {
+      key: "notApproved",
+      tone: "info",
+      children: `The client's payment on ${formatShortDay(dayOfInstant(bill.paying.at))} wasn't approved, so nothing was taken. They can try again on its page.`,
     };
   }
   if (bill.unpaid) {
@@ -118,8 +186,8 @@ function standing(bill: BillView): Alert | null {
         kind === "late"
           ? `It wasn't paid by its due date.`
           : asksTheClient(kind)
-            ? `Its payment didn't go through${why ? ` (${why})` : ""}.`
-            : `Its payment hasn't gone through yet${why ? ` (${why})` : ""}.`
+            ? `Its payment didn't go through${because(why)}.`
+            : `Its payment hasn't gone through yet${because(why)}.`
       } ${officeFix[kind]}${plansPaused(bill)}`,
     };
   }
@@ -244,12 +312,17 @@ function VoidBill({ bill, ...state }: { bill: BillView } & DialogState) {
   );
 }
 
-// why a dialog's action can't be done: while our card payment may still
-// take the money, the server's words for it, info as it waits on us (UX
-// review U4), whether a press was refused or the page caught up first (it
-// reloads when its tab is shown again); else why a press was refused, but
-// not that refusal once the payment is done, as it's untrue then and the
-// button is back on (design review, a dialog left open)
+// why a dialog's action can't be done: while a payment may still take the
+// money, or the Client's bank asks them to approve theirs, the server's
+// words for it, in the tone of the page's alert for the same wait: info
+// for one on us (UX review U4), warning for one on the Client (#534's UX
+// review U4), whether a press
+// was refused or the page caught up first (it reloads when its tab is
+// shown again, and looks again while the Client approves theirs); else why
+// a press was refused, but not a refusal for what held it once that's
+// over, as it's untrue then and the button is back on (design review, a
+// dialog left open). What held it is kept as it was said, as the Client's
+// approving names a time that's gone once it's over
 function WhyNot({
   bill,
   problem,
@@ -259,10 +332,17 @@ function WhyNot({
   problem?: string;
   what: "cancel" | "record";
 }) {
+  const held = heldBy(bill)[what];
+  const [said, setSaid] = useState<string>();
+  if (!bill.canCancelOrRecord && said !== held) setSaid(held);
   if (!bill.canCancelOrRecord) {
-    return <Notice tone="info">{cardNotDone[what]}</Notice>;
+    return (
+      <Notice tone={bill.paying?.status === "approving" ? "warning" : "info"}>
+        {held}
+      </Notice>
+    );
   }
-  return problem && problem !== cardNotDone[what] ? (
+  return problem && problem !== held && problem !== said ? (
     <Notice tone="danger">{problem}</Notice>
   ) : null;
 }

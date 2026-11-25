@@ -1,13 +1,12 @@
 import type { CardForm, Language, PaymentForm } from "@empire-cleaning/models";
 import {
   PaymentMethodError,
-  type BillPaymentInput,
-  type BillPaymentOutcome,
+  type BillInput,
   type CallingOff,
   type ChargeInput,
   type ChargeLookup,
   type ChargeResult,
-  type DepositAttempt,
+  type OnSessionResult,
   type DepositInput,
   type EventHeaders,
   type PaymentEvent,
@@ -28,9 +27,11 @@ type RecordedCharge = {
   chargeId: string;
 };
 type RecordedRefund = RefundInput & { refundId: string };
+// a payment made with the Client there: a Deposit's, or a Bill's
+type Payment = { payerId: string; amount: number; description: string };
 type RefundStatus = "succeeded" | "pending" | "failed";
 
-// what the Client's bank does with a Deposit it asked them to approve:
+// what the Client's bank does with a payment it asked them to approve:
 // "pending" until they do, "processing" once they have and the bank is
 // still finishing it (when, for a card, it can't be called off)
 export type Approval = "approved" | "refused" | "pending" | "processing";
@@ -52,6 +53,9 @@ const LAST4: Record<TestCard, string> = {
   refundPending: "7726",
 };
 
+// a bank account "entered" in the test payment form (bankToken())
+const BANK = "tok_test_bank_";
+
 // a token from paymentToken(card); any other test token is a Visa
 const cardOf = (token: string): TestCard => {
   const card = /^tok_test_([A-Za-z]+)_/.exec(token)?.[1];
@@ -62,7 +66,8 @@ const cardOf = (token: string): TestCard => {
  * Stands in for the payment provider, as the contract tests
  * (tests/contract/payment-gateway.ts) show Stripe behaves. Its browser form is
  * the web app's "test" one, which needs no card: a card "entered" there is any
- * token starting `tok_test` (paymentToken() makes one, of any test card). The
+ * token starting `tok_test` (paymentToken() makes one, of any test card), and
+ * a bank account one bankToken() makes, which only a Bill takes. The
  * save-only card form's token is the form's own secret, and the form is
  * finished as soon as it's started, unless abandonCardForm() says otherwise.
  */
@@ -81,22 +86,35 @@ export class FakePaymentGateway implements PaymentGateway {
   private chargeFailure: string | null = null;
   private refundFailure: string | null = null;
   private approval: Approval | null = null;
+  // a card paying a Bill that its bank finishes before it's taken, from its
+  // first reply, until finishCards(false) (#534's critical review C6)
+  private cardsFinishing = false;
+  // what the browser's test payment form enters for a Bill (payBillsBy())
+  private billsBy: "card" | "bank" = "card";
   private down = false;
   // the save-only card forms started, and the card each was finished with;
   // null if the Client left it unfinished
   private readonly forms = new Map<string, TestCard | null>();
   private readonly cards = new Map<string, TestCard>();
   private readonly refundStatus = new Map<string, RefundStatus>();
-  // Deposits needing approval; by card when the card itself asks for it,
-  // which nothing here gives
+  // payments needing approval, the key each was asked with, and whether
+  // it saves the card once approved; by card when the card itself asks for
+  // it, which nothing here gives
   private readonly waiting = new Map<
     string,
-    { input: DepositInput; card: TestCard; byCard: boolean }
+    {
+      input: Payment;
+      key: string;
+      card: TestCard;
+      byCard: boolean;
+      saves: boolean;
+      finishing?: boolean;
+    }
   >();
   // and those called off, never to be taken
   readonly canceled = new Set<string>();
   // Deposits taken without asking, by charge, as the provider still has them
-  private readonly takenAtOnce = new Map<string, DepositAttempt>();
+  private readonly takenAtOnce = new Map<string, OnSessionResult>();
   private readonly replies = new Map<
     string,
     { request: string; reply: unknown }
@@ -108,13 +126,14 @@ export class FakePaymentGateway implements PaymentGateway {
   private readonly madeRefunds = new Map<string, string>();
   // Charges still processing, by the key each was asked with
   private readonly processing = new Map<string, RecordedCharge>();
+  // bank debits paying a Bill, by ref: `ended` is null while processing,
+  // then "cleared", or why it failed, once clearBankDebit() ends it
+  private readonly debits = new Map<
+    string,
+    { key: string; charge: RecordedCharge; ended: string | null }
+  >();
   private replyLost = false;
   private held: { reached: () => void; gate: Promise<void> } | null = null;
-  // Bill payments started in the browser, by ref, and how each stands
-  private readonly billPayments = new Map<
-    string,
-    { input: BillPaymentInput; outcome: BillPaymentOutcome }
-  >();
   private nextId = 1;
 
   // every Charge and Deposit is declined with `reason` until
@@ -210,72 +229,57 @@ export class FakePaymentGateway implements PaymentGateway {
     this.approval = then;
   }
 
+  // each card paying a Bill from now is processing from its first reply,
+  // its bank finishing it, as Stripe can say it, until finishCards(false),
+  // when it's taken
+  finishCards(finishing = true) {
+    this.cardsFinishing = finishing;
+  }
+
   // every call throws, as when the provider can't be reached, until
   // goDown(false)
   goDown(isDown = true) {
     this.down = isDown;
   }
 
-  // the Client finishes paying a Bill in the browser: by card it succeeds
-  // at once, unless Charges are failing; by bank debit it's processing
-  // until clearBankDebit()
-  payBill(ref: string, by: "card" | "bank" = "card") {
-    const payment = this.billPayments.get(ref);
-    if (!payment) throw new Error(`no Bill payment ${ref}`);
-    payment.outcome =
-      by === "bank"
-        ? { status: "processing", reference: payment.input.reference }
-        : this.chargeFailure
-          ? { status: "failed", reason: this.chargeFailure }
-          : this.takeBillPayment(ref, payment.input);
-  }
-
-  // The web app's test form stands in for the provider's in the browser, so
-  // nothing there finishes a Bill payment: from now on one still waiting is
-  // finished this way when asked how it went, as if the Client had paid;
-  // null to stop (the end-to-end tests)
-  private browserPays: "card" | "bank" | null = null;
-  payBillsInBrowser(by: "card" | "bank" | null) {
-    this.browserPays = by;
-  }
-
-  // a bank debit paying a Bill clears, or fails
-  clearBankDebit(ref: string, cleared = true) {
-    const payment = this.billPayments.get(ref)!;
-    payment.outcome = cleared
-      ? this.takeBillPayment(ref, payment.input)
-      : { status: "failed", reason: "insufficient_funds" };
-  }
-
-  // the latest Bill payment started in the browser
-  lastBillPayment() {
-    const ref = [...this.billPayments.keys()].at(-1);
-    if (!ref) throw new Error("no Bill payment was started");
-    return { ref, ...this.billPayments.get(ref)!.input };
-  }
-
-  private takeBillPayment(
-    ref: string,
-    input: BillPaymentInput,
-  ): BillPaymentOutcome {
-    this.charges.push({
-      payerId: input.payerId,
-      paymentMethodId: null,
-      amount: input.amount,
-      description: input.description,
-      chargeId: ref,
-    });
-    return {
-      status: "succeeded",
-      chargeId: ref,
-      amount: input.amount,
-      reference: input.reference,
-    };
-  }
-
   // a card "entered" in the test payment form
   paymentToken(card: TestCard = "visa") {
     return `tok_test_${card}_${this.nextId++}`;
+  }
+
+  // a bank account "entered" in the test payment form, linked at once: a
+  // Bill paid with it is processing until clearBankDebit()
+  bankToken() {
+    return `${BANK}${this.nextId++}`;
+  }
+
+  // the browser's test payment form, which enters a test card, pays a Bill
+  // from now on by that card, or as if a bank account had been entered
+  payBillsBy(by: "card" | "bank") {
+    this.billsBy = by;
+  }
+
+  // the newest bank debit paying a Bill, as its ref
+  lastBankDebit() {
+    const ref = [...this.debits.keys()].at(-1);
+    if (!ref) throw new Error("no bank debit made");
+    return ref;
+  }
+
+  // a bank debit paying a Bill clears, or fails as with too little in the
+  // account; the provider's webhook then tells the app
+  clearBankDebit(ref: string, cleared = true) {
+    const debit = this.debits.get(ref);
+    if (!debit || debit.ended)
+      throw new Error(`no bank debit ${ref} on its way`);
+    if (cleared) {
+      this.charges.push(debit.charge);
+      this.made.set(debit.key, { ok: true, chargeId: ref });
+      debit.ended = "cleared";
+    } else {
+      this.made.set(debit.key, { ok: false, reason: "insufficient_funds" });
+      debit.ended = "insufficient_funds";
+    }
   }
 
   // a card set up in the save-only card form, for any payer
@@ -376,13 +380,10 @@ export class FakePaymentGateway implements PaymentGateway {
     }
   }
 
-  // a Deposit's payment, under the ref it was asked as if its holder's bank
-  // had to approve it first, as a Stripe PaymentIntent keeps its id
-  private take(
-    input: DepositInput,
-    paymentMethodId: string | null,
-    ref?: string,
-  ) {
+  // a payment made with the Client there, under the ref it was asked as if
+  // their bank had to approve it first, as a Stripe PaymentIntent keeps its
+  // id
+  private take(input: Payment, paymentMethodId: string | null, ref?: string) {
     const chargeId = input.amount > 0 ? (ref ?? this.id("pi")) : null;
     if (chargeId) {
       this.charges.push({
@@ -444,87 +445,171 @@ export class FakePaymentGateway implements PaymentGateway {
     return this.save(payerId, card);
   }
 
-  async takeDeposit(input: DepositInput): Promise<DepositAttempt> {
+  async takeDeposit(input: DepositInput): Promise<OnSessionResult> {
     this.check();
     const { idempotencyKey, ...request } = input;
     return this.once(
       idempotencyKey,
       request,
-      (): DepositAttempt => {
-        const { source } = input;
-        if ("token" in source && !source.token.startsWith("tok_test")) {
-          return { status: "failed", reason: "invalid_token" };
-        }
-        if (
-          "paymentMethodId" in source &&
-          !this.paymentMethods.some(
-            (m) =>
-              m.paymentMethodId === source.paymentMethodId &&
-              m.payerId === input.payerId,
-          )
-        ) {
-          return { status: "failed", reason: "unknown_payment_method" };
-        }
-        if (input.amount > 0) this.attempt(input.payerId, input.amount);
-        if (this.chargeFailure) {
-          if (input.amount > 0) {
-            this.made.set(idempotencyKey, {
-              ok: false,
-              reason: this.chargeFailure,
-            });
-          }
-          return { status: "failed", reason: this.chargeFailure };
-        }
-        const card =
-          "token" in source
-            ? cardOf(source.token)
-            : (this.cards.get(source.paymentMethodId) ?? "visa");
-        const declined = this.declines(card, true);
-        // a card that declines payments still saves when nothing is taken
-        if (declined && input.amount > 0) {
-          this.made.set(idempotencyKey, { ok: false, reason: declined });
-          return { status: "failed", reason: declined };
-        }
-        const byCard = card === "approvalOnSetup" || card === "alwaysApproval";
-        if ("token" in source && (this.approval || byCard)) {
-          const ref = this.id(input.amount > 0 ? "pi" : "seti");
-          this.waiting.set(ref, { input, card, byCard });
-          return {
-            status: "needs_approval",
-            ref,
-            secret: `${ref}_secret`,
-            processing: false,
-          };
-        }
-
-        const saved = "token" in source ? this.save(input.payerId, card) : null;
-        const chargeId = this.take(
-          input,
-          saved?.paymentMethodId ??
-            ("paymentMethodId" in source ? source.paymentMethodId : null),
-        );
-        const taken: DepositAttempt = { status: "succeeded", chargeId, saved };
-        if (chargeId) {
-          this.made.set(idempotencyKey, { ok: true, chargeId });
-          this.takenAtOnce.set(chargeId, taken);
-        }
-        return taken;
-      },
+      () =>
+        this.payWithClient(input, input.source, {
+          // a card entered now is saved by this payment
+          saves: "token" in input.source,
+          banks: false,
+        }),
       () => ({ status: "failed", reason: "idempotency_error" }),
     );
   }
 
-  async depositOutcome(ref: string): Promise<DepositAttempt> {
+  async payBill(input: BillInput): Promise<OnSessionResult> {
+    this.check();
+    const { idempotencyKey, ...request } = input;
+    const token =
+      this.billsBy === "bank" && !input.token.startsWith(BANK)
+        ? this.bankToken()
+        : input.token;
+    return this.once(
+      idempotencyKey,
+      request,
+      () => this.payWithClient(input, { token }, { saves: false, banks: true }),
+      () => ({ status: "failed", reason: "idempotency_error" }),
+    );
+  }
+
+  // A payment made with the Client there, from a card they entered just
+  // now (or, when it `banks`, a bank account), saved by it when `saves`,
+  // or from a card they saved before. Each one asked for is kept by its key
+  // in `made`, for chargeOutcome to find, as the provider's metadata keeps it
+  private payWithClient(
+    input: Payment & { idempotencyKey: string },
+    source: { token: string } | { paymentMethodId: string },
+    { saves, banks }: { saves: boolean; banks: boolean },
+  ): OnSessionResult {
+    const { idempotencyKey: key } = input;
+    if ("token" in source && !source.token.startsWith("tok_test")) {
+      return { status: "failed", reason: "invalid_token" };
+    }
+    const bank = "token" in source && source.token.startsWith(BANK);
+    if (bank && !banks) {
+      return { status: "failed", reason: "payment_method_not_allowed" };
+    }
+    if (
+      "paymentMethodId" in source &&
+      !this.paymentMethods.some(
+        (m) =>
+          m.paymentMethodId === source.paymentMethodId &&
+          m.payerId === input.payerId,
+      )
+    ) {
+      return { status: "failed", reason: "unknown_payment_method" };
+    }
+    if (input.amount > 0) this.attempt(input.payerId, input.amount);
+    if (this.chargeFailure) {
+      if (input.amount > 0) {
+        this.made.set(key, { ok: false, reason: this.chargeFailure });
+      }
+      return { status: "failed", reason: this.chargeFailure };
+    }
+    // a bank debit is processing for days, until it clears or fails
+    if (bank) {
+      const ref = this.id("pi");
+      this.debits.set(ref, {
+        key,
+        charge: {
+          payerId: input.payerId,
+          paymentMethodId: null,
+          amount: input.amount,
+          description: input.description,
+          chargeId: ref,
+        },
+        ended: null,
+      });
+      this.made.set(key, { ok: false, reason: "processing", chargeId: ref });
+      return {
+        status: "needs_approval",
+        ref,
+        secret: `${ref}_secret`,
+        processing: "bank",
+      };
+    }
+    const card =
+      "token" in source
+        ? cardOf(source.token)
+        : (this.cards.get(source.paymentMethodId) ?? "visa");
+    const declined = this.declines(card, true);
+    // a card that declines payments still saves when nothing is taken
+    if (declined && input.amount > 0) {
+      this.made.set(key, { ok: false, reason: declined });
+      return { status: "failed", reason: declined };
+    }
+    const byCard = card === "approvalOnSetup" || card === "alwaysApproval";
+    const finishing = banks && this.cardsFinishing && input.amount > 0;
+    if ("token" in source && (this.approval || byCard || finishing)) {
+      const ref = this.id(input.amount > 0 ? "pi" : "seti");
+      this.waiting.set(ref, { input, key, card, byCard, saves, finishing });
+      if (input.amount > 0) {
+        this.made.set(key, {
+          ok: false,
+          reason: "requires_action",
+          chargeId: ref,
+        });
+      }
+      return {
+        status: "needs_approval",
+        ref,
+        secret: `${ref}_secret`,
+        processing: finishing ? "card" : false,
+      };
+    }
+
+    const saved =
+      "token" in source && saves ? this.save(input.payerId, card) : null;
+    const chargeId = this.take(
+      input,
+      saved?.paymentMethodId ??
+        ("paymentMethodId" in source ? source.paymentMethodId : null),
+    );
+    const taken: OnSessionResult = { status: "succeeded", chargeId, saved };
+    if (chargeId) {
+      this.made.set(key, { ok: true, chargeId });
+      this.takenAtOnce.set(chargeId, taken);
+    }
+    return taken;
+  }
+
+  async paymentOutcome(ref: string): Promise<OnSessionResult> {
     this.check();
     const taken = this.takenAtOnce.get(ref);
     if (taken) return taken;
+    const debit = this.debits.get(ref);
+    if (debit) {
+      if (!debit.ended) {
+        return {
+          status: "needs_approval",
+          ref,
+          secret: `${ref}_secret`,
+          processing: "bank",
+        };
+      }
+      return debit.ended === "cleared"
+        ? { status: "succeeded", chargeId: ref, saved: null }
+        : { status: "failed", reason: debit.ended };
+    }
     const waiting = this.waiting.get(ref);
     if (!waiting) return { status: "failed", reason: "unknown_payment" };
     if (this.canceled.has(ref)) return { status: "failed", reason: "canceled" };
     // the bank's answer, once given (below), stays, whatever's asked of
     // the next payment (critical review C10)
     const answered = this.replies.get(`outcome:${ref}`);
-    if (answered) return answered.reply as DepositAttempt;
+    if (answered) return answered.reply as OnSessionResult;
+    if (waiting.finishing && this.cardsFinishing) {
+      return {
+        status: "needs_approval",
+        ref,
+        secret: `${ref}_secret`,
+        processing: "card",
+      };
+    }
     if (
       waiting.byCard ||
       this.approval === "pending" ||
@@ -534,23 +619,33 @@ export class FakePaymentGateway implements PaymentGateway {
         status: "needs_approval",
         ref,
         secret: `${ref}_secret`,
-        processing: !waiting.byCard && this.approval === "processing",
+        processing:
+          !waiting.byCard && this.approval === "processing" ? "card" : false,
       };
     }
     // the bank answers once, and it's kept for the read above
     return this.once(
       `outcome:${ref}`,
       null,
-      (): DepositAttempt => {
+      (): OnSessionResult => {
         if (this.approval === "refused") {
-          return { status: "failed", reason: "authentication_failed" };
+          // as Stripe says it once the Client fails or closes the check
+          const reason = "payment_intent_authentication_failure";
+          if (waiting.input.amount > 0) {
+            this.made.set(waiting.key, { ok: false, reason });
+          }
+          return { status: "failed", reason };
         }
-        const saved = this.save(waiting.input.payerId, waiting.card);
-        return {
-          status: "succeeded",
-          chargeId: this.take(waiting.input, saved.paymentMethodId, ref),
-          saved,
-        };
+        const saved = waiting.saves
+          ? this.save(waiting.input.payerId, waiting.card)
+          : null;
+        const chargeId = this.take(
+          waiting.input,
+          saved?.paymentMethodId ?? null,
+          ref,
+        );
+        if (chargeId) this.made.set(waiting.key, { ok: true, chargeId });
+        return { status: "succeeded", chargeId, saved };
       },
       () => ({ status: "failed", reason: "idempotency_error" }),
     );
@@ -559,21 +654,25 @@ export class FakePaymentGateway implements PaymentGateway {
   // as at Stripe, refused once taken, called off already, or while a
   // card's bank is finishing it; the bank's answer, if it's given one, is
   // what decides
-  async cancelDeposit(ref: string, _why: CallingOff) {
+  async cancelPayment(ref: string, _why: CallingOff) {
     this.check();
-    if (!this.waiting.has(ref) || this.canceled.has(ref)) {
-      throw new Error(`no Deposit ${ref} to call off`);
+    const waiting = this.waiting.get(ref);
+    if (!waiting || this.canceled.has(ref)) {
+      throw new Error(`no payment ${ref} to call off`);
     }
-    // read as depositOutcome says it, so the two never disagree (#534
+    // read as paymentOutcome says it, so the two never disagree (#534
     // review F29)
-    const said = await this.depositOutcome(ref);
+    const said = await this.paymentOutcome(ref);
     if (said.status === "needs_approval" && said.processing) {
-      throw new Error(`Deposit ${ref} is processing`);
+      throw new Error(`payment ${ref} is processing`);
     }
     if (said.status === "succeeded") {
-      throw new Error(`Deposit ${ref} was taken`);
+      throw new Error(`payment ${ref} was taken`);
     }
     this.canceled.add(ref);
+    if (this.made.get(waiting.key)?.ok === false && said.status !== "failed") {
+      this.made.set(waiting.key, { ok: false, reason: "canceled" });
+    }
   }
 
   async charge(input: ChargeInput): Promise<ChargeResult> {
@@ -625,43 +724,17 @@ export class FakePaymentGateway implements PaymentGateway {
       if ([...this.processing.values()].some((c) => c.chargeId === chargeId)) {
         return { ok: false, reason: "processing", chargeId };
       }
+      const debit = this.debits.get(chargeId);
+      if (debit && debit.ended !== "cleared") {
+        return debit.ended
+          ? { ok: false, reason: debit.ended }
+          : { ok: false, reason: "processing", chargeId };
+      }
       return this.charges.some((c) => c.chargeId === chargeId)
         ? { ok: true, chargeId }
         : null;
     }
     return this.made.get(idempotencyKey) ?? null;
-  }
-
-  async startBillPayment(input: BillPaymentInput) {
-    this.check();
-    const { idempotencyKey, ...request } = input;
-    return this.once(
-      idempotencyKey,
-      request,
-      () => {
-        this.attempt(input.payerId, input.amount);
-        const ref = this.id("pi");
-        this.billPayments.set(ref, { input, outcome: { status: "waiting" } });
-        return { ref, secret: `${ref}_secret` };
-      },
-      () => {
-        throw new Error("the idempotency key was used for another request");
-      },
-    );
-  }
-
-  async billPaymentOutcome(ref: string): Promise<BillPaymentOutcome> {
-    this.check();
-    const payment = this.billPayments.get(ref);
-    if (this.browserPays && payment?.outcome.status === "waiting") {
-      this.payBill(ref, this.browserPays);
-    }
-    return (
-      this.billPayments.get(ref)?.outcome ?? {
-        status: "failed",
-        reason: "unknown_payment",
-      }
-    );
   }
 
   async refund(input: RefundInput): Promise<RefundResult> {

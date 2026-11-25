@@ -34,7 +34,7 @@ export { ChoiceTile, ChoiceTiles, ChoiceTilesLoading } from "./ChoiceTiles.tsx";
 export { DatePicker, TimeField } from "./DateField.tsx";
 export { Dialog, DialogTrigger, type DialogState } from "./Dialog.tsx";
 export { Drawer } from "./Drawer.tsx";
-export { Fact, Facts } from "./Facts.tsx";
+export { Fact, Facts, factColumns } from "./Facts.tsx";
 export { Figure, Figures } from "./Figures.tsx";
 export { FieldRow } from "./Field.tsx";
 export { Fold } from "./Fold.tsx";

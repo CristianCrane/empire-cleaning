@@ -84,7 +84,6 @@ const words = catalog({
     from: (when: string) => `From ${when}`,
     yourClean: "Your clean",
     chooseClean: "Choose your clean",
-    where: "Where",
     recommend: (recommended: string, own: string) =>
       `We recommend a ${recommended} for a first visit: it brings your home up to standard. A ${own} costs less.`,
     recommended: "Recommended",
@@ -178,7 +177,6 @@ const words = catalog({
     from: (when: string) => `Desde el ${when}`,
     yourClean: "Su limpieza",
     chooseClean: "Elija su limpieza",
-    where: "Dónde",
     recommend: (recommended: string, own: string) =>
       `Le recomendamos una ${recommended} para la primera visita: deja su casa en buen estado. Una ${own} cuesta menos.`,
     recommended: "Recomendada",
@@ -362,7 +360,7 @@ function AskedQuote({ quote }: { quote: AskedQuoteView }) {
           <Facts>
             <Fact
               icon={MapPin}
-              label={t.w.where}
+              label={t.p.where}
               value={addressOf(quote.property)}
               line={t.p.yourHome}
             />
@@ -528,7 +526,7 @@ function QuoteDetails({
         />
         <Fact
           icon={MapPin}
-          label={t.w.where}
+          label={t.p.where}
           value={addressOf(quote.property)}
           line={t.p.yourHome}
         />
@@ -777,25 +775,27 @@ function Accept({
     action.run(
       async () => {
         setStill(undefined);
-        const paymentToken = newCard ? await payment.token() : undefined;
-        const outcome = await postJson<AcceptOutcome>(
-          `/api/quotes/mine/${quote.id}/accept`,
-          // a plan is accepted whole
-          quote.plan
-            ? { revisionId: quote.revisionId, paymentToken }
-            : {
-                revisionId: quote.revisionId,
-                serviceKey: chosen.serviceKey,
-                paymentToken,
-              },
-        );
-        let done = outcome;
-        if (outcome.status === "needs_approval") {
-          await payment.approve(outcome.secret);
-          done = await postJson<AcceptOutcome>(
-            `/api/quotes/mine/${quote.id}/accept/finalize`,
-          );
-        }
+        const done = await payment.pay({
+          start: (paymentToken) =>
+            postJson<AcceptOutcome>(
+              `/api/quotes/mine/${quote.id}/accept`,
+              // a plan is accepted whole
+              quote.plan
+                ? { revisionId: quote.revisionId, paymentToken }
+                : {
+                    revisionId: quote.revisionId,
+                    serviceKey: chosen.serviceKey,
+                    paymentToken,
+                  },
+            ),
+          // not approved: nothing is booked, and the bank's words say why
+          finish: (refused) => {
+            if (refused) throw refused;
+            return postJson<AcceptOutcome>(
+              `/api/quotes/mine/${quote.id}/accept/finalize`,
+            );
+          },
+        });
         if (done.status === "processing" || done.status === "waiting") {
           setStill({
             tone: done.status === "waiting" ? "warning" : "info",

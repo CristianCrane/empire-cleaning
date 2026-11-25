@@ -1000,7 +1000,7 @@ describe("while the Client's bank is approving the Deposit", () => {
 
     testPayments().requireApproval("refused");
     testClock().advance({ minutes: 15 });
-    vi.spyOn(testPayments(), "cancelDeposit").mockRejectedValueOnce(
+    vi.spyOn(testPayments(), "cancelPayment").mockRejectedValueOnce(
       new Error("Stripe is down"),
     );
     await settleOpenPayments();
@@ -1341,12 +1341,12 @@ describe("while the Client's bank is approving the Deposit", () => {
     },
     {
       when: "calling it off can't reach the provider",
-      fails: "cancelDeposit",
+      fails: "cancelPayment",
       says: clientPayingWords.unsure(casey.name),
     },
     {
       when: "reading it can't reach the provider",
-      fails: "depositOutcome",
+      fails: "paymentOutcome",
       says: clientPayingWords.unsure(casey.name),
     },
   ] as const)(
@@ -1441,7 +1441,7 @@ describe("while the Client's bank is approving the Deposit", () => {
     testPayments().requireApproval("pending");
     await payNow(client, quote).expect(200);
     testClock().advance({ minutes: 15 });
-    vi.spyOn(testPayments(), "cancelDeposit").mockRejectedValueOnce(
+    vi.spyOn(testPayments(), "cancelPayment").mockRejectedValueOnce(
       new Error("Stripe is down"),
     );
 
@@ -1472,8 +1472,8 @@ describe("while the Client's bank is approving the Deposit", () => {
     testClock().set(new Date(asked + 15 * 60_000 - 1));
     // settling's read of it, inside the 15 minutes, takes a millisecond
     const gateway = testPayments();
-    const read = gateway.depositOutcome.bind(gateway);
-    vi.spyOn(gateway, "depositOutcome").mockImplementationOnce(async (ref) => {
+    const read = gateway.paymentOutcome.bind(gateway);
+    vi.spyOn(gateway, "paymentOutcome").mockImplementationOnce(async (ref) => {
       testClock().set(new Date(asked + 15 * 60_000));
       return read(ref);
     });
@@ -1507,7 +1507,7 @@ describe("while the Client's bank is approving the Deposit", () => {
     await payNow(client, quote).expect(200);
     testClock().advance({ minutes: 15 });
     await office.post(`/api/quotes/${quote.id}/revisions`).send({}).expect(201);
-    vi.spyOn(testPayments(), "cancelDeposit").mockRejectedValueOnce(
+    vi.spyOn(testPayments(), "cancelPayment").mockRejectedValueOnce(
       new Error("Stripe is down"),
     );
 
@@ -1561,7 +1561,7 @@ describe("while the Client's bank is approving the Deposit", () => {
     const held = (await quoteOf(office, quote.id)).paying;
     testClock().advance({ minutes: 15 });
     await office.post(`/api/quotes/${quote.id}/revisions`).send({}).expect(201);
-    vi.spyOn(testPayments(), "cancelDeposit").mockRejectedValueOnce(
+    vi.spyOn(testPayments(), "cancelPayment").mockRejectedValueOnce(
       new Error("Stripe is down"),
     );
 

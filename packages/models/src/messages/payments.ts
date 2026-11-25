@@ -12,6 +12,12 @@ type Changed = {
   hours: number | null;
 };
 
+// why a payment didn't go through, as a sentence carries it after what
+// failed: " (there wasn't enough money in the account)", or nothing when
+// the provider gave no reason we word (the server's whyNotPaid)
+export const because = (why: string | null | undefined) =>
+  why ? ` (${why})` : "";
+
 const REFUND_TAKES_DAYS = "It can take a few days to reach you.";
 const UPDATE_AND_RETRY = "update your card and we'll try again straight away";
 const BOOKED_GO_AHEAD =
@@ -56,7 +62,7 @@ export const payments = catalog({
       card: string | null,
       why: string | null = null,
     ) =>
-      `We couldn't take ${amount}${card ? ` from your ${card}` : ""}${why ? ` (${why})` : ""}.`,
+      `We couldn't take ${amount}${card ? ` from your ${card}` : ""}${because(why)}.`,
     // a payment we try again ourselves, pending, as each screen says it
     // under its "Payment pending": all a Client needs (#536)
     NOTHING_TO_DO: "Nothing you need to do.",
@@ -119,7 +125,7 @@ export const payments = catalog({
       card: string | null,
       why: string | null = null,
     ) =>
-      `No pudimos cobrar ${amount}${card ? ` de su ${card}` : ""}${why ? ` (${why})` : ""}.`,
+      `No pudimos cobrar ${amount}${card ? ` de su ${card}` : ""}${because(why)}.`,
     NOTHING_TO_DO: "No tiene que hacer nada.",
     cleanNotPaid: (day: string) =>
       `No pudimos cobrar el pago de su limpieza del ${day}`,
@@ -161,8 +167,10 @@ export const asksTheClient = (kind: UnpaidKind) => kind !== "waiting";
 // what happens next, once a payment didn't go through, as the Office reads
 // it, in English (ADR-0025)
 export const officeFix: Record<UnpaidKind, string> = {
-  declined: "We've emailed the client to update their card, which tries again.",
-  no_card: "We've emailed the client to add a card, which tries again.",
+  declined:
+    "We've emailed the client to update their card. Once they do, we try the payment again.",
+  no_card:
+    "We've emailed the client to add a card. Once they do, we try the payment again.",
   waiting: "We'll try again by ourselves.",
   late: "We remind the client each week until it's paid.",
 };

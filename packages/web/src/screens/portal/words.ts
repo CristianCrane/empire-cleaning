@@ -26,6 +26,8 @@ export const portalWords = catalog({
     openUntil: (when: string) => `Open until ${when}`,
     cancel: "Cancel",
     yourHome: "Your home",
+    // a clean's, or a Bill's cleans', on its page
+    where: "Where",
     nothingBooked: "Nothing booked",
     nextShowsHere: "Your next clean shows here once it's booked.",
     differentCard: "Use a different card",
@@ -35,6 +37,9 @@ export const portalWords = catalog({
     seeTheClean: "See the clean",
     // a Bill its card already names, which asks nothing of them
     seeTheBill: "See the bill",
+    // a Bill its card's line already names, to pay on its page (#534's UX
+    // review U6)
+    payTheBill: "Pay the bill",
     anotherTime: "Need another time?",
     // its Welcome page's heading, and its first tour's title
     cleaningPlan: "Cleaning plan",
@@ -74,6 +79,7 @@ export const portalWords = catalog({
     openUntil: (when: string) => `Abierta hasta el ${when}`,
     cancel: "Cancelar",
     yourHome: "Su casa",
+    where: "Dónde",
     nothingBooked: "Nada reservado",
     nextShowsHere: "Su próxima limpieza aparecerá aquí cuando esté reservada.",
     differentCard: "Usar otra tarjeta",
@@ -82,6 +88,7 @@ export const portalWords = catalog({
     seeYourCleaningPlan: "Ver su plan de limpieza",
     seeTheClean: "Ver la limpieza",
     seeTheBill: "Ver la factura",
+    payTheBill: "Pagar la factura",
     anotherTime: "¿Necesita otra hora?",
     cleaningPlan: "Plan de limpieza",
     bill: (n: string) => `Factura ${n}`,

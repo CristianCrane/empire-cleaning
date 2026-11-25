@@ -40,7 +40,9 @@ export const messages = catalog({
 // the rules the words state, and the Office's own words
 export { RELEASE_CUTOFF_HOURS } from "./assignments.ts";
 export {
-  cardNotDone,
+  paymentNotDone,
+  bankPaymentOnWay,
+  clientPayingBill,
   cleansPaidForOffice,
   ON_THAT_WEEKS_BILL,
 } from "./bills.ts";
@@ -61,7 +63,7 @@ export {
   whyNoRoom,
   type NoRoom,
 } from "./jobs.ts";
-export { asksTheClient, officeFix } from "./payments.ts";
+export { asksTheClient, because, officeFix } from "./payments.ts";
 export {
   clientPaying,
   needsVisit,

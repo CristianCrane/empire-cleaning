@@ -1,10 +1,10 @@
-// serves the built app once per slot (e2e/slots.ts), each sending /api to its
-// slot's API, and says so once every slot's is up. Started after `vite build`
-// (playwright.config.ts).
-// Without vite.config.ts: serving dist/ needs none of its plugins, and loading
-// them once per slot slowed the start.
+// serves the built app (appBuild) once per slot (e2e/slots.ts), each sending
+// /api to its slot's API, and says so once every slot's is up. Started after
+// `vite build` (playwright.config.ts).
+// Without vite.config.ts: serving a build needs none of its plugins, and
+// loading them once per slot slowed the start.
 import { preview } from "vite";
-import { slotOf, WORKERS } from "./slots.ts";
+import { appBuild, slotOf, WORKERS } from "./slots.ts";
 
 const root = new URL("..", import.meta.url).pathname;
 
@@ -13,6 +13,7 @@ for (let i = 0; i < WORKERS; i++) {
   await preview({
     configFile: false,
     root,
+    build: { outDir: appBuild },
     preview: {
       port: Number(new URL(appUrl).port),
       strictPort: true,

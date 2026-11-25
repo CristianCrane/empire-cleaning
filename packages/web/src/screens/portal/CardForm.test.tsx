@@ -3,8 +3,8 @@ import { render } from "vitest-browser-react";
 import { loadStripe, type Stripe, type StripeError } from "@stripe/stripe-js";
 import { report } from "@empire-cleaning/browser-monitoring";
 import { LanguageProvider } from "@empire-cleaning/ui";
-import { getJson } from "../../api.ts";
-import { CardProblem, usePaymentForm } from "./CardForm.tsx";
+import { getJson, postJson, putJson } from "../../api.ts";
+import { CardProblem, useCardForm, usePaymentForm } from "./CardForm.tsx";
 
 vi.mock(import("@stripe/stripe-js"), async (original) => ({
   ...(await original()),
@@ -13,6 +13,8 @@ vi.mock(import("@stripe/stripe-js"), async (original) => ({
 vi.mock(import("../../api.ts"), async (original) => ({
   ...(await original()),
   getJson: vi.fn(),
+  postJson: vi.fn(),
+  putJson: vi.fn(),
 }));
 vi.mock(import("@empire-cleaning/browser-monitoring"), async (original) => ({
   ...(await original()),
@@ -194,4 +196,53 @@ describe("paying, when Stripe says no", () => {
       expect(report).not.toHaveBeenCalled();
     },
   );
+});
+
+// #534 review F7: the provider refuses confirming a setup twice, so a card
+// set up whose saving failed is saved on the next press, not set up again
+test("a card set up whose saving failed is saved on the next press, not set up again", async () => {
+  vi.mocked(getJson).mockResolvedValue({
+    form: "stripe",
+    publishableKey: "pk_test_123",
+  });
+  vi.mocked(postJson).mockResolvedValue({
+    form: "stripe",
+    secret: "seti_1_secret",
+  });
+  const mount = vi.fn();
+  const confirmSetup = vi.fn(async () => ({ setupIntent: { id: "seti_1" } }));
+  vi.mocked(loadStripe).mockResolvedValue({
+    elements: () => ({
+      create: () => ({ on: () => {}, mount, destroy: () => {} }),
+      update: () => {},
+    }),
+    confirmSetup,
+  } as unknown as Stripe);
+  vi.mocked(putJson)
+    .mockRejectedValueOnce(new Error("Something went wrong"))
+    .mockResolvedValueOnce({});
+  function SaveForm() {
+    const card = useCardForm();
+    return (
+      <>
+        {card.field}
+        <button type="button" onClick={() => void card.save().catch(() => {})}>
+          Save
+        </button>
+      </>
+    );
+  }
+  const screen = await render(<SaveForm />);
+  await vi.waitFor(() => expect(mount).toHaveBeenCalledOnce());
+
+  await screen.getByRole("button", { name: "Save" }).click();
+  await vi.waitFor(() => expect(putJson).toHaveBeenCalledOnce());
+  await screen.getByRole("button", { name: "Save" }).click();
+  await vi.waitFor(() => expect(putJson).toHaveBeenCalledTimes(2));
+
+  expect(confirmSetup).toHaveBeenCalledOnce();
+  expect(vi.mocked(putJson).mock.calls.map(([, body]) => body)).toEqual([
+    { token: "seti_1" },
+    { token: "seti_1" },
+  ]);
 });

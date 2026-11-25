@@ -1,6 +1,7 @@
 import {
   date,
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -13,6 +14,7 @@ import {
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { timestamps } from "../../db/timestamps.ts";
 import { accounts } from "../auth/auth.schema.ts";
 import { billPayment, clients } from "../clients/clients.schema.ts";
@@ -76,11 +78,10 @@ export const bills = pgTable(
     // since the day after it was due, unpaid
     unpaidSince: timestamp("unpaid_since", { withTimezone: true }),
     unpaidReason: text("unpaid_reason"),
-    // the payment the Client last started on its page, while a bank debit
+    // since when, by the Clock, a bank debit the Client made on its page
+    // has been clearing: set while it's processing, which the check below
+    // holds, so its pages and payment history date it by this until it
     // clears
-    paymentRef: text("payment_ref"),
-    // and since when, by the Clock: the Client's payment history dates it by
-    // this until it clears
     clearingSince: timestamp("clearing_since", { withTimezone: true }),
     // when it went to the Client: once made, and charged if it's charged
     // automatically
@@ -110,6 +111,10 @@ export const bills = pgTable(
     unique("bills_client_week").on(t.clientId, t.weekStart),
     index("bills_credit_from_idx").on(t.creditFromBillId),
     index("bills_unpaid_idx").on(t.unpaidSince),
+    check(
+      "bills_processing_since",
+      sql`${t.status} <> 'processing' OR ${t.clearingSince} IS NOT NULL`,
+    ),
   ],
 );
 

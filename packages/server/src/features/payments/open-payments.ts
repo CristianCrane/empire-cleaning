@@ -23,7 +23,7 @@ import { charges } from "./payments.schema.ts";
  * each Job, Bill or Quote with a Charge or refund attempt we never heard the
  * end of, and each Job or Bill Unpaid only because the provider couldn't be
  * reached (or its payment was still processing). A Job is settled again, a
- * due Bill charged again; a Bill paid another way meanwhile gives back what
+ * due Bill charged again, a Bill whose bank debit ended made due again; a Bill paid another way meanwhile gives back what
  * its lost Charge took, and so does a Quote nobody booked. A Quote's
  * Deposit waiting on the Client's bank longer than APPROVAL_MS is called
  * off, or found refused, the Client emailed, or, approved, booked (settleQuotePayments,
@@ -55,6 +55,15 @@ export const settleOpenPayments = async () => {
         inArray(bills.unpaidReason, WAITING_ON_PROVIDER),
       ),
     );
+  // a Bill whose bank debit ended while a run that found it failed before
+  // writing the Bill, so it still reads processing (#534's critical review
+  // C7); one still on its way is settled for its open attempt anyway
+  const processing = await db
+    .select({ id: bills.id })
+    .from(bills)
+    .where(
+      and(eq(bills.status, "processing"), lte(bills.clearingSince, before)),
+    );
 
   // one that fails stops no other, and the next run tries it again
   const each = async (
@@ -73,7 +82,7 @@ export const settleOpenPayments = async () => {
   await each("Job", [...open.jobs, ...unpaidJobs.map((j) => j.id)], retryJob);
   await each(
     "Bill",
-    [...open.bills, ...unpaidBills.map((b) => b.id)],
+    [...open.bills, ...[...unpaidBills, ...processing].map((b) => b.id)],
     retryBill,
   );
   // a Deposit left waiting on the Client's bank is called off, or booked

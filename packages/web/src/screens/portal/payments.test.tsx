@@ -46,6 +46,7 @@ const bill = (over: Partial<BillSummary> = {}): BillSummary =>
     status: "due",
     totalCents: 125350,
     unpaid: null,
+    paying: null,
     ...over,
   }) as BillSummary;
 
@@ -65,6 +66,7 @@ describe("what a Client owes now", () => {
       owed: null,
       paying: "Visa ending 4242",
       clearing: [],
+      cardsBill: null,
     });
   });
 
@@ -74,7 +76,8 @@ describe("what a Client owes now", () => {
     expect(owed).toMatchObject({
       cents: 18450,
       late: true,
-      text: "We couldn't take payment for your Oct 20 clean",
+      line: null,
+      why: "We couldn't take payment for your Oct 20 clean.",
       action: { label: "Update your card" },
     });
   });
@@ -85,7 +88,8 @@ describe("what a Client owes now", () => {
     );
 
     expect(owed).toMatchObject({
-      text: "Your Oct 20 clean",
+      line: "Your Oct 20 clean",
+      why: null,
       // so their Home leads with what's next, not this, and Payments
       // says it calmly
       asks: false,
@@ -104,7 +108,8 @@ describe("what a Client owes now", () => {
     expect(moneyNow(data({ bills: [waiting] })).owed).toMatchObject({
       asks: false,
       late: false,
-      text: "Bill EC-000041",
+      line: "Bill EC-000041",
+      why: null,
       action: {
         label: "See the bill",
         href: href("/portal/bills/$billId", { billId: "bill" }),
@@ -129,7 +134,8 @@ describe("what a Client owes now", () => {
       cents: 125350,
       asks: true,
       late: true,
-      text: "We couldn't take payment for bill EC-000042",
+      line: null,
+      why: "We couldn't take payment for bill EC-000042.",
     });
   });
 
@@ -140,9 +146,10 @@ describe("what a Client owes now", () => {
     expect(owed).toMatchObject({
       cents: 125350,
       late: false,
-      text: "Bill EC-000041 is due by Nov 3",
+      line: "Bill EC-000041 is due by Tue, Nov 3",
+      why: null,
       action: {
-        label: "Pay bill EC-000041",
+        label: "Pay the bill",
         href: href("/portal/bills/$billId", { billId: "bill" }),
       },
     });
@@ -162,7 +169,8 @@ describe("what a Client owes now", () => {
     expect(owed).toMatchObject({
       cents: 225350,
       late: true,
-      text: "We couldn't take payment for bill EC-000040, and 1 more",
+      line: null,
+      why: "We couldn't take payment for bill EC-000040, and 1 more.",
       action: { label: "Pay bill EC-000040" },
     });
   });
@@ -173,13 +181,65 @@ describe("what a Client owes now", () => {
     ).toBeNull();
   });
 
-  test("a bank debit on its way isn't owed, but is said", () => {
+  // #534's UX review U10
+  test("a bank debit on its way is pending, asking nothing, and said", () => {
     const debit = bill({ status: "processing" });
 
     expect(moneyNow(data({ bills: [debit] }))).toMatchObject({
-      owed: null,
+      owed: {
+        cents: 125350,
+        asks: false,
+        late: false,
+        line: "Bill EC-000041",
+        why: null,
+        action: { label: "See the bill" },
+      },
       clearing: [debit],
+      // the card names it, so what's said under it needn't (U16)
+      cardsBill: "bill",
     });
+  });
+
+  // #534's change review F25
+  test("a bank debit on its way under a card about two Bills: the card names neither alone", () => {
+    const debit = bill({ status: "processing" });
+    const waiting = bill({
+      id: "waiting",
+      number: "EC-000040",
+      payment: "automatic",
+      unpaid: { since: "", kind: "waiting", why: null },
+    });
+
+    expect(moneyNow(data({ bills: [waiting, debit] }))).toMatchObject({
+      owed: { asks: false, line: "Bill EC-000040, and 1 more" },
+      clearing: [debit],
+      cardsBill: null,
+    });
+    // and a Bill due under it, asking to be paid, is the card's alone
+    expect(
+      moneyNow(
+        data({ bills: [bill({ id: "due", number: "EC-000042" }), debit] }),
+      ).cardsBill,
+    ).toBe("due");
+  });
+
+  // #534's UX review U11
+  test("one their bank asks them to approve says so under when it's due", () => {
+    const approving = bill({
+      paying: { status: "approving", until: "2026-10-20T13:15:00.000Z" },
+    });
+    expect(owedAnswer(data({ bills: [approving] })).hero.lines).toEqual([
+      "Bill EC-000041 is due by Tue, Nov 3",
+      "Your bank hasn't approved your payment yet",
+    ]);
+    // beside another Bill due, it names its own
+    expect(
+      moneyNow(
+        data({
+          bills: [bill({ id: "other", number: "EC-000040" }), approving],
+        }),
+      ).owed?.waiting,
+    ).toBe("Your bank hasn't approved your payment for bill EC-000041 yet");
   });
 
   test("with no card: Bills on their page need none", () => {
@@ -189,6 +249,94 @@ describe("what a Client owes now", () => {
     ).toBe("You pay each bill on its page");
     expect(moneyNow(data({ paymentMethod: null })).paying).toBe(
       "No card saved yet",
+    );
+  });
+});
+
+// the Client's last payment on a Bill's page that didn't go through (#534):
+// news in the alert above the card, with why, while the card's line keeps
+// when it's due by, as that's still ahead; one alert for all that's owed,
+// naming the Bill only when the card's line doesn't (#534's UX review U6)
+describe("a payment on a Bill's page that didn't go through", () => {
+  const WHY = "there wasn't enough money in the account";
+  const failed = (over: Partial<BillSummary> = {}) =>
+    bill({ paying: { status: "failed", at: CLEAN, why: WHY }, ...over });
+  const late = bill({
+    id: "late",
+    number: "EC-000040",
+    unpaid: { since: "", kind: "late", why: null },
+    totalCents: 100000,
+  });
+
+  test("before its due date: red, its line kept and naming it, the alert says why", () => {
+    const answer = owedAnswer(data({ bills: [failed()] }));
+    expect(answer.hero).toMatchObject({
+      label: "To pay",
+      tone: "danger",
+      headline: "$1,253.50",
+      lines: ["Bill EC-000041 is due by Tue, Nov 3"],
+      action: { label: "Pay the bill" },
+    });
+    expect(answer.why).toEqual({
+      tone: "danger",
+      lead: `Your payment didn't go through (${WHY}).`,
+    });
+    // with no reason known, the sentence ends without one
+    expect(
+      owedAnswer(
+        data({
+          bills: [
+            failed({ paying: { status: "failed", at: CLEAN, why: null } }),
+          ],
+        }),
+      ).why?.lead,
+    ).toBe("Your payment didn't go through.");
+  });
+
+  test("with another Bill due, it leads, and the alert names only it", () => {
+    const due = bill({ id: "due", number: "EC-000042" });
+    expect(moneyNow(data({ bills: [due, failed()] })).owed).toMatchObject({
+      cents: 250700,
+      late: true,
+      line: "Bill EC-000041 is due by Tue, Nov 3, and 1 more",
+      why: `Your payment for bill EC-000041 didn't go through (${WHY}).`,
+      action: { label: "Pay the bill" },
+    });
+  });
+
+  test("two that didn't go through are counted", () => {
+    const other = failed({ id: "other", number: "EC-000042" });
+    expect(moneyNow(data({ bills: [failed(), other] })).owed?.why).toBe(
+      "Payments for 2 bills didn't go through.",
+    );
+  });
+
+  test("past its due date, the alert says it in place of the late words", () => {
+    const lateFailed = failed({
+      unpaid: { since: "", kind: "late", why: null },
+    });
+    expect(moneyNow(data({ bills: [lateFailed] })).owed).toMatchObject({
+      line: null,
+      why: `Your payment for bill EC-000041 didn't go through (${WHY}).`,
+    });
+  });
+
+  test("beside a late Bill: each one's news, the late first, which the card pays", () => {
+    expect(moneyNow(data({ bills: [failed(), late] })).owed).toMatchObject({
+      cents: 225350,
+      line: null,
+      why: `We couldn't take payment for bill EC-000040. Your payment for bill EC-000041 didn't go through (${WHY}).`,
+      action: { label: "Pay bill EC-000040" },
+    });
+  });
+
+  test("three or more Bills that ask: how many, and where to read why", () => {
+    const due = bill({ id: "due", number: "EC-000042" });
+    expect(moneyNow(data({ bills: [failed(), late, due] })).owed).toMatchObject(
+      {
+        line: null,
+        why: "3 bills aren't paid yet. Each one's page says why.",
+      },
     );
   });
 });

@@ -28,7 +28,8 @@ const listLocales: Record<Language, string> = { en: "en-GB", es: locales.es };
 
 // a clock time held to its AM or PM by a no-break space, wherever it's
 // read (a screen, an email), so a narrow line never ends on "9:00" with
-// "AM" under it. Intl's own space between them differs from one engine to
+// "AM" under it, nor "10:00 AM" or "9:00 a.m." wraps (#548, #534's UX
+// review U19). Intl's own space between them differs from one engine to
 // the next, so every engine's comes out the same
 const held = (text: string) =>
   text.replace(/(\d)[ \u202f](?=AM|PM|[ap]\.\s?m\.)/g, "$1\u00a0");

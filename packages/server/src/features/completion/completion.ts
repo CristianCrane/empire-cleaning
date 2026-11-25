@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm";
 import { currentLanguage } from "#services/request";
 import {
+  because,
   type AdjustmentCorrection,
   type AdjustmentProposal,
   type AdjustmentView,
@@ -782,7 +783,7 @@ export const retryBalance = async (jobId: string) => {
   if (settled.failure) {
     const { why } = whyNotPaid(currentLanguage(), settled.failure);
     throw new ConflictError(
-      `The payment still didn't go through${why ? ` (${why})` : ""}.`,
+      `The payment still didn't go through${because(why)}.`,
     );
   }
   await sendCorrection(jobId, settled);
@@ -1029,7 +1030,7 @@ export const clientRetryBalance = async (clientId: string, jobId: string) => {
     const said = words[lang];
     const { kind, why } = whyNotPaid(lang, settled.failure);
     throw new ConflictError(
-      `${said.stillNot(why ? ` (${why})` : "")} ${kind === "declined" ? said.UPDATE_OR_ANOTHER : messages[lang].clientFix[kind]}`,
+      `${said.stillNot(because(why))} ${kind === "declined" ? said.UPDATE_OR_ANOTHER : messages[lang].clientFix[kind]}`,
     );
   }
 };
