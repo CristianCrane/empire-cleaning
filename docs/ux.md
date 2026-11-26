@@ -188,7 +188,9 @@ Cleaner's Your jobs render through `HomePage`
   by when), and the card says what to do, its amount and its primary, so
   each fact shows once: the facts before the decision, read top to bottom
   (#493's D2, `prototype-home-alert`). What the card holds steps out of
-  the tiles meanwhile; while it asks something out of the usual (money
+  the tiles meanwhile, but for money: the Office's Money tile counts all
+  that's owed, the card's too, as a grey Money tile while money is owed
+  would read as nothing owed (#508's U8, the user's call); while it asks something out of the usual (money
   owed that asks, a price change, a crew who couldn't get in), the title
   row's action stands aside too. A paused plan with nothing to do is the
   plan's card, its alert calm (info), its way to the plan outlined. Money owed that asks nothing (a
@@ -212,7 +214,8 @@ Cleaner's Your jobs render through `HomePage`
   is judged by, how many in its hint: the Office's Money shows what's
   owed, as its count read as money, the 11-20 audit's Today 3; #507) and opens them in place under the tiles, one at a time, pressed again to close (the
   Office's to-dos by kind and the day's Jobs, a Cleaner's Coming up, every
-  payment). A tile with none is greyed out. Which one is open is in the
+  payment). A tile with none is greyed out, a link's too (Offers with none
+  waiting). Which one is open is in the
   URL (`?open=`), so Back from a row comes back to it. What's waiting on a
   Client (a quote, a price change to OK) is a tile rather than cut for a
   shortcut, so it stays in reach, unless the card holds it. Lists of past things live on

@@ -417,7 +417,7 @@ Keeps: next up large, then coming up (ux-cleaner). Renders through
 - Header: "Hi, name", not in the bar.
 - Body: Now or Next up (`AnswerCard`: `DateTile`, Directions, Open job the
   primary), or nothing booked with See offers; tiles Coming up and Done
-  today (`?open=`, dated rows in place) and Offers (a link).
+  today (`?open=`, dated rows in place) and Offers (a link, greyed with none waiting).
 
 #### Cleaner > Offers
 
