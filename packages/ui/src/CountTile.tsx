@@ -33,7 +33,7 @@ export function CountTile({
       onChange={onChange}
       isDisabled={count === 0}
       className={(renderProps) =>
-        `${focusRing(renderProps)} ${tileForm} cursor-pointer disabled:cursor-default disabled:shadow-none disabled:hover:bg-surface group selected:border-success-strong selected:bg-success-subtle selected:shadow-none selected:hover:bg-success-subtle`
+        `${focusRing(renderProps)} ${tileForm} cursor-pointer group selected:border-success-strong selected:bg-success-subtle selected:shadow-none selected:hover:bg-success-subtle`
       }
     >
       <TileLabel icon={icon} label={label} />

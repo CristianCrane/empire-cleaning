@@ -42,9 +42,7 @@ export function ShortcutTile({
     <AriaLink
       href={href}
       isDisabled={isDisabled}
-      className={(renderProps) =>
-        `${focusRing(renderProps)} ${tile} disabled:cursor-default disabled:shadow-none disabled:hover:bg-surface`
-      }
+      className={(renderProps) => `${focusRing(renderProps)} ${tile}`}
     >
       {body}
     </AriaLink>
