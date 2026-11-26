@@ -196,8 +196,8 @@ Cleaner's Your jobs render through `HomePage`
   payment we try again ourselves, or their bank payment on its way) is
   Payments' card alone, calm: info,
   "Payment pending" and one line, that there's nothing to do (and, while
-  it pauses a plan, "Until it goes through, we won't book more cleans on your
-  plan."), and its way to see it outlined, as the page has no next step.
+  it pauses a plan, the paused plan's sentence, Words), and its way to see
+  it outlined, as the page has no next step.
   A quote that no longer waits on their answer (its Deposit going through,
   "Payment pending"; a card saved with it while it books, "Booking
   pending"; or its time filled since it was sent, "Time unavailable", its
@@ -587,6 +587,20 @@ stays as it is (#336).
   and promises neither ending**: most payments go through, some don't
   ("…while its payment is going through, which usually takes under half
   an hour", models' `paymentNotDone`, #534).
+- **A paused plan says what the pause does in one sentence**, wherever a
+  Client reads it (the Bill, the plan's page, Payments' and Home's cards,
+  the emails): "Until it's paid, we won't book more cleans on your plan."
+  when it asks them to pay, "Until it goes through, …" when it doesn't
+  (models' `noMoreCleans`). It's true whether or not cleans are booked, and
+  "paid" only where it's theirs to do: the user's call (#536). The terms
+  and the email warning of a pause keep the rule, a promise, "Cleans
+  already booked still go ahead" (`BOOKED_GO_AHEAD`).
+- **A weekly Bill's costs say which Bill they go on**: one owed before
+  that week's Bill is made goes on it, "goes on your bill for that week" to
+  the Client (models' `ON_WEEKS_BILL`), "goes on that week's bill" to the
+  Office (`ON_THAT_WEEKS_BILL`), as a fee goes on its Job's week, not
+  always the next Bill made; one settled after the clean, on the next
+  (#244).
 - **A field that's too long says its limit** (the `ui` skill), from the
   server's `keepUnder`: "Keep the reason under 500 characters".
 - **Words that state a rule are checked against the code** (the `ui` skill):

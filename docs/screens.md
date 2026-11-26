@@ -30,7 +30,9 @@ what later screens are checked against. The landing site isn't here.
 The Office, Client portal and Cleaner area share one frame
 (`packages/ui/src/layouts/AppLayout.tsx`): a sidebar
 from `lg`, folded to a rail of named icons from `md`; under `md`, a top bar with ☰
-and a drawer, and a tab bar at the foot. While the next page takes a moment to load, a bar runs across the top
+and a drawer, and a tab bar at the foot. The Client portal's nav is Home ·
+Cleans · Payments · Your details, homes and plans under Your details, no
+list of Quotes (#153). While the next page takes a moment to load, a bar runs across the top
 and the page on show fades (`docs/ux.md`, Navigation). How sign-in and the areas' guards behave is in `packages/web/README.md`,
 Areas and sign-in.
 
@@ -482,12 +484,6 @@ Keeps: Cleaner needed (#148). Renders through `RecordPage` (#432).
   ZIP code; How long, Crew as how many, never who).
 
 ### Client portal
-
-Its nav: Home · Cleans · Payments · Your details, homes and plans under
-Your details, no list of Quotes (#153). A weekly-billed Client reads a cost
-before the clean "goes on your bill for that week", one after it on the
-next Bill (#244). A paused plan says what the pause does in one sentence
-wherever a Client reads it (models' `noMoreCleans`), the user's call (#536).
 
 #### Client portal > Home
 
