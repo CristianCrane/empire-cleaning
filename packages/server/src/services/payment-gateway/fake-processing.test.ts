@@ -69,3 +69,25 @@ test("a typed card that asks for approval asks first, even left processing", asy
 
   expect(first.status).toBe("approving");
 });
+
+// critical review C21 [polish]: C20's rule, a card that asks the Client asks
+// first, holds for failCharges("processing") but not for finishCards(): a
+// typed card that always asks reads processing first, then waiting on the
+// Client once finishCards(false) lets it go, which Stripe never does
+test("a typed card that asks for approval asks first, left processing by finishCards()", async () => {
+  const fake = new FakePaymentGateway();
+  const { payerId } = await fake.createPayer({
+    clientId: "client-1",
+    language: "en",
+  });
+  fake.finishCards();
+  const first = await fake.takeDeposit({
+    payerId,
+    source: { token: fake.paymentToken("alwaysApproval") },
+    amount: 5000,
+    description: "Deposit",
+    idempotencyKey: "deposit-1",
+  });
+
+  expect(first.status).toBe("approving");
+});

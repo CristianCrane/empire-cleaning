@@ -249,10 +249,16 @@ export function PortalPaymentMethod() {
     };
     // the card's own answer, not approved or not taken; any other failure,
     // ours or a payment no longer there to try (paid meanwhile), says why
-    // in a toast (#508's review F31)
+    // in a toast (#508's review F31), as would a kind added later for
+    // another sort of clash
     const answered = () =>
       took().catch((e: unknown) => {
-        if (e instanceof ApiError && e.kind) return "refused";
+        if (
+          e instanceof ApiError &&
+          (e.kind === "approve" || e.kind === "notTaken")
+        ) {
+          return "refused";
+        }
         throw e;
       });
     return retry.run(answered, (took) => {
