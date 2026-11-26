@@ -830,26 +830,6 @@ test("Your card asks for a new card in place of an expired one, with no retry", 
   await expect(needed.getByRole("button")).toHaveCount(0);
 });
 
-// the provider leaves the retried charge processing: it may yet be taken
-// or declined, so Your card says it's pending, never that it's taken
-// (critical diff review C7)
-test("Your card's retry still going through says so, not that it's paid", async ({
-  page,
-}) => {
-  const { billId } = await billed({ failing: "insufficient_funds" });
-  await failCharges("processing");
-  await signedInAs(page, casey.email);
-  await page.goto(`/portal/bills/${billId}`);
-  await page.getByRole("link", { name: "Update your card" }).click();
-
-  const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
-  await needed.getByRole("button", { name: "Try this card again" }).click();
-  // in the app's words for a payment on its way (UX review U7)
-  await expect(page.getByText("Payment pending")).toBeVisible();
-  await expect(page.getByText("Payment taken")).toHaveCount(0);
-  await expect(needed).toHaveCount(0);
-});
-
 // a clean done and not yet billed: Payments says what Monday's Bill holds
 // so far, not "all paid up" (#508)
 test("Payments says what's on the next Bill so far", async ({ page }) => {

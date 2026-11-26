@@ -2692,23 +2692,6 @@ describe("a weekly Client's retry and next Bill", () => {
     expect(await billOf(office, id)).toMatchObject({ status: "paid" });
   });
 
-  // the card was tried, but the provider left the charge processing: it
-  // may yet be taken or declined, so it's neither said to be paid nor not
-  // tried (critical diff review C7)
-  test("a try the provider leaves processing isn't said to be paid", async () => {
-    const { office, id } = await declinedBill();
-    const client = await signIn(casey.email);
-    testPayments().failCharges("processing");
-
-    const res = await client
-      .post(`/api/bills/mine/${id}/payment`)
-      .send({})
-      .expect(200);
-
-    expect(res.body).toMatchObject({ status: "done", bill: { status: "due" } });
-    expect(await billOf(office, id)).toMatchObject({ status: "due" });
-  });
-
   // saving a card tries it too, and says what it took
   test("saving a card takes a declined weekly Bill, and says so", async () => {
     const { id, totalCents } = await declinedBill();

@@ -854,7 +854,7 @@ test("a Client whose Deposit is going through sees it pending on Payments, with 
   await expect(
     page.getByText("Deposit for Deep Clean · Nothing you need to do."),
   ).toBeVisible();
-  await expect(page.getByText("You're all paid up")).toHaveCount(0);
+  await expect(page.getByText("Nothing", { exact: true })).toHaveCount(0);
   await expect(
     page.getByRole("link", { name: "See your quote" }),
   ).toHaveAttribute("href", new URL(quote).pathname);
@@ -889,7 +889,9 @@ test("a Client whose Deposit was given back as the time filled up sees it and it
   await expect(titleBadge(page, "Time unavailable")).toBeVisible();
 
   await page.goto("/portal/payments");
-  await expect(page.getByText("You're all paid up")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "To pay" }).getByText("Nothing"),
+  ).toBeVisible();
   await openTile(page, "All payments");
   const rows = listRows(page, "All payments");
   await expect(rows).toHaveCount(2);
