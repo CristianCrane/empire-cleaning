@@ -55,6 +55,7 @@ Every pull request, into `main` or stacked on another's branch, and every push t
 | Design-system tests  | `pnpm --filter @empire-cleaning/ui test`                                                                              |
 | Web end-to-end tests | `pnpm --filter @empire-cleaning/web test`                                                                             |
 | Landing site tests   | `pnpm --filter @empire-cleaning/landing test`                                                                         |
+| Docs                 | `node ~/.claude/hooks/docs.mjs check --base origin/main` (`docs/map.md`)                                              |
 
 What the Checks job is for:
 
