@@ -877,13 +877,43 @@ stays as it is (#336).
 
 1. **Ask the question.** What is the screen for, and what's wrong with it
    now?
-2. **Prototype it** on a `prototype-<screen>` branch: a signed-out route
-   (`/prototype/<screen>?case=&layout=`) with made-up data for every state,
-   ↑/↓ to switch layouts and ←/→ to switch cases (`PrototypeSwitcher`,
-   copied from the latest `prototype-*` branch, as it isn't on main).
-   Usually three layouts. Push the branch; it's kept as the record. It never
-   becomes a PR, so it skips the change review (the `change` skill's
-   Prototype rule).
+2. **Prototype it** on a `prototype-<screen>` branch off main, which has
+   the kit (#502): one file of made-up data for every state, and nothing
+   else to copy or wire up. Usually three layouts. Push the branch; it's
+   kept as the record. It never becomes a PR, so it skips the change review
+   (the `change` skill's Prototype rule).
+   - **The web app:** `<screen>.prototype.tsx`, beside the screen in
+     `packages/web/src/screens/`, default-exports `prototype({ layouts,
+     cases })` (`screens/Prototype.tsx`), each case drawing itself for a
+     layout from made-up data, in the real frames through `AreaLayout`'s
+     `PrototypeFrame`. It's at `/prototype/<screen>`, signed out, with
+     `?layout=&case=`.
+   - **The landing site:** `src/prototypes/<screen>.ts` default-exports
+     `prototype({ layouts, cases })` (`src/prototype.ts`), a Spanish case
+     with `lang: "es"`, and `src/prototypes/<screen>.astro` draws one, given
+     `layout` and `case`. It's at `/prototype/<screen>/`, each case a page
+     of its own, a Spanish one under `/es/`.
+   - **Looking at it:** `pnpm dev` draws a bar in the corner
+     (`PrototypeBar`): ↑/↓ for layouts and ←/→ for cases, a link to the
+     list of them all, and a fold to a tab on the right edge,
+     reading "A" over "2" as the list's "A2", within a phone's 16px margin, when it covers what's under it. A name
+     with no prototype lists the ones the branch has, in both packages
+     (`PrototypeUnknown`). With no case, the address is that list, a grid of every
+     layout × case (`PrototypeIndex`). When another dev server may be
+     running, give yours a port under 10000 with `--strictPort`: the test
+     runs lease theirs from 10000 up (`packages/server/tests/ports.ts`), and
+     a port already taken then fails at once rather than moving on. The
+     screen-layout lint is off in a prototype, and the copies check skips
+     its words.
+   - **Shots:** `pnpm pr:shots --prototype <screen>` shoots every layout ×
+     case at rest, with no bar, at a phone's width and each where the
+     frames change (`WIDTHS` in
+     `packages/server/tests/e2e/prototype-shots.ts`), and shows them case
+     by case in an `index.md` (`packages/web/README.md`), for the
+     `ux-reviewer` and the pick.
+   - A package a prototype adds stays on its branch, as main would carry a
+     dependency nothing uses, which `pnpm lint:unused` (knip) turns down;
+     one the pick needs comes in with the build.
 3. **Pick one** with the user, and note any tweaks.
 4. **Build it** on a `ux-<screen>` branch, through the layout for its type
    (a change to how every screen of a type looks is a change to its layout),
@@ -894,7 +924,10 @@ stays as it is (#336).
    layout drops nothing by accident (the `ui` skill, "Reworking a
    screen"): #432's review found three such drops, and #434's two more. A
    part dropped on purpose gives its reason in its `docs/ux-log.md` row.
-5. **Record it**: a row in `docs/ux-log.md`; a new rule above (a
+5. **Record it**: a row in `docs/ux-log.md`, its Picked and Why each
+   in one or two sentences (500 characters, which `pnpm lint` checks), its
+   PR or issue holding the rest, as agents search the log and read each
+   row they find whole; a new rule above (a
    type's own under its entry in Screen types), and a
    pattern in Storybook, if it carries over to other screens; and in
    `docs/screens.md`, a new route's row in the Route index and its entry, or

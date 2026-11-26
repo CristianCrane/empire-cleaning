@@ -24,7 +24,7 @@ import {
   Wallet,
   Users,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type {
   CleanerJobs,
   CleanerNeeded,
@@ -48,7 +48,7 @@ import {
 } from "@empire-cleaning/models";
 import { deleteJson, getJson, putJson } from "../api.ts";
 import { useLoaded } from "./load.ts";
-import { linkTo } from "../links.ts";
+import { linkTo, sameHref, type AppHref } from "../links.ts";
 import { JobIcon, QuoteIcon } from "./icons.ts";
 import {
   areaLabels,
@@ -283,6 +283,34 @@ export function AreaLayout({ area }: { area: AreaId }) {
       loading={loading}
     >
       <Outlet />
+    </AppLayout>
+  );
+}
+
+// An area's real frame for a prototype's case (screens/Prototype.tsx),
+// signed out: its navigation, in the language the case's LanguageProvider
+// gives, with `current` the section on show, and no account at its foot, as
+// a prototype has none
+/** @public */
+export function PrototypeFrame({
+  area,
+  current,
+  children,
+}: {
+  area: AreaId;
+  current: AppHref;
+  children: ReactNode;
+}) {
+  const lang = useLanguage();
+  const nav: NavItem[] = navFor(lang)[area].map(
+    ({ alsoCurrentFor: _a, jobSection: _j, countsOffers: _c, ...item }) => ({
+      ...item,
+      isCurrent: sameHref(item.href, current),
+    }),
+  );
+  return (
+    <AppLayout area={areaLabels[lang][area]} nav={nav} foot={() => null}>
+      {children}
     </AppLayout>
   );
 }
