@@ -954,8 +954,9 @@ stays as it is (#336).
    layout drops nothing by accident (the `ui` skill, "Reworking a
    screen"): #432's review found three such drops, and #434's two more. A
    part dropped on purpose gives its reason in the PR.
-5. **Record it**: the pick on its screen's entry in `docs/screens.md` (a
-   new route's entry, and its row in the Route index); a new rule above,
+5. **Record it**: in `docs/screens.md`, the pick on its screen's entry,
+   the entry of a screen whose parts or their order change, and a
+   new route's entry and its row in the Route index; a new rule above,
    with its why (a type's own under its entry in Screen types), and a
    pattern in Storybook, if it carries over to other screens. The PR holds
    the rest.
