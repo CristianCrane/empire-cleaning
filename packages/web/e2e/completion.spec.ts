@@ -607,7 +607,11 @@ test("Office Staff see a Job's payment the Client turned down at their bank as U
   await expect(page.getByText(/wants them to approve/)).toBeHidden();
   await expectNothingNext(page);
 
+  // and as Today's first: theirs to do, so Jen's button only opens it
   await page.goto("/office");
+  const first = page.getByRole("region", { name: "First up" });
+  await expect(first).toContainText("Client to try again");
+  await expect(first.getByRole("button")).toHaveText("Open the job");
   const attention = await openTile(page, "Money");
   await expect(
     attention.getByRole("row").filter({ hasText: "owed" }),

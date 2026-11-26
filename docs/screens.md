@@ -126,8 +126,9 @@ Keeps: action first, count tiles (#94, ux-office-today). Renders through
 `HomePage` (#435).
 
 - Header: "Hi, name", not in the bar.
-- Body: the first to-do (`AnswerCard`, led by what to do, the primary), or
-  all clear; tiles On today, Jobs, Quotes and Money (`?open=`), each
+- Body: the first to-do (`AnswerCard`, led by what to do, the primary;
+  one waiting on the Client, a payment to approve or try again, says so in
+  a line and only opens it, secondary), or all clear; tiles On today, Jobs, Quotes and Money (`?open=`), each
   opening its rows in place, to-do rows led by what to do; On today's rows
   the day's Jobs, then Open the Schedule.
 

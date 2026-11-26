@@ -56,17 +56,18 @@ const { formatDate, formatDateTime, formatDay, formatMoney, formatList } =
 // Client's to approve, amber, as we've emailed them; theirs to try again
 // once they turned it down at their bank, red as the Job's and Bill's
 // alerts, nothing of Jen's to do and the money not coming (#534 Q7; the
-// user's call, 2026-11-26); else Jen's to collect
+// user's call, 2026-11-26); else Jen's to collect. While it's the
+// Client's, Today's card only opens it, as `opens` says
 const unpaidRow = (
   kind: UnpaidKind | undefined,
   collect: string,
-): { action: string; tone: StatusTone } =>
+  opens: string,
+): Pick<Row, "action" | "tone" | "opens"> =>
   kind === "approve"
-    ? { action: CLIENT_TO_APPROVE, tone: "warning" }
-    : {
-        action: kind === "refused" ? "Client to try again" : collect,
-        tone: "danger",
-      };
+    ? { action: CLIENT_TO_APPROVE, tone: "warning", opens }
+    : kind === "refused"
+      ? { action: "Client to try again", tone: "danger", opens }
+      : { action: collect, tone: "danger" };
 
 // how often a Dashboard left open asks again, while it can be seen: a new
 // Quote request shows within a minute (the Office is emailed of it too).
@@ -190,8 +191,21 @@ export function Dashboard() {
             tile={<IconTile icon={card.icon} tone={card.tone} size="lg" />}
             label="First up"
             headline={card.client}
-            lines={[<Line key="line" parts={card.line} />]}
-            actions={<Button onPress={card.open}>{card.action}</Button>}
+            lines={[
+              card.opens && card.action,
+              <Line key="line" parts={card.line} />,
+            ].filter(Boolean)}
+            actions={
+              // the Client's step isn't a button of Jen's: she can only open
+              // it, so it isn't the page's primary either
+              card.opens ? (
+                <Button variant="secondary" onPress={card.open}>
+                  {card.opens}
+                </Button>
+              ) : (
+                <Button onPress={card.open}>{card.action}</Button>
+              )
+            }
           />
         ) : (
           <AnswerCard
@@ -218,6 +232,9 @@ type Row = {
   client: string;
   line: string[];
   open: () => void;
+  // set while the next step is the Client's: the row's action is then
+  // where it stands, and this what Today's card's button says to open it
+  opens?: string;
 };
 
 // which tile each kind of to-do is under, so a long list reads as a few
@@ -358,7 +375,7 @@ function useRowFor() {
         const { job } = item;
         return {
           key: `job_unpaid ${job.id}`,
-          ...unpaidRow(item.unpaid, "Collect the balance"),
+          ...unpaidRow(item.unpaid, "Collect the balance", "Open the job"),
           icon: CircleDollarSign,
           client: clientName(job.client),
           line: [
@@ -455,7 +472,7 @@ function useRowFor() {
         const { bill } = item;
         return {
           key: `bill_unpaid ${bill.id}`,
-          ...unpaidRow(bill.unpaid?.kind, "Collect the bill"),
+          ...unpaidRow(bill.unpaid?.kind, "Collect the bill", "Open the bill"),
           icon: Receipt,
           client: clientName(bill.client),
           line: [
