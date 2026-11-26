@@ -216,24 +216,34 @@ export function PortalPaymentMethod() {
   });
 
   // the first one, approved with their bank here if it asks (#534 critical
-  // review C10): one per press, so its toast and its alert speak of that
-  // one payment only, the next shown once the page reloads (C11, in
-  // critical-review-payment-truth.md)
+  // review C10): one per press, the next shown once the page reloads (C11,
+  // in critical-review-payment-truth.md). What it took is the notice in
+  // place, as saving a card's is: Paid, or Payment pending while it's still
+  // going through (#508's review F26); with more to come, the next one's
+  // notice takes its place, so a toast says it instead
   const tryAgain = () => {
     setTried(null);
     const it = first!;
-    if (it.kind === "clean") {
-      const { start, finish } = jobApproval(it.id);
-      return retry.run(async () => {
-        await approving.pay({ start, finish: (no) => finish(!no) });
-      }, t.w.taken);
-    }
-    const { start, finish } = billApproval(it.id);
-    return retry.run(
-      () => approving.pay({ start, finish: (no) => finish(!no) }),
-      // a card payment can still be going through
-      (bill) => (bill.status === "paid" ? t.w.taken : t.paymentPending),
-    );
+    // whether it's taken, or still going through
+    const took = async () => {
+      if (it.kind === "clean") {
+        const { start, finish } = jobApproval(it.id);
+        const job = await approving.pay({ start, finish: (no) => finish(!no) });
+        return !job.payment.unpaid;
+      }
+      const { start, finish } = billApproval(it.id);
+      const bill = await approving.pay({ start, finish: (no) => finish(!no) });
+      return bill.status === "paid";
+    };
+    return retry.run(took, (took) => {
+      setTried(
+        took
+          ? { took: [it], goingThrough: [] }
+          : { took: [], goingThrough: [it] },
+      );
+      if (unpaid.length === 1) return "";
+      return took ? t.w.taken : t.paymentPending;
+    });
   };
 
   const retryNext: PageAction | undefined =

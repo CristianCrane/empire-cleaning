@@ -773,14 +773,22 @@ test("Your card tries a declined Bill again, and says it's taken", async ({
     /^Payment needed\. We couldn't take \$[\d.,]+ for bill EC-000001 from your Test card ending 4242 \(there wasn't enough money in the account\)\. Try it again, or save a different card below\./,
   );
   await needed.getByRole("button", { name: "Try this card again" }).click();
-  await expect(page.getByText("Payment taken")).toBeVisible();
+  // in place of the alert, as saving a card says it (#508's review F26)
+  await expect(
+    page.getByText(
+      /^Paid\. We took \$[\d.,]+ for bill EC-000001 from your Test card ending 4242\.$/,
+    ),
+  ).toBeVisible();
   await expect(needed).toHaveCount(0);
   await page.goto(`/portal/bills/${billId}`);
   await expect(titleBadge(page, "Paid")).toBeVisible();
+  // charged to their card, not paid "on this page" (#508's UX review U16)
+  await expect(page.getByText(/^Charged to your card, /)).toBeVisible();
 });
 
 // one that fails again keeps the alert, and the toast says why and what to
-// do, in the Bill's own words (#499)
+// do with the card, as a clean's does: Your card saves only a card (#499,
+// #508's review F27)
 test("Your card's retry that fails again says why, and keeps the way out", async ({
   page,
 }) => {
@@ -793,7 +801,7 @@ test("Your card's retry that fails again says why, and keeps the way out", async
   await needed.getByRole("button", { name: "Try this card again" }).click();
   await expect(
     page.getByText(
-      "Your payment didn't go through (there wasn't enough money in the account), so nothing was taken. Please try again, or use another card or bank account.",
+      "The payment still didn't go through (there wasn't enough money in the account). Please update your card, or use another one.",
     ),
   ).toBeVisible();
   await expect(needed).toContainText(
@@ -828,6 +836,32 @@ test("Your card asks for a new card in place of an expired one, with no retry", 
     "We couldn't take $269.47 for bill EC-000001 from your Test card ending 4242 (the card has expired). Save a new card below and we'll try again straight away.",
   );
   await expect(needed.getByRole("button")).toHaveCount(0);
+});
+
+// the provider leaves the retried charge processing: it may yet be taken
+// or declined, so Your card says it's pending, never that it's paid, and
+// the Bill says so too (critical diff review C7, #508's review F26)
+test("Your card's retry still going through says so, not that it's paid", async ({
+  page,
+}) => {
+  const { billId } = await billed({ failing: "insufficient_funds" });
+  await failCharges("processing");
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/bills/${billId}`);
+  await page.getByRole("link", { name: "Update your card" }).click();
+
+  const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
+  await needed.getByRole("button", { name: "Try this card again" }).click();
+  // in the app's words for a payment on its way (#499's UX review U7)
+  await expect(
+    page.getByText(
+      /^Payment pending\. Still going through: \$[\d.,]+ for bill EC-000001\. Nothing you need to do\.$/,
+    ),
+  ).toBeVisible();
+  await expect(page.getByText(/^Paid\./)).toHaveCount(0);
+  await expect(needed).toHaveCount(0);
+  await page.goto(`/portal/bills/${billId}`);
+  await expect(titleBadge(page, "Payment pending")).toBeVisible();
 });
 
 // a clean done and not yet billed: Payments says what Monday's Bill holds

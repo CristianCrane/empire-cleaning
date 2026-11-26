@@ -2,11 +2,14 @@ import {
   asksTheClient,
   because,
   catalog,
+  messages,
   type CardPayment,
   type Language,
   type Unpaid,
   type UnpaidKind,
 } from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
+import { ConflictError } from "../../middleware/errors.ts";
 import { APPROVE } from "../../services/payment-gateway/index.ts";
 import { NO_CARD, NOT_APPROVED, PROCESSING, UNREACHABLE } from "./money.ts";
 
@@ -112,11 +115,31 @@ const retryWords = catalog({
   en: {
     stillNot: (because: string) =>
       `The payment still didn't go through${because}.`,
+    UPDATE_OR_ANOTHER: "Please update your card, or use another one.",
+    notApproved: `${messages.en.NOT_APPROVED} Please try again, or use another card.`,
   },
   es: {
     stillNot: (because: string) => `El pago todavía no pasó${because}.`,
+    UPDATE_OR_ANOTHER: "Actualice su tarjeta, o use otra.",
+    notApproved: `${messages.es.NOT_APPROVED} Vuelva a intentarlo, o use otra tarjeta.`,
   },
 });
+
+// a payment with the Client's saved card, there to approve it, that took
+// nothing, as they're told on a clean's or a Bill's page or Your card: never
+// approved (`notApproved`; kind "approve", for the page to offer it again),
+// or why it didn't go through, then what puts it right. A card's words, as
+// a card is all it tried, whichever page they pressed on (#508's review F27)
+export const savedCardRefused = (failure: string, notApproved: boolean) => {
+  const lang = currentLanguage();
+  if (notApproved) {
+    return new ConflictError(retryWords[lang].notApproved, "approve");
+  }
+  const kind = unpaidKind(failure);
+  return new ConflictError(
+    `${stillNotPaid(lang, failure)} ${kind === "declined" ? retryWords[lang].UPDATE_OR_ANOTHER : messages[lang].clientFix[kind]}`,
+  );
+};
 
 export const whyNotPaid = (
   lang: Language,

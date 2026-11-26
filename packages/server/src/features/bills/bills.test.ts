@@ -2689,7 +2689,57 @@ describe("a weekly Client's retry and next Bill", () => {
       status: "done",
       bill: { status: "paid" },
     });
-    expect(await billOf(office, id)).toMatchObject({ status: "paid" });
+    // charged to their saved card, not paid "on this page", wherever they
+    // pressed (#508's UX review U16)
+    expect(await billOf(office, id)).toMatchObject({
+      status: "paid",
+      paidVia: "charge",
+    });
+  });
+
+  // the card was tried, but the provider left the charge processing: it
+  // may yet be taken or declined, so it's neither said to be paid nor not
+  // tried (critical diff review C7, #508's review F26)
+  test("a try the provider leaves processing isn't said to be paid", async () => {
+    const { office, id } = await declinedBill();
+    const client = await signIn(casey.email);
+    testPayments().failCharges("processing");
+
+    const res = await client
+      .post(`/api/bills/mine/${id}/payment`)
+      .send({})
+      .expect(200);
+
+    expect(res.body).toMatchObject({ status: "done", bill: { status: "due" } });
+    expect(await billOf(office, id)).toMatchObject({ status: "due" });
+
+    // once it goes through, it's paid, by the charge it was, not "on this
+    // page" (U16)
+    testPayments().clearCharges();
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    expect(await billOf(office, id)).toMatchObject({
+      status: "paid",
+      paidVia: "charge",
+    });
+  });
+
+  // a saved card declined again says so in a card's words, as Your card
+  // and a clean's page say it: no bank account to use instead was tried
+  // (#508's review F27)
+  test("a saved card declined again says what to do with the card", async () => {
+    const { id } = await declinedBill();
+    const client = await signIn(casey.email);
+    testPayments().failCharges("insufficient_funds");
+
+    const res = await client
+      .post(`/api/bills/mine/${id}/payment`)
+      .send({})
+      .expect(409);
+
+    expect(res.body.message).toBe(
+      "The payment still didn't go through (there wasn't enough money in the account). Please update your card, or use another one.",
+    );
   });
 
   // saving a card tries it too, and says what it took
@@ -2791,7 +2841,8 @@ describe("a weekly Client's retry and next Bill", () => {
 
   // a declined automatic Bill the Client is paying by bank on its page
   // reads, to the Client, as still Unpaid and declined, but no longer due:
-  // Your card leaves it out, and trying the card again has nothing to take
+  // Your card leaves it out (its page's own refusal to take it twice is
+  // tested above, "…bank debit is processing…")
   test("a Bill whose bank payment is on its way isn't one Your card offers to retry", async () => {
     const { id } = await declinedBill();
     const client = await signIn(casey.email);
@@ -2808,15 +2859,5 @@ describe("a weekly Client's retry and next Bill", () => {
       unpaid: { kind: "declined" },
       paying: null,
     });
-
-    const before = testPayments().charges.length;
-    const res = await client
-      .post(`/api/bills/mine/${id}/payment`)
-      .send({})
-      .expect(409);
-    expect(res.body.message).toBe(
-      "Your bank payment for this bill is on its way.",
-    );
-    expect(testPayments().charges.length).toBe(before);
   });
 });

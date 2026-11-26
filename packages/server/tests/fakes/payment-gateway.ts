@@ -168,8 +168,9 @@ export class FakePaymentGateway implements PaymentGateway {
   private nextId = 1;
 
   // every Charge and Deposit is declined with `reason` until
-  // failCharges(null); "processing" leaves a Charge processing instead, as
-  // Stripe does, until clearCharges()
+  // failCharges(null); "processing" leaves a Charge, or a card payment made
+  // with the Client there, processing instead, as Stripe does, until
+  // clearCharges()
   failCharges(reason: string | null = "card_declined") {
     this.chargeFailure = reason;
   }
@@ -588,6 +589,21 @@ export class FakePaymentGateway implements PaymentGateway {
         : undefined;
     // the same payment confirmed again is no new one
     if (input.amount > 0 && !reused) this.attempt(input.payerId, input.amount);
+    // a card's bank leaves it processing, as `charge` does, until
+    // clearCharges(): Stripe never ends one "processing" at once
+    // (docs/testing-log.md, 2026-11-26)
+    if (this.chargeFailure === "processing" && input.amount > 0 && !bank) {
+      const chargeId = this.id("pi");
+      this.processing.set(key, {
+        payerId: input.payerId,
+        paymentMethodId: savedId,
+        amount: input.amount,
+        description: input.description,
+        chargeId,
+      });
+      this.made.set(key, finishing(chargeId, "card"));
+      return finishing(chargeId, "card");
+    }
     if (this.chargeFailure) {
       if (input.amount > 0) this.made.set(key, failed(this.chargeFailure));
       return failed(this.chargeFailure);
@@ -667,8 +683,17 @@ export class FakePaymentGateway implements PaymentGateway {
       if (!debit.ended) return finishing(ref, "bank");
       return debit.ended === "cleared" ? taken(ref) : failed(debit.ended);
     }
+    // left processing above, until clearCharges() takes it
+    if ([...this.processing.values()].some((c) => c.chargeId === ref)) {
+      return finishing(ref, "card");
+    }
     const waiting = this.waiting.get(ref);
-    if (!waiting) return failed("unknown_payment");
+    if (!waiting) {
+      // and once it has
+      return this.charges.some((c) => c.chargeId === ref)
+        ? taken(ref)
+        : failed("unknown_payment");
+    }
     if (this.canceled.has(ref)) return failed("canceled");
     // the bank's answer, once given (below), stays, whatever's asked of
     // the next payment (critical review C10)

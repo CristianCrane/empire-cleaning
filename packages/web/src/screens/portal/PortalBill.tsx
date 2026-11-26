@@ -28,7 +28,7 @@ import {
 } from "../BillParts.tsx";
 import { useWhilePaying } from "../paying.ts";
 import { usePaymentForm } from "./CardForm.tsx";
-import { useSaid } from "../words.ts";
+import { useSaid, type Said } from "../words.ts";
 import {
   approveAlert,
   billApproval,
@@ -49,8 +49,6 @@ const words = catalog({
       `Your bank hasn't approved your payment yet. Approve it in your bank's app, or press ${press} to start over: the first payment is called off, so you're only charged once.`,
     bankOnWay: "Your bank payment is on its way",
     paid: "Thank you, your bill is paid",
-    // the payment service hasn't said yet, so the page says Payment pending
-    pending: "Your payment is pending",
     payThis: "Pay this bill",
     // beside Approve payment: by card or bank debit, in its dialog
     payAnother: "Pay another way",
@@ -65,7 +63,6 @@ const words = catalog({
       `Su banco aún no ha aprobado su pago. Apruébelo en la aplicación de su banco, o pulse ${press} para empezar de nuevo: el primer pago se cancela, así que solo se le cobra una vez.`,
     bankOnWay: "Su pago bancario está en camino",
     paid: "Gracias, su factura está pagada",
-    pending: "Su pago está pendiente",
     payThis: "Pagar esta factura",
     payAnother: "Pagar de otra forma",
     pay: (amount: string) => `Pagar ${amount}`,
@@ -249,12 +246,13 @@ function useStanding(
 
 // what paying it came to, as a toast: paid, a bank debit on its way, or
 // pending while the payment service hasn't said
-const paidToast = (t: { w: (typeof words)["en"] }) => (paid: BillView) =>
-  paid.status === "paid"
-    ? t.w.paid
-    : paid.status === "processing"
-      ? t.w.bankOnWay
-      : t.w.pending;
+const paidToast =
+  (t: Said & { w: (typeof words)["en"] }) => (paid: BillView) =>
+    paid.status === "paid"
+      ? t.w.paid
+      : paid.status === "processing"
+        ? t.w.bankOnWay
+        : t.p.pending;
 
 // paying it here, by card or bank debit: a card pays at once, a bank debit
 // is processing until it clears

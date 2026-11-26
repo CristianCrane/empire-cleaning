@@ -78,6 +78,7 @@ import {
   openOn,
   recordTakenEarlier,
   refundFrom,
+  typedIn,
   WAITING_ON_PROVIDER,
   waitOf,
 } from "../payments/money.ts";
@@ -92,6 +93,7 @@ import {
   NOT_SETTLED,
   nowTheirs,
   REFUSED,
+  savedCardRefused,
   turnedDown,
   unpaidKind,
   whyNotPaid,
@@ -800,9 +802,12 @@ const payWords = catalog({
 
 // a payment on a Bill's page that took nothing, as the dialog says it: never
 // approved (kind "approve", for the page to offer it again), or why it didn't
-// go through when that's known
-const nothingTaken = (reason: string) => {
+// go through when that's known. One with their saved card, not a card or
+// bank account `typed` in, in a card's words, as Your card tries it too
+// (#508's review F27)
+const nothingTaken = (reason: string, typed: boolean) => {
   const lang = currentLanguage();
+  if (!typed) return savedCardRefused(reason, NOT_APPROVED(reason));
   if (NOT_APPROVED(reason))
     return new ConflictError(payWords[lang].notApproved, "approve");
   const { why } = whyNotPaid(lang, reason);
@@ -874,7 +879,9 @@ export const payBillOnPage = async (
         .set({
           status: "paid",
           paidAt: clock.now(),
-          paidVia: "page",
+          // with their saved card, charged to it, wherever they pressed
+          // (#508's UX review U16)
+          paidVia: token ? "page" : "charge",
           clearingSince: null,
           unpaidSince: null,
           unpaidReason: null,
@@ -904,7 +911,7 @@ export const payBillOnPage = async (
   if (paid.kind === "approve") {
     return { status: "needs_approval", secret: paid.secret };
   }
-  if (paid.kind === "refused") throw nothingTaken(paid.reason);
+  if (paid.kind === "refused") throw nothingTaken(paid.reason, !!token);
   if (paid.kind === "paid") await tellPaid(billId, paid.plan);
   return { status: "done", bill: await billView(billId, client.id) };
 };
@@ -926,7 +933,7 @@ export const finishBillPayment = async (
     approved ? null : "client_retried",
     approved ? "approved" : "refused",
   );
-  if (ended?.failed) throw nothingTaken(ended.failed);
+  if (ended?.failed) throw nothingTaken(ended.failed, ended.typed);
   return billView(billId, client.id);
 };
 
@@ -992,7 +999,10 @@ export const settleBill = async (
         : undefined
       : ended.find(({ now }) => now.call === "bill")?.now.attempt;
     const endedNow = page
-      ? { failed: page.status === "failed" ? (page.reason ?? "") : null }
+      ? {
+          failed: page.status === "failed" ? (page.reason ?? "") : null,
+          typed: typedIn(page.request),
+        }
       : null;
     // one their bank wanted them to approve, turned down at their bank on
     // its page, on their word: theirs to try again, the server's word for
@@ -1030,9 +1040,15 @@ export const settleBill = async (
       }
       const cents = taken.reduce((sum, c) => sum + c.amountCents, 0);
       if (cents >= bill.totalCents) {
+        // paid on its page with a card or bank account typed in there; with
+        // their saved card, charged to it, wherever they pressed (#508's UX
+        // review U16)
         const onPage = taken.some((c) =>
           [...after.values()].some(
-            (a) => a.call === "bill" && a.attempt.gatewayRef === c.gatewayRef,
+            (a) =>
+              a.call === "bill" &&
+              a.attempt.gatewayRef === c.gatewayRef &&
+              typedIn(a.attempt.request),
           ),
         );
         await tx

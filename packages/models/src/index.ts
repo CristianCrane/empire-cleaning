@@ -2392,7 +2392,7 @@ export type BillPayOutcome =
 // on their bank's approval in the browser with `secret`, then POST
 // .../balance/finish (#534 Q7)
 export type JobPayOutcome =
-  | { status: "done"; job: ClientJob }
+  | { status: "done"; job: ClientJobDetail }
   | { status: "needs_approval"; secret: string };
 
 // POST /api/bills/mine/:id/payment/finish, or /api/jobs/mine/:id/balance/

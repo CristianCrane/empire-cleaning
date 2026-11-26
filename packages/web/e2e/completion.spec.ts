@@ -393,7 +393,13 @@ test("a Client trying their card again, whose bank now asks them to approve it, 
   // approved there: taken, and the clean is paid
   await requireApproval(null);
   await pageAction(page, "Try this card again");
-  await expect(page.getByText("Payment taken")).toBeVisible();
+  // in place of the alert, as saving a card says it (#508's review F26)
+  await expect(
+    page.getByText(
+      "Paid. We took $292.33 for your Jan 12 clean from your Test card ending 4242.",
+      { exact: true },
+    ),
+  ).toBeVisible();
   await expect(needed).toHaveCount(0);
   await page.goto(`/portal/jobs/${job.id}`);
   await expect(titleBadge(page, "Done")).toBeVisible();

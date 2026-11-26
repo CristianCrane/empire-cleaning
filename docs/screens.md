@@ -538,7 +538,9 @@ Keeps: on the Payment Method page (ux-portal). Renders through `FormPage`
   turned down at their bank (amber, its Try this card again the page's
   next step, #534's UX review U23); or Paid, or Payment pending naming
   what's still going through with nothing to do, from what saving a card
-  took; or the card saved; or info.
+  or the last retry took (a retry with more to come says it in a Toast,
+  the next one's notice in place; #508's review F26); or the card saved;
+  or info.
 - Body: one Card: the card field; what saving agrees to, and Save card, at
   its foot, secondary beside a next step.
 

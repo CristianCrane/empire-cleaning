@@ -754,7 +754,9 @@ describe("an Unpaid Job", () => {
 
   // #241, finding 1
   // #533: no form pays a Job by hand, and the Client's try again waits on
-  // the charge, as every retry does (chargeSaved)
+  // the charge, as every retry does (chargeSaved). Meanwhile it's no error:
+  // the clean says it's still going through, as a Bill does (#508's review
+  // F26)
   test("is one whose Balance is still processing, and the Client trying again takes nothing more until it's through", async () => {
     const { office, cory, client, jobId, quote } = await bookedJob();
     const deep = deepOf(quote);
@@ -766,7 +768,13 @@ describe("an Unpaid Job", () => {
     });
     const asked = testPayments().paymentAttempts.length;
 
-    await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(409);
+    const still = (
+      await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(200)
+    ).body as JobPayOutcome;
+    expect(still).toMatchObject({
+      status: "done",
+      job: { payment: { unpaid: { kind: "waiting" } } },
+    });
     expect(testPayments().paymentAttempts).toHaveLength(asked);
 
     testPayments().clearCharges();

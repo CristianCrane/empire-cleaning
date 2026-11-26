@@ -179,6 +179,13 @@ const savedCardOf = (asked: Asked) => {
   }
 };
 
+// whether a payment asked for was with a card or bank account typed in on
+// its page, not their saved card: only that reads "Paid on this page"; one
+// with their saved card is charged to it, wherever they pressed (#508's UX
+// review U16)
+export const typedIn = (request: unknown) =>
+  savedCardOf(request as Asked) === null;
+
 // whether an earlier attempt asks what a try would ask now: as much, on the
 // same saved card. A Deposit on a card typed in names a token, used once,
 // which can't be told from the next one, so only the amount counts. A Job
