@@ -1877,8 +1877,15 @@ export type UnpaidKind =
   "declined" | "approve" | "refused" | "waiting" | "no_card" | "late";
 
 // since when it's been Unpaid, and why: a clause for after "didn't go
-// through" ("the card has expired"), or null when there's no more to say
-export type Unpaid = { since: string; kind: UnpaidKind; why: string | null };
+// through" ("the card has expired"), or null when there's no more to say.
+// Once turned down at their bank, when they did (`refusedAt`), as `since`
+// stays when it became owed (#534's critical review C13)
+export type Unpaid = {
+  since: string;
+  kind: UnpaidKind;
+  why: string | null;
+  refusedAt?: string;
+};
 
 export type JobCompletion = {
   completedAt: string;

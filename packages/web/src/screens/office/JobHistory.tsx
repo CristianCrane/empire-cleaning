@@ -238,9 +238,9 @@ const momentsOf = (job: OfficeJob): Moment[] => {
     const name = firstNameOf(job.client.name);
     moments.push({
       key: "unpaid",
-      at: unpaid.since,
-      // since their bank asked, or, once they turned it down there, since
-      // then (#534's UX review U18)
+      // since their bank asked, or, once they turned it down there, when
+      // they did (#534's UX review U18, critical review C13)
+      at: unpaid.refusedAt ?? unpaid.since,
       icon: approval ? ShieldAlert : CircleAlert,
       // named as its charge would be once it goes through: what's owed once
       // done is the Balance, once it didn't happen its fee

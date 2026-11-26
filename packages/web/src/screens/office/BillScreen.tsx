@@ -170,7 +170,7 @@ function standing(bill: BillView): Alert | null {
     return {
       key: "failed",
       tone: "danger",
-      children: `The client's payment didn't go through on ${formatShortDay(dayOfInstant(at))}${because(why)}. ${late ? `${officeFix.late}${plansPaused(bill, "the client's")}` : "They can try again on the bill's page."}`,
+      children: `The client's payment didn't go through on ${formatShortDay(dayOfInstant(at))}${because(why)}. ${late ? `${officeFix.late}${plansPaused(bill, "the client's")}` : "They can try again on their bill's page."}`,
     };
   }
   // their last one on its page never approved (by their bank, or they
@@ -180,7 +180,7 @@ function standing(bill: BillView): Alert | null {
     return {
       key: "notApproved",
       tone: "info",
-      children: `The client's payment on ${formatShortDay(dayOfInstant(bill.paying.at))} wasn't approved, so nothing was taken. They can try again on the bill's page.`,
+      children: `The client's payment on ${formatShortDay(dayOfInstant(bill.paying.at))} wasn't approved, so nothing was taken. They can try again on their bill's page.`,
     };
   }
   // the Client's bank wants them to approve its payment (#534 Q7): theirs
@@ -197,12 +197,14 @@ function standing(bill: BillView): Alert | null {
         <p>
           <strong>
             {refused
-              ? `${name}'s payment for this bill wasn't approved at their bank on ${formatShortDay(dayOfInstant(bill.unpaid.since))}.`
+              ? `${name}'s payment for this bill wasn't approved at their bank on ${formatShortDay(dayOfInstant(bill.unpaid.refusedAt ?? bill.unpaid.since))}.`
               : `${name}'s bank wants them to approve this bill's payment.`}
           </strong>{" "}
+          {/* the Client's page for it, not this one Jen reads (#534's UX
+              review U22, as U19 on the Job) */}
           {refused
-            ? officeRefused("the bill's page")
-            : "None of it was taken. We've emailed them to approve it on the bill's page."}
+            ? officeRefused("their bill's page")
+            : "None of it was taken. We've emailed them to approve it on their bill's page."}
           {plansPaused(bill, `${name}'s`)}
         </p>
       ),

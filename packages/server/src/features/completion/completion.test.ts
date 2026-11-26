@@ -1032,8 +1032,10 @@ describe("a Job's payment the Client's bank wants them to approve", () => {
     const first = await pay();
     if (first.status !== "needs_approval") throw new Error("not asked");
     testPayments().requireApproval("refused");
-    // Unpaid from when they said no, not from when their bank first asked
-    // (#534's UX review U18)
+    // still owed from when their bank first asked, and turned down when
+    // they said no, as the Office reads it (#534's UX review U18, critical
+    // review C13)
+    const { since } = (await officeJob(office, jobId)).payment!.unpaid!;
     testClock().advance({ hours: 3 });
 
     expect(await refuse()).toEqual({
@@ -1043,7 +1045,8 @@ describe("a Job's payment the Client's bank wants them to approve", () => {
     });
     expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
       kind: "refused",
-      since: testClock().now().toISOString(),
+      since,
+      refusedAt: testClock().now().toISOString(),
     });
     expect(amounts()).toEqual([deep.depositCents]);
     expect(testPayments().canceled).toContain(
@@ -1067,12 +1070,16 @@ describe("a Job's payment the Client's bank wants them to approve", () => {
   });
 
   // C10 in critical-review-payment-truth.md: a declined Job's retry is one
-  // made with them there, which their bank may now ask them to approve
-  test("tried again after a decline, then turned down at their bank, says it was refused, not declined", async () => {
+  // made with them there, which their bank may now ask them to approve.
+  // Days on, it's still owed from the decline, as the lists sort it (C13)
+  test("tried again days after a decline, then turned down at their bank, says it was refused, still owed from the decline", async () => {
     const { office, cory, client, jobId, quote } = await bookedJob();
     testPayments().failCharges();
     await complete(cory.agent, jobId).expect(200);
     testPayments().failCharges(null);
+    const declined = (await officeJob(office, jobId)).payment!.unpaid!;
+    expect(declined.kind).toBe("declined");
+    testClock().advance({ days: 3 });
     testPayments().savedCardsAsk();
 
     const asked = (
@@ -1092,6 +1099,8 @@ describe("a Job's payment the Client's bank wants them to approve", () => {
     });
     expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
       kind: "refused",
+      since: declined.since,
+      refusedAt: testClock().now().toISOString(),
     });
     expect(amounts()).toEqual([deepOf(quote).depositCents]);
   });

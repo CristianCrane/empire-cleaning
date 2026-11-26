@@ -282,7 +282,15 @@ export const paymentOf = async (job: Job): Promise<JobPayment> => {
     paymentMethod: owner?.method
       ? messages[currentLanguage()].card(cardIn(owner.method))
       : null,
-    unpaid: unpaidOf(currentLanguage(), job.unpaidSince, job.unpaidReason),
+    // turned down at their bank, when the newest payment, theirs, ended
+    unpaid: unpaidOf(
+      currentLanguage(),
+      job.unpaidSince,
+      job.unpaidReason,
+      job.unpaidReason === REFUSED
+        ? (await newestAttempt(db, job.id))?.endedAt
+        : null,
+    ),
   };
 };
 
@@ -506,13 +514,10 @@ export const settleJob = async (
       await tx
         .update(jobs)
         .set({
-          // turned down at their bank, it's Unpaid from then, as it reads
-          // so from then: before, it waited on their approval (#534's UX
-          // review U18)
-          unpaidSince:
-            settled.failure === REFUSED && job!.unpaidReason !== REFUSED
-              ? clock.now()
-              : (job!.unpaidSince ?? clock.now()),
+          // owed since it first was, however it failed since: a refusal's
+          // own day is its payment's end (unpaidOf; #534's critical review
+          // C13)
+          unpaidSince: job!.unpaidSince ?? clock.now(),
           unpaidReason: settled.failure,
         })
         .where(eq(jobs.id, jobId));

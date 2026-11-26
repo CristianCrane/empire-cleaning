@@ -341,8 +341,9 @@ const alertsFor = (job: OfficeJob, next?: PageAction): Alert[] => {
     });
   } else if (job.payment && unpaid?.kind === "refused") {
     // turned down at their bank on its page: theirs to try again, red as
-    // its badge, Unpaid (#534's review F18), from the day they did, as Jen
-    // may read it days on (#534's UX review U18)
+    // its badge, Unpaid (#534's review F18), on the day they did, as Jen
+    // may read it days on (#534's UX review U18): not since when it's owed,
+    // which may be days before (critical review C13)
     alerts.push({
       key: "unpaid",
       tone: "danger",
@@ -350,7 +351,8 @@ const alertsFor = (job: OfficeJob, next?: PageAction): Alert[] => {
         <p>
           <strong>
             {firstNameOf(job.client.name)}'s payment wasn't approved at their
-            bank on {formatShortDay(dayOfInstant(unpaid.since))}.
+            bank on{" "}
+            {formatShortDay(dayOfInstant(unpaid.refusedAt ?? unpaid.since))}.
           </strong>{" "}
           {officeRefused("their clean's page")}
         </p>

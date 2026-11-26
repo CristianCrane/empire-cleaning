@@ -438,7 +438,7 @@ test("a Client's payment on a Bill's page that didn't go through says why, there
     office
       .getByRole("main")
       .getByText(
-        "The client's payment didn't go through on Jan 12 (there wasn't enough money in the account). They can try again on the bill's page.",
+        "The client's payment didn't go through on Jan 12 (there wasn't enough money in the account). They can try again on their bill's page.",
         { exact: true },
       ),
   ).toBeVisible();
@@ -534,7 +534,7 @@ test("a Client's payment their bank asks them to approve: refused, left waiting 
     office
       .getByRole("main")
       .getByText(
-        "The client's payment on Jan 12 wasn't approved, so nothing was taken. They can try again on the bill's page.",
+        "The client's payment on Jan 12 wasn't approved, so nothing was taken. They can try again on their bill's page.",
         { exact: true },
       ),
   ).toBeVisible();
@@ -624,7 +624,7 @@ test("Office Staff see a Bill's payment the Client turned down at their bank as 
     page
       .getByRole("alert")
       .getByText(
-        /^Casey's payment for this bill wasn't approved at their bank on Jan 12\. None of it was taken\. They can try again on the bill's page, or use another card\. Until it's paid, Casey's cleaning plan at this home is paused\.$/,
+        /^Casey's payment for this bill wasn't approved at their bank on Jan 12\. None of it was taken\. They can try again on their bill's page, or use another card\. Until it's paid, Casey's cleaning plan at this home is paused\.$/,
       ),
   ).toBeVisible();
   await expect(page.getByText(/wants them to approve/)).toBeHidden();
@@ -647,7 +647,7 @@ test("Office Staff see a Bill's payment is the Client's to approve, emailed so, 
   await expect(titleBadge(page, "Client to approve")).toBeVisible();
   await expect(
     page.getByText(
-      /^Casey's bank wants them to approve this bill's payment\. None of it was taken\. We've emailed them to approve it on the bill's page\. Until it's paid, Casey's cleaning plan at this home is paused\.$/,
+      /^Casey's bank wants them to approve this bill's payment\. None of it was taken\. We've emailed them to approve it on their bill's page\. Until it's paid, Casey's cleaning plan at this home is paused\.$/,
     ),
   ).toBeVisible();
   // it's Casey's to do, as on the Office's Job: a payment made another way

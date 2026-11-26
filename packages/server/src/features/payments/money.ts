@@ -720,7 +720,7 @@ export type NeedsApproval = {
 
 // the newest payment asked for a Job or Bill, as the Client last paid or
 // was charged
-export const newestAttempt = async (tx: Tx, forId: string) => {
+export const newestAttempt = async (tx: Tx | typeof db, forId: string) => {
   const [newest] = await tx
     .select()
     .from(chargeAttempts)

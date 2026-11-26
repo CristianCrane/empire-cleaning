@@ -14,10 +14,12 @@ export const standing = (
   on: PaymentOn,
 ): { unpaid: Unpaid | null; paying: BillPaying | null } => {
   const due = bill.status === "due";
+  // turned down at their bank, when the newest payment, theirs, ended
   const recorded = unpaidOf(
     currentLanguage(),
     bill.unpaidSince,
     bill.unpaidReason,
+    on.latest?.attempt.endedAt,
   );
   return {
     unpaid:

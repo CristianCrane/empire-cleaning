@@ -1317,16 +1317,16 @@ describe("Unpaid Bills", () => {
   });
 
   // #534's review F18 and UX review U18: turned down at their bank on its
-  // page, it's theirs to try again, and Unpaid from then, not from when
-  // their bank first asked, as the Office reads when they said no. The
-  // provider's webhook can tell us it failed before their browser does,
-  // and it reads the same, their browser told it took nothing (#534's
-  // review F25)
+  // page, it's theirs to try again, dated from then, as the Office reads
+  // when they said no, and still owed from when their bank first asked, as
+  // the lists sort it (critical review C13). The provider's webhook can
+  // tell us it failed before their browser does, and it reads the same,
+  // their browser told it took nothing (#534's review F25)
   test.each([
     ["their browser tells us first", false],
     ["the provider's webhook tells us first", true],
   ])(
-    "one their bank wants them to approve, turned down on its page, reads refused, Unpaid from then, %s",
+    "one their bank wants them to approve, turned down on its page, reads refused from then, still owed from the ask, %s",
     async (_, webhookFirst) => {
       const { office, client } = await planOnBill();
       const agent = await signIn(casey.email);
@@ -1363,10 +1363,52 @@ describe("Unpaid Bills", () => {
 
       expect(await billOf(office, summary!.id)).toMatchObject({
         status: "due",
-        unpaid: { kind: "refused", since: testClock().now().toISOString() },
+        unpaid: {
+          kind: "refused",
+          since: summary!.unpaid!.since,
+          refusedAt: testClock().now().toISOString(),
+        },
       });
     },
   );
+
+  // critical review C13: declined, then days later paid on its page and
+  // turned down at their bank, it reads refused, as a Job does (C10), and
+  // is still owed from the decline
+  test("declined, then days later turned down at their bank on its page, reads refused, still owed from the decline", async () => {
+    const { office, client } = await planOnBill();
+    testPayments().failCharges("insufficient_funds");
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    testPayments().failCharges(null);
+    const [summary] = await billsOf(office, client.id);
+    expect(summary).toMatchObject({ unpaid: { kind: "declined" } });
+
+    testClock().advance({ days: 3 });
+    testPayments().savedCardsAsk();
+    const agent = await signIn(casey.email);
+    const asked = (
+      await agent
+        .post(`/api/bills/mine/${summary!.id}/payment`)
+        .send({})
+        .expect(200)
+    ).body as BillPayOutcome;
+    expect(asked.status).toBe("needs_approval");
+    testPayments().requireApproval("refused");
+    await agent
+      .post(`/api/bills/mine/${summary!.id}/payment/finish`)
+      .send({ approved: false })
+      .expect(409);
+
+    expect(await billOf(office, summary!.id)).toMatchObject({
+      status: "due",
+      unpaid: {
+        kind: "refused",
+        since: summary!.unpaid!.since,
+        refusedAt: testClock().now().toISOString(),
+      },
+    });
+  });
 
   // #241: nobody has to try again
   test("one declined once the provider is back says its plan is paused", async () => {

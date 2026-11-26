@@ -101,12 +101,24 @@ export const nowTheirs = (before: string | null, failure: string) =>
   asksTheClient(unpaidKind(failure)) &&
   (before === null || !asksTheClient(unpaidKind(before)));
 
-// as a view shows it, in the reader's language
+// as a view shows it, in the reader's language. `since` is when the money
+// became owed, as the lists and a plan's hold sort by it; one turned down
+// at their bank is also dated from when they did (`ended`, its payment's
+// end), as the Office reads when they said no (#534's UX review U18,
+// critical review C13)
 export const unpaidOf = (
   lang: Language,
   since: Date | null,
   reason: string | null,
-) =>
-  since
-    ? { since: since.toISOString(), ...whyNotPaid(lang, reason ?? "") }
-    : null;
+  ended?: Date | null,
+): Unpaid | null => {
+  if (!since) return null;
+  const why = whyNotPaid(lang, reason ?? "");
+  return {
+    since: since.toISOString(),
+    ...why,
+    ...(why.kind === "refused" && ended
+      ? { refusedAt: ended.toISOString() }
+      : {}),
+  };
+};

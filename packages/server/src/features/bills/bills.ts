@@ -915,19 +915,15 @@ export const settleBill = async (
       : null;
     // one their bank wanted them to approve, turned down at their bank on
     // its page, on their word: theirs to try again, the server's word for
-    // it, so every page and list says it (#534's review F18). Called off
-    // with no word from them, it still waits on their approval (C12).
-    // Unpaid from then, as it reads so from then (#534's UX review U18)
-    if (
-      finish &&
-      page &&
-      turnedDown(finish, page) &&
-      bill.unpaidSince &&
-      unpaidKind(bill.unpaidReason ?? "") === "approve"
-    ) {
+    // it, so every page and list says it (#534's review F18), whatever made
+    // it Unpaid before, as a Job's (C10). Called off with no word from
+    // them, it still waits on their approval (C12). Owed since it first
+    // was: the refusal's own day is its payment's end (standing; #534's
+    // critical review C13)
+    if (finish && page && turnedDown(finish, page) && bill.unpaidSince) {
       await tx
         .update(bills)
-        .set({ unpaidReason: REFUSED, unpaidSince: clock.now() })
+        .set({ unpaidReason: REFUSED })
         .where(eq(bills.id, bill.id));
     }
     // one they were told was going through, or left with their bank
