@@ -24,10 +24,6 @@ const words = catalog({
     // one we try again ourselves, as Payments says it: Payment pending,
     // and nothing to do (UX review U7)
     stillGoing: (what: string) => `Still going through: ${what}.`,
-    restGoing: "The rest is still going through.",
-    // a payment Your card didn't list, as it asks nothing of them, so
-    // nothing named and nothing taken (review F20)
-    triedGoing: "We tried your card, and it's still going through.",
     howUsed: "How your card is used",
     about:
       "We take a deposit from this card when you book. Each clean is charged to it when it's done, or goes on your weekly bill if you have one. If a payment didn't go through, saving a card here tries it again.",
@@ -50,8 +46,6 @@ const words = catalog({
     notSaved: "No se pudo guardar su tarjeta. Vuelva a intentarlo.",
     saved: "Tarjeta guardada",
     stillGoing: (what: string) => `Todavía en proceso: ${what}.`,
-    restGoing: "El resto todavía está en proceso.",
-    triedGoing: "Intentamos con su tarjeta y todavía está en proceso.",
     howUsed: "Cómo se usa su tarjeta",
     about:
       "Cobramos un depósito de esta tarjeta cuando reserva. Cada limpieza se cobra a ella cuando está terminada, o va en su factura semanal si tiene una. Si un pago no pasó, guardar una tarjeta aquí lo vuelve a intentar.",
@@ -153,21 +147,11 @@ export const cardNotice = (
 ): "owed" | "goingThrough" | "paid" | "card" =>
   unpaid.length > 0
     ? "owed"
-    : tried?.goingThrough
+    : tried && tried.goingThrough.length > 0
       ? "goingThrough"
       : tried && tried.took.length > 0
         ? "paid"
         : "card";
-
-// what their last press took, and what they owed as they pressed it, so
-// what's still going through is named
-type Tried = CardRetried & { owed: CardOwed[] };
-
-// still going through: what they owed less what was taken
-const pendingOf = (tried: Tried) =>
-  tried.owed.filter(
-    (o) => !tried.took.some((p) => p.kind === o.kind && p.id === o.id),
-  );
 
 // where the Office's "add a card" email leads: the Client adds (or
 // replaces) the card that Deposits and Balances are charged to. Where a
@@ -185,9 +169,9 @@ export function PortalPaymentMethod() {
     toast: true,
     reloadOnFailure: true,
   });
-  // what the server says their last press took, and whether any of it is
-  // still going through
-  const [tried, setTried] = useState<Tried | null>(null);
+  // what the server says their last press took, and what's still going
+  // through (review F20)
+  const [tried, setTried] = useState<CardRetried | null>(null);
   const shown = cardNotice(unpaid, tried);
   const retries = saved !== null && unpaid.some((o) => o.retry);
 
@@ -199,7 +183,7 @@ export function PortalPaymentMethod() {
     return retry.run(
       () => postJson<CardRetried>("/api/payments/mine/retry"),
       (answer) => {
-        setTried({ ...answer, owed: unpaid });
+        setTried(answer);
         return "";
       },
     );
@@ -214,7 +198,7 @@ export function PortalPaymentMethod() {
         return tried;
       },
       (answer) => {
-        setTried({ ...answer, owed: unpaid });
+        setTried(answer);
         return t.w.saved;
       },
     );
@@ -267,11 +251,7 @@ export function PortalPaymentMethod() {
                     <strong>{t.paymentPending}.</strong>{" "}
                     {tried.took.length > 0 &&
                       `${t.w.took(owedList(t, tried.took), saved.label)} `}
-                    {pendingOf(tried).length > 0
-                      ? t.w.stillGoing(owedList(t, pendingOf(tried)))
-                      : tried.took.length > 0
-                        ? t.w.restGoing
-                        : t.w.triedGoing}{" "}
+                    {t.w.stillGoing(owedList(t, tried.goingThrough))}{" "}
                     {t.NOTHING_TO_DO}
                   </p>
                 ),

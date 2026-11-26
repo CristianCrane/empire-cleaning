@@ -3,6 +3,7 @@ import {
   catalog,
   formats,
   messages,
+  type CardPayment,
   type CardRetried,
 } from "@empire-cleaning/models";
 import { currentLanguage } from "#services/request";
@@ -19,24 +20,30 @@ export const retryUnpaidFor = async (clientId: string) => [
   ...(await retryUnpaidBillsFor(clientId)),
 ];
 
-// a failure the payment service left waiting: processing, or out of reach,
-// which we try again ourselves (Payment pending), so it may yet be taken
-// (critical review C10). Not one that failed on our side, which nothing
-// tries again by itself (C12)
-const ours = (r: CardTried) =>
-  !r.errored && r.failure !== null && WAITING_ON_PROVIDER.includes(r.failure);
+// the payment one was for, at an amount
+const at = (r: CardTried, cents: number): CardPayment =>
+  r.kind === "clean"
+    ? { kind: "clean", id: r.id, startsAt: r.startsAt, cents }
+    : { kind: "bill", id: r.id, number: r.number, cents };
+
+// still to come by us: one the payment service left waiting, processing
+// or out of reach, which we try again ourselves (Payment pending), so it
+// may yet be taken (critical review C10), at what's still owed of it, so
+// Your card names it, listed there or not (review F20). Not one that
+// failed on our side, which nothing tries again by itself (C12)
+const waitingOf = (r: CardTried): CardPayment[] =>
+  "errored" in r ||
+  r.failure === null ||
+  !WAITING_ON_PROVIDER.includes(r.failure)
+    ? []
+    : [at(r, r.leftCents)];
 
 // what trying them again took, as Your card says it: each payment's money
-// taken, the rest of one failing included (critical review C11), and
-// whether any is still to come by us
+// taken, the rest of one failing included (critical review C11), and each
+// still to come by us
 export const tookOf = (retried: CardTried[]): CardRetried => ({
-  took: retried
-    .filter((r) => r.takenCents > 0)
-    .map(({ takenCents, failure: _, ...paid }) => ({
-      ...paid,
-      cents: takenCents,
-    })),
-  goingThrough: retried.some(ours),
+  took: retried.filter((r) => r.takenCents > 0).map((r) => at(r, r.takenCents)),
+  goingThrough: retried.flatMap(waitingOf),
 });
 
 // what the API says to a Client trying their card again, in their language
@@ -61,7 +68,7 @@ const words = catalog({
 /**
  * The Client's "Try this card again" on Your card (#499): every payment
  * their card failed to take, its cleans and its weekly Bills, tried at once.
- * Resolves with what it took, and whether any is still going through, when
+ * Resolves with what it took, and what's still going through, when
  * nothing failed that's theirs to put right; else a 409 says what
  * happened, what was taken first. One the payment service left processing
  * or couldn't be reached for isn't theirs: we try it again ourselves, so it
@@ -79,11 +86,11 @@ export const clientRetry = async (clientId: string) => {
   // theirs to put right first, else one that failed on our side (C12)
   const failed = theirs
     ? `${stillNotPaid(lang, theirs)} ${said.differentCard}`
-    : retried.some((r) => r.errored)
+    : retried.some((r) => "errored" in r)
       ? messages[lang].couldntRetry
       : null;
   if (!failed) {
-    if (result.took.length > 0 || result.goingThrough) return result;
+    if (result.took.length > 0 || result.goingThrough.length > 0) return result;
     throw new ConflictError(said.nothingToTake);
   }
   const takenCents = result.took.reduce((sum, p) => sum + p.cents, 0);

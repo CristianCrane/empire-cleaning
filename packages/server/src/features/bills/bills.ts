@@ -706,19 +706,20 @@ export const retryBill = async (
   const charged = await chargeBill(billId, { anyReason });
   if (!charged) {
     await settleBill(billId, "abandoned");
-    return { takenCents: 0, failure: null };
+    return { takenCents: 0, leftCents: 0, failure: null };
   }
   if (charged.failure) {
     // declined now, after the provider kept us waiting: told only now
     if (charged.becameUnpaid) await tellUnpaid(billId, charged.plan);
-    return { takenCents: 0, failure: charged.failure };
-  }
-  await tellPaid(billId, charged.plan);
-  const [paid] = await db
+  } else await tellPaid(billId, charged.plan);
+  // a Bill is taken whole or not at all
+  const [bill] = await db
     .select({ totalCents: bills.totalCents })
     .from(bills)
     .where(eq(bills.id, billId));
-  return { takenCents: paid!.totalCents, failure: null };
+  return charged.failure
+    ? { takenCents: 0, leftCents: bill!.totalCents, failure: charged.failure }
+    : { takenCents: bill!.totalCents, leftCents: 0, failure: null };
 };
 
 // After a Client saves a new Payment Method, tries their Unpaid Bills again

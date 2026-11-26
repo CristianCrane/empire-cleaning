@@ -1024,14 +1024,21 @@ export const retryJob = async (jobId: string): Promise<Retried> => {
   const settled = await settleJob(jobId);
   // declined now, after the provider kept us waiting: told only now
   if (settled.becameUnpaid) await sendUnpaid(jobId, settled);
+  if (settled.failure) {
+    // what it still owes: the rest, when part was taken (C11)
+    const { job } = await jobWithOwner(jobId);
+    return {
+      takenCents: settled.chargedCents,
+      leftCents: (await paymentOf(job)).owedCents,
+      failure: settled.failure,
+    };
+  }
   const retried = {
     takenCents: settled.chargedCents,
-    failure: settled.failure,
+    leftCents: 0,
+    failure: null,
   };
-  if (
-    settled.failure ||
-    (settled.chargedCents === 0 && settled.refundedCents === 0)
-  ) {
+  if (settled.chargedCents === 0 && settled.refundedCents === 0) {
     return retried;
   }
   const { job, property, client } = await jobWithOwner(jobId);

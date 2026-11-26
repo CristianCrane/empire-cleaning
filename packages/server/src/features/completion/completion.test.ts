@@ -762,11 +762,17 @@ describe("an Unpaid Job", () => {
       kind: "waiting",
     });
     const asked = testPayments().paymentAttempts.length;
+    const { owedCents } = (await officeJob(office, jobId)).payment!;
 
-    // still going through: not paid, nor failed
+    // still going through, at what it owes: not paid, nor failed
     expect(
       (await client.post("/api/payments/mine/retry").expect(200)).body,
-    ).toEqual({ took: [], goingThrough: true });
+    ).toEqual({
+      took: [],
+      goingThrough: [
+        expect.objectContaining({ kind: "clean", id: jobId, cents: owedCents }),
+      ],
+    });
     expect(testPayments().paymentAttempts).toHaveLength(asked);
 
     testPayments().clearCharges();

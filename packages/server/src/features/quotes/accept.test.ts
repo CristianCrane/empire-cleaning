@@ -201,7 +201,7 @@ describe("a Client's Payment Method", () => {
       consentedAt: "2026-01-05T09:00:00.000Z",
       // with nothing failed, the retry saving runs took nothing
       took: [],
-      goingThrough: false,
+      goingThrough: [],
     });
     testClock().advance({ days: 1 });
     await addCard(client);

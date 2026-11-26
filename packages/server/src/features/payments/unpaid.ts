@@ -65,15 +65,15 @@ const whyWords = catalog({
   },
 });
 
-// how trying a payment again went: what it took, and why not when it
-// failed (a stored reason, as above)
-// `errored`: trying it again failed on our side, so it stays Unpaid as it
-// was and nothing tries it again by itself (critical review C12)
-export type Retried = {
-  takenCents: number;
-  failure: string | null;
-  errored?: true;
-};
+// how trying a payment again went: what it took, what of it is still owed
+// (what one the payment service left waiting may yet take, so Your card
+// names it: review F20), and why not when it failed (a stored reason, as
+// above). Or `errored`: trying it again failed on our side, so it stays
+// Unpaid as it was and nothing tries it again by itself (critical review
+// C12)
+export type Retried =
+  | { takenCents: number; leftCents: number; failure: string | null }
+  | { takenCents: 0; failure: string; errored: true };
 
 // the same, for one of a Client's payments, as Your card names it
 export type CardTried = CardPayment extends infer P

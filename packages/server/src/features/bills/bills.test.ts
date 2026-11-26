@@ -2426,7 +2426,7 @@ describe("a weekly Client's retry and next Bill", () => {
     expect(await billOf(office, id)).toMatchObject({ status: "paid" });
     expect(res.body).toEqual({
       took: [{ kind: "bill", id, number: "EC-000001", cents: totalCents }],
-      goingThrough: false,
+      goingThrough: [],
     });
   });
 
@@ -2434,13 +2434,19 @@ describe("a weekly Client's retry and next Bill", () => {
   // may yet be taken or declined, so it's neither said to be paid nor not
   // tried (critical diff review C7)
   test("a retry the provider leaves processing says it's going through, and took nothing", async () => {
-    const { office, id } = await declinedBill();
+    const { office, id, totalCents } = await declinedBill();
     const client = await signIn(casey.email);
     testPayments().failCharges("processing");
 
     const res = await client.post("/api/payments/mine/retry").expect(200);
 
-    expect(res.body).toEqual({ took: [], goingThrough: true });
+    // named, at what it owes, so Your card says which (review F20)
+    expect(res.body).toEqual({
+      took: [],
+      goingThrough: [
+        { kind: "bill", id, number: "EC-000001", cents: totalCents },
+      ],
+    });
     expect(await billOf(office, id)).toMatchObject({ status: "due" });
   });
 
@@ -2460,7 +2466,7 @@ describe("a weekly Client's retry and next Bill", () => {
 
     expect(res.body).toMatchObject({
       took: [{ kind: "bill", id, cents: totalCents }],
-      goingThrough: false,
+      goingThrough: [],
     });
   });
 

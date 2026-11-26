@@ -1463,9 +1463,9 @@ export type CardPayment = { id: string; cents: number } & (
 );
 
 // what trying their card again took (POST /api/payments/mine/retry, and
-// saving a card): each payment taken in full, and whether any is still
-// going through, which it may yet take or not
-export type CardRetried = { took: CardPayment[]; goingThrough: boolean };
+// saving a card): what it took of each payment, and each still going
+// through, at what's still owed of it, which it may yet take or not
+export type CardRetried = { took: CardPayment[]; goingThrough: CardPayment[] };
 
 // money that moved between a Client and us, for their Payments page
 // (GET /api/payments/mine). It was for a Job, a Service Plan's

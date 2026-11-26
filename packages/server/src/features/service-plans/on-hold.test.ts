@@ -255,9 +255,15 @@ describe("saving a card that takes one payment while another can't reach the pro
     ]);
     expect(res.body.took).toHaveLength(1);
     // the one the payment service couldn't reach is still to come, so the
-    // answer says it's going through, as it does for "processing", and
-    // Your card doesn't read Paid
-    expect(res.body.goingThrough).toBe(true);
+    // answer names it going through, at what it owes, as it does for
+    // "processing", and Your card doesn't read Paid (review F20)
+    expect(res.body.goingThrough).toEqual([
+      expect.objectContaining({
+        kind: "clean",
+        id: left[0]!.id,
+        cents: left[0]!.owedCents,
+      }),
+    ]);
   });
 });
 
@@ -286,16 +292,26 @@ describe("Try this card again, taking one payment while another can't reach the 
 
     expect(res.status).toBe(200);
     expect(res.body.took).toHaveLength(1);
-    expect(res.body.goingThrough).toBe(true);
+    // the other fee, named at what it owes (review F20)
+    const left = (
+      (await client.get("/api/jobs/mine/past").expect(200))
+        .body as ClientPastJob[]
+    ).filter((j) => j.unpaid);
+    expect(res.body.goingThrough).toEqual([
+      expect.objectContaining({
+        kind: "clean",
+        id: left[0]!.id,
+        cents: left[0]!.owedCents,
+      }),
+    ]);
   });
 });
 
 // critical review C12: a retry that errored on our side (retryJob threw,
 // so retryUnpaidJobsFor pushes NOT_SETTLED, completion.ts) leaves the Job
-// Unpaid for the reason it had, which nothing tries again by itself. Before
-// 5aea8c2b clientRetry answered 409 "We couldn't try again. Please try
-// later."; now NOT_SETTLED counts as goingThrough, so it answers 200 and
-// Your card, its alert still up, says nothing of the press
+// Unpaid for the reason it had, which nothing tries again by itself, so
+// it isn't going through: the press answers 409, saying to try later, or
+// Your card, its alert still up, would say nothing of it
 describe("Try this card again, when trying a payment again errors on our side", () => {
   test("says it couldn't try again, not that it's going through", async () => {
     const { client, jobId } = await heldPlan();
@@ -330,7 +346,6 @@ describe("Try this card again, when trying a payment again errors on our side", 
     ).toMatchObject({ took: [expect.objectContaining({ id: jobId })] });
     expect(testPayments().paymentAttempts.length).toBe(asked + 1);
 
-    expect(res.body).not.toMatchObject({ goingThrough: true });
     expect(res.status).toBe(409);
     expect(res.body.message).toBe("We couldn't try again. Please try later.");
   });
