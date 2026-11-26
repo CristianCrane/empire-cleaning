@@ -103,22 +103,22 @@ export const nowTheirs = (before: string | null, failure: string) =>
 
 // as a view shows it, in the reader's language. `since` is when the money
 // became owed, as the lists and a plan's hold sort by it; one turned down
-// at their bank is also dated from when they did (`ended`, its payment's
-// end), as the Office reads when they said no (#534's UX review U18,
-// critical review C13)
+// at their bank is also dated from when they did (`refusedAt`, kept on its
+// row as that reason is written), as the Office reads when they said no
+// (#534's UX review U18, critical review C13, C14)
 export const unpaidOf = (
   lang: Language,
   since: Date | null,
   reason: string | null,
-  ended?: Date | null,
+  refusedAt: Date | null,
 ): Unpaid | null => {
   if (!since) return null;
   const why = whyNotPaid(lang, reason ?? "");
   return {
     since: since.toISOString(),
     ...why,
-    ...(why.kind === "refused" && ended
-      ? { refusedAt: ended.toISOString() }
+    ...(why.kind === "refused" && refusedAt
+      ? { refusedAt: refusedAt.toISOString() }
       : {}),
   };
 };

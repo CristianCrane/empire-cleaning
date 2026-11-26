@@ -10,16 +10,15 @@ import type { Bill } from "./bills.schema.ts";
 // was, which says why; and, while it's due, the Client's payment on its
 // page (pagePaying)
 export const standing = (
-  bill: Pick<Bill, "status" | "unpaidSince" | "unpaidReason">,
+  bill: Pick<Bill, "status" | "unpaidSince" | "unpaidReason" | "refusedAt">,
   on: PaymentOn,
 ): { unpaid: Unpaid | null; paying: BillPaying | null } => {
   const due = bill.status === "due";
-  // turned down at their bank, when the newest payment, theirs, ended
   const recorded = unpaidOf(
     currentLanguage(),
     bill.unpaidSince,
     bill.unpaidReason,
-    on.latest?.attempt.endedAt,
+    bill.refusedAt,
   );
   return {
     unpaid:

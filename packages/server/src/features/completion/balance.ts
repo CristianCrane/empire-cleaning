@@ -282,14 +282,11 @@ export const paymentOf = async (job: Job): Promise<JobPayment> => {
     paymentMethod: owner?.method
       ? messages[currentLanguage()].card(cardIn(owner.method))
       : null,
-    // turned down at their bank, when the newest payment, theirs, ended
     unpaid: unpaidOf(
       currentLanguage(),
       job.unpaidSince,
       job.unpaidReason,
-      job.unpaidReason === REFUSED
-        ? (await newestAttempt(db, job.id))?.endedAt
-        : null,
+      job.refusedAt,
     ),
   };
 };
@@ -470,7 +467,9 @@ export const settleJob = async (
     // once their bank's check is done, nothing new is asked for: one they
     // turned down is theirs to try again (REFUSED, #534's review F18), the
     // server's word for it, so every page and list says it; one their bank
-    // declined once it was approved is Unpaid for that
+    // declined once it was approved is Unpaid for that. Only this turns it
+    // down: a payment tried again keeps its reason (waiting), not its day
+    let refusedNow = false;
     if (
       moves &&
       ledger.owedCents > 0 &&
@@ -481,10 +480,10 @@ export const settleJob = async (
         newest?.status === "failed" &&
         newest.reason !== APPROVE &&
         !NOT_APPROVED(newest.reason);
-      const refused = turnedDown(by, newest);
+      refusedNow = !declined && turnedDown(by, newest);
       settled.failure = declined
         ? (newest.reason ?? waiting)
-        : refused
+        : refusedNow
           ? REFUSED
           : waiting;
       settled.notApproved = !declined;
@@ -514,11 +513,12 @@ export const settleJob = async (
       await tx
         .update(jobs)
         .set({
-          // owed since it first was, however it failed since: a refusal's
-          // own day is its payment's end (unpaidOf; #534's critical review
-          // C13)
+          // owed since it first was, however it failed since, and refused
+          // from now, kept beside it so a payment tried again later
+          // doesn't move it (#534's critical review C13, C14)
           unpaidSince: job!.unpaidSince ?? clock.now(),
           unpaidReason: settled.failure,
+          ...(refusedNow ? { refusedAt: clock.now() } : {}),
         })
         .where(eq(jobs.id, jobId));
     } else if (job!.unpaidSince) {

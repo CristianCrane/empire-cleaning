@@ -1105,6 +1105,39 @@ describe("a Job's payment the Client's bank wants them to approve", () => {
     expect(amounts()).toEqual([deepOf(quote).depositCents]);
   });
 
+  // critical review C14: turned down, then days on tried again on its page.
+  // While their bank asks again, nobody has turned anything down since, so
+  // the Office still reads the day they said no, not when it was owed
+  test("turned down at their bank, then days on tried again and left, is still dated from the day they said no", async () => {
+    const { office, jobId, pay, refuse } = await doneOnApprovalCard();
+    testClock().advance({ days: 1 });
+    const first = await pay();
+    if (first.status !== "needs_approval") throw new Error("not asked");
+    testPayments().requireApproval("refused");
+    await refuse();
+    const refused = (await officeJob(office, jobId)).payment!.unpaid!;
+    expect(refused).toMatchObject({
+      kind: "refused",
+      refusedAt: testClock().now().toISOString(),
+    });
+
+    testClock().advance({ days: 2 });
+    testPayments().requireApproval("pending");
+    expect((await pay()).status).toBe("needs_approval");
+    expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
+      kind: "refused",
+      refusedAt: refused.refusedAt,
+    });
+
+    // left, the Clock calls it off and asks their bank again without them,
+    // so it's theirs to approve once more (C12)
+    testClock().advance({ minutes: 20 });
+    await settleOpenPayments();
+    expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
+      kind: "approve",
+    });
+  });
+
   test("left waiting on their bank, is held a quarter hour, then the Office's retry asks again", async () => {
     const { office, jobId, deep, pay } = await doneOnApprovalCard();
     await pay();

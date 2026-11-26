@@ -1372,6 +1372,55 @@ describe("Unpaid Bills", () => {
     },
   );
 
+  // critical review C14: turned down on its page, then days on tried again
+  // and left. Nobody turned anything down since, so the Office's Bill
+  // still reads the day they said no, not the day the Clock called the new
+  // one off
+  test("turned down on its page, then days on tried again and left, is still dated from the day they said no", async () => {
+    const { office, client } = await planOnBill();
+    const agent = await signIn(casey.email);
+    const form = (
+      await agent.post("/api/payment-methods/mine/card-form").expect(200)
+    ).body as { secret: string };
+    testPayments().fillCardForm(form.secret, "alwaysApproval");
+    await agent
+      .put("/api/payment-methods/mine")
+      .send({ token: form.secret })
+      .expect(200);
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const [summary] = await billsOf(office, client.id);
+    testClock().advance({ hours: 3 });
+    await agent
+      .post(`/api/bills/mine/${summary!.id}/payment`)
+      .send({})
+      .expect(200);
+    testPayments().requireApproval("refused");
+    await agent
+      .post(`/api/bills/mine/${summary!.id}/payment/finish`)
+      .send({ approved: false })
+      .expect(409);
+    const refusedAt = testClock().now().toISOString();
+    expect((await billOf(office, summary!.id)).unpaid).toMatchObject({
+      kind: "refused",
+      refusedAt,
+    });
+
+    testClock().advance({ days: 2 });
+    testPayments().requireApproval("pending");
+    await agent
+      .post(`/api/bills/mine/${summary!.id}/payment`)
+      .send({})
+      .expect(200);
+    testClock().advance({ minutes: 20 });
+    await settleOpenPayments();
+
+    expect(await billOf(office, summary!.id)).toMatchObject({
+      status: "due",
+      unpaid: { kind: "refused", refusedAt },
+    });
+  });
+
   // critical review C13: declined, then days later paid on its page and
   // turned down at their bank, it reads refused, as a Job does (C10), and
   // is still owed from the decline

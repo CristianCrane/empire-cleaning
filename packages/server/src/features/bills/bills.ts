@@ -918,12 +918,12 @@ export const settleBill = async (
     // it, so every page and list says it (#534's review F18), whatever made
     // it Unpaid before, as a Job's (C10). Called off with no word from
     // them, it still waits on their approval (C12). Owed since it first
-    // was: the refusal's own day is its payment's end (standing; #534's
-    // critical review C13)
+    // was, and refused from now, kept beside it so a payment tried again
+    // later doesn't move it (#534's critical review C13, C14)
     if (finish && page && turnedDown(finish, page) && bill.unpaidSince) {
       await tx
         .update(bills)
-        .set({ unpaidReason: REFUSED })
+        .set({ unpaidReason: REFUSED, refusedAt: clock.now() })
         .where(eq(bills.id, bill.id));
     }
     // one they were told was going through, or left with their bank

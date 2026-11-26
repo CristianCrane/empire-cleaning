@@ -73,6 +73,10 @@ export const jobs = pgTable(
     // cleared once what's owed is taken
     unpaidSince: timestamp("unpaid_since", { withTimezone: true }),
     unpaidReason: text("unpaid_reason"),
+    // when the Client last turned its payment down at their bank on its
+    // page, written with that reason and read only under it (#534's
+    // critical review C14)
+    refusedAt: timestamp("refused_at", { withTimezone: true }),
     // once Cancelled: when, who it's down to and who did it, whether it was
     // a Late Cancellation, and why, if Empire Cleaning said
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
