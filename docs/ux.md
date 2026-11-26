@@ -118,8 +118,8 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
 - **On a phone, the page's next step pinned at the foot**, above the tab
   bar, after the facts, the rest behind its arrow in a sheet; a wider
   screen keeps it in the header (`RecordPage`'s `next`). Greyed, it says
-  why in a line above it there (its `why`, `ActionFooter`), as the alert
-  that says so has scrolled away (#534).
+  why in a line above it there (its `why`, `ActionFooter`; Buttons and
+  actions).
 
 ("Layout / RecordPage", "Next Step At A Phones Foot"; "A Record: its header, two alerts, its details, its
 parts"; "A record's History last, one column"; "Records as stories")
@@ -528,6 +528,12 @@ The `ui` skill's rules hold here too; these are this product's.
   the Client's quote for good on the Office's word (a move turned down
   leaves the Job as booked), where a Client's Decline is their own word on
   their own quote.
+- **An action a wait holds back stays, greyed, saying why where it's
+  pressed** (a line under its menu item, or above a phone's foot: Record),
+  as the alert that says so may be out of view. A dialog opened before the
+  wait began refuses on the press, in the tone of the page's alert for
+  that wait, keeping what was typed; once the wait is over the refusal
+  goes, as it's no longer true (Office > Bill's `WhyNot`, #534).
 - **Continue with Google is Google's own button** (the `ui` skill: a
   third-party sign-in keeps its owner's look): their colours in light and
   dark, their logo, Roboto. Only the 44px touch height is ours.
@@ -545,6 +551,9 @@ The `ui` skill's rules hold here too; these are this product's.
   warning on the Client's pages, as trying again is theirs, and danger on
   the Office's Job and Bill, as nothing there is the Office's to do and
   the money isn't coming (#534).
+- **An alert's lead is bold only when more follows it**, and the rest runs
+  on in the same paragraph; a lead that's the whole alert is plain, as
+  every other alert reads (`whyAlert`, #534).
 
 ### Words
 
@@ -574,6 +583,10 @@ stays as it is (#336).
   enough cleaners are free then. Pick another time, or add working hours for
   a cleaner that day." No counting unless the number helps. When nothing can
   be done: "This clean was cancelled."
+- **A wait's alert says what's happening and how long it usually takes,
+  and promises neither ending**: most payments go through, some don't
+  ("…while its payment is going through, which usually takes under half
+  an hour", models' `paymentNotDone`, #534).
 - **A field that's too long says its limit** (the `ui` skill), from the
   server's `keepUnder`: "Keep the reason under 500 characters".
 - **Words that state a rule are checked against the code** (the `ui` skill):

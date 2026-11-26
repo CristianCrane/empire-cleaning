@@ -36,8 +36,8 @@ Areas and sign-in.
 
 ## How to read an entry
 
-Each entry gives the `docs/ux.md` rule the screen is meant to keep (with its
-row in `docs/ux-log.md`, where one exists), then its parts top to bottom:
+Each entry gives what the screen is meant to keep, a `docs/ux.md` rule or a
+pick, each with the PR that made it, then its parts top to bottom:
 
 - **Header**: breadcrumbs, the title (h1), its status badge, the subtitle
   under it, and anything else on the title's row.
@@ -122,7 +122,7 @@ redirect (Screen: none); Not found and Something went wrong have no path.
 
 #### Office > Today
 
-Keeps: action first, count tiles (#94, ux-office-today). Renders through
+Keeps: action first, count tiles (#94, #239). Renders through
 `HomePage` (#435).
 
 - Header: "Hi, name", not in the bar.
@@ -155,10 +155,11 @@ Keeps: Table + Tabs (#146). Renders through `ListPage` (#433).
 Keeps: one column, History last, as every Record (#493). Renders through `RecordPage` (#432).
 
 - Header: Jobs › its day and time; the Service; one badge, from the
-  Office's side: Unpaid, To review, Move asked, Needs cleaners, In
-  progress or Today while booked (none when staffed before its day, the
+  Office's side: Client to approve, Unpaid, To review, Move asked, Needs
+  cleaners, In progress or Today while booked (none when staffed before its day, the
   usual case), Done, Couldn't get in, Cancelled or Skipped once over. The
-  next step the split button's primary (Try the payment again, Review,
+  next step the split button's primary (Try the payment again, unless it's
+  the client's to approve or try again on their page; Review,
   Answer, Offer to a cleaner, Quote a cleaning plan, else Move job), the
   rest behind its arrow (Ask for a new time, Correct the condition, never
   the primary; Take <name> off, one for each on the crew till it starts; Cancel job and Mark not done in red, last); none while it's
@@ -193,7 +194,8 @@ Keeps: one column, History last, as every Record (#493). Renders through `Record
 
 #### Office > Quotes
 
-Keeps: Table + filters (#109). Renders through `ListPage` (#433).
+Keeps: Table + filters, loaded whole and searched in the browser (#109).
+Renders through `ListPage` (#433).
 
 - Header: "Quotes" in the bar; New quote (primary).
 - Body: Tabs Requested · Draft · Sent · Expired, the search at the end of
@@ -220,7 +222,11 @@ Renders through `FormPage` (#434).
 
 #### Office > Quote
 
-Keeps: a record as its story (#145). Renders through `RecordPage` (#432).
+Keeps: a record as its story (#145); under Asked, where a Guest's ask from
+the landing site came from, as the Guest is asked nothing (#185), and their
+stated rooms or Condition beside the home's, "the client said …" (#251);
+each option card's own extras, at what each adds (#244). Renders through
+`RecordPage` (#432).
 
 - Header: Quotes › client › home › kind; "kind for client", its status, and
   a second badge while a change is being drafted.
@@ -234,15 +240,14 @@ Keeps: a record as its story (#145). Renders through `RecordPage` (#432).
   accepted or turned down.
 - Alerts: only why, where the badge, the facts and the story don't say it:
   the visit to book or booked, the draft not sent, no card to record a yes
-  by phone (its one action, Email a link to add a card), the time filled
-  up, the plan an acceptance started or changed; the home's plan, the plan
+  by phone (its one action, Email a link to add a card), the time filled up,
+  the plan an acceptance started or changed; the home's plan, the plan
   change. The Client's Deposit paid online: while their bank asks them to
   approve it (warning: who, and when it's called off) or is finishing it
-  (info: "usually takes under half an hour", and what Jen can do once it's
-  done), Record acceptance greyed; once their latest payment took nothing,
-  while the quote's open, when and why, and that they can try again (info
-  if never approved, danger if it didn't go through) (#534's UX design,
-  Screen 5).
+  (info, and what Jen can do once it's done), Record acceptance greyed; once
+  their latest payment took nothing, while the quote's open, when and why,
+  and that they can try again (info if never approved, danger if it didn't
+  go through) (#534's UX design, Screen 5).
 - Body: a Timeline, Now on top holding Current quote (Card; once a
   one-off is accepted, only the Service booked, "Booked for" its time), then
   each moment; What was asked folded (`Fold`) under its entry, the home's
@@ -251,7 +256,10 @@ Keeps: a record as its story (#145). Renders through `RecordPage` (#432).
 
 #### Office > Draft quote
 
-Keeps: a Draft page of its own (#145). Renders through `FormPage` (#434).
+Keeps: a Draft page of its own (#145); Send prices it afresh, new prices
+refusing it in the danger Notice (#244); a one-off's Service field "Type",
+the user's word, a plan's "Service" (#527). Renders through `FormPage`
+(#434).
 
 - Header: … › Draft quote; "Draft quote for client".
 - Actions: from md, Send, the header's primary, Delete draft behind its
@@ -275,7 +283,8 @@ Keeps: a Draft page of its own (#145). Renders through `FormPage` (#434).
 
 #### Office > Clients
 
-Keeps: Table + status Tabs (#117). Renders through `ListPage` (#433).
+Keeps: Table + status Tabs, opening on Active, the server paging it
+(#117). Renders through `ListPage` (#433).
 
 - Header: "Clients" in the bar.
 - Body: Tabs Active · Quoting · Past, the search at the end of their line
@@ -283,7 +292,8 @@ Keeps: Table + status Tabs (#117). Renders through `ListPage` (#433).
 
 #### Office > Client
 
-Keeps: title outside the Card (#119). Renders through `RecordPage` (#432).
+Keeps: title outside the Card (#119); a Google review fact only once one's
+asked for (#175). Renders through `RecordPage` (#432).
 
 - Header: Clients › name; the name.
 - Actions: Menu (New quote, Edit contact details).
@@ -343,19 +353,20 @@ Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432
   Bill N; "Bill N" and its status (its week is a fact).
 - Actions: once its payment didn't go through (our charge, or the Client's
   on its page) or it's late, Record a payment the primary, Print and Cancel
-  bill in red behind its arrow; otherwise Menu (Record a payment, Print;
+  bill in red behind its arrow; otherwise, as while it's the client's to
+  approve or try again on their page, Menu (Record a payment, Print;
   Cancel bill in red). While a payment on it is going through, Record a
   payment and Cancel bill are greyed, each saying under it "Not while its
   payment is going through", "Not while Casey is paying this bill" while
   the Client's bank asks them to approve theirs, or "Not while the client's
   bank payment is on its way" (#534's UX review U14).
 - Alerts: that, while a payment is going through (info), or the Client's
-  bank asks them to approve theirs (warning: who, and when it's called
-  off), its dialogs' refusal in the same tone; the Client's payment on its
-  page that didn't go through, when and why, or that they never approved
-  it, so nothing was taken (info, before it's late); why it's unpaid; or
-  its bank payment on its way. None gives the amount, which is the total
-  below.
+  bank asks them to approve theirs (warning: who, and when it's called off),
+  its dialogs refusing as a wait's do (`docs/ux.md`, Buttons and actions);
+  the Client's payment on its page that didn't go through, when and why, or
+  that they never approved it, so nothing was taken (info, before it's
+  late); why it's unpaid; or its bank payment on its way. None gives the
+  amount, which is the total below.
 - Body: the Bill (`DetailsCard`: what it comes to, where that stands, a
   payment going through started to the minute; icon facts, Where among
   them when its cleans were all at one home, How it's paid "From their
@@ -375,7 +386,9 @@ Keeps: a List, no Card (#160). Renders through `ListPage` (#433).
 
 #### Office > Staff member
 
-Keeps: the month as a calendar (#160). Renders through `RecordPage` (#432).
+Keeps: the month as a calendar (#160); its hours dialogs name the places
+on Jobs saving frees, a Site Visit blocking it (#242). Renders through
+`RecordPage` (#432).
 
 - Header: Staff › name; the name and their status.
 - Actions: Menu (Edit details; Deactivate in red).
@@ -419,7 +432,7 @@ Keeps: one form, its example a worked-out Quote (#163). Renders through
 
 #### Cleaner > Your jobs
 
-Keeps: next up large, then coming up (ux-cleaner). Renders through
+Keeps: next up large, then coming up (#154). Renders through
 `HomePage` (#435).
 
 - Header: "Hi, name", not in the bar.
@@ -429,7 +442,7 @@ Keeps: next up large, then coming up (ux-cleaner). Renders through
 
 #### Cleaner > Offers
 
-Keeps: only theirs (ux-cleaner). Renders through `ListPage` (#433).
+Keeps: only theirs (#154). Renders through `ListPage` (#433).
 
 - Header: "Offers" in the bar.
 - Body: Tabs Offered to you · Open to you (`?tab=`); by month, dated rows
@@ -437,7 +450,9 @@ Keeps: only theirs (ux-cleaner). Renders through `ListPage` (#433).
 
 #### Cleaner > Job
 
-Keeps: the Record, layout D (#493). Renders through `RecordPage` (#432).
+Keeps: the Record, layout D (#493); Confirm, here and on Cleaner needed,
+sends the time shown, and a moved Job says so with the new time (#242).
+Renders through `RecordPage` (#432).
 
 - Header: Offers (while offered, lit in the nav too) or Your jobs › day
   and time; the Service and its stage's badge (Available, Today, On site,
@@ -468,9 +483,15 @@ Keeps: Cleaner needed (#148). Renders through `RecordPage` (#432).
 
 ### Client portal
 
+Its nav: Home · Cleans · Payments · Your details, homes and plans under
+Your details, no list of Quotes (#153). A weekly-billed Client reads a cost
+before the clean "goes on your bill for that week", one after it on the
+next Bill (#244). A paused plan says what the pause does in one sentence
+wherever a Client reads it (models' `noMoreCleans`), the user's call (#536).
+
 #### Client portal > Home
 
-Keeps: what's next, date tile, shortcut tiles (ux-portal). Renders through
+Keeps: what's next, date tile, shortcut tiles (#153). Renders through
 `HomePage` (#435).
 
 - Header: "Hi, name", not in the bar; Request a quote (secondary), unless
@@ -491,7 +512,7 @@ Keeps: what's next, date tile, shortcut tiles (ux-portal). Renders through
 
 #### Client portal > Cleans
 
-Keeps: Tabs, by month, date tiles (ux-portal). Renders through `ListPage`
+Keeps: Tabs, by month, date tiles (#153). Renders through `ListPage`
 (#433).
 
 - Header: "Cleans" in the bar.
@@ -501,7 +522,7 @@ Keeps: Tabs, by month, date tiles (ux-portal). Renders through `ListPage`
 
 #### Client portal > Payments
 
-Keeps: what you owe first, fixed header Button (ux-portal). Renders through
+Keeps: what you owe first (#153). Renders through
 `HomePage` (#435).
 
 - Header: "Payments" in the bar, with no action: Your card is its tile (#534's UX review U7).
@@ -516,7 +537,7 @@ Keeps: what you owe first, fixed header Button (ux-portal). Renders through
 
 #### Client portal > Your details
 
-Keeps: a list of homes; read, then Edit (ux-portal). Renders through
+Keeps: a list of homes; read, then Edit (#153). Renders through
 `SettingsPage` (#436).
 
 - Header: "Your details" in the bar.
@@ -526,7 +547,7 @@ Keeps: a list of homes; read, then Edit (ux-portal). Renders through
 
 #### Client portal > Your card
 
-Keeps: on the Payment Method page (ux-portal). Renders through `FormPage`
+Keeps: on the Payment Method page (#153). Renders through `FormPage`
 (#434).
 
 - Header: Payments › Your card; the title; "How your card is used", folded.
@@ -546,12 +567,13 @@ Keeps: steps, quiet choices (#114). Renders through `FormPage` (#434).
 
 #### Client portal > Clean
 
-Keeps: the Record (ux-portal). Renders through `RecordPage` (#432).
+Keeps: the Record (#153). Renders through `RecordPage` (#432).
 
 - Header: Cleans › date and time; the Service and its status.
-- Actions: the next step the primary, the first that asks something: Update
-  your card (Unpaid, unless we try again ourselves), Review the price change
-  (the one that lapses first, its dialog titled by what it's for), Check how
+- Actions: the next step the primary, the first that asks something: Approve
+  payment (Needs approval), or Try again once they turned it down (Unpaid);
+  Update your card (Unpaid, unless we try again ourselves), Review the
+  price change (the one that lapses first, its dialog titled by what it's for), Check how
   we get in (after the crew couldn't), Pick a new time (booked); the rest
   behind its arrow (Skip or Cancel last, in red, its dialog saying what it
   costs; the plan or Request a quote after a No Access). Nothing next while
@@ -593,7 +615,7 @@ Keeps: read like a Quote, paying under it (#165). Renders through `RecordPage` (
 
 #### Client portal > Your plan
 
-Keeps: headline, then facts across (ux-portal). Renders through `RecordPage` (#432).
+Keeps: headline, then facts across (#153). Renders through `RecordPage` (#432).
 
 - Header: Your details › street › Your plan; "Your plan" and its status.
 - Actions: on hold, its next step the primary (Pay bill N, or Update your
@@ -605,7 +627,7 @@ Keeps: headline, then facts across (ux-portal). Renders through `RecordPage` (#4
 
 #### Client portal > A home
 
-Keeps: a list of homes, each with its own page (ux-portal). Renders through `RecordPage` (#432).
+Keeps: a list of homes, each with its own page (#153). Renders through `RecordPage` (#432).
 
 - Header: Your details › street; the street and its standing.
 - Actions: one Button (Edit how we get in).
@@ -620,7 +642,10 @@ Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432
 
 - Header: letterhead; Payments › Bill N; "Bill N" and its status (its week is a fact).
 - Actions: while the server says it can be paid (`payable`), Pay this bill
-  the primary (its form in a dialog), Print behind its arrow; otherwise one
+  the primary (its form in a dialog), Print behind its arrow; while their
+  bank wants them to approve a charge, Approve payment the primary (badge
+  Needs approval), or Try again once they turned it down (badge Unpaid),
+  Pay another way and Print behind it; otherwise one
   Button (Print), as while a payment is going through (#533, #534). While
   their bank asks them to approve their payment, Pay this bill stays, to
   start over.
@@ -628,7 +653,7 @@ Keeps: one card, read like an invoice (#157). Renders through `RecordPage` (#432
   payment on its page that didn't go through, and why (danger, the badge
   Unpaid), or that they never approved it, so nothing was taken (info,
   before it's late); why it's unpaid (Update your card, a text Button); or its bank
-  payment on its way, named, and how long it usually takes (the badge
+  payment on its way, named (the badge
   Payment pending, as for any payment going through, and the line under the
   total when it started).
 - Body: the Bill (`DetailsCard`: what it comes to and where that stands;
@@ -652,7 +677,7 @@ Keeps: Google first (#168).
 #### Message pages
 
 Keeps: a message page; centred, home a link (#168); one Button that does it
-(sign-in-button).
+(#254).
 
 - `MessagePage`: a narrow centred card, a large `IconTile`, the title,
   one line, at most one Button, home a text link. Not found; Something went
@@ -670,6 +695,6 @@ title (#493 G5.3). Renders through `FormPage` (#434).
 
 #### People
 
-Keeps: a page of the demo people, test site only (ux-switch-person).
+Keeps: a page of the demo people, test site only (#227).
 
 - A list of people to sign in as, and a form for anyone else.
