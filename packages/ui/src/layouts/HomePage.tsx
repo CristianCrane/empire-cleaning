@@ -94,7 +94,8 @@ export function AnswerCard({
 // links there, the count in its hint; where they don't, it shows how many
 // and opens them in place, under the tiles: its `rows`, or for rows of a
 // shape of their own (Payments' Statement) its `panel`, then `more` (the
-// way to where all of them are). A tile with none is greyed out
+// way to where all of them are). A tile with none is greyed out: a link's
+// says so with `isDisabled`
 export type HomeTile = {
   id: string;
   icon: LucideIcon;
@@ -110,7 +111,11 @@ export type HomeTile = {
       panel?: ReactNode;
       more?: ReactNode;
     }
-  | { href: LinkProps["href"]; externalHref?: undefined }
+  | {
+      href: LinkProps["href"];
+      externalHref?: undefined;
+      isDisabled?: boolean;
+    }
   | { externalHref: string; href?: undefined }
 );
 
@@ -202,6 +207,7 @@ export function HomeTiles({
                 hint={tile.hint ?? ""}
                 href={tile.href}
                 externalHref={tile.externalHref}
+                isDisabled={"isDisabled" in tile && tile.isDisabled}
               />
             )}
           </li>

@@ -222,6 +222,7 @@ export function CleanerHome() {
           label: t.c.offers,
           hint: w.waiting(offers),
           href: offersHref,
+          isDisabled: offers === 0,
         },
       ]}
       {...home}

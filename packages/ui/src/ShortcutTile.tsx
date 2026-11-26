@@ -9,18 +9,22 @@ const tile = `${tileForm} min-h-touch no-underline`;
 // hint of what's there (the card on file, a phone number, how many), so a
 // glance often answers without opening it. `href`
 // goes through the app's router; `externalHref` is for tel: and mailto:.
+// With none there (`isDisabled`) it's greyed out and can't be pressed, as
+// a CountTile with none is (#499's UX review U15)
 export function ShortcutTile({
   icon,
   label,
   hint,
   href,
   externalHref,
+  isDisabled,
 }: {
   icon: LucideIcon;
   label: string;
   hint: string;
   href?: LinkProps["href"];
   externalHref?: string;
+  isDisabled?: boolean;
 }) {
   const body = (
     <>
@@ -37,7 +41,10 @@ export function ShortcutTile({
   ) : (
     <AriaLink
       href={href}
-      className={(renderProps) => `${focusRing(renderProps)} ${tile}`}
+      isDisabled={isDisabled}
+      className={(renderProps) =>
+        `${focusRing(renderProps)} ${tile} disabled:cursor-default disabled:shadow-none disabled:hover:bg-surface`
+      }
     >
       {body}
     </AriaLink>
