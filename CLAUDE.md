@@ -23,7 +23,7 @@ Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agen
 
 ## UX
 
-Before designing, prototyping, reviewing or changing any screen, or writing words a person reads (a server message, an email), load the `ui` skill, then read `docs/ux.md`: this product's UX rules, and how a new UX question is settled (prototype, pick, build, record). Before reworking a screen, search `docs/ux-log.md`, the decisions so far, for it and for the states and words it shows, and read the rows that match, not the 211KB log whole (on 2026-11-25 builders brought in 35KB of it a run), so a choice isn't undone by accident: a decision can sit under another screen's name (where a failed charge is retried is Payment Method's, though Home's alert follows it). Record a new decision as `docs/ux.md`'s Changing a screen says.
+Before designing, prototyping, reviewing or changing any screen, or writing words a person reads (a server message, an email), load the `ui` skill, then read `docs/ux.md`: this product's UX rules, and how a new UX question is settled (prototype, pick, build, record). Before reworking a screen, search `docs/ux-log.md`, the decisions so far, for it and for the states and words it shows, and read the rows that match, not the 211KB log whole (on 2026-11-25 builders brought in 36KB of it a run), so a choice isn't undone by accident: a decision can sit under another screen's name (where a failed charge is retried is Payment Method's, though Home's alert follows it). Record a new decision as `docs/ux.md`'s Changing a screen says.
 
 A PR that changes a screen shows it before and after: `pnpm pr:shots <spec> "<test title>"` makes the screenshots and prints the table for the PR body (`packages/web/README.md`, Testing).
 
