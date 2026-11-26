@@ -47,7 +47,7 @@ describe("Stripe's refusals", () => {
     );
 
     expect(await charge(stripe)).toEqual({
-      ok: false,
+      status: "failed",
       reason: declined.decline_code,
     });
     expect(testMonitoring().counts).toEqual([
@@ -172,7 +172,8 @@ describe("Stripe's refusals", () => {
     await expect(
       stripe.payBill({
         payerId: "cus_1",
-        token: "ctoken_1",
+        source: { token: "ctoken_1" },
+        again: null,
         amount: 4200,
         description: "Bill EC-000001",
         reference: "bill_1",
@@ -186,19 +187,20 @@ describe("Stripe's refusals", () => {
 });
 
 // #241, finding 3: no test card does this off-session, so a bank debit's
-// PaymentIntent, as recorded processing, stands in for one
+// PaymentIntent, as recorded processing, stands in for one; its payment
+// method unexpanded, it reads as the saved card an off-session Charge is to
 describe("an off-session Charge still processing", () => {
-  test("isn't a decline: it says which payment to ask after", async () => {
+  test("isn't a decline: it's finishing by card, and says which payment to ask after", async () => {
     const { stripe, client } = gateway();
     const processing = recorded<{ id: string }>("processing-payment-intent");
     vi.spyOn(client.paymentIntents, "create").mockResolvedValue(
       processing as never,
     );
 
-    expect(await charge(stripe)).toEqual({
-      ok: false,
-      reason: "processing",
-      chargeId: processing.id,
+    expect(await charge(stripe)).toMatchObject({
+      status: "finishing",
+      ref: processing.id,
+      by: "card",
     });
   });
 });

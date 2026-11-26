@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import { CircleCheck, CreditCard, Receipt } from "lucide-react";
+import { CircleCheck, Receipt } from "lucide-react";
 import { catalog, type ClientPayment } from "@empire-cleaning/models";
 import {
   Button,
@@ -13,7 +13,6 @@ import {
   StatusBadge,
   useUiWords,
 } from "@empire-cleaning/ui";
-import { linkTo } from "../../links.ts";
 import { useHomeUrl } from "../home-search.ts";
 import { HeroCard, whyAlert } from "./HeroCard.tsx";
 import {
@@ -69,22 +68,15 @@ export function PortalPayments() {
   const data = useLoaderData({ from: "/portal/payments" });
   const home = useHomeUrl();
   const money = moneyNow(data, t.lang);
-  const { owed, clearing, cardsBill } = money;
+  const { owed, clearing, cardsBill, news } = money;
   const owing = owed && owedAnswer(owed, t.lang, data.plans);
   const { history } = data;
 
   return (
     <HomePage
       title={t.p.payments}
-      actions={[
-        // stands aside while the card asks something of them, as Home's
-        // does (docs/ux.md; UX review U18); Your card's tile stays below
-        !owed?.asks && {
-          label: t.p.yourCard,
-          icon: CreditCard,
-          href: linkTo({ to: "/portal/payment-method" }),
-        },
-      ]}
+      // no title-row action: Your card's tile is the way there, as two ways
+      // to one place, side by side, read as two (#534's UX review U7)
       alerts={[whyAlert(owing?.why)]}
       answer={
         <HeroCard
@@ -102,13 +94,18 @@ export function PortalPayments() {
         />
       }
       // a bank debit on its way names its Bill only when the card above
-      // doesn't, as it names it with its amount (#534's UX review U16)
-      notices={clearing.map((bill) => (
-        <Notice key={bill.id}>
-          {t.w.bankOnWay(bill.id === cardsBill ? null : bill.number)}{" "}
-          {t.BANK_CLEARING}
-        </Notice>
-      ))}
+      // doesn't, as it names it with its amount (#534's UX review U16); a
+      // quote's Deposit going through, under a card that asks something
+      // else, as Home's News says it
+      notices={[
+        ...clearing.map((bill) => (
+          <Notice key={bill.id}>
+            {t.w.bankOnWay(bill.id === cardsBill ? null : bill.number)}{" "}
+            {t.BANK_CLEARING}
+          </Notice>
+        )),
+        ...news.map((sentence) => <Notice key={sentence}>{sentence}</Notice>),
+      ]}
       tilesLabel={t.w.yourPayments}
       tiles={[
         {

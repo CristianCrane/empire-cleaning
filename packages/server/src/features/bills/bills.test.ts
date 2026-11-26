@@ -671,9 +671,12 @@ describe("a Bill payment the Client's bank asks them to approve", () => {
     // pressed Pay again: the first is called off, and a new one asked
     await pay().expect(200);
     // they closed their bank's box
-    expect((await finish(false).expect(409)).body.message).toBe(
-      "Your payment wasn't approved, so nothing was taken. Please try again, or use another card or bank account.",
-    );
+    // of kind "approve", for the page to offer it again
+    expect((await finish(false).expect(409)).body).toEqual({
+      message:
+        "Your payment wasn't approved, so nothing was taken. Please try again, or use another card or bank account.",
+      kind: "approve",
+    });
     const notApproved = { status: "notApproved" };
     expect(await billOf(office, id)).toMatchObject({
       status: "due",
@@ -1224,6 +1227,236 @@ describe("Unpaid Bills", () => {
     expect(testEmail().lastTo(BILLING_EMAIL).text).toContain(
       "Your cleaning plan is back on",
     );
+  });
+
+  // #534 Q7: charged without them there, their bank wants them to approve
+  // it, which they do on the Bill's page with their saved card
+  test("one their bank wants them to approve asks them to, and is paid once they do on its page", async () => {
+    const { office, client } = await planOnBill();
+    const agent = await signIn(casey.email);
+    const form = (
+      await agent.post("/api/payment-methods/mine/card-form").expect(200)
+    ).body as { secret: string };
+    testPayments().fillCardForm(form.secret, "alwaysApproval");
+    await agent
+      .put("/api/payment-methods/mine")
+      .send({ token: form.secret })
+      .expect(200);
+
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const [summary] = await billsOf(office, client.id);
+    expect(summary).toMatchObject({
+      status: "due",
+      unpaid: { kind: "approve", why: null },
+    });
+    const notice = testEmail().lastTo(BILLING_EMAIL);
+    expect(notice.subject).toBe(
+      "Please approve your payment for bill EC-000001",
+    );
+    expect(notice.html).toContain(">Approve payment<");
+    const asked = testPayments().paymentAttempts.length;
+
+    const outcome = (
+      await agent
+        .post(`/api/bills/mine/${summary!.id}/payment`)
+        .send({})
+        .expect(200)
+    ).body as BillPayOutcome;
+    expect(outcome).toEqual({
+      status: "needs_approval",
+      secret: expect.any(String),
+    });
+    // the payment their bank stopped, confirmed again with them there
+    expect(testPayments().paymentAttempts).toHaveLength(asked);
+    await agent
+      .post(`/api/bills/mine/${summary!.id}/payment/finish`)
+      .send({ approved: true })
+      .expect(200);
+    expect(await billOf(office, summary!.id)).toMatchObject({
+      status: "paid",
+      unpaid: null,
+    });
+    expect(
+      testPayments().charges.filter((c) => c.amount === summary!.totalCents),
+    ).toHaveLength(1);
+  });
+
+  // critical-review-payment-truth.md C12: one the Client started approving
+  // and walked away from (tab closed, phone died) is called off by the
+  // Clock. Nobody turned it down: it still waits on their approval, as a
+  // Job's does, not "turned down at their bank" (REFUSED)
+  test("one their bank wants them to approve, started on its page and left, still reads as theirs to approve once the Clock calls it off", async () => {
+    const { office, client } = await planOnBill();
+    const agent = await signIn(casey.email);
+    const form = (
+      await agent.post("/api/payment-methods/mine/card-form").expect(200)
+    ).body as { secret: string };
+    testPayments().fillCardForm(form.secret, "alwaysApproval");
+    await agent
+      .put("/api/payment-methods/mine")
+      .send({ token: form.secret })
+      .expect(200);
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const [summary] = await billsOf(office, client.id);
+    expect(summary).toMatchObject({ unpaid: { kind: "approve" } });
+
+    // they press Approve payment, their bank's box opens, and they leave
+    testPayments().requireApproval("pending");
+    await agent
+      .post(`/api/bills/mine/${summary!.id}/payment`)
+      .send({})
+      .expect(200);
+    testClock().advance({ minutes: 20 });
+    await settleOpenPayments();
+
+    const [after] = await billsOf(office, client.id);
+    expect(after).toMatchObject({ status: "due" });
+    expect(after!.unpaid!.kind).toBe("approve");
+  });
+
+  // #534's review F18 and UX review U18: turned down at their bank on its
+  // page, it's theirs to try again, dated from then, as the Office reads
+  // when they said no, and still owed from when their bank first asked, as
+  // the lists sort it (critical review C13). The provider's webhook can
+  // tell us it failed before their browser does, and it reads the same,
+  // their browser told it took nothing (#534's review F25)
+  test.each([
+    ["their browser tells us first", false],
+    ["the provider's webhook tells us first", true],
+  ])(
+    "one their bank wants them to approve, turned down on its page, reads refused from then, still owed from the ask, %s",
+    async (_, webhookFirst) => {
+      const { office, client } = await planOnBill();
+      const agent = await signIn(casey.email);
+      const form = (
+        await agent.post("/api/payment-methods/mine/card-form").expect(200)
+      ).body as { secret: string };
+      testPayments().fillCardForm(form.secret, "alwaysApproval");
+      await agent
+        .put("/api/payment-methods/mine")
+        .send({ token: form.secret })
+        .expect(200);
+      testClock().set(NEXT_MONDAY);
+      await makeDueBills();
+      const [summary] = await billsOf(office, client.id);
+      expect(summary).toMatchObject({ unpaid: { kind: "approve" } });
+
+      testClock().advance({ hours: 3 });
+      await agent
+        .post(`/api/bills/mine/${summary!.id}/payment`)
+        .send({})
+        .expect(200);
+      testPayments().requireApproval("refused");
+      if (webhookFirst) {
+        await webhook({
+          kind: "bill_payment_failed",
+          ref: "its payment",
+          reference: summary!.id,
+        }).expect(200);
+      }
+      await agent
+        .post(`/api/bills/mine/${summary!.id}/payment/finish`)
+        .send({ approved: false })
+        .expect(409);
+
+      expect(await billOf(office, summary!.id)).toMatchObject({
+        status: "due",
+        unpaid: {
+          kind: "refused",
+          since: summary!.unpaid!.since,
+          refusedAt: testClock().now().toISOString(),
+        },
+      });
+    },
+  );
+
+  // critical review C14: turned down on its page, then days on tried again
+  // and left. Nobody turned anything down since, so the Office's Bill
+  // still reads the day they said no, not the day the Clock called the new
+  // one off
+  test("turned down on its page, then days on tried again and left, is still dated from the day they said no", async () => {
+    const { office, client } = await planOnBill();
+    const agent = await signIn(casey.email);
+    const form = (
+      await agent.post("/api/payment-methods/mine/card-form").expect(200)
+    ).body as { secret: string };
+    testPayments().fillCardForm(form.secret, "alwaysApproval");
+    await agent
+      .put("/api/payment-methods/mine")
+      .send({ token: form.secret })
+      .expect(200);
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const [summary] = await billsOf(office, client.id);
+    testClock().advance({ hours: 3 });
+    await agent
+      .post(`/api/bills/mine/${summary!.id}/payment`)
+      .send({})
+      .expect(200);
+    testPayments().requireApproval("refused");
+    await agent
+      .post(`/api/bills/mine/${summary!.id}/payment/finish`)
+      .send({ approved: false })
+      .expect(409);
+    const refusedAt = testClock().now().toISOString();
+    expect((await billOf(office, summary!.id)).unpaid).toMatchObject({
+      kind: "refused",
+      refusedAt,
+    });
+
+    testClock().advance({ days: 2 });
+    testPayments().requireApproval("pending");
+    await agent
+      .post(`/api/bills/mine/${summary!.id}/payment`)
+      .send({})
+      .expect(200);
+    testClock().advance({ minutes: 20 });
+    await settleOpenPayments();
+
+    expect(await billOf(office, summary!.id)).toMatchObject({
+      status: "due",
+      unpaid: { kind: "refused", refusedAt },
+    });
+  });
+
+  // critical review C13: declined, then days later paid on its page and
+  // turned down at their bank, it reads refused, as a Job does (C10), and
+  // is still owed from the decline
+  test("declined, then days later turned down at their bank on its page, reads refused, still owed from the decline", async () => {
+    const { office, client } = await planOnBill();
+    testPayments().failCharges("insufficient_funds");
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    testPayments().failCharges(null);
+    const [summary] = await billsOf(office, client.id);
+    expect(summary).toMatchObject({ unpaid: { kind: "declined" } });
+
+    testClock().advance({ days: 3 });
+    testPayments().savedCardsAsk();
+    const agent = await signIn(casey.email);
+    const asked = (
+      await agent
+        .post(`/api/bills/mine/${summary!.id}/payment`)
+        .send({})
+        .expect(200)
+    ).body as BillPayOutcome;
+    expect(asked.status).toBe("needs_approval");
+    testPayments().requireApproval("refused");
+    await agent
+      .post(`/api/bills/mine/${summary!.id}/payment/finish`)
+      .send({ approved: false })
+      .expect(409);
+
+    expect(await billOf(office, summary!.id)).toMatchObject({
+      status: "due",
+      unpaid: {
+        kind: "refused",
+        since: summary!.unpaid!.since,
+        refusedAt: testClock().now().toISOString(),
+      },
+    });
   });
 
   // #241: nobody has to try again
@@ -2151,7 +2384,9 @@ describe("switching weekly billing off", () => {
     );
   });
 
-  test("a Charge that fails leaves the Job Unpaid and the plan On Hold, and says so", async () => {
+  // a plan's clean, billed weekly, done and not yet billed, as Casey is
+  // switched to being charged per clean and `fail` makes its Charge fail
+  const switchedOffUnpaid = async (fail: () => void) => {
     const office = await signInAsOffice();
     const me = (await office.get("/api/me").expect(200))
       .body as SignedInAccount;
@@ -2184,8 +2419,15 @@ describe("switching weekly billing off", () => {
       reports: [],
     });
 
-    testPayments().failCharges();
+    fail();
     const { settled } = await switchOff(office, client.id);
+    return { settled, firstJob, planId };
+  };
+
+  test("a Charge that fails leaves the Job Unpaid and the plan On Hold, and says so", async () => {
+    const { settled, firstJob, planId } = await switchedOffUnpaid(() =>
+      testPayments().failCharges(),
+    );
     // the first Job was paid in full when it was done, so only the plan's
     // is settled
     expect(settled).toEqual([
@@ -2213,6 +2455,22 @@ describe("switching weekly billing off", () => {
       "Until it's paid, we won't book more cleans on your plan.",
     );
     expect(notice.html).toContain("/portal/payment-method");
+  });
+
+  // the card page leaves out a payment their bank wants them to approve,
+  // so its button opens the clean, to approve it there (#534 review F17)
+  test("a Charge their bank wants them to approve emails a button to approve it on its clean", async () => {
+    const { firstJob } = await switchedOffUnpaid(() =>
+      testPayments().savedCardsAsk(),
+    );
+
+    const notice = testEmail().lastTo(BILLING_EMAIL);
+    expect(notice.text).toContain(
+      "Your bank wants you to approve it first. Please approve it on its page.",
+    );
+    expect(notice.html).toContain(`/portal/jobs/${firstJob.id}`);
+    expect(notice.html).toContain("Approve payment");
+    expect(notice.html).not.toContain("/portal/payment-method");
   });
 
   test("with nothing owed, sends nothing about money", async () => {

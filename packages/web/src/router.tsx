@@ -813,14 +813,17 @@ const portalPaymentsRoute = createRoute({
   path: "/payments",
   validateSearch: homeUrl(paymentsTiles),
   loader: async () => {
-    const [plans, pastJobs, bills, paymentMethod, history] = await Promise.all([
-      getJson<ServicePlanSummary[]>("/api/service-plans/mine"),
-      getJson<ClientPastJob[]>("/api/jobs/mine/past"),
-      getJson<BillSummary[]>("/api/bills/mine"),
-      ownPaymentMethod(),
-      getJson<ClientPayment[]>("/api/payments/mine"),
-    ]);
-    return { plans, pastJobs, bills, paymentMethod, history };
+    const [plans, pastJobs, bills, paymentMethod, history, quotes] =
+      await Promise.all([
+        getJson<ServicePlanSummary[]>("/api/service-plans/mine"),
+        getJson<ClientPastJob[]>("/api/jobs/mine/past"),
+        getJson<BillSummary[]>("/api/bills/mine"),
+        ownPaymentMethod(),
+        getJson<ClientPayment[]>("/api/payments/mine"),
+        // a Deposit going through is money on its way (#534)
+        getJson<QuoteSummary[]>("/api/quotes/mine"),
+      ]);
+    return { plans, pastJobs, bills, paymentMethod, history, quotes };
   },
   component: PortalPayments,
 });
@@ -843,10 +846,15 @@ const portalPaymentMethodRoute = createRoute({
       getJson<ClientPastJob[]>("/api/jobs/mine/past"),
     ]);
     // the cleans a card puts right; one waiting on the payment service we
-    // try again ourselves
+    // try again ourselves, and one their bank wants them to approve is
+    // approved on its own page, where trying it here would only ask again
+    // (#534 Q7). One they turned down there is here: its "Use a different
+    // card" leads here, to try this card again or save another
     return {
       saved,
-      unpaid: pastJobs.filter((j) => j.unpaid && asksTheClient(j.unpaid)),
+      unpaid: pastJobs.filter(
+        (j) => j.unpaid && asksTheClient(j.unpaid) && j.unpaid !== "approve",
+      ),
     };
   },
   component: PortalPaymentMethod,

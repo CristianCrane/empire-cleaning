@@ -398,8 +398,8 @@ export const quotesWithoutRoomEmail = ({
   blocks: [
     paragraph(
       quotes.length === 1
-        ? "Its time is now booked up, so the client can't accept it:"
-        : "Their times are now booked up, so the clients can't accept them:",
+        ? "Its time has filled up, so the client can't accept it:"
+        : "Their times have filled up, so the clients can't accept them:",
     ),
     details(
       quotes.map((q) => ({
@@ -796,7 +796,7 @@ const depositWords = catalog({
       PAYMENT: "the payment",
       CARD: "your card",
       no_room: (what: string) =>
-        `: that time got booked up while your bank was approving ${what}.`,
+        `: that time filled up while your bank was approving ${what}.`,
       revised: (what: string) =>
         `: we updated your quote while your bank was approving ${what}.`,
       closed: (what: string) =>
@@ -808,7 +808,6 @@ const depositWords = catalog({
       refunded: (amount: string, card: string, takes: string) =>
         `We've refunded your ${amount} deposit to your ${card}. ${takes}`,
       NOTHING_CHARGED: "Nothing was charged to your card.",
-      ANOTHER_TIME: "We'll be in touch with another time.",
       WHATS_CHANGED: "Take a look at what's changed:",
     },
     calledOff: {
@@ -819,8 +818,20 @@ const depositWords = catalog({
       refusedSubject: "Your bank didn't approve your payment",
       refused: (deposit: string) =>
         `Your bank didn't approve ${deposit}, so nothing was charged, and nothing is booked yet.`,
-      // a card saved with nothing charged (no Deposit)
-      yourCard: "your card",
+      // a card entered to accept with nothing charged (a 0% Deposit): its
+      // own words, as no payment was asked for (#534 UX design review U40)
+      card: {
+        subject: "Your card wasn't approved in time",
+        calledOff: (minutes: number) =>
+          `Your bank asked you to approve your card, and ${minutes} minutes went by without an approval, so we called it off. Nothing is booked yet.`,
+        refusedSubject: "Your bank didn't approve your card",
+        refused:
+          "Your bank didn't approve your card, so nothing is booked yet.",
+        open: (until: string) =>
+          `Your quote is still open until ${until}, so you can accept it again before then.`,
+        sent: (until: string) =>
+          `We've since sent you an updated quote, open until ${until}, so you can accept that one before then.`,
+      },
       forClean: (amount: string, service: string) =>
         `the ${amount} deposit for your ${service}`,
       forPlan: (amount: string) =>
@@ -870,7 +881,6 @@ const depositWords = catalog({
       refunded: (amount: string, card: string, takes: string) =>
         `Le devolvimos su depósito de ${amount} a su ${card}. ${takes}`,
       NOTHING_CHARGED: "No se cobró nada a su tarjeta.",
-      ANOTHER_TIME: "Le contactaremos con otra hora.",
       WHATS_CHANGED: "Revise lo que cambió:",
     },
     calledOff: {
@@ -880,7 +890,18 @@ const depositWords = catalog({
       refusedSubject: "Su banco no aprobó su pago",
       refused: (deposit: string) =>
         `Su banco no aprobó ${deposit}, así que no se cobró nada, y aún no hay nada reservado.`,
-      yourCard: "su tarjeta",
+      card: {
+        subject: "Su tarjeta no se aprobó a tiempo",
+        calledOff: (minutes: number) =>
+          `Su banco le pidió aprobar su tarjeta, y pasaron ${minutes} minutos sin aprobarla, así que lo cancelamos. Aún no hay nada reservado.`,
+        refusedSubject: "Su banco no aprobó su tarjeta",
+        refused:
+          "Su banco no aprobó su tarjeta, así que aún no hay nada reservado.",
+        open: (until: string) =>
+          `Su cotización sigue abierta hasta el ${until}, así que puede volver a aceptarla antes de esa fecha.`,
+        sent: (until: string) =>
+          `Desde entonces le enviamos una cotización actualizada, abierta hasta el ${until}, así que puede aceptar esa antes de esa fecha.`,
+      },
       forClean: (amount: string, service: string) =>
         `el depósito de ${amount} para su ${service}`,
       forPlan: (amount: string) =>
@@ -943,7 +964,7 @@ export const depositUnbookedEmail = (
             )
           : w.NOTHING_CHARGED,
       ),
-      ...(why === "no_room" ? [paragraph(w.ANOTHER_TIME)] : []),
+      ...(why === "no_room" ? [paragraph(messages[lang].NEW_QUOTE)] : []),
       ...(why === "revised" ? [paragraph(w.WHATS_CHANGED)] : []),
       button(words[lang].SEE_QUOTE, `/portal/quotes/${deposit.quoteId}`),
     ],
@@ -972,33 +993,46 @@ export const depositNotApprovedEmail = (
   const amount = formatMoney(deposit.amountCents);
   const when = formatWhen(deposit.startsAt);
   const service = deposit.service && inLanguage(lang, deposit.service).name;
-  const what = !deposit.amountCents
-    ? w.yourCard
-    : service
-      ? w.forClean(amount, service)
-      : deposit.changing
-        ? w.forChange(amount)
-        : w.forPlan(amount);
-  const { calledOffAfter } = deposit;
+  const what = service
+    ? w.forClean(amount, service)
+    : deposit.changing
+      ? w.forChange(amount)
+      : w.forPlan(amount);
+  const { calledOffAfter, since } = deposit;
+  // a 0% Deposit's card, with nothing charged, or a payment
+  const card = deposit.amountCents === 0;
+  const refused = calledOffAfter === null;
+  const ended = card
+    ? refused
+      ? w.card.refused
+      : w.card.calledOff(calledOffAfter)
+    : refused
+      ? w.refused(what)
+      : w.calledOff(what, calledOffAfter);
+  const until = formatWhen(deposit.openUntil);
   return {
     lang,
-    subject: calledOffAfter === null ? w.refusedSubject : w.subject,
+    subject: card
+      ? refused
+        ? w.card.refusedSubject
+        : w.card.subject
+      : refused
+        ? w.refusedSubject
+        : w.subject,
     blocks: [
       greeting(firstNameOf(deposit.name)),
-      paragraph(
-        calledOffAfter === null
-          ? w.refused(what)
-          : w.calledOff(what, calledOffAfter),
-      ),
+      paragraph(ended),
       paragraph(
         service
           ? w.clean(deposit.address, when)
           : w.plan(deposit.address, when),
       ),
       paragraph(
-        deposit.since === "expired"
+        since === "expired"
           ? w.expired
-          : w[deposit.since](formatWhen(deposit.openUntil)),
+          : card
+            ? w.card[since](until)
+            : w[since](until),
       ),
       button(words[lang].SEE_QUOTE, `/portal/quotes/${deposit.quoteId}`),
     ],

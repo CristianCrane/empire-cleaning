@@ -8,9 +8,11 @@
 // over to the next, as Stripe asks.
 import { describe, expect, test } from "vitest";
 import {
+  APPROVE,
   PaymentMethodError,
   type EventHeaders,
   type PaymentGateway,
+  type SavedPaymentMethod,
 } from "#services/payment-gateway";
 
 // the test cards the cases use, by how they behave
@@ -44,6 +46,9 @@ export type GatewayUnderTest = {
   fillCardForm(secret: string, card: TestCard): Promise<string>;
   // the token of a save-only card form the Client left unfinished
   abandonCardForm(secret: string): Promise<string>;
+  // a card the payer saved, as if they'd approved saving it with their bank,
+  // which the save-only form can't do here for a card whose bank asks
+  approvedCard(payerId: string, card: TestCard): Promise<SavedPaymentMethod>;
   // the token the browser's payment form hands over for a bank account,
   // linked at once, whose debit stays processing
   enterBank(): Promise<string>;
@@ -114,7 +119,9 @@ export const paymentGatewayContract = (
         description: "Contract check: Balance",
         idempotencyKey: `balance:${run}:${payerId}`,
       });
-      if (!charge.ok) throw new Error(`not charged: ${charge.reason}`);
+      if (charge.status !== "taken" || !charge.chargeId) {
+        throw new Error(`not charged: ${charge.status}`);
+      }
       return charge.chargeId;
     };
 
@@ -156,7 +163,7 @@ export const paymentGatewayContract = (
         });
 
         expect(deposit).toEqual({
-          status: "succeeded",
+          status: "taken",
           chargeId: expect.any(String),
           saved: {
             paymentMethodId: expect.any(String),
@@ -179,7 +186,7 @@ export const paymentGatewayContract = (
         });
 
         expect(deposit).toEqual({
-          status: "succeeded",
+          status: "taken",
           chargeId: expect.any(String),
           saved: null,
         });
@@ -216,14 +223,13 @@ export const paymentGatewayContract = (
         });
 
         expect(deposit).toEqual({
-          status: "needs_approval",
+          status: "approving",
           ref: expect.any(String),
           secret: expect.stringMatching(/.+/),
-          processing: false,
         });
-        if (deposit.status !== "needs_approval") return;
+        if (deposit.status !== "approving") return;
         expect(await t.gateway.paymentOutcome(deposit.ref)).toMatchObject({
-          status: "needs_approval",
+          status: "approving",
           ref: deposit.ref,
         });
       });
@@ -238,8 +244,8 @@ export const paymentGatewayContract = (
           description: "Contract check: Deposit called off",
           idempotencyKey: `deposit:${run}:${payerId}`,
         });
-        if (deposit.status !== "needs_approval") {
-          throw new Error(`expected needs_approval, got ${deposit.status}`);
+        if (deposit.status !== "approving") {
+          throw new Error(`expected approving, got ${deposit.status}`);
         }
 
         await t.gateway.cancelPayment(deposit.ref, "abandoned");
@@ -263,12 +269,12 @@ export const paymentGatewayContract = (
           description: "Contract check: Deposit read back",
           idempotencyKey: `deposit:${run}:${payerId}`,
         });
-        if (deposit.status !== "succeeded" || !deposit.chargeId) {
-          throw new Error(`expected succeeded, got ${deposit.status}`);
+        if (deposit.status !== "taken" || !deposit.chargeId) {
+          throw new Error(`expected taken, got ${deposit.status}`);
         }
 
         expect(await t.gateway.paymentOutcome(deposit.chargeId)).toEqual({
-          status: "succeeded",
+          status: "taken",
           chargeId: deposit.chargeId,
           saved: {
             paymentMethodId: deposit.saved!.paymentMethodId,
@@ -287,8 +293,8 @@ export const paymentGatewayContract = (
           description: "Contract check: Deposit taken, not called off",
           idempotencyKey: `deposit:${run}:${payerId}`,
         });
-        if (deposit.status !== "succeeded" || !deposit.chargeId) {
-          throw new Error(`expected succeeded, got ${deposit.status}`);
+        if (deposit.status !== "taken" || !deposit.chargeId) {
+          throw new Error(`expected taken, got ${deposit.status}`);
         }
 
         await expect(
@@ -309,7 +315,7 @@ export const paymentGatewayContract = (
         });
 
         expect(deposit).toEqual({
-          status: "succeeded",
+          status: "taken",
           chargeId: null,
           saved: {
             paymentMethodId: expect.any(String),
@@ -331,7 +337,31 @@ export const paymentGatewayContract = (
           idempotencyKey: `deposit:${run}:${payerId}`,
         });
 
-        expect(deposit.status).toBe("needs_approval");
+        expect(deposit.status).toBe("approving");
+      });
+
+      // a card save is a SetupIntent at Stripe, which a PaymentIntent's
+      // call-off doesn't reach (#534 plan review F1)
+      test("saving a card that waits on approval can be called off, and then it's never saved", async () => {
+        const t = await setup();
+        const { payerId } = await payer(t);
+        const deposit = await t.gateway.takeDeposit({
+          payerId,
+          source: { token: await t.enterCard("alwaysApproval") },
+          amount: 0,
+          description: "Contract check: card save called off",
+          idempotencyKey: `deposit:${run}:${payerId}`,
+        });
+        if (deposit.status !== "approving") {
+          throw new Error(`expected approving, got ${deposit.status}`);
+        }
+
+        await t.gateway.cancelPayment(deposit.ref, "abandoned");
+
+        expect(await t.gateway.paymentOutcome(deposit.ref)).toEqual({
+          status: "failed",
+          reason: "canceled",
+        });
       });
     });
 
@@ -373,7 +403,11 @@ export const paymentGatewayContract = (
           idempotencyKey: `balance:${run}:${payerId}`,
         });
 
-        expect(charge).toEqual({ ok: true, chargeId: expect.any(String) });
+        expect(charge).toEqual({
+          status: "taken",
+          chargeId: expect.any(String),
+          saved: null,
+        });
         expect(await t.paymentAttempts(payerId)).toBe(1);
       });
 
@@ -392,7 +426,7 @@ export const paymentGatewayContract = (
 
         const [first, again] = [await charge(), await charge()];
 
-        expect(first.ok).toBe(true);
+        expect(first.status).toBe("taken");
         expect(again).toEqual(first);
         expect(await t.paymentAttempts(payerId)).toBe(1);
       });
@@ -410,8 +444,8 @@ export const paymentGatewayContract = (
             idempotencyKey: `balance:${run}:${payerId}`,
           });
 
-        expect((await charge(7500)).ok).toBe(true);
-        expect((await charge(9000)).ok).toBe(false);
+        expect((await charge(7500)).status).toBe("taken");
+        expect((await charge(9000)).status).toBe("failed");
         expect(await t.paymentAttempts(payerId)).toBe(1);
       });
 
@@ -435,12 +469,138 @@ export const paymentGatewayContract = (
         const first = await charge("a");
         const again = await charge("a");
 
-        expect(first.ok).toBe(false);
+        expect(first.status).toBe("failed");
         expect(again).toEqual(first);
         expect(await t.paymentAttempts(payerId)).toBe(1);
         // a new key is a new attempt, declined again
-        expect((await charge("b")).ok).toBe(false);
+        expect((await charge("b")).status).toBe("failed");
         expect(await t.paymentAttempts(payerId)).toBe(2);
+      });
+    });
+
+    // an off-session Charge the Client's bank wants them there to approve
+    // stays open, and is approved on their clean's page as the same payment
+    // (#534 Q7)
+    describe("a Charge the bank wants the Client to approve", () => {
+      // the Charge, failed for approval, and how it was asked
+      const toApprove = async (t: GatewayUnderTest) => {
+        const { payerId } = await payer(t);
+        const { paymentMethodId } = await t.approvedCard(
+          payerId,
+          "alwaysApproval",
+        );
+        const since = new Date();
+        const idempotencyKey = `balance:${run}:${payerId}`;
+        const charge = await t.gateway.charge({
+          payerId,
+          paymentMethodId,
+          amount: 7500,
+          description: "Contract check: Balance to approve",
+          idempotencyKey,
+        });
+        if (charge.status !== "failed" || !charge.ref) {
+          throw new Error(`not left open: ${JSON.stringify(charge)}`);
+        }
+        return { payerId, paymentMethodId, since, idempotencyKey, charge };
+      };
+      // the Client pays it on its page, from the same card
+      const onPage = (
+        t: GatewayUnderTest,
+        {
+          payerId,
+          paymentMethodId,
+        }: { payerId: string; paymentMethodId: string },
+        again: string,
+        amount = 7500,
+      ) =>
+        t.gateway.payJob({
+          payerId,
+          paymentMethodId,
+          again,
+          amount,
+          description: "Contract check: Balance approved on its page",
+          idempotencyKey: `job:${run}:${payerId}:${amount}`,
+        });
+
+      test("it fails for approval, open, and is found so", async () => {
+        const t = await setup();
+        const { charge, ...asked } = await toApprove(t);
+
+        expect(charge).toEqual({
+          status: "failed",
+          reason: APPROVE,
+          ref: expect.any(String),
+        });
+        expect(
+          await t.gateway.chargeOutcome({
+            payerId: asked.payerId,
+            idempotencyKey: asked.idempotencyKey,
+            chargeId: null,
+            since: asked.since,
+            again: null,
+          }),
+        ).toEqual(charge);
+      });
+
+      test("paid on its page for the same amount, the same payment asks for approval, and is found by its new key", async () => {
+        const t = await setup();
+        const asked = await toApprove(t);
+        const ref = asked.charge.status === "failed" ? asked.charge.ref! : "";
+        const since = new Date();
+
+        const paid = await onPage(t, asked, ref);
+
+        expect(paid).toEqual({
+          status: "approving",
+          ref,
+          secret: expect.any(String),
+        });
+        expect(await t.paymentAttempts(asked.payerId)).toBe(1);
+        // its reply lost, it's found by the key it was confirmed with,
+        // though it was made before
+        expect(
+          await t.gateway.chargeOutcome({
+            payerId: asked.payerId,
+            idempotencyKey: `job:${run}:${asked.payerId}:7500`,
+            chargeId: null,
+            since,
+            again: ref,
+          }),
+        ).toEqual(paid);
+      });
+
+      test("for another amount, it's a new payment", async () => {
+        const t = await setup();
+        const asked = await toApprove(t);
+        const ref = asked.charge.status === "failed" ? asked.charge.ref! : "";
+
+        const paid = await onPage(t, asked, ref, 9000);
+
+        expect(paid.status).toBe("approving");
+        expect(paid.status === "approving" && paid.ref).not.toBe(ref);
+        expect(await t.paymentAttempts(asked.payerId)).toBe(2);
+      });
+
+      test("once called off, it's never taken, and paying it is a new payment", async () => {
+        const t = await setup();
+        const asked = await toApprove(t);
+        const ref = asked.charge.status === "failed" ? asked.charge.ref! : "";
+
+        await t.gateway.cancelPayment(ref, "abandoned");
+        const paid = await onPage(t, asked, ref);
+
+        expect(
+          await t.gateway.chargeOutcome({
+            payerId: asked.payerId,
+            idempotencyKey: asked.idempotencyKey,
+            chargeId: ref,
+            since: asked.since,
+            again: null,
+          }),
+        ).toEqual({ status: "failed", reason: "canceled" });
+        expect(paid.status).toBe("approving");
+        expect(paid.status === "approving" && paid.ref).not.toBe(ref);
+        expect(await t.paymentAttempts(asked.payerId)).toBe(2);
       });
     });
 
@@ -461,11 +621,11 @@ export const paymentGatewayContract = (
           idempotencyKey,
         });
 
-        const lookup = { payerId, idempotencyKey, since };
+        const lookup = { payerId, idempotencyKey, since, again: null };
         expect(
           await t.gateway.chargeOutcome({ ...lookup, chargeId: null }),
         ).toEqual(charge);
-        if (!charge.ok) return;
+        if (charge.status !== "taken" || !charge.chargeId) return;
         expect(
           await t.gateway.chargeOutcome({
             ...lookup,
@@ -492,13 +652,14 @@ export const paymentGatewayContract = (
           idempotencyKey,
         });
 
-        expect(declined.ok).toBe(false);
+        expect(declined.status).toBe("failed");
         expect(
           await t.gateway.chargeOutcome({
             payerId,
             idempotencyKey,
             chargeId: null,
             since,
+            again: null,
           }),
         ).toEqual(declined);
       });
@@ -522,10 +683,13 @@ export const paymentGatewayContract = (
             idempotencyKey,
             chargeId: null,
             since,
+            again: null,
           }),
         ).toEqual({
-          ok: true,
-          chargeId: deposit.status === "succeeded" ? deposit.chargeId : null,
+          status: "taken",
+          chargeId: deposit.status === "taken" ? deposit.chargeId : null,
+          // read back, the card it saved isn't
+          saved: null,
         });
       });
 
@@ -539,6 +703,7 @@ export const paymentGatewayContract = (
             idempotencyKey: `balance:${run}:${payerId}:never`,
             chargeId: null,
             since: new Date(),
+            again: null,
           }),
         ).toBeNull();
       });
@@ -657,7 +822,8 @@ export const paymentGatewayContract = (
 
         const paid = await t.gateway.payBill({
           payerId,
-          token: await t.enterCard("visa"),
+          source: { token: await t.enterCard("visa") },
+          again: null,
           amount: 12000,
           description: "Contract check: Bill by card",
           reference: `bill-${run}`,
@@ -665,7 +831,7 @@ export const paymentGatewayContract = (
         });
 
         expect(paid).toEqual({
-          status: "succeeded",
+          status: "taken",
           chargeId: expect.any(String),
           saved: null,
         });
@@ -677,7 +843,8 @@ export const paymentGatewayContract = (
 
         const paid = await t.gateway.payBill({
           payerId,
-          token: await t.enterBank(),
+          source: { token: await t.enterBank() },
+          again: null,
           amount: 12000,
           description: "Contract check: Bill by bank debit",
           reference: `bill-${run}`,
@@ -685,12 +852,11 @@ export const paymentGatewayContract = (
         });
 
         expect(paid).toEqual({
-          status: "needs_approval",
+          status: "finishing",
           ref: expect.any(String),
-          secret: expect.any(String),
-          processing: "bank",
+          by: "bank",
         });
-        if (paid.status !== "needs_approval") return;
+        if (paid.status !== "finishing") return;
         expect(await t.gateway.paymentOutcome(paid.ref)).toEqual(paid);
       });
     });

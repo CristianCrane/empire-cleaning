@@ -4,17 +4,18 @@ import { stripeLocales } from "@empire-cleaning/models";
 import { MINUTE_MS, upperFirst } from "@empire-cleaning/models";
 import { monitoring } from "#services/monitoring";
 import {
+  APPROVE,
   PaymentMethodError,
   type BillInput,
   type CallingOff,
   type ChargeInput,
   type ChargeLookup,
-  type ChargeResult,
-  type OnSessionResult,
   type DepositInput,
   type EventHeaders,
+  type JobInput,
   type PaymentEvent,
   type PaymentGateway,
+  type PaymentResult,
   type RefundElsewhere,
   type RefundInput,
   type RefundLookup,
@@ -64,10 +65,13 @@ const BILL_ALLOWED: ("card" | "us_bank_account")[] = [
 //   approve it (3D Secure), the browser runs handleNextAction with the
 //   client secret and we ask again how it ended.
 // - Later Charges (the Office recording acceptance, the Balance) are
-//   off-session PaymentIntents on the saved card.
+//   off-session PaymentIntents on the saved card. One the bank wants the
+//   Client to approve stays open (requires_payment_method), and is confirmed
+//   on-session when they approve it on their clean's or Bill's page.
 // - A Bill paid on its page is a PaymentIntent confirmed here the same way,
-//   by card or bank debit, saving neither; a bank debit is processing until
-//   it clears or fails, days later, which a webhook tells us.
+//   by card or bank debit, saving neither, or by the saved card; a bank
+//   debit is processing until it clears or fails, days later, which a
+//   webhook tells us.
 // - Our charge ids are PaymentIntent ids.
 export class StripePaymentGateway implements PaymentGateway {
   private readonly stripe: Stripe;
@@ -157,7 +161,7 @@ export class StripePaymentGateway implements PaymentGateway {
     amount,
     description,
     idempotencyKey,
-  }: DepositInput): Promise<OnSessionResult> {
+  }: DepositInput): Promise<PaymentResult> {
     // a card entered now is saved by this payment, for later Charges
     const saves = "token" in source;
     const confirmFrom =
@@ -196,16 +200,21 @@ export class StripePaymentGateway implements PaymentGateway {
 
   async payBill({
     payerId,
-    token,
+    source,
+    again,
     amount,
     description,
     reference,
     idempotencyKey,
-  }: BillInput): Promise<OnSessionResult> {
+  }: BillInput): Promise<PaymentResult> {
     return withClient("a Bill payment", () =>
       this.payWithClient({
         payerId,
-        confirmFrom: { confirmation_token: token },
+        confirmFrom:
+          "token" in source
+            ? { confirmation_token: source.token }
+            : { payment_method: source.paymentMethodId },
+        again,
         amount,
         description,
         allowed: BILL_ALLOWED,
@@ -219,12 +228,42 @@ export class StripePaymentGateway implements PaymentGateway {
     );
   }
 
+  async payJob({
+    payerId,
+    paymentMethodId,
+    again,
+    amount,
+    description,
+    idempotencyKey,
+  }: JobInput): Promise<PaymentResult> {
+    return withClient("a Job payment", () =>
+      this.payWithClient({
+        payerId,
+        confirmFrom: { payment_method: paymentMethodId },
+        again,
+        amount,
+        description,
+        allowed: ALLOWED,
+        saves: false,
+        metadata: {},
+        idempotencyKey,
+      }),
+    );
+  }
+
   // a PaymentIntent confirmed here, on-session, from what the Client
   // entered in the browser's Payment Element (or a card they saved),
-  // saving a card entered now when `saves`
+  // saving a card entered now when `saves`. A saved card's is `again`, an
+  // off-session Charge their bank wanted them to approve, if it's still
+  // waiting on a card for the same payment: confirmed now with them there,
+  // with no return_url, so it asks the browser's handleNextAction to
+  // approve it (https://docs.stripe.com/payments/save-and-reuse, "Handle
+  // post-payment events"; shown in the sandbox, #534 Q7). Its metadata
+  // becomes this payment's, so a Bill's events find the Bill
   private async payWithClient({
     payerId,
     confirmFrom,
+    again = null,
     amount,
     description,
     allowed,
@@ -235,6 +274,7 @@ export class StripePaymentGateway implements PaymentGateway {
   }: {
     payerId: string;
     confirmFrom: { confirmation_token: string } | { payment_method: string };
+    again?: string | null;
     amount: number;
     description: string;
     allowed: Stripe.PaymentIntentCreateParams["allowed_payment_method_types"];
@@ -242,7 +282,25 @@ export class StripePaymentGateway implements PaymentGateway {
     metadata: Record<string, string>;
     idempotencyKey: string;
     options?: Stripe.PaymentIntentCreateParams.PaymentMethodOptions;
-  }): Promise<OnSessionResult> {
+  }): Promise<PaymentResult> {
+    if (again && "payment_method" in confirmFrom) {
+      const open = await this.stripe.paymentIntents.retrieve(again);
+      if (
+        open.status === "requires_payment_method" &&
+        open.amount === amount &&
+        idOf(open.customer) === payerId
+      ) {
+        await this.stripe.paymentIntents.update(again, {
+          metadata: { ...metadata, [KEY]: idempotencyKey },
+        });
+        const intent = await this.stripe.paymentIntents.confirm(
+          again,
+          { ...confirmFrom, expand: ["payment_method"] },
+          { idempotencyKey },
+        );
+        return outcomeOf(intent, false);
+      }
+    }
     const intent = await this.stripe.paymentIntents.create(
       {
         amount,
@@ -262,7 +320,7 @@ export class StripePaymentGateway implements PaymentGateway {
     return outcomeOf(intent, saves);
   }
 
-  async paymentOutcome(ref: string): Promise<OnSessionResult> {
+  async paymentOutcome(ref: string): Promise<PaymentResult> {
     // only a card entered just now can need approval and be saved by it,
     // except a saved card's on-session Deposit, which saves nothing new
     const intent = ref.startsWith("seti_")
@@ -279,13 +337,18 @@ export class StripePaymentGateway implements PaymentGateway {
   }
 
   // Stripe refuses to cancel a PaymentIntent that succeeded, or a card's
-  // that's processing (https://docs.stripe.com/api/payment_intents/cancel);
-  // its reason shows in the dashboard
+  // that's processing (https://docs.stripe.com/api/payment_intents/cancel),
+  // and a 0 Deposit's SetupIntent once it saved the card
+  // (https://docs.stripe.com/api/setup_intents/cancel); its reason shows in
+  // the dashboard
   async cancelPayment(ref: string, why: CallingOff) {
-    await this.stripe.paymentIntents.cancel(ref, {
-      cancellation_reason:
-        why === "client_retried" ? "requested_by_customer" : "abandoned",
-    });
+    const cancellation_reason =
+      why === "abandoned" ? "abandoned" : "requested_by_customer";
+    if (ref.startsWith("seti_")) {
+      await this.stripe.setupIntents.cancel(ref, { cancellation_reason });
+    } else {
+      await this.stripe.paymentIntents.cancel(ref, { cancellation_reason });
+    }
   }
 
   async charge({
@@ -294,7 +357,7 @@ export class StripePaymentGateway implements PaymentGateway {
     amount,
     description,
     idempotencyKey,
-  }: ChargeInput): Promise<ChargeResult> {
+  }: ChargeInput): Promise<PaymentResult> {
     try {
       const intent = await this.stripe.paymentIntents.create(
         {
@@ -307,14 +370,21 @@ export class StripePaymentGateway implements PaymentGateway {
           metadata: { [KEY]: idempotencyKey },
           off_session: true,
           confirm: true,
+          expand: ["payment_method"],
         },
         { idempotencyKey },
       );
-      return resultOf(intent);
+      return outcomeOf(intent, false);
     } catch (error) {
       // declined, or the bank wants the cardholder there to approve it
-      // (authentication_required): either way, not charged
-      return { ok: false, reason: reasonOf(error, "a Charge") };
+      // (APPROVE): either way, not charged. That one's PaymentIntent stays
+      // open for them to approve (payJob's `again`)
+      const reason = reasonOf(error, "a Charge");
+      const open =
+        reason === APPROVE && error instanceof Stripe.errors.StripeCardError
+          ? error.payment_intent?.id
+          : undefined;
+      return { status: "failed", reason, ...(open && { ref: open }) };
     }
   }
 
@@ -323,9 +393,15 @@ export class StripePaymentGateway implements PaymentGateway {
     idempotencyKey,
     chargeId,
     since,
-  }: ChargeLookup): Promise<ChargeResult | null> {
+    again,
+  }: ChargeLookup): Promise<PaymentResult | null> {
     if (chargeId) {
-      return resultOf(await this.stripe.paymentIntents.retrieve(chargeId));
+      return outcomeOf(
+        await this.stripe.paymentIntents.retrieve(chargeId, {
+          expand: ["payment_method"],
+        }),
+        false,
+      );
     }
     // listing is up to date at once, unlike searching by metadata; a minute
     // early, for clocks that disagree
@@ -334,10 +410,20 @@ export class StripePaymentGateway implements PaymentGateway {
         customer: payerId,
         created: { gte: Math.floor((since.getTime() - MINUTE_MS) / 1000) },
         limit: 100,
+        expand: ["data.payment_method"],
       })
       .autoPagingToArray({ limit: 1000 });
     const intent = made.find((i) => i.metadata?.[KEY] === idempotencyKey);
-    return intent ? resultOf(intent) : null;
+    if (intent) return outcomeOf(intent, false);
+    // made before `since`: it's this payment once payWithClient gave it
+    // this one's key, before confirming it
+    if (!again) return null;
+    const earlier = await this.stripe.paymentIntents.retrieve(again, {
+      expand: ["payment_method"],
+    });
+    return earlier.metadata?.[KEY] === idempotencyKey
+      ? outcomeOf(earlier, false)
+      : null;
   }
 
   async refund({
@@ -465,28 +551,6 @@ export class StripePaymentGateway implements PaymentGateway {
   }
 }
 
-// how a PaymentIntent stands, as a Charge: one asked for off-session, or
-// one made with the Client there and looked up. Processing (rare for
-// cards, days for a bank debit) isn't a decline, and nor is waiting on the
-// Client's bank to approve it: either may yet take the money
-const resultOf = (intent: Stripe.PaymentIntent): ChargeResult => {
-  switch (intent.status) {
-    case "succeeded":
-      return { ok: true, chargeId: intent.id };
-    case "processing":
-      return { ok: false, reason: "processing", chargeId: intent.id };
-    case "requires_action":
-      return { ok: false, reason: "requires_action", chargeId: intent.id };
-    default: {
-      const error = intent.last_payment_error;
-      return {
-        ok: false,
-        reason: error?.decline_code ?? error?.code ?? intent.status,
-      };
-    }
-  }
-};
-
 const idOf = (ref: string | { id: string } | null | undefined) =>
   typeof ref === "string" ? ref : (ref?.id ?? null);
 
@@ -504,51 +568,58 @@ const saved = (method: Stripe.PaymentMethod): SavedPaymentMethod => ({
   card: cardOf(method),
 });
 
+// How a PaymentIntent or SetupIntent stands, whichever call made or read it:
+// the one mapping from Stripe's statuses to ours
+// (https://docs.stripe.com/payments/paymentintents/lifecycle). The card it
+// saved is read only when `savesCard`, and needs its payment_method
+// expanded, as every call here asks
 const outcomeOf = (
   intent: Stripe.PaymentIntent | Stripe.SetupIntent,
   savesCard: boolean,
-): OnSessionResult => {
+): PaymentResult => {
   const method = intent.payment_method;
   switch (intent.status) {
     case "succeeded":
       return {
-        status: "succeeded",
+        status: "taken",
         chargeId: intent.object === "payment_intent" ? intent.id : null,
         saved:
           savesCard && method && typeof method !== "string"
             ? saved(method)
             : null,
       };
-    // the bank wants the Client to approve it; processing is rare for cards
-    // and settles soon, so it's waited on the same way, but can't be called
-    // off (https://docs.stripe.com/api/payment_intents/cancel). Which it is
-    // by, a card or a bank debit, is the payment method's type
-    // (https://docs.stripe.com/api/payment_methods/object#payment_method_object-type)
+    // the bank wants the Client to approve it
     case "requires_action":
-    case "processing":
       return {
-        status: "needs_approval",
+        status: "approving",
         ref: intent.id,
         secret: intent.client_secret!,
-        processing:
-          intent.status !== "processing"
-            ? false
-            : typeof method !== "string" && method?.type === "us_bank_account"
-              ? "bank"
-              : "card",
+      };
+    // rare for cards, which settle soon; days for a bank debit. Neither can
+    // be called off (https://docs.stripe.com/api/payment_intents/cancel).
+    // Which it is by is the payment method's type
+    // (https://docs.stripe.com/api/payment_methods/object#payment_method_object-type)
+    case "processing":
+      return {
+        status: "finishing",
+        ref: intent.id,
+        by:
+          typeof method !== "string" && method?.type === "us_bank_account"
+            ? "bank"
+            : "card",
       };
     // called off by us (cancelPayment), whatever the bank had said before
     case "canceled":
       return { status: "failed", reason: "canceled" };
+    // declined, or a Charge left open for the Client to approve (charge())
     default: {
       const error =
         intent.object === "payment_intent"
           ? intent.last_payment_error
           : intent.last_setup_error;
-      return {
-        status: "failed",
-        reason: error?.decline_code ?? error?.code ?? intent.status,
-      };
+      const reason = error?.decline_code ?? error?.code ?? intent.status;
+      const open = reason === APPROVE && intent.object === "payment_intent";
+      return { status: "failed", reason, ...(open && { ref: intent.id }) };
     }
   }
 };
@@ -557,8 +628,8 @@ const outcomeOf = (
 // reasonOf says why; one it may have made after all throws
 const withClient = async (
   what: string,
-  pay: () => Promise<OnSessionResult>,
-): Promise<OnSessionResult> => {
+  pay: () => Promise<PaymentResult>,
+): Promise<PaymentResult> => {
   try {
     return await pay();
   } catch (error) {

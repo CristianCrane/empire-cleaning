@@ -4,7 +4,12 @@ import type { QuoteSummary } from "@empire-cleaning/models";
 import { DAY_MS } from "@empire-cleaning/models";
 import { QuoteIcon } from "../icons.ts";
 import { Line, ListPage, StatusBadge } from "@empire-cleaning/ui";
-import { DraftChangesBadge, QuoteStatusBadge } from "../QuoteParts.tsx";
+import {
+  DraftChangesBadge,
+  QuoteStatusBadge,
+  isGoingThrough,
+  waitOf,
+} from "../QuoteParts.tsx";
 import {
   addressOf,
   clientName,
@@ -131,10 +136,13 @@ export function QuotesScreen() {
             ]}
           />
         ),
-        // its Tab says it, but a search across them doesn't
+        // its Tab says it, but a search across them doesn't, nor a Sent
+        // quote's Deposit going through
         status: {
-          badge: <QuoteStatusBadge status={quote.status} />,
-          plain: true,
+          badge: (
+            <QuoteStatusBadge status={quote.status} wait={waitOf(quote)} />
+          ),
+          plain: !isGoingThrough(waitOf(quote)),
         },
         badges: [
           quote.siteVisit === "needed" && (

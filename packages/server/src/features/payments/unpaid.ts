@@ -5,7 +5,8 @@ import {
   type Unpaid,
   type UnpaidKind,
 } from "@empire-cleaning/models";
-import { NO_CARD, UNREACHABLE } from "./money.ts";
+import { APPROVE } from "../../services/payment-gateway/index.ts";
+import { NO_CARD, NOT_APPROVED, UNREACHABLE } from "./money.ts";
 
 // Why a Job or a Bill is Unpaid, from the reason stored with it, in words a
 // person reads (docs/ux.md, Words). The stored reason is the payment
@@ -17,16 +18,35 @@ import { NO_CARD, UNREACHABLE } from "./money.ts";
 export const NOT_SETTLED = "its payment couldn't be worked out";
 // why a Bill paid on its page is Unpaid
 export const LATE = "not paid by its due date";
+// why a payment their bank wanted them to approve is still Unpaid, once they
+// turned it down at their bank on its page: theirs to try again (#534's
+// review F18), said by the server so every page and list agrees
+export const REFUSED = "turned down at their bank";
+
+// whether a payment their bank wanted them to approve was turned down there,
+// on the Client's own word as their browser finished their bank's check
+// (`finish`): they said so, or said approved and the payment ended not
+// approved. Never one called off as they walked away, which the Clock does
+// with no word from them: that still waits on their approval (#534's
+// critical review C12)
+export const turnedDown = (
+  finish: "approved" | "refused",
+  ended: { status: string; reason: string | null } | null | undefined,
+) =>
+  finish === "refused" ||
+  (ended?.status === "failed" && NOT_APPROVED(ended.reason));
 
 // ours, and the provider's own that we know: each with its kind. A bank
-// asking for approval reads as a decline, as a new card is how they fix it
+// asking for a charge made without the Client there to be approved is theirs
+// to approve on its page (#534 Q7); its kind says so, so it has no "why"
 const known: Record<string, UnpaidKind> = {
   [UNREACHABLE]: "waiting",
   processing: "waiting",
   [NOT_SETTLED]: "waiting",
   [NO_CARD]: "no_card",
   [LATE]: "late",
-  needs_approval: "declined",
+  [APPROVE]: "approve",
+  [REFUSED]: "refused",
 };
 
 // why, in words, in the reader's language (ADR-0025): ours, and the few
@@ -41,7 +61,6 @@ const whyWords = catalog({
     [NOT_SETTLED]: "something went wrong on our side",
     [NO_CARD]: "no card is saved",
     [LATE]: "it wasn't paid by its due date",
-    needs_approval: "the bank asked for it to be approved first",
     expired_card: "the card has expired",
     insufficient_funds: "there wasn't enough money in the account",
     account_closed: "that bank account is closed",
@@ -53,7 +72,6 @@ const whyWords = catalog({
     [NOT_SETTLED]: "algo salió mal de nuestra parte",
     [NO_CARD]: "no hay ninguna tarjeta guardada",
     [LATE]: "no se pagó antes de la fecha límite",
-    needs_approval: "el banco pidió aprobarlo primero",
     expired_card: "la tarjeta venció",
     insufficient_funds: "no había suficiente dinero en la cuenta",
     account_closed: "esa cuenta bancaria está cerrada",
@@ -83,12 +101,24 @@ export const nowTheirs = (before: string | null, failure: string) =>
   asksTheClient(unpaidKind(failure)) &&
   (before === null || !asksTheClient(unpaidKind(before)));
 
-// as a view shows it, in the reader's language
+// as a view shows it, in the reader's language. `since` is when the money
+// became owed, as the lists and a plan's hold sort by it; one turned down
+// at their bank is also dated from when they did (`refusedAt`, kept on its
+// row as that reason is written), as the Office reads when they said no
+// (#534's UX review U18, critical review C13, C14)
 export const unpaidOf = (
   lang: Language,
   since: Date | null,
   reason: string | null,
-) =>
-  since
-    ? { since: since.toISOString(), ...whyNotPaid(lang, reason ?? "") }
-    : null;
+  refusedAt: Date | null,
+): Unpaid | null => {
+  if (!since) return null;
+  const why = whyNotPaid(lang, reason ?? "");
+  return {
+    since: since.toISOString(),
+    ...why,
+    ...(why.kind === "refused" && refusedAt
+      ? { refusedAt: refusedAt.toISOString() }
+      : {}),
+  };
+};

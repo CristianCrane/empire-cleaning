@@ -4,7 +4,7 @@ import { tv } from "./utils.ts";
 
 // page and section titles in the brand's condensed capitals; size 3 and
 // below drop to the reading face so dense screens stay calm
-const heading = tv({
+export const heading = tv({
   variants: {
     size: {
       1: "font-display text-3xl font-bold tracking-wide uppercase sm:text-4xl",

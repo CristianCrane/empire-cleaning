@@ -1,4 +1,5 @@
 import {
+  CLIENT_TO_APPROVE,
   formats,
   messages,
   ON_THAT_WEEKS_BILL,
@@ -765,7 +766,13 @@ export function JobMoney({ job, lineUp }: { job: OfficeJob; lineUp: 2 | 3 }) {
               <Fact
                 key="owed"
                 icon={owed > 0 ? CircleAlert : Undo2}
-                label={owed > 0 ? "Still owed" : "To refund"}
+                label={
+                  owed <= 0
+                    ? "To refund"
+                    : payment.unpaid?.kind === "approve"
+                      ? CLIENT_TO_APPROVE
+                      : "Still owed"
+                }
                 value={formatMoney(Math.abs(owed))}
               />
             )

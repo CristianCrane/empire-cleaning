@@ -61,7 +61,8 @@ import {
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { officeClientView } from "../clients/clients.ts";
 import { counts, paymentOf, settleAfterChange } from "../completion/balance.ts";
-import { holds, payingOn, standing, type PayingOn } from "./standing.ts";
+import { holds, paymentOn, type PaymentOn } from "../payments/payment-on.ts";
+import { standing } from "./standing.ts";
 import {
   adjustments,
   reportedChange,
@@ -85,7 +86,14 @@ import {
   paymentMethods,
   refunds,
 } from "../payments/payments.schema.ts";
-import { LATE, nowTheirs, unpaidKind, whyNotPaid } from "../payments/unpaid.ts";
+import {
+  LATE,
+  nowTheirs,
+  REFUSED,
+  turnedDown,
+  unpaidKind,
+  whyNotPaid,
+} from "../payments/unpaid.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { currentPriceList, namedByKey } from "../price-list/price-list.ts";
 import { changedOf } from "../completion/emails.ts";
@@ -509,13 +517,7 @@ const chargeBill = async (
     }
     // the Client paying it on its page: theirs to finish, or settleBill's
     // (#534 critical review C1)
-    if (
-      (await attemptsFor("bill", [bill.id], tx)).some(
-        (a) => a.open && a.call === "bill",
-      )
-    ) {
-      return null;
-    }
+    if ((await paymentOn("bill", [bill.id], tx))(bill.id).onPage) return null;
     const [owner] = await tx
       .select({ client: clients, method: paymentMethods })
       .from(clients)
@@ -676,7 +678,7 @@ export const retryUnpaidBillsFor = async (clientId: string) => {
 // them to approve they may start over, as that calls it off
 const notPayable = (
   bill: Bill,
-  on: PayingOn,
+  on: PaymentOn,
 ): "onItsWay" | "ours" | "nothingToPay" | null => {
   if (bill.status === "processing") return "onItsWay";
   if (bill.status !== "due" || bill.totalCents <= 0) return "nothingToPay";
@@ -716,11 +718,12 @@ const payWords = catalog({
 });
 
 // a payment on a Bill's page that took nothing, as the dialog says it: never
-// approved, or why it didn't go through when that's known
+// approved (kind "approve", for the page to offer it again), or why it didn't
+// go through when that's known
 const nothingTaken = (reason: string) => {
   const lang = currentLanguage();
   if (NOT_APPROVED(reason))
-    return new ConflictError(payWords[lang].notApproved);
+    return new ConflictError(payWords[lang].notApproved, "approve");
   const { why } = whyNotPaid(lang, reason);
   return new ConflictError(payWords[lang].notThrough(because(why)));
 };
@@ -739,7 +742,9 @@ const clears = async (tx: Tx, billId: string) => {
 
 /**
  * The Client pays a Bill on its page, with the card or US bank account they
- * entered (`token`), as a Charge attempt, so the one ledger reads and
+ * entered (`token`), or with none their saved card, there for their bank to
+ * ask them to approve it (#534 Q7), as a Charge attempt, so the one ledger
+ * reads and
  * finishes it and nothing else that moves money on the Bill starts
  * meanwhile (ADR-0022's one rule; #534). A payment of theirs their bank
  * still asks them to approve is called off first, as they're starting over,
@@ -751,7 +756,7 @@ const clears = async (tx: Tx, billId: string) => {
 export const payBillOnPage = async (
   client: Client,
   billId: string,
-  token: string,
+  token: string | undefined,
 ): Promise<BillPayOutcome> => {
   const lang = currentLanguage();
   const paid = await db.transaction(async (tx) => {
@@ -761,16 +766,26 @@ export const payBillOnPage = async (
       .where(and(eq(bills.id, billId), eq(bills.clientId, client.id)))
       .for("update");
     if (!bill) throw new NotFoundError("Bill not found");
-    const not = notPayable(bill, (await payingOn([bill.id], tx))(bill.id));
+    const not = notPayable(
+      bill,
+      (await paymentOn("bill", [bill.id], tx))(bill.id),
+    );
     if (not) throw new ConflictError(payWords[lang][not]);
 
+    const [saved] = token
+      ? []
+      : await tx
+          .select()
+          .from(paymentMethods)
+          .where(eq(paymentMethods.clientId, client.id));
     const charged = await chargeSaved(tx, {
       client,
-      source: { token, reference: bill.id },
+      source: token ? { token } : (saved ?? null),
       amount: bill.totalCents,
       description: `Empire Cleaning bill ${billNumber(bill.number)}`,
       for: { billId: bill.id, kind: "bill" },
       callOff: "client_retried",
+      withClient: true,
     });
     if (charged.ok) {
       await tx
@@ -797,9 +812,7 @@ export const payBillOnPage = async (
     const open = (await attemptsFor("bill", [bill.id], tx)).filter(
       (a) => a.open,
     );
-    if (
-      open.some((a) => a.call === "bill" && a.attempt.status === "processing")
-    ) {
+    if (open.some((a) => a.attempt.processingBy === "bank")) {
       await clears(tx, bill.id);
     }
     // still open, it may yet take the money: going through
@@ -827,7 +840,11 @@ export const finishBillPayment = async (
   approved: boolean,
 ) => {
   await clientBill(client.id, billId);
-  const ended = await settleBill(billId, approved ? null : "client_retried");
+  const ended = await settleBill(
+    billId,
+    approved ? null : "client_retried",
+    approved ? "approved" : "refused",
+  );
   if (ended?.failed) throw nothingTaken(ended.failed);
   return billView(billId, client.id);
 };
@@ -845,12 +862,15 @@ type Attempted = Awaited<ReturnType<typeof attemptsFor>>[number];
  * it's given back. A bank debit started on its page makes it processing,
  * and one that failed makes it due again. A payment on its page the Client
  * left going through, which then failed, is emailed to them (#534 critical
- * review C3). Returns how the Client's latest payment on its page ended, if
- * it ended now: `failed`, why, or null when it was taken.
+ * review C3). `finish`, the Client's word as their bank's check finished
+ * in their browser, if that's what settles it. Returns how the Client's
+ * latest payment on its page ended, if it ended now, or on their word
+ * however it ended: `failed`, why, or null when it was taken.
  */
 export const settleBill = async (
   billId: string,
   callOff: CallingOff | null,
+  finish?: "approved" | "refused",
 ) => {
   const done = await db.transaction(async (tx) => {
     const [bill] = await tx
@@ -867,7 +887,7 @@ export const settleBill = async (
     // before Bills were paid as attempts has none, and waits on its webhook
     const stale =
       bill.status === "processing" && all.some((a) => a.call === "bill");
-    if (before.length === 0 && !stale) return null;
+    if (before.length === 0 && !stale && !finish) return null;
     const taken = await recordTakenEarlier(
       tx,
       { billId, kind: "bill" },
@@ -881,11 +901,31 @@ export const settleBill = async (
     const ended = before
       .map((b) => ({ before: b, now: after.get(b.attempt.id)! }))
       .filter(({ now }) => !now.open);
-    // the newest, as the Client last pressed Pay
-    const page = ended.find(({ now }) => now.call === "bill")?.now.attempt;
+    // the newest, as the Client last pressed Pay. On their word, however
+    // it ended, as the provider's webhook may have settled it first
+    // (#534's review F25)
+    const newest = [...after.values()].find((a) => a.call === "bill");
+    const page = finish
+      ? newest && !newest.open
+        ? newest.attempt
+        : undefined
+      : ended.find(({ now }) => now.call === "bill")?.now.attempt;
     const endedNow = page
       ? { failed: page.status === "failed" ? (page.reason ?? "") : null }
       : null;
+    // one their bank wanted them to approve, turned down at their bank on
+    // its page, on their word: theirs to try again, the server's word for
+    // it, so every page and list says it (#534's review F18), whatever made
+    // it Unpaid before, as a Job's (C10). Called off with no word from
+    // them, it still waits on their approval (C12). Owed since it first
+    // was, and refused from now, kept beside it so a payment tried again
+    // later doesn't move it (#534's critical review C13, C14)
+    if (finish && page && turnedDown(finish, page) && bill.unpaidSince) {
+      await tx
+        .update(bills)
+        .set({ unpaidReason: REFUSED, refusedAt: clock.now() })
+        .where(eq(bills.id, bill.id));
+    }
     // one they were told was going through, or left with their bank
     // finishing it, that failed: not one they saw refused in the dialog,
     // nor one never approved, nor called off as the Bill was paid
@@ -930,7 +970,7 @@ export const settleBill = async (
       }
     }
     const going = [...after.values()].some(
-      (a) => a.open && a.call === "bill" && a.attempt.status === "processing",
+      (a) => a.open && a.attempt.processingBy === "bank",
     );
     if (bill.status === "due" && going) await clears(tx, bill.id);
     let status = bill.status;
@@ -995,7 +1035,7 @@ const refuseWhilePaying = async (
   what: "cancel" | "record",
   tx: Tx,
 ) => {
-  const on = (await payingOn([bill.id], tx))(bill.id);
+  const on = (await paymentOn("bill", [bill.id], tx))(bill.id);
   if (on.approvingUntil) {
     const [client] = await tx
       .select({ name: clients.name })
@@ -1010,7 +1050,7 @@ const refuseWhilePaying = async (
   }
   // one going through, or one waited out that calling off couldn't reach
   // the provider to end, which may still take the money
-  if (await chargeOpen(bill.id, tx)) {
+  if (on.open) {
     throw new ConflictError(paymentNotDone[what]);
   }
 };
@@ -1483,7 +1523,7 @@ const sendBillReminders = async () => {
 const toSummary = (
   bill: Bill,
   client: Pick<Client, "id" | "name" | "businessName">,
-  on: PayingOn,
+  on: PaymentOn,
 ): BillSummary => {
   return {
     id: bill.id,
@@ -1585,7 +1625,7 @@ export const billView = async (
     );
   if (!found) throw new NotFoundError("Bill not found");
   const { bill, client } = found;
-  const on = (await payingOn([bill.id]))(bill.id);
+  const on = (await paymentOn("bill", [bill.id]))(bill.id);
   const lines = await linesToSay(bill);
   // where its cleans were, for the Office, and for a Client only when they
   // have more than one home, as their rows say (docs/ux.md, Lists): once,
@@ -1638,7 +1678,10 @@ export const listBills = async ({
       ),
     )
     .orderBy(desc(bills.weekStart), desc(bills.number));
-  const on = await payingOn(rows.map((r) => r.bill.id));
+  const on = await paymentOn(
+    "bill",
+    rows.map((r) => r.bill.id),
+  );
   return rows.map(({ bill, client }) => toSummary(bill, client, on(bill.id)));
 };
 

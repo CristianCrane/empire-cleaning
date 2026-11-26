@@ -10,6 +10,7 @@ import type {
   ClientPastJob,
   CompletionInput,
   Condition,
+  JobPayOutcome,
   NeedsAttentionItem,
   OfficeJob,
   OfficeQuote,
@@ -689,6 +690,7 @@ describe("an Unpaid Job", () => {
       expect.objectContaining({
         kind: "job_unpaid",
         since: MONDAY_11AM.toISOString(),
+        unpaid: "declined",
         owedCents: deep.totalCents - deep.depositCents,
       }),
     );
@@ -956,6 +958,229 @@ describe("an Unpaid Job", () => {
   });
 });
 
+// #534 Q7: the Balance, charged without the Client there, that their bank
+// wants them to approve, which they do on the Job's page
+describe("a Job's payment the Client's bank wants them to approve", () => {
+  // Casey's clean, done, with a card saved whose bank always asks
+  const doneOnApprovalCard = async () => {
+    const booked = await bookedJob();
+    const form = (
+      await booked.client
+        .post("/api/payment-methods/mine/card-form")
+        .expect(200)
+    ).body as { secret: string };
+    testPayments().fillCardForm(form.secret, "alwaysApproval");
+    await booked.client
+      .put("/api/payment-methods/mine")
+      .send({ token: form.secret })
+      .expect(200);
+    await complete(booked.cory.agent, booked.jobId).expect(200);
+    const deep = deepOf(booked.quote);
+    return {
+      ...booked,
+      deep,
+      pay: () =>
+        booked.client
+          .post(`/api/jobs/mine/${booked.jobId}/balance/retry`)
+          .expect(200)
+          .then((r) => r.body as JobPayOutcome),
+      finish: (approved: boolean) =>
+        booked.client
+          .post(`/api/jobs/mine/${booked.jobId}/balance/finish`)
+          .send({ approved })
+          .expect(200)
+          .then((r) => r.body as ClientJobDetail),
+      // not approved: nothing taken, said so, as a Bill's page says it
+      refuse: () =>
+        booked.client
+          .post(`/api/jobs/mine/${booked.jobId}/balance/finish`)
+          .send({ approved: false })
+          .expect(409)
+          .then((r) => r.body as { message: string; kind?: string }),
+    };
+  };
+
+  test("is Unpaid for them to approve, emailed so, and paid once they approve it on its page", async () => {
+    const { office, jobId, deep, pay, finish } = await doneOnApprovalCard();
+    expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
+      kind: "approve",
+      why: null,
+    });
+    const told = testEmail().lastTo(casey.email);
+    expect(told.subject).toBe("Please approve your payment");
+    expect(told.html).toContain(">Approve payment<");
+    const asked = testPayments().paymentAttempts.length;
+
+    // the payment their bank stopped, confirmed again with them there
+    expect(await pay()).toEqual({
+      status: "needs_approval",
+      secret: expect.any(String),
+    });
+    expect(testPayments().paymentAttempts).toHaveLength(asked);
+
+    const paid = await finish(true);
+    expect(paid.completion!.payment.unpaid).toBe(null);
+    expect(amounts()).toEqual([
+      deep.depositCents,
+      deep.totalCents - deep.depositCents,
+    ]);
+  });
+
+  test("turned down at their bank, takes nothing and is called off, and the next press starts afresh", async () => {
+    const { office, jobId, deep, pay, finish, refuse } =
+      await doneOnApprovalCard();
+    const first = await pay();
+    if (first.status !== "needs_approval") throw new Error("not asked");
+    testPayments().requireApproval("refused");
+    // still owed from when their bank first asked, and turned down when
+    // they said no, as the Office reads it (#534's UX review U18, critical
+    // review C13)
+    const { since } = (await officeJob(office, jobId)).payment!.unpaid!;
+    testClock().advance({ hours: 3 });
+
+    expect(await refuse()).toEqual({
+      message:
+        "Your payment wasn't approved, so nothing was taken. Please try again, or use another card.",
+      kind: "approve",
+    });
+    expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
+      kind: "refused",
+      since,
+      refusedAt: testClock().now().toISOString(),
+    });
+    expect(amounts()).toEqual([deep.depositCents]);
+    expect(testPayments().canceled).toContain(
+      first.secret.replace(/_secret$/, ""),
+    );
+
+    testPayments().requireApproval(null);
+    const asked = testPayments().paymentAttempts.length;
+    const again = await pay();
+    expect(again).toEqual({
+      status: "needs_approval",
+      secret: expect.any(String),
+    });
+    expect(again).not.toEqual(first);
+    expect(testPayments().paymentAttempts).toHaveLength(asked + 1);
+    expect((await finish(true)).completion!.payment.unpaid).toBe(null);
+    expect(amounts()).toEqual([
+      deep.depositCents,
+      deep.totalCents - deep.depositCents,
+    ]);
+  });
+
+  // C10 in critical-review-payment-truth.md: a declined Job's retry is one
+  // made with them there, which their bank may now ask them to approve.
+  // Days on, it's still owed from the decline, as the lists sort it (C13)
+  test("tried again days after a decline, then turned down at their bank, says it was refused, still owed from the decline", async () => {
+    const { office, cory, client, jobId, quote } = await bookedJob();
+    testPayments().failCharges();
+    await complete(cory.agent, jobId).expect(200);
+    testPayments().failCharges(null);
+    const declined = (await officeJob(office, jobId)).payment!.unpaid!;
+    expect(declined.kind).toBe("declined");
+    testClock().advance({ days: 3 });
+    testPayments().savedCardsAsk();
+
+    const asked = (
+      await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(200)
+    ).body as JobPayOutcome;
+    expect(asked.status).toBe("needs_approval");
+    testPayments().requireApproval("refused");
+    const refused = await client
+      .post(`/api/jobs/mine/${jobId}/balance/finish`)
+      .send({ approved: false })
+      .expect(409);
+
+    expect(refused.body).toEqual({
+      message:
+        "Your payment wasn't approved, so nothing was taken. Please try again, or use another card.",
+      kind: "approve",
+    });
+    expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
+      kind: "refused",
+      since: declined.since,
+      refusedAt: testClock().now().toISOString(),
+    });
+    expect(amounts()).toEqual([deepOf(quote).depositCents]);
+  });
+
+  // critical review C14: turned down, then days on tried again on its page.
+  // While their bank asks again, nobody has turned anything down since, so
+  // the Office still reads the day they said no, not when it was owed
+  test("turned down at their bank, then days on tried again and left, is still dated from the day they said no", async () => {
+    const { office, jobId, pay, refuse } = await doneOnApprovalCard();
+    testClock().advance({ days: 1 });
+    const first = await pay();
+    if (first.status !== "needs_approval") throw new Error("not asked");
+    testPayments().requireApproval("refused");
+    await refuse();
+    const refused = (await officeJob(office, jobId)).payment!.unpaid!;
+    expect(refused).toMatchObject({
+      kind: "refused",
+      refusedAt: testClock().now().toISOString(),
+    });
+
+    testClock().advance({ days: 2 });
+    testPayments().requireApproval("pending");
+    expect((await pay()).status).toBe("needs_approval");
+    expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
+      kind: "refused",
+      refusedAt: refused.refusedAt,
+    });
+
+    // left, the Clock calls it off and asks their bank again without them,
+    // so it's theirs to approve once more (C12)
+    testClock().advance({ minutes: 20 });
+    await settleOpenPayments();
+    expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
+      kind: "approve",
+    });
+  });
+
+  test("left waiting on their bank, is held a quarter hour, then the Office's retry asks again", async () => {
+    const { office, jobId, deep, pay } = await doneOnApprovalCard();
+    await pay();
+    testPayments().requireApproval("pending");
+    const asked = testPayments().paymentAttempts.length;
+
+    await office.post(`/api/jobs/${jobId}/balance/retry`);
+    expect(testPayments().paymentAttempts).toHaveLength(asked);
+    expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
+      kind: "approve",
+    });
+
+    testClock().advance({ minutes: 16 });
+    await office.post(`/api/jobs/${jobId}/balance/retry`);
+    expect(testPayments().paymentAttempts).toHaveLength(asked + 1);
+    expect((await officeJob(office, jobId)).payment!.unpaid).toMatchObject({
+      kind: "approve",
+    });
+    expect(amounts()).toEqual([deep.depositCents]);
+  });
+
+  test("left waiting on their bank, is paid by a card they save a quarter hour on", async () => {
+    const { office, client, jobId, deep, pay } = await doneOnApprovalCard();
+    await pay();
+    testPayments().requireApproval("pending");
+
+    testClock().advance({ minutes: 16 });
+    const form = (
+      await client.post("/api/payment-methods/mine/card-form").expect(200)
+    ).body as { secret: string };
+    await client
+      .put("/api/payment-methods/mine")
+      .send({ token: form.secret })
+      .expect(200);
+
+    expect((await officeJob(office, jobId)).payment!.unpaid).toBe(null);
+    expect(amounts()).toEqual([
+      deep.depositCents,
+      deep.totalCents - deep.depositCents,
+    ]);
+  });
+});
+
 describe("Office Staff correcting a completion", () => {
   test("change an Adjustment's price, charging or refunding the difference", async () => {
     const { office, cory, jobId, list } = await bookedJob();
@@ -1175,6 +1400,84 @@ describe("Office Staff correcting a completion", () => {
     expect(amounts().at(-1)).toBe(EXTRA_HOUR);
     expect(refunded()).toEqual([EXTRA_HOUR - HALF_HOUR_ADD_ON]);
     expect((await officeJob(office, jobId)).payment!.owedCents).toBe(0);
+  });
+
+  // #534, the one rule: a refund nobody heard the end of may have given the
+  // money back. Charging meanwhile counted it as still held, so the Client
+  // paid the raise less what that refund then gave back too
+  test("raise the price while a refund's reply was lost: the charge waits for it, and takes the whole raise", async () => {
+    const { office, cory, client, jobId, list } = await bookedJob();
+    await complete(cory.agent, jobId, {
+      reports: [
+        { kind: "extra_time", hours: 1, reason: "Ran over" },
+        {
+          kind: "add_on_not_done",
+          addOnKey: keyOf(list, "Inside the oven"),
+          reason: "Oven in use",
+        },
+      ],
+    }).expect(200);
+    const adjustments = (await officeJob(office, jobId)).completion!
+      .adjustments;
+    const time = adjustments.find((a) => a.kind === "extra_time")!;
+    const oven = adjustments.find((a) => a.kind === "add_on_not_done")!;
+    await office
+      .post(`/api/jobs/${jobId}/adjustments/${time.id}/propose`)
+      .send({})
+      .expect(200);
+    await client
+      .post(`/api/jobs/mine/${jobId}/adjustments/${time.id}/approve`)
+      .expect(200);
+    testPayments().loseNextReply();
+    await office
+      .patch(`/api/jobs/${jobId}/adjustments/${time.id}`)
+      .send({ priceCents: 2750, reason: "Half was our fault" })
+      .expect(200);
+    const before = amounts().length;
+
+    await office
+      .delete(`/api/jobs/${jobId}/adjustments/${oven.id}`)
+      .expect(200);
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    await settleOpenPayments();
+
+    expect(refunded()).toEqual([EXTRA_HOUR - HALF_HOUR_ADD_ON]);
+    expect(amounts().slice(before)).toEqual([QUOTED_OVEN]);
+    expect((await officeJob(office, jobId)).payment!.owedCents).toBe(0);
+  });
+
+  // a refund we owe them, unheard while the provider is down, holds the
+  // Job's money; it doesn't make the Client owe us (#534 critical review C8)
+  test("lower the price while the provider is down: the Job owes nothing, so it isn't Unpaid while the refund waits", async () => {
+    const { office, cory, client, jobId } = await bookedJob();
+    await complete(cory.agent, jobId, {
+      reports: [{ kind: "extra_time", hours: 1, reason: "Ran over" }],
+    }).expect(200);
+    const [time] = (await officeJob(office, jobId)).completion!.adjustments;
+    await office
+      .post(`/api/jobs/${jobId}/adjustments/${time!.id}/propose`)
+      .send({})
+      .expect(200);
+    await client
+      .post(`/api/jobs/mine/${jobId}/adjustments/${time!.id}/approve`)
+      .expect(200);
+    testPayments().goDown();
+    await office
+      .patch(`/api/jobs/${jobId}/adjustments/${time!.id}`)
+      .send({ priceCents: 2750, reason: "Half was our fault" })
+      .expect(200);
+    expect((await officeJob(office, jobId)).payment!.unpaid).toBe(null);
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+
+    expect((await officeJob(office, jobId)).payment!.unpaid).toBe(null);
+    testPayments().goDown(false);
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    expect(refunded()).toEqual([EXTRA_HOUR - HALF_HOUR_ADD_ON]);
+    expect((await officeJob(office, jobId)).payment!.unpaid).toBe(null);
   });
 
   test("is only for Office Staff", async () => {

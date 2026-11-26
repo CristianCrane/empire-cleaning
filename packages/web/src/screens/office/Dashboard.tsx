@@ -9,8 +9,9 @@ import type {
   NeedsAttentionItem,
   NeedsAttentionKind,
   ScheduleDay,
+  UnpaidKind,
 } from "@empire-cleaning/models";
-import { MINUTE_MS, formats } from "@empire-cleaning/models";
+import { CLIENT_TO_APPROVE, MINUTE_MS, formats } from "@empire-cleaning/models";
 import {
   CalendarClock,
   CalendarDays,
@@ -50,6 +51,23 @@ const needCleaners = (n: number) =>
 
 const { formatDate, formatDateTime, formatDay, formatMoney, formatList } =
   formats.en;
+
+// what an Unpaid row asks, by whose step it is, as its page says: the
+// Client's to approve, amber, as we've emailed them; theirs to try again
+// once they turned it down at their bank, red as the Job's and Bill's
+// alerts, nothing of Jen's to do and the money not coming (#534 Q7; the
+// user's call, 2026-11-26); else Jen's to collect. While it's the
+// Client's, Today's card only opens it, as `opens` says
+const unpaidRow = (
+  kind: UnpaidKind | undefined,
+  collect: string,
+  opens: string,
+): Pick<Row, "action" | "tone" | "opens"> =>
+  kind === "approve"
+    ? { action: CLIENT_TO_APPROVE, tone: "warning", opens }
+    : kind === "refused"
+      ? { action: "Client to try again", tone: "danger", opens }
+      : { action: collect, tone: "danger" };
 
 // how often a Dashboard left open asks again, while it can be seen: a new
 // Quote request shows within a minute (the Office is emailed of it too).
@@ -173,8 +191,21 @@ export function Dashboard() {
             tile={<IconTile icon={card.icon} tone={card.tone} size="lg" />}
             label="First up"
             headline={card.client}
-            lines={[<Line key="line" parts={card.line} />]}
-            actions={<Button onPress={card.open}>{card.action}</Button>}
+            lines={[
+              card.opens && card.action,
+              <Line key="line" parts={card.line} />,
+            ].filter(Boolean)}
+            actions={
+              // the Client's step isn't a button of Jen's: she can only open
+              // it, so it isn't the page's primary either
+              card.opens ? (
+                <Button variant="secondary" onPress={card.open}>
+                  {card.opens}
+                </Button>
+              ) : (
+                <Button onPress={card.open}>{card.action}</Button>
+              )
+            }
           />
         ) : (
           <AnswerCard
@@ -201,6 +232,9 @@ type Row = {
   client: string;
   line: string[];
   open: () => void;
+  // set while the next step is the Client's: the row's action is then
+  // where it stands, and this what Today's card's button says to open it
+  opens?: string;
 };
 
 // which tile each kind of to-do is under, so a long list reads as a few
@@ -341,9 +375,8 @@ function useRowFor() {
         const { job } = item;
         return {
           key: `job_unpaid ${job.id}`,
-          action: "Collect the balance",
+          ...unpaidRow(item.unpaid, "Collect the balance", "Open the job"),
           icon: CircleDollarSign,
-          tone: "danger",
           client: clientName(job.client),
           line: [
             `${formatMoney(item.owedCents)} owed`,
@@ -439,9 +472,8 @@ function useRowFor() {
         const { bill } = item;
         return {
           key: `bill_unpaid ${bill.id}`,
-          action: "Collect the bill",
+          ...unpaidRow(bill.unpaid?.kind, "Collect the bill", "Open the bill"),
           icon: Receipt,
-          tone: "danger",
           client: clientName(bill.client),
           line: [
             `Bill ${bill.number}`,

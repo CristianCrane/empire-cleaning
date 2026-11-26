@@ -1,16 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import { currentLanguage } from "#services/request";
-import {
-  and,
-  asc,
-  desc,
-  eq,
-  inArray,
-  isNotNull,
-  isNull,
-  max,
-  ne,
-} from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, max, ne } from "drizzle-orm";
 import type {
   AddOnChoice,
   ClientQuoteView,
@@ -38,11 +28,11 @@ import {
   atTime,
   CANCELLATION_CUTOFF_HOURS,
   clientPaying as clientPayingWords,
-  formats,
   DAY_MS,
   dayOf,
   noEmailYet,
   notSeenYet,
+  payingFor,
   placeOwner,
   timeOf,
   weekdayOf,
@@ -61,7 +51,6 @@ import { email } from "../../services/email/index.ts";
 import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { officeCompletionOf } from "../completion/completion.ts";
-import { waitOf } from "../payments/money.ts";
 import { paymentMethodOf, toPaymentMethodView } from "../payments/payments.ts";
 import { chargeAttempts } from "../payments/payments.schema.ts";
 import {
@@ -101,9 +90,10 @@ import {
 } from "../site-visits/site-visits.ts";
 import { siteVisitViews } from "../site-visits/views.ts";
 import { askedAddOns } from "./asked-add-ons.ts";
+import { clientHolds, depositPaying } from "./deposit-paying.ts";
 import { quoteEmail, turnDownEmail } from "./emails.ts";
 import { percentOf } from "./plan-days.ts";
-import { bookableFor, openTimesOf, optionRoomsOf } from "./quote-room.ts";
+import { bookableFor, openTimesOf, optionRoomsOf } from "./offer-room.ts";
 import {
   askedOf,
   firstCleanCompleted,
@@ -688,40 +678,16 @@ const homePlanIdOf = async (propertyId: string) => {
   return plan?.id ?? null;
 };
 
-// The Deposit the Client's bank was asked to approve on a Quote, the one
-// check of whether the Client is paying it now (ADR-0022's one rule):
-// within APPROVAL_MS of their pressing, till `until`; after it, while
-// their bank finishes it (`finishing`, too far on to call off; #534
-// critical review C2); or `past` it, as settling it couldn't reach the
-// provider to call it off or read it, so it may yet pay the offer sent
-// (#534 review F28, critical review C9). How much, and for which Service
-// (the Office's English; null for a cleaning plan). Its pending Deposit is
-// saved as the Client's try lets go of the Quote; once settled, it's booked
-// or ended, as its attempt waits on giving it back (C3), so it's none
+// The Client paying a Quote's Deposit now (clientHolds, the check their own
+// pages make too), as the Office reads it: how much, and for which Service
+// (the Office's English; null for a cleaning plan)
 const clientPaying = async (
   quote: Pick<Quote, "id" | "kind">,
   tx: Tx | typeof db,
 ) => {
-  const [found] = await tx
-    .select({ attempt: chargeAttempts, pending: pendingDeposits })
-    .from(chargeAttempts)
-    .innerJoin(
-      pendingDeposits,
-      eq(pendingDeposits.gatewayRef, chargeAttempts.gatewayRef),
-    )
-    .where(
-      and(
-        eq(chargeAttempts.kind, "deposit"),
-        eq(chargeAttempts.forId, quote.id),
-        eq(chargeAttempts.status, "approving"),
-        isNull(pendingDeposits.settledAt),
-      ),
-    )
-    .orderBy(desc(chargeAttempts.askedAt))
-    .limit(1);
-  if (!found) return null;
-  const { attempt, pending } = found;
-  const { until, onClient, past } = waitOf(attempt);
+  const held = (await clientHolds([quote.id], tx))(quote.id);
+  if (!held) return null;
+  const { attempt, pending, until, onClient, past } = held;
   const row =
     quote.kind === "one_off"
       ? (await optionsOf(pending.revisionId, tx)).find(
@@ -730,9 +696,12 @@ const clientPaying = async (
       : undefined;
   return {
     until,
+    since: attempt.askedAt,
     finishing: !onClient,
     past,
+    serviceKey: row ? row.serviceKey : null,
     serviceName: row ? await serviceNameOf("en", row.serviceId, tx) : null,
+    changing: pending.changingPlanId !== null,
     depositCents: pending.depositCents,
   };
 };
@@ -753,7 +722,8 @@ export const payingOf = async (
 // what the Client's bank approved on a Quote that couldn't be booked,
 // oldest first: what Office Staff on the phone with them see. A Deposit
 // once it's been given back (its charge is the pending row's ref), and a
-// card saved with nothing charged (no Deposit, so no attempt)
+// card saved with nothing charged (an attempt of 0, given back as nothing;
+// none at all on a row saved before #534)
 const unbookedPaymentsOf = async (quoteId: string) =>
   (
     await db
@@ -843,6 +813,8 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     payingOf(quote),
     unbookedPaymentsOf(id),
   ]);
+  const shown = { ...quote, status };
+  const latest = (await depositPaying([shown]))(shown);
   const asked = addOns.get(id) ?? [];
   const chosen = list.addOns.filter((a) => asked.some((c) => c.key === a.key));
   // a Draft's Service is the Quote's only once it's sent (saveDraft)
@@ -924,7 +896,15 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     turnedDownAt: iso(quote.turnedDownAt),
     turnDownReason: quote.turnDownReason,
     paymentMethod: toPaymentMethodView(paymentMethod),
-    paying: paying && { ...paying, until: paying.until.toISOString() },
+    paying: paying && {
+      ...paying,
+      until: paying.until.toISOString(),
+      since: paying.since.toISOString(),
+    },
+    paymentEnded:
+      latest?.status === "failed" || latest?.status === "notApproved"
+        ? latest
+        : null,
     unbookedPayments,
   };
 };
@@ -952,6 +932,8 @@ export const clientQuote = async (
   const revision = kinded(quote, offer);
   const rows = await optionsIn(currentLanguage(), await optionsOf(offer.id));
   const status = currentStatusOf(quote, offer);
+  const shown = { ...quote, status };
+  const paying = (await depositPaying([shown]))(shown);
 
   return {
     id: quote.id,
@@ -979,6 +961,7 @@ export const clientQuote = async (
     changesPlan: await planChangeFor(quote, status, offer),
     bookable: await bookableOf(quote, status, offer),
     weeklyBill: weeklyBillOf(client),
+    paying,
   };
 };
 
@@ -1874,14 +1857,13 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
     // settling it couldn't reach the provider (#534 review F28)
     const paying = await clientPaying(current, tx);
     if (paying?.past) {
-      throw new ConflictError(clientPayingWords.unsure(client.name));
+      throw new ConflictError(
+        clientPayingWords.unsure(client.name, paying.depositCents === 0),
+      );
     }
     if (paying) {
       throw new ConflictError(
-        clientPayingWords.draft(client.name, {
-          until: formats.en.formatTime(paying.until),
-          finishing: paying.finishing,
-        }),
+        clientPayingWords.draft(payingFor(client.name, paying)),
       );
     }
     const saved = await optionsOf(draft.id, tx);
@@ -2065,28 +2047,6 @@ export const dropDraftRevision = (tx: Tx | typeof db, quoteId: string) =>
     .where(
       and(eq(quoteRevisions.quoteId, quoteId), isNull(quoteRevisions.sentAt)),
     );
-
-// the Client says no to a Sent Quote; nothing else can be Declined
-export const declineQuote = async (
-  id: string,
-  clientId: string,
-): Promise<QuoteView> => {
-  const quote = await clientQuote(id, clientId);
-  if (quote.status !== "sent") {
-    throw new ConflictError(whatClosed(quote.status));
-  }
-  await db.transaction(async (tx) => {
-    // takes turns with a send of a newer Revision
-    await lockProperty(tx, quote.property.id);
-    const [declined] = await tx
-      .update(quotes)
-      .set({ status: "declined", declinedAt: clock.now() })
-      .where(and(eq(quotes.id, id), eq(quotes.status, "sent")))
-      .returning({ id: quotes.id });
-    if (declined) await dropDraftRevision(tx, id);
-  });
-  return clientQuote(id, clientId);
-};
 
 /**
  * Office Staff Turn Down a Quote before any Revision of it is Sent, with a

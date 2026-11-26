@@ -381,6 +381,7 @@ const emailsIn = (lang: Language): Email[] => [
       owedCents: 12000,
       paymentMethod: held ? card : null,
       held,
+      approve: held,
     }),
   ),
   ...settlings.map((settled) =>

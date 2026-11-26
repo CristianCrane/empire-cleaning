@@ -817,10 +817,13 @@ export type NeedsAttentionItem =
       job: ScheduledJob;
     }
   | {
-      // a Completed Job whose Balance, or part of it, couldn't be charged
+      // a Completed Job whose Balance, or part of it, couldn't be charged;
+      // `unpaid` why, as the row says (one the Client's bank wants them to
+      // approve is theirs to do, #534 Q7)
       kind: "job_unpaid";
       since: string;
       job: ScheduledJob;
+      unpaid: UnpaidKind;
       owedCents: number;
     }
   | {
@@ -1067,6 +1070,8 @@ export type QuoteView = {
   // Service Plan Quote's are its days' while the first clean on each of them
   // has room, and none otherwise.
   bookable: string[];
+  // where their latest Deposit payment on it stands (#534)
+  paying: DepositPaying | null;
 };
 
 // A Quote its Client asked for, with nothing Sent yet: what they asked, and
@@ -1273,17 +1278,32 @@ export type OfficeQuote = {
   // behalf charges; null until they add one
   paymentMethod: PaymentMethodView | null;
   // the Deposit the Client is paying online while their bank asks them to
-  // approve it (#534): what it's for (its Service, null on a cleaning plan),
-  // and until when it holds the Quote, as nothing else that moves money on
-  // it starts meanwhile (ADR-0022), or that it's past then and their bank
-  // is finishing it, holding it till it's done (`finishing`); null when
-  // there's none
+  // approve it (#534): what it's for (its Service, null on a cleaning plan,
+  // which it starts or, `changing`, changes), and until when it holds the
+  // Quote, as nothing else that moves money on it starts meanwhile
+  // (ADR-0022), or that it's past then and their bank is finishing it,
+  // holding it till it's done (`finishing`); null when there's none. A
+  // `depositCents` of 0 is a card entered to accept, with nothing charged.
+  // `serviceKey`, the offer's option it's for, which the page then leads
+  // with, as the Client picked it (#534's UX review U2); null on a plan
   paying: {
     until: string;
+    // when their payment started
+    since: string;
     finishing: boolean;
+    serviceKey: string | null;
     serviceName: string | null;
+    changing: boolean;
     depositCents: number;
   } | null;
+  // the Client's latest Deposit payment online, when it didn't go through
+  // or they never approved it, while the offer it was for is open and
+  // nothing newer was pressed (#534's UX review U12): what the Office's
+  // Bill says of the same endings
+  paymentEnded: Extract<
+    DepositPaying,
+    { status: "failed" | "notApproved" }
+  > | null;
   // what the Client paid online that couldn't be booked once their bank
   // approved it, and why, oldest first
   unbookedPayments: UnbookedPayment[];
@@ -1363,7 +1383,12 @@ export type OfferedQuoteSummary = {
     // a clean on each weekday, or a one-off Quote's option: to the Office
     // its Revision's own Service (the one asked for, unless the Office
     // changed it), or once Accepted the one booked; to its Client the
-    // first, the recommended one where there is one (ADR-0018)
+    // first, the recommended one where there is one (ADR-0018), unless
+    // they're paying for another (`paying`), so the list, its alert and
+    // their bank's request name the same clean (#534's UX review U23). A
+    // refunded one leads with the first Service it can still be booked as,
+    // what's on offer now, and names the refunded clean only when none can
+    // (Time unavailable, or closed: U37)
     headlineTotalCents: number;
     // the Service that one-off option is for, or the one a Service Plan
     // Quote's cleans are all of
@@ -1413,6 +1438,18 @@ type QuoteSummaryFields = {
   turnDownReason: TurnDownReason | null;
   // when it was asked or started, on the server's Clock
   createdAt: string;
+  // where the Client's latest Deposit payment on it stands (#534)
+  paying: DepositPaying | null;
+  // the Service a one-off Quote's payment is for, by name, as its Client's
+  // Home names it: the headline leads with another once that one's
+  // refunded and another can still be booked. Null with no payment, and
+  // for a Service Plan Quote's, which names the plan
+  payingServiceName: string | null;
+  // to its Client, the Services a Sent Quote can still be booked as, as
+  // its page's (QuoteView's `bookable`): none is Time unavailable, which Home
+  // draws as its own card (#534). Null once it isn't Sent, and on the
+  // Office's lists, which ask quotesWithoutRoom
+  bookable: string[] | null;
 };
 
 // ---- Accepting a Quote (#8) ----
@@ -1441,7 +1478,9 @@ export type ClientPaymentKind =
 
 // money that moved between a Client and us, for their Payments page
 // (GET /api/payments/mine). It was for a Job, a Service Plan's
-// Deposit, or a Bill; a refund was for what its Charge was for.
+// Deposit, or a Bill; a refund was for what its Charge was for. A Quote's
+// Deposit taken but given back, as nothing could be booked, was for its
+// Quote, as its refund was.
 export type ClientPayment = {
   id: string;
   at: string;
@@ -1461,7 +1500,12 @@ export type ClientPayment = {
     weekStart: IsoDate;
     weekEnd: IsoDate;
   } | null;
-  // a Bill's bank debit, on its way but not yet cleared
+  // the Quote a Deposit given back unbooked, or still going through, was
+  // for, and the Service it was to book: null for a Service Plan Quote's,
+  // named as the plan's (#534)
+  quote: { id: string; serviceName: string | null } | null;
+  // a Bill's bank debit, or a Quote's Deposit, on its way but not yet
+  // cleared
   clearing: boolean;
   // the one change to the price it was for, by name ("Inside the fridge",
   // "1 more hour, price corrected"), when it was for one
@@ -1496,10 +1540,14 @@ export type AcceptQuoteInput = {
 export type AcceptOutcome =
   | { status: "accepted"; quote: QuoteView }
   | { status: "needs_approval"; secret: string }
-  // nothing was taken, as an earlier payment on it is still going through
-  // (#534): their bank is finishing it ("processing"), or hasn't approved
-  // it yet ("waiting", from .../finalize); `message` says what happens next
-  | { status: "processing" | "waiting"; message: string };
+  // not booked yet, as a payment on it is still out (#534): their bank
+  // hasn't approved it yet ("waiting", from .../finalize), which the
+  // Quote's page says (DepositPaying), or is finishing it ("processing"),
+  // `message` saying what happens next: the page's words for it, or, for a
+  // press from a page opened before their bank took the first payment,
+  // that nothing more was taken
+  | { status: "waiting" }
+  | { status: "processing"; message: string };
 
 // POST /api/quotes/:id/accept: the Quote, accepted, and whether it was by
 // the Client's own payment online, which their bank approved just before
@@ -1819,14 +1867,25 @@ export type JobPayment = {
 };
 
 // why a payment didn't go through, by what puts it right: "declined", a new
-// card or another way to pay (a bank asking for approval too); "waiting",
-// nothing, as we try again ourselves (ADR-0022); "no_card", adding one;
-// "late", paying the Bill on its page
-export type UnpaidKind = "declined" | "waiting" | "no_card" | "late";
+// card or another way to pay; "approve", the Client approving it with their
+// bank on its page, as it was charged without them there (#534 Q7);
+// "refused", the same, once they turned it down at their bank there, so
+// it's theirs to try again or pay with another card;
+// "waiting", nothing, as we try again ourselves (ADR-0022); "no_card",
+// adding one; "late", paying the Bill on its page
+export type UnpaidKind =
+  "declined" | "approve" | "refused" | "waiting" | "no_card" | "late";
 
 // since when it's been Unpaid, and why: a clause for after "didn't go
-// through" ("the card has expired"), or null when there's no more to say
-export type Unpaid = { since: string; kind: UnpaidKind; why: string | null };
+// through" ("the card has expired"), or null when there's no more to say.
+// Once turned down at their bank, when they did (`refusedAt`), as `since`
+// stays when it became owed (#534's critical review C13)
+export type Unpaid = {
+  since: string;
+  kind: UnpaidKind;
+  why: string | null;
+  refusedAt?: string;
+};
 
 export type JobCompletion = {
   completedAt: string;
@@ -2242,6 +2301,23 @@ export type BillPaying =
   | { status: "failed"; at: string; why: string | null }
   | { status: "notApproved"; at: string };
 
+// the Client's latest Deposit payment on a Quote, as its pages and the
+// Office's tell it (#534), in the words a Bill's payment has where they
+// mean the same (BillPaying): going through, which may still take it, so
+// nothing is asked of them and nothing else that moves money on the Quote
+// starts (ADR-0022); their bank asking them to approve it, till `until`;
+// the latest that didn't go through, or that they never approved (past
+// its wait too), while the offer it was for is open; or given back, as it
+// couldn't be booked (`at`, and why). Which option it's for, by key (a
+// one-off Quote's Service, a Service Plan Quote's weekday), and how much.
+// Null when there's none, once it's Accepted, or once a newer offer is Sent
+// over one that didn't go through.
+export type DepositPaying = (
+  | { status: "goingThrough" }
+  | BillPaying
+  | { status: "refunded"; at: string; why: DepositRefundedWhy }
+) & { serviceKey: string; depositCents: number };
+
 export type BillView = BillSummary & {
   lines: BillLineView[];
   // where its cleans were, when all at one home and it's worth saying: to
@@ -2269,8 +2345,9 @@ export type BillView = BillSummary & {
 
 // POST /api/bills/mine/:id/payment: what the Client entered in the payment
 // form (/api/payment-methods/form), a card or a US bank account, as its
-// token; nothing is saved for later
-export type PayBillInput = { token: string };
+// token; nothing is saved for later. None, their saved card, as when their
+// bank wants them to approve it (#534 Q7)
+export type PayBillInput = { token?: string };
 
 // what paying a Bill on its page came to: the Bill as it now stands (paid, a
 // bank payment on its way, or its payment pending), or waiting on their
@@ -2280,10 +2357,19 @@ export type BillPayOutcome =
   | { status: "done"; bill: BillView }
   | { status: "needs_approval"; secret: string };
 
-// POST /api/bills/mine/:id/payment/finish, once the Client's bank approved
-// it in the browser, or didn't (refused, or the Client closed it): one not
-// approved is called off, so nothing is taken
-export type FinishBillPaymentInput = { approved: boolean };
+// POST /api/jobs/mine/:id/balance/retry: what paying a Job's Balance on its
+// page came to, with their saved card: the Job as it now stands, or waiting
+// on their bank's approval in the browser with `secret`, then POST
+// .../balance/finish (#534 Q7)
+export type JobPayOutcome =
+  | { status: "done"; job: ClientJob }
+  | { status: "needs_approval"; secret: string };
+
+// POST /api/bills/mine/:id/payment/finish, or /api/jobs/mine/:id/balance/
+// finish, once the Client's bank approved it in the browser, or didn't
+// (refused, or the Client closed it): one not approved is called off, so
+// nothing is taken
+export type FinishPaymentInput = { approved: boolean };
 
 // POST /api/bills/:id/void
 export type VoidBillInput = { reason: string };
@@ -2347,6 +2433,10 @@ export * from "./format.ts";
 
 // the Suggested Price, worked out the same on the server and on screen
 export * from "./suggested-price.ts";
+
+// the Deposit accepting a Quote takes, booked by the server and told on the
+// Office's page alike
+export * from "./deposit.ts";
 
 // the Schedule's room, asked the same on the server and on screen (the
 // Schedule's drag), and who's free, worked out over the same spans of time

@@ -1,5 +1,9 @@
 import { inArray } from "drizzle-orm";
-import type { NeedsAttentionItem, ScheduledJob } from "@empire-cleaning/models";
+import type {
+  NeedsAttentionItem,
+  OfferedQuoteSummary,
+  ScheduledJob,
+} from "@empire-cleaning/models";
 import { HOUR_MS } from "@empire-cleaning/models";
 import { unassignedJobsWithin } from "../assignments/assignments.ts";
 import { listBills } from "../bills/bills.ts";
@@ -50,10 +54,11 @@ const jobsById = async (ids: string[]) =>
 const unpaidJobsSource: Source = async () => {
   const unpaid = await unpaidJobs();
   const byId = await jobsById(unpaid.map((u) => u.jobId));
-  return unpaid.map(({ jobId, since, owedCents }) => ({
+  return unpaid.map(({ jobId, since, kind, owedCents }) => ({
     kind: "job_unpaid",
     since,
     job: byId.get(jobId)!,
+    unpaid: kind,
     owedCents,
   }));
 };
@@ -96,26 +101,35 @@ const servicePlansDueSource: Source = async () => {
   }));
 };
 
+// what Today asks of a Sent Quote: left out, one whose Deposit is going
+// through with their bank, as it books itself, or comes back as a payment
+// that couldn't be booked, so there's nothing to follow up or move
+// meanwhile, and its badge says Payment pending (#534 Q7)
+const notGoingThrough = (quote: OfferedQuoteSummary) =>
+  quote.paying?.status !== "goingThrough";
+
 // Sent Quotes Expiring within 48 hours, soonest first; each counts from when
 // it came within 48 hours
 const EXPIRING_HOURS = 48;
 const expiringQuotes: Source = async () =>
-  (await quotesExpiringWithin(EXPIRING_HOURS)).map((quote) => ({
-    kind: "quote_expiring",
-    since: new Date(
-      Math.max(
-        Date.parse(quote.sentAt),
-        Date.parse(quote.expiresAt) - EXPIRING_HOURS * HOUR_MS,
-      ),
-    ).toISOString(),
-    quote,
-  }));
+  (await quotesExpiringWithin(EXPIRING_HOURS))
+    .filter(notGoingThrough)
+    .map((quote) => ({
+      kind: "quote_expiring",
+      since: new Date(
+        Math.max(
+          Date.parse(quote.sentAt),
+          Date.parse(quote.expiresAt) - EXPIRING_HOURS * HOUR_MS,
+        ),
+      ).toISOString(),
+      quote,
+    }));
 
 // Sent Quotes whose day has filled up under them, soonest proposed first:
 // their Clients can't accept them, so they need another time
 const quotesWithoutRoomSource: Source = async () =>
   Promise.all(
-    (await quotesWithoutRoom()).map(async (quote) => ({
+    (await quotesWithoutRoom()).filter(notGoingThrough).map(async (quote) => ({
       kind: "quote_no_room" as const,
       since: await noRoomSince(quote),
       quote,

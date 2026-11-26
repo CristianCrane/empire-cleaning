@@ -217,7 +217,7 @@ test("payments go to the fake gateway, which records them", async () => {
     description: "Deposit",
     idempotencyKey: "deposit:1",
   });
-  if (deposit.status !== "succeeded") throw new Error("expected a Deposit");
+  if (deposit.status !== "taken") throw new Error("expected a Deposit");
   const refund = await paymentGateway.refund({
     chargeId: deposit.chargeId!,
     amount: 5000,
@@ -241,7 +241,7 @@ test("the fake gateway can be told to decline charges", async () => {
     idempotencyKey: "deposit:1",
   });
 
-  expect(result).toEqual({ ok: false, reason: "card_declined" });
+  expect(result).toEqual({ status: "failed", reason: "card_declined" });
   expect(testPayments().charges).toEqual([]);
 });
 
@@ -253,7 +253,9 @@ test("refunds cannot exceed the original charge, and a repeated key repeats noth
     description: "Deposit",
     idempotencyKey: "deposit:1",
   });
-  if (!charge.ok) throw new Error("expected charge to succeed");
+  if (charge.status !== "taken" || !charge.chargeId) {
+    throw new Error("expected charge to succeed");
+  }
   const again = await paymentGateway.charge({
     payerId: "cus_any",
     paymentMethodId: "pm_any",

@@ -1,10 +1,16 @@
-import { firstNameOf, formats, messages } from "@empire-cleaning/models";
+import {
+  firstNameOf,
+  formats,
+  messages,
+  onItsPage,
+} from "@empire-cleaning/models";
 import {
   CalendarCheck,
   CalendarPlus,
   CalendarClock,
   CalendarX,
   CircleAlert,
+  ShieldAlert,
   CircleCheck,
   CircleX,
   CreditCard,
@@ -228,10 +234,14 @@ const momentsOf = (job: OfficeJob): Moment[] => {
   });
   const unpaid = job.payment?.unpaid;
   if (unpaid) {
+    const approval = onItsPage(unpaid.kind);
+    const name = firstNameOf(job.client.name);
     moments.push({
       key: "unpaid",
-      at: unpaid.since,
-      icon: CircleAlert,
+      // since their bank asked, or, once they turned it down there, when
+      // they did (#534's UX review U18, critical review C13)
+      at: unpaid.refusedAt ?? unpaid.since,
+      icon: approval ? ShieldAlert : CircleAlert,
       // named as its charge would be once it goes through: what's owed once
       // done is the Balance, once it didn't happen its fee
       title: `${
@@ -240,7 +250,17 @@ const momentsOf = (job: OfficeJob): Moment[] => {
           : wontHappen(job)
             ? feeNameOf(job)
             : "Payment"
-      } of ${formatMoney(job.payment!.owedCents)} didn't go through`,
+      } of ${formatMoney(job.payment!.owedCents)} ${
+        // their bank wanting them to approve it took nothing, and isn't a
+        // failure (#534 Q7); once turned down at their bank, it waits on no
+        // one (#534's review F21), in the words of its alert, not claiming
+        // who said no (F26)
+        unpaid.kind === "approve"
+          ? `needs ${name}'s approval`
+          : approval
+            ? `wasn't approved at ${name}'s bank`
+            : "didn't go through"
+      }`,
     });
   }
   // newest first; of two at the same moment, the later told first: a

@@ -286,6 +286,12 @@ control.post("/payments/approval", (req, res) => {
   res.json({ status: "ok" });
 });
 
+// every card saved so far asks its bank's approval for each payment
+control.post("/payments/saved-cards-ask", (_req, res) => {
+  testPayments().savedCardsAsk();
+  res.json({ status: "ok" });
+});
+
 // what the server's reminder timer does (it doesn't run here)
 control.post("/reminders", async (_req, res) => {
   res.json({ sent: await sendDueReminders() });

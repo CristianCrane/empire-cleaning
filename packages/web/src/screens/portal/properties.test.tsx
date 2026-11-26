@@ -6,7 +6,7 @@ import type {
   ServicePlanSummary,
   UnsentQuoteSummary,
 } from "@empire-cleaning/models";
-import { standingOf, type PropertiesData } from "./properties.ts";
+import { quoteTitle, standingOf, type PropertiesData } from "./properties.ts";
 
 const home = { id: "home", street: "", unit: null, postcode: "" };
 const elsewhere = { ...home, id: "elsewhere" };
@@ -46,6 +46,9 @@ const quote = (over: Partial<UnsentQuoteSummary> = {}): QuoteSummary => ({
   siteVisit: null,
   turnDownReason: null,
   createdAt: "2026-10-27T14:00:00.000Z",
+  paying: null,
+  payingServiceName: null,
+  bookable: null,
   ...over,
 });
 // one Sent to them
@@ -129,5 +132,109 @@ describe("where a Client's home stands", () => {
       label: "Quote asked for",
       line: "Deep Clean, asked Oct 27",
     });
+  });
+});
+
+// #534's UX design, Screen 3: a Sent Quote that waits on nothing of theirs,
+// its Deposit going through, a card saved with it finishing, or its time
+// filled since it was sent
+type Paying = NonNullable<QuoteSummary["paying"]>;
+const paying = (over: Partial<Paying> = {}): QuoteSummary =>
+  ({
+    ...sent,
+    paying: {
+      status: "goingThrough",
+      serviceKey: "standard",
+      depositCents: 4872,
+      ...over,
+    } as Paying,
+    payingServiceName: "Standard Clean",
+  }) as QuoteSummary;
+const booking = paying({ depositCents: 0 });
+const filled = { ...sent, bookable: [] } as QuoteSummary;
+const asPlan = (q: QuoteSummary) =>
+  ({ ...q, kind: "service_plan" }) as QuoteSummary;
+
+describe("a home whose quote waits on nothing of theirs (#534)", () => {
+  test("its Deposit going through: what it's for, calm", () => {
+    expect(standingOf("en", home, data({ quotes: [paying()] }))).toEqual({
+      tone: "info",
+      label: "Payment pending",
+      line: "Deposit for Standard Clean",
+    });
+    expect(
+      standingOf("en", home, data({ quotes: [asPlan(paying())] })).line,
+    ).toBe("Deposit for your cleaning plan");
+    expect(standingOf("es", home, data({ quotes: [paying()] }))).toEqual({
+      tone: "info",
+      label: "Pago pendiente",
+      line: "Depósito de Standard Clean",
+    });
+  });
+
+  test("a card saved with nothing charged: the clean it books", () => {
+    expect(standingOf("en", home, data({ quotes: [booking] }))).toEqual({
+      tone: "info",
+      label: "Booking pending",
+      line: "Standard Clean",
+    });
+    expect(standingOf("es", home, data({ quotes: [asPlan(booking)] }))).toEqual(
+      {
+        tone: "info",
+        label: "Reserva pendiente",
+        line: "Su plan de limpieza",
+      },
+    );
+  });
+
+  test("its time filled: the sent quote's line", () => {
+    expect(standingOf("en", home, data({ quotes: [filled] }))).toEqual({
+      tone: "info",
+      label: "Time unavailable",
+      line: "Deep Clean, sent Oct 28",
+    });
+  });
+
+  test("ranks after a clean booked, as it asks nothing, and after a quote that does", () => {
+    expect(
+      standingOf("en", home, data({ quotes: [booking], jobs: [job] })).label,
+    ).toBe("Booked");
+    expect(
+      standingOf(
+        "en",
+        home,
+        data({ quotes: [paying(), { ...sent, id: "other" }] }),
+      ).label,
+    ).toBe("Quote ready");
+    // their bank waiting on them, or a payment that ended: still theirs
+    expect(
+      standingOf(
+        "en",
+        home,
+        data({
+          quotes: [paying({ status: "approving", until: "" } as Paying)],
+        }),
+      ).label,
+    ).toBe("Quote ready");
+    // before a quote asked for; money on its way first, as Home ranks it
+    expect(
+      standingOf(
+        "en",
+        home,
+        data({ quotes: [filled, paying(), quote({ status: "requested" })] }),
+      ).label,
+    ).toBe("Payment pending");
+    expect(
+      standingOf(
+        "en",
+        home,
+        data({ quotes: [filled, quote({ status: "requested" })] }),
+      ).label,
+    ).toBe("Time unavailable");
+  });
+
+  test("its row in the home's quotes names the clean it's paying for", () => {
+    expect(quoteTitle("en", paying())).toBe("Quote for a Standard Clean");
+    expect(quoteTitle("en", sent)).toBe("Quote for a Deep Clean");
   });
 });

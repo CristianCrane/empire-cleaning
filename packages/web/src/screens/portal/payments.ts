@@ -4,21 +4,37 @@ import {
   type BillSummary,
   type ClientPastJob,
   type ClientPayment,
+  type DepositNamed,
   type PaymentMethodView,
+  type QuoteSummary,
   type ServicePlanSummary,
   catalog,
   type Language,
 } from "@empire-cleaning/models";
 import { CreditCard, Wallet } from "lucide-react";
 import { linkTo, type AppHref } from "../../links.ts";
-import { pausedPlans } from "../format.ts";
+import { addressOf, lineOf, pausedPlans } from "../format.ts";
 import type { Hero, Why } from "./HeroCard.tsx";
-import { said, saidWith } from "../words.ts";
+import { said, saidWith, type Said } from "../words.ts";
+import { waitOf } from "../QuoteParts.tsx";
 
 // in the Client's language (ADR-0025)
 const words = catalog({
   en: {
     toPay: "To pay",
+    // a payment their bank wants them to approve on its page (#534 Q7):
+    // the card's label, and its alert's sentence
+    toApprove: "To approve",
+    approveClean: "Your bank wants you to approve your clean's payment",
+    approveBill: (n: string) =>
+      `Your bank wants you to approve your payment for bill ${n}`,
+    approveMany: (n: number) => `Your bank wants you to approve ${n} payments`,
+    // the same, once they turned it down at their bank: theirs to try
+    // again on its page (#534's review F18)
+    refusedClean: (day: string) =>
+      `The payment for your ${day} clean wasn't approved`,
+    refusedBill: (n: string) => `The payment for bill ${n} wasn't approved`,
+    nothingTakenYet: "None of it has been taken yet.",
     billDue: (n: string, day: string) => `Bill ${n} is due by ${day}`,
     andMore: (first: string, n: number) => `${first}, and ${n} more`,
     // their last payment on a Bill's page, for a sentence to end (#534)
@@ -52,9 +68,20 @@ const words = catalog({
     fromYour: (day: string, service: string) => `From your ${day} ${service}`,
     refundOn: (service: string) => `Refund on ${service}`,
     fromYourClean: (day: string) => `From your ${day} clean`,
+    // a quote's Deposit given back, as nothing could be booked
+    notBooked: "Not booked",
   },
   es: {
     toPay: "Por pagar",
+    toApprove: "Por aprobar",
+    approveClean: "Su banco quiere que apruebe el pago de su limpieza",
+    approveBill: (n: string) =>
+      `Su banco quiere que apruebe su pago de la factura ${n}`,
+    approveMany: (n: number) => `Su banco quiere que apruebe ${n} pagos`,
+    refusedClean: (day: string) =>
+      `El pago de su limpieza del ${day} no se aprobó`,
+    refusedBill: (n: string) => `El pago de la factura ${n} no se aprobó`,
+    nothingTakenYet: "Aún no se ha cobrado nada de este pago.",
     billDue: (n: string, day: string) => `La factura ${n} vence el ${day}`,
     andMore: (first: string, n: number) => `${first}, y ${n} más`,
     failedFor: (n: string, why: string | null) =>
@@ -86,6 +113,7 @@ const words = catalog({
     fromYour: (day: string, service: string) => `De su ${service} del ${day}`,
     refundOn: (service: string) => `Devolución de ${service}`,
     fromYourClean: (day: string) => `De su limpieza del ${day}`,
+    notBooked: "No se reservó",
   },
 });
 
@@ -100,12 +128,17 @@ export type PaymentsData = {
   pastJobs: ClientPastJob[];
   bills: BillSummary[];
   paymentMethod: PaymentMethodView | null;
+  // a Sent Quote's Deposit going through is money on its way (#534)
+  quotes: QuoteSummary[];
 };
 
 type Owed = {
   cents: number;
   // something failed or is past its due date, not just waiting on them
   late: boolean;
+  // all of it a payment their bank wants them to approve, on its page
+  // (#534 Q7): theirs to do, and no failure
+  approve: boolean;
   // whether it asks anything of them: false for a payment we try again
   // ourselves (a Bill's or a clean's), which waits on us, and the card
   // says so calmly (owedAnswer)
@@ -117,6 +150,8 @@ type Owed = {
   // the alert above the card: what went wrong, as a sentence; null when
   // nothing did
   why: string | null;
+  // what follows the why, plain under its bold lead (#534's UX review U8)
+  more: string | null;
   // a line under it: their bank asking them to approve a payment of theirs
   // on it, or null
   waiting: string | null;
@@ -130,6 +165,8 @@ type Owing = {
   cents: number;
   late: boolean;
   asks: boolean;
+  // a payment their bank wants them to approve, on its page
+  approve?: boolean;
   line?: string;
   news?: string;
   failed?: boolean;
@@ -155,11 +192,17 @@ export type MoneyNow = {
   // name it again (#534's UX review U16); null for none, or for more than
   // one ("Bill EC-000040, and 1 more")
   cardsBill: string | null;
+  // a quote's Deposit going through, as a sentence each, while the card
+  // asks something else of them, as Home's News says it (#534's UX design,
+  // Screen 4); none while the card is for it
+  news: string[];
 };
 
 const cardLink = linkTo({ to: "/portal/payment-method" });
 const billLink = (billId: string) =>
   linkTo({ to: "/portal/bills/$billId", params: { billId } });
+const quoteLink = (quoteId: string) =>
+  linkTo({ to: "/portal/quotes/$quoteId", params: { quoteId } });
 
 // "Oct 22", New York's day
 
@@ -176,6 +219,9 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
   } = t;
   const failedFor = (b: BillSummary) =>
     b.paying?.status === "failed" ? w.failedFor(b.number, b.paying.why) : null;
+  // a quote's Deposit going through: its money's left their bank (a 0%
+  // one's card saved moved none)
+  const going = data.quotes.filter((q) => waitOf(q) === "payment");
   const owing: Owing[] = [
     // a Bill that couldn't be taken, or is past its due date: its alert
     // says which, its last payment on its page first when that didn't go
@@ -184,6 +230,31 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
       .filter((b) => b.unpaid && b.status === "due")
       .map((b): Owing => {
         const asks = asksTheClient(b.unpaid!.kind);
+        // their bank wants them to approve it: they do, on its page
+        if (b.unpaid!.kind === "approve") {
+          return {
+            cents: b.totalCents,
+            late: false,
+            asks,
+            approve: true,
+            bill: b.id,
+            line: t.p.bill(b.number),
+            news: w.approveBill(b.number),
+            action: { label: t.APPROVE_PAYMENT, href: billLink(b.id) },
+          };
+        }
+        // they turned it down there: theirs to try again, on its page, and
+        // amber, as the next step is theirs (#534's UX review U17)
+        if (b.unpaid!.kind === "refused") {
+          return {
+            cents: b.totalCents,
+            late: false,
+            asks,
+            bill: b.id,
+            news: w.refusedBill(b.number),
+            action: { label: t.tryAgain, href: billLink(b.id) },
+          };
+        }
         return {
           cents: b.totalCents,
           // one the payment service is trying again asks nothing yet, and
@@ -204,6 +275,19 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
           },
         };
       }),
+    // a quote's Deposit going through, asking nothing, as Payment pending,
+    // as its quote's page says: first of what's on its way, as the newest,
+    // minutes old where a bank debit takes days (#534's UX design, Screen 4)
+    ...going.map((q): Owing => {
+      const named = namedFor(t, q, false);
+      return {
+        cents: q.paying!.depositCents,
+        late: false,
+        asks: false,
+        line: depositOf(lang, named.plan ? null : named.service),
+        action: { label: t.p.seeYourQuote, href: quoteLink(q.id) },
+      };
+    }),
     // a Bill whose bank debit is on its way: owed till it clears, asking
     // nothing, as Payment pending, as its page says (#534's UX review U10)
     ...data.bills
@@ -221,6 +305,30 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
       .filter((j) => j.unpaid)
       .map((j): Owing => {
         const asks = asksTheClient(j.unpaid!);
+        const page = linkTo({
+          to: "/portal/jobs/$jobId",
+          params: { jobId: j.id },
+        });
+        if (j.unpaid === "approve") {
+          return {
+            cents: j.owedCents,
+            late: false,
+            asks,
+            approve: true,
+            line: t.p.yourClean(shortDayOf(j.startsAt)),
+            news: w.approveClean,
+            action: { label: t.APPROVE_PAYMENT, href: page },
+          };
+        }
+        if (j.unpaid === "refused") {
+          return {
+            cents: j.owedCents,
+            late: false,
+            asks,
+            news: w.refusedClean(shortDayOf(j.startsAt)),
+            action: { label: t.tryAgain, href: page },
+          };
+        }
         return {
           cents: j.owedCents,
           late: asks,
@@ -230,13 +338,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
             : { line: t.p.yourClean(shortDayOf(j.startsAt)) }),
           // we try one waiting on the payment service again ourselves
           action: !asks
-            ? {
-                label: t.p.seeTheClean,
-                href: linkTo({
-                  to: "/portal/jobs/$jobId",
-                  params: { jobId: j.id },
-                }),
-              }
+            ? { label: t.p.seeTheClean, href: page }
             : { label: t.UPDATE_CARD, href: cardLink },
         };
       }),
@@ -269,8 +371,13 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         action: { label: t.p.payTheBill, href: billLink(b.id) },
       })),
   ];
-  // what asks something of them leads (the sort keeps the order otherwise)
-  owing.sort((a, b) => Number(b.asks) - Number(a.asks));
+  // what asks something of them leads, and of that, what's late, before a
+  // payment their bank wants them to approve (the sort keeps the order
+  // otherwise)
+  owing.sort(
+    (a, b) =>
+      Number(b.asks) - Number(a.asks) || Number(b.late) - Number(a.late),
+  );
   const [first] = owing;
   // the card is the one that leads, and what's like it: one we try again
   // ourselves isn't added to what asks to be paid, as it can't be (#533)
@@ -281,13 +388,17 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         ? first.line
         : w.andMore(first.line, alike.length - 1)
       : null;
+  const approve = alike.length > 0 && alike.every((o) => o.approve);
+  const why = whyOf(alike, line !== null, w);
   const owed: Owed | null = first
     ? {
         cents: alike.reduce((sum, o) => sum + o.cents, 0),
         late: alike.some((o) => o.late),
+        approve,
         asks: first.asks,
         line,
-        why: whyOf(alike, line !== null, w),
+        why,
+        more: approve && why ? w.nothingTakenYet : null,
         waiting: waitingOf(alike, w),
         action: first.action,
       }
@@ -306,6 +417,9 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
     paying,
     clearing: data.bills.filter((b) => b.status === "processing"),
     cardsBill: (alike.length === 1 && first?.bill) || null,
+    news: owed?.asks
+      ? going.map((q) => t.depositPendingNews(namedFor(t, q, true)))
+      : [],
   };
 }
 
@@ -324,6 +438,10 @@ function whyOf(
   const sentence = (() => {
     if (news.length === 0) return null;
     if (lineShown || failed.length === alike.length) {
+      // only what their bank wants them to approve is news (#534 Q7)
+      if (failed.length === 0) {
+        return news.length === 1 ? news[0]!.news! : w.approveMany(news.length);
+      }
       if (failed.length > 1) return w.failedMany(failed.length);
       // the card's line names the one Bill, so its alert needn't
       return (
@@ -372,6 +490,35 @@ export function pausedLine(
   return pausedPlans(plans).length > 0 ? [t.noMoreCleans(asks)] : [];
 }
 
+// what a quote's Deposit is for, as a deposit paid is named here: a
+// one-off's by the Service paid for, a plan's as the plan's (#534's UX
+// design, Screen 2: Home's card while one goes through)
+export const depositOf = (lang: Language, service: string | null) =>
+  service ? words[lang].depositFor(service) : words[lang].planDeposit;
+
+// a quote's payment as Home names it: a plan by its home; a clean by the
+// Service paid for (the server's, there with any one-off's payment) and, in
+// News, under another card, by its time and home. A closed quote's (a
+// Turned Down one has no offer) is only ever over its own card
+export const namedFor = (
+  t: Pick<Said, "formatDateTime">,
+  q: QuoteSummary,
+  news: boolean,
+): DepositNamed =>
+  q.kind === "service_plan"
+    ? { plan: true, at: addressOf(q.property) }
+    : {
+        plan: false,
+        service: q.payingServiceName ?? q.service.name,
+        news:
+          news && q.proposedStartsAt
+            ? {
+                when: t.formatDateTime(q.proposedStartsAt),
+                at: addressOf(q.property),
+              }
+            : null,
+      };
+
 // what's owed as a Home's answer (AnswerCard): Payments' card, and the
 // Client's Home's when it asks something of them. What went wrong says
 // itself above the card (whyAlert); what's simply due, and by when, in its
@@ -395,7 +542,7 @@ export function owedAnswer(
         tone: "info",
         headline: t.formatMoney(owed.cents),
         lines: [
-          owed.line ? `${owed.line} · ${t.NOTHING_TO_DO}` : t.NOTHING_TO_DO,
+          lineOf([owed.line, t.NOTHING_TO_DO]),
           ...pausedLine(plans, lang, false),
         ],
         action: { ...owed.action, secondary: true },
@@ -404,7 +551,7 @@ export function owedAnswer(
   }
   return {
     hero: {
-      label: t.w.toPay,
+      label: owed.approve ? t.w.toApprove : t.w.toPay,
       // money, not a warning: the warning's triangle is a Notice's
       icon: Wallet,
       tone: owed.late ? "danger" : "warning",
@@ -416,7 +563,15 @@ export function owedAnswer(
       ],
       action: owed.action,
     },
-    ...(owed.why && { why: { tone: "danger", lead: owed.why } }),
+    // what went wrong; or, nothing late, their bank wanting them to approve
+    // a payment, theirs to do and no failure
+    ...(owed.why && {
+      why: {
+        tone: owed.late ? "danger" : "warning",
+        lead: owed.why,
+        ...(owed.more && { more: owed.more }),
+      },
+    }),
   };
 }
 
@@ -462,6 +617,20 @@ export function paymentRow(p: ClientPayment, lang: Language): PaymentRow {
       ),
       href: billLink(p.bill.id),
     };
+  }
+  // a Deposit given back as nothing could be booked, and its refund: by
+  // the quote, which says why (#534's UX design, Screen 4); or one still
+  // going through, which its badge tells (UX review U3)
+  if (p.quote) {
+    const { id, serviceName } = p.quote;
+    const href = quoteLink(id);
+    return p.kind === "refund"
+      ? { title: serviceName ? w.refundOn(serviceName) : w.planRefund, href }
+      : {
+          title: depositOf(lang, serviceName),
+          line: p.clearing ? undefined : w.notBooked,
+          href,
+        };
   }
   if (p.servicePlanId) {
     const href = linkTo({

@@ -4,6 +4,7 @@ import {
   type BillPayOutcome,
   type BillView,
   catalog,
+  onItsPage,
 } from "@empire-cleaning/models";
 import { CreditCard } from "lucide-react";
 import {
@@ -30,6 +31,7 @@ import {
 import { useWhilePaying } from "../paying.ts";
 import { usePaymentForm } from "./CardForm.tsx";
 import { useSaid } from "../words.ts";
+import { approveAlert, useApprovePayment } from "./approve-payment.tsx";
 
 // in the Client's language (ADR-0025)
 const words = catalog({
@@ -40,14 +42,16 @@ const words = catalog({
     forBill: (amount: string) => `${amount} for this bill`,
     payOr: (fix: string) => `Please pay it, or ${fix}.`,
     // their bank asking them to approve it, as they come back to the page:
-    // pressing Pay calls the first off (#534)
-    approving:
-      "Your bank hasn't approved your payment yet. Approve it in your bank's app, or press Pay this bill to start over: the first payment is called off, so you're only charged once.",
+    // pressing the page's next step (`press`) calls the first off (#534)
+    approving: (press: string) =>
+      `Your bank hasn't approved your payment yet. Approve it in your bank's app, or press ${press} to start over: the first payment is called off, so you're only charged once.`,
     bankOnWay: "Your bank payment is on its way",
     paid: "Thank you, your bill is paid",
     // the payment service hasn't said yet, so the page says Payment pending
     pending: "Your payment is pending",
     payThis: "Pay this bill",
+    // beside Approve payment: by card or bank debit, in its dialog
+    payAnother: "Pay another way",
     pay: (amount: string) => `Pay ${amount}`,
   },
   es: {
@@ -55,12 +59,13 @@ const words = catalog({
     late: "Esta factura no se pagó antes de su fecha de vencimiento.",
     forBill: (amount: string) => `${amount} de esta factura`,
     payOr: (fix: string) => `Páguela, o ${fix}.`,
-    approving:
-      "Su banco aún no ha aprobado su pago. Apruébelo en la aplicación de su banco, o pulse Pagar esta factura para empezar de nuevo: el primer pago se cancela, así que solo se le cobra una vez.",
+    approving: (press: string) =>
+      `Su banco aún no ha aprobado su pago. Apruébelo en la aplicación de su banco, o pulse ${press} para empezar de nuevo: el primer pago se cancela, así que solo se le cobra una vez.`,
     bankOnWay: "Su pago bancario está en camino",
     paid: "Gracias, su factura está pagada",
     pending: "Su pago está pendiente",
     payThis: "Pagar esta factura",
+    payAnother: "Pagar de otra forma",
     pay: (amount: string) => `Pagar ${amount}`,
   },
 });
@@ -70,7 +75,9 @@ const words = catalog({
 // here by card or bank debit while the server says it can be (`payable`),
 // the page's next step (the `ui` skill), its form in a dialog so the page
 // has one Pay; none while it's a payment of ours, which asks nothing of
-// them (ADR-0022, #533). Its week is its Week fact (BillDetail)
+// them (ADR-0022, #533). One their bank wants them to approve leads with
+// Approve payment instead, with their saved card, the dialog its other way
+// (#534 Q7). Its week is its Week fact (BillDetail)
 export function PortalBill() {
   const t = useSaid(words);
   const bill = useLoaderData({ from: "/portal/bills/$billId" });
@@ -81,11 +88,33 @@ export function PortalBill() {
   useWhilePaying(bill.paying?.status === "approving" ? bill.paying : null, () =>
     router.invalidate(),
   );
+  // their bank wants them to approve it, or they turned it down there:
+  // theirs to do here (#534 Q7)
+  const refused = bill.unpaid?.kind === "refused";
+  const approving =
+    bill.payable && !!bill.unpaid && onItsPage(bill.unpaid.kind);
+  const approve = useApprovePayment({
+    needed: approving,
+    refused,
+    start: async () => {
+      const outcome = await postJson<BillPayOutcome>(
+        `/api/bills/mine/${bill.id}/payment`,
+        {},
+      );
+      return outcome.status === "done" ? outcome.bill : outcome;
+    },
+    finish: (approved) =>
+      postJson<BillView>(`/api/bills/mine/${bill.id}/payment/finish`, {
+        approved,
+      }),
+    paid: paidToast(t),
+  });
   const pay: PageAction | false = bill.payable && {
-    label: t.w.payThis,
+    label: approving ? t.w.payAnother : t.w.payThis,
     icon: CreditCard,
     dialog: (state) => <PayBill bill={bill} {...state} />,
   };
+  const next = approving ? approve : pay || undefined;
 
   return (
     <>
@@ -96,10 +125,10 @@ export function PortalBill() {
           { label: t.p.bill(bill.number) },
         ]}
         title={t.p.bill(bill.number)}
-        status={<BillStatusBadge bill={bill} />}
-        next={pay || undefined}
-        actions={[print]}
-        alerts={[useStanding(bill)]}
+        status={<BillStatusBadge bill={bill} forClient />}
+        next={next}
+        actions={[pay !== next && pay, print].filter((a) => !!a)}
+        alerts={[useStanding(bill, next)]}
         details={
           <BillDetail
             bill={bill}
@@ -115,8 +144,12 @@ export function PortalBill() {
 }
 
 // what's left to do about it, if anything; while it's unpaid, that a
-// cleaning plan with cleans on it is paused, when one is
-function useStanding(bill: BillView): Alert | null {
+// cleaning plan with cleans on it is paused, when one is. `next` is the
+// page's next step
+function useStanding(
+  bill: BillView,
+  next: PageAction | undefined,
+): Alert | null {
   const t = useSaid(words);
   const isPaused = pausedPlans(bill.plans).length > 0;
   const paused = isPaused ? ` ${t.noMoreCleans(true)}` : "";
@@ -135,7 +168,7 @@ function useStanding(bill: BillView): Alert | null {
     return {
       key: "approving",
       tone: "warning",
-      children: `${t.w.approving}${bill.unpaid ? paused : ""}`,
+      children: `${t.w.approving(next?.label ?? t.w.payThis)}${bill.unpaid ? paused : ""}`,
     };
   }
   // their last payment here didn't go through: what to do is the dialog's
@@ -158,6 +191,16 @@ function useStanding(bill: BillView): Alert | null {
       tone: "info",
       children: `${t.NOT_APPROVED} ${t.PAY_AGAIN}`,
     };
+  }
+  // its payment, charged without them there, their bank wants them to
+  // approve, or they turned it down there: the page's Approve payment, or
+  // Try again (#534 Q7)
+  if (bill.unpaid && onItsPage(bill.unpaid.kind)) {
+    return approveAlert(t, {
+      refused: bill.unpaid.kind === "refused",
+      card: t.p.card,
+      more: paused,
+    });
   }
   if (bill.unpaid?.kind === "late") {
     return {
@@ -209,6 +252,15 @@ function useStanding(bill: BillView): Alert | null {
   return null;
 }
 
+// what paying it came to, as a toast: paid, a bank debit on its way, or
+// pending while the payment service hasn't said
+const paidToast = (t: { w: (typeof words)["en"] }) => (paid: BillView) =>
+  paid.status === "paid"
+    ? t.w.paid
+    : paid.status === "processing"
+      ? t.w.bankOnWay
+      : t.w.pending;
+
 // paying it here, by card or bank debit: a card pays at once, a bank debit
 // is processing until it clears
 function PayBill({ bill, ...state }: { bill: BillView } & DialogState) {
@@ -251,12 +303,7 @@ function PayForm({ bill, close }: { bill: BillView; close: () => void }) {
               approved: !refused,
             }),
         }),
-      (paid) =>
-        paid.status === "paid"
-          ? t.w.paid
-          : paid.status === "processing"
-            ? t.w.bankOnWay
-            : t.w.pending,
+      paidToast(t),
     );
     if (ok) close();
   };

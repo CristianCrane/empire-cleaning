@@ -49,11 +49,14 @@ import type {
   ServicePlanInput,
 } from "@empire-cleaning/models";
 import {
+  acceptedWith,
   clientPaying,
+  CLIENT_TO_APPROVE,
   firstNameOf,
   inLine,
   noEmailYet,
   notSeenYet,
+  payingFor,
   placeOwner,
   weekdayOf,
   whyNoRoom,
@@ -130,6 +133,7 @@ import {
   PlanSaving,
   PlanTotals,
   QuoteStatusBadge,
+  goingThrough,
   planDayTitle,
 } from "../QuoteParts.tsx";
 import { homeCrumbs } from "./trails.ts";
@@ -173,7 +177,7 @@ const {
   formatClock,
   formatDay,
   formatMoney,
-  formatTime,
+  formatShortDay,
   weekdayName,
   formatList,
 } = formats.en;
@@ -181,25 +185,10 @@ const {
 // the Deposit the Client is paying online while their bank asks them to
 // approve it, or finishes it, as the one rule's words name it (#534), if
 // they are
-const payingFor = (
+const payingOf = (
   quote: Pick<OfficeQuote, "paying" | "client">,
 ): PayingFor | null =>
-  quote.paying && {
-    name: quote.client.name,
-    deposit: formatMoney(quote.paying.depositCents),
-    service: quote.paying.serviceName,
-    until: formatTime(quote.paying.until),
-    finishing: quote.paying.finishing,
-  };
-
-// the Service a Quote was accepted with, by name; none for a cleaning plan,
-// accepted whole
-const acceptedService = (quote: OfficeQuote) =>
-  quote.offer?.plan
-    ? null
-    : (quote.offer?.options.find(
-        (o) => o.serviceKey === quote.acceptedServiceKey,
-      )?.serviceName ?? null);
+  quote.paying && payingFor(quote.client.name, quote.paying);
 
 // The Quote with one of its Revisions in hand: the one being drafted, or
 // else the offer, so it's edited while there's a Draft Revision and
@@ -250,7 +239,15 @@ export function QuoteScreen() {
       title={`${kind} for ${clientName(quote.client)}`}
       status={
         <>
-          <QuoteStatusBadge status={quote.status} />
+          <QuoteStatusBadge
+            status={quote.status}
+            // the Deposit going through, as the Client's page says
+            wait={
+              quote.paying?.finishing
+                ? goingThrough(quote.paying.depositCents)
+                : null
+            }
+          />
           {revising && <DraftChangesBadge />}
         </>
       }
@@ -326,13 +323,17 @@ function useNow(quote: OfficeQuote): Now {
     acceptable && (offer.changesPlan !== null || quote.paymentMethod !== null);
   // the Client paying online holds it (the one rule): greyed, the alert
   // saying until when
-  const paying = payingFor(quote);
+  const paying = payingOf(quote);
 
   const recordAcceptance: PageAction | false = recordable && {
     label: "Record acceptance",
     icon: CircleCheck,
     isDisabled: paying !== null,
-    why: clientPaying.item(firstNameOf(name)),
+    why: clientPaying.item(
+      firstNameOf(name),
+      paying?.deposit === null,
+      paying?.finishing ?? false,
+    ),
     dialog: (state) => (
       <RecordAcceptanceDialog
         quote={offer!}
@@ -341,16 +342,53 @@ function useNow(quote: OfficeQuote): Now {
       />
     ),
   };
-  // over everything else to say about taking the Deposit, which waits on it
-  const payingAlert: Alert | false = !!paying && {
+  // over everything else to say about taking the Deposit, which waits on
+  // it: amber while it waits on the Client approving it, calm once their
+  // bank is finishing it, as it waits on no one, as the Office's Bill says
+  // the same wait (#534's UX design, Screen 5)
+  const said =
+    paying &&
+    clientPaying.page(paying, {
+      card: recordable,
+      drafting: quote.draft !== null && quote.offer !== null,
+    });
+  const payingAlert: Alert | false = !!said && {
     key: "paying",
-    tone: "warning",
+    tone: paying!.finishing ? "info" : "warning",
     children: (
       <p>
-        {clientPaying.page(paying, {
-          card: recordable,
-          drafting: quote.draft !== null && quote.offer !== null,
-        })}
+        {said.more ? <strong>{said.lead}</strong> : said.lead}
+        {said.more}
+      </p>
+    ),
+  };
+  // or their latest one took nothing: how it ended, and what's next, in
+  // the Office's Bill's tones for the same endings: red where it failed,
+  // calm where it was never approved, as nothing went wrong (Screen 5)
+  const ended = paying ? null : quote.paymentEnded;
+  const endedAlert: Alert | false = !!ended && {
+    key: "ended",
+    tone: ended.status === "failed" ? "danger" : "info",
+    children: (
+      <p>
+        {clientPaying.ended(
+          {
+            name,
+            on: formatShortDay(dayOfInstant(ended.at)),
+            // what it was for, as while it went through (UX review U4)
+            deposit:
+              ended.depositCents === 0 ? null : formatMoney(ended.depositCents),
+            service: offer?.plan
+              ? null
+              : (offer?.options.find((o) => o.serviceKey === ended.serviceKey)
+                  ?.serviceName ?? null),
+            changing: offer?.changesPlan != null,
+            ...(ended.status === "failed"
+              ? { status: "failed" as const, why: ended.why }
+              : { status: "notApproved" as const }),
+          },
+          { open: acceptable, record: recordable },
+        )}
       </p>
     ),
   };
@@ -411,6 +449,7 @@ function useNow(quote: OfficeQuote): Now {
             </p>
           ),
         },
+        endedAlert,
         noCard,
       ],
     };
@@ -429,7 +468,7 @@ function useNow(quote: OfficeQuote): Now {
         ? {
             next: recordAcceptance || undefined,
             actions: [changeQuote],
-            alerts: [payingAlert, noCard],
+            alerts: [payingAlert, endedAlert, noCard],
           }
         : {
             next: changeQuote,
@@ -448,6 +487,7 @@ function useNow(quote: OfficeQuote): Now {
                   </p>
                 ),
               },
+              endedAlert,
             ],
           };
     // the badge, the Expired fact and the story's moment say what
@@ -878,15 +918,16 @@ function Offer({ quote }: { quote: ShownQuote }) {
   // once a one-off is accepted, the Service booked alone: the other was
   // never taken
   const booked = quote.status === "accepted" && !plan;
-  // until then a one-off's own Service, the one asked for, as every Office
-  // screen leads with it, and the one recommended an aside under it, as the
-  // Draft has it (#493, after #527); a plan's weekdays in their order
+  // until then a one-off's lead (leadOption), the other an aside under
+  // it; a plan's weekdays in their order
+  const lead = plan ? undefined : leadOption(quote);
   const options = booked
     ? quote.options.filter((o) => o.serviceKey === quote.acceptedServiceKey)
     : plan
       ? quote.options
-      : [ownOption(quote)];
-  const aside = !booked && !plan ? recommendedOption(quote) : undefined;
+      : [lead!];
+  const aside =
+    !booked && !plan ? quote.options.find((o) => o !== lead) : undefined;
   return (
     <Section
       title="Current quote"
@@ -965,7 +1006,14 @@ function Offer({ quote }: { quote: ShownQuote }) {
             );
           })}
           {aside && (
-            <AlsoOffered option={aside}>
+            <AlsoOffered
+              option={aside}
+              note={
+                aside.recommended
+                  ? undefined
+                  : `What ${firstNameOf(quote.client.name)} asked for.`
+              }
+            >
               <OptionRows
                 option={aside}
                 crewSize={quote.crewSize}
@@ -1182,10 +1230,14 @@ function OfferPrice({
 // `under` stays unfolded
 function AlsoOffered({
   option,
+  note = "Shown to the client as recommended; they pick one.",
   under,
   children,
 }: {
   option: OfficeQuoteOption;
+  // what it is beside the one shown: the one recommended, or, once the
+  // Client picked that one, the one they asked for (leadOption)
+  note?: string;
   under?: ReactNode;
   children: ReactNode;
 }) {
@@ -1196,7 +1248,7 @@ function AlsoOffered({
       >
         <div className="flex flex-col gap-3">
           <p className="flex flex-col gap-1 text-fg-muted">
-            <span>Shown to the client as recommended; they pick one.</span>
+            <span>{note}</span>
             <span>Includes {formatMoney(option.taxCents)} tax</span>
           </p>
           {children}
@@ -1245,7 +1297,9 @@ function EmailCardLink({ quote }: { quote: OfficeQuote }) {
 // finishing it past its end time (#534), the page reloads under it, and
 // it's greyed with the one rule's alert in place of the refusal; or, their
 // bank having approved it just before, the quote is accepted with what
-// they paid for, which a toast says
+// they paid for, which a toast says. Refused as the Client's bank wants
+// them to approve the Deposit themselves, that's all it says, with Close,
+// as there's nothing to press again (#534 Q7)
 function RecordAcceptanceDialog({
   quote,
   drafting,
@@ -1254,13 +1308,12 @@ function RecordAcceptanceDialog({
   quote: ShownQuote;
   drafting?: number;
 } & Partial<DialogState>) {
-  // a one-off's own Service first, the one asked for, as the card it's
-  // recorded from leads with it, and picked unless only the other still
-  // fits (#493)
-  const recommended = recommendedOption(quote);
+  // a one-off's lead first (leadOption), as the card it's recorded from
+  // leads with it, and picked unless only the other still fits (#493)
+  const lead = leadOption(quote);
   const choices = quote.plan
     ? quote.options
-    : [ownOption(quote), ...(recommended ? [recommended] : [])];
+    : [lead, ...quote.options.filter((o) => o !== lead)];
   const [serviceKey, setServiceKey] = useState(
     choices.find((o) => quote.bookable.includes(o.serviceKey))!.serviceKey,
   );
@@ -1269,7 +1322,7 @@ function RecordAcceptanceDialog({
   });
   const chosen = quote.options.find((o) => o.serviceKey === serviceKey)!;
   const depositCents = quote.plan?.depositCents ?? chosen.depositCents;
-  const paying = payingFor(quote);
+  const paying = payingOf(quote);
 
   const accept = async (close: () => void) => {
     const ok = await action.run(
@@ -1287,7 +1340,7 @@ function RecordAcceptanceDialog({
             tone: "info",
             title: clientPaying.recorded(
               quote.client.name,
-              acceptedService(accepted),
+              acceptedWith(accepted),
               quote.plan ? null : chosen.serviceName,
             ),
           });
@@ -1302,6 +1355,27 @@ function RecordAcceptanceDialog({
     );
     if (ok) close();
   };
+
+  if (action.problemKind === "approve") {
+    // its first sentence, what happened, the lead
+    const [lead, ...rest] = action.problem!.split(/(?<=\.) /);
+    return (
+      <Dialog title={CLIENT_TO_APPROVE} role="alertdialog" {...state}>
+        {({ close }) => (
+          <>
+            <Notice tone="warning" answers>
+              <p>
+                <strong>{lead}</strong> {rest.join(" ")}
+              </p>
+            </Notice>
+            <Actions>
+              <Button onPress={close}>Close</Button>
+            </Actions>
+          </>
+        )}
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog title="Record acceptance?" role="alertdialog" {...state}>
@@ -1341,7 +1415,9 @@ function RecordAcceptanceDialog({
             Only do this if they've told you they accept.
           </p>
           {paying ? (
-            <Notice tone="warning">{clientPaying.record(paying)}</Notice>
+            <Notice tone={paying.finishing ? "info" : "warning"}>
+              {clientPaying.record(paying)}
+            </Notice>
           ) : (
             action.problem && <Notice tone="danger">{action.problem}</Notice>
           )}
@@ -1794,6 +1870,17 @@ const ownOption = (quote: ShownQuote) =>
 // and the Service it recommends in its place for a first visit, if any
 const recommendedOption = (quote: ShownQuote) =>
   quote.options.find((o) => o.recommended);
+// the one a sent one-off leads with: its own, the one asked for, as every
+// Office screen leads with it, the one recommended an aside, as the Draft
+// has it (#493, after #527); or the one the Client picked, while they pay
+// online for it or its alert says their payment for it ended, as they
+// chose it (#534's UX review U2, U8)
+const leadOption = (quote: ShownQuote) =>
+  quote.options.find(
+    (o) =>
+      o.serviceKey ===
+      (quote.paying ? quote.paying.serviceKey : quote.paymentEnded?.serviceKey),
+  ) ?? ownOption(quote);
 
 // the price as last worked out: in a line, as a phone's foot shows it, and
 // in the fewest words, for the header that sticks on a wider screen. A
@@ -1875,7 +1962,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
   // the Client paying the quote sent holds Send (the one rule, #534), as
   // the page loaded it last: it looks again while they pay, and once the
   // payment accepts the quote, the draft is gone, so it goes to the quote
-  const paying = payingFor(loaded);
+  const paying = payingOf(loaded);
   const until = loaded.paying?.until;
   useWhilePaying(loaded.paying, async () => {
     const now = await getJson<OfficeQuote>(`/api/quotes/${loaded.id}`);
@@ -2032,7 +2119,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
         sent.status === "accepted"
           ? {
               tone: "info",
-              title: clientPaying.sent(sent.client.name, acceptedService(sent)),
+              title: clientPaying.sent(sent.client.name, acceptedWith(sent)),
             }
           : { tone: "success", title: `Quote sent to ${quote.client.email}` },
       );
@@ -2161,12 +2248,13 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
           paying
             ? {
                 key: "paying",
-                tone: "warning",
+                // as the Quote's alert (Screen 5)
+                tone: paying.finishing ? "info" : "warning",
                 // Send refused as the Client is paying: the page loads
                 // again into this alert, which answers the press in its
                 // place (`failure` below), in view wherever Send was
                 answers: !!failure,
-                children: clientPaying.draft(paying.name, paying),
+                children: clientPaying.draft(paying),
               }
             : draft.offer && {
                 key: "sees",
@@ -2211,7 +2299,7 @@ function DraftEditor({ loaded }: { loaded: OfficeQuote }) {
         price={priceOf(quote)}
         note={noteOf(
           saveState,
-          liveHold(quote, !!paying),
+          liveHold(quote, paying),
           sendHold(quote, dayTitles),
         )}
       >
@@ -2506,9 +2594,9 @@ const timeFold = ({
 // What Send waits on whatever's typed, said beside it in every save
 // state: the Client paying the quote sent (the one rule, #534), or their
 // email to add. None when neither holds it.
-const liveHold = (quote: ShownQuote, paying: boolean) => {
+const liveHold = (quote: ShownQuote, paying: PayingFor | null) => {
   const name = firstNameOf(quote.client.name);
-  if (paying) return clientPaying.send(name);
+  if (paying) return clientPaying.send(name, paying.deposit === null);
   if (!quote.client.email) return `Add ${name}'s email first`;
   return undefined;
 };

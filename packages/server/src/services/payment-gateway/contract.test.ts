@@ -10,6 +10,7 @@ paymentGatewayContract("FakePaymentGateway", () => {
     enterCard: async (card) => fake.paymentToken(card),
     fillCardForm: async (secret, card) => fake.fillCardForm(secret, card),
     abandonCardForm: async (secret) => fake.abandonCardForm(secret),
+    approvedCard: async (payerId, card) => fake.approvedCard(payerId, card),
     enterBank: async () => fake.bankToken(),
     paymentAttempts: async (payerId) =>
       fake.paymentAttempts.filter((a) => a.payerId === payerId).length,

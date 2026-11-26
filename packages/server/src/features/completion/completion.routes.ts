@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type { JobPayOutcome } from "@empire-cleaning/models";
 import { z } from "zod";
 import { byId, validate } from "../../middleware/validation.ts";
 import { jobAssignedTo, officeJob } from "../assignments/assignments.ts";
@@ -7,6 +8,7 @@ import { ownClient } from "../clients/clients.ts";
 import { staffForAccount } from "../staff/staff.ts";
 import {
   answerAdjustment,
+  clientFinishBalance,
   clientJob,
   clientRetryBalance,
   completeJob,
@@ -178,6 +180,8 @@ for (const [answer, approve] of [
   );
 }
 
+// pays an Unpaid Job's Balance on its page, with their saved card: done, or
+// their bank asking them to approve it (JobPayOutcome)
 clientJobsRouter.post(
   "/mine/:id/balance/retry",
   authorize("client"),
@@ -185,7 +189,23 @@ clientJobsRouter.post(
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
     const id = req.params.id;
-    await clientRetryBalance(client.id, id);
+    const secret = await clientRetryBalance(client.id, id);
+    const outcome: JobPayOutcome = secret
+      ? { status: "needs_approval", secret }
+      : { status: "done", job: await clientJob(client.id, id) };
+    res.json(outcome);
+  },
+);
+
+// once their bank's check on it is done in the browser, approved or not
+clientJobsRouter.post(
+  "/mine/:id/balance/finish",
+  authorize("client"),
+  validate({ params: byId, body: z.object({ approved: z.boolean() }) }),
+  async (req, res) => {
+    const client = await ownClient(signedInAccount(res).id);
+    const id = req.params.id;
+    await clientFinishBalance(client.id, id, req.body.approved);
     res.json(await clientJob(client.id, id));
   },
 );

@@ -9,6 +9,7 @@ import {
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
+import { APPROVE } from "../../services/payment-gateway/index.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 import {
   billLinesOf,
@@ -16,14 +17,19 @@ import {
   isBilledWeekly,
 } from "../bills/billed-weekly.ts";
 import type { Bill } from "../bills/bills.schema.ts";
-import { payingOn, standing } from "../bills/standing.ts";
+import { standing } from "../bills/standing.ts";
+import { paymentOn } from "../payments/payment-on.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import {
   chargeSaved,
+  newestAttempt,
+  NOT_APPROVED,
+  recordGivenEarlier,
   recordTakenEarlier,
   refundedAtProvider,
   refundFrom,
+  UNREACHABLE,
 } from "../payments/money.ts";
 import {
   charges,
@@ -33,7 +39,13 @@ import {
   type Charge,
   type ChargeItem,
 } from "../payments/payments.schema.ts";
-import { nowTheirs, NOT_SETTLED, unpaidOf } from "../payments/unpaid.ts";
+import {
+  nowTheirs,
+  NOT_SETTLED,
+  REFUSED,
+  turnedDown,
+  unpaidOf,
+} from "../payments/unpaid.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { holdOrResume, planOnHold } from "../service-plans/on-hold.ts";
@@ -231,7 +243,10 @@ export const paymentOf = async (job: Job): Promise<JobPayment> => {
       )
       .where(eq(properties.id, job.propertyId)),
   ]);
-  const onBills = await payingOn(ledger.bills.map(({ bill }) => bill.id));
+  const onBills = await paymentOn(
+    "bill",
+    ledger.bills.map(({ bill }) => bill.id),
+  );
   return {
     quotedCents: ledger.quotedCents,
     adjustmentsCents: ledger.adjustmentsCents,
@@ -267,7 +282,12 @@ export const paymentOf = async (job: Job): Promise<JobPayment> => {
     paymentMethod: owner?.method
       ? messages[currentLanguage()].card(cardIn(owner.method))
       : null,
-    unpaid: unpaidOf(currentLanguage(), job.unpaidSince, job.unpaidReason),
+    unpaid: unpaidOf(
+      currentLanguage(),
+      job.unpaidSince,
+      job.unpaidReason,
+      job.refusedAt,
+    ),
   };
 };
 
@@ -286,7 +306,21 @@ export type Settled = {
   // its money goes on its Client's weekly Bill instead (ADR-0016), so none
   // moved now
   billed: boolean;
+  // the Client paying on its page, whose bank wants them to approve it
+  // there: for their browser, then settleJob as "approved" or "refused"
+  secret?: string;
+  // once their bank's check is done, that it wasn't approved (refused, or
+  // left), so nothing was taken: whatever the Job was Unpaid for before
+  // stays its failure, but this payment wasn't declined (critical review
+  // C10, in critical-review-payment-truth.md)
+  notApproved?: boolean;
 };
+
+// The Client settling a Job on its page: "paying", there for their bank to
+// ask them to approve it; then "approved" or "refused", once their bank's
+// check is done, which asks for nothing new. Anyone else (the Clock, Office
+// Staff, a change to the Job) charges their saved card without them there
+export type ByClient = "paying" | "approved" | "refused";
 
 // what a Charge is for: the Balance of a Completed Job, or the fee for one
 // that didn't happen
@@ -320,19 +354,31 @@ const describe = async (tx: Tx, job: Job) => {
  * While that isn't known yet, nothing moves.
  *
  * A Charge is taken off-session from the Client's saved Payment Method. If
- * it can't be (declined, no card saved, the provider unreachable), the Job
- * is Unpaid until a later settling takes it. One settling of a Job at a
- * time: the Job is held while its money moves. A plan Job's plan is On Hold
- * while any of its Jobs is Unpaid.
+ * it can't be (declined, no card saved, the provider unreachable, their
+ * bank wanting them there to approve it), the Job is Unpaid until a later
+ * settling takes it. The Client paying on its page (`by`) is there for
+ * their bank to ask: the payment it wanted approved is confirmed with them,
+ * one waiting on them that they left is called off first, and one they
+ * refused leaves the Job as it was, for a fresh payment next time (#534
+ * Q7). One still waiting on them is called off by anyone else only once
+ * it's waited APPROVAL_MS (mayCallOff). One settling of a Job at a time:
+ * the Job is held while its money moves. A plan Job's plan is On Hold while
+ * any of its Jobs is Unpaid.
  *
  * A Job whose Client is billed weekly moves no money here: its next Bill
  * bills whatever is owed then (ADR-0016).
  */
 export const settleJob = async (
   jobId: string,
-  // the one change to its price that moved this money, by name, for the
-  // Client's Payments page to say
-  item: ChargeItem | null = null,
+  {
+    item = null,
+    by = null,
+  }: {
+    // the one change to its price that moved this money, by name, for the
+    // Client's Payments page to say
+    item?: ChargeItem | null;
+    by?: ByClient | null;
+  } = {},
 ): Promise<Settled> =>
   db.transaction(async (tx) => {
     const [job] = await tx
@@ -340,6 +386,9 @@ export const settleJob = async (
       .from(jobs)
       .where(eq(jobs.id, jobId))
       .for("update");
+    // a refund whose reply was lost first, as what it gave back counts
+    // whatever is charged now; while it isn't known, nothing moves
+    const given = await recordGivenEarlier(tx, jobId);
     const before = await ledgerOf(job!, tx);
     const [owner] = await tx
       .select({ client: clients, method: paymentMethods })
@@ -351,30 +400,49 @@ export const settleJob = async (
     const billed = isBilledWeekly(job!, client, {
       lines: before.bills.length,
     });
+    // what still waits on the Client's bank: why it was Unpaid before, a
+    // payment their bank wants them to approve, if not
+    const waiting = job!.unpaidReason ?? APPROVE;
+    // the Client paying again, or refusing, calls off what waits on them;
+    // anyone else, only once it's waited (mayCallOff)
+    const callOff =
+      by === "approved" ? null : by ? "client_retried" : "abandoned";
     // billed, owing nothing more, or with no card, a try would ask for
     // nothing now
     const earlier = await recordTakenEarlier(
       tx,
       { jobId, kind: kindOf(job!) },
-      !billed && before.owedCents > 0 && method
+      !billed && !given.unknown && before.owedCents > 0 && method
         ? { amount: before.owedCents, card: method.gatewayRef }
         : null,
+      callOff,
     );
     const found = "unknown" in earlier ? [] : earlier;
     const ledger = found.length > 0 ? await ledgerOf(job!, tx) : before;
+    // a refund unheard holds the Job's money, and only a charge it held
+    // back, which the Client owes, makes the Job Unpaid: one we owe them
+    // doesn't (#534 critical review C8)
+    const unknown =
+      "unknown" in earlier
+        ? earlier.unknown === "approving"
+          ? waiting
+          : earlier.unknown
+        : given.unknown && before.owedCents > 0
+          ? UNREACHABLE
+          : null;
     const settled: Settled = {
-      // what a lost reply took counts as charged now, as it's found
+      // what a lost reply took or gave back counts now, as it's found
       chargedCents: found.reduce((sum, c) => sum + c.amountCents, 0),
-      refundedCents: 0,
-      // it may yet take the money, so nothing more moves meanwhile; billed,
+      refundedCents: given.given,
+      // it may yet move the money, so nothing more moves meanwhile; billed,
       // nothing moves anyway, and the Clock asks after it (ADR-0022)
-      failure: "unknown" in earlier && !billed ? earlier.unknown : null,
+      failure: unknown && !billed ? unknown : null,
       becameUnpaid: false,
       paymentMethod: method && cardIn(method),
       plan: null,
       billed,
     };
-    const moves = !settled.billed && !settled.failure;
+    const moves = !settled.billed && !settled.failure && !given.unknown;
 
     // billed weekly, nothing moves: the next Bill takes it, and a Job
     // Unpaid before weekly billing was switched on this week no longer is.
@@ -388,7 +456,7 @@ export const settleJob = async (
         Math.min(-ledger.owedCents, ledger.billedCents),
         { for: jobId, item, jobId },
       );
-      settled.refundedCents =
+      settled.refundedCents +=
         fromBills +
         (await refundFrom(tx, ledger.charges, -ledger.owedCents - fromBills, {
           for: jobId,
@@ -396,7 +464,30 @@ export const settleJob = async (
         }));
     }
 
-    if (moves && ledger.owedCents > 0) {
+    // once their bank's check is done, nothing new is asked for: one they
+    // turned down is theirs to try again (REFUSED, #534's review F18), the
+    // server's word for it, so every page and list says it; one their bank
+    // declined once it was approved is Unpaid for that. Only this turns it
+    // down: a payment tried again keeps its reason (waiting), not its day
+    let refusedNow = false;
+    if (
+      moves &&
+      ledger.owedCents > 0 &&
+      (by === "approved" || by === "refused")
+    ) {
+      const newest = await newestAttempt(tx, jobId);
+      const declined =
+        newest?.status === "failed" &&
+        newest.reason !== APPROVE &&
+        !NOT_APPROVED(newest.reason);
+      refusedNow = !declined && turnedDown(by, newest);
+      settled.failure = declined
+        ? (newest.reason ?? waiting)
+        : refusedNow
+          ? REFUSED
+          : waiting;
+      settled.notApproved = !declined;
+    } else if (moves && ledger.owedCents > 0) {
       const charged = await chargeSaved(tx, {
         client,
         source: method,
@@ -404,9 +495,14 @@ export const settleJob = async (
         description: await describe(tx, job!),
         for: { jobId, kind: kindOf(job!) },
         item,
+        callOff: by ? "client_retried" : "abandoned",
+        withClient: by === "paying",
       });
       if (charged.ok) settled.chargedCents += charged.cents;
-      else settled.failure = charged.reason;
+      else if ("secret" in charged) {
+        settled.secret = charged.secret;
+        settled.failure = waiting;
+      } else settled.failure = charged.reason;
     }
 
     if (settled.failure) {
@@ -417,8 +513,12 @@ export const settleJob = async (
       await tx
         .update(jobs)
         .set({
+          // owed since it first was, however it failed since, and refused
+          // from now, kept beside it so a payment tried again later
+          // doesn't move it (#534's critical review C13, C14)
           unpaidSince: job!.unpaidSince ?? clock.now(),
           unpaidReason: settled.failure,
+          ...(refusedNow ? { refusedAt: clock.now() } : {}),
         })
         .where(eq(jobs.id, jobId));
     } else if (job!.unpaidSince) {
@@ -448,7 +548,7 @@ export const settleAfterChange = async (
   item: ChargeItem | null = null,
 ): Promise<Settled> => {
   try {
-    return await settleJob(jobId, item);
+    return await settleJob(jobId, { item });
   } catch (error) {
     monitoring.error(error, { what: `Job ${jobId} not settled` });
     const plan = await db.transaction(async (tx) => {
