@@ -18,43 +18,50 @@ export type SavedPaymentMethod = {
   card: Card;
 };
 
-// where a Deposit comes from: what the Client just entered in the browser's
-// payment form (which also saves it for later), or a Payment Method they
-// saved before
-type DepositSource = { token: string } | { paymentMethodId: string };
+// where a payment made with the Client there comes from: what they just
+// entered in the browser's payment form (a Deposit's also saves it for
+// later), or a Payment Method they saved before
+export type PaymentSource = { token: string } | { paymentMethodId: string };
 
 export type DepositInput = {
   payerId: string;
-  source: DepositSource;
+  source: PaymentSource;
   // 0 takes nothing, and only saves the Payment Method
   amount: number;
   description: string;
   idempotencyKey: string;
 };
 
-// how a payment made with the Client there went (a Deposit, or a Bill paid
-// on its page). Needing approval means the Client's bank wants them to
-// approve it in the browser (e.g. 3D Secure) with `secret`; then
-// `paymentOutcome(ref)` says how it ended; `processing` once they have and
-// their bank is finishing it, when it can no longer be called off: by
-// "card", which settles soon, or by "bank", a bank debit, for days until it
-// clears; false while it's still theirs to approve. A Bill's page says the
-// two apart (#534's critical review C6).
-export type OnSessionResult =
+// How a payment stands, as the provider says, whichever call made it: a
+// Deposit or a Bill paid on its page, with the Client there, or a Charge to
+// a saved card without them (#534, one status from the provider to the
+// screen).
+// - taken: the money's ours, or the card's saved (a 0 Deposit)
+// - approving: the Client's bank wants them to approve it in the browser
+//   (e.g. 3D Secure) with `secret`; then paymentOutcome(ref) says how it
+//   ended. It can still be called off
+// - finishing: going through, with nothing more to ask of anyone, and too
+//   far on to call off: by "card", which settles soon, or by "bank", a bank
+//   debit, for days until it clears or fails. A Bill's page says the two
+//   apart (#534's critical review C6)
+// - failed: never taken, and why. A Charge the Client's bank wants them
+//   there to approve (APPROVE) leaves its payment open for that, as `ref`,
+//   for an `again` to confirm with them on the page (#534 Q7)
+export type PaymentResult =
   | {
-      status: "succeeded";
+      status: "taken";
       // null when nothing was taken (a 0 Deposit)
       chargeId: string | null;
       // set when the source was entered just now, and so saved by this
       saved: SavedPaymentMethod | null;
     }
-  | {
-      status: "needs_approval";
-      ref: string;
-      secret: string;
-      processing: false | "card" | "bank";
-    }
-  | { status: "failed"; reason: string };
+  | { status: "approving"; ref: string; secret: string }
+  | { status: "finishing"; ref: string; by: "card" | "bank" }
+  | { status: "failed"; reason: string; ref?: string };
+
+// why a Charge to a saved card wasn't taken when the Client's bank wants
+// them there to approve it (e.g. 3D Secure), as the provider says it
+export const APPROVE = "authentication_required";
 
 export type ChargeInput = {
   payerId: string;
@@ -64,28 +71,28 @@ export type ChargeInput = {
   idempotencyKey: string;
 };
 
+// a Job's payment the Client makes on its page, from their saved card, as
+// when their bank wants them to approve it: `again`, a Charge it wanted
+// approved, which is confirmed with them there if it still can be, as the
+// provider advises (https://docs.stripe.com/payments/save-and-reuse), or
+// else a new payment is
+export type JobInput = ChargeInput & { again: string | null };
+
 export type RefundInput = {
   chargeId: string;
   amount: number;
   idempotencyKey: string;
 };
 
-export type ChargeResult =
-  | { ok: true; chargeId: string }
-  | { ok: false; reason: string }
-  // not taken yet, nor declined: chargeOutcome() says how it ends
-  | { ok: false; reason: "processing"; chargeId: string }
-  // a payment made with the Client there, looked up: waiting on their
-  // bank's approval, which paymentOutcome(chargeId) reads
-  | { ok: false; reason: "requires_action"; chargeId: string };
-
 // how to find a Charge asked for before: by its id, once known, or else by
-// the idempotency key it was asked with, at or after `since`
+// the idempotency key it was asked with, at or after `since`, or on the
+// earlier payment it was asked to approve `again` (JobInput)
 export type ChargeLookup = {
   payerId: string;
   idempotencyKey: string;
   chargeId: string | null;
   since: Date;
+  again: string | null;
 };
 
 export type RefundResult =
@@ -100,11 +107,13 @@ export type RefundLookup = { chargeId: string; idempotencyKey: string };
 export type RefundElsewhere = { refundId: string; amount: number; at: Date };
 
 // a Bill the Client pays on its page (ADR-0016), by a card or bank account
-// entered just now in the browser's payment form, which saves neither;
-// `reference` is ours (the Bill), and comes back in its events
+// entered just now in the browser's payment form, which saves neither, or
+// by their saved card, `again` as a Job's (JobInput); `reference` is ours
+// (the Bill), and comes back in its events
 export type BillInput = {
   payerId: string;
-  token: string;
+  source: PaymentSource;
+  again: string | null;
   amount: number;
   description: string;
   reference: string;
@@ -126,8 +135,9 @@ export type PaymentEvent =
   | { kind: "refund_failed"; chargeId: string; refundId: string }
   | { kind: "dispute_opened"; chargeId: string };
 
-// why a payment waiting on the Client's bank is called off
-export type CallingOff = "client_retried" | "abandoned";
+// why a payment waiting on the Client's bank is called off: they tried
+// again, they declined the Quote it was for, or nobody came back to it
+export type CallingOff = "client_retried" | "client_declined" | "abandoned";
 
 export interface PaymentGateway {
   // which browser form takes a payment, for the web app to show
@@ -152,24 +162,28 @@ export interface PaymentGateway {
     token: string;
   }): Promise<SavedPaymentMethod>;
   // the Deposit, with the Client there to approve it if their bank asks
-  takeDeposit(input: DepositInput): Promise<OnSessionResult>;
-  // a Bill paid on its page, likewise; a bank debit is processing until
-  // it clears or fails, days later, which its events tell
-  payBill(input: BillInput): Promise<OnSessionResult>;
+  takeDeposit(input: DepositInput): Promise<PaymentResult>;
+  // a Bill paid on its page, likewise; a bank debit is finishing until it
+  // clears or fails, days later, which its events tell
+  payBill(input: BillInput): Promise<PaymentResult>;
+  // a Job's payment on its page, from the saved card, likewise
+  payJob(input: JobInput): Promise<PaymentResult>;
   // how a payment made with the Client there, that needed approval or was
-  // processing, ended
-  paymentOutcome(ref: string): Promise<OnSessionResult>;
+  // finishing, stands now, with the card it saved
+  paymentOutcome(ref: string): Promise<PaymentResult>;
   // calls off a payment waiting on the Client's bank, or one it refused, so
-  // it's never taken: because the Client tried again, or nobody came back
-  // to approve it. Throws if it can't be (taken, or a card's still
-  // processing): then paymentOutcome(ref) says how it stands
+  // it's never taken, or a 0% Deposit's card save, so it's never saved, as
+  // `why` says.
+  // Throws if it can't be (taken, or a card's still processing): then
+  // paymentOutcome(ref) says how it stands
   cancelPayment(ref: string, why: CallingOff): Promise<void>;
   // a later Charge to a saved Payment Method, without the Client there
-  charge(input: ChargeInput): Promise<ChargeResult>;
-  // how a Charge (or a Deposit) ended whose reply never came, or that was
-  // processing; null if the provider never made it. Asks afresh, unlike
-  // repeating its idempotency key, which only replays the first reply
-  chargeOutcome(lookup: ChargeLookup): Promise<ChargeResult | null>;
+  charge(input: ChargeInput): Promise<PaymentResult>;
+  // how any payment stands whose reply never came, or that was finishing,
+  // with no card read as saved (paymentOutcome reads that); null if the
+  // provider never made it. Asks afresh, unlike repeating its idempotency
+  // key, which only replays the first reply
+  chargeOutcome(lookup: ChargeLookup): Promise<PaymentResult | null>;
   refund(input: RefundInput): Promise<RefundResult>;
   // a refund whose reply never came, as the provider has it now; null if it
   // was never made
@@ -201,6 +215,7 @@ export const paymentGateway: PaymentGateway = {
   savePaymentMethod: (input) => current.savePaymentMethod(input),
   takeDeposit: (input) => current.takeDeposit(input),
   payBill: (input) => current.payBill(input),
+  payJob: (input) => current.payJob(input),
   paymentOutcome: (ref) => current.paymentOutcome(ref),
   cancelPayment: (ref, why) => current.cancelPayment(ref, why),
   charge: (input) => current.charge(input),

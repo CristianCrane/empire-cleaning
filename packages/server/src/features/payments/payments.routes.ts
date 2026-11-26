@@ -14,7 +14,7 @@ import {
   startCardForm,
   toPaymentMethodView,
 } from "./payments.ts";
-import { clientRetry, retryUnpaidFor, tookOf } from "./retry-unpaid.ts";
+import { retryUnpaidFor, tookOf } from "./retry-unpaid.ts";
 
 export const router = Router();
 
@@ -73,13 +73,6 @@ historyRouter.get("/mine", authorize("client"), async (_req, res) => {
 historyRouter.get("/mine/next", authorize("client"), async (_req, res) => {
   const client = await ownClient(signedInAccount(res).id);
   res.json(await nextChargeFor(client));
-});
-
-// tries their saved card again for every payment it failed to take (#499),
-// saying what it took; a 409 says what still didn't go through
-historyRouter.post("/mine/retry", authorize("client"), async (_req, res) => {
-  const client = await ownClient(signedInAccount(res).id);
-  res.json(await clientRetry(client.id));
 });
 
 // ---- the Office ----

@@ -6,6 +6,7 @@ import type {
   QuoteAsked,
   QuoteOption,
   QuoteStatus,
+  QuoteSummary,
   ServicePlanTerms,
 } from "@empire-cleaning/models";
 import {
@@ -31,7 +32,7 @@ import {
   quoteStatusTone,
   typedHours,
 } from "./format.ts";
-import { useSaid } from "./words.ts";
+import { said, useSaid } from "./words.ts";
 
 // in the screen's language: the Office's English, the portal's its
 // Client's (ADR-0025)
@@ -179,7 +180,52 @@ export function ClientQuoteStatusBadge({ status }: { status: QuoteStatus }) {
   return <StatusBadge tone={tone}>{label}</StatusBadge>;
 }
 
-export function QuoteStatusBadge({ status }: { status: QuoteStatus }) {
+// what a Sent Quote waits on when it's nothing of the Client's (#534's UX
+// design, Screens 2 to 4): its Deposit going through, a card saved with it
+// (a 0% Deposit) finishing, or its time filled since it was sent. The
+// Client's Home, a home's page, the quote's own page and Payments name it
+// alike, and none asks them anything; the Office's badges name its Deposit
+// going through as they do (#534 Q7)
+export type QuoteWait = "payment" | "booking" | "filled";
+export function waitOf(
+  q: Pick<QuoteSummary, "status" | "paying" | "bookable">,
+): QuoteWait | null {
+  if (q.status !== "sent") return null;
+  if (q.paying?.status === "goingThrough") {
+    return goingThrough(q.paying.depositCents);
+  }
+  return q.bookable?.length === 0 ? "filled" : null;
+}
+// a Deposit going through: a payment, or a 0% one's card being saved
+export const goingThrough = (depositCents: number): QuoteWait =>
+  depositCents === 0 ? "booking" : "payment";
+// whether a wait is its Deposit going through, which the Office's badge
+// says over "Sent"
+export const isGoingThrough = (
+  wait: QuoteWait | null,
+): wait is "payment" | "booking" => wait === "payment" || wait === "booking";
+export const waitLabelOf = (lang: Language, wait: QuoteWait) => {
+  const { paymentPending, bookingPending, timeUnavailable } = said[lang];
+  return {
+    payment: paymentPending,
+    booking: bookingPending,
+    filled: timeUnavailable,
+  }[wait];
+};
+
+// a Quote's state as the Office reads it: a Sent one's Deposit going
+// through says so, as the Client's pages do (`wait`); its time filled is
+// its alert's and Today's to say
+export function QuoteStatusBadge({
+  status,
+  wait = null,
+}: {
+  status: QuoteStatus;
+  wait?: QuoteWait | null;
+}) {
+  if (isGoingThrough(wait)) {
+    return <StatusBadge tone="info">{waitLabelOf("en", wait)}</StatusBadge>;
+  }
   return (
     <StatusBadge tone={quoteStatusTone[status]}>
       {quoteStatusLabel[status]}

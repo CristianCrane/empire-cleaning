@@ -1,4 +1,4 @@
-import type { Browser } from "@playwright/test";
+import type { Browser, Page } from "@playwright/test";
 import {
   acceptedJob,
   completeJob,
@@ -18,7 +18,9 @@ import {
   expectNothingNext,
   pageAction,
   openTile,
+  requireApproval,
   saveACard,
+  savedCardsAsk,
   titleBadge,
 } from "./harness.ts";
 
@@ -303,6 +305,317 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   // nothing owed is left for the Office: Money counts none
   await page.goto("/office");
   await expect(page.getByRole("button", { name: /^Money/ })).toBeDisabled();
+});
+
+// #534 Q7: Casey's card is one whose bank asks them to approve each
+// payment, so the balance taken as the clean's done is stopped, for them
+// to approve on its page
+const doneOnACardThatAsks = async () => {
+  const { job, cory } = await jobUnderway();
+  await savedCardsAsk();
+  await completeJob(job.id, cory.id, { condition: "moderate", reports: [] });
+  return job;
+};
+const approvalAsked =
+  /^Your bank wants you to approve this payment\. None of it has been taken from your Test card ending 4242 yet\.$/;
+
+test("a payment the Client's bank wants them to approve is next on their Home", async ({
+  page,
+}) => {
+  const job = await doneOnACardThatAsks();
+  await signedInAs(page, casey.email);
+  await page.goto("/portal/payments");
+  const owed = page.getByRole("region", { name: "To approve" });
+  await expect(owed).toContainText("Your Jan 12 clean");
+  // why, amber, as it's theirs to do and no failure
+  await expect(
+    page.getByText(
+      "Your bank wants you to approve your clean's payment. None of it has been taken yet.",
+    ),
+  ).toBeVisible();
+  await expect(
+    owed.getByRole("link", { name: "Approve payment" }),
+  ).toHaveAttribute("href", `/portal/jobs/${job.id}`);
+
+  await page.goto("/portal");
+  await expect(
+    page.getByText(/^Your bank wants you to approve your clean's payment/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Approve payment" }),
+  ).toHaveAttribute("href", `/portal/jobs/${job.id}`);
+});
+
+// #534 Q7 made the Client's retry of a Job's payment one made with them
+// there, which their bank may ask them to approve: the server answers 200
+// with the approval's secret, nothing taken yet. The card page's "Try this
+// card again" read no body and said "Payment taken" with nothing taken
+// (critical-review-payment-truth.md C10): it runs the approval there
+test("a Client trying their card again, whose bank now asks them to approve it, approves it there, or is told it wasn't taken", async ({
+  page,
+}) => {
+  const { job, cory } = await jobUnderway();
+  await failCharges();
+  await completeJob(job.id, cory.id, { condition: "moderate", reports: [] });
+  // the money's there now, but their bank asks them to approve each payment
+  await failCharges(null);
+  await savedCardsAsk();
+
+  await signedInAs(page, casey.email);
+  await page.goto("/portal/payment-method");
+  // red while their card couldn't pay, amber once it's theirs to approve
+  // again (#534's UX review U16)
+  const needed = page
+    .getByRole("alert")
+    .or(page.getByRole("status"))
+    .filter({ hasText: "Payment needed" });
+  const tryAgain = needed.getByRole("button", { name: "Try this card again" });
+  await expect(needed).toHaveRole("alert");
+
+  // turned down at their bank: nothing taken, and the page says so
+  await requireApproval("refused");
+  await tryAgain.click();
+  await expect(
+    page.getByText(
+      "Your payment wasn't approved, so nothing was taken. Please try again, or use another card.",
+    ),
+  ).toBeVisible();
+  await expect(page.getByText("Payment taken")).toHaveCount(0);
+  await expect(needed).toContainText(
+    "The $292.33 payment for your Jan 12 clean wasn't approved, so none of it was taken.",
+  );
+  await expect(needed).toHaveRole("status");
+  // their card works, so trying it again is the page's next step, not a
+  // link in the alert (#534's UX review U23)
+  await expectNextStep(page, "Try this card again");
+  await expect(tryAgain).toHaveCount(0);
+
+  // approved there: taken, and the clean is paid
+  await requireApproval(null);
+  await pageAction(page, "Try this card again");
+  await expect(page.getByText("Payment taken")).toBeVisible();
+  await expect(needed).toHaveCount(0);
+  await page.goto(`/portal/jobs/${job.id}`);
+  await expect(titleBadge(page, "Done")).toBeVisible();
+});
+
+// critical-review-payment-truth.md C11: "Try this card again" tried each
+// Unpaid clean in turn, so one approved and taken, then the next turned
+// down at their bank, read as nothing taken. It tries the first, named with
+// its amount, and the page then asks about the next
+test("a Client with two cleans to pay tries their card for the first, then the second alone, and turned down it takes nothing more", async ({
+  page,
+}) => {
+  const FRIDAY_9AM = "2026-01-09T14:00:00Z";
+  await createStaff(olive);
+  await signUp(olive.email);
+  const cory = await addCleaner("Cory Cleaner");
+  const monday = await acceptedJob({
+    startsAt: MONDAY_9AM,
+    officeEmail: olive.email,
+    addOns: ["Inside the oven"],
+  });
+  const friday = await acceptedJob({
+    startsAt: FRIDAY_9AM,
+    officeEmail: olive.email,
+  });
+  await offerJob(monday.id, cory.id, { confirmed: true });
+  await offerJob(friday.id, cory.id, { confirmed: true });
+  await setClock(MONDAY_11AM);
+  await failCharges();
+  await completeJob(friday.id, cory.id, { condition: "moderate", reports: [] });
+  await completeJob(monday.id, cory.id, { condition: "moderate", reports: [] });
+  // the money's there now, but their bank asks them to approve each payment
+  await failCharges(null);
+  await savedCardsAsk();
+
+  await signedInAs(page, casey.email);
+  await page.goto("/portal/payment-method");
+  const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
+  await expect(needed).toContainText("1 more payment comes after it.");
+
+  let finishes = 0;
+  await page.route("**/balance/finish", async (route) => {
+    finishes += 1;
+    if (finishes === 2) await requireApproval("refused");
+    await route.continue();
+  });
+  const paid = async () => {
+    const done: string[] = [];
+    for (const id of [monday.id, friday.id]) {
+      const job = await page.context().newPage();
+      await job.goto(`/portal/jobs/${id}`);
+      await expect(job.getByRole("heading", { level: 1 })).toBeVisible();
+      if ((await titleBadge(job, "Done").count()) > 0) done.push(id);
+      await job.close();
+    }
+    return done;
+  };
+
+  // the first, approved: taken, and the page asks about the other alone
+  await needed.getByRole("button", { name: "Try this card again" }).click();
+  await expect(page.getByText("Payment taken")).toBeVisible();
+  expect(finishes).toBe(1);
+  expect(await paid()).toHaveLength(1);
+  await expect(needed).not.toContainText("more payment");
+
+  // the second, turned down at their bank: nothing more taken, and it says so
+  await needed.getByRole("button", { name: "Try this card again" }).click();
+  await expect(
+    page.getByText(
+      "Your payment wasn't approved, so nothing was taken. Please try again, or use another card.",
+    ),
+  ).toBeVisible();
+  expect(finishes).toBe(2);
+  expect(await paid()).toHaveLength(1);
+});
+
+test("the email about a payment the Client's bank wants them to approve opens their clean, to approve it there", async ({
+  page,
+}) => {
+  await doneOnACardThatAsks();
+  await signedInAs(page, casey.email);
+  await page.goto(await linkIn(casey.email, "Please approve your payment"));
+
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Deep Clean",
+  );
+  await expect(titleBadge(page, "Needs approval")).toBeVisible();
+  // theirs to do and no failure: amber, and the page's next step
+  await expect(page.getByText(approvalAsked)).toBeVisible();
+  await expectNextStep(page, "Approve payment");
+  await expectAccessible(page);
+});
+
+test("a payment the Client's bank wants them to approve, turned down there, takes nothing, and approving it pays", async ({
+  page,
+}) => {
+  const job = await doneOnACardThatAsks();
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/jobs/${job.id}`);
+  await expect(page.getByText(approvalAsked)).toBeVisible();
+
+  await requireApproval("refused");
+  await pageAction(page, "Approve payment");
+  await expect(
+    page.getByText(
+      /^The payment wasn't approved\. None of it was taken\. Please try again\.$/,
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Use a different card" }),
+  ).toBeVisible();
+  // nothing waits on their bank now: it's Unpaid, and the press is a fresh
+  // payment (#534's UX review U1)
+  await expect(titleBadge(page, "Unpaid")).toBeVisible();
+  await expectNextStep(page, "Try again");
+
+  await requireApproval(null);
+  await pageAction(page, "Try again");
+  await expect(titleBadge(page, "Done")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Your receipt" }),
+  ).toContainText("Charged to your Test card ending 4242.");
+  await expect(page.getByText(/^The payment wasn't approved/)).toBeHidden();
+  await expect(page.getByText(approvalAsked)).toBeHidden();
+});
+
+test("Office Staff see a Job's payment is the Client's to approve, emailed so, with nothing to try again", async ({
+  page,
+}) => {
+  const job = await doneOnACardThatAsks();
+  await signedInAs(page, olive.email);
+  const attention = await openTile(page, "Money");
+  const row = attention
+    .getByRole("row")
+    .filter({ hasText: "Client to approve" });
+  await expect(row).toBeVisible();
+  await row.click();
+  await expect(page).toHaveURL(`/office/jobs/${job.id}`);
+
+  await expect(titleBadge(page, "Client to approve")).toBeVisible();
+  await expect(
+    page.getByText(
+      /^Casey's bank wants them to approve the payment\. None of it was taken\. We've emailed them to approve it on their clean's page\.$/,
+    ),
+  ).toBeVisible();
+  await expect(page.getByRole("region", { name: "History" })).toContainText(
+    /Balance of \$[\d.,]+ needs Casey's approval/,
+  );
+  await expectNothingNext(page);
+});
+
+// #534's change review F18: a payment turned down at their bank read so
+// only on the page it was pressed on, so Home and the Office's Job still
+// said it waited on the Client's approval. The server keeps it
+const turnedDown = async (page: Page) => {
+  const job = await doneOnACardThatAsks();
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/jobs/${job.id}`);
+  await requireApproval("refused");
+  await pageAction(page, "Approve payment");
+  await expect(titleBadge(page, "Unpaid")).toBeVisible();
+  return job;
+};
+
+test("a payment the Client turned down at their bank reads so on their Home, Payments and Your card, to try again", async ({
+  page,
+}) => {
+  const job = await turnedDown(page);
+  await page.goto("/portal/payments");
+  await expect(
+    page.getByText(/^The payment for your Jan 12 clean wasn't approved/),
+  ).toBeVisible();
+  await expect(page.getByText(/approve your clean's payment/)).toBeHidden();
+
+  await page.goto("/portal");
+  await expect(
+    page.getByText(/^The payment for your Jan 12 clean wasn't approved/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Try again" }).first(),
+  ).toHaveAttribute("href", `/portal/jobs/${job.id}`);
+
+  // and on Your card, where trying it again is the next step: their card
+  // works (#534's UX review U23)
+  await page.goto("/portal/payment-method");
+  await expect(
+    page.getByRole("status").filter({ hasText: "Payment needed" }),
+  ).toContainText(
+    /The \$[\d.,]+ payment for your Jan 12 clean wasn't approved, so none of it was taken\./,
+  );
+  await expectNextStep(page, "Try this card again");
+});
+
+// Today's row says it as the Job does, not "Collect the balance" (the
+// user's call, 2026-11-26)
+test("Office Staff see a Job's payment the Client turned down at their bank as Unpaid, theirs to try again", async ({
+  page,
+}) => {
+  const job = await turnedDown(page);
+  await signedInAs(page, olive.email);
+  await page.goto(`/office/jobs/${job.id}`);
+  await expect(titleBadge(page, "Unpaid")).toBeVisible();
+  await expect(
+    page.getByText(
+      /^Casey's payment wasn't approved at their bank on Jan 12\. None of it was taken\. They can try again on their clean's page, or use another card\.$/,
+    ),
+  ).toBeVisible();
+  await expect(page.getByRole("region", { name: "History" })).toContainText(
+    /Balance of \$[\d.,]+ wasn't approved at Casey's bank/,
+  );
+  await expect(page.getByText(/wants them to approve/)).toBeHidden();
+  await expectNothingNext(page);
+
+  // and as Today's first: theirs to do, so Jen's button only opens it
+  await page.goto("/office");
+  const first = page.getByRole("region", { name: "First up" });
+  await expect(first).toContainText("Client to try again");
+  await expect(first.getByRole("button")).toHaveText("Open the job");
+  const attention = await openTile(page, "Money");
+  await expect(
+    attention.getByRole("row").filter({ hasText: "owed" }),
+  ).toContainText("Client to try again");
 });
 
 test("Office Staff remove an Adjustment from its own dialog, confirming in the same dialog", async ({

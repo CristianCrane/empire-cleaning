@@ -52,6 +52,8 @@ import {
 } from "../services/services.ts";
 import { siteVisitStages } from "../site-visits/site-visits.ts";
 import { askedAddOns } from "./asked-add-ons.ts";
+import { depositPaying } from "./deposit-paying.ts";
+import { bookableFor } from "./offer-room.ts";
 import { ownOption } from "./own-option.ts";
 import { revisionChanges } from "./revision-changes.ts";
 import {
@@ -431,39 +433,70 @@ const summaries = async (
     currentPriceList(),
     currentServices(),
   ]);
-  const [options, addOns, stages] = await Promise.all([
+  const statuses = new Map(
+    rows.map(({ quote, offer }) => [
+      quote.id,
+      statusOf({ ...quote, expiresAt: offer?.expiresAt ?? null }),
+    ]),
+  );
+  // to a Client, what each Sent one can still be booked as
+  const sent = forClient
+    ? rows.filter(({ quote }) => statuses.get(quote.id) === "sent")
+    : [];
+  const [options, addOns, stages, payingOf, bookable] = await Promise.all([
     optionsOfRevisions([
       ...rows.flatMap((r) => (r.offer ? [r.offer.id] : [])),
       ...(forClient ? [] : drafts.map((d) => d.id)),
     ]),
     askedAddOns(ids, list),
     siteVisitStages(rows.map((r) => r.property.id)),
+    depositPaying(
+      rows.map(({ quote }) => ({ ...quote, status: statuses.get(quote.id)! })),
+    ),
+    bookableFor(
+      sent.map(({ quote, offer }) => ({
+        id: quote.id,
+        proposedStartsAt: offer!.proposedStartsAt!,
+      })),
+    ),
   ]);
 
   return rows.map(
     ({ quote, offer, client, property, homePlanId }): QuoteSummary => {
-      const status = statusOf({
-        ...quote,
-        expiresAt: offer?.expiresAt ?? null,
-      });
+      const status = statuses.get(quote.id)!;
+      const paying = payingOf({ ...quote, status });
       const draft = draftOf.get(quote.id);
       const shown: Revision | null =
         offer ?? (forClient ? null : (draft ?? null));
       const offered = shown ? (options.get(shown.id) ?? []) : [];
       const plan = quote.kind === "service_plan";
+      const canBook = bookable.get(quote.id) ?? null;
       // the Office leads with its Revision's own Service (the one asked
       // for, unless the Office changed it), or once Accepted the one booked;
-      // the Client with the recommended one (ADR-0018)
+      // the Client with the recommended one (ADR-0018), or the one they're
+      // paying for, as its alert and their bank's request name it (#534's
+      // UX review U23). Once refunded, what can still be booked leads, as
+      // that's what's on offer; with nothing (Time unavailable, or closed) the
+      // clean refunded does, as the card is then about that payment (U37)
+      const clientLead =
+        paying?.status === "refunded" && canBook?.length
+          ? canBook[0]
+          : paying?.serviceKey;
       const headline =
         shown && offered.length > 0
           ? headlineOf(
               quote.kind,
               offered,
               forClient
-                ? undefined
+                ? clientLead
                 : (quote.acceptedServiceKey ?? shown.serviceKey),
             )
           : null;
+      // a plan's payment names the plan, so only a one-off's names its
+      // Service; a revision can drop it from the offer, so it's read from
+      // the Services
+      const paidFor =
+        paying && !plan ? serviceOf(all, paying.serviceKey) : undefined;
       // a Service Plan Quote's weekdays, each with its first clean's start
       // as `startOf` gives it
       const planWith = <S>(startOf: (o: (typeof offered)[number]) => S) =>
@@ -498,6 +531,11 @@ const summaries = async (
         ),
         turnDownReason: quote.turnDownReason,
         createdAt: quote.madeAt.toISOString(),
+        paying,
+        payingServiceName: paidFor
+          ? inLanguage(currentLanguage(), paidFor).name
+          : null,
+        bookable: canBook,
       };
       if (!isOffered(status)) {
         return {

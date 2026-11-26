@@ -104,10 +104,17 @@ export class NotFoundError extends APIError {
 }
 
 // the request is fine but clashes with what already exists, e.g. a Quote
-// Request for a home that already has one waiting
+// Request for a home that already has one waiting. A `kind` tells a screen
+// what sort of clash it is where its words alone can't: "approve", a
+// payment that's the Client's to approve at their bank, whether the Office
+// asked for it (accept.ts) or they turned it down there on a Bill's or a
+// Job's page (bills.ts, completion.ts) (#534 Q7): theirs to do, not a
+// failure
 export class ConflictError extends APIError {
-  constructor(message: string) {
+  public readonly kind?: "approve";
+  constructor(message: string, kind?: "approve") {
     super(message, 409);
+    this.kind = kind;
   }
 }
 
@@ -138,6 +145,7 @@ export class TooManyRequestsError extends APIError {
 type APIErrorResponse = {
   message: string;
   details?: APIErrorDetail[];
+  kind?: ConflictError["kind"];
 };
 
 export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
@@ -156,6 +164,9 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
       err instanceof QueryParameterError
     ) {
       errResponse.details = err.details;
+    }
+    if (err instanceof ConflictError && err.kind) {
+      errResponse.kind = err.kind;
     }
     if (err instanceof TooManyRequestsError) {
       res.set("Retry-After", String(err.retryAfterSeconds));

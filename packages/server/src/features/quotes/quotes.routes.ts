@@ -15,6 +15,7 @@ import {
 import { ownClient } from "../clients/clients.ts";
 import {
   acceptQuote,
+  declineQuote,
   finalizeDeposit,
   finalizeProblem,
   latestDepositFor,
@@ -26,7 +27,6 @@ import { openQuoteList, quotesForClient } from "./quote-state.ts";
 import {
   clientQuote,
   clientQuoteView,
-  declineQuote,
   discardDraft,
   draftOpenTimes,
   offerServicePlan,
@@ -130,16 +130,19 @@ router.post(
       res.json(outcome);
       return;
     }
-    // still theirs to approve: not an error
-    if (finalized.status === "waiting") {
-      const outcome: AcceptOutcome = {
-        status: "waiting",
-        message: finalizeProblem(finalized),
-      };
+    // still theirs to approve, or their bank's to finish: not an error
+    if (finalized.status === "approving" || finalized.status === "finishing") {
+      const outcome: AcceptOutcome =
+        finalized.status === "approving"
+          ? { status: "waiting" }
+          : {
+              status: "processing",
+              message: finalizeProblem(finalized, quote),
+            };
       res.json(outcome);
       return;
     }
-    throw new ConflictError(finalizeProblem(finalized));
+    throw new ConflictError(finalizeProblem(finalized, quote));
   },
 );
 

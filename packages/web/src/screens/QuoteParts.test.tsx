@@ -1,6 +1,7 @@
 import type { PlanDayTerms, QuoteOption } from "@empire-cleaning/models";
 import { expect, test } from "vitest";
-import { planCards, planDayTitle } from "./QuoteParts.tsx";
+import { render } from "vitest-browser-react";
+import { QuoteStatusBadge, planCards, planDayTitle } from "./QuoteParts.tsx";
 
 // a plan weekday from 19 January 2026, New York time, and its clean
 const clean = (date: string | null, totalCents: number, crewSize = 2) => ({
@@ -66,4 +67,16 @@ test("a Spanish card's weekdays start its title with a capital", () => {
       card!.map((c) => c.day),
     ),
   ).toMatch(/^Los lunes a las 9:00/);
+});
+
+// the Office's badge says what the Client's does while their Deposit goes
+// through (#534 Q7): a day filled stays Sent, as Today asks her to move it
+test("a Sent Quote's badge is Payment pending while its Deposit goes through", async () => {
+  const badge = async (wait: Parameters<typeof QuoteStatusBadge>[0]["wait"]) =>
+    (await render(<QuoteStatusBadge status="sent" wait={wait} />)).container
+      .textContent;
+  expect(await badge("payment")).toBe("Payment pending");
+  expect(await badge("booking")).toBe("Booking pending");
+  expect(await badge("filled")).toBe("Sent");
+  expect(await badge(null)).toBe("Sent");
 });

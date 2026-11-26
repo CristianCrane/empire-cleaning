@@ -219,8 +219,10 @@ test(
         "Cleaning plan, Standard Clean, every week: $231.36 a clean",
       ),
     ).toBeVisible();
+    // the time and the home, each its own line (#534's UX review U5)
+    await expect(client.getByText(/^For Mon, Jan 19, 9:00\sAM$/)).toBeVisible();
     await expect(
-      client.getByText(/^For Mon, Jan 19, 9:00\sAM at /),
+      client.getByText("At 41-12 Austin St, 4B, 11375", { exact: true }),
     ).toBeVisible();
   },
 );

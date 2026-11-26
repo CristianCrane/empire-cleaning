@@ -32,6 +32,15 @@ export const portalWords = catalog({
     nextShowsHere: "Your next clean shows here once it's booked.",
     differentCard: "Use a different card",
     paymentNeeded: "Payment needed.",
+    // a payment their bank wants them to approve, made with them there on
+    // a clean's or a Bill's page (#534 Q7): its badge, and its alert, as
+    // it waits and once they've turned it down
+    needsApproval: "Needs approval",
+    bankWants: "Your bank wants you to approve this payment.",
+    nothingYet: (card: string) =>
+      `None of it has been taken from your ${card} yet.`,
+    notApproved: "The payment wasn't approved.",
+    tryAgain: "None of it was taken. Please try again.",
     didntWork: "That didn't work. Please try again.",
     seeYourCleaningPlan: "See your cleaning plan",
     seeTheClean: "See the clean",
@@ -84,6 +93,12 @@ export const portalWords = catalog({
     nextShowsHere: "Su próxima limpieza aparecerá aquí cuando esté reservada.",
     differentCard: "Usar otra tarjeta",
     paymentNeeded: "Falta un pago.",
+    needsApproval: "Por aprobar",
+    bankWants: "Su banco quiere que apruebe este pago.",
+    nothingYet: (card: string) =>
+      `Aún no se ha cobrado nada de este pago de su ${card}.`,
+    notApproved: "El pago no se aprobó.",
+    tryAgain: "No se cobró nada. Por favor, vuelva a intentarlo.",
     didntWork: "No funcionó. Vuelva a intentarlo.",
     seeYourCleaningPlan: "Ver su plan de limpieza",
     seeTheClean: "Ver la limpieza",

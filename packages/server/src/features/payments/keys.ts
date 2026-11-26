@@ -14,8 +14,4 @@ export const idempotencyKey = {
     `refund:${forId}:${id}`,
   // a Deposit given back: once per Charge, as all of it is
   givingBack: (chargeId: string) => `give-back:${chargeId}`,
-  // a card saved on accepting with nothing to take: once per card entered,
-  // as its token is used once
-  savingCard: (quoteId: string, token: string) =>
-    `save-card:${quoteId}:${token}`,
 };

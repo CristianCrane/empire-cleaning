@@ -58,6 +58,7 @@ import { staff } from "../staff/staff.schema.ts";
 import {
   NOT_SETTLED,
   stillNotPaid,
+  unpaidKind,
   unpaidOf,
   type CardTried,
   type Retried,
@@ -120,10 +121,14 @@ const words = catalog({
   en: {
     ANSWERED: "You've already answered this.",
     LAPSED: "It wasn't answered in time, so you won't pay it.",
+    UPDATE_OR_ANOTHER: "Please update your card, or use another one.",
+    notApproved: `${messages.en.NOT_APPROVED} Please try again, or use another card.`,
   },
   es: {
     ANSWERED: "Ya respondió a esto.",
     LAPSED: "No se respondió a tiempo, así que no lo pagará.",
+    UPDATE_OR_ANOTHER: "Actualice su tarjeta, o use otra.",
+    notApproved: `${messages.es.NOT_APPROVED} Vuelva a intentarlo, o use otra tarjeta.`,
   },
 });
 const NOT_DONE = "This job hasn't been marked done.";
@@ -213,6 +218,7 @@ const sendUnpaid = (jobId: string, settled: Settled) =>
           owedCents: payment.owedCents,
           paymentMethod: settled.paymentMethod,
           held: settled.plan === "held",
+          approve: unpaidKind(settled.failure ?? "") === "approve",
         }),
       });
     },
@@ -955,7 +961,12 @@ export const pastJobsFor = async (
             ? totalOf(quoted.get(job.id)!.totalCents, own)
             : 0,
         feeCents: job.status === "completed" ? 0 : (job.feeCents ?? 0),
-        unpaid: unpaidOf(currentLanguage(), job.unpaidSince, job.unpaidReason),
+        unpaid: unpaidOf(
+          currentLanguage(),
+          job.unpaidSince,
+          job.unpaidReason,
+          job.refusedAt,
+        ),
         owedCents: job.unpaidSince ? (await paymentOf(job)).owedCents : 0,
         waiting: own
           .filter((a) => a.status === "proposed")
@@ -1034,6 +1045,61 @@ export const answerAdjustment = async (
     },
   );
   if (settled.becameUnpaid) await sendUnpaid(jobId, settled);
+};
+
+// a payment on a Job's page that didn't go through, as its Client is told
+const notPaidOnPage = (failure: string) => {
+  const lang = currentLanguage();
+  const kind = unpaidKind(failure);
+  return new ConflictError(
+    `${stillNotPaid(lang, failure)} ${kind === "declined" ? words[lang].UPDATE_OR_ANOTHER : messages[lang].clientFix[kind]}`,
+  );
+};
+
+/**
+ * The Client pays their Unpaid Job's Balance on its page, with their saved
+ * card, there for their bank to ask them to approve it: `secret`, for
+ * their browser, then clientFinishBalance; null once it's paid. Not taken:
+ * why, as an error.
+ */
+export const clientRetryBalance = async (
+  clientId: string,
+  jobId: string,
+): Promise<string | null> => {
+  await ownJob(clientId, jobId);
+  const job = await owingJob(jobId);
+  if (!job.unpaidSince) return null;
+  const settled = await settleJob(jobId, { by: "paying" });
+  if (settled.secret) return settled.secret;
+  if (settled.failure) throw notPaidOnPage(settled.failure);
+  return null;
+};
+
+/**
+ * The Client's browser, once their bank's check on paying a Job on its page
+ * is done: approved, it's read and recorded. Not approved, it's called off,
+ * nothing taken, and the Job stays as it was: said as an error of kind
+ * "approve", as a Bill's page says it, for the page to offer it again.
+ * Declined once approved, as a bank can: why, as an error.
+ */
+export const clientFinishBalance = async (
+  clientId: string,
+  jobId: string,
+  approved: boolean,
+) => {
+  await ownJob(clientId, jobId);
+  const job = await owingJob(jobId);
+  if (!job.unpaidSince) return;
+  const settled = await settleJob(jobId, {
+    by: approved ? "approved" : "refused",
+  });
+  if (!settled.failure) return;
+  // one turned down there, though the Job was Unpaid for a decline before
+  const kind = settled.notApproved ? "approve" : unpaidKind(settled.failure);
+  if (kind === "approve") {
+    throw new ConflictError(words[currentLanguage()].notApproved, "approve");
+  }
+  if (kind === "declined") throw notPaidOnPage(settled.failure);
 };
 
 // Settles a Job again, and tells its Client the payment went through: as
@@ -1191,6 +1257,7 @@ export const unpaidJobs = async () => {
     rows.map(async (job) => ({
       jobId: job.id,
       since: job.unpaidSince!.toISOString(),
+      kind: unpaidKind(job.unpaidReason ?? ""),
       owedCents: (await paymentOf(job)).owedCents,
     })),
   );

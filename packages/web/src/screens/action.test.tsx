@@ -92,6 +92,26 @@ describe("a change that fails", () => {
     expect(showToast).not.toHaveBeenCalled();
   });
 
+  // #534 Q7: a screen can say a refusal of its kind its own way
+  test("says what kind of refusal it is, when the API does, until the next run", async () => {
+    const { result, run } = await setup();
+
+    await run(async () => {
+      throw new ApiError(
+        409,
+        "Their bank wants them to approve it.",
+        {},
+        "approve",
+      );
+    });
+    expect(result.current.problemKind).toBe("approve");
+
+    await run(async () => {
+      throw new ApiError(409, "That day is full.");
+    });
+    expect(result.current.problemKind).toBeUndefined();
+  });
+
   test("shows why a card couldn't be used as is", async () => {
     const { result, run } = await setup();
 

@@ -78,6 +78,10 @@ export const bills = pgTable(
     // since the day after it was due, unpaid
     unpaidSince: timestamp("unpaid_since", { withTimezone: true }),
     unpaidReason: text("unpaid_reason"),
+    // when the Client last turned its payment down at their bank on its
+    // page, written with that reason and read only under it (#534's
+    // critical review C14)
+    refusedAt: timestamp("refused_at", { withTimezone: true }),
     // since when, by the Clock, a bank debit the Client made on its page
     // has been clearing: set while it's processing, which the check below
     // holds, so its pages and payment history date it by this until it

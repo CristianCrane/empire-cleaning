@@ -56,6 +56,41 @@ test("a quote ready to answer says Ready, each option's badge under its title", 
   await expect(payAndBook(page).form).toBeVisible();
 });
 
+// #534's UX design, Screens 2 and 3: Home and their home say so too, as
+// it waits on us, not on them. Ends on Home, for its picture
+test("a quote whose day filled up is told on Home and by its home, with nothing to do", async ({
+  page,
+  browser,
+}) => {
+  await quoteSent(await office(browser), olive, casey);
+  // another booking takes all of Monday's 16 hours, from 2pm
+  await bookJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 16 });
+  await signedInAs(page, casey.email);
+  await page.goto("/portal/details");
+  const home = page
+    .getByRole("grid", { name: "Your home" })
+    .getByRole("row")
+    .first();
+  await expect(home).toContainText("Time unavailable");
+  await home.click();
+  await expect(
+    page.getByRole("grid", { name: "Quotes" }).getByRole("row"),
+  ).toContainText("Time unavailable");
+
+  await page.goto("/portal");
+  await expect(
+    page.getByText("Time unavailable", { exact: true }),
+  ).toBeVisible();
+  // what comes next leads, then which time filled (#534's UX review U1)
+  await expect(page.getByText("We'll send a new quote")).toBeVisible();
+  await expect(
+    page.getByText(
+      /^Mon, Jan 12, 9:00\sAM has filled up, so your quote for Deep Clean can't be accepted\.$/,
+    ),
+  ).toBeVisible();
+  await expect(page.getByText("Quote ready", { exact: true })).toHaveCount(0);
+});
+
 test("a quote whose day filled up has nothing next, declining its one action", async ({
   page,
   browser,
@@ -66,17 +101,19 @@ test("a quote whose day filled up has nothing next, declining its one action", a
   await quote(page, "Your quote from Empire Cleaning");
   const bookedUp = page
     .getByRole("status")
-    .filter({ hasText: "has been fully booked" });
+    .filter({ hasText: "has filled up" });
   // we are the team: it says what we'll do
   await expect(bookedUp).toHaveText(
-    "Sorry, Mon, Jan 12, 9:00 AM has been fully booked since we sent this quote, so it can't be accepted. We'll send you a new quote for another time.",
+    "Sorry, Mon, Jan 12, 9:00 AM has filled up since we sent this quote, so it can't be accepted. We'll send you a new quote for another time.",
   );
   // nothing to pay for and nothing waits on them, but they can still say
   // no: the page's one action, not the alert's
   await expect(payAndBook(page).form).toHaveCount(0);
   await expectNothingNext(page);
   // its badge and subtitle say so too: it waits on us, not on them
-  await expect(page.getByText("Fully booked", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Time unavailable", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("Ready", { exact: true })).toHaveCount(0);
   await expect(page.getByText(/^Open until/)).toHaveCount(0);
   // the alert says it once, not each option again

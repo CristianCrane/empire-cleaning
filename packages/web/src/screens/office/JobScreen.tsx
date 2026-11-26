@@ -21,8 +21,14 @@ import {
   type AssignmentView,
   type OfficeJob,
   formats,
+  onItsPage,
 } from "@empire-cleaning/models";
-import { MORE_HOURS, officeFix } from "@empire-cleaning/models";
+import {
+  CLIENT_TO_APPROVE,
+  MORE_HOURS,
+  officeFix,
+  officeRefused,
+} from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -86,7 +92,7 @@ import { QUOTE_A_PLAN, useStartDraft } from "./StartDraft.tsx";
 const w = screenWords.en;
 const { cleaners, cancelledLabel, jobStatusLabel } = w;
 
-const { formatDateTime, formatTime } = formats.en;
+const { formatDateTime, formatShortDay, formatTime } = formats.en;
 
 const booked = (job: OfficeJob) => job.status === "booked";
 
@@ -161,6 +167,10 @@ export function JobScreen() {
 const badgeOf = (
   job: OfficeJob,
 ): { label: string; tone: StatusTone } | null => {
+  // their bank wants them to approve it: theirs to do, and no failure
+  // (#534 Q7)
+  if (job.payment?.unpaid?.kind === "approve")
+    return { label: CLIENT_TO_APPROVE, tone: "warning" };
   if (job.payment?.unpaid) return { label: w.unpaid, tone: "danger" };
   switch (job.status) {
     // booked: below
@@ -208,7 +218,10 @@ function useActionsOf(job: OfficeJob): {
 
   // the steps a Job waits on, the first its next
   const [next, ...steps] = [
-    job.payment?.unpaid && retry,
+    // one their bank wants them to approve, they approve on its page, and
+    // one they turned down there, they try again there: trying it again
+    // here would only ask again
+    job.payment?.unpaid && !onItsPage(job.payment.unpaid.kind) && retry,
     reported && {
       label: "Review",
       icon: ClipboardCheck,
@@ -313,7 +326,39 @@ const alertsFor = (job: OfficeJob, next?: PageAction): Alert[] => {
       ),
     });
   }
-  if (job.payment && unpaid) {
+  if (job.payment && unpaid?.kind === "approve") {
+    const name = firstNameOf(job.client.name);
+    alerts.push({
+      key: "unpaid",
+      tone: "warning",
+      children: (
+        <p>
+          <strong>{name}'s bank wants them to approve the payment.</strong> None
+          of it was taken. We've emailed them to approve it on their clean's
+          page.
+        </p>
+      ),
+    });
+  } else if (job.payment && unpaid?.kind === "refused") {
+    // turned down at their bank on its page: theirs to try again, red as
+    // its badge, Unpaid (#534's review F18), on the day they did, as Jen
+    // may read it days on (#534's UX review U18): not since when it's owed,
+    // which may be days before (critical review C13)
+    alerts.push({
+      key: "unpaid",
+      tone: "danger",
+      children: (
+        <p>
+          <strong>
+            {firstNameOf(job.client.name)}'s payment wasn't approved at their
+            bank on{" "}
+            {formatShortDay(dayOfInstant(unpaid.refusedAt ?? unpaid.since))}.
+          </strong>{" "}
+          {officeRefused("their clean's page")}
+        </p>
+      ),
+    });
+  } else if (job.payment && unpaid) {
     // why: the provider's reason when it's one worth naming (unpaid.ts),
     // else, for a card turned down, that it was, as the Office can say so
     const why =

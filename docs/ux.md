@@ -171,10 +171,11 @@ Cleaner's Your jobs render through `HomePage`
 
 - **The greeting**: "Hi, Jen", by the person's first name, on an area's
   first page; Payments keeps its name, hidden on a phone where the bar
-  says it. Its one secondary action on the title row (a Client's Request a
-  quote; Payments has none, its Your card tile the one way there, #499's
-  UX review U3), which stands aside while the card asks something out of the
-  usual of them (below; #493).
+  says it. Home's one secondary action on the title row (Request a
+  quote) stands aside while the card asks something out of the usual of
+  them (below; #493). Payments has none: its Your card tile is the way
+  there, as a button to the same place beside it read as two ways (#534's
+  UX review U7, #499's U3).
 - **One answer card** (`AnswerCard`): what's next or what's owed, read left
   to right behind its tile (a `DateTile` for when, an `IconTile` for
   what), the kind of answer muted above, the answer large, a line or two,
@@ -199,6 +200,27 @@ Cleaner's Your jobs render through `HomePage`
   "Payment pending" and one line, that there's nothing to do (and, while
   it pauses a plan, "Until it goes through, we won't book more cleans on your
   plan."), and its way to see it outlined, as the page has no next step.
+  A quote that no longer waits on their answer (its Deposit going through,
+  "Payment pending"; a card saved with it while it books, "Booking
+  pending"; or its time filled since it was sent, "Time unavailable", its
+  answer "We'll send a new quote" before which time filled and at which
+  home, as "Fully booked" beside their clean read as that clean booked: UX
+  review U1) is a
+  state card on a Client's Home, calm as a paused plan's: after a booked
+  clean, a Site Visit or a paused plan, before the rest, so Home never
+  falls through to "Nothing booked" for one who just paid; with any of
+  those ahead of it, a News notice naming the quote (#534). Its home's
+  standing on Your details and its row on the home's page say the same,
+  in the same order (after the home's booked clean). On Payments its
+  Deposit going through is money owed that asks nothing, the calm card
+  (See your quote), or, under a card that asks, a Notice in Home's News
+  words; in All payments, one going through is Payment pending (as a
+  Bill's bank debit on its way is, the money gone from their bank: UX
+  review U3), and one given back unbooked is there with its refund, by
+  its quote. A quote ready
+  whose payment their bank is approving, or whose payment ended without
+  booking, leads the quotes ready, so its alert and card are about one
+  quote.
   With nothing waiting anywhere,
   offers to answer included, it says what's taken next (Next payment, Next bill)
   or, with nothing to come, To pay: Nothing, never "all paid up" while money
@@ -263,7 +285,11 @@ for a dialog. It renders through `FormPage`
   which the sent Quote offers too (ADR-0018), is an aside: one quiet
   line under it ("Also offered: Deep Clean $299.41"), its price and
   working folded behind it, and in the Service part its own price behind
-  a fold (the user, on #527: "The recommendation is an aside"). Under
+  a fold (the user, on #527: "The recommendation is an aside"). Once the
+  Client picks the one recommended, paying for it online or while the
+  alert says their payment for it ended, it leads instead, and Record
+  acceptance picks it, as they chose it; the one asked for is the aside,
+  "What Casey asked for." (#534's UX review U2, U8). Under
   each option's price, unfolded, the one asked for and that line both,
   why the client can't pick it at the time proposed ("The client can't
   pick it at this time: that day is too full."), a warning; in danger
@@ -291,7 +317,10 @@ for a dialog. It renders through `FormPage`
   the header (Notice's `answers`, #534). Such a
   form has an aside, its price, and the page is the content's width; a
   form alone keeps a form's width and its button in its card (FormPage's
-  type holds it).
+  type holds it). A next step beside a form, not its own button (Your
+  card's Try this card again, once their bank turned a payment down), is
+  the page's next the same way, the form's button staying at its card's
+  foot, secondary (#534's UX review U23).
 - **Outside an area** (Welcome), a page of its own, the logo above and
   who's signed in under it on a phone, beside it from `sm` (`PageFrame`),
   centred at a form's width with no aside.
@@ -389,7 +418,8 @@ The `ui` skill's rules hold here too; these are this product's.
   whose only action destroys has no primary, that action in the same
   place, outlined in red (`danger-outline`) (the `ui` skill); the
   destructive last in red after a rule. Short of room, the badge drops
-  under the title before the button moves. From md, once the window's top
+  under the title, then the button moves under it, so the title breaks
+  only where it can't fit alone (#534's UX review U6). From md, once the window's top
   reaches the title row's actions, a slim header sticks at the top with
   the title, the badge and the same actions (the split button, or the ⋯ or
   lone Button when nothing is next), lined up with the page's column (a
@@ -514,7 +544,11 @@ The `ui` skill's rules hold here too; these are this product's.
   things to say or do are two Notices. ("Notices hold one action")
 - **Tone means what a status's does**: warning for something waiting on
   someone, danger for something that failed or is late, info for what
-  they're waiting on us for, success for done.
+  they're waiting on us for, success for done. A payment that wasn't
+  approved at the Client's bank fits both, so its tone goes by whose step it is:
+  warning on the Client's pages, as trying again is theirs, and danger on
+  the Office's Job and Bill, as nothing there is the Office's to do and
+  the money isn't coming (#534).
 
 ### Words
 

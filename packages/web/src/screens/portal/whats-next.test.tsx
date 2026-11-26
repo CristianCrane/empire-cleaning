@@ -109,10 +109,15 @@ const quote = (over: Partial<UnsentQuoteSummary> = {}): QuoteSummary => ({
   siteVisit: null,
   turnDownReason: null,
   createdAt: "2026-10-31T13:00:00.000Z",
+  paying: null,
+  payingServiceName: null,
+  bookable: null,
   ...over,
 });
 // one with an offer: Sent, or Accepted, Declined or Expired since
-const offered = (over: Partial<OfferedQuoteSummary> = {}): QuoteSummary => ({
+const offered = (
+  over: Partial<OfferedQuoteSummary> = {},
+): OfferedQuoteSummary => ({
   ...quote(),
   status: "sent",
   headlineTotalCents: 39104,
@@ -201,7 +206,8 @@ describe("Home's hero, with nothing booked", () => {
       label: "Your quote is ready",
       headline: "Deep Clean $391.04",
       lines: [
-        "For Sun, Nov 8, 10:00\u00a0AM at 12 Elm St, 4B, 11375",
+        "For Sun, Nov 8, 10:00\u00a0AM",
+        "At 12 Elm St, 4B, 11375",
         "Open until Fri, Nov 13",
       ],
       action: { label: "See your quote" },
@@ -651,6 +657,360 @@ describe("Home's tiles: what else waits on the Client comes first", () => {
         ],
       }).tiles[0],
     ).toMatchObject({ href: { to: "/portal/details" } });
+  });
+});
+
+// #534's UX design, Screen 2: a quote's Deposit payment, and a quote whose
+// time filled. The Standard Clean, $194.89, its deposit $48.72, on a quote
+// that also offers the Deep Clean
+type Paying = NonNullable<QuoteSummary["paying"]>;
+const standard = offered({
+  headlineTotalCents: 19489,
+  headlineServiceName: "Standard Clean",
+  bookable: ["standard", "deep"],
+});
+const paid = (
+  paying: Partial<Paying> & Pick<Paying, "status">,
+  over: Partial<OfferedQuoteSummary> = {},
+): OfferedQuoteSummary =>
+  offered({
+    ...standard,
+    paying: { serviceKey: "standard", depositCents: 4872, ...paying } as Paying,
+    payingServiceName: "Standard Clean",
+    ...over,
+  });
+const going = paid({ status: "goingThrough" });
+const FOR = ["For Sun, Nov 8, 10:00 AM", "At 12 Elm St, 4B, 11375"];
+const ON = "on Sun, Nov 8, 10:00 AM at 12 Elm St, 4B, 11375";
+const NEW_QUOTE = "We'll send you a new quote for another time.";
+const planQuote = (
+  over: Partial<OfferedQuoteSummary> = {},
+): OfferedQuoteSummary =>
+  offered({
+    ...standard,
+    kind: "service_plan",
+    plan: {
+      recurrence: "weekly",
+      days: [
+        { startsAt: standard.proposedStartsAt, serviceName: "Standard Clean" },
+        { startsAt: "2026-11-10T15:00:00.000Z", serviceName: "Standard Clean" },
+      ],
+    },
+    bookable: ["sunday", "tuesday"],
+    ...over,
+  });
+const fullyBooked = offered({ ...standard, bookable: [] });
+const refunded = (
+  why: "no_room" | "revised" | "closed",
+  over: Partial<OfferedQuoteSummary> = {},
+) => paid({ status: "refunded", at: "", why } as Paying, over);
+
+describe("Home, while a quote's deposit is going through (#534)", () => {
+  test("a state card that asks nothing: what's paid, for which clean, and when", () => {
+    const { hero, why, asks, news, tiles } = next({ quotes: [going] });
+    expect(hero).toMatchObject({
+      label: "Payment pending",
+      tone: "info",
+      headline: "$48.72",
+      lines: ["Deposit for Standard Clean · Nothing you need to do.", ...FOR],
+      action: { label: "See your quote", secondary: true },
+    });
+    expect(why).toBeUndefined();
+    expect(asks).toBe(false);
+    expect(news).toEqual([]);
+    // it waits on nothing of theirs, so it's no quote to answer
+    expect(tiles.map((s) => s.label)).not.toContain("See your quote");
+  });
+
+  test("a plan's names the plan, and its first clean", () => {
+    expect(
+      next({ quotes: [{ ...planQuote(), paying: going.paying }] }).hero.lines,
+    ).toEqual([
+      "Deposit for your cleaning plan · Nothing you need to do.",
+      ...FOR,
+    ]);
+  });
+
+  test("a card their bank is approving, with nothing charged (0%): Booking pending", () => {
+    const card = paid({ status: "goingThrough", depositCents: 0 });
+    expect(next({ quotes: [card] }).hero).toMatchObject({
+      label: "Booking pending",
+      headline: "Standard Clean $194.89",
+      lines: [...FOR, "We'll email you as soon as your clean is booked."],
+    });
+    expect(next({ jobs: [job()], quotes: [card] }).news).toEqual([
+      `Your bank is finishing approving your card for the Standard Clean ${ON}. We'll email you as soon as it's booked, usually within half an hour.`,
+    ]);
+  });
+
+  test("under something booked or ready, it's News naming the quote", () => {
+    const pending = `Your deposit for the Standard Clean ${ON} is pending. We'll email you as soon as it's booked, usually within half an hour.`;
+    const booked = next({ jobs: [job()], quotes: [going] });
+    expect(booked.hero.label).toBe("Your first clean");
+    expect(booked.news).toEqual([pending]);
+    // another quote ready is the card, and no tile counts this one
+    const ready = next({ quotes: [going, { ...sentQuote, id: "quote-2" }] });
+    expect(ready.hero).toMatchObject({
+      label: "Your quote is ready",
+      headline: "Deep Clean $391.04",
+    });
+    expect(ready.news).toEqual([pending]);
+    expect(ready.tiles.map((s) => s.label)).not.toContain("See your quote");
+    // a plan's names its home
+    expect(
+      next({
+        jobs: [job()],
+        quotes: [{ ...planQuote(), paying: going.paying }],
+      }).news,
+    ).toEqual([
+      "Your deposit for your cleaning plan at 12 Elm St, 4B, 11375 is pending. We'll email you as soon as it's booked, usually within half an hour.",
+    ]);
+  });
+
+  test("in Spanish", () => {
+    const { hero } = whatsNext(data({ quotes: [going] }), "es", NOW);
+    expect(hero).toMatchObject({
+      label: "Pago pendiente",
+      lines: [
+        "Depósito de Standard Clean · No tiene que hacer nada.",
+        expect.any(String),
+        "En 12 Elm St, 4B, 11375",
+      ],
+      action: { label: "Ver su cotización" },
+    });
+    expect(
+      whatsNext(data({ jobs: [job()], quotes: [going] }), "es", NOW).news,
+    ).toEqual([
+      "Su depósito de la Standard Clean del dom, 8 de nov, 10:00 a.m. en 12 Elm St, 4B, 11375 está pendiente. Le enviaremos un correo en cuanto quede reservada, normalmente en menos de media hora.",
+    ]);
+  });
+});
+
+describe("Home, as a quote's deposit waits on their bank or ends unbooked (#534)", () => {
+  test("their bank waiting on them: still their quote to answer, with a line saying so", () => {
+    const { hero } = next({
+      quotes: [
+        { ...sentQuote, id: "quote-2" },
+        paid({ status: "approving", until: "" }),
+      ],
+    });
+    // among quotes ready, the one with a payment leads
+    expect(hero).toMatchObject({
+      label: "Your quote is ready",
+      headline: "Standard Clean $194.89",
+      lines: [
+        ...FOR,
+        "Open until Fri, Nov 13",
+        "Your bank hasn't approved your payment yet.",
+      ],
+      action: { label: "See your quote" },
+    });
+    expect(
+      next({
+        quotes: [paid({ status: "approving", until: "", depositCents: 0 })],
+      }).hero.lines[3],
+    ).toBe("Your bank hasn't approved your card yet.");
+  });
+
+  test("didn't go through, or wasn't approved: an alert over its card, or News under what asks", () => {
+    const failed = paid({
+      status: "failed",
+      at: "",
+      why: "the card has expired",
+    });
+    expect(next({ quotes: [failed] }).why).toEqual({
+      tone: "danger",
+      lead: "Your payment for Standard Clean didn't go through (the card has expired).",
+    });
+    expect(
+      next({ quotes: [paid({ status: "notApproved", at: "" })] }).why,
+    ).toEqual({
+      tone: "info",
+      lead: "Your payment for Standard Clean wasn't approved, so nothing was taken.",
+    });
+    const asked = next({
+      pastJobs: [pastJob({ waiting: changes(1) })],
+      quotes: [failed],
+    });
+    expect(asked.hero.label).toBe("A price change to answer");
+    expect(asked.news).toEqual([
+      `Your payment for the Standard Clean ${ON} didn't go through (the card has expired).`,
+    ]);
+    // a plan's names its home, and a card saved with nothing charged says so
+    expect(
+      next({
+        quotes: [{ ...planQuote(), paying: failed.paying }],
+      }).why?.lead,
+    ).toBe(
+      "Your payment for your cleaning plan at 12 Elm St, 4B, 11375 didn't go through (the card has expired).",
+    );
+    expect(
+      next({
+        quotes: [paid({ status: "notApproved", at: "", depositCents: 0 })],
+      }).why?.lead,
+    ).toBe(
+      "Your card for Standard Clean wasn't approved, so nothing was booked.",
+    );
+  });
+
+  test("refunded as the quote was updated, or its time filled for it while another fits: over the quote ready", () => {
+    expect(next({ quotes: [refunded("revised")] }).why).toEqual({
+      tone: "info",
+      lead: "We've refunded your deposit for Standard Clean.",
+      more: "Your quote was updated while your bank was approving the payment.",
+    });
+    // the server leads its headline with what can still be booked
+    const fits = refunded("no_room", {
+      bookable: ["deep"],
+      headlineTotalCents: 39104,
+      headlineServiceName: "Deep Clean",
+    });
+    const { hero, why } = next({ quotes: [fits] });
+    expect(hero).toMatchObject({
+      label: "Your quote is ready",
+      headline: "Deep Clean $391.04",
+    });
+    expect(why).toEqual({
+      tone: "info",
+      lead: "We've refunded your deposit for Standard Clean.",
+      more: "That time filled up for it while your bank was approving the payment. The Deep Clean can still be booked then.",
+    });
+    // a quote ready leads over a clean booked, so only what asks puts it
+    // in News
+    const asks = { pastJobs: [pastJob({ waiting: changes(1) })] };
+    expect(next({ ...asks, quotes: [refunded("revised")] }).news).toEqual([
+      `We've refunded your deposit for the Standard Clean ${ON}, as your quote was updated while your bank was approving the payment. Please take a look at what's changed.`,
+    ]);
+    expect(next({ ...asks, quotes: [fits] }).news).toEqual([
+      `We've refunded your deposit for the Standard Clean ${ON}, as that time filled up for it while your bank was approving the payment. The Deep Clean can still be booked then.`,
+    ]);
+  });
+
+  test("refunded on a quote now closed: over how it ended, while that's Home's card", () => {
+    const expired = refunded("closed", { status: "expired" });
+    expect(next({ quotes: [expired] })).toMatchObject({
+      hero: { label: "Your quote expired" },
+      why: {
+        tone: "info",
+        lead: "We've refunded your deposit for Standard Clean.",
+        more: "Your quote expired while your bank was approving the payment.",
+      },
+    });
+    // its card says why: the money's what's new
+    // a Turned Down quote has no offer (models' UnsentQuoteSummary)
+    const turnedDown = quote({
+      status: "turned_down",
+      turnDownReason: "out_of_area",
+      paying: refunded("closed").paying,
+      payingServiceName: "Standard Clean",
+    });
+    expect(next({ quotes: [turnedDown] }).why).toEqual({
+      tone: "info",
+      lead: "We've refunded your deposit for Standard Clean.",
+    });
+    // Home is about what's ahead: the quote's page and Payments keep it
+    const later = next({ jobs: [job()], quotes: [expired] });
+    expect([later.why, later.news]).toEqual([undefined, []]);
+  });
+
+  test("a card saved with nothing charged and never used says what wasn't booked", () => {
+    const updated = refunded("revised");
+    const card = {
+      ...updated,
+      paying: { ...updated.paying!, depositCents: 0 },
+    } as QuoteSummary;
+    expect(next({ quotes: [card] }).why).toEqual({
+      tone: "info",
+      lead: "Your Standard Clean wasn't booked.",
+      more: "Your quote was updated while your bank was approving your card.",
+    });
+  });
+});
+
+describe("Home, with a quote whose time filled since it was sent (#534)", () => {
+  // what comes next leads, large, and the badge doesn't say "booked", as
+  // beside their clean it read as their clean booked (UX review U1)
+  test("a state card, not a quote to answer: what comes next, then which time filled", () => {
+    const { hero, tiles } = next({ quotes: [fullyBooked] });
+    expect(hero).toMatchObject({
+      label: "Time unavailable",
+      tone: "info",
+      headline: "We'll send a new quote",
+      lines: [
+        "Sun, Nov 8, 10:00\u00a0AM has filled up, so your quote for Standard Clean can't be accepted.",
+        "At 12 Elm St, 4B, 11375",
+      ],
+      action: { label: "See your quote", secondary: true },
+    });
+    expect(tiles.map((s) => s.label)).not.toContain("See your quote");
+    // a payment waiting on their bank can't book it: the card says what's true
+    expect(
+      next({
+        quotes: [paid({ status: "approving", until: "" }, { bookable: [] })],
+      }).hero.label,
+    ).toBe("Time unavailable");
+  });
+
+  test("a plan's names the days, not one time, and its home", () => {
+    expect(next({ quotes: [planQuote({ bookable: [] })] }).hero.lines).toEqual([
+      "One of the days your plan starts on has filled up, so its quote can't be accepted.",
+      "At 12 Elm St, 4B, 11375",
+    ]);
+    // a change to the plan they have: its new days
+    expect(
+      next({
+        quotes: [planQuote({ bookable: [], homePlanId: "plan" })],
+      }).hero.lines[0],
+    ).toBe(
+      "One of the new days for your plan has filled up, so the change can't be accepted. Your plan stays as it is.",
+    );
+  });
+
+  test("under something ahead of it, News naming the quote", () => {
+    expect(next({ jobs: [job()], quotes: [fullyBooked] }).news).toEqual([
+      `Sun, Nov 8, 10:00 AM has filled up, so your quote for Standard Clean at 12 Elm St, 4B, 11375 can't be accepted. ${NEW_QUOTE}`,
+    ]);
+    expect(
+      next({ jobs: [job()], quotes: [planQuote({ bookable: [] })] }).news,
+    ).toEqual([
+      `One of the days your cleaning plan at 12 Elm St, 4B, 11375 starts on has filled up, so its quote can't be accepted. ${NEW_QUOTE}`,
+    ]);
+    expect(
+      next({
+        jobs: [job()],
+        quotes: [planQuote({ bookable: [], homePlanId: "plan" })],
+      }).news,
+    ).toEqual([
+      "One of the new days for your cleaning plan at 12 Elm St, 4B, 11375 has filled up, so the change can't be accepted. Your plan stays as it is, and we'll send you a new quote for another time.",
+    ]);
+  });
+
+  test("a deposit refunded as it filled: an alert over its card, or its News in place of the card's", () => {
+    const filled = refunded("no_room", { bookable: [] });
+    expect(next({ quotes: [filled] })).toMatchObject({
+      hero: { label: "Time unavailable" },
+      why: {
+        tone: "info",
+        lead: "We've refunded your deposit for Standard Clean.",
+        more: "That time filled up while your bank was approving the payment.",
+      },
+    });
+    expect(next({ jobs: [job()], quotes: [filled] }).news).toEqual([
+      `We've refunded your deposit for the Standard Clean ${ON}, as that time filled up while your bank was approving the payment. ${NEW_QUOTE}`,
+    ]);
+  });
+
+  test("a deposit going through leads it, as money on its way is what they came to check", () => {
+    const { hero, news } = next({
+      quotes: [
+        going,
+        { ...fullyBooked, id: "quote-2", headlineServiceName: "Deep Clean" },
+      ],
+    });
+    expect(hero.label).toBe("Payment pending");
+    expect(news).toEqual([
+      `Sun, Nov 8, 10:00 AM has filled up, so your quote for Deep Clean at 12 Elm St, 4B, 11375 can't be accepted. ${NEW_QUOTE}`,
+    ]);
   });
 });
 

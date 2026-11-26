@@ -35,14 +35,15 @@ router.get(
 );
 
 // pays it on its page, with the card or bank account they entered in the
-// payment form (/api/payment-methods/form): paid, a bank debit on its way,
-// going through, or their bank asking them to approve it (BillPayOutcome)
+// payment form (/api/payment-methods/form), or their saved card: paid, a
+// bank debit on its way, going through, or their bank asking them to
+// approve it (BillPayOutcome)
 router.post(
   "/mine/:id/payment",
   authorize("client"),
   validate({
     params: byId,
-    body: z.object({ token: z.string().min(1) }),
+    body: z.object({ token: z.string().min(1).optional() }),
   }),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);

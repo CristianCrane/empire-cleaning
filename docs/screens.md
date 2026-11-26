@@ -126,8 +126,9 @@ Keeps: action first, count tiles (#94, ux-office-today). Renders through
 `HomePage` (#435).
 
 - Header: "Hi, name", not in the bar.
-- Body: the first to-do (`AnswerCard`, led by what to do, the primary), or
-  all clear; tiles On today, Jobs, Quotes and Money (`?open=`), each
+- Body: the first to-do (`AnswerCard`, led by what to do, the primary;
+  one waiting on the Client, a payment to approve or try again, says so in
+  a line and only opens it, secondary), or all clear; tiles On today, Jobs, Quotes and Money (`?open=`), each
   opening its rows in place, to-do rows led by what to do; On today's rows
   the day's Jobs, then Open the Schedule.
 
@@ -235,7 +236,13 @@ Keeps: a record as its story (#145). Renders through `RecordPage` (#432).
   the visit to book or booked, the draft not sent, no card to record a yes
   by phone (its one action, Email a link to add a card), the time filled
   up, the plan an acceptance started or changed; the home's plan, the plan
-  change.
+  change. The Client's Deposit paid online: while their bank asks them to
+  approve it (warning: who, and when it's called off) or is finishing it
+  (info: "usually takes under half an hour", and what Jen can do once it's
+  done), Record acceptance greyed; once their latest payment took nothing,
+  while the quote's open, when and why, and that they can try again (info
+  if never approved, danger if it didn't go through) (#534's UX design,
+  Screen 5).
 - Body: a Timeline, Now on top holding Current quote (Card; once a
   one-off is accepted, only the Service booked, "Booked for" its time), then
   each moment; What was asked folded (`Fold`) under its entry, the home's
@@ -475,7 +482,9 @@ Keeps: what's next, date tile, shortcut tiles (ux-portal). Renders through
   something of them (the amount, Pay or Update your card), else a price
   change to answer (what it adds, Review the price change), else that
   morning's How we get in, else a quote ready, else the next clean
-  (`DateTile`, the primary), else the plan paused (its way to it outlined) or where they stand;
+  (`DateTile`, the primary), else the plan paused (its way to it outlined),
+  else a quote that waits on nothing of theirs (Payment pending, Booking
+  pending, Time unavailable; See your quote outlined), or where they stand;
   news (info Notices); up to four link tiles, what else waits on them
   first (a quote, a price change with what it adds and by when), then
   shortcuts.
@@ -495,11 +504,15 @@ Keeps: Tabs, by month, date tiles (ux-portal). Renders through `ListPage`
 Keeps: what you owe first (ux-portal); Your card a tile alone (#499's UX review U3). Renders through
 `HomePage` (#435).
 
-- Header: "Payments" in the bar; no title-row action, as Your card's tile is the way there.
-- Body: what you owe (`AnswerCard`: `IconTile`, the primary; for a payment we try again ourselves, or their bank payment on its way, Payment pending, one line (and one while it pauses a plan), its link outlined; while their bank asks them to approve a payment, a line under when it's due saying so; a Bill whose payment on its page didn't go through leads, in red, saying why, and naming the Bill when the card's line doesn't; Pay the bill when its line names it); else what's taken next (#508), in blue: the rest of the next clean's price, after it; the next weekly Bill's so far, charged to their card or billed to them, and its Monday; or, with only a clean booked, the Monday of the Bill it goes on; else To pay, Nothing, in green;
+- Header: "Payments" in the bar, with no action: Your card is its tile (#534's UX review U7).
+- Body: what you owe (`AnswerCard`: `IconTile`, the primary; for a payment we try again ourselves, their bank payment on its way, or a quote's Deposit going through, Payment pending, one line (and one while it pauses a plan), its link outlined (See your quote for a Deposit); while their bank asks them to approve a payment, a line under when it's due saying so; a Bill whose payment on its page didn't go through leads, in red, saying why, and naming the Bill when the card's line doesn't; Pay the bill when its line names it); else what's taken next (#508), in blue: the rest of the next clean's price, after it; the next weekly Bill's so far, charged to their card or billed to them, and its Monday; or, with only a clean booked, the Monday of the Bill it goes on; else To pay, Nothing, in green;
   Notices of payments clearing, each naming its Bill only when the card
-  doesn't (beside another, or under a card about something else); tiles All payments (`?open=history`, the
-  Statement by month in place) and Your card (a link).
+  doesn't (beside another, or under a card about something else), and of
+  a quote's Deposit going through under a card that asks something else,
+  in Home's News words; tiles All payments (`?open=history`, the
+  Statement by month in place: a Deposit going through, Payment
+  pending, and one given back unbooked, "Not booked", and its refund,
+  each opening its quote) and Your card (a link).
 
 #### Client portal > Your details
 
@@ -517,15 +530,17 @@ Keeps: on the Payment Method page (ux-portal). Renders through `FormPage`
 (#434).
 
 - Header: Payments › Your card; the title; "How your card is used", folded.
-- Notices: what the card failed to take, its cleans and weekly Bills, each
-  with its amount, and why when they share one (Try this card again, a
-  text Button, its problem a Toast, only for a declined card: an expired one
-  asks for a new card below); or Paid, what the server says that press or
-  save took; or Payment pending, naming what's still going through, with
-  nothing to do (we try it again ourselves); or the card saved;
-  or info.
+- Notices: the first payment the card failed to take, a clean's or a
+  weekly Bill's, with its amount and why, and how many more come after it
+  (Try this card again, a danger text Button, one payment per press, its
+  bank's approval asked in place and its problem a Toast, only for a
+  declined card: an expired one asks for a new card below); or that one
+  turned down at their bank (amber, its Try this card again the page's
+  next step, #534's UX review U23); or Paid, or Payment pending naming
+  what's still going through with nothing to do, from what saving a card
+  took; or the card saved; or info.
 - Body: one Card: the card field; what saving agrees to, and Save card, at
-  its foot.
+  its foot, secondary beside a next step.
 
 #### Client portal > Request a quote
 
@@ -568,12 +583,12 @@ Keeps: the Record (ux-portal). Renders through `RecordPage` (#432).
 Keeps: read like a Quote, paying under it (#165). Renders through `RecordPage` (#432).
 
 - Header: Home › Your quote; the title and its status (Ready while it's
-  theirs to answer, Fully booked once its day filled up); "updated · open
+  theirs to answer, Time unavailable once its time filled up); "updated · open
   until", while it applies.
-- Actions: turned down, Request a quote the primary; booked up, Decline
+- Actions: turned down, Request a quote the primary; its time filled up, Decline
   this quote its one action (a Button); else none.
 - Alerts: each only why: how it ended (accepted, declined, expired, turned
-  down), what it does to the plan, booked up.
+  down), what it does to the plan, its time filled up.
 - Body: Quote details (`DetailsCard`: what it comes to, icon facts, how
   long its crew is there, on each option too, a plan's once when its
   weekdays match, else one fact per length naming its weekdays, no
@@ -601,7 +616,9 @@ Keeps: a list of homes, each with its own page (ux-portal). Renders through `Rec
 - Header: Your details › street; the street and its standing.
 - Actions: one Button (Edit how we get in).
 - Body: Details (`DetailsCard`: the full address, icon facts); Plans
-  (Section: List, or an `ActionRow`); Quotes (Section: List).
+  (Section: List, or an `ActionRow`); Quotes (Section: List, each row's
+  badge its state, or what it waits on that's nothing of theirs, as Home
+  names it).
 
 #### Client portal > Bill
 

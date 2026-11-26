@@ -816,16 +816,18 @@ const portalPaymentsRoute = createRoute({
   path: "/payments",
   validateSearch: homeUrl(paymentsTiles),
   loader: async () => {
-    const [plans, pastJobs, bills, paymentMethod, history, next] =
+    const [plans, pastJobs, bills, paymentMethod, history, quotes, next] =
       await Promise.all([
         getJson<ServicePlanSummary[]>("/api/service-plans/mine"),
         getJson<ClientPastJob[]>("/api/jobs/mine/past"),
         getJson<BillSummary[]>("/api/bills/mine"),
         ownPaymentMethod(),
         getJson<ClientPayment[]>("/api/payments/mine"),
+        // a Deposit going through is money on its way (#534)
+        getJson<QuoteSummary[]>("/api/quotes/mine"),
         getJson<NextCharge | null>("/api/payments/mine/next"),
       ]);
-    return { plans, pastJobs, bills, paymentMethod, history, next };
+    return { plans, pastJobs, bills, paymentMethod, history, quotes, next };
   },
   component: PortalPayments,
 });

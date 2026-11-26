@@ -1,17 +1,8 @@
-import {
-  asksTheClient,
-  catalog,
-  formats,
-  messages,
-  type CardPayment,
-  type CardRetried,
-} from "@empire-cleaning/models";
-import { currentLanguage } from "#services/request";
-import { ConflictError } from "../../middleware/errors.ts";
+import type { CardPayment, CardRetried } from "@empire-cleaning/models";
 import { retryUnpaidBillsFor } from "../bills/bills.ts";
 import { retryUnpaidJobsFor } from "../completion/completion.ts";
 import { WAITING_ON_PROVIDER } from "./money.ts";
-import { stillNotPaid, unpaidKind, type CardTried } from "./unpaid.ts";
+import type { CardTried } from "./unpaid.ts";
 
 // Tries again everything a Client's saved Payment Method failed to take:
 // their Unpaid Jobs, then their automatic Bills; says how each went
@@ -45,58 +36,3 @@ export const tookOf = (retried: CardTried[]): CardRetried => ({
   took: retried.filter((r) => r.takenCents > 0).map((r) => at(r, r.takenCents)),
   goingThrough: retried.flatMap(waitingOf),
 });
-
-// what the API says to a Client trying their card again, in their language
-// (ADR-0025)
-const words = catalog({
-  en: {
-    differentCard: "You can save a different card below.",
-    tookOnly: (amount: string, failed: string) =>
-      `We took ${amount}, but not the rest. ${failed}`,
-    nothingToTake:
-      "Nothing was taken: it's paid, or its payment is still going through.",
-  },
-  es: {
-    differentCard: "Puede guardar otra tarjeta abajo.",
-    tookOnly: (amount: string, failed: string) =>
-      `Cobramos ${amount}, pero no el resto. ${failed}`,
-    nothingToTake:
-      "No se cobró nada: ya está pagado, o su pago todavía está en proceso.",
-  },
-});
-
-/**
- * The Client's "Try this card again" on Your card (#499): every payment
- * their card failed to take, its cleans and its weekly Bills, tried at once.
- * Resolves with what it took, and what's still going through, when
- * nothing failed that's theirs to put right; else a 409 says what
- * happened, what was taken first. One the payment service left processing
- * or couldn't be reached for isn't theirs: we try it again ourselves, so it
- * answers as still going through, as saving a card does (critical review
- * C10). One that failed on our side says to try later (C12).
- */
-export const clientRetry = async (clientId: string) => {
-  const retried = await retryUnpaidFor(clientId);
-  const lang = currentLanguage();
-  const said = words[lang];
-  const result = tookOf(retried);
-  const theirs = retried.find(
-    (r) => r.failure && asksTheClient(unpaidKind(r.failure)),
-  )?.failure;
-  // theirs to put right first, else one that failed on our side (C12)
-  const failed = theirs
-    ? `${stillNotPaid(lang, theirs)} ${said.differentCard}`
-    : retried.some((r) => "errored" in r)
-      ? messages[lang].couldntRetry
-      : null;
-  if (!failed) {
-    if (result.took.length > 0 || result.goingThrough.length > 0) return result;
-    throw new ConflictError(said.nothingToTake);
-  }
-  const takenCents = result.took.reduce((sum, p) => sum + p.cents, 0);
-  throw new ConflictError(
-    takenCents > 0
-      ? said.tookOnly(formats[lang].formatMoney(takenCents), failed)
-      : failed,
-  );
-};

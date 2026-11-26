@@ -339,23 +339,27 @@ const formField = (
  * wants them to approve it, `approve(secret)` runs that approval (e.g. 3D
  * Secure) here. That can happen paying with a saved card too, so the card
  * box is only shown with `showCard`, but approval always works. `pay` runs
- * the whole of it, the one way each payment goes.
+ * the whole of it, the one way each payment goes. A page that may have
+ * nothing to pay loads the form only once it does (`needed`).
  */
 export function usePaymentForm({
   amountCents,
   showCard = true,
   methods = "card",
   saves = true,
+  needed = true,
 }: {
   amountCents: number;
   showCard?: boolean;
   methods?: Methods;
   saves?: boolean;
+  needed?: boolean;
 }) {
   const t = useCardWords();
   const { w, locale } = t;
-  const { value: form, failed } = useLoaded("payment-form", () =>
-    getJson<PaymentForm>("/api/payment-methods/form"),
+  const { value: form, failed } = useLoaded(
+    needed ? "payment-form" : undefined,
+    () => getJson<PaymentForm>("/api/payment-methods/form"),
   );
   const [problem, setProblem] = useState<string>();
 

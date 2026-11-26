@@ -2,6 +2,7 @@ import { catalog } from "../language.ts";
 import { assignments } from "./assignments.ts";
 import { bills } from "./bills.ts";
 import { cancellation } from "./cancellation.ts";
+import { deposits } from "./deposits.ts";
 import { jobs } from "./jobs.ts";
 import { payments } from "./payments.ts";
 import { plans } from "./plans.ts";
@@ -19,6 +20,7 @@ export const messages = catalog({
     ...assignments.en,
     ...bills.en,
     ...cancellation.en,
+    ...deposits.en,
     ...jobs.en,
     ...payments.en,
     ...plans.en,
@@ -29,6 +31,7 @@ export const messages = catalog({
     ...assignments.es,
     ...bills.es,
     ...cancellation.es,
+    ...deposits.es,
     ...jobs.es,
     ...payments.es,
     ...plans.es,
@@ -39,6 +42,14 @@ export const messages = catalog({
 
 // the rules the words state, and the Office's own words
 export { RELEASE_CUTOFF_HOURS } from "./assignments.ts";
+export {
+  depositAlertOf,
+  depositGoalOf,
+  type DepositAlert,
+  type DepositGoal,
+  type DepositNamed,
+  type DepositUnbooked,
+} from "./deposits.ts";
 export {
   paymentNotDone,
   bankPaymentOnWay,
@@ -63,12 +74,24 @@ export {
   whyNoRoom,
   type NoRoom,
 } from "./jobs.ts";
-export { asksTheClient, because, officeFix } from "./payments.ts";
 export {
+  asksTheClient,
+  onItsPage,
+  because,
+  CLIENT_TO_APPROVE,
+  officeFix,
+  officeRefused,
+} from "./payments.ts";
+export {
+  acceptedWith,
+  type AcceptedWith,
   clientPaying,
+  filledDaysOf,
+  type FilledDays,
   needsVisit,
   noEmailYet,
   notSeenYet,
+  payingFor,
   placeOwner,
   type PayingFor,
 } from "./quotes.ts";

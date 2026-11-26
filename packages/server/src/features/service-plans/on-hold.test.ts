@@ -1,7 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import { eq } from "drizzle-orm";
 import { db } from "#db";
-import { jobs } from "#features/jobs";
 import type {
   ClientPastJob,
   NeedsAttentionItem,
@@ -18,7 +16,6 @@ import {
   testPayments,
 } from "../../../tests/harness.ts";
 import { casey, crewedServicePlan } from "../../../tests/fixtures.ts";
-import { UNREACHABLE } from "../payments/money.ts";
 import { generateServicePlanJobs } from "./service-plans.ts";
 
 // Casey's weekly plan from 9am on Monday 19 January 2026, its Jobs booked up
@@ -112,14 +109,14 @@ describe("a plan Job left Unpaid", () => {
   });
 
   test("resumes its plan once paid, booking Jobs again from the next date to come", async () => {
-    const { office, client, planId } = await heldPlan();
+    const { office, client, planId, jobId } = await heldPlan();
 
     // On Hold for weeks: 16 February to 2 March come and go unbooked
     testClock().set(new Date("2026-03-03T16:00:00Z"));
     expect(await generateServicePlanJobs()).toBe(0);
 
     testPayments().failCharges(null);
-    await client.post("/api/payments/mine/retry").expect(200);
+    await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(200);
     expect((await clientPlan(client, planId)).status).toBe("active");
     expect(
       (await needsAttention(office)).filter((i) => i.kind === "plan_on_hold"),
@@ -139,12 +136,12 @@ describe("a plan Job left Unpaid", () => {
   });
 
   test("resuming less than a day before its next date books it, tells the Client, and lets them skip it free (#242)", async () => {
-    const { client, planId } = await heldPlan();
+    const { client, planId, jobId } = await heldPlan();
 
     // paid at 3pm on Sunday 15 February: Monday's 9am clean comes next
     testClock().set(new Date("2026-02-15T20:00:00Z"));
     testPayments().failCharges(null);
-    await client.post("/api/payments/mine/retry").expect(200);
+    await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(200);
     await generateServicePlanJobs();
 
     const monday = (await clientPlan(client, planId)).upcoming.find(
@@ -270,137 +267,65 @@ describe("saving a card that takes one payment while another can't reach the pro
   });
 });
 
-// critical review C10, its retry half: Try this card again, in the same
-// spot, answers as saving a card does, not with a 409
-describe("Try this card again, taking one payment while another can't reach the provider", () => {
-  test("answers what it took, and that the rest is still going through", async () => {
-    const { office, client, planId } = await heldPlan();
-    const second = (await officePlan(office, planId)).jobs.find(
-      (j) => j.startsAt === "2026-01-26T14:00:00.000Z",
-    )!;
-    testClock().set(new Date("2026-01-25T15:00:00Z"));
-    await client
-      .post(`/api/jobs/mine/${second.id}/cancel`)
-      .send({ feeCents: PLAN_DEPOSIT })
-      .expect(200);
-
-    testPayments().failCharges(null);
-    const held = testPayments().holdNextCharge();
-    const retrying = client.post("/api/payments/mine/retry").then((r) => r);
-    await held.reached;
-    testPayments().goDown();
-    held.release();
-    const res = await retrying;
-    testPayments().goDown(false);
-
-    expect(res.status).toBe(200);
-    expect(res.body.took).toHaveLength(1);
-    // the other fee, named at what it owes (review F20)
-    const left = (
-      (await client.get("/api/jobs/mine/past").expect(200))
-        .body as ClientPastJob[]
-    ).filter((j) => j.unpaid);
-    expect(res.body.goingThrough).toEqual([
-      expect.objectContaining({
-        kind: "clean",
-        id: left[0]!.id,
-        cents: left[0]!.owedCents,
-      }),
-    ]);
-  });
-});
+// saves a new card, which tries each payment their card failed to take
+// again: the answer says what that took (#499)
+const saveCard = async (client: Agent) => {
+  const form = (
+    await client.post("/api/payment-methods/mine/card-form").expect(200)
+  ).body as { secret: string };
+  return client.put("/api/payment-methods/mine").send({ token: form.secret });
+};
 
 // critical review C12: a retry that errored on our side (retryJob threw,
 // so retryUnpaidJobsFor pushes NOT_SETTLED, completion.ts) leaves the Job
 // Unpaid for the reason it had, which nothing tries again by itself, so
-// it isn't going through: the press answers 409, saying to try later, or
-// Your card, its alert still up, would say nothing of it
-describe("Try this card again, when trying a payment again errors on our side", () => {
-  test("says it couldn't try again, not that it's going through", async () => {
+// saving the card doesn't say it's going through, or Your card would say
+// Payment pending of what nothing will take
+describe("saving a card, when trying a payment again errors on our side", () => {
+  test("doesn't say it's going through, and the next save takes nothing more", async () => {
     const { client, jobId } = await heldPlan();
     testPayments().failCharges(null);
     const asked = testPayments().paymentAttempts.length;
     // recording the Charge fails, as a database error would
-    const res = await refusingInserts("charges", () =>
-      client.post("/api/payments/mine/retry"),
-    );
+    const res = await refusingInserts("charges", () => saveCard(client));
 
-    // still Unpaid, as before the press, and still theirs to read
+    // still Unpaid, as before, and still theirs to read
     const owed = (
       (await client.get("/api/jobs/mine/past").expect(200))
         .body as ClientPastJob[]
     ).find((j) => j.id === jobId)!;
     expect(owed.unpaid).toMatchObject({ kind: "declined" });
-    // the provider took it before our error: the next press records that
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ took: [], goingThrough: [] });
+    // the provider took it before our error: the next save records that
     // and asks for nothing more
     expect(testPayments().paymentAttempts.length).toBe(asked + 1);
-    expect(
-      (await client.post("/api/payments/mine/retry").expect(200)).body,
-    ).toMatchObject({ took: [expect.objectContaining({ id: jobId })] });
+    const again = await saveCard(client);
+    expect(again.status).toBe(200);
+    expect(again.body).toMatchObject({
+      took: [expect.objectContaining({ id: jobId })],
+    });
     expect(testPayments().paymentAttempts.length).toBe(asked + 1);
-
-    expect(res.status).toBe(409);
-    expect(res.body.message).toBe("We couldn't try again. Please try later.");
   });
 });
 
-// critical review C13: retryJob reads what a failed Job still owes
-// (leftCents) after settleJob has committed, in reads of its own
-// (completion.ts, jobWithOwner and paymentOf). One of those failing turns a
-// settled retry, its decline recorded, into one that "errored", so the
-// Client is told to try later, not to update their card
-describe("Try this card again, declined, when reading what's still owed fails", () => {
-  test("still says it didn't go through, not that it couldn't try", async () => {
+// critical review C14: once settleJob has committed, retryJob still reads
+// the Job again for the receipt (jobWithOwner, paymentOf). That failing
+// turned a retry that took the money into one that "errored"
+// (retryUnpaidJobsFor's catch), so saving a card said nothing of it
+describe("saving a card that takes a payment, when reading for the receipt fails", () => {
+  test("says what it took", async () => {
     const { client, jobId } = await heldPlan();
+    testPayments().failCharges(null);
     const select = db.select.bind(db);
-    // only the read after the settle's commit fails, as a dropped
-    // connection would
     const spy = vi.spyOn(db, "select").mockImplementation(((...args: []) => {
       if (new Error().stack?.includes("jobWithOwner"))
-        throw new Error("C13: the read after the settle");
+        throw new Error("C14: the read after the settle");
       return select(...args);
     }) as typeof db.select);
     let res;
     try {
-      res = await client.post("/api/payments/mine/retry");
-    } finally {
-      spy.mockRestore();
-    }
-
-    // the decline was recorded: the settle committed
-    const owed = (
-      (await client.get("/api/jobs/mine/past").expect(200))
-        .body as ClientPastJob[]
-    ).find((j) => j.id === jobId)!;
-    expect(owed.unpaid).toMatchObject({ kind: "declined" });
-    expect(res.status).toBe(409);
-    expect(res.body.message).toContain("didn't go through");
-  });
-});
-
-// critical review C14: C13's cause on retryJob's other two paths. Once
-// settleJob has committed, retryJob still reads the Job again outside
-// notify: on success, for the receipt (jobWithOwner, paymentOf), and when
-// a retry made it the Client's to put right, in sendUnpaid. One of those
-// failing turns a retry that ran, its result saved, into one that
-// "errored" (retryUnpaidJobsFor's catch)
-const failingJobWithOwner = () => {
-  const select = db.select.bind(db);
-  return vi.spyOn(db, "select").mockImplementation(((...args: []) => {
-    if (new Error().stack?.includes("jobWithOwner"))
-      throw new Error("C14: the read after the settle");
-    return select(...args);
-  }) as typeof db.select);
-};
-
-describe("Try this card again, taken, when reading for the receipt fails", () => {
-  test("says what it took, not that it couldn't try", async () => {
-    const { client, jobId } = await heldPlan();
-    testPayments().failCharges(null);
-    const spy = failingJobWithOwner();
-    let res;
-    try {
-      res = await client.post("/api/payments/mine/retry");
+      res = await saveCard(client);
     } finally {
       spy.mockRestore();
     }
@@ -415,32 +340,5 @@ describe("Try this card again, taken, when reading for the receipt fails", () =>
     expect(res.body).toMatchObject({
       took: [expect.objectContaining({ id: jobId, cents: PLAN_DEPOSIT })],
     });
-  });
-});
-
-describe("Try this card again, newly declined, when reading for the notice fails", () => {
-  test("still says it didn't go through, not that it couldn't try", async () => {
-    const { client, jobId } = await heldPlan();
-    // Unpaid as one we try again ourselves, so a decline now makes it the
-    // Client's (becameUnpaid), and sendUnpaid runs
-    await db
-      .update(jobs)
-      .set({ unpaidReason: UNREACHABLE })
-      .where(eq(jobs.id, jobId));
-    const spy = failingJobWithOwner();
-    let res;
-    try {
-      res = await client.post("/api/payments/mine/retry");
-    } finally {
-      spy.mockRestore();
-    }
-
-    const owed = (
-      (await client.get("/api/jobs/mine/past").expect(200))
-        .body as ClientPastJob[]
-    ).find((j) => j.id === jobId)!;
-    expect(owed.unpaid).toMatchObject({ kind: "declined" });
-    expect(res.status).toBe(409);
-    expect(res.body.message).toContain("didn't go through");
   });
 });

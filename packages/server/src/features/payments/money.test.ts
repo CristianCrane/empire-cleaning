@@ -16,7 +16,7 @@ import {
 } from "../../../tests/fixtures.ts";
 import { jobs } from "#features/jobs";
 import { paymentOf, settleJob } from "../completion/balance.ts";
-import { chargeSaved, PROCESSING, refundFrom } from "./money.ts";
+import { chargeOpen, chargeSaved, PROCESSING, refundFrom } from "./money.ts";
 import { paymentMethodOf } from "./payments.ts";
 import { charges, payers, refunds } from "./payments.schema.ts";
 
@@ -347,6 +347,20 @@ describe("refunding from Charges", () => {
 
     testPayments().goDown(false);
     expect(await refundFrom(db, taken, 3000, { for: forId(taken) })).toBe(3000);
+    expect(await refundsOf(balance.id)).toMatchObject([{ amountCents: 3000 }]);
+  });
+
+  // #534, the one rule: one that may have given the money back holds the
+  // Job it's for till it's found, as a Charge's attempt does
+  test("a refund whose reply was lost holds the Job, till a later try finds it", async () => {
+    const { taken, balance } = await twoCharges();
+    testPayments().loseNextReply();
+
+    expect(await refundFrom(db, taken, 3000, { for: forId(taken) })).toBe(0);
+    expect(await chargeOpen(forId(taken))).toBe(true);
+
+    expect(await refundFrom(db, taken, 3000, { for: forId(taken) })).toBe(3000);
+    expect(await chargeOpen(forId(taken))).toBe(false);
     expect(await refundsOf(balance.id)).toMatchObject([{ amountCents: 3000 }]);
   });
 

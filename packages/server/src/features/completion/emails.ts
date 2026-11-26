@@ -70,6 +70,8 @@ const words = catalog({
       // what to do, as UPDATE_AND_RETRY says it, before the button
       please: (what: string) => `Please ${what}:`,
     },
+    // their bank wants them to approve it (#534 Q7)
+    APPROVE_SUBJECT: "Please approve your payment",
     receipt: {
       subject: "Your clean is done: your receipt",
       DONE: "Your clean is done. Thank you for choosing Empire Cleaning.",
@@ -134,6 +136,7 @@ const words = catalog({
       subject: "No pudimos cobrar su pago",
       please: (what: string) => `Por favor, ${what}:`,
     },
+    APPROVE_SUBJECT: "Por favor, apruebe su pago",
     receipt: {
       subject: "Su limpieza está terminada: su recibo",
       DONE: "Su limpieza está terminada. Gracias por elegir Empire Cleaning.",
@@ -230,6 +233,7 @@ export const unpaidEmail = (
     owedCents,
     paymentMethod,
     held,
+    approve,
   }: {
     name: string;
     jobId: string;
@@ -238,27 +242,31 @@ export const unpaidEmail = (
     paymentMethod: Card | null;
     // it put their Service Plan On Hold
     held: boolean;
+    // their bank wants them to approve it on its page (#534 Q7)
+    approve: boolean;
   },
 ): Email => {
   const w = words[lang];
-  const { notTaken, noMoreCleans, UPDATE_AND_RETRY, UPDATE_CARD } =
-    messages[lang];
+  const m = messages[lang];
+  const amount = w.forClean(formats[lang].formatMoney(owedCents));
+  const card = cardOf(lang, paymentMethod);
   return {
     lang,
-    subject: w.unpaid.subject,
+    subject: approve ? w.APPROVE_SUBJECT : w.unpaid.subject,
     blocks: [
       greeting(firstNameOf(name)),
       paragraph(
-        notTaken(
-          w.forClean(formats[lang].formatMoney(owedCents)),
-          paymentMethod && cardOf(lang, paymentMethod),
-        ),
+        approve
+          ? m.approveFirst(amount, card)
+          : m.notTaken(amount, paymentMethod && card),
       ),
       cleanDetails(lang, clean),
-      paragraph(w.unpaid.please(UPDATE_AND_RETRY)),
+      paragraph(
+        approve ? m.PRESS_TO_APPROVE : w.unpaid.please(m.UPDATE_AND_RETRY),
+      ),
       // sent once it's theirs to put right (nowTheirs), so until it's paid
-      ...(held ? [paragraph(noMoreCleans(true))] : []),
-      cleanButton(lang, jobId, UPDATE_CARD),
+      ...(held ? [paragraph(m.noMoreCleans(true))] : []),
+      cleanButton(lang, jobId, approve ? m.APPROVE_PAYMENT : m.UPDATE_CARD),
     ],
   };
 };

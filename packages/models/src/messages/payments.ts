@@ -80,9 +80,22 @@ export const payments = catalog({
     UPDATE_AND_RETRY,
     SAVE_AND_RETRY,
     UPDATE_CARD: "Update your card",
+    // a payment their bank wants them to approve, made with them there: on
+    // its page, and the button of the email that asks them (#534 Q7)
+    APPROVE_PAYMENT: "Approve payment",
+    // the email asking for it: `amount` already formatted, with what it's
+    // for ("$50 for your clean"); then, before its button, what pressing
+    // it does
+    approveFirst: (amount: string, card: string) =>
+      `Your bank wants you to approve the ${amount} before it's taken from your ${card}. None of it has been taken yet.`,
+    PRESS_TO_APPROVE:
+      "Press the button below, and your bank will ask you to approve it.",
     // what happens next, once a payment didn't go through, by why
     clientFix: {
       declined: `Please ${UPDATE_AND_RETRY}.`,
+      approve:
+        "Your bank wants you to approve it first. Please approve it on its page.",
+      refused: "Please try again on its page, or use a different card.",
       no_card: `Please ${SAVE_AND_RETRY}.`,
       waiting:
         "We'll try again by ourselves, so there's nothing you need to do.",
@@ -140,8 +153,17 @@ export const payments = catalog({
     UPDATE_AND_RETRY: UPDATE_AND_RETRY_ES,
     SAVE_AND_RETRY: SAVE_AND_RETRY_ES,
     UPDATE_CARD: "Actualizar tarjeta",
+    APPROVE_PAYMENT: "Aprobar el pago",
+    approveFirst: (amount: string, card: string) =>
+      `Su banco quiere que apruebe ${amount} antes de cobrarlo de su ${card}. Aún no se ha cobrado nada de este pago.`,
+    PRESS_TO_APPROVE:
+      "Pulse el botón de abajo, y su banco le pedirá que lo apruebe.",
     clientFix: {
       declined: `Por favor, ${UPDATE_AND_RETRY_ES}.`,
+      approve:
+        "Su banco quiere que lo apruebe primero. Por favor, apruébelo en su página.",
+      refused:
+        "Por favor, vuelva a intentarlo en su página, o use otra tarjeta.",
       no_card: `Por favor, ${SAVE_AND_RETRY_ES}.`,
       waiting:
         "Lo volveremos a intentar nosotros, así que usted no tiene que hacer nada.",
@@ -172,11 +194,31 @@ export const payments = catalog({
 // server and every screen that offers a way to put it right
 export const asksTheClient = (kind: UnpaidKind) => kind !== "waiting";
 
+// whether a payment is theirs to settle with their bank on its page (#534
+// Q7): to approve, or to try again once they turned it down there. Its
+// page's next step, not a card to update, and nothing for the Office to
+// try again
+export const onItsPage = (kind: UnpaidKind) =>
+  kind === "approve" || kind === "refused";
+
+// a payment the Client's bank wants them to approve, as the Office names it
+// on a Job's and a Bill's badge and Money (#534 Q7): theirs to do, on its
+// page, and no failure
+export const CLIENT_TO_APPROVE = "Client to approve";
+
+// what happens next once the Client turned a payment down at their bank,
+// as the Office reads it, naming where they try again: "its page" in a
+// list, the page by name on that page (#534's UX review U19)
+export const officeRefused = (where: string) =>
+  `None of it was taken. They can try again on ${where}, or use another card.`;
+
 // what happens next, once a payment didn't go through, as the Office reads
 // it, in English (ADR-0025)
 export const officeFix: Record<UnpaidKind, string> = {
   declined:
     "We've emailed the client to update their card. Once they do, we try the payment again.",
+  approve: "We've emailed the client to approve it on its page.",
+  refused: officeRefused("its page"),
   no_card:
     "We've emailed the client to add a card. Once they do, we try the payment again.",
   waiting: "We'll try again by ourselves.",

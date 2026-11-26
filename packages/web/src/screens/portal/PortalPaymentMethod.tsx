@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { useLoaderData } from "@tanstack/react-router";
-import { Button, FormPage, FormPart, Notice } from "@empire-cleaning/ui";
+import { ShieldCheck } from "lucide-react";
+import {
+  Button,
+  FormPage,
+  FormPart,
+  Notice,
+  type PageAction,
+} from "@empire-cleaning/ui";
 import {
   asksTheClient,
   catalog,
@@ -12,28 +19,40 @@ import {
 } from "@empire-cleaning/models";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { postJson } from "../../api.ts";
-import { ConsentNote, useCardForm } from "./CardForm.tsx";
+import { billApproval, jobApproval } from "./approve-payment.tsx";
+import { ConsentNote, useCardForm, usePaymentForm } from "./CardForm.tsx";
 import { useSaid, type Said } from "../words.ts";
 
 // in the Client's language (ADR-0025)
 const words = catalog({
   en: {
     notSaved: "Your card couldn't be saved. Please try again.",
+    taken: "Payment taken",
     saved: "Card saved",
     // one we try again ourselves, as Payments says it: Payment pending,
-    // and nothing to do (UX review U7)
+    // and nothing to do (#499's UX review U7)
     stillGoing: (what: string) => `Still going through: ${what}.`,
     howUsed: "How your card is used",
     about:
       "We take a deposit from this card when you book. Each clean is charged to it when it's done, or goes on your weekly bill if you have one. If a payment didn't go through, saving a card here tries it again.",
     tryAgain: "Try this card again",
-    forClean: (amount: string, day: string) =>
-      `${amount} for your ${day} clean`,
-    forBill: (amount: string, number: string) => `${amount} for bill ${number}`,
+    // what a payment was for, after its amount
+    forClean: (day: string) => `for your ${day} clean`,
+    forBill: (number: string) => `for bill ${number}`,
+    // one they turned down at their bank: their card works (#534's UX
+    // review U16)
+    refused: (amount: string, what: string) =>
+      `The ${amount} payment ${what} wasn't approved, so none of it was taken.`,
+    // the payments after the first, each tried in turn (#534's critical
+    // review C11)
+    more: (n: number) =>
+      n === 1
+        ? "1 more payment comes after it."
+        : `${n} more payments come after it.`,
     tryOrSave: "Try it again, or save a different card below.",
     paid: "Paid.",
     took: (what: string, card: string) => `We took ${what} from your ${card}.`,
+    // the Bill's page makes the same promise (#499's UX review U10)
     saveBelow: "Save a card below and we'll try again straight away.",
     saveNew: "Save a new card below and we'll try again straight away.",
     isSaved: (card: string, day: string) =>
@@ -44,16 +63,19 @@ const words = catalog({
   },
   es: {
     notSaved: "No se pudo guardar su tarjeta. Vuelva a intentarlo.",
+    taken: "Pago cobrado",
     saved: "Tarjeta guardada",
     stillGoing: (what: string) => `Todavía en proceso: ${what}.`,
     howUsed: "Cómo se usa su tarjeta",
     about:
       "Cobramos un depósito de esta tarjeta cuando reserva. Cada limpieza se cobra a ella cuando está terminada, o va en su factura semanal si tiene una. Si un pago no pasó, guardar una tarjeta aquí lo vuelve a intentar.",
     tryAgain: "Volver a intentar con esta tarjeta",
-    forClean: (amount: string, day: string) =>
-      `${amount} por su limpieza del ${day}`,
-    forBill: (amount: string, number: string) =>
-      `${amount} por la factura ${number}`,
+    forClean: (day: string) => `de su limpieza del ${day}`,
+    forBill: (number: string) => `de la factura ${number}`,
+    refused: (amount: string, what: string) =>
+      `El pago de ${amount} ${what} no se aprobó, así que no se cobró nada.`,
+    more: (n: number) =>
+      n === 1 ? "Después sigue 1 pago más." : `Después siguen ${n} pagos más.`,
     tryOrSave: "Vuelva a intentarlo, o guarde otra tarjeta abajo.",
     paid: "Pagado.",
     took: (what: string, card: string) => `Cobramos ${what} de su ${card}.`,
@@ -69,18 +91,28 @@ const words = catalog({
 });
 
 // what the Client's card failed to take that's theirs to put right (#499):
-// their Unpaid cleans, then their weekly Bills, each with why, and whether
-// trying the same card again might take it (declined, not expired). One
-// waiting on the payment service we try again ourselves, so it asks
-// nothing of them
-export type CardOwed = CardPayment & { why: string | null; retry: boolean };
+// their Unpaid cleans, then their weekly Bills charged to it, each with
+// why; whether trying the same card again might take it (declined, or
+// turned down at their bank, not expired); and whether it was turned down
+// there (#534's UX review U16)
+export type CardOwed = CardPayment & {
+  why: string | null;
+  retry: boolean;
+  refused: boolean;
+};
 
-const asks = (unpaid: Unpaid | null): unpaid is Unpaid =>
-  unpaid !== null && asksTheClient(unpaid.kind);
+// one waiting on the payment service we try again ourselves, and one their
+// bank wants them to approve is approved on its own page, where trying it
+// here would only ask again (#534 Q7). One they turned down there is here:
+// its "Use a different card" leads here, to try this card again or save
+// another
+const owes = (unpaid: Unpaid | null): unpaid is Unpaid =>
+  unpaid !== null && asksTheClient(unpaid.kind) && unpaid.kind !== "approve";
 
 const owedFor = (unpaid: Unpaid) => ({
   why: unpaid.why,
-  retry: unpaid.kind === "declined",
+  retry: unpaid.kind === "declined" || unpaid.kind === "refused",
+  refused: unpaid.kind === "refused",
 });
 
 export const cardOwes = (
@@ -88,7 +120,7 @@ export const cardOwes = (
   bills: BillSummary[],
 ): CardOwed[] => [
   ...pastJobs.flatMap((j) =>
-    asks(j.unpaid)
+    owes(j.unpaid)
       ? [
           {
             kind: "clean" as const,
@@ -105,7 +137,7 @@ export const cardOwes = (
   ...bills.flatMap((b) =>
     b.payment === "automatic" &&
     b.status === "due" &&
-    asks(b.unpaid) &&
+    owes(b.unpaid) &&
     b.paying?.status !== "approving"
       ? [
           {
@@ -120,27 +152,23 @@ export const cardOwes = (
   ),
 ];
 
+type Words = Said & { w: (typeof words)["en"] };
+
+// what a payment was for: "for your Tue, Oct 20 clean", "for bill EC-000001"
+const forOf = (t: Words, o: CardPayment) =>
+  o.kind === "clean"
+    ? t.w.forClean(t.shortDayOf(o.startsAt))
+    : t.w.forBill(o.number);
+
 // each one and its amount, in a list: "$50.46 for your Sun, Jan 4 clean and
 // $329.89 for bill EC-000001"
-const owedList = (t: Said & { w: (typeof words)["en"] }, owed: CardPayment[]) =>
-  t.formatList(
-    owed.map((o) =>
-      o.kind === "clean"
-        ? t.w.forClean(t.formatMoney(o.cents), t.dayOf(o.startsAt))
-        : t.w.forBill(t.formatMoney(o.cents), o.number),
-    ),
-  );
+const owedList = (t: Words, owed: CardPayment[]) =>
+  t.formatList(owed.map((o) => `${t.formatMoney(o.cents)} ${forOf(t, o)}`));
 
-// the payment service's reason, when every one failed for the same
-const sharedWhy = (owed: CardOwed[]) => {
-  const whys = new Set(owed.map((o) => o.why));
-  return whys.size === 1 ? owed[0]!.why : null;
-};
-
-// which one notice Your card shows: what's still owed, else how their
-// last press went, from what the server says it took (never from the list
+// which one notice Your card shows: what's still owed, else how saving a
+// card went, from what the server says it took (never from the list
 // emptying, as a payment still going through leaves it too): Paid only
-// once none of it is (review F13), else the card they have
+// once none of it is (#499's review F13), else the card they have
 export const cardNotice = (
   unpaid: unknown[],
   tried: CardRetried | null,
@@ -154,40 +182,70 @@ export const cardNotice = (
         : "card";
 
 // where the Office's "add a card" email leads: the Client adds (or
-// replaces) the card that Deposits and Balances are charged to. Where a
-// clean or a Bill couldn't be charged, they fix it here: try the same card
-// again (the money may be there now; not an expired one), or save another,
-// which tries it too, and the notice in place says how it went
+// replaces) the card that Deposits, Balances and weekly Bills are charged
+// to. Where a clean or a Bill couldn't be charged, they fix it here: try
+// the same card again (the money may be there now; not an expired one), or
+// save another, which tries them all, and the notice in place says what
+// that took. Once they turned it down at their bank, trying again is the
+// page's next step, as on its own page: their card works (#534's UX review
+// U23).
 export function PortalPaymentMethod() {
   const t = useSaid(words);
   const { saved, unpaid } = useLoaderData({ from: "/portal/payment-method" });
   const card = useCardForm();
   const action = useAction(t.w.notSaved);
   // a form-less action: its problem is a Toast, never a Notice in this
-  // one; the page reloads either way, as part may have been taken
+  // one, and the page reloads to what the server found, either way
   const retry = useAction(t.couldntRetry, {
     toast: true,
     reloadOnFailure: true,
   });
-  // what the server says their last press took, and what's still going
-  // through (review F20)
+  // what the server says saving a card took, and what's still going
+  // through (#499's review F20)
   const [tried, setTried] = useState<CardRetried | null>(null);
   const shown = cardNotice(unpaid, tried);
-  const retries = saved !== null && unpaid.some((o) => o.retry);
+  const [first] = unpaid;
+  const refused = !!first?.refused;
+  const retries = !!saved && !!first?.retry;
+  // the saved card's payments, made with them here, which their bank may
+  // want them to approve here too
+  const approving = usePaymentForm({
+    amountCents: 0,
+    showCard: false,
+    needed: retries,
+  });
 
-  // everything their card failed to take, tried at once; a 409 says what
-  // still didn't go through
+  // the first one, approved with their bank here if it asks (#534 critical
+  // review C10): one per press, so its toast and its alert speak of that
+  // one payment only, the next shown once the page reloads (C11, in
+  // critical-review-payment-truth.md)
   const tryAgain = () => {
     setTried(null);
-    // the notice in place says how it went, so no toast
+    const it = first!;
+    if (it.kind === "clean") {
+      const { start, finish } = jobApproval(it.id);
+      return retry.run(async () => {
+        await approving.pay({ start, finish: (no) => finish(!no) });
+      }, t.w.taken);
+    }
+    const { start, finish } = billApproval(it.id);
     return retry.run(
-      () => postJson<CardRetried>("/api/payments/mine/retry"),
-      (answer) => {
-        setTried(answer);
-        return "";
-      },
+      () => approving.pay({ start, finish: (no) => finish(!no) }),
+      // a card payment can still be going through
+      (bill) => (bill.status === "paid" ? t.w.taken : t.paymentPending),
     );
   };
+
+  const retryNext: PageAction | undefined =
+    refused && retries
+      ? {
+          label: t.w.tryAgain,
+          icon: ShieldCheck,
+          isPending: retry.isPending,
+          isDisabled: !approving.isReady,
+          onAction: () => void tryAgain(),
+        }
+      : undefined;
 
   const save = () => {
     setTried(null);
@@ -211,17 +269,19 @@ export function PortalPaymentMethod() {
         { label: t.p.yourCard },
       ]}
       title={t.p.yourCard}
-      // one at a time: what to pay for, else what was just paid, else the
-      // card they have
+      // one at a time: what to pay for, else what saving a card just took,
+      // else the card they have
       alerts={[
-        shown === "owed"
+        shown === "owed" && first
           ? {
               key: "unpaid",
-              tone: "danger",
-              action: retries && (
+              tone: refused ? "warning" : "danger",
+              // turned down at their bank, the page's next step instead
+              action: retries && !refused && (
                 <Button
-                  variant="text"
+                  variant="danger-text"
                   isPending={retry.isPending}
+                  isDisabled={!approving.isReady}
                   onPress={() => void tryAgain()}
                 >
                   {t.w.tryAgain}
@@ -230,11 +290,14 @@ export function PortalPaymentMethod() {
               children: (
                 <p>
                   <strong>{t.p.paymentNeeded}</strong>{" "}
-                  {t.notTaken(
-                    owedList(t, unpaid),
-                    saved?.label ?? null,
-                    sharedWhy(unpaid),
-                  )}{" "}
+                  {refused
+                    ? t.w.refused(t.formatMoney(first.cents), forOf(t, first))
+                    : t.notTaken(
+                        `${t.formatMoney(first.cents)} ${forOf(t, first)}`,
+                        saved?.label ?? null,
+                        first.why,
+                      )}{" "}
+                  {unpaid.length > 1 && `${t.w.more(unpaid.length - 1)} `}
                   {retries
                     ? t.w.tryOrSave
                     : saved
@@ -282,6 +345,7 @@ export function PortalPaymentMethod() {
         label: t.w.howUsed,
         children: <p className="text-sm text-fg-muted">{t.w.about}</p>,
       }}
+      next={retryNext}
       // what saving agrees to, in view above the button
       end={
         <>
@@ -291,6 +355,8 @@ export function PortalPaymentMethod() {
       }
       buttons={
         <Button
+          // beside trying their card again, a different one is the lesser
+          variant={retryNext ? "secondary" : "primary"}
           isPending={action.isPending}
           isDisabled={!card.isReady}
           onPress={() => void save()}

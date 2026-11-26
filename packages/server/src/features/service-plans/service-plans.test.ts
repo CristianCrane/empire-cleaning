@@ -256,7 +256,7 @@ describe("accepting a Service Plan Quote", () => {
     const client = await signIn(casey.email);
 
     const refused = await accept(client, quote).expect(409);
-    expect(refused.body.message).toMatch(/booked up/);
+    expect(refused.body.message).toMatch(/filled up/);
     expect(
       (
         (await office.get(`/api/quotes/${quote.id}`).expect(200))
