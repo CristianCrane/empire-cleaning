@@ -9,6 +9,7 @@ import type {
   NeedsAttentionItem,
   NeedsAttentionKind,
   ScheduleDay,
+  UnpaidKind,
 } from "@empire-cleaning/models";
 import { CLIENT_TO_APPROVE, MINUTE_MS, formats } from "@empire-cleaning/models";
 import {
@@ -50,6 +51,22 @@ const needCleaners = (n: number) =>
 
 const { formatDate, formatDateTime, formatDay, formatMoney, formatList } =
   formats.en;
+
+// what an Unpaid row asks, by whose step it is, as its page says: the
+// Client's to approve, amber, as we've emailed them; theirs to try again
+// once they turned it down at their bank, red as the Job's and Bill's
+// alerts, nothing of Jen's to do and the money not coming (#534 Q7; the
+// user's call, 2026-11-26); else Jen's to collect
+const unpaidRow = (
+  kind: UnpaidKind | undefined,
+  collect: string,
+): { action: string; tone: StatusTone } =>
+  kind === "approve"
+    ? { action: CLIENT_TO_APPROVE, tone: "warning" }
+    : {
+        action: kind === "refused" ? "Client to try again" : collect,
+        tone: "danger",
+      };
 
 // how often a Dashboard left open asks again, while it can be seen: a new
 // Quote request shows within a minute (the Office is emailed of it too).
@@ -339,14 +356,10 @@ function useRowFor() {
       }
       case "job_unpaid": {
         const { job } = item;
-        // the Client's bank wants them to approve it: theirs to do, as
-        // we've emailed them, and no failure (#534 Q7)
-        const approve = item.unpaid === "approve";
         return {
           key: `job_unpaid ${job.id}`,
-          action: approve ? CLIENT_TO_APPROVE : "Collect the balance",
+          ...unpaidRow(item.unpaid, "Collect the balance"),
           icon: CircleDollarSign,
-          tone: approve ? "warning" : "danger",
           client: clientName(job.client),
           line: [
             `${formatMoney(item.owedCents)} owed`,
@@ -440,12 +453,10 @@ function useRowFor() {
       }
       case "bill_unpaid": {
         const { bill } = item;
-        const approve = bill.unpaid?.kind === "approve";
         return {
           key: `bill_unpaid ${bill.id}`,
-          action: approve ? CLIENT_TO_APPROVE : "Collect the bill",
+          ...unpaidRow(bill.unpaid?.kind, "Collect the bill"),
           icon: Receipt,
-          tone: approve ? "warning" : "danger",
           client: clientName(bill.client),
           line: [
             `Bill ${bill.number}`,

@@ -599,7 +599,8 @@ test("a Bill's payment the Client's bank wants them to approve is theirs to appr
 
 // #534's UX review U20: the Office's Bill read a payment turned down at the
 // Client's bank in words of its own, amber; it reads as the Office's Job
-// does, red, the day it happened, nothing of the Office's to do
+// does, red, the day it happened, nothing of the Office's to do, and Today
+// says so too, not "Collect the bill" (the user's call, 2026-11-26)
 test("Office Staff see a Bill's payment the Client turned down at their bank as Unpaid, theirs to try again", async ({
   page,
 }) => {
@@ -615,7 +616,7 @@ test("Office Staff see a Bill's payment the Client turned down at their bank as 
   const row = attention
     .getByRole("row")
     .filter({ hasText: "Bill EC-000001 ·" });
-  await expect(row).toContainText("Collect the bill");
+  await expect(row).toContainText("Client to try again");
   await row.click();
   await expect(page).toHaveURL(`/office/bills/${billId}`);
 

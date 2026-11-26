@@ -573,6 +573,8 @@ test("a payment the Client turned down at their bank reads so on their Home and 
   ).toHaveAttribute("href", `/portal/jobs/${job.id}`);
 });
 
+// Today's row says it as the Job does, not "Collect the balance" (the
+// user's call, 2026-11-26)
 test("Office Staff see a Job's payment the Client turned down at their bank as Unpaid, theirs to try again", async ({
   page,
 }) => {
@@ -590,6 +592,12 @@ test("Office Staff see a Job's payment the Client turned down at their bank as U
   );
   await expect(page.getByText(/wants them to approve/)).toBeHidden();
   await expectNothingNext(page);
+
+  await page.goto("/office");
+  const attention = await openTile(page, "Money");
+  await expect(
+    attention.getByRole("row").filter({ hasText: "owed" }),
+  ).toContainText("Client to try again");
 });
 
 test("Office Staff remove an Adjustment from its own dialog, confirming in the same dialog", async ({
