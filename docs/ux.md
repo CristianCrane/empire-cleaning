@@ -66,7 +66,9 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   success), the rest behind "Show N more". Each is one Notice with at most
   one action (no alert in an alert: the `ui` skill). What an action's failure
   says is a Toast, not a Notice on the page (a retried charge, a plan
-  offered).
+  offered). Your card, a form page, is the exception: a payment its card
+  turned down again is said in the alert already there ("We tried it
+  again.", docs/ux-log.md's #508/#499 rows).
 - **The details card** (`DetailsCard`): what it is, large, behind its tile
   (a `DateTile` for when, an `IconTile` for what, an `Avatar` for who),
   a muted line above and below; never what the page's title already says,
