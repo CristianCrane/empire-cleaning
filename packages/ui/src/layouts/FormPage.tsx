@@ -87,12 +87,19 @@ export function FormPage({
   | {
       // the form's buttons at the card's foot, the main one last
       buttons?: ReactNode;
-      // a next step beside the form, not its own: its buttons then
-      // secondary
-      next?: NextAction;
+      next?: never;
       price?: never;
       note?: never;
       // what the fields come to, beside them from xl
+      aside?: Aside;
+    }
+  // a next step beside the form, not its own: the form's buttons stay at
+  // its card's foot, and the caller makes their main one secondary
+  | {
+      buttons: ReactNode;
+      next: NextAction;
+      price?: never;
+      note?: never;
       aside?: Aside;
     }
   // a form with a price or a Send: its button the page's next step, its
