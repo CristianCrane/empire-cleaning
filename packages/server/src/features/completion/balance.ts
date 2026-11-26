@@ -370,15 +370,16 @@ export const settleJob = async (
         ? { amount: before.owedCents, card: method.gatewayRef }
         : null,
     );
-    const found = "unknown" in earlier ? [] : earlier;
+    // what a lost reply took counts as charged now, as it's found, also
+    // when a later attempt's end isn't known yet (critical review C15)
+    const found = earlier.recorded;
     const ledger = found.length > 0 ? await ledgerOf(job!, tx) : before;
     const settled: Settled = {
-      // what a lost reply took counts as charged now, as it's found
       chargedCents: found.reduce((sum, c) => sum + c.amountCents, 0),
       refundedCents: 0,
       // it may yet take the money, so nothing more moves meanwhile; billed,
       // nothing moves anyway, and the Clock asks after it (ADR-0022)
-      failure: "unknown" in earlier && !billed ? earlier.unknown : null,
+      failure: earlier.unknown && !billed ? earlier.unknown : null,
       leftCents: 0,
       becameUnpaid: false,
       paymentMethod: method && cardIn(method),

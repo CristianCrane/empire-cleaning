@@ -622,8 +622,10 @@ const record = async (
 
 /**
  * Records what earlier attempts for a Job or Bill took that no Charge
- * records yet, asking the provider how each ended: the Charges, or why
- * that isn't known yet. `owed` is what the Job or Bill owes without them,
+ * records yet, asking the provider how each ended: the Charges, and, if it
+ * stopped at one whose end isn't known yet, why. The Charges recorded before
+ * it stopped are saved with the rest, so they're said either way (critical
+ * review C15). `owed` is what the Job or Bill owes without them,
  * on the card a try would ask now (outcomeOf); each found taken takes it
  * down. One waiting on the Client's bank is called off as `callOff` says
  * (approving).
@@ -633,19 +635,20 @@ export const recordTakenEarlier = async (
   chargeFor: ChargeFor,
   owed: Now,
   callOff: CallingOff | null = null,
-): Promise<Charge[] | { unknown: string }> => {
+): Promise<{ recorded: Charge[]; unknown?: string }> => {
   const recorded: Charge[] = [];
   let now = owed;
   for (const earlier of await openAttempts(tx, [forIdOf(chargeFor)])) {
     const outcome = await outcomeOf(earlier, now, callOff);
-    if (outcome.status === "unknown") return { unknown: outcome.reason };
+    if (outcome.status === "unknown")
+      return { recorded, unknown: outcome.reason };
     if (outcome.status === "taken") {
       recorded.push(await record(tx, chargeFor, outcome.attempt, null));
       if (now)
         now = { ...now, amount: now.amount - outcome.attempt.amountCents };
     }
   }
-  return recorded;
+  return { recorded };
 };
 
 // what's charged: a Client's saved Payment Method, without them there; or,
@@ -702,8 +705,8 @@ export const chargeSaved = async (
     callOff,
   );
   // it may yet take the money, so nothing more is asked for meanwhile
-  if ("unknown" in earlier) return { ok: false, reason: earlier.unknown };
-  let cents = earlier.reduce((sum, c) => sum + c.amountCents, 0);
+  if (earlier.unknown) return { ok: false, reason: earlier.unknown };
+  let cents = earlier.recorded.reduce((sum, c) => sum + c.amountCents, 0);
   if (cents >= amount) return { ok: true, cents };
 
   const payerId = await payerFor(client).catch((error: unknown) => {

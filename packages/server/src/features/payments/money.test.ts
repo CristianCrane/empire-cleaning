@@ -14,7 +14,9 @@ import {
   signInAsOffice,
   staffMember,
 } from "../../../tests/fixtures.ts";
-import { chargeSaved, refundFrom } from "./money.ts";
+import { jobs } from "#features/jobs";
+import { paymentOf, settleJob } from "../completion/balance.ts";
+import { chargeSaved, PROCESSING, refundFrom } from "./money.ts";
 import { paymentMethodOf } from "./payments.ts";
 import { charges, payers, refunds } from "./payments.schema.ts";
 
@@ -231,6 +233,39 @@ describe("charging again after the provider took the money", () => {
     expect(await balance(was, 5000)).toMatchObject({ ok: false });
 
     expect(takenAtProvider().map((c) => c.amount)).toEqual([4200]);
+  });
+
+  // critical review C15: one taken, then one still processing. Settling
+  // records the first before it stops at the second, and counts it as
+  // taken, so what it says is still owed is what Payments reads after, not
+  // the first counted again as still going through
+  test("settling counts one taken before one still processing as taken", async () => {
+    const was = await booked();
+    testPayments().loseNextReply();
+    await balance(was, 4200);
+    // the rest asked in a transaction that rolls back: 4200 taken, with no
+    // Charge, and 800 processing, asked after it
+    testClock().advance({ minutes: 1 });
+    testPayments().failCharges(PROCESSING);
+    await expect(
+      db.transaction(async (tx) => {
+        await chargeSaved(tx, {
+          client: was.client,
+          source: was.method,
+          amount: 5000,
+          description: "Balance",
+          for: { jobId: was.job.id, kind: "balance" },
+        });
+        throw new Error("the commit failed");
+      }),
+    ).rejects.toThrow("the commit failed");
+
+    const settled = await settleJob(was.job.id);
+
+    expect(await balancesOf(was.job.id)).toMatchObject([{ amountCents: 4200 }]);
+    expect(settled).toMatchObject({ chargedCents: 4200, failure: PROCESSING });
+    const [job] = await db.select().from(jobs).where(eq(jobs.id, was.job.id));
+    expect(settled.leftCents).toBe((await paymentOf(job!)).owedCents);
   });
 
   test("a declined attempt is over: the next try asks the card again", async () => {

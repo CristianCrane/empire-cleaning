@@ -954,7 +954,7 @@ export const settleBill = async (
     const stale =
       bill.status === "processing" && all.some((a) => a.call === "bill");
     if (before.length === 0 && !stale) return null;
-    const taken = await recordTakenEarlier(
+    const { recorded: taken, unknown } = await recordTakenEarlier(
       tx,
       { billId, kind: "bill" },
       null,
@@ -989,7 +989,7 @@ export const settleBill = async (
       (stale && debit && failing(debit, debit) ? debit : undefined)
     )?.attempt.reason;
 
-    if (!("unknown" in taken) && taken.length > 0) {
+    if (!unknown && taken.length > 0) {
       if (bill.status === "paid" || bill.status === "void") {
         return { endedNow, next: { kind: "refund", taken } } as const;
       }
