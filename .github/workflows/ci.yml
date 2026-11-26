@@ -157,6 +157,13 @@ jobs:
             packages/landing/test-results
           retention-days: 14
 
+  # Only the doc curator changes a doc (docs/map.md): red on a commit that
+  # changes one without its `Doc-curator:` trailer, or past a word budget
+  # (CristianCrane/.dotfiles#61)
+  docs:
+    name: Docs
+    uses: CristianCrane/.dotfiles/.github/workflows/doc-check.yml@main
+
   # The one check main requires: every job above passed. Shards can come and
   # go without touching the branch's settings. It runs even when a job it
   # needs failed (else it would be skipped, which counts as passing) and
@@ -165,7 +172,7 @@ jobs:
   all:
     name: All checks
     if: ${{ !cancelled() }}
-    needs: [checks, server, seed, ui, web, landing]
+    needs: [checks, server, seed, ui, web, landing, docs]
     runs-on: ubuntu-latest
     steps:
       - env:
