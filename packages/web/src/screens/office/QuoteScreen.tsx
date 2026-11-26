@@ -1364,7 +1364,9 @@ function RecordAcceptanceDialog({
         {({ close }) => (
           <>
             <Notice tone="warning" answers>
-              <strong>{lead}</strong> {rest.join(" ")}
+              <p>
+                <strong>{lead}</strong> {rest.join(" ")}
+              </p>
             </Notice>
             <Actions>
               <Button onPress={close}>Close</Button>

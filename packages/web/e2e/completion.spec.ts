@@ -363,8 +363,14 @@ test("a Client trying their card again, whose bank now asks them to approve it, 
 
   await signedInAs(page, casey.email);
   await page.goto("/portal/payment-method");
-  const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
+  // red while their card couldn't pay, amber once it's theirs to approve
+  // again (#534's UX review U16)
+  const needed = page
+    .getByRole("alert")
+    .or(page.getByRole("status"))
+    .filter({ hasText: "Payment needed" });
   const tryAgain = needed.getByRole("button", { name: "Try this card again" });
+  await expect(needed).toHaveRole("alert");
 
   // turned down at their bank: nothing taken, and the page says so
   await requireApproval("refused");
@@ -375,7 +381,10 @@ test("a Client trying their card again, whose bank now asks them to approve it, 
     ),
   ).toBeVisible();
   await expect(page.getByText("Payment taken")).toHaveCount(0);
-  await expect(needed).toBeVisible();
+  await expect(needed).toContainText(
+    "The $292.33 payment for your Jan 12 clean wasn't approved, so none of it was taken.",
+  );
+  await expect(needed).toHaveRole("status");
 
   // approved there: taken, and the clean is paid
   await requireApproval(null);
@@ -573,7 +582,7 @@ test("Office Staff see a Job's payment the Client turned down at their bank as U
   await expect(titleBadge(page, "Unpaid")).toBeVisible();
   await expect(
     page.getByText(
-      /^Casey turned down the payment at their bank. None of it was taken. They can try again on its page, or use another card.$/,
+      /^Casey's payment wasn't approved at their bank on Jan 12\. None of it was taken\. They can try again on their clean's page, or use another card\.$/,
     ),
   ).toBeVisible();
   await expect(page.getByText(/wants them to approve/)).toBeHidden();

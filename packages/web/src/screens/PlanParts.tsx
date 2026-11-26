@@ -249,7 +249,7 @@ export function useOnHold(
           : u.kind === "refused"
             ? forClient
               ? t.w.refused(u.what)
-              : `The client turned down the payment for ${u.what} at their bank. ${officeFix.refused}`
+              : `The client's payment for ${u.what} wasn't approved at their bank. ${officeFix.refused}`
             : asks(u)
               ? `${forClient ? t.w.couldntTake : "The client's payment didn't go through for "}${u.what}.`
               : forClient

@@ -349,8 +349,8 @@ const alertsFor = (job: OfficeJob, next?: PageAction): Alert[] => {
       children: (
         <p>
           <strong>
-            {firstNameOf(job.client.name)} turned down the payment at their bank
-            on {formatShortDay(dayOfInstant(unpaid.since))}.
+            {firstNameOf(job.client.name)}'s payment wasn't approved at their
+            bank on {formatShortDay(dayOfInstant(unpaid.since))}.
           </strong>{" "}
           {officeRefused("their clean's page")}
         </p>

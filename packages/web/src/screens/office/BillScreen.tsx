@@ -197,7 +197,7 @@ function standing(bill: BillView): Alert | null {
         <p>
           <strong>
             {refused
-              ? `${name} turned down this bill's payment at their bank on ${formatShortDay(dayOfInstant(bill.unpaid.since))}.`
+              ? `${name}'s payment for this bill wasn't approved at their bank on ${formatShortDay(dayOfInstant(bill.unpaid.since))}.`
               : `${name}'s bank wants them to approve this bill's payment.`}
           </strong>{" "}
           {refused

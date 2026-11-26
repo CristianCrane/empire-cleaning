@@ -537,7 +537,11 @@ The `ui` skill's rules hold here too; these are this product's.
   things to say or do are two Notices. ("Notices hold one action")
 - **Tone means what a status's does**: warning for something waiting on
   someone, danger for something that failed or is late, info for what
-  they're waiting on us for, success for done.
+  they're waiting on us for, success for done. A payment that wasn't
+  approved at the Client's bank fits both, so its tone goes by whose step it is:
+  warning on the Client's pages, as trying again is theirs, and danger on
+  the Office's, as nothing there is the Office's to do and the money
+  isn't coming (#534).
 
 ### Words
 
