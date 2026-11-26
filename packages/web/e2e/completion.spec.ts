@@ -372,18 +372,15 @@ test("a Client trying their card again, whose bank now asks them to approve it, 
   const tryAgain = needed.getByRole("button", { name: "Try this card again" });
   await expect(needed).toHaveRole("alert");
 
-  // turned down at their bank: nothing taken, and the page says so
+  // turned down at their bank: nothing taken, and the alert says it was
+  // tried, with no toast offering another fix (#508's UX review U17, U18)
   await requireApproval("refused");
   await tryAgain.click();
-  await expect(
-    page.getByText(
-      "Your payment wasn't approved, so nothing was taken. Please try again, or use another card.",
-    ),
-  ).toBeVisible();
-  await expect(page.getByText("Payment taken")).toHaveCount(0);
   await expect(needed).toContainText(
-    "The $292.33 payment for your Jan 12 clean wasn't approved, so none of it was taken.",
+    "We tried it again. The $292.33 payment for your Jan 12 clean wasn't approved, so none of it was taken.",
   );
+  await expect(page.getByText("Payment taken")).toHaveCount(0);
+  await expect(page.getByText(/^Your payment wasn't approved/)).toHaveCount(0);
   await expect(needed).toHaveRole("status");
   // their card works, so trying it again is the page's next step, not a
   // link in the alert (#534's UX review U23)
@@ -403,6 +400,33 @@ test("a Client trying their card again, whose bank now asks them to approve it, 
   await expect(needed).toHaveCount(0);
   await page.goto(`/portal/jobs/${job.id}`);
   await expect(titleBadge(page, "Done")).toBeVisible();
+});
+
+// the provider leaves the retried Balance processing: it may yet be taken
+// or declined, so Your card says it's pending, neither paid nor an error,
+// as a Bill's does (#508's review F26)
+test("Your card's retry of a clean still going through says so, not that it's paid", async ({
+  page,
+}) => {
+  const { job, cory } = await jobUnderway();
+  await failCharges();
+  await completeJob(job.id, cory.id, { condition: "moderate", reports: [] });
+  await failCharges("processing");
+
+  await signedInAs(page, casey.email);
+  await page.goto("/portal/payment-method");
+  const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
+  await needed.getByRole("button", { name: "Try this card again" }).click();
+  await expect(
+    page.getByText(
+      "Payment pending. Still going through: $292.33 for your Jan 12 clean. Nothing you need to do.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(page.getByText(/^Paid\./)).toHaveCount(0);
+  await expect(needed).toHaveCount(0);
+  await page.goto(`/portal/jobs/${job.id}`);
+  await expect(titleBadge(page, "Payment pending")).toBeVisible();
 });
 
 // critical-review-payment-truth.md C11: "Try this card again" tried each
@@ -467,11 +491,12 @@ test("a Client with two cleans to pay tries their card for the first, then the s
 
   // the second, turned down at their bank: nothing more taken, and it says so
   await needed.getByRole("button", { name: "Try this card again" }).click();
-  await expect(
-    page.getByText(
-      "Your payment wasn't approved, so nothing was taken. Please try again, or use another card.",
-    ),
-  ).toBeVisible();
+  const refused = page
+    .getByRole("status")
+    .filter({ hasText: "Payment needed" });
+  await expect(refused).toContainText(
+    /^Payment needed\. We tried it again\. The \$[\d.,]+ payment for your Jan \d+ clean wasn't approved, so none of it was taken\./,
+  );
   expect(finishes).toBe(2);
   expect(await paid()).toHaveLength(1);
 });

@@ -786,6 +786,35 @@ describe("an Unpaid Job", () => {
     ]);
   });
 
+  // the card was tried again, but the provider left the charge processing:
+  // it may yet be taken or declined, so it's neither said to be paid nor an
+  // error, and once through it's paid (#508's review F26)
+  test("is one the Client's try again leaves processing, said to be going through, not paid", async () => {
+    const { office, cory, client, jobId, quote } = await bookedJob();
+    const deep = deepOf(quote);
+    testPayments().failCharges();
+    await complete(cory.agent, jobId).expect(200);
+    testPayments().failCharges("processing");
+
+    const tried = (
+      await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(200)
+    ).body as JobPayOutcome;
+
+    expect(tried).toMatchObject({
+      status: "done",
+      job: { payment: { unpaid: { kind: "waiting" } } },
+    });
+
+    testPayments().clearCharges();
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    expect((await officeJob(office, jobId)).payment!.unpaid).toBe(null);
+    expect(amounts()).toEqual([
+      deep.depositCents,
+      deep.totalCents - deep.depositCents,
+    ]);
+  });
+
   test("is one whose Balance the provider took but whose reply was lost, and retrying it takes nothing more", async () => {
     const { office, cory, client, jobId, quote } = await bookedJob();
     const deep = deepOf(quote);

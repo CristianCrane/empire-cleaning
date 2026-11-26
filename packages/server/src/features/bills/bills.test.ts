@@ -2697,6 +2697,34 @@ describe("a weekly Client's retry and next Bill", () => {
     });
   });
 
+  // critical review C17: a card typed on the Bill's page that their bank
+  // approved after the page closed, then recorded by Your card's saved-card
+  // press, was paid "on this page", not "charged to your card": paidVia
+  // says where the money came from, not which button found it
+  test("a typed card approved meanwhile reads paid on this page, whichever press records it", async () => {
+    const { office, id, totalCents } = await declinedBill();
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await client
+      .post(`/api/bills/mine/${id}/payment`)
+      .send({ token: testPayments().paymentToken() })
+      .expect(200);
+    // approved in their bank's app, but the page was closed
+    testPayments().requireApproval("approved");
+
+    // Your card's Try this card again
+    await client.post(`/api/bills/mine/${id}/payment`).send({}).expect(200);
+
+    // taken once, by the typed card their bank approved
+    expect(
+      testPayments().charges.filter((c) => c.amount === totalCents),
+    ).toHaveLength(1);
+    expect(await billOf(office, id)).toMatchObject({
+      status: "paid",
+      paidVia: "page",
+    });
+  });
+
   // the card was tried, but the provider left the charge processing: it
   // may yet be taken or declined, so it's neither said to be paid nor not
   // tried (critical diff review C7, #508's review F26)

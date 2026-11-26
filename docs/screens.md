@@ -533,8 +533,10 @@ Keeps: on the Payment Method page (ux-portal). Renders through `FormPage`
 - Notices: the first payment the card failed to take, a clean's or a
   weekly Bill's, with its amount and why, and how many more come after it
   (Try this card again, a danger text Button, one payment per press, its
-  bank's approval asked in place and its problem a Toast, only for a
-  declined card: an expired one asks for a new card below); or that one
+  bank's approval asked in place, only for a declined card: an expired one
+  asks for a new card below; a press the card turns down again leads the
+  alert with "We tried it again.", and only a failure of ours is a Toast,
+  #508's UX review U17, U18); or that one
   turned down at their bank (amber, its Try this card again the page's
   next step, #534's UX review U23); or Paid, or Payment pending naming
   what's still going through with nothing to do, from what saving a card

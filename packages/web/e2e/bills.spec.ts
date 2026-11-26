@@ -757,11 +757,17 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   await expect(client.getByText("Your cleaning plan is paused")).toBeHidden();
 });
 
-// a declined Bill's Your card, its card working again: Try this card again
-// pressed, and the alert gone
-const retriedOnYourCard = async (page: Page) => {
+// a declined Bill's Your card, saying what for and why, with Try this card
+// again pressed once the card `then` takes it, declines it again, or the
+// provider leaves it processing; the alert, for what the test reads next
+const triedOnYourCard = async (
+  page: Page,
+  then: "takes" | "declines" | "processing",
+) => {
   const { billId } = await billed({ failing: "insufficient_funds" });
-  await failCharges(null);
+  if (then !== "declines") {
+    await failCharges(then === "takes" ? null : "processing");
+  }
   await signedInAs(page, casey.email);
   await page.goto(`/portal/bills/${billId}`);
   await page.getByRole("link", { name: "Update your card" }).click();
@@ -771,17 +777,17 @@ const retriedOnYourCard = async (page: Page) => {
     /^Payment needed\. We couldn't take \$[\d.,]+ for bill EC-000001 from your Test card ending 4242 \(there wasn't enough money in the account\)\. Try it again, or save a different card below\./,
   );
   await needed.getByRole("button", { name: "Try this card again" }).click();
-  await expect(needed).toHaveCount(0);
-  return billId;
+  return { billId, needed };
 };
 
 // a Bill its card failed is one Your card tries again, as it does a clean,
-// saying what for and why, and then that it's taken, in place of the
-// alert, as saving a card says it (#499, #508's review F26)
+// and then says it's taken, in place of the alert, as saving a card says
+// it (#499, #508's review F26)
 test("Your card tries a declined Bill again, and says it's taken", async ({
   page,
 }) => {
-  await retriedOnYourCard(page);
+  const { needed } = await triedOnYourCard(page, "takes");
+  await expect(needed).toHaveCount(0);
   await expect(
     page.getByText(
       /^Paid\. We took \$[\d.,]+ for bill EC-000001 from your Test card ending 4242\.$/,
@@ -792,7 +798,7 @@ test("Your card tries a declined Bill again, and says it's taken", async ({
 test("a Bill Your card's retry paid reads charged to the card", async ({
   page,
 }) => {
-  const billId = await retriedOnYourCard(page);
+  const { billId } = await triedOnYourCard(page, "takes");
   await expect(page.getByText(/^Paid\. We took /)).toBeVisible();
   await page.goto(`/portal/bills/${billId}`);
   await expect(titleBadge(page, "Paid")).toBeVisible();
@@ -800,27 +806,17 @@ test("a Bill Your card's retry paid reads charged to the card", async ({
   await expect(page.getByText(/^Charged to your card, /)).toBeVisible();
 });
 
-// one that fails again keeps the alert, and the toast says why and what to
-// do with the card, as a clean's does: Your card saves only a card (#499,
-// #508's review F27)
+// one that fails again keeps the alert, which says it was tried and why,
+// in this page's words, with no toast offering another fix (#499, #508's
+// review F27, UX review U17, U18)
 test("Your card's retry that fails again says why, and keeps the way out", async ({
   page,
 }) => {
-  const { billId } = await billed({ failing: "insufficient_funds" });
-  await signedInAs(page, casey.email);
-  await page.goto(`/portal/bills/${billId}`);
-  await page.getByRole("link", { name: "Update your card" }).click();
-
-  const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
-  await needed.getByRole("button", { name: "Try this card again" }).click();
-  await expect(
-    page.getByText(
-      "The payment still didn't go through (there wasn't enough money in the account). Please update your card, or use another one.",
-    ),
-  ).toBeVisible();
+  const { needed } = await triedOnYourCard(page, "declines");
   await expect(needed).toContainText(
-    "We couldn't take $269.47 for bill EC-000001 from your Test card ending 4242 (there wasn't enough money in the account).",
+    "Payment needed. We tried it again. We couldn't take $269.47 for bill EC-000001 from your Test card ending 4242 (there wasn't enough money in the account). Try it again, or save a different card below.",
   );
+  await expect(page.getByText(/still didn't go through/)).toHaveCount(0);
   await expect(
     needed.getByRole("button", { name: "Try this card again" }),
   ).toBeVisible();
@@ -858,14 +854,7 @@ test("Your card asks for a new card in place of an expired one, with no retry", 
 test("Your card's retry still going through says so, not that it's paid", async ({
   page,
 }) => {
-  const { billId } = await billed({ failing: "insufficient_funds" });
-  await failCharges("processing");
-  await signedInAs(page, casey.email);
-  await page.goto(`/portal/bills/${billId}`);
-  await page.getByRole("link", { name: "Update your card" }).click();
-
-  const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
-  await needed.getByRole("button", { name: "Try this card again" }).click();
+  const { billId, needed } = await triedOnYourCard(page, "processing");
   // in the app's words for a payment on its way (#499's UX review U7)
   await expect(
     page.getByText(

@@ -52,8 +52,11 @@ import {
 export type ChargeFor =
   { jobId: string; kind: "balance" | "fee" } | { billId: string; kind: "bill" };
 
-// what charging came to: how much was taken, or why nothing more was
-export type Taken = { ok: true; cents: number } | { ok: false; reason: string };
+// what charging came to: how much was taken, and the Charges it recorded,
+// an earlier try's among them; or why nothing more was
+export type Taken =
+  | { ok: true; cents: number; recorded: Charge[] }
+  | { ok: false; reason: string };
 
 // why nothing was taken when the provider didn't answer
 export const UNREACHABLE = "the payment provider couldn't be reached";
@@ -849,8 +852,8 @@ export const chargeSaved = async (
   );
   // it may yet take the money, so nothing more is asked for meanwhile
   if (earlier.unknown) return { ok: false, reason: earlier.unknown };
-  let cents = earlier.recorded.reduce((sum, c) => sum + c.amountCents, 0);
-  if (cents >= amount) return { ok: true, cents };
+  const cents = earlier.recorded.reduce((sum, c) => sum + c.amountCents, 0);
+  if (cents >= amount) return { ok: true, cents, recorded: earlier.recorded };
 
   const payerId = await payerFor(client).catch((error: unknown) => {
     monitoring.signal("payment_gateway_error", {
@@ -875,8 +878,12 @@ export const chargeSaved = async (
     return { ok: false, reason: PROCESSING };
   }
   if (outcome.status !== "taken") return { ok: false, reason: outcome.reason };
-  await record(tx, chargeFor, outcome.attempt, item);
-  return { ok: true, cents: cents + outcome.attempt.amountCents };
+  const charge = await record(tx, chargeFor, outcome.attempt, item);
+  return {
+    ok: true,
+    cents: cents + charge.amountCents,
+    recorded: [...earlier.recorded, charge],
+  };
 };
 
 // what taking a Deposit came to: as the provider says, a Client's going

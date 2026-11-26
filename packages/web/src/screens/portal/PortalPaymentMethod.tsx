@@ -17,6 +17,7 @@ import {
   type ClientPastJob,
   type Unpaid,
 } from "@empire-cleaning/models";
+import { ApiError } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { billApproval, jobApproval } from "./approve-payment.tsx";
@@ -36,6 +37,9 @@ const words = catalog({
     about:
       "We take a deposit from this card when you book. Each clean is charged to it when it's done, or goes on your weekly bill if you have one. If a payment didn't go through, saving a card here tries it again.",
     tryAgain: "Try this card again",
+    // leads the alert once that press took nothing, so it shows it ran
+    // (#508's UX review U18)
+    triedAgain: "We tried it again.",
     // what a payment was for, after its amount
     forClean: (day: string) => `for your ${day} clean`,
     forBill: (number: string) => `for bill ${number}`,
@@ -70,6 +74,7 @@ const words = catalog({
     about:
       "Cobramos un depósito de esta tarjeta cuando reserva. Cada limpieza se cobra a ella cuando está terminada, o va en su factura semanal si tiene una. Si un pago no pasó, guardar una tarjeta aquí lo vuelve a intentar.",
     tryAgain: "Volver a intentar con esta tarjeta",
+    triedAgain: "Lo volvimos a intentar.",
     forClean: (day: string) => `de su limpieza del ${day}`,
     forBill: (number: string) => `de la factura ${number}`,
     refused: (amount: string, what: string) =>
@@ -203,6 +208,10 @@ export function PortalPaymentMethod() {
   // what the server says saving a card took, and what's still going
   // through (#499's review F20)
   const [tried, setTried] = useState<CardRetried | null>(null);
+  // the payment the card was just tried for again and still didn't take:
+  // its alert says so, as a toast fades and the page would look as it did
+  // before the press (#508's UX review U18)
+  const [triedFor, setTriedFor] = useState<string | null>(null);
   const shown = cardNotice(unpaid, tried);
   const [first] = unpaid;
   const refused = !!first?.refused;
@@ -220,9 +229,12 @@ export function PortalPaymentMethod() {
   // in critical-review-payment-truth.md). What it took is the notice in
   // place, as saving a card's is: Paid, or Payment pending while it's still
   // going through (#508's review F26); with more to come, the next one's
-  // notice takes its place, so a toast says it instead
+  // notice takes its place, so a toast says it instead. Not taken, its
+  // alert says it was tried again, in this page's words: the server's say
+  // what fixes it on a clean's or a Bill's page (#508's UX review U17)
   const tryAgain = () => {
     setTried(null);
+    setTriedFor(null);
     const it = first!;
     // whether it's taken, or still going through
     const took = async () => {
@@ -235,7 +247,18 @@ export function PortalPaymentMethod() {
       const bill = await approving.pay({ start, finish: (no) => finish(!no) });
       return bill.status === "paid";
     };
-    return retry.run(took, (took) => {
+    // a card's answer, declined or not approved, is a 409; any other
+    // failure is ours, and says so in a toast
+    const answered = () =>
+      took().catch((e: unknown) => {
+        if (e instanceof ApiError && e.status === 409) return "refused";
+        throw e;
+      });
+    return retry.run(answered, (took) => {
+      if (took === "refused") {
+        setTriedFor(it.id);
+        return "";
+      }
       setTried(
         took
           ? { took: [it], goingThrough: [] }
@@ -300,6 +323,7 @@ export function PortalPaymentMethod() {
               children: (
                 <p>
                   <strong>{t.p.paymentNeeded}</strong>{" "}
+                  {triedFor === first.id && `${t.w.triedAgain} `}
                   {refused
                     ? t.w.refused(t.formatMoney(first.cents), forOf(t, first))
                     : t.notTaken(

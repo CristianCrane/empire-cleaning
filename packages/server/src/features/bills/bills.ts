@@ -87,6 +87,7 @@ import {
   charges,
   paymentMethods,
   refunds,
+  type Charge,
 } from "../payments/payments.schema.ts";
 import {
   LATE,
@@ -879,9 +880,10 @@ export const payBillOnPage = async (
         .set({
           status: "paid",
           paidAt: clock.now(),
-          // with their saved card, charged to it, wherever they pressed
-          // (#508's UX review U16)
-          paidVia: token ? "page" : "charge",
+          paidVia: paidViaOf(
+            charged.recorded,
+            await attemptsFor("bill", [bill.id], tx),
+          ),
           clearingSince: null,
           unpaidSince: null,
           unpaidReason: null,
@@ -939,6 +941,20 @@ export const finishBillPayment = async (
 
 // a payment on a Bill, as attemptsFor reads it
 type Attempted = Awaited<ReturnType<typeof attemptsFor>>[number];
+
+// how a Bill was paid by the Charges that paid it: on its page with a
+// card or bank account typed in there; with their saved card, charged to
+// it, wherever they pressed (#508's UX review U16), and whichever press
+// recorded it (critical review C17)
+const paidViaOf = (taken: Charge[], attempts: Attempted[]) =>
+  taken.some((c) =>
+    attempts.some(
+      (a) =>
+        a.attempt.gatewayRef === c.gatewayRef && typedIn(a.attempt.request),
+    ),
+  )
+    ? ("page" as const)
+    : ("charge" as const);
 
 /**
  * Settles what the payments on a Bill came to (ADR-0022), as the provider's
@@ -1040,23 +1056,12 @@ export const settleBill = async (
       }
       const cents = taken.reduce((sum, c) => sum + c.amountCents, 0);
       if (cents >= bill.totalCents) {
-        // paid on its page with a card or bank account typed in there; with
-        // their saved card, charged to it, wherever they pressed (#508's UX
-        // review U16)
-        const onPage = taken.some((c) =>
-          [...after.values()].some(
-            (a) =>
-              a.call === "bill" &&
-              a.attempt.gatewayRef === c.gatewayRef &&
-              typedIn(a.attempt.request),
-          ),
-        );
         await tx
           .update(bills)
           .set({
             status: "paid",
             paidAt: clock.now(),
-            paidVia: onPage ? "page" : "charge",
+            paidVia: paidViaOf(taken, [...after.values()]),
             clearingSince: null,
             unpaidSince: null,
             unpaidReason: null,

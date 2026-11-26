@@ -133,7 +133,8 @@ export class FakePaymentGateway implements PaymentGateway {
       paymentMethodId: string | null;
       byCard: boolean;
       saves: boolean;
-      finishing?: boolean;
+      // processing, left so by finishCards() or failCharges("processing")
+      finishing: "cards" | "charges" | null;
     }
   >();
   // Charges the Client's bank wanted them to approve (APPROVE), each left
@@ -175,13 +176,17 @@ export class FakePaymentGateway implements PaymentGateway {
     this.chargeFailure = reason;
   }
 
-  // every Charge left processing goes through
+  // every Charge left processing goes through, and every card payment made
+  // with the Client there is taken as it's next read
   clearCharges() {
     for (const [key, charge] of this.processing) {
       this.charges.push(charge);
       this.made.set(key, taken(charge.chargeId));
     }
     this.processing.clear();
+    for (const waiting of this.waiting.values()) {
+      if (waiting.finishing === "charges") waiting.finishing = null;
+    }
   }
 
   // someone refunds `amount` of a Charge in the provider's dashboard, as
@@ -591,20 +596,11 @@ export class FakePaymentGateway implements PaymentGateway {
     if (input.amount > 0 && !reused) this.attempt(input.payerId, input.amount);
     // a card's bank leaves it processing, as `charge` does, until
     // clearCharges(): Stripe never ends one "processing" at once
-    // (docs/testing-log.md, 2026-11-26)
-    if (this.chargeFailure === "processing" && input.amount > 0 && !bank) {
-      const chargeId = this.id("pi");
-      this.processing.set(key, {
-        payerId: input.payerId,
-        paymentMethodId: savedId,
-        amount: input.amount,
-        description: input.description,
-        chargeId,
-      });
-      this.made.set(key, finishing(chargeId, "card"));
-      return finishing(chargeId, "card");
-    }
-    if (this.chargeFailure) {
+    // (docs/testing-log.md, 2026-11-26); it waits below, as one
+    // finishCards() leaves does (critical review C18)
+    const processing =
+      this.chargeFailure === "processing" && input.amount > 0 && !bank;
+    if (this.chargeFailure && !processing) {
       if (input.amount > 0) this.made.set(key, failed(this.chargeFailure));
       return failed(this.chargeFailure);
     }
@@ -639,9 +635,15 @@ export class FakePaymentGateway implements PaymentGateway {
     const byCard =
       "token" in source &&
       (card === "approvalOnSetup" || card === "alwaysApproval");
-    const finishes = this.cardsFinishing && input.amount > 0;
+    // which switch it's left processing by, until that switch lets it go
+    const finishes = processing
+      ? "charges"
+      : this.cardsFinishing && "token" in source && input.amount > 0
+        ? "cards"
+        : null;
     if (
-      ("token" in source && (this.approval || byCard || finishes)) ||
+      finishes ||
+      ("token" in source && (this.approval || byCard)) ||
       (savedId && card === "alwaysApproval")
     ) {
       const ref = reused ?? this.id(input.amount > 0 ? "pi" : "seti");
@@ -683,23 +685,17 @@ export class FakePaymentGateway implements PaymentGateway {
       if (!debit.ended) return finishing(ref, "bank");
       return debit.ended === "cleared" ? taken(ref) : failed(debit.ended);
     }
-    // left processing above, until clearCharges() takes it
-    if ([...this.processing.values()].some((c) => c.chargeId === ref)) {
-      return finishing(ref, "card");
-    }
     const waiting = this.waiting.get(ref);
-    if (!waiting) {
-      // and once it has
-      return this.charges.some((c) => c.chargeId === ref)
-        ? taken(ref)
-        : failed("unknown_payment");
-    }
+    if (!waiting) return failed("unknown_payment");
     if (this.canceled.has(ref)) return failed("canceled");
     // the bank's answer, once given (below), stays, whatever's asked of
     // the next payment (critical review C10)
     const answered = this.replies.get(`outcome:${ref}`);
     if (answered) return answered.reply as PaymentResult;
-    if (waiting.finishing && this.cardsFinishing) {
+    if (
+      (waiting.finishing === "cards" && this.cardsFinishing) ||
+      waiting.finishing === "charges"
+    ) {
       return finishing(ref, "card");
     }
     if (!waiting.byCard && this.approval === "processing") {
