@@ -585,6 +585,9 @@ test("Office Staff see a Job's payment the Client turned down at their bank as U
       /^Casey's payment wasn't approved at their bank on Jan 12\. None of it was taken\. They can try again on their clean's page, or use another card\.$/,
     ),
   ).toBeVisible();
+  await expect(page.getByRole("region", { name: "History" })).toContainText(
+    /Balance of \$[\d.,]+ wasn't approved at Casey's bank/,
+  );
   await expect(page.getByText(/wants them to approve/)).toBeHidden();
   await expectNothingNext(page);
 });

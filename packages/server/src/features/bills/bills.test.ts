@@ -1318,39 +1318,55 @@ describe("Unpaid Bills", () => {
 
   // #534's review F18 and UX review U18: turned down at their bank on its
   // page, it's theirs to try again, and Unpaid from then, not from when
-  // their bank first asked, as the Office reads when they said no
-  test("one their bank wants them to approve, turned down on its page, reads refused, Unpaid from then", async () => {
-    const { office, client } = await planOnBill();
-    const agent = await signIn(casey.email);
-    const form = (
-      await agent.post("/api/payment-methods/mine/card-form").expect(200)
-    ).body as { secret: string };
-    testPayments().fillCardForm(form.secret, "alwaysApproval");
-    await agent
-      .put("/api/payment-methods/mine")
-      .send({ token: form.secret })
-      .expect(200);
-    testClock().set(NEXT_MONDAY);
-    await makeDueBills();
-    const [summary] = await billsOf(office, client.id);
-    expect(summary).toMatchObject({ unpaid: { kind: "approve" } });
+  // their bank first asked, as the Office reads when they said no. The
+  // provider's webhook can tell us it failed before their browser does,
+  // and it reads the same, their browser told it took nothing (#534's
+  // review F25)
+  test.each([
+    ["their browser tells us first", false],
+    ["the provider's webhook tells us first", true],
+  ])(
+    "one their bank wants them to approve, turned down on its page, reads refused, Unpaid from then, %s",
+    async (_, webhookFirst) => {
+      const { office, client } = await planOnBill();
+      const agent = await signIn(casey.email);
+      const form = (
+        await agent.post("/api/payment-methods/mine/card-form").expect(200)
+      ).body as { secret: string };
+      testPayments().fillCardForm(form.secret, "alwaysApproval");
+      await agent
+        .put("/api/payment-methods/mine")
+        .send({ token: form.secret })
+        .expect(200);
+      testClock().set(NEXT_MONDAY);
+      await makeDueBills();
+      const [summary] = await billsOf(office, client.id);
+      expect(summary).toMatchObject({ unpaid: { kind: "approve" } });
 
-    testClock().advance({ hours: 3 });
-    await agent
-      .post(`/api/bills/mine/${summary!.id}/payment`)
-      .send({})
-      .expect(200);
-    testPayments().requireApproval("refused");
-    await agent
-      .post(`/api/bills/mine/${summary!.id}/payment/finish`)
-      .send({ approved: false })
-      .expect(409);
+      testClock().advance({ hours: 3 });
+      await agent
+        .post(`/api/bills/mine/${summary!.id}/payment`)
+        .send({})
+        .expect(200);
+      testPayments().requireApproval("refused");
+      if (webhookFirst) {
+        await webhook({
+          kind: "bill_payment_failed",
+          ref: "its payment",
+          reference: summary!.id,
+        }).expect(200);
+      }
+      await agent
+        .post(`/api/bills/mine/${summary!.id}/payment/finish`)
+        .send({ approved: false })
+        .expect(409);
 
-    expect(await billOf(office, summary!.id)).toMatchObject({
-      status: "due",
-      unpaid: { kind: "refused", since: testClock().now().toISOString() },
-    });
-  });
+      expect(await billOf(office, summary!.id)).toMatchObject({
+        status: "due",
+        unpaid: { kind: "refused", since: testClock().now().toISOString() },
+      });
+    },
+  );
 
   // #241: nobody has to try again
   test("one declined once the provider is back says its plan is paused", async () => {

@@ -540,8 +540,8 @@ The `ui` skill's rules hold here too; these are this product's.
   they're waiting on us for, success for done. A payment that wasn't
   approved at the Client's bank fits both, so its tone goes by whose step it is:
   warning on the Client's pages, as trying again is theirs, and danger on
-  the Office's, as nothing there is the Office's to do and the money
-  isn't coming (#534).
+  the Office's Job and Bill, as nothing there is the Office's to do and
+  the money isn't coming (#534).
 
 ### Words
 

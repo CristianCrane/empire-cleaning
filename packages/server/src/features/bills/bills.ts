@@ -864,8 +864,8 @@ type Attempted = Awaited<ReturnType<typeof attemptsFor>>[number];
  * left going through, which then failed, is emailed to them (#534 critical
  * review C3). `finish`, the Client's word as their bank's check finished
  * in their browser, if that's what settles it. Returns how the Client's
- * latest payment on its page ended, if it ended now: `failed`, why, or
- * null when it was taken.
+ * latest payment on its page ended, if it ended now, or on their word
+ * however it ended: `failed`, why, or null when it was taken.
  */
 export const settleBill = async (
   billId: string,
@@ -887,7 +887,7 @@ export const settleBill = async (
     // before Bills were paid as attempts has none, and waits on its webhook
     const stale =
       bill.status === "processing" && all.some((a) => a.call === "bill");
-    if (before.length === 0 && !stale) return null;
+    if (before.length === 0 && !stale && !finish) return null;
     const taken = await recordTakenEarlier(
       tx,
       { billId, kind: "bill" },
@@ -901,8 +901,15 @@ export const settleBill = async (
     const ended = before
       .map((b) => ({ before: b, now: after.get(b.attempt.id)! }))
       .filter(({ now }) => !now.open);
-    // the newest, as the Client last pressed Pay
-    const page = ended.find(({ now }) => now.call === "bill")?.now.attempt;
+    // the newest, as the Client last pressed Pay. On their word, however
+    // it ended, as the provider's webhook may have settled it first
+    // (#534's review F25)
+    const newest = [...after.values()].find((a) => a.call === "bill");
+    const page = finish
+      ? newest && !newest.open
+        ? newest.attempt
+        : undefined
+      : ended.find(({ now }) => now.call === "bill")?.now.attempt;
     const endedNow = page
       ? { failed: page.status === "failed" ? (page.reason ?? "") : null }
       : null;
