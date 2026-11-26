@@ -105,6 +105,7 @@ const nothing: Settled = {
   chargedCents: 0,
   refundedCents: 0,
   failure: null,
+  leftCents: 0,
   becameUnpaid: false,
   paymentMethod: card,
   plan: null,

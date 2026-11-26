@@ -1,5 +1,10 @@
 import { CreditCard, ShieldCheck } from "lucide-react";
-import type { ClientJobDetail, JobPayOutcome } from "@empire-cleaning/models";
+import type {
+  BillPayOutcome,
+  BillView,
+  ClientJobDetail,
+  JobPayOutcome,
+} from "@empire-cleaning/models";
 import { ButtonLink, type Alert, type PageAction } from "@empire-cleaning/ui";
 import { ApiError, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
@@ -83,6 +88,23 @@ export const jobApproval = (jobId: string) => ({
   },
   finish: (approved: boolean) =>
     postJson<ClientJobDetail>(`/api/jobs/mine/${jobId}/balance/finish`, {
+      approved,
+    }),
+});
+
+// a Bill's payment, as its page and the card page ask it: `start` takes it
+// with the card or bank account they entered (`token`), or with none their
+// saved card; `finish` says how their bank's check went
+export const billApproval = (billId: string) => ({
+  start: async (token?: string) => {
+    const outcome = await postJson<BillPayOutcome>(
+      `/api/bills/mine/${billId}/payment`,
+      { token },
+    );
+    return outcome.status === "done" ? outcome.bill : outcome;
+  },
+  finish: (approved: boolean) =>
+    postJson<BillView>(`/api/bills/mine/${billId}/payment/finish`, {
       approved,
     }),
 });

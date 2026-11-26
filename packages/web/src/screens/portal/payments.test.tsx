@@ -8,6 +8,7 @@ import type {
 } from "@empire-cleaning/models";
 import {
   moneyNow as moneyNowIn,
+  nextAnswer as nextAnswerIn,
   owedAnswer as owedAnswerIn,
   pausedLine as pausedLineIn,
   paymentRow as paymentRowIn,
@@ -21,6 +22,8 @@ const paymentRow = (p: Parameters<typeof paymentRowIn>[0]) =>
   paymentRowIn(p, "en");
 const pausedLine = (plans: Parameters<typeof pausedLineIn>[0], asks = true) =>
   pausedLineIn(plans, "en", asks);
+const nextAnswer = (next: Parameters<typeof nextAnswerIn>[0]) =>
+  nextAnswerIn(next, "en");
 const owedAnswer = (data: PaymentsData) =>
   owedAnswerIn(moneyNow(data).owed!, "en", data.plans);
 
@@ -35,7 +38,7 @@ const card = { label: "Visa ending 4242", savedAt: "", consentedAt: "" };
 const unpaidClean = {
   id: "job",
   startsAt: CLEAN,
-  unpaid: "declined",
+  unpaid: { since: CLEAN, kind: "declined", why: null },
   owedCents: 18450,
 } as ClientPastJob;
 
@@ -112,7 +115,14 @@ describe("what a Client owes now", () => {
 
   test("a clean waiting on the payment service: nothing to do but see it", () => {
     const { owed } = moneyNow(
-      data({ pastJobs: [{ ...unpaidClean, unpaid: "waiting" }] }),
+      data({
+        pastJobs: [
+          {
+            ...unpaidClean,
+            unpaid: { since: CLEAN, kind: "waiting", why: null },
+          },
+        ],
+      }),
     );
 
     expect(owed).toMatchObject({
@@ -395,10 +405,74 @@ describe("the owed card", () => {
   });
 });
 
+// owing nothing now, the card says what's taken next (#508)
+describe("what's taken next", () => {
+  test("a clean's rest, charged to their card once it's done", () => {
+    expect(
+      nextAnswer({ kind: "clean", cents: 24742, startsAt: CLEAN }),
+    ).toMatchObject({
+      label: "Next payment",
+      tone: "info",
+      headline: "$247.42",
+      lines: ["Charged to your card after your Tue, Oct 20 clean"],
+    });
+  });
+
+  test("a weekly Bill: what's on it so far, and when it's made", () => {
+    expect(
+      nextAnswer({
+        kind: "bill",
+        cents: 26947,
+        billOn: "2026-10-26",
+        payment: "automatic",
+      }),
+    ).toMatchObject({
+      label: "Next bill",
+      headline: "$269.47",
+      lines: ["So far. We'll charge your card on Mon, Oct 26"],
+    });
+    // one they pay on its page isn't said to be charged
+    expect(
+      nextAnswer({
+        kind: "bill",
+        cents: 26947,
+        billOn: "2026-10-26",
+        payment: "on_page",
+      }).lines,
+    ).toEqual(["So far. We'll bill you on Mon, Oct 26"]);
+  });
+
+  test("a weekly Bill with only a clean booked: its day, no amount yet", () => {
+    expect(
+      nextAnswer({
+        kind: "billedClean",
+        startsAt: CLEAN,
+        billOn: "2026-10-26",
+        payment: "automatic",
+      }),
+    ).toMatchObject({
+      label: "Next bill",
+      headline: "Mon, Oct 26",
+      lines: ["For your Tue, Oct 20 clean, charged to your card"],
+    });
+  });
+
+  test("nothing to come: the all-clear", () => {
+    expect(nextAnswer(null)).toMatchObject({
+      label: "To pay",
+      tone: "success",
+      headline: "Nothing",
+    });
+  });
+});
+
 // #534 Q7: their bank wants them to approve a payment we tried, which they
 // do on its page; theirs to do, and no failure
 describe("a payment their bank wants them to approve", () => {
-  const clean = { ...unpaidClean, unpaid: "approve" } as ClientPastJob;
+  const clean = {
+    ...unpaidClean,
+    unpaid: { since: CLEAN, kind: "approve", why: null },
+  } as ClientPastJob;
   const approveBill = bill({
     unpaid: { since: "", kind: "approve", why: null },
   });

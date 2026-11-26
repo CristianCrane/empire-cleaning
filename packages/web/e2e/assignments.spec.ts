@@ -258,8 +258,11 @@ test(
     // only what's theirs: today's, large; the offered Job is under Offers
     const next = page.getByRole("region", { name: "Next up" });
     await expect(next).toContainText("3:00 PM");
-    // a crew of one in the Offers row's words, as a crew of two is "2 cleaners"
-    await expect(next).toContainText(/2 h\s·\sjust you/);
+    // when it ends, not its length too (UX review U13), and a crew of one in
+    // the Offers row's words, as a crew of two is "2 cleaners"
+    await expect(next).toContainText("Today, until about 5:00 PM");
+    await expect(next).toContainText(/Deep Clean\s·\sjust you/);
+    await expect(next).not.toContainText("2 h");
     // nothing else coming up for them
     await expect(
       page.getByRole("button", { name: /^Coming up/ }),

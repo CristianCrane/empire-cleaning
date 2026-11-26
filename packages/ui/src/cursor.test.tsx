@@ -5,7 +5,9 @@ import { render } from "vitest-browser-react";
 import { Button } from "./Button.tsx";
 import { Calendar } from "./Calendar.tsx";
 import { Checkbox } from "./Checkbox.tsx";
+import { Inbox } from "lucide-react";
 import { List, ListItem } from "./List.tsx";
+import { ShortcutTile } from "./ShortcutTile.tsx";
 import { Cell, Column, Row, Table, TableBody, TableHeader } from "./Table.tsx";
 
 const cursor = (el: Element) => getComputedStyle(el).cursor;
@@ -43,11 +45,26 @@ test("things that can't be pressed don't pretend they can", async () => {
       <List aria-label="Extras">
         <ListItem id="1" title="Inside the oven" />
       </List>
+      <ShortcutTile
+        icon={Inbox}
+        label="Offers"
+        hint="None right now"
+        href="/cleaner/offers"
+        isDisabled
+      />
     </>,
   );
 
   expect(cursor(screen.getByRole("button").element())).not.toBe("pointer");
   expect(cursor(screen.getByRole("row").element())).not.toBe("pointer");
+  // a link tile with none there is flat, as a count tile with none is
+  // (#499's UX review U15)
+  const tile = screen.getByRole("link", { name: /Offers/ }).element();
+  expect(cursor(tile)).not.toBe("pointer");
+  // no shadow, or only see-through ones
+  expect(getComputedStyle(tile).boxShadow).toMatch(
+    /^(none|rgba\(0, 0, 0, 0\) 0px 0px 0px 0px(, rgba\(0, 0, 0, 0\) 0px 0px 0px 0px)*)$/,
+  );
 });
 
 // a row is hoverable only when it does something: opens, or is picked

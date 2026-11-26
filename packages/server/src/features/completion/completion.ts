@@ -11,7 +11,6 @@ import {
 } from "drizzle-orm";
 import { currentLanguage } from "#services/request";
 import {
-  because,
   type AdjustmentCorrection,
   type AdjustmentProposal,
   type AdjustmentView,
@@ -56,7 +55,16 @@ import {
   rescheduleTermsOf,
 } from "../reschedule/reschedule.ts";
 import { staff } from "../staff/staff.schema.ts";
-import { unpaidKind, whyNotPaid } from "../payments/unpaid.ts";
+import {
+  NOT_SETTLED,
+  savedCardRefused,
+  stillNotPaid,
+  unpaidKind,
+  unpaidOf,
+  type CardTried,
+  type Retried,
+} from "../payments/unpaid.ts";
+import { WAITING_ON_PROVIDER } from "../payments/money.ts";
 import {
   counts,
   paymentOf,
@@ -115,16 +123,10 @@ const words = catalog({
   en: {
     ANSWERED: "You've already answered this.",
     LAPSED: "It wasn't answered in time, so you won't pay it.",
-    stillNot: (because: string) => `It still didn't go through${because}.`,
-    UPDATE_OR_ANOTHER: "Please update your card, or use another one.",
-    notApproved: `${messages.en.NOT_APPROVED} Please try again, or use another card.`,
   },
   es: {
     ANSWERED: "Ya respondió a esto.",
     LAPSED: "No se respondió a tiempo, así que no lo pagará.",
-    stillNot: (because: string) => `Todavía no pasó${because}.`,
-    UPDATE_OR_ANOTHER: "Actualice su tarjeta, o use otra.",
-    notApproved: `${messages.es.NOT_APPROVED} Vuelva a intentarlo, o use otra tarjeta.`,
   },
 });
 const NOT_DONE = "This job hasn't been marked done.";
@@ -187,26 +189,38 @@ const jobWithOwner = async (jobId: string) => {
   return found;
 };
 
+// emails a Job's Client once a change to it is saved. Everything the email
+// reads is read inside `notify`, so a read that fails loses only the email,
+// never the answer about the change: a Client whose card was charged isn't
+// told it wasn't (critical review C14)
+const tellClient = (
+  what: string,
+  jobId: string,
+  send: (owner: Awaited<ReturnType<typeof jobWithOwner>>) => Promise<void>,
+) => notify(what, async () => send(await jobWithOwner(jobId)));
+
 // tells the Client a Job they owe on couldn't be charged, the first time it
 // becomes Unpaid
-const sendUnpaid = async (jobId: string, settled: Settled) => {
-  const { job, property, client } = await jobWithOwner(jobId);
-  const payment = await paymentOf(job);
-  await notify(`Unpaid notice for Job ${jobId}`, async () =>
-    email.send({
-      to: client.email,
-      ...unpaidEmail(client.preferredLanguage, {
-        name: client.name,
-        jobId,
-        clean: await cleanOf(job, property),
-        owedCents: payment.owedCents,
-        paymentMethod: settled.paymentMethod,
-        held: settled.plan === "held",
-        approve: unpaidKind(settled.failure ?? "") === "approve",
-      }),
-    }),
+const sendUnpaid = (jobId: string, settled: Settled) =>
+  tellClient(
+    `Unpaid notice for Job ${jobId}`,
+    jobId,
+    async ({ job, property, client }) => {
+      const payment = await paymentOf(job);
+      await email.send({
+        to: client.email,
+        ...unpaidEmail(client.preferredLanguage, {
+          name: client.name,
+          jobId,
+          clean: await cleanOf(job, property),
+          owedCents: payment.owedCents,
+          paymentMethod: settled.paymentMethod,
+          held: settled.plan === "held",
+          approve: unpaidKind(settled.failure ?? "") === "approve",
+        }),
+      });
+    },
   );
-};
 
 // ---- the Cleaner completing ----
 
@@ -293,33 +307,35 @@ export const completeJob = async (
 };
 
 // the Client's receipt for a Completed Job
-const sendReceipt = async (jobId: string, settled: Settled) => {
-  const { job, property, client } = await jobWithOwner(jobId);
-  const [payment, rows] = await Promise.all([
-    paymentOf(job),
-    db.select().from(adjustments).where(eq(adjustments.jobId, jobId)),
-  ]);
-  const deposit = payment.charges
-    .filter((c) => c.kind === "deposit")
-    .reduce((sum, c) => sum + c.amountCents, 0);
-  await notify(`Receipt for Job ${jobId}`, async () =>
-    email.send({
-      to: client.email,
-      ...receiptEmail(client.preferredLanguage, {
-        name: client.name,
-        jobId,
-        clean: await cleanOf(job, property),
-        quotedCents: payment.quotedCents,
-        adjustments: await forEmail(rows.filter(counts)),
-        totalCents: payment.totalCents,
-        rescheduleFeeCents: payment.rescheduleFeeCents,
-        depositCents: deposit,
-        owedCents: payment.owedCents,
-        settled,
-      }),
-    }),
+const sendReceipt = (jobId: string, settled: Settled) =>
+  tellClient(
+    `Receipt for Job ${jobId}`,
+    jobId,
+    async ({ job, property, client }) => {
+      const [payment, rows] = await Promise.all([
+        paymentOf(job),
+        db.select().from(adjustments).where(eq(adjustments.jobId, jobId)),
+      ]);
+      const deposit = payment.charges
+        .filter((c) => c.kind === "deposit")
+        .reduce((sum, c) => sum + c.amountCents, 0);
+      await email.send({
+        to: client.email,
+        ...receiptEmail(client.preferredLanguage, {
+          name: client.name,
+          jobId,
+          clean: await cleanOf(job, property),
+          quotedCents: payment.quotedCents,
+          adjustments: await forEmail(rows.filter(counts)),
+          totalCents: payment.totalCents,
+          rescheduleFeeCents: payment.rescheduleFeeCents,
+          depositCents: deposit,
+          owedCents: payment.owedCents,
+          settled,
+        }),
+      });
+    },
   );
-};
 
 // ---- views ----
 
@@ -540,9 +556,11 @@ export const proposeAdjustment = async (
     throw new ConflictError(REVIEWED);
   }
 
-  const { job, property, client } = await jobWithOwner(jobId);
-  await notify(`Proposal of Adjustment ${adjustmentId}`, () =>
-    sendProposal(client, job, property, proposed, "proposed"),
+  await tellClient(
+    `Proposal of Adjustment ${adjustmentId}`,
+    jobId,
+    ({ job, property, client }) =>
+      sendProposal(client, job, property, proposed, "proposed"),
   );
 };
 
@@ -603,36 +621,34 @@ const sendCorrection = async (jobId: string, settled: Settled) => {
   ) {
     return;
   }
-  const { job, property, client } = await jobWithOwner(jobId);
-  const payment = await paymentOf(job);
-  if (job.status !== "completed") {
-    await notify(`Fee notice for Job ${jobId}`, async () =>
-      email.send({
+  // a fee on a clean not done, else the corrected price of one done
+  await tellClient(
+    `Fee or correction notice for Job ${jobId}`,
+    jobId,
+    async ({ job, property, client }) => {
+      const payment = await paymentOf(job);
+      const clean = await cleanOf(job, property);
+      await email.send({
         to: client.email,
-        ...feeTakenEmail(client.preferredLanguage, {
-          name: client.name,
-          jobId,
-          clean: await cleanOf(job, property),
-          feeCents: job.feeCents ?? 0,
-          owedCents: payment.owedCents,
-          settled,
-        }),
-      }),
-    );
-    return;
-  }
-  await notify(`Correction notice for Job ${jobId}`, async () =>
-    email.send({
-      to: client.email,
-      ...correctedEmail(client.preferredLanguage, {
-        name: client.name,
-        jobId,
-        clean: await cleanOf(job, property),
-        totalCents: payment.totalCents,
-        owedCents: payment.owedCents,
-        settled,
-      }),
-    }),
+        ...(job.status !== "completed"
+          ? feeTakenEmail(client.preferredLanguage, {
+              name: client.name,
+              jobId,
+              clean,
+              feeCents: job.feeCents ?? 0,
+              owedCents: payment.owedCents,
+              settled,
+            })
+          : correctedEmail(client.preferredLanguage, {
+              name: client.name,
+              jobId,
+              clean,
+              totalCents: payment.totalCents,
+              owedCents: payment.owedCents,
+              settled,
+            })),
+      });
+    },
   );
 };
 
@@ -765,16 +781,18 @@ export const undoCompletion = async (jobId: string) => {
   });
   const settled = await settleAfterChange(jobId);
 
-  const { property, client } = await jobWithOwner(jobId);
-  await notify(`Undone completion notice for Job ${jobId}`, async () =>
-    email.send({
-      to: client.email,
-      ...completionUndoneEmail(client.preferredLanguage, {
-        name: client.name,
-        clean: await cleanOf(job, property),
-        settled,
+  await tellClient(
+    `Undone completion notice for Job ${jobId}`,
+    jobId,
+    async ({ property, client }) =>
+      email.send({
+        to: client.email,
+        ...completionUndoneEmail(client.preferredLanguage, {
+          name: client.name,
+          clean: await cleanOf(job, property),
+          settled,
+        }),
       }),
-    }),
   );
 };
 
@@ -784,10 +802,7 @@ export const retryBalance = async (jobId: string) => {
   if (!job.unpaidSince) return;
   const settled = await settleJob(jobId);
   if (settled.failure) {
-    const { why } = whyNotPaid(currentLanguage(), settled.failure);
-    throw new ConflictError(
-      `The payment still didn't go through${because(why)}.`,
-    );
+    throw new ConflictError(stillNotPaid(currentLanguage(), settled.failure));
   }
   await sendCorrection(jobId, settled);
 };
@@ -944,7 +959,12 @@ export const pastJobsFor = async (
             ? totalOf(quoted.get(job.id)!.totalCents, own)
             : 0,
         feeCents: job.status === "completed" ? 0 : (job.feeCents ?? 0),
-        unpaid: job.unpaidSince ? unpaidKind(job.unpaidReason ?? "") : null,
+        unpaid: unpaidOf(
+          currentLanguage(),
+          job.unpaidSince,
+          job.unpaidReason,
+          job.refusedAt,
+        ),
         owedCents: job.unpaidSince ? (await paymentOf(job)).owedCents : 0,
         waiting: own
           .filter((a) => a.status === "proposed")
@@ -1002,41 +1022,35 @@ export const answerAdjustment = async (
     ...reportedChange(answered),
     how: "approved",
   });
-  const { job, property, client } = await jobWithOwner(jobId);
-  const payment = await paymentOf(job);
-  await notify(`Receipt for Adjustment ${adjustmentId}`, async () =>
-    email.send({
-      to: client.email,
-      ...approvedEmail(client.preferredLanguage, {
-        name: client.name,
-        jobId,
-        clean: await cleanOf(job, property),
-        adjustment: (await forEmail([answered]))[0]!,
-        amountCents: answered.totalCents,
-        totalCents: payment.totalCents,
-        owedCents: payment.owedCents,
-        settled,
-      }),
-    }),
+  await tellClient(
+    `Receipt for Adjustment ${adjustmentId}`,
+    jobId,
+    async ({ job, property, client }) => {
+      const payment = await paymentOf(job);
+      await email.send({
+        to: client.email,
+        ...approvedEmail(client.preferredLanguage, {
+          name: client.name,
+          jobId,
+          clean: await cleanOf(job, property),
+          adjustment: (await forEmail([answered]))[0]!,
+          amountCents: answered.totalCents,
+          totalCents: payment.totalCents,
+          owedCents: payment.owedCents,
+          settled,
+        }),
+      });
+    },
   );
   if (settled.becameUnpaid) await sendUnpaid(jobId, settled);
-};
-
-// a payment on a Job's page that didn't go through, as its Client is told
-const stillNotPaid = (failure: string) => {
-  const lang = currentLanguage();
-  const said = words[lang];
-  const { kind, why } = whyNotPaid(lang, failure);
-  return new ConflictError(
-    `${said.stillNot(because(why))} ${kind === "declined" ? said.UPDATE_OR_ANOTHER : messages[lang].clientFix[kind]}`,
-  );
 };
 
 /**
  * The Client pays their Unpaid Job's Balance on its page, with their saved
  * card, there for their bank to ask them to approve it: `secret`, for
- * their browser, then clientFinishBalance; null once it's paid. Not taken:
- * why, as an error.
+ * their browser, then clientFinishBalance; null once it's paid, or while
+ * it's still going through, which its page says (Payment pending), as a
+ * Bill's does (#508's review F26). Not taken: why, as an error.
  */
 export const clientRetryBalance = async (
   clientId: string,
@@ -1047,7 +1061,9 @@ export const clientRetryBalance = async (
   if (!job.unpaidSince) return null;
   const settled = await settleJob(jobId, { by: "paying" });
   if (settled.secret) return settled.secret;
-  if (settled.failure) throw stillNotPaid(settled.failure);
+  if (settled.failure && !WAITING_ON_PROVIDER.includes(settled.failure)) {
+    throw savedCardRefused(settled.failure, false);
+  }
   return null;
 };
 
@@ -1072,57 +1088,83 @@ export const clientFinishBalance = async (
   if (!settled.failure) return;
   // one turned down there, though the Job was Unpaid for a decline before
   const kind = settled.notApproved ? "approve" : unpaidKind(settled.failure);
-  if (kind === "approve") {
-    throw new ConflictError(words[currentLanguage()].notApproved, "approve");
+  if (kind === "approve" || kind === "declined") {
+    throw savedCardRefused(settled.failure, kind === "approve");
   }
-  if (kind === "declined") throw stillNotPaid(settled.failure);
 };
 
 // Settles a Job again, and tells its Client the payment went through: as
 // after a new Payment Method, or a payment nobody heard the end of
 // (ADR-0022). One that still fails stays Unpaid, and isn't told again.
-export const retryJob = async (jobId: string) => {
+export const retryJob = async (jobId: string): Promise<Retried> => {
   const settled = await settleJob(jobId);
   // declined now, after the provider kept us waiting: told only now
   if (settled.becameUnpaid) await sendUnpaid(jobId, settled);
-  if (
-    settled.failure ||
-    (settled.chargedCents === 0 && settled.refundedCents === 0)
-  ) {
-    return;
+  if (settled.failure) {
+    // what it still owes: the rest, when part was taken (C11)
+    return {
+      takenCents: settled.chargedCents,
+      leftCents: settled.leftCents,
+      failure: settled.failure,
+    };
   }
-  const { job, property, client } = await jobWithOwner(jobId);
-  const payment = await paymentOf(job);
-  await notify(`Payment notice for Job ${jobId}`, async () =>
-    email.send({
-      to: client.email,
-      ...paymentWentThroughEmail(client.preferredLanguage, {
-        name: client.name,
-        jobId,
-        clean: await cleanOf(job, property),
-        owedCents: payment.owedCents,
-        settled,
-      }),
-    }),
+  const retried = {
+    takenCents: settled.chargedCents,
+    leftCents: 0,
+    failure: null,
+  };
+  if (settled.chargedCents === 0 && settled.refundedCents === 0) {
+    return retried;
+  }
+  await tellClient(
+    `Payment notice for Job ${jobId}`,
+    jobId,
+    async ({ job, property, client }) => {
+      const payment = await paymentOf(job);
+      await email.send({
+        to: client.email,
+        ...paymentWentThroughEmail(client.preferredLanguage, {
+          name: client.name,
+          jobId,
+          clean: await cleanOf(job, property),
+          owedCents: payment.owedCents,
+          settled,
+        }),
+      });
+    },
   );
+  return retried;
 };
 
 // After a Client saves a new Payment Method, tries each of their Unpaid Jobs
-// again with it
+// again with it, saying how each went
 export const retryUnpaidJobsFor = async (clientId: string) => {
   const unpaid = await db
-    .select({ id: jobs.id })
+    .select({ id: jobs.id, startsAt: jobs.startsAt })
     .from(jobs)
     .innerJoin(properties, eq(properties.id, jobs.propertyId))
     .where(and(eq(properties.clientId, clientId), isNotNull(jobs.unpaidSince)));
-  for (const { id } of unpaid) {
+  const retried: CardTried[] = [];
+  for (const { id, startsAt } of unpaid) {
+    const clean = {
+      kind: "clean" as const,
+      id,
+      startsAt: startsAt.toISOString(),
+    };
     try {
-      await retryJob(id);
+      retried.push({ ...clean, ...(await retryJob(id)) });
     } catch (error) {
       // the rest are still tried; this one stays Unpaid
       monitoring.error(error, { what: `Unpaid Job ${id} not retried` });
+      retried.push({
+        ...clean,
+        takenCents: 0,
+        failure: NOT_SETTLED,
+        errored: true,
+      });
     }
   }
+  return retried;
 };
 
 // ---- the Clock ----
@@ -1177,8 +1219,9 @@ export const chaseProposedAdjustments = async () => {
       )
       .returning({ id: adjustments.id });
     if (!claimed) continue;
-    const { job, property, client } = await jobWithOwner(adjustment.jobId);
+    // its reads inside the try too, so one failing frees the claim (C14)
     try {
+      const { job, property, client } = await jobWithOwner(adjustment.jobId);
       await sendProposal(client, job, property, adjustment, "reminder");
     } catch (error) {
       monitoring.error(error, {

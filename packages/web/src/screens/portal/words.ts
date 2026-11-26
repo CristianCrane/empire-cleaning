@@ -42,6 +42,9 @@ export const portalWords = catalog({
     notApproved: "The payment wasn't approved.",
     tryAgain: "None of it was taken. Please try again.",
     didntWork: "That didn't work. Please try again.",
+    // paying a Bill or a clean on its page, as a toast, while the payment
+    // service hasn't said, so the page says Payment pending
+    pending: "Your payment is pending",
     seeYourCleaningPlan: "See your cleaning plan",
     seeTheClean: "See the clean",
     // a Bill its card already names, which asks nothing of them
@@ -92,7 +95,7 @@ export const portalWords = catalog({
     nothingBooked: "Nada reservado",
     nextShowsHere: "Su próxima limpieza aparecerá aquí cuando esté reservada.",
     differentCard: "Usar otra tarjeta",
-    paymentNeeded: "Hay un pago pendiente.",
+    paymentNeeded: "Falta un pago.",
     needsApproval: "Por aprobar",
     bankWants: "Su banco quiere que apruebe este pago.",
     nothingYet: (card: string) =>
@@ -100,6 +103,7 @@ export const portalWords = catalog({
     notApproved: "El pago no se aprobó.",
     tryAgain: "No se cobró nada. Por favor, vuelva a intentarlo.",
     didntWork: "No funcionó. Vuelva a intentarlo.",
+    pending: "Su pago está pendiente",
     seeYourCleaningPlan: "Ver su plan de limpieza",
     seeTheClean: "Ver la limpieza",
     seeTheBill: "Ver la factura",

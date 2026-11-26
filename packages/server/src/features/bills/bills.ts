@@ -75,8 +75,10 @@ import {
   chargeOpen,
   chargeSaved,
   NOT_APPROVED,
+  openOn,
   recordTakenEarlier,
   refundFrom,
+  typedIn,
   WAITING_ON_PROVIDER,
   waitOf,
 } from "../payments/money.ts";
@@ -85,14 +87,19 @@ import {
   charges,
   paymentMethods,
   refunds,
+  type Charge,
 } from "../payments/payments.schema.ts";
 import {
   LATE,
+  NOT_SETTLED,
   nowTheirs,
   REFUSED,
+  savedCardRefused,
   turnedDown,
   unpaidKind,
   whyNotPaid,
+  type CardTried,
+  type Retried,
 } from "../payments/unpaid.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { currentPriceList, namedByKey } from "../price-list/price-list.ts";
@@ -136,28 +143,23 @@ const taxShare = (
     ? 0
     : Math.round((cents * option.taxCents) / option.totalCents);
 
-/**
- * Everything a Job should have billed in all, as parts: once Completed, its
- * price, the Adjustments that count and any Late Reschedule fee; once
- * Cancelled or No Access with a fee, that fee. Either way less its Deposit
- * and anything already charged for it on its own, as before weekly billing
- * was switched on. A Job that owes nothing a Bill bills, as when its
- * completion was undone, should have billed nothing.
- */
-const partsOf = async (job: Job, tx: Tx | typeof db): Promise<Part[]> => {
-  if (!owesOnBill(job)) return [];
-  // one after the other, as a transaction's queries share one connection
-  // (ADR-0024)
-  const [quoted] = await jobQuotes([job.id], tx);
-  const rows = await tx
-    .select()
-    .from(adjustments)
-    .where(eq(adjustments.jobId, job.id));
-  const taken = await tx
-    .select()
-    .from(charges)
-    .where(eq(charges.jobId, job.id));
-  if (!quoted) throw new ConflictError(NO_QUOTE);
+// what partsOf reads for these Jobs, a query each, whatever their number:
+// a Client billed weekly for years has hundreds, read on each Payments view
+// (#564). One after the other, as a transaction's queries share one
+// connection (ADR-0024)
+const readParts = async (jobIds: string[], tx: Tx | typeof db) => {
+  const quoted = await jobQuotes(jobIds, tx);
+  const rows =
+    jobIds.length === 0
+      ? []
+      : await tx
+          .select()
+          .from(adjustments)
+          .where(inArray(adjustments.jobId, jobIds));
+  const taken =
+    jobIds.length === 0
+      ? []
+      : await tx.select().from(charges).where(inArray(charges.jobId, jobIds));
   const given =
     taken.length === 0
       ? []
@@ -173,6 +175,30 @@ const partsOf = async (job: Job, tx: Tx | typeof db): Promise<Part[]> => {
               isNull(refunds.failedAt),
             ),
           );
+  return {
+    quoted: new Map(quoted.map((q) => [q.jobId, q])),
+    adjustments: Map.groupBy(rows, (a) => a.jobId),
+    charges: Map.groupBy(taken, (c) => c.jobId!),
+    refunds: Map.groupBy(given, (r) => r.chargeId),
+  };
+};
+type PartsRead = Awaited<ReturnType<typeof readParts>>;
+
+/**
+ * Everything a Job should have billed in all, as parts: once Completed, its
+ * price, the Adjustments that count and any Late Reschedule fee; once
+ * Cancelled or No Access with a fee, that fee. Either way less its Deposit
+ * and anything already charged for it on its own, as before weekly billing
+ * was switched on. A Job that owes nothing a Bill bills, as when its
+ * completion was undone, should have billed nothing.
+ */
+const partsOf = (job: Job, read: PartsRead): Part[] => {
+  if (!owesOnBill(job)) return [];
+  const quoted = read.quoted.get(job.id);
+  const rows = read.adjustments.get(job.id) ?? [];
+  const taken = read.charges.get(job.id) ?? [];
+  if (!quoted) throw new ConflictError(NO_QUOTE);
+  const given = taken.flatMap((c) => read.refunds.get(c.id) ?? []);
   // a refund made in the provider's dashboard is a discount: it still counts
   // as taken, so it's never billed back
   const net = (kind: "deposit" | "other") =>
@@ -258,12 +284,12 @@ type NewLine = Omit<
 // whatever was billed and is no longer owed comes off, as a correction.
 // Nothing for a Job never billed that nets to nothing, such as a fee its
 // Deposit already covers.
-const linesFor = async (
+const linesFor = (
   job: Job,
   before: Awaited<ReturnType<typeof billLinesOf>>,
-  tx: Tx | typeof db,
-): Promise<NewLine[]> => {
-  const parts = await partsOf(job, tx);
+  read: PartsRead,
+): NewLine[] => {
+  const parts = partsOf(job, read);
   const billed = new Map<string, Part>();
   for (const { line } of before) {
     const known = billed.get(line.key);
@@ -331,14 +357,79 @@ const openCreditOf = async (clientId: string, tx: Tx | typeof db) => {
 };
 
 /**
+ * What a Client's Bill for the week from `weekStart` (a Monday) bills, were
+ * it made now: everything owed and not yet billed for their Jobs, at all
+ * their Properties, from the week weekly billing was switched on to the end
+ * of this one; a Job whose own payment is still going through waits for the
+ * next. An open credit from an earlier Bill comes off it, as its last line.
+ * Null with nothing to bill, as a credit waits then. `lock` holds the Jobs
+ * while they're billed, for making the Bill; without it, it's only a look.
+ */
+export const billedNow = async (
+  client: Pick<Client, "id" | "billedWeeklyFrom" | "billPayment">,
+  weekStart: string,
+  tx: Tx | typeof db,
+  { lock }: { lock: boolean },
+) => {
+  if (!client.billedWeeklyFrom) return null;
+  const candidates = tx
+    .select({ job: jobs })
+    .from(jobs)
+    .innerJoin(properties, eq(properties.id, jobs.propertyId))
+    .where(
+      and(
+        eq(properties.clientId, client.id),
+        gte(jobs.startsAt, startOfDay(client.billedWeeklyFrom)),
+        lt(jobs.startsAt, startOfDay(addDays(weekStart, 7))),
+      ),
+    )
+    .orderBy(asc(jobs.startsAt), asc(jobs.id));
+  // held while billed, in the order settling a Job holds it
+  const held = (
+    await (lock ? candidates.for("update", { of: jobs }) : candidates)
+  ).map((r) => r.job);
+  const ids = held.map((job) => job.id);
+  // its own payment may still take the money (the one rule): it waits for
+  // the next Bill, so the Client isn't asked for it twice at once
+  const open = await openOn(ids, tx);
+  const onBills = Map.groupBy(await billLinesOf(ids, tx), (r) => r.line.jobId!);
+  const billing = held.filter(
+    (job) =>
+      !open.has(job.id) &&
+      isBilledWeekly(job, client, {
+        lines: onBills.get(job.id)?.length ?? 0,
+      }),
+  );
+  const read = await readParts(
+    billing.filter(owesOnBill).map((job) => job.id),
+    tx,
+  );
+  const lines = billing.flatMap((job) =>
+    linesFor(job, onBills.get(job.id) ?? [], read),
+  );
+  if (lines.length === 0) return null;
+
+  const credit = await openCreditOf(client.id, tx);
+  if (credit && credit.cents > 0) {
+    lines.push({
+      jobId: null,
+      key: "credit",
+      corrected: false,
+      fee: null,
+      change: null,
+      amountCents: -credit.cents,
+      taxCents: 0,
+    });
+  }
+  return { lines, credit };
+};
+
+/**
  * Makes a Client's Bill for the week from `weekStart` (a Monday), unless
  * they have one for it already, even voided: one per week, so making Bills
- * again makes nothing twice. It bills everything owed and not yet billed for
- * their Jobs, at all their Properties, from the week weekly billing was
- * switched on to the end of this one; anything settled since an earlier
- * Bill was made goes on this one, and a Job whose own payment is still going
- * through goes on the next. An open credit from an earlier Bill comes off
- * it. With nothing to bill, there's no Bill, and a credit waits.
+ * again makes nothing twice. It bills what billedNow says, so anything
+ * settled since an earlier Bill was made goes on this one. With nothing to
+ * bill, there's no Bill, and a credit waits.
  */
 const makeBill = async (
   clientId: string,
@@ -360,43 +451,9 @@ const makeBill = async (
       .where(and(eq(bills.clientId, clientId), eq(bills.weekStart, weekStart)));
     if (made) return null;
 
-    // held while billed, in the order settling a Job holds it
-    const candidates = await tx
-      .select({ job: jobs, property: properties })
-      .from(jobs)
-      .innerJoin(properties, eq(properties.id, jobs.propertyId))
-      .where(
-        and(
-          eq(properties.clientId, clientId),
-          gte(jobs.startsAt, startOfDay(client.billedWeeklyFrom)),
-          lt(jobs.startsAt, startOfDay(addDays(weekStart, 7))),
-        ),
-      )
-      .orderBy(asc(jobs.startsAt), asc(jobs.id))
-      .for("update", { of: jobs });
-    const lines: NewLine[] = [];
-    for (const { job } of candidates) {
-      // its own payment may still take the money (the one rule): it waits
-      // for the next Bill, so the Client isn't asked for it twice at once
-      if (await chargeOpen(job.id, tx)) continue;
-      const before = await billLinesOf(job.id, tx);
-      if (!isBilledWeekly(job, client, { lines: before.length })) continue;
-      lines.push(...(await linesFor(job, before, tx)));
-    }
-    if (lines.length === 0) return null;
-
-    const credit = await openCreditOf(clientId, tx);
-    if (credit && credit.cents > 0) {
-      lines.push({
-        jobId: null,
-        key: "credit",
-        corrected: false,
-        fee: null,
-        change: null,
-        amountCents: -credit.cents,
-        taxCents: 0,
-      });
-    }
+    const billed = await billedNow(client, weekStart, tx, { lock: true });
+    if (!billed) return null;
+    const { lines, credit } = billed;
 
     const now = clock.now();
     const today = dayOf(now);
@@ -474,6 +531,9 @@ const holdOrResumePlansOf = async (billId: string, tx: Tx) => {
 
 type Charged = {
   failure: string | null;
+  // the Bill's total, taken whole or not at all, from the row it held, so
+  // a retry names it without reading again (critical review C13)
+  totalCents: number;
   becameUnpaid: boolean;
   plan: "held" | "resumed" | null;
 };
@@ -556,6 +616,7 @@ const chargeBill = async (
     const plan = await holdOrResumePlansOf(bill.id, tx);
     return {
       failure,
+      totalCents: bill.totalCents,
       becameUnpaid,
       // a plan held already, as while the payment only waited on the
       // provider, is told now the payment is the Client's to put right
@@ -642,22 +703,29 @@ export const makeDueBills = async () => {
  * another way meanwhile, or voided, has what its payments came to settled
  * (settleBill).
  */
-export const retryBill = async (billId: string, { anyReason = false } = {}) => {
+export const retryBill = async (
+  billId: string,
+  { anyReason = false } = {},
+): Promise<Retried> => {
   const charged = await chargeBill(billId, { anyReason });
   if (!charged) {
     await settleBill(billId, "abandoned");
-    return;
+    return { takenCents: 0, leftCents: 0, failure: null };
   }
-  if (!charged.failure) await tellPaid(billId, charged.plan);
-  // declined now, after the provider kept us waiting: told only now
-  else if (charged.becameUnpaid) await tellUnpaid(billId, charged.plan);
+  if (charged.failure) {
+    // declined now, after the provider kept us waiting: told only now
+    if (charged.becameUnpaid) await tellUnpaid(billId, charged.plan);
+  } else await tellPaid(billId, charged.plan);
+  return charged.failure
+    ? { takenCents: 0, leftCents: charged.totalCents, failure: charged.failure }
+    : { takenCents: charged.totalCents, leftCents: 0, failure: null };
 };
 
 // After a Client saves a new Payment Method, tries their Unpaid Bills again
-// with it, as their Jobs are
+// with it, as their Jobs are, saying how each went
 export const retryUnpaidBillsFor = async (clientId: string) => {
   const unpaid = await db
-    .select({ id: bills.id })
+    .select({ id: bills.id, number: bills.number })
     .from(bills)
     .where(
       and(
@@ -667,7 +735,23 @@ export const retryUnpaidBillsFor = async (clientId: string) => {
         isNotNull(bills.unpaidSince),
       ),
     );
-  for (const { id } of unpaid) await retryBill(id, { anyReason: true });
+  const retried: CardTried[] = [];
+  for (const { id, number } of unpaid) {
+    const bill = { kind: "bill" as const, id, number: billNumber(number) };
+    try {
+      retried.push({ ...bill, ...(await retryBill(id, { anyReason: true })) });
+    } catch (error) {
+      // the rest are still tried; this one stays Unpaid
+      monitoring.error(error, { what: `Unpaid Bill ${id} not retried` });
+      retried.push({
+        ...bill,
+        takenCents: 0,
+        failure: NOT_SETTLED,
+        errored: true,
+      });
+    }
+  }
+  return retried;
 };
 
 // ---- on its page ----
@@ -719,9 +803,12 @@ const payWords = catalog({
 
 // a payment on a Bill's page that took nothing, as the dialog says it: never
 // approved (kind "approve", for the page to offer it again), or why it didn't
-// go through when that's known
-const nothingTaken = (reason: string) => {
+// go through when that's known. One with their saved card, not a card or
+// bank account `typed` in, in a card's words, as Your card tries it too
+// (#508's review F27)
+const nothingTaken = (reason: string, typed: boolean) => {
   const lang = currentLanguage();
+  if (!typed) return savedCardRefused(reason, NOT_APPROVED(reason));
   if (NOT_APPROVED(reason))
     return new ConflictError(payWords[lang].notApproved, "approve");
   const { why } = whyNotPaid(lang, reason);
@@ -793,7 +880,10 @@ export const payBillOnPage = async (
         .set({
           status: "paid",
           paidAt: clock.now(),
-          paidVia: "page",
+          paidVia: paidViaOf(
+            charged.recorded,
+            await attemptsFor("bill", [bill.id], tx),
+          ),
           clearingSince: null,
           unpaidSince: null,
           unpaidReason: null,
@@ -823,7 +913,7 @@ export const payBillOnPage = async (
   if (paid.kind === "approve") {
     return { status: "needs_approval", secret: paid.secret };
   }
-  if (paid.kind === "refused") throw nothingTaken(paid.reason);
+  if (paid.kind === "refused") throw nothingTaken(paid.reason, !!token);
   if (paid.kind === "paid") await tellPaid(billId, paid.plan);
   return { status: "done", bill: await billView(billId, client.id) };
 };
@@ -845,12 +935,26 @@ export const finishBillPayment = async (
     approved ? null : "client_retried",
     approved ? "approved" : "refused",
   );
-  if (ended?.failed) throw nothingTaken(ended.failed);
+  if (ended?.failed) throw nothingTaken(ended.failed, ended.typed);
   return billView(billId, client.id);
 };
 
 // a payment on a Bill, as attemptsFor reads it
 type Attempted = Awaited<ReturnType<typeof attemptsFor>>[number];
+
+// how a Bill was paid by the Charges that paid it: on its page with a
+// card or bank account typed in there; with their saved card, charged to
+// it, wherever they pressed (#508's UX review U16), and whichever press
+// recorded it (critical review C17)
+const paidViaOf = (taken: Charge[], attempts: Attempted[]) =>
+  taken.some((c) =>
+    attempts.some(
+      (a) =>
+        a.attempt.gatewayRef === c.gatewayRef && typedIn(a.attempt.request),
+    ),
+  )
+    ? ("page" as const)
+    : ("charge" as const);
 
 /**
  * Settles what the payments on a Bill came to (ADR-0022), as the provider's
@@ -888,7 +992,7 @@ export const settleBill = async (
     const stale =
       bill.status === "processing" && all.some((a) => a.call === "bill");
     if (before.length === 0 && !stale && !finish) return null;
-    const taken = await recordTakenEarlier(
+    const { recorded: taken, unknown } = await recordTakenEarlier(
       tx,
       { billId, kind: "bill" },
       null,
@@ -911,7 +1015,10 @@ export const settleBill = async (
         : undefined
       : ended.find(({ now }) => now.call === "bill")?.now.attempt;
     const endedNow = page
-      ? { failed: page.status === "failed" ? (page.reason ?? "") : null }
+      ? {
+          failed: page.status === "failed" ? (page.reason ?? "") : null,
+          typed: typedIn(page.request),
+        }
       : null;
     // one their bank wanted them to approve, turned down at their bank on
     // its page, on their word: theirs to try again, the server's word for
@@ -943,23 +1050,18 @@ export const settleBill = async (
       (stale && debit && failing(debit, debit) ? debit : undefined)
     )?.attempt.reason;
 
-    if (!("unknown" in taken) && taken.length > 0) {
+    if (!unknown && taken.length > 0) {
       if (bill.status === "paid" || bill.status === "void") {
         return { endedNow, next: { kind: "refund", taken } } as const;
       }
       const cents = taken.reduce((sum, c) => sum + c.amountCents, 0);
       if (cents >= bill.totalCents) {
-        const onPage = taken.some((c) =>
-          [...after.values()].some(
-            (a) => a.call === "bill" && a.attempt.gatewayRef === c.gatewayRef,
-          ),
-        );
         await tx
           .update(bills)
           .set({
             status: "paid",
             paidAt: clock.now(),
-            paidVia: onPage ? "page" : "charge",
+            paidVia: paidViaOf(taken, [...after.values()]),
             clearingSince: null,
             unpaidSince: null,
             unpaidReason: null,

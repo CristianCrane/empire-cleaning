@@ -4,9 +4,8 @@ import { say, validate } from "../../middleware/validation.ts";
 import { paymentGateway } from "../../services/payment-gateway/index.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { ownClient } from "../clients/clients.ts";
-import { retryUnpaidBillsFor } from "../bills/bills.ts";
-import { retryUnpaidJobsFor } from "../completion/completion.ts";
 import { paymentHistoryFor } from "./history.ts";
+import { nextChargeFor } from "./next-charge.ts";
 import {
   cardWords,
   paymentMethodOf,
@@ -15,6 +14,7 @@ import {
   startCardForm,
   toPaymentMethodView,
 } from "./payments.ts";
+import { retryUnpaidFor, tookOf } from "./retry-unpaid.ts";
 
 export const router = Router();
 
@@ -54,9 +54,8 @@ router.put(
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
     const saved = await savePaymentMethod(client, req.body.token);
-    await retryUnpaidJobsFor(client.id);
-    await retryUnpaidBillsFor(client.id);
-    res.json(saved);
+    // and what that took, for Your card to say
+    res.json({ ...saved, ...tookOf(await retryUnpaidFor(client.id)) });
   },
 );
 
@@ -68,6 +67,12 @@ export const historyRouter = Router();
 historyRouter.get("/mine", authorize("client"), async (_req, res) => {
   const client = await ownClient(signedInAccount(res).id);
   res.json(await paymentHistoryFor(client.id));
+});
+
+// what their card or weekly Bill takes next, or null (#508)
+historyRouter.get("/mine/next", authorize("client"), async (_req, res) => {
+  const client = await ownClient(signedInAccount(res).id);
+  res.json(await nextChargeFor(client));
 });
 
 // ---- the Office ----

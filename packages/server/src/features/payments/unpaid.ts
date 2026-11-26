@@ -1,12 +1,17 @@
 import {
   asksTheClient,
+  because,
   catalog,
+  messages,
+  type CardPayment,
   type Language,
   type Unpaid,
   type UnpaidKind,
 } from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
+import { ConflictError } from "../../middleware/errors.ts";
 import { APPROVE } from "../../services/payment-gateway/index.ts";
-import { NO_CARD, NOT_APPROVED, UNREACHABLE } from "./money.ts";
+import { NO_CARD, NOT_APPROVED, PROCESSING, UNREACHABLE } from "./money.ts";
 
 // Why a Job or a Bill is Unpaid, from the reason stored with it, in words a
 // person reads (docs/ux.md, Words). The stored reason is the payment
@@ -41,12 +46,14 @@ export const turnedDown = (
 // to approve on its page (#534 Q7); its kind says so, so it has no "why"
 const known: Record<string, UnpaidKind> = {
   [UNREACHABLE]: "waiting",
-  processing: "waiting",
+  [PROCESSING]: "waiting",
   [NOT_SETTLED]: "waiting",
   [NO_CARD]: "no_card",
   [LATE]: "late",
   [APPROVE]: "approve",
   [REFUSED]: "refused",
+  // trying an expired card again can't take it: a new card puts it right
+  expired_card: "no_card",
 };
 
 // why, in words, in the reader's language (ADR-0025): ours, and the few
@@ -57,7 +64,7 @@ const whyWords = catalog({
     [UNREACHABLE]: "we couldn't reach the payment service",
     // a charge to the saved card the provider leaves processing (ADR-0022):
     // only a card is charged so, so no bank payment is clearing
-    processing: "it's still being processed",
+    [PROCESSING]: "it's still being processed",
     [NOT_SETTLED]: "something went wrong on our side",
     [NO_CARD]: "no card is saved",
     [LATE]: "it wasn't paid by its due date",
@@ -68,7 +75,7 @@ const whyWords = catalog({
   },
   es: {
     [UNREACHABLE]: "no pudimos comunicarnos con el servicio de pagos",
-    processing: "se está procesando",
+    [PROCESSING]: "se está procesando",
     [NOT_SETTLED]: "algo salió mal de nuestra parte",
     [NO_CARD]: "no hay ninguna tarjeta guardada",
     [LATE]: "no se pagó antes de la fecha límite",
@@ -79,9 +86,62 @@ const whyWords = catalog({
   },
 });
 
+// how trying a payment again went: what it took, what of it is still owed
+// (what one the payment service left waiting may yet take, so Your card
+// names it: review F20), and why not when it failed (a stored reason, as
+// above). Or `errored`: trying it again failed on our side, so it stays
+// Unpaid as it was and nothing tries it again by itself (critical review
+// C12)
+export type Retried =
+  | { takenCents: number; leftCents: number; failure: string | null }
+  | { takenCents: 0; failure: string; errored: true };
+
+// the same, for one of a Client's payments, as Your card names it
+export type CardTried = CardPayment extends infer P
+  ? P extends CardPayment
+    ? Omit<P, "cents"> & Retried
+    : never
+  : never;
+
 // what kind of failure it is, whatever the language
 export const unpaidKind = (reason: string): UnpaidKind =>
   known[reason] ?? "declined";
+
+// a payment tried again that failed again, as a sentence, whoever reads it
+export const stillNotPaid = (lang: Language, reason: string) =>
+  retryWords[lang].stillNot(because(whyNotPaid(lang, reason).why));
+
+const retryWords = catalog({
+  en: {
+    stillNot: (because: string) =>
+      `The payment still didn't go through${because}.`,
+    UPDATE_OR_ANOTHER: "Please update your card, or use another one.",
+    notApproved: `${messages.en.NOT_APPROVED} Please try again, or use another card.`,
+  },
+  es: {
+    stillNot: (because: string) => `El pago todavía no pasó${because}.`,
+    UPDATE_OR_ANOTHER: "Actualice su tarjeta, o use otra.",
+    notApproved: `${messages.es.NOT_APPROVED} Vuelva a intentarlo, o use otra tarjeta.`,
+  },
+});
+
+// a payment with the Client's saved card, there to approve it, that took
+// nothing, as they're told on a clean's or a Bill's page or Your card: never
+// approved (`notApproved`; kind "approve", for the page to offer it again),
+// or why it didn't go through, then what puts it right (kind "notTaken",
+// for Your card to say it in its own words, #508's review F31). A card's
+// words, as a card is all it tried, whichever page they pressed on (F27)
+export const savedCardRefused = (failure: string, notApproved: boolean) => {
+  const lang = currentLanguage();
+  if (notApproved) {
+    return new ConflictError(retryWords[lang].notApproved, "approve");
+  }
+  const kind = unpaidKind(failure);
+  return new ConflictError(
+    `${stillNotPaid(lang, failure)} ${kind === "declined" ? retryWords[lang].UPDATE_OR_ANOTHER : messages[lang].clientFix[kind]}`,
+    "notTaken",
+  );
+};
 
 export const whyNotPaid = (
   lang: Language,

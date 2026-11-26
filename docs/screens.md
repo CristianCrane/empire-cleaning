@@ -425,7 +425,7 @@ Keeps: next up large, then coming up (ux-cleaner). Renders through
 - Header: "Hi, name", not in the bar.
 - Body: Now or Next up (`AnswerCard`: `DateTile`, Directions, Open job the
   primary), or nothing booked with See offers; tiles Coming up and Done
-  today (`?open=`, dated rows in place) and Offers (a link).
+  today (`?open=`, dated rows in place) and Offers (a link, greyed with none waiting).
 
 #### Cleaner > Offers
 
@@ -501,11 +501,11 @@ Keeps: Tabs, by month, date tiles (ux-portal). Renders through `ListPage`
 
 #### Client portal > Payments
 
-Keeps: what you owe first, fixed header Button (ux-portal). Renders through
+Keeps: what you owe first (ux-portal); Your card a tile alone (#499's UX review U3). Renders through
 `HomePage` (#435).
 
 - Header: "Payments" in the bar, with no action: Your card is its tile (#534's UX review U7).
-- Body: what you owe (`AnswerCard`: `IconTile`, the primary; for a payment we try again ourselves, their bank payment on its way, or a quote's Deposit going through, Payment pending, one line (and one while it pauses a plan), its link outlined (See your quote for a Deposit); while their bank asks them to approve a payment, a line under when it's due saying so; a Bill whose payment on its page didn't go through leads, in red, saying why, and naming the Bill when the card's line doesn't; Pay the bill when its line names it) or all paid;
+- Body: what you owe (`AnswerCard`: `IconTile`, the primary; for a payment we try again ourselves, their bank payment on its way, or a quote's Deposit going through, Payment pending, one line (and one while it pauses a plan), its link outlined (See your quote for a Deposit); while their bank asks them to approve a payment, a line under when it's due saying so; a Bill whose payment on its page didn't go through leads, in red, saying why, and naming the Bill when the card's line doesn't; Pay the bill when its line names it); else what's taken next (#508), in blue: the rest of the next clean's price, after it; the next weekly Bill's so far, charged to their card or billed to them, and its Monday; or, with only a clean booked, the Monday of the Bill it goes on; else To pay, Nothing, in green;
   Notices of payments clearing, each naming its Bill only when the card
   doesn't (beside another, or under a card about something else), and of
   a quote's Deposit going through under a card that asks something else,
@@ -530,9 +530,19 @@ Keeps: on the Payment Method page (ux-portal). Renders through `FormPage`
 (#434).
 
 - Header: Payments › Your card; the title; "How your card is used", folded.
-- Notices: the card failed (Try this card again, its problem a Toast), or
-  a payment turned down at their bank (amber, its Try this card again the
-  page's next step, #534's UX review U23), or saved, or info.
+- Notices: the first payment the card failed to take, a clean's or a
+  weekly Bill's, with its amount and why, and how many more come after it
+  (Try this card again, a danger text Button, one payment per press, its
+  bank's approval asked in place, only for a declined card: an expired one
+  asks for a new card below; a press the card turns down again leads the
+  alert with "We tried it again.", and only a failure of ours is a Toast,
+  #508's UX review U17, U18); or that one
+  turned down at their bank (amber, its Try this card again the page's
+  next step, #534's UX review U23); or Paid, or Payment pending naming
+  what's still going through with nothing to do, from what saving a card
+  or the last retry took (a retry with more to come says it in a Toast,
+  the next one's notice in place; #508's review F26); or the card saved;
+  or info.
 - Body: one Card: the card field; what saving agrees to, and Save card, at
   its foot, secondary beside a next step.
 

@@ -41,7 +41,7 @@ import { useHomeUrl } from "../home-search.ts";
 import { CrewBadge } from "../JobBadges.tsx";
 import { JobIcon, NeedsCleanersIcon, QuoteIcon } from "../icons.ts";
 import { billWeek } from "../BillParts.tsx";
-import { addressOf, clientName } from "../format.ts";
+import { addressOf, clientName, dayOfInstant } from "../format.ts";
 import { QUOTE_A_PLAN } from "./StartDraft.tsx";
 
 // a tile's hint: how many of its Jobs are Unassigned, their crew not yet
@@ -378,10 +378,10 @@ function useRowFor() {
           ...unpaidRow(item.unpaid, "Collect the balance", "Open the job"),
           icon: CircleDollarSign,
           client: clientName(job.client),
+          // which clean it's for, as the app names a day (UX review U12)
           line: [
-            `${formatMoney(item.owedCents)} owed`,
+            `${formatMoney(item.owedCents)} owed for the ${formatDay(dayOfInstant(job.startsAt))} clean`,
             addressOf(job.property),
-            formatDate(job.startsAt),
           ],
           open: () =>
             navigate({

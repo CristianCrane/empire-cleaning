@@ -28,6 +28,7 @@ import { createStaff, deactivateStaff, setUsualWeek } from "#features/staff";
 import {
   type Agent,
   api,
+  refusingInserts,
   signIn,
   testClock,
   testEmail,
@@ -215,6 +216,9 @@ describe("a Client's Payment Method", () => {
       label: "Test card ending 4242",
       savedAt: "2026-01-05T09:00:00.000Z",
       consentedAt: "2026-01-05T09:00:00.000Z",
+      // with nothing failed, the retry saving runs took nothing
+      took: [],
+      goingThrough: [],
     });
     testClock().advance({ days: 1 });
     await addCard(client);
@@ -2031,18 +2035,7 @@ describe("when something goes wrong mid-way", () => {
     const client = await signIn(casey.email);
     await addCard(client);
     // the database refuses to record the Charge, after the Deposit is taken
-    await db.execute(sql`
-      create function refuse_charges() returns trigger language plpgsql as
-      $$ begin raise exception 'the database is unwell'; end $$`);
-    await db.execute(sql`
-      create trigger refuse_charges before insert on charges
-      for each row execute function refuse_charges()`);
-    try {
-      await accept(client, quote).expect(500);
-    } finally {
-      await db.execute(sql`drop trigger refuse_charges on charges`);
-      await db.execute(sql`drop function refuse_charges`);
-    }
+    await refusingInserts("charges", () => accept(client, quote).expect(500));
 
     const [charge] = testPayments().charges;
     expect(testPayments().refunds).toEqual([
@@ -2076,18 +2069,7 @@ describe("when something goes wrong mid-way", () => {
     const client = await signIn(casey.email);
     await addCard(client);
     testPayments().failRefunds();
-    await db.execute(sql`
-      create function refuse_charges() returns trigger language plpgsql as
-      $$ begin raise exception 'the database is unwell'; end $$`);
-    await db.execute(sql`
-      create trigger refuse_charges before insert on charges
-      for each row execute function refuse_charges()`);
-    try {
-      await accept(client, quote).expect(500);
-    } finally {
-      await db.execute(sql`drop trigger refuse_charges on charges`);
-      await db.execute(sql`drop function refuse_charges`);
-    }
+    await refusingInserts("charges", () => accept(client, quote).expect(500));
 
     const [charge] = testPayments().charges;
     expect(testMonitoring().signalled("refund_failed")).toEqual([

@@ -9,8 +9,8 @@ import { staffForAccount } from "../staff/staff.ts";
 import {
   answerAdjustment,
   clientFinishBalance,
-  clientJob,
   clientRetryBalance,
+  clientJob,
   completeJob,
   correctAdjustment,
   correctCondition,

@@ -10,8 +10,9 @@ import {
   type ServicePlanSummary,
   catalog,
   type Language,
+  type NextCharge,
 } from "@empire-cleaning/models";
-import { CreditCard, Wallet } from "lucide-react";
+import { CircleCheck, CreditCard, Receipt, Wallet } from "lucide-react";
 import { linkTo, type AppHref } from "../../links.ts";
 import { addressOf, lineOf, pausedPlans } from "../format.ts";
 import type { Hero, Why } from "./HeroCard.tsx";
@@ -22,6 +23,18 @@ import { waitOf } from "../QuoteParts.tsx";
 const words = catalog({
   en: {
     toPay: "To pay",
+    nothing: "Nothing",
+    // what's taken next, once nothing is owed now (#508)
+    nextPayment: "Next payment",
+    chargedAfter: (day: string) =>
+      `Charged to your card after your ${day} clean`,
+    nextBill: "Next bill",
+    // what's on it so far, and when it's taken, by how it's paid
+    soFarCharged: (day: string) => `So far. We'll charge your card on ${day}`,
+    soFarBilled: (day: string) => `So far. We'll bill you on ${day}`,
+    forYourClean: (day: string) => `For your ${day} clean`,
+    forCleanCharged: (day: string) =>
+      `For your ${day} clean, charged to your card`,
     // a payment their bank wants them to approve on its page (#534 Q7):
     // the card's label, and its alert's sentence
     toApprove: "To approve",
@@ -73,6 +86,18 @@ const words = catalog({
   },
   es: {
     toPay: "Por pagar",
+    nothing: "Nada",
+    nextPayment: "Próximo pago",
+    chargedAfter: (day: string) =>
+      `Se cobra a su tarjeta después de su limpieza del ${day}`,
+    nextBill: "Próxima factura",
+    soFarCharged: (day: string) =>
+      `Hasta ahora. Lo cobraremos a su tarjeta el ${day}`,
+    soFarBilled: (day: string) =>
+      `Hasta ahora. Le enviaremos la factura el ${day}`,
+    forYourClean: (day: string) => `Por su limpieza del ${day}`,
+    forCleanCharged: (day: string) =>
+      `Por su limpieza del ${day}, cobrada a su tarjeta`,
     toApprove: "Por aprobar",
     approveClean: "Su banco quiere que apruebe el pago de su limpieza",
     approveBill: (n: string) =>
@@ -304,12 +329,12 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
     ...data.pastJobs
       .filter((j) => j.unpaid)
       .map((j): Owing => {
-        const asks = asksTheClient(j.unpaid!);
+        const asks = asksTheClient(j.unpaid!.kind);
         const page = linkTo({
           to: "/portal/jobs/$jobId",
           params: { jobId: j.id },
         });
-        if (j.unpaid === "approve") {
+        if (j.unpaid!.kind === "approve") {
           return {
             cents: j.owedCents,
             late: false,
@@ -320,7 +345,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
             action: { label: t.APPROVE_PAYMENT, href: page },
           };
         }
-        if (j.unpaid === "refused") {
+        if (j.unpaid!.kind === "refused") {
           return {
             cents: j.owedCents,
             late: false,
@@ -573,6 +598,59 @@ export function owedAnswer(
       },
     }),
   };
+}
+
+// Payments' card when nothing is owed now: what's taken next, by the rules
+// that take it (the server's nextChargeFor), so "nothing to pay" never
+// reads as "nothing to come" while a clean's rest or a weekly Bill waits
+// (#508); the all-clear only once nothing does. Calm, as nothing is asked
+// of them. Days as the Bill and the owed card write them ("Mon, Jan 12")
+export function nextAnswer(next: NextCharge | null, lang: Language): Hero {
+  const t = saidWith(lang, words);
+  const { w } = t;
+  switch (next?.kind) {
+    case "clean":
+      return {
+        label: w.nextPayment,
+        icon: Wallet,
+        tone: "info",
+        headline: t.formatMoney(next.cents),
+        lines: [w.chargedAfter(t.dayOf(next.startsAt))],
+      };
+    case "bill":
+      return {
+        label: w.nextBill,
+        icon: Receipt,
+        tone: "info",
+        headline: t.formatMoney(next.cents),
+        lines: [
+          (next.payment === "automatic" ? w.soFarCharged : w.soFarBilled)(
+            t.formatDay(next.billOn),
+          ),
+        ],
+      };
+    // its amount isn't known till the Bill is made: others may join it
+    case "billedClean":
+      return {
+        label: w.nextBill,
+        icon: Receipt,
+        tone: "info",
+        headline: t.formatDay(next.billOn),
+        lines: [
+          (next.payment === "automatic" ? w.forCleanCharged : w.forYourClean)(
+            t.dayOf(next.startsAt),
+          ),
+        ],
+      };
+    default:
+      return {
+        label: w.toPay,
+        icon: CircleCheck,
+        tone: "success",
+        headline: w.nothing,
+        lines: [],
+      };
+  }
 }
 
 // how they pay, as a Home's tile: the card on file, or why there's none

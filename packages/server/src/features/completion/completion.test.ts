@@ -697,7 +697,7 @@ describe("an Unpaid Job", () => {
     expect(
       ((await client.get("/api/jobs/mine/past")).body as ClientPastJob[])[0]!
         .unpaid,
-    ).toBe("declined");
+    ).toMatchObject({ kind: "declined" });
 
     // retrying with the same card still fails
     expect(
@@ -754,7 +754,9 @@ describe("an Unpaid Job", () => {
 
   // #241, finding 1
   // #533: no form pays a Job by hand, and the Client's try again waits on
-  // the charge, as every retry does (chargeSaved)
+  // the charge, as every retry does (chargeSaved). Meanwhile it's no error:
+  // the clean says it's still going through, as a Bill does (#508's review
+  // F26)
   test("is one whose Balance is still processing, and the Client trying again takes nothing more until it's through", async () => {
     const { office, cory, client, jobId, quote } = await bookedJob();
     const deep = deepOf(quote);
@@ -766,12 +768,47 @@ describe("an Unpaid Job", () => {
     });
     const asked = testPayments().paymentAttempts.length;
 
-    await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(409);
+    const still = (
+      await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(200)
+    ).body as JobPayOutcome;
+    expect(still).toMatchObject({
+      status: "done",
+      job: { payment: { unpaid: { kind: "waiting" } } },
+    });
     expect(testPayments().paymentAttempts).toHaveLength(asked);
 
     testPayments().clearCharges();
     await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(200);
     expect(testPayments().paymentAttempts).toHaveLength(asked);
+    expect(amounts()).toEqual([
+      deep.depositCents,
+      deep.totalCents - deep.depositCents,
+    ]);
+  });
+
+  // the card was tried again, but the provider left the charge processing:
+  // it may yet be taken or declined, so it's neither said to be paid nor an
+  // error, and once through it's paid (#508's review F26)
+  test("is one the Client's try again leaves processing, said to be going through, not paid", async () => {
+    const { office, cory, client, jobId, quote } = await bookedJob();
+    const deep = deepOf(quote);
+    testPayments().failCharges();
+    await complete(cory.agent, jobId).expect(200);
+    testPayments().failCharges("processing");
+
+    const tried = (
+      await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(200)
+    ).body as JobPayOutcome;
+
+    expect(tried).toMatchObject({
+      status: "done",
+      job: { payment: { unpaid: { kind: "waiting" } } },
+    });
+
+    testPayments().clearCharges();
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    expect((await officeJob(office, jobId)).payment!.unpaid).toBe(null);
     expect(amounts()).toEqual([
       deep.depositCents,
       deep.totalCents - deep.depositCents,

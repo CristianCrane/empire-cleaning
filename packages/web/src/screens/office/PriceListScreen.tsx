@@ -95,7 +95,6 @@ export function PriceListScreen() {
           action: (
             <Button
               variant="text"
-              size="sm"
               isPending={keep.action.isPending}
               onPress={() => void keep.save({})}
             >

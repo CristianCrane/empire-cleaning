@@ -136,11 +136,7 @@ export const FirstTime: Story = {
           tone: "warning",
           children:
             "These are starting figures, not yours. Check each before you send a quote.",
-          action: (
-            <Button variant="text" size="sm">
-              Keep these figures
-            </Button>
-          ),
+          action: <Button variant="text">Keep these figures</Button>,
         },
       ]}
       parts={prices}

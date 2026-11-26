@@ -222,6 +222,7 @@ export function CleanerHome() {
           label: t.c.offers,
           hint: w.waiting(offers),
           href: offersHref,
+          isDisabled: offers === 0,
         },
       ]}
       {...home}
@@ -270,9 +271,9 @@ function NextUp({
           parts={
             job
               ? [
+                  // not its length: the line above says when it ends (UX
+                  // review U13)
                   job.serviceName,
-                  // to the quarter hour, as the Job's page says it
-                  inLine(howLong(t, job.hoursOnSite)),
                   // the Job's crew size, not who's confirmed so far, in the
                   // Offers row's words: "just you", "2 cleaners"
                   inLine(crewSizeOf(t, job)),

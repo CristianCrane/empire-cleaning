@@ -20,6 +20,8 @@ export const because = (why: string | null | undefined) =>
 
 const REFUND_TAKES_DAYS = "It can take a few days to reach you.";
 const UPDATE_AND_RETRY = "update your card and we'll try again straight away";
+// an expired card, or none: the card form's own verb, Save (UX review U10)
+const SAVE_AND_RETRY = "save a new card and we'll try again straight away";
 const BOOKED_GO_AHEAD =
   "Cleans already booked still go ahead, but we won't book any more.";
 const PAUSED_TILL_PAID = "Until it's paid, your cleaning plan is paused.";
@@ -30,6 +32,8 @@ const moreHoursEn = (a: Changed) =>
 const REFUND_TAKES_DAYS_ES = "Puede tardar unos días en llegarle.";
 const UPDATE_AND_RETRY_ES =
   "actualice su tarjeta y lo volvemos a intentar enseguida";
+const SAVE_AND_RETRY_ES =
+  "guarde una tarjeta nueva y lo volvemos a intentar enseguida";
 const BOOKED_GO_AHEAD_ES =
   "Las limpiezas ya reservadas siguen en pie, pero no reservaremos más.";
 const PAUSED_TILL_PAID_ES =
@@ -63,6 +67,8 @@ export const payments = catalog({
       why: string | null = null,
     ) =>
       `We couldn't take ${amount}${card ? ` from your ${card}` : ""}${because(why)}.`,
+    // Your card's Try this card again, when it couldn't try (#499)
+    couldntRetry: "We couldn't try again. Please try later.",
     // a payment we try again ourselves, pending, as each screen says it
     // under its "Payment pending": all a Client needs (#536)
     NOTHING_TO_DO: "Nothing you need to do.",
@@ -72,6 +78,7 @@ export const payments = catalog({
       `We couldn't take payment for your ${day} clean`,
     // how a Client puts right a payment that didn't go through
     UPDATE_AND_RETRY,
+    SAVE_AND_RETRY,
     UPDATE_CARD: "Update your card",
     // a payment their bank wants them to approve, made with them there: on
     // its page, and the button of the email that asks them (#534 Q7)
@@ -89,7 +96,7 @@ export const payments = catalog({
       approve:
         "Your bank wants you to approve it first. Please approve it on its page.",
       refused: "Please try again on its page, or use a different card.",
-      no_card: "Please add a card and we'll try again straight away.",
+      no_card: `Please ${SAVE_AND_RETRY}.`,
       waiting:
         "We'll try again by ourselves, so there's nothing you need to do.",
       late: "Please pay it on its page.",
@@ -133,6 +140,7 @@ export const payments = catalog({
       "Se escribe directamente en el formulario seguro de nuestro servicio de pagos, así que nunca vemos el número de su tarjeta.",
     cardConsent: (paying: boolean) =>
       `Al ${paying ? "pagar" : "guardar su tarjeta"}, acepta que Empire Cleaning cobre a esta tarjeta el resto cuando cada limpieza esté terminada, el monto del depósito por una cancelación tardía o si no pudimos entrar, y cualquier factura semanal que se cobre a ella.`,
+    couldntRetry: "No pudimos volver a intentarlo. Inténtelo más tarde.",
     notTaken: (
       amount: string,
       card: string | null,
@@ -143,6 +151,7 @@ export const payments = catalog({
     cleanNotPaid: (day: string) =>
       `No pudimos cobrar el pago de su limpieza del ${day}`,
     UPDATE_AND_RETRY: UPDATE_AND_RETRY_ES,
+    SAVE_AND_RETRY: SAVE_AND_RETRY_ES,
     UPDATE_CARD: "Actualizar tarjeta",
     APPROVE_PAYMENT: "Aprobar el pago",
     approveFirst: (amount: string, card: string) =>
@@ -155,8 +164,7 @@ export const payments = catalog({
         "Su banco quiere que lo apruebe primero. Por favor, apruébelo en su página.",
       refused:
         "Por favor, vuelva a intentarlo en su página, o use otra tarjeta.",
-      no_card:
-        "Por favor, agregue una tarjeta y lo volvemos a intentar enseguida.",
+      no_card: `Por favor, ${SAVE_AND_RETRY_ES}.`,
       waiting:
         "Lo volveremos a intentar nosotros, así que usted no tiene que hacer nada.",
       late: "Por favor, páguela en su página.",
