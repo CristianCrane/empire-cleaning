@@ -33,8 +33,8 @@ export const WithAction: Story = {
   args: {
     children: "Max has no card saved, so a yes by phone can't be recorded yet.",
     action: (
-      <Button variant="text" size="sm">
-        <Mail aria-hidden size={16} />
+      <Button variant="text">
+        <Mail aria-hidden size={18} />
         Email Max a link to add a card
       </Button>
     ),

@@ -37,7 +37,8 @@ export function Notice({
 }: {
   tone?: "info" | "warning" | "success" | "danger";
   answers?: boolean;
-  // what to do about it: one Button, variant "text" (or "danger-text")
+  // what to do about it: one Button, variant "text" (or "danger-text"),
+  // size md, the size its hang on a phone fits (below)
   action?: ReactNode;
   children: ReactNode;
 }) {
@@ -64,7 +65,9 @@ export function Notice({
         <div className="flex min-w-0 flex-1 flex-col gap-1">{children}</div>
         {/* centred on the first line too: a Button is taller than a line */}
         {/* under the text on a phone, a text Button's padding hangs out to
-            the left so its words line up with the text (UX review U11) */}
+            the left so its words line up with the text (UX review U11): by
+            md's padding, as Button's flush="start" does (Button.tsx), so
+            the action is md (review F19) */}
         {action && (
           <div className="-my-1.5 -ms-4 shrink-0 sm:-my-2.5 sm:ms-0">
             {action}
