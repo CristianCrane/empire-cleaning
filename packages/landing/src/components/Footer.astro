@@ -14,8 +14,9 @@ import { pathOf } from "../routes.ts";
 import { words } from "../words.ts";
 
 // each of the business's pages elsewhere (business.social) has its
-// network's mark, shown in one colour (#223): a page added without its mark
-// fails the typecheck
+// network's mark, shown in one colour at the foot of the details, as quiet as
+// the rest of the footer (#223): a page added without its mark fails the
+// typecheck
 const marks: Record<keyof typeof business.social, SimpleIcon> = {
   facebook: siFacebook,
   instagram: siInstagram,
@@ -35,7 +36,8 @@ const t = words[lang].footer;
 <footer class="flex flex-col gap-8 py-10">
   <!-- centred on a phone, the areas on top; from a tablet three columns, the
      areas left, the logo in the middle and the details right, their middles
-     level -->
+     level, as the areas in a row across the top left a gap under them, and
+     centred, their widths looked ragged (#223) -->
   <div class="mx-auto flex w-full max-w-5xl flex-col items-center gap-8 px-4 text-center sm:grid sm:grid-cols-3 sm:gap-4">
     <!-- every area's page, from every page (#176) -->
     <nav aria-label={t.areas} class="sm:justify-self-start">
