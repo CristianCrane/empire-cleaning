@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { test as base, expect, type Page } from "@playwright/test";
+import { shootTheEnd } from "@empire-cleaning/server/at-rest";
 import { controlUrl } from "../playwright.config.ts";
 
 // talks to the e2e API's control server (packages/server/tests/e2e/server.ts)
@@ -39,8 +40,9 @@ export const describeTheHome = async (
 };
 
 // every test fails if the Content-Security-Policy (astro.config.ts) blocked
-// anything a page loads
-export const test = base.extend<{ allowedByCsp: void }>({
+// anything a page loads (allowedByCsp), and under `pnpm pr:shots` ends on a
+// picture of its page at rest (prShot, packages/server/tests/e2e/at-rest.ts)
+export const test = base.extend<{ allowedByCsp: void; prShot: void }>({
   allowedByCsp: [
     async ({ context }, use) => {
       const blocked: string[] = [];
@@ -56,6 +58,14 @@ export const test = base.extend<{ allowedByCsp: void }>({
       );
       await use();
       expect(blocked, "blocked by the Content-Security-Policy").toEqual([]);
+    },
+    { auto: true },
+  ],
+  prShot: [
+    // the context, not the page, so a test with no page doesn't get one
+    async ({ context }, use, testInfo) => {
+      await use();
+      await shootTheEnd(context, testInfo);
     },
     { auto: true },
   ],

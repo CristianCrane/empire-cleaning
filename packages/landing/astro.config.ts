@@ -60,6 +60,9 @@ export default defineConfig({
     routing: { prefixDefaultLocale: false },
   },
   integrations: [react(), sitemap()],
+  // `astro dev`'s own toolbar sits over the page's foot and a prototype's
+  // bar (src/pages/[...prototype].astro), and nothing here uses it
+  devToolbar: { enabled: false },
   // the release, and source maps for Sentry's landing project
   vite: {
     plugins: [tailwindcss(), monitoringBuild("landing")],

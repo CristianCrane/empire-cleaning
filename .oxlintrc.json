@@ -78,6 +78,10 @@
       "rules": { "empire/screen-layout": "off" }
     },
     {
+      "files": ["packages/web/src/**/*.prototype.tsx"],
+      "rules": { "empire/screen-layout": "off" }
+    },
+    {
       "files": ["packages/*/src/**/*.test.*", "packages/*/src/**/*.stories.*"],
       "rules": {
         "empire/report-unexpected": "off",

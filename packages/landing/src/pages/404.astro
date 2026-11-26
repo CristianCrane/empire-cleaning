@@ -1,10 +1,25 @@
 ---
-import { buttonStyles } from "@empire-cleaning/ui";
+import { buttonStyles, PrototypeUnknown } from "@empire-cleaning/ui";
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
+import PrototypeList from "../components/PrototypeList.astro";
 import QuoteOrCall from "../components/QuoteOrCall.astro";
 import Page from "../layouts/Page.astro";
+import { prototypes } from "../branch-prototypes.ts";
+import { indexPath, missingAt, prototypeAt } from "../prototype.ts";
 import { pathOf } from "../routes.ts";
+
+// in development, an address under a prototype (src/prototype.ts) that
+// isn't a page says what it lacks, as the web app's does: a known name's
+// list, with the case or layout it hasn't, or else the names the branch
+// has; a build has the one 404 page for every address
+const { pathname } = Astro.url;
+const at = import.meta.env.DEV ? prototypeAt(pathname) : undefined;
+const all = at ? await prototypes() : {};
+const drawn = at && all[at.screen];
+const known = Object.keys(all)
+  .sort()
+  .map((name) => ({ name, href: indexPath(name) }));
 ---
 
 <!-- an address that isn't a page (#172): served for any unknown path, with a
@@ -12,29 +27,43 @@ import { pathOf } from "../routes.ts";
      Quote form or the phone; the footer carries the logo. The host serves
      this one page for every unknown address, /es/ ones too, so it says so
      in Spanish as well, leading to the Spanish home page (ADR-0025) -->
-<Page title="Page not found" page={null}>
-  <Header page={null} />
-  <main class="mx-auto flex max-w-xl flex-col items-center gap-6 px-4 pt-16 pb-24 text-center">
-    <h1 class="font-display text-4xl font-bold tracking-wide uppercase sm:text-5xl">
-      Page not found
-    </h1>
-    <p class="text-xl text-fg-muted">
-      There's no page at this address. Request a quote or give us a call, and
-      we'll take it from there.
-    </p>
-    <QuoteOrCall href={`${pathOf({ kind: "home" }, "en")}#quote`} />
-    <div lang="es" class="flex flex-col items-center gap-4 pt-6">
-      <p class="text-lg text-fg-muted">
-        No hay ninguna página en esta dirección. Pida una cotización o llámenos,
-        y nos encargamos del resto.
+{at && drawn ? (
+  <Page title={at.screen} page={null}>
+    <PrototypeList
+      screen={at.screen}
+      drawn={drawn}
+      missing={missingAt(drawn, pathname)}
+    />
+  </Page>
+) : at ? (
+  <Page title="No such prototype" page={null}>
+    <PrototypeUnknown screen={at.screen} known={known} />
+  </Page>
+) : (
+  <Page title="Page not found" page={null}>
+    <Header page={null} />
+    <main class="mx-auto flex max-w-xl flex-col items-center gap-6 px-4 pt-16 pb-24 text-center">
+      <h1 class="font-display text-4xl font-bold tracking-wide uppercase sm:text-5xl">
+        Page not found
+      </h1>
+      <p class="text-xl text-fg-muted">
+        There's no page at this address. Request a quote or give us a call, and
+        we'll take it from there.
       </p>
-      <a
-        href={`${pathOf({ kind: "home" }, "es")}#quote`}
-        class={buttonStyles({ variant: "secondary", className: "px-6" })}
-      >
-        Ir a la página en español
-      </a>
-    </div>
-  </main>
-  <Footer />
-</Page>
+      <QuoteOrCall href={`${pathOf({ kind: "home" }, "en")}#quote`} />
+      <div lang="es" class="flex flex-col items-center gap-4 pt-6">
+        <p class="text-lg text-fg-muted">
+          No hay ninguna página en esta dirección. Pida una cotización o
+          llámenos, y nos encargamos del resto.
+        </p>
+        <a
+          href={`${pathOf({ kind: "home" }, "es")}#quote`}
+          class={buttonStyles({ variant: "secondary", className: "px-6" })}
+        >
+          Ir a la página en español
+        </a>
+      </div>
+    </main>
+    <Footer />
+  </Page>
+)}
