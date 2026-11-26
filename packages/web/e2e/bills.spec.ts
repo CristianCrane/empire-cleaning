@@ -867,6 +867,38 @@ test("Your card's retry still going through says so, not that it's paid", async 
   await expect(titleBadge(page, "Payment pending")).toBeVisible();
 });
 
+// a press on a page loaded before the Bill's payment started going through
+// elsewhere (its own page, another tab) isn't the card's answer: the
+// server's refusal says why, not "We tried it again" (critical review C19,
+// #508's review F31; one test for every 409 that isn't the card's own)
+test("Your card's press on a Bill already going through says it's pending", async ({
+  page,
+}) => {
+  const { billId } = await billed({ failing: "insufficient_funds" });
+  await signedInAs(page, casey.email);
+  await page.goto("/portal/payment-method");
+  const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
+  await expect(
+    needed.getByRole("button", { name: "Try this card again" }),
+  ).toBeVisible();
+
+  // meanwhile, on the Bill's page in another tab, their saved card is
+  // tried and the provider leaves it processing
+  await failCharges("processing");
+  const other = await page.request.post(`/api/bills/mine/${billId}/payment`, {
+    data: {},
+  });
+  expect(other.status()).toBe(200);
+
+  await needed.getByRole("button", { name: "Try this card again" }).click();
+  await expect(
+    page.getByText("This bill's payment is pending. Nothing you need to do.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.getByText(/We tried it again/)).toHaveCount(0);
+});
+
 // a clean done and not yet billed: Payments says what Monday's Bill holds
 // so far, not "all paid up" (#508)
 test("Payments says what's on the next Bill so far", async ({ page }) => {

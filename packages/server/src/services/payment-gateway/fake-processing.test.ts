@@ -47,3 +47,25 @@ test("a typed Deposit left processing saves its card once through, either way it
     saved: expect.anything(),
   });
 });
+
+// critical review C20: a card that asks the Client to approve asks before
+// anything is processing, as Stripe does, so one left processing by
+// failCharges("processing") waits on them, and never reads processing
+// first and then waiting on them
+test("a typed card that asks for approval asks first, even left processing", async () => {
+  const fake = new FakePaymentGateway();
+  const { payerId } = await fake.createPayer({
+    clientId: "client-1",
+    language: "en",
+  });
+  fake.failCharges("processing");
+  const first = await fake.takeDeposit({
+    payerId,
+    source: { token: fake.paymentToken("alwaysApproval") },
+    amount: 5000,
+    description: "Deposit",
+    idempotencyKey: "deposit-1",
+  });
+
+  expect(first.status).toBe("approving");
+});

@@ -1,4 +1,4 @@
-import { catalog } from "@empire-cleaning/models";
+import { catalog, type ConflictKind } from "@empire-cleaning/models";
 import type { ErrorRequestHandler } from "express";
 import { z, type ZodError } from "zod";
 import { monitoring } from "#services/monitoring";
@@ -104,15 +104,11 @@ export class NotFoundError extends APIError {
 }
 
 // the request is fine but clashes with what already exists, e.g. a Quote
-// Request for a home that already has one waiting. A `kind` tells a screen
-// what sort of clash it is where its words alone can't: "approve", a
-// payment that's the Client's to approve at their bank, whether the Office
-// asked for it (accept.ts) or they turned it down there on a Bill's or a
-// Job's page (bills.ts, completion.ts) (#534 Q7): theirs to do, not a
-// failure
+// Request for a home that already has one waiting. A `kind` (ConflictKind)
+// tells a screen what sort of clash it is where its words alone can't
 export class ConflictError extends APIError {
-  public readonly kind?: "approve";
-  constructor(message: string, kind?: "approve") {
+  public readonly kind?: ConflictKind;
+  constructor(message: string, kind?: ConflictKind) {
     super(message, 409);
     this.kind = kind;
   }

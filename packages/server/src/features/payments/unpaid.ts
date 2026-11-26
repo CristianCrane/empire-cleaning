@@ -128,8 +128,9 @@ const retryWords = catalog({
 // a payment with the Client's saved card, there to approve it, that took
 // nothing, as they're told on a clean's or a Bill's page or Your card: never
 // approved (`notApproved`; kind "approve", for the page to offer it again),
-// or why it didn't go through, then what puts it right. A card's words, as
-// a card is all it tried, whichever page they pressed on (#508's review F27)
+// or why it didn't go through, then what puts it right (kind "notTaken",
+// for Your card to say it in its own words, #508's review F31). A card's
+// words, as a card is all it tried, whichever page they pressed on (F27)
 export const savedCardRefused = (failure: string, notApproved: boolean) => {
   const lang = currentLanguage();
   if (notApproved) {
@@ -138,6 +139,7 @@ export const savedCardRefused = (failure: string, notApproved: boolean) => {
   const kind = unpaidKind(failure);
   return new ConflictError(
     `${stillNotPaid(lang, failure)} ${kind === "declined" ? retryWords[lang].UPDATE_OR_ANOTHER : messages[lang].clientFix[kind]}`,
+    "notTaken",
   );
 };
 

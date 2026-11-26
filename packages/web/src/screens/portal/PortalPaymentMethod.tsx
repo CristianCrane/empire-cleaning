@@ -247,11 +247,12 @@ export function PortalPaymentMethod() {
       const bill = await approving.pay({ start, finish: (no) => finish(!no) });
       return bill.status === "paid";
     };
-    // a card's answer, declined or not approved, is a 409; any other
-    // failure is ours, and says so in a toast
+    // the card's own answer, not approved or not taken; any other failure,
+    // ours or a payment no longer there to try (paid meanwhile), says why
+    // in a toast (#508's review F31)
     const answered = () =>
       took().catch((e: unknown) => {
-        if (e instanceof ApiError && e.status === 409) return "refused";
+        if (e instanceof ApiError && e.kind) return "refused";
         throw e;
       });
     return retry.run(answered, (took) => {

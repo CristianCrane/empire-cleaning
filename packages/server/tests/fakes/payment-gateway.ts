@@ -635,17 +635,18 @@ export class FakePaymentGateway implements PaymentGateway {
     const byCard =
       "token" in source &&
       (card === "approvalOnSetup" || card === "alwaysApproval");
-    // which switch it's left processing by, until that switch lets it go
-    const finishes = processing
-      ? "charges"
-      : this.cardsFinishing && "token" in source && input.amount > 0
-        ? "cards"
-        : null;
-    if (
-      finishes ||
+    const asks =
       ("token" in source && (this.approval || byCard)) ||
-      (savedId && card === "alwaysApproval")
-    ) {
+      (savedId && card === "alwaysApproval");
+    // which switch it's left processing by, until that switch lets it go;
+    // a card that asks the Client asks first, as Stripe does (C20)
+    const finishes =
+      processing && !asks
+        ? "charges"
+        : this.cardsFinishing && "token" in source && input.amount > 0
+          ? "cards"
+          : null;
+    if (finishes || asks) {
       const ref = reused ?? this.id(input.amount > 0 ? "pi" : "seti");
       this.waiting.set(ref, {
         input,

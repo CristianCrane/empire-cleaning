@@ -1906,6 +1906,14 @@ export type JobPayment = {
 export type UnpaidKind =
   "declined" | "approve" | "refused" | "waiting" | "no_card" | "late";
 
+// what sort of 409 the API answers, where its words alone can't tell a
+// screen: "approve", a payment that's the Client's to approve at their
+// bank, whether the Office asked for it or they turned it down there
+// (#534 Q7); "notTaken", their saved card's own answer, that it took
+// nothing and why, as against a payment no longer there to try (#508's
+// review F31)
+export type ConflictKind = "approve" | "notTaken";
+
 // since when it's been Unpaid, and why: a clause for after "didn't go
 // through" ("the card has expired"), or null when there's no more to say.
 // Once turned down at their bank, when they did (`refusedAt`), as `since`
