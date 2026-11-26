@@ -39,7 +39,10 @@ type FormPrice = { line: string; short: string } | { missing: string };
 // `note` (whether it's saved) beside it, and the header that sticks
 // carrying the price too while the aside isn't beside the form; on a phone
 // an ActionFooter with the price in a line, the note and the button, the
-// rest on the title row (#493 D1: a bar at the foot is a phone's). What
+// rest on the title row (#493 D1: a bar at the foot is a phone's). A
+// next step beside a form, not its own button (Your card's Try this card
+// again, once their bank turned a payment down), is the page's next the
+// same way, the form's buttons staying at its card's foot. What
 // the fields come to (a price, a worked example) is an aside, sticky beside
 // the card from `xl`; below that after the card, or before it when it
 // `leads` (a price the form is written to reach). With no aside, the page
@@ -84,7 +87,9 @@ export function FormPage({
   | {
       // the form's buttons at the card's foot, the main one last
       buttons?: ReactNode;
-      next?: never;
+      // a next step beside the form, not its own: its buttons then
+      // secondary
+      next?: NextAction;
       price?: never;
       note?: never;
       // what the fields come to, beside them from xl
@@ -107,7 +112,7 @@ export function FormPage({
   const card = (
     <Card>
       <div className="flex flex-col gap-5">{children}</div>
-      {!next && (end || buttons) && (
+      {(buttons || (!next && end)) && (
         <div className="flex flex-col gap-3 border-t border-border pt-4">
           {end}
           {buttons && <Actions>{buttons}</Actions>}
@@ -116,7 +121,7 @@ export function FormPage({
     </Card>
   );
   const form =
-    next && end ? (
+    next && end && !buttons ? (
       <div className="flex flex-col gap-4">
         {card}
         {end}

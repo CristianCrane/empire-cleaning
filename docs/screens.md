@@ -529,10 +529,11 @@ Keeps: on the Payment Method page (ux-portal). Renders through `FormPage`
 (#434).
 
 - Header: Payments › Your card; the title; "How your card is used", folded.
-- Notices: the card failed (Try again, its problem a Toast), or saved, or
-  info.
+- Notices: the card failed (Try this card again, its problem a Toast), or
+  a payment turned down at their bank (amber, its Try this card again the
+  page's next step, #534's UX review U23), or saved, or info.
 - Body: one Card: the card field; what saving agrees to, and Save card, at
-  its foot.
+  its foot, secondary beside a next step.
 
 #### Client portal > Request a quote
 

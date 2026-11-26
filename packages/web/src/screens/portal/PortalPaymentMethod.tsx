@@ -1,5 +1,12 @@
 import { useLoaderData } from "@tanstack/react-router";
-import { Button, FormPage, FormPart, Notice } from "@empire-cleaning/ui";
+import { ShieldCheck } from "lucide-react";
+import {
+  Button,
+  FormPage,
+  FormPart,
+  Notice,
+  type PageAction,
+} from "@empire-cleaning/ui";
 import { catalog } from "@empire-cleaning/models";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
@@ -68,7 +75,9 @@ const words = catalog({
 // where the Office's "add a card" email leads: the Client adds (or
 // replaces) the card that Deposits and Balances are charged to. Where a
 // clean couldn't be charged, they fix it here: try the same card again (the
-// money may be there now), or save another, which tries it too.
+// money may be there now), or save another, which tries it too. Once they
+// turned it down at their bank, trying again is the page's next step, as
+// on its own page: their card works (#534's UX review U23).
 export function PortalPaymentMethod() {
   const t = useSaid(words);
   const { saved, unpaid } = useLoaderData({ from: "/portal/payment-method" });
@@ -102,6 +111,17 @@ export function PortalPaymentMethod() {
       await approving.pay({ start, finish: (refused) => finish(!refused) });
     }, t.w.taken);
 
+  const retryNext: PageAction | undefined =
+    refused && saved
+      ? {
+          label: t.w.tryAgain,
+          icon: ShieldCheck,
+          isPending: retry.isPending,
+          isDisabled: !approving.isReady,
+          onAction: () => void tryAgain(),
+        }
+      : undefined;
+
   const save = () =>
     action.run(async () => {
       await card.save();
@@ -121,9 +141,10 @@ export function PortalPaymentMethod() {
           ? {
               key: "unpaid",
               tone: refused ? "warning" : "danger",
-              action: saved && (
+              // turned down at their bank, the page's next step instead
+              action: saved && !refused && (
                 <Button
-                  variant={refused ? "text" : "danger-text"}
+                  variant="danger-text"
                   isPending={retry.isPending}
                   isDisabled={!approving.isReady}
                   onPress={() => void tryAgain()}
@@ -163,6 +184,7 @@ export function PortalPaymentMethod() {
         label: t.w.howUsed,
         children: <p className="text-sm text-fg-muted">{t.w.about}</p>,
       }}
+      next={retryNext}
       // what saving agrees to, in view above the button
       end={
         <>
@@ -172,6 +194,8 @@ export function PortalPaymentMethod() {
       }
       buttons={
         <Button
+          // beside trying their card again, a different one is the lesser
+          variant={retryNext ? "secondary" : "primary"}
           isPending={action.isPending}
           isDisabled={!card.isReady}
           onPress={() => void save()}

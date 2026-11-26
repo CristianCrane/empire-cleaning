@@ -385,10 +385,14 @@ test("a Client trying their card again, whose bank now asks them to approve it, 
     "The $292.33 payment for your Jan 12 clean wasn't approved, so none of it was taken.",
   );
   await expect(needed).toHaveRole("status");
+  // their card works, so trying it again is the page's next step, not a
+  // link in the alert (#534's UX review U23)
+  await expectNextStep(page, "Try this card again");
+  await expect(tryAgain).toHaveCount(0);
 
   // approved there: taken, and the clean is paid
   await requireApproval(null);
-  await tryAgain.click();
+  await pageAction(page, "Try this card again");
   await expect(page.getByText("Payment taken")).toBeVisible();
   await expect(needed).toHaveCount(0);
   await page.goto(`/portal/jobs/${job.id}`);
@@ -554,7 +558,7 @@ const turnedDown = async (page: Page) => {
   return job;
 };
 
-test("a payment the Client turned down at their bank reads so on their Home and Payments, to try again on its page", async ({
+test("a payment the Client turned down at their bank reads so on their Home, Payments and Your card, to try again", async ({
   page,
 }) => {
   const job = await turnedDown(page);
@@ -571,6 +575,16 @@ test("a payment the Client turned down at their bank reads so on their Home and 
   await expect(
     page.getByRole("link", { name: "Try again" }).first(),
   ).toHaveAttribute("href", `/portal/jobs/${job.id}`);
+
+  // and on Your card, where trying it again is the next step: their card
+  // works (#534's UX review U23)
+  await page.goto("/portal/payment-method");
+  await expect(
+    page.getByRole("status").filter({ hasText: "Payment needed" }),
+  ).toContainText(
+    /The \$[\d.,]+ payment for your Jan 12 clean wasn't approved, so none of it was taken\./,
+  );
+  await expectNextStep(page, "Try this card again");
 });
 
 // Today's row says it as the Job does, not "Collect the balance" (the

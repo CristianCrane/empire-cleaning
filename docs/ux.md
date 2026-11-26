@@ -313,7 +313,10 @@ for a dialog. It renders through `FormPage`
   the header (Notice's `answers`, #534). Such a
   form has an aside, its price, and the page is the content's width; a
   form alone keeps a form's width and its button in its card (FormPage's
-  type holds it).
+  type holds it). A next step beside a form, not its own button (Your
+  card's Try this card again, once their bank turned a payment down), is
+  the page's next the same way, the form's button staying at its card's
+  foot, secondary (#534's UX review U23).
 - **Outside an area** (Welcome), a page of its own, the logo above and
   who's signed in under it on a phone, beside it from `sm` (`PageFrame`),
   centred at a form's width with no aside.
