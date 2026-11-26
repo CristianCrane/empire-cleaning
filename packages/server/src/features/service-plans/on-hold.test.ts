@@ -1,5 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
+import { eq } from "drizzle-orm";
 import { db } from "#db";
+import { jobs } from "#features/jobs";
 import type {
   ClientPastJob,
   NeedsAttentionItem,
@@ -16,6 +18,7 @@ import {
   testPayments,
 } from "../../../tests/harness.ts";
 import { casey, crewedServicePlan } from "../../../tests/fixtures.ts";
+import { UNREACHABLE } from "../payments/money.ts";
 import { generateServicePlanJobs } from "./service-plans.ts";
 
 // Casey's weekly plan from 9am on Monday 19 January 2026, its Jobs booked up
@@ -365,6 +368,73 @@ describe("Try this card again, declined, when reading what's still owed fails", 
     }
 
     // the decline was recorded: the settle committed
+    const owed = (
+      (await client.get("/api/jobs/mine/past").expect(200))
+        .body as ClientPastJob[]
+    ).find((j) => j.id === jobId)!;
+    expect(owed.unpaid).toMatchObject({ kind: "declined" });
+    expect(res.status).toBe(409);
+    expect(res.body.message).toContain("didn't go through");
+  });
+});
+
+// critical review C14: C13's cause on retryJob's other two paths. Once
+// settleJob has committed, retryJob still reads the Job again outside
+// notify: on success, for the receipt (jobWithOwner, paymentOf), and when
+// a retry made it the Client's to put right, in sendUnpaid. One of those
+// failing turns a retry that ran, its result saved, into one that
+// "errored" (retryUnpaidJobsFor's catch)
+const failingJobWithOwner = () => {
+  const select = db.select.bind(db);
+  return vi.spyOn(db, "select").mockImplementation(((...args: []) => {
+    if (new Error().stack?.includes("jobWithOwner"))
+      throw new Error("C14: the read after the settle");
+    return select(...args);
+  }) as typeof db.select);
+};
+
+describe("Try this card again, taken, when reading for the receipt fails", () => {
+  test("says what it took, not that it couldn't try", async () => {
+    const { client, jobId } = await heldPlan();
+    testPayments().failCharges(null);
+    const spy = failingJobWithOwner();
+    let res;
+    try {
+      res = await client.post("/api/payments/mine/retry");
+    } finally {
+      spy.mockRestore();
+    }
+
+    // the money was taken: the settle committed
+    const paid = (
+      (await client.get("/api/jobs/mine/past").expect(200))
+        .body as ClientPastJob[]
+    ).find((j) => j.id === jobId)!;
+    expect(paid.unpaid).toBeNull();
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      took: [expect.objectContaining({ id: jobId, cents: PLAN_DEPOSIT })],
+    });
+  });
+});
+
+describe("Try this card again, newly declined, when reading for the notice fails", () => {
+  test("still says it didn't go through, not that it couldn't try", async () => {
+    const { client, jobId } = await heldPlan();
+    // Unpaid as one we try again ourselves, so a decline now makes it the
+    // Client's (becameUnpaid), and sendUnpaid runs
+    await db
+      .update(jobs)
+      .set({ unpaidReason: UNREACHABLE })
+      .where(eq(jobs.id, jobId));
+    const spy = failingJobWithOwner();
+    let res;
+    try {
+      res = await client.post("/api/payments/mine/retry");
+    } finally {
+      spy.mockRestore();
+    }
+
     const owed = (
       (await client.get("/api/jobs/mine/past").expect(200))
         .body as ClientPastJob[]

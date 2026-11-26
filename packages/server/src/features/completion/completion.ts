@@ -186,25 +186,37 @@ const jobWithOwner = async (jobId: string) => {
   return found;
 };
 
+// emails a Job's Client once a change to it is saved. Everything the email
+// reads is read inside `notify`, so a read that fails loses only the email,
+// never the answer about the change: a Client whose card was charged isn't
+// told it wasn't (critical review C14)
+const tellClient = (
+  what: string,
+  jobId: string,
+  send: (owner: Awaited<ReturnType<typeof jobWithOwner>>) => Promise<void>,
+) => notify(what, async () => send(await jobWithOwner(jobId)));
+
 // tells the Client a Job they owe on couldn't be charged, the first time it
 // becomes Unpaid
-const sendUnpaid = async (jobId: string, settled: Settled) => {
-  const { job, property, client } = await jobWithOwner(jobId);
-  const payment = await paymentOf(job);
-  await notify(`Unpaid notice for Job ${jobId}`, async () =>
-    email.send({
-      to: client.email,
-      ...unpaidEmail(client.preferredLanguage, {
-        name: client.name,
-        jobId,
-        clean: await cleanOf(job, property),
-        owedCents: payment.owedCents,
-        paymentMethod: settled.paymentMethod,
-        held: settled.plan === "held",
-      }),
-    }),
+const sendUnpaid = (jobId: string, settled: Settled) =>
+  tellClient(
+    `Unpaid notice for Job ${jobId}`,
+    jobId,
+    async ({ job, property, client }) => {
+      const payment = await paymentOf(job);
+      await email.send({
+        to: client.email,
+        ...unpaidEmail(client.preferredLanguage, {
+          name: client.name,
+          jobId,
+          clean: await cleanOf(job, property),
+          owedCents: payment.owedCents,
+          paymentMethod: settled.paymentMethod,
+          held: settled.plan === "held",
+        }),
+      });
+    },
   );
-};
 
 // ---- the Cleaner completing ----
 
@@ -291,33 +303,35 @@ export const completeJob = async (
 };
 
 // the Client's receipt for a Completed Job
-const sendReceipt = async (jobId: string, settled: Settled) => {
-  const { job, property, client } = await jobWithOwner(jobId);
-  const [payment, rows] = await Promise.all([
-    paymentOf(job),
-    db.select().from(adjustments).where(eq(adjustments.jobId, jobId)),
-  ]);
-  const deposit = payment.charges
-    .filter((c) => c.kind === "deposit")
-    .reduce((sum, c) => sum + c.amountCents, 0);
-  await notify(`Receipt for Job ${jobId}`, async () =>
-    email.send({
-      to: client.email,
-      ...receiptEmail(client.preferredLanguage, {
-        name: client.name,
-        jobId,
-        clean: await cleanOf(job, property),
-        quotedCents: payment.quotedCents,
-        adjustments: await forEmail(rows.filter(counts)),
-        totalCents: payment.totalCents,
-        rescheduleFeeCents: payment.rescheduleFeeCents,
-        depositCents: deposit,
-        owedCents: payment.owedCents,
-        settled,
-      }),
-    }),
+const sendReceipt = (jobId: string, settled: Settled) =>
+  tellClient(
+    `Receipt for Job ${jobId}`,
+    jobId,
+    async ({ job, property, client }) => {
+      const [payment, rows] = await Promise.all([
+        paymentOf(job),
+        db.select().from(adjustments).where(eq(adjustments.jobId, jobId)),
+      ]);
+      const deposit = payment.charges
+        .filter((c) => c.kind === "deposit")
+        .reduce((sum, c) => sum + c.amountCents, 0);
+      await email.send({
+        to: client.email,
+        ...receiptEmail(client.preferredLanguage, {
+          name: client.name,
+          jobId,
+          clean: await cleanOf(job, property),
+          quotedCents: payment.quotedCents,
+          adjustments: await forEmail(rows.filter(counts)),
+          totalCents: payment.totalCents,
+          rescheduleFeeCents: payment.rescheduleFeeCents,
+          depositCents: deposit,
+          owedCents: payment.owedCents,
+          settled,
+        }),
+      });
+    },
   );
-};
 
 // ---- views ----
 
@@ -538,9 +552,11 @@ export const proposeAdjustment = async (
     throw new ConflictError(REVIEWED);
   }
 
-  const { job, property, client } = await jobWithOwner(jobId);
-  await notify(`Proposal of Adjustment ${adjustmentId}`, () =>
-    sendProposal(client, job, property, proposed, "proposed"),
+  await tellClient(
+    `Proposal of Adjustment ${adjustmentId}`,
+    jobId,
+    ({ job, property, client }) =>
+      sendProposal(client, job, property, proposed, "proposed"),
   );
 };
 
@@ -601,36 +617,34 @@ const sendCorrection = async (jobId: string, settled: Settled) => {
   ) {
     return;
   }
-  const { job, property, client } = await jobWithOwner(jobId);
-  const payment = await paymentOf(job);
-  if (job.status !== "completed") {
-    await notify(`Fee notice for Job ${jobId}`, async () =>
-      email.send({
+  // a fee on a clean not done, else the corrected price of one done
+  await tellClient(
+    `Fee or correction notice for Job ${jobId}`,
+    jobId,
+    async ({ job, property, client }) => {
+      const payment = await paymentOf(job);
+      const clean = await cleanOf(job, property);
+      await email.send({
         to: client.email,
-        ...feeTakenEmail(client.preferredLanguage, {
-          name: client.name,
-          jobId,
-          clean: await cleanOf(job, property),
-          feeCents: job.feeCents ?? 0,
-          owedCents: payment.owedCents,
-          settled,
-        }),
-      }),
-    );
-    return;
-  }
-  await notify(`Correction notice for Job ${jobId}`, async () =>
-    email.send({
-      to: client.email,
-      ...correctedEmail(client.preferredLanguage, {
-        name: client.name,
-        jobId,
-        clean: await cleanOf(job, property),
-        totalCents: payment.totalCents,
-        owedCents: payment.owedCents,
-        settled,
-      }),
-    }),
+        ...(job.status !== "completed"
+          ? feeTakenEmail(client.preferredLanguage, {
+              name: client.name,
+              jobId,
+              clean,
+              feeCents: job.feeCents ?? 0,
+              owedCents: payment.owedCents,
+              settled,
+            })
+          : correctedEmail(client.preferredLanguage, {
+              name: client.name,
+              jobId,
+              clean,
+              totalCents: payment.totalCents,
+              owedCents: payment.owedCents,
+              settled,
+            })),
+      });
+    },
   );
 };
 
@@ -763,16 +777,18 @@ export const undoCompletion = async (jobId: string) => {
   });
   const settled = await settleAfterChange(jobId);
 
-  const { property, client } = await jobWithOwner(jobId);
-  await notify(`Undone completion notice for Job ${jobId}`, async () =>
-    email.send({
-      to: client.email,
-      ...completionUndoneEmail(client.preferredLanguage, {
-        name: client.name,
-        clean: await cleanOf(job, property),
-        settled,
+  await tellClient(
+    `Undone completion notice for Job ${jobId}`,
+    jobId,
+    async ({ property, client }) =>
+      email.send({
+        to: client.email,
+        ...completionUndoneEmail(client.preferredLanguage, {
+          name: client.name,
+          clean: await cleanOf(job, property),
+          settled,
+        }),
       }),
-    }),
   );
 };
 
@@ -997,22 +1013,25 @@ export const answerAdjustment = async (
     ...reportedChange(answered),
     how: "approved",
   });
-  const { job, property, client } = await jobWithOwner(jobId);
-  const payment = await paymentOf(job);
-  await notify(`Receipt for Adjustment ${adjustmentId}`, async () =>
-    email.send({
-      to: client.email,
-      ...approvedEmail(client.preferredLanguage, {
-        name: client.name,
-        jobId,
-        clean: await cleanOf(job, property),
-        adjustment: (await forEmail([answered]))[0]!,
-        amountCents: answered.totalCents,
-        totalCents: payment.totalCents,
-        owedCents: payment.owedCents,
-        settled,
-      }),
-    }),
+  await tellClient(
+    `Receipt for Adjustment ${adjustmentId}`,
+    jobId,
+    async ({ job, property, client }) => {
+      const payment = await paymentOf(job);
+      await email.send({
+        to: client.email,
+        ...approvedEmail(client.preferredLanguage, {
+          name: client.name,
+          jobId,
+          clean: await cleanOf(job, property),
+          adjustment: (await forEmail([answered]))[0]!,
+          amountCents: answered.totalCents,
+          totalCents: payment.totalCents,
+          owedCents: payment.owedCents,
+          settled,
+        }),
+      });
+    },
   );
   if (settled.becameUnpaid) await sendUnpaid(jobId, settled);
 };
@@ -1040,19 +1059,22 @@ export const retryJob = async (jobId: string): Promise<Retried> => {
   if (settled.chargedCents === 0 && settled.refundedCents === 0) {
     return retried;
   }
-  const { job, property, client } = await jobWithOwner(jobId);
-  const payment = await paymentOf(job);
-  await notify(`Payment notice for Job ${jobId}`, async () =>
-    email.send({
-      to: client.email,
-      ...paymentWentThroughEmail(client.preferredLanguage, {
-        name: client.name,
-        jobId,
-        clean: await cleanOf(job, property),
-        owedCents: payment.owedCents,
-        settled,
-      }),
-    }),
+  await tellClient(
+    `Payment notice for Job ${jobId}`,
+    jobId,
+    async ({ job, property, client }) => {
+      const payment = await paymentOf(job);
+      await email.send({
+        to: client.email,
+        ...paymentWentThroughEmail(client.preferredLanguage, {
+          name: client.name,
+          jobId,
+          clean: await cleanOf(job, property),
+          owedCents: payment.owedCents,
+          settled,
+        }),
+      });
+    },
   );
   return retried;
 };
@@ -1140,8 +1162,9 @@ export const chaseProposedAdjustments = async () => {
       )
       .returning({ id: adjustments.id });
     if (!claimed) continue;
-    const { job, property, client } = await jobWithOwner(adjustment.jobId);
+    // its reads inside the try too, so one failing frees the claim (C14)
     try {
+      const { job, property, client } = await jobWithOwner(adjustment.jobId);
       await sendProposal(client, job, property, adjustment, "reminder");
     } catch (error) {
       monitoring.error(error, {
