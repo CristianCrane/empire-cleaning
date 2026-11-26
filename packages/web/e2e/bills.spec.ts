@@ -757,11 +757,9 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   await expect(client.getByText("Your cleaning plan is paused")).toBeHidden();
 });
 
-// a Bill its card failed is one Your card tries again, as it does a clean,
-// saying what for and why, and then that it's taken (#499)
-test("Your card tries a declined Bill again, and says it's taken", async ({
-  page,
-}) => {
+// a declined Bill's Your card, its card working again: Try this card again
+// pressed, and the alert gone
+const retriedOnYourCard = async (page: Page) => {
   const { billId } = await billed({ failing: "insufficient_funds" });
   await failCharges(null);
   await signedInAs(page, casey.email);
@@ -773,13 +771,29 @@ test("Your card tries a declined Bill again, and says it's taken", async ({
     /^Payment needed\. We couldn't take \$[\d.,]+ for bill EC-000001 from your Test card ending 4242 \(there wasn't enough money in the account\)\. Try it again, or save a different card below\./,
   );
   await needed.getByRole("button", { name: "Try this card again" }).click();
-  // in place of the alert, as saving a card says it (#508's review F26)
+  await expect(needed).toHaveCount(0);
+  return billId;
+};
+
+// a Bill its card failed is one Your card tries again, as it does a clean,
+// saying what for and why, and then that it's taken, in place of the
+// alert, as saving a card says it (#499, #508's review F26)
+test("Your card tries a declined Bill again, and says it's taken", async ({
+  page,
+}) => {
+  await retriedOnYourCard(page);
   await expect(
     page.getByText(
       /^Paid\. We took \$[\d.,]+ for bill EC-000001 from your Test card ending 4242\.$/,
     ),
   ).toBeVisible();
-  await expect(needed).toHaveCount(0);
+});
+
+test("a Bill Your card's retry paid reads charged to the card", async ({
+  page,
+}) => {
+  const billId = await retriedOnYourCard(page);
+  await expect(page.getByText(/^Paid\. We took /)).toBeVisible();
   await page.goto(`/portal/bills/${billId}`);
   await expect(titleBadge(page, "Paid")).toBeVisible();
   // charged to their card, not paid "on this page" (#508's UX review U16)
