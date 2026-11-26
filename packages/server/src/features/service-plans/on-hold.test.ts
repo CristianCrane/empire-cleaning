@@ -1,5 +1,4 @@
 import { describe, expect, test, vi } from "vitest";
-import { sql } from "drizzle-orm";
 import { db } from "#db";
 import type {
   ClientPastJob,
@@ -11,6 +10,7 @@ import { completeJob } from "#features/completion";
 import { settleOpenPayments } from "#features/payments";
 import {
   type Agent,
+  refusingInserts,
   testClock,
   testEmail,
   testPayments,
@@ -316,21 +316,11 @@ describe("Try this card again, when trying a payment again errors on our side", 
   test("says it couldn't try again, not that it's going through", async () => {
     const { client, jobId } = await heldPlan();
     testPayments().failCharges(null);
-    // recording the Charge fails, as a database error would
-    await db.execute(sql`
-      create or replace function c12_fail() returns trigger
-      language plpgsql as $$ begin raise exception 'C12: our own error'; end $$`);
-    await db.execute(sql`
-      create trigger c12_fail before insert on charges
-      for each row execute function c12_fail()`);
     const asked = testPayments().paymentAttempts.length;
-    let res;
-    try {
-      res = await client.post("/api/payments/mine/retry");
-    } finally {
-      await db.execute(sql`drop trigger if exists c12_fail on charges`);
-      await db.execute(sql`drop function if exists c12_fail()`);
-    }
+    // recording the Charge fails, as a database error would
+    const res = await refusingInserts("charges", () =>
+      client.post("/api/payments/mine/retry"),
+    );
 
     // still Unpaid, as before the press, and still theirs to read
     const owed = (
