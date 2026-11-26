@@ -1026,10 +1026,9 @@ export const retryJob = async (jobId: string): Promise<Retried> => {
   if (settled.becameUnpaid) await sendUnpaid(jobId, settled);
   if (settled.failure) {
     // what it still owes: the rest, when part was taken (C11)
-    const { job } = await jobWithOwner(jobId);
     return {
       takenCents: settled.chargedCents,
-      leftCents: (await paymentOf(job)).owedCents,
+      leftCents: settled.leftCents,
       failure: settled.failure,
     };
   }

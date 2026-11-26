@@ -283,6 +283,10 @@ export type Settled = {
   refundedCents: number;
   // why taking what's owed failed: the Job is now Unpaid
   failure: string | null;
+  // what it still owes when taking it failed, nothing more having moved,
+  // so a retry names it without reading again after this commits
+  // (critical review C13); 0 when it didn't fail
+  leftCents: number;
   // whether this settling made it Unpaid, when it wasn't before
   becameUnpaid: boolean;
   // the card it was taken from, or would have been
@@ -375,6 +379,7 @@ export const settleJob = async (
       // it may yet take the money, so nothing more moves meanwhile; billed,
       // nothing moves anyway, and the Clock asks after it (ADR-0022)
       failure: "unknown" in earlier && !billed ? earlier.unknown : null,
+      leftCents: 0,
       becameUnpaid: false,
       paymentMethod: method && cardIn(method),
       plan: null,
@@ -416,6 +421,7 @@ export const settleJob = async (
     }
 
     if (settled.failure) {
+      settled.leftCents = ledger.owedCents;
       settled.becameUnpaid = nowTheirs(
         job!.unpaidSince ? (job!.unpaidReason ?? "") : null,
         settled.failure,
@@ -471,6 +477,7 @@ export const settleAfterChange = async (
       chargedCents: 0,
       refundedCents: 0,
       failure: null,
+      leftCents: 0,
       becameUnpaid: false,
       paymentMethod: null,
       plan,

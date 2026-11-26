@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { sql } from "drizzle-orm";
 import { db } from "#db";
 import type {
@@ -348,5 +348,39 @@ describe("Try this card again, when trying a payment again errors on our side", 
 
     expect(res.status).toBe(409);
     expect(res.body.message).toBe("We couldn't try again. Please try later.");
+  });
+});
+
+// critical review C13: retryJob reads what a failed Job still owes
+// (leftCents) after settleJob has committed, in reads of its own
+// (completion.ts, jobWithOwner and paymentOf). One of those failing turns a
+// settled retry, its decline recorded, into one that "errored", so the
+// Client is told to try later, not to update their card
+describe("Try this card again, declined, when reading what's still owed fails", () => {
+  test("still says it didn't go through, not that it couldn't try", async () => {
+    const { client, jobId } = await heldPlan();
+    const select = db.select.bind(db);
+    // only the read after the settle's commit fails, as a dropped
+    // connection would
+    const spy = vi.spyOn(db, "select").mockImplementation(((...args: []) => {
+      if (new Error().stack?.includes("jobWithOwner"))
+        throw new Error("C13: the read after the settle");
+      return select(...args);
+    }) as typeof db.select);
+    let res;
+    try {
+      res = await client.post("/api/payments/mine/retry");
+    } finally {
+      spy.mockRestore();
+    }
+
+    // the decline was recorded: the settle committed
+    const owed = (
+      (await client.get("/api/jobs/mine/past").expect(200))
+        .body as ClientPastJob[]
+    ).find((j) => j.id === jobId)!;
+    expect(owed.unpaid).toMatchObject({ kind: "declined" });
+    expect(res.status).toBe(409);
+    expect(res.body.message).toContain("didn't go through");
   });
 });

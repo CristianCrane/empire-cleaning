@@ -525,6 +525,9 @@ const holdOrResumePlansOf = async (billId: string, tx: Tx) => {
 
 type Charged = {
   failure: string | null;
+  // the Bill's total, taken whole or not at all, from the row it held, so
+  // a retry names it without reading again (critical review C13)
+  totalCents: number;
   becameUnpaid: boolean;
   plan: "held" | "resumed" | null;
 };
@@ -613,6 +616,7 @@ const chargeBill = async (
     const plan = await holdOrResumePlansOf(bill.id, tx);
     return {
       failure,
+      totalCents: bill.totalCents,
       becameUnpaid,
       // a plan held already, as while the payment only waited on the
       // provider, is told now the payment is the Client's to put right
@@ -712,14 +716,9 @@ export const retryBill = async (
     // declined now, after the provider kept us waiting: told only now
     if (charged.becameUnpaid) await tellUnpaid(billId, charged.plan);
   } else await tellPaid(billId, charged.plan);
-  // a Bill is taken whole or not at all
-  const [bill] = await db
-    .select({ totalCents: bills.totalCents })
-    .from(bills)
-    .where(eq(bills.id, billId));
   return charged.failure
-    ? { takenCents: 0, leftCents: bill!.totalCents, failure: charged.failure }
-    : { takenCents: bill!.totalCents, leftCents: 0, failure: null };
+    ? { takenCents: 0, leftCents: charged.totalCents, failure: charged.failure }
+    : { takenCents: charged.totalCents, leftCents: 0, failure: null };
 };
 
 // After a Client saves a new Payment Method, tries their Unpaid Bills again
