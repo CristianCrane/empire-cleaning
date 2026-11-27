@@ -9,8 +9,8 @@ import type { LegalPage } from "./index.ts";
 const said = messages.en;
 const { phone, email } = business;
 
-// how booking and paying work (#462), only as the app does it (GLOSSARY.md;
-// ADR-0001, 0009, 0010, 0013, 0016). Where the site or the app already says
+// how booking and paying work (#462), only as the app does it (ADR-0001,
+// 0009, 0010, 0013, 0016). Where the site or the app already says
 // a rule, it's their words, read from where they live (the FAQ's answers,
 // models' messages), so a rule is worded once. The owner checks it on #206;
 // it isn't legal advice. Its Spanish is terms.es.ts

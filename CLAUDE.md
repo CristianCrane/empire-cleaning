@@ -19,7 +19,7 @@ The labels and what each means: `docs/agents/triage-labels.md`.
 
 ### Domain docs
 
-Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`. When an ADR retires a pattern, it names the pattern.
+Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. `docs/map.md` says what each doc holds and when to read it. When an ADR retires a pattern, it names the pattern.
 
 The files `docs/map.md` lists are the doc curator's alone, so each fact sits in one place, short (.dotfiles#61): a change leaves a note instead, as the `change` skill's Build says.
 
