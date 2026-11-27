@@ -27,7 +27,7 @@ Seven types, each drawn by its layout in `packages/ui/src/layouts/` (ADR-0031): 
 ### List
 
 - The title is in a phone's bar, with no breadcrumbs, and at most one primary, for making a new one.
-- Tabs are the one way it splits, each with its count, and no All (Retired and Deactivated are Tabs). The Tab, the search and how many are shown are in the URL, so Back keeps them. It opens on the first Tab holding anything, or, where the server pages (Jobs, Clients), on its first.
+- Tabs are the one way it splits, each with its count, and no All (Retired and Deactivated are Tabs). The Tab, the search and how many are shown are in the URL, so Back keeps them. It opens on the first Tab holding anything, or, where the server pages (Office > Jobs, Office > Clients), on its first.
 - Search is on the Office's work lists only: at the end of the Tabs' line, a field from md and an icon on a phone, never a row of its own. It searches every Tab: the Tabs step aside for "N found in every tab", rows say where each stands, with Clear search; no match says so, with Clear search.
 - An Office list is a Table from md and rows on a phone; the Client's and Cleaner's are rows at every width.
 - Dated rows go by month at every width. A row leads with a small DateTile, weekday and time, then what this reader tells rows apart by: the Office the Client (address and service under), a Cleaner the postcode (service under), a Client the kind of clean (the home only when they have more than one).
@@ -79,7 +79,7 @@ Seven types, each drawn by its layout in `packages/ui/src/layouts/` (ADR-0031): 
 
 - Breadcrumbs run from the area's nav section down, every step.
 - The status badge says where it stands for this reader now; where two states hold, the one waiting on them (a Client's clean Needs your OK, Move asked; a visited Site Visit To record), in its rows' words (#493 G3.1, #507).
-- A subtitle only when nothing else says it (a Client's Quote: open until when), never the title, a crumb, a fact below (a Bill's week) or the Client again.
+- A subtitle only when nothing else says it (Client portal > Your quote: open until when), never the title, a crumb, a fact below (a Bill's week) or the Client again.
 - Page actions are one split button: the next step primary, the rest behind its arrow ("More actions": a menu from md, a sheet on a phone; the arrow outlined while the next step waits disabled). A quiet ⋯ when nothing's next; one action with nothing next stays a Button. A page whose only action destroys has no primary: that action is `danger-outline`, in the same place. Destructive actions go last, in red, after a rule.
 - Short of room, the badge drops under the title, then the button, so the title breaks only where it can't fit alone (#534 U6).
 - From md the header sticks once the window's top reaches the title row's actions: title, badge and the same actions, lined up with the page's column, with room for what the step rests on (a Form page's price below xl, saved state); a List's New stays on its row. Printed, the title alone.
@@ -97,7 +97,7 @@ Seven types, each drawn by its layout in `packages/ui/src/layouts/` (ADR-0031): 
 - The account's parts sit at the menu's foot in every area, under a divider, one plain item each, never behind a dialog: name and email, the other language (Client portal and Cleaner area), Switch to, Show tips again, Sign out, the theme. A phone's top bar is the ☰ and the section.
 - The rail is the exception (#493): the other language on it, the rest behind one Account popover at its foot, no logo or area heading.
 - The language changes in one press, the other language named in its own words ("Español" / "English"), so someone who can't read the screen finds it: the sidebar's foot, the rail, the ☰'s foot. It writes every Client and Staff member the person is (ADR-0025).
-- Loading in the frame: after 200 ms a thin brand bar runs and the page on show fades to half, a screen reader hearing "Loading…" once; the old page takes no press from the press that leaves it; it and its nav section stay until the next is ready; the nav stays live. A quicker load, an in-page change (search, Tab, the Schedule's week) or a reload after a save shows nothing.
+- Loading in the frame: after 200 ms a thin brand bar runs and the page on show fades to half, a screen reader hearing "Loading…" once; the old page takes no press from the press that leaves it; it and its nav section stay until the next is ready; the nav stays live. A quicker load, an in-page change (search, Tab, Office > Schedule's week) or a reload after a save shows nothing.
 - Links preload on hover, focus or press-down (`preload.ts`).
 
 ## Buttons and actions
@@ -105,7 +105,7 @@ Seven types, each drawn by its layout in `packages/ui/src/layouts/` (ADR-0031): 
 - The foot bar is an `ActionFooter` the layout places, never a page's own sticky bar (that pinned under the tab bar, #425); a sheet's pinned Buttons are the sheet's. Summary left, main action right. The layout test fails a button or link under a fixed bar.
 - Buttons rank by fill: primary filled, secondary outlined, `text` for a Section's actions, `danger-text` beside them, a lone destructive one `danger-outline`, `danger` filled only in its confirming dialog, `quiet` only to back out.
 - A Section's actions are text Buttons on its title line, no taller; on a phone they wrap under it.
-- Red is for what can't be got back: End plan, Cancel bill, Deactivate (the places it frees on Jobs don't come back). Not red: declining a quote (`quiet`, as the Client can ask again; its confirm the dialog's primary), the Office's Turn down of a move (the Job stays booked), a Service's Retire (Offer again), a Draft's Remove <weekday> (nothing sent or booked is lost). The Office's Turn down of a quote is red: it closes the Client's quote for good on the Office's word.
+- Red is for what can't be got back: End plan, Cancel bill, Deactivate (the places it frees on Jobs don't come back). Not red: declining a quote (`quiet`, as the Client can ask again; its confirm the dialog's primary), the Office's Turn down of a move (the Job stays booked), a Service's Retire (Offer again), Office > Draft quote's Remove <weekday> (nothing sent or booked is lost). The Office's Turn down of a quote is red: it closes the Client's quote for good on the Office's word.
 - An action a wait holds back stays, greyed, saying why where it's pressed (under its menu item, or above a phone's foot). A dialog opened before the wait refuses on the press, in the tone of the page's alert for it, keeping what was typed; the refusal goes once the wait is over (Office > Bill's `WhyNot`, #534).
 - Continue with Google is Google's own button (its colours light and dark, logo, Roboto); only the 44 px height is ours.
 

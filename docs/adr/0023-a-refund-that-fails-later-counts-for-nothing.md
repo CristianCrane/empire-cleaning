@@ -8,7 +8,7 @@ We chose this over trying again on the next settling, which would most likely fa
 
 ## Consequences
 
-- The Client's Payments page no longer shows a refund that failed.
+- Client portal > Payments no longer shows a refund that failed.
 - Told twice of the same failure, the app counts it once. A refund it never recorded is still signalled, to look into.
 - The provider may say a refund went through (`refund.updated`, or `charge.refunded`) before failing it. A dashboard refund is recorded as given, then marked failed. Asked again later, the provider leaves out a failed refund, so it isn't recorded a second time.
 - A refund still on its way (pending) is recorded as given, as before, and is marked failed if it fails.
