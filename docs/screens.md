@@ -10,7 +10,7 @@ The web app's screens (`packages/web`), not the landing site's. Paths come from 
 | Signed in     | an Account connected to nothing | `/welcome`                                               |
 | Signed out    | anyone                          | `/sign-in`, `/sign-in/link`, `/confirm-email`, `/people` |
 
-How sign-in and the areas' guards behave: `packages/web/README.md`, Areas and sign-in. Not found renders inside its area (after the area's sign-in check) when the path is in one; Not found and Something went wrong have no path. `/prototype/<screen>` is Not found on main's build.
+How sign-in and the areas' guards behave: `packages/web/src/router.tsx`, its guards' comments. Not found renders inside its area (after the area's sign-in check) when the path is in one; Not found and Something went wrong have no path. `/prototype/<screen>` is Not found on main's build.
 
 ## Sign in
 

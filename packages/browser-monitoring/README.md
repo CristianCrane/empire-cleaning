@@ -1,25 +1,23 @@
 # Browser monitoring
 
-Sentry in the browser (ADR-0007), for the web app and the landing site, and the only place either sets it up. The server has its own (`packages/server`, `#services/monitoring`); both scrub with the same rules (`scrub` in `@empire-cleaning/models`).
+Sentry in the browser (ADR-0007), the one place the web app and landing site set it up; the server has its own (`#services/monitoring`).
 
-- **`startMonitoring({ dsn, environment, apiUrl?, tracing?, feedback? })`** starts Sentry once. Without a DSN it doesn't, and nothing is sent: dev and test builds have none. About 20% of page loads are traced, with headers linking them to the API's traces sent only to the API (this page's own `/api`, or `apiUrl`); `tracing` is the router's, so page changes are traced and named after their routes (`routerTracing(router)`). `feedback` is `feedbackButton(look)`, Sentry's feedback button on every page (the test sites only, ADR-0020): a form asking what they noticed, with a screenshot on a computer (Sentry offers none on a phone or tablet), and no name or email. It's an entry of its own, `@empire-cleaning/browser-monitoring/feedback`, which the rest of the package never imports, and it's passed in like `tracing`: a build that doesn't import it carries none of its code, even one that loads this package with `import()` (the landing site). `look` is the site's CSS for it as text (`import look from "….css?inline"`: `@empire-cleaning/ui/feedback.css`, and where the site places it), put into the page before the button, so the button never shows without it and a build without the button carries none of it.
-- **`identify(accountId)`**: who's signed in, by Account ID only.
-- **`report(error)`**: an error the app caught but didn't expect (the web app's `reportUnexpected` decides). Errors nothing caught are reported by Sentry itself, and so is one passed to the browser's `reportError` (the Quote form's and the landing site's, which have no Sentry of their own). A dropped connection is dropped either way (`ignoreErrors`). So is an error nothing of ours caught whose stack has no frame from our builds (an extension, Stripe.js, Google's sign-in): Sentry's `thirdPartyErrorFilterIntegration` tags it and `dropOthersUncaught` drops it, as nobody here can act on it. One our code caught and passed to `report` is kept, wherever it was thrown. One passed to `reportError` reaches Sentry as uncaught, so it's judged by its own stack: kept when that has a frame of ours, or none in any script (a body that isn't JSON, thrown in the browser's own code), as Sentry then has nothing of its own to judge it by.
-- **`monitoringBuild(project)`** (`@empire-cleaning/browser-monitoring/vite`), in the app's Vite plugins: the release is the git commit Render builds (`RENDER_GIT_COMMIT`), the same as the server's. Every build, with a token or without, marks each of its files with `APPLICATION_KEY` (`src/application-key.ts`, a few bytes a file), which is how the browser tells our frames from others'; a build without it would have every uncaught error dropped, so `src/vite.test.ts` builds one and looks for the mark. With `SENTRY_AUTH_TOKEN` and `SENTRY_ORG`, the build makes source maps, uploads them to `project` and deletes them, so stack traces read as the source but no map is published.
+In a site:
 
-## What may be sent
+- `startMonitoring({ dsn, environment, apiUrl?, tracing?, feedback? })`: with no DSN, nothing is sent.
+- `tracing: routerTracing(router)`.
+- `feedback: feedbackButton(look)`, from `@empire-cleaning/browser-monitoring/feedback`, on the test sites only; `look` is `@empire-cleaning/ui/feedback.css` as `?inline` text.
+- `identify(accountId)`.
+- `report(error)`: an error caught but not expected (the web app's `reportUnexpected` decides).
 
-- the error, its stack, and the breadcrumbs leading to it: clicks (the element, never what was typed), page changes and calls to the API (method, path, status)
-- the page's address and the browser
-- the Account ID of whoever is signed in
-- on the test site, a report from the feedback button: what they typed, and a screenshot of the page if they add one
+In its Vite plugins: `monitoringBuild(project)` from `@empire-cleaning/browser-monitoring/vite`; with `SENTRY_AUTH_TOKEN` and `SENTRY_ORG`, its source maps go to `project` and are never published.
 
-## What mustn't
+## Testing
 
-- no session replay, which records what people type and see (a report's screenshot is one picture, taken and sent only when the tester chooses, and only on the test site, which holds no real Client's details)
-- no form values, request or response bodies, cookies or headers but the browser's
-- no emails, phone numbers or URL query values (a sign-in link's token) anywhere in an event, and no keys such as `email`, `phone`, `address` or `accessInstructions` (`scrub`)
-- no console lines, which could hold anything
-- no user details but the Account ID
+What may reach Sentry is ADR-0007's (Client data and logs). `scrubEvent` in `src/index.ts` scrubs every event last, and `src/index.test.ts` holds every case: a change to what's sent changes that test.
 
-Every event, of every kind, is scrubbed last by one event processor (`scrubEvent`): Sentry's `beforeSend` sees only errors, so a feedback report would pass it by. `src/index.test.ts` covers the scrubbing, and `pnpm --filter @empire-cleaning/browser-monitoring test` runs it. The feedback button is checked in a real browser with the web app's layout, by `packages/web/src/feedback.test.tsx` (`pnpm --filter @empire-cleaning/web exec vitest run`).
+```sh
+pnpm --filter @empire-cleaning/browser-monitoring test
+```
+
+The feedback button in a real browser: `packages/web/src/feedback.test.tsx` (`pnpm --filter @empire-cleaning/web exec vitest run`).

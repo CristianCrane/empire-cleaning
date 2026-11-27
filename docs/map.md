@@ -9,10 +9,9 @@ Its format: `~/.claude/hooks/docs.mjs`'s header; its writer: `~/.claude/agents/d
 - `docs/screens-office.md` (screen): each Office screen and the picks it keeps; read before changing one.
 - `docs/screens-portal.md` (screen): each Client portal screen and the picks it keeps; read before changing one.
 - `docs/screens-cleaner.md` (screen): each Cleaner area screen and the picks it keeps; read before changing one.
-- `packages/server/README.md` (how-to): setting up, testing and monitoring the server; read before working in it.
 - `docs/*.md`
 - `docs/adr/*.md` (decision): each call that rules something out, with why; read the ones a change touches before making it.
 - `docs/agents/*.md`
 - `GLOSSARY.md`
-- `README.md`
-- `packages/*/README.md`
+- `README.md` (how-to): running the repo, its tests and CI's checks locally, the test site and production's release.
+- `packages/*/README.md` (how-to): how to run, test and work in each package; read before working in it.
