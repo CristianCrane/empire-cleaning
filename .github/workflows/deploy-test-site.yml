@@ -1,0 +1,54 @@
+name: Deploy test site
+
+# Each night, and when run by hand (Actions → Deploy test site → Run
+# workflow): deploys each test site service whose files changed since its
+# last good deploy, at main's newest commit that passed CI
+# (packages/server/tests/deploy-test-site.ts). Render's own auto-deploy is off
+# (render.yaml), so the day's merges build once, not once a push. A failed or
+# unrecorded deploy fails the run, and GitHub emails it.
+on:
+  schedule:
+    # 03:23 New York, as GitHub delays runs at the top of the hour
+    # (docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)
+    - cron: "23 3 * * *"
+      timezone: America/New_York
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Only say what would deploy
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  # what's live: the deployments Render records on GitHub
+  deployments: read
+  # which commits passed CI
+  actions: read
+
+concurrency:
+  group: deploy-test-site
+
+jobs:
+  deploy:
+    name: Deploy what changed
+    # main's alone, as a run on another branch would put its code on the
+    # test site
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # its secrets, the deploy hooks, reach main's runs only (#205)
+    environment: test-site-deploy
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # the history back to each service's last good deploy
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - name: Deploy
+        run: pnpm --filter @empire-cleaning/server deploy:test-site ${{ inputs.dry_run && '--dry-run' || '' }}
+        # this step's alone, so no install script sees them
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RENDER_DEPLOY_HOOK_EMPIRE_TEST_SERVER: ${{ secrets.RENDER_DEPLOY_HOOK_EMPIRE_TEST_SERVER }}
+          RENDER_DEPLOY_HOOK_EMPIRE_TEST_WEB: ${{ secrets.RENDER_DEPLOY_HOOK_EMPIRE_TEST_WEB }}
+          RENDER_DEPLOY_HOOK_EMPIRE_TEST_LANDING: ${{ secrets.RENDER_DEPLOY_HOOK_EMPIRE_TEST_LANDING }}

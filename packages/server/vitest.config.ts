@@ -11,8 +11,13 @@ export default defineConfig({
         test: {
           name: "server",
           environment: "node",
-          // and the e2e runs' port lease (tests/lease.ts)
-          include: ["src/**/*.test.ts", "tests/lease.test.ts"],
+          // and the e2e runs' port lease (tests/lease.ts) and the test site's
+          // nightly deploy (tests/deploy-test-site.ts)
+          include: [
+            "src/**/*.test.ts",
+            "tests/lease.test.ts",
+            "tests/deploy-test-site.test.ts",
+          ],
           globals: true,
           globalSetup: ["./tests/setup/globalSetup.ts"],
           setupFiles: [

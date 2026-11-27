@@ -8,6 +8,8 @@ on:
 
 permissions:
   contents: read
+  # what the test server runs: the deployments Render records on GitHub
+  deployments: read
 
 # never two at once against the same database
 concurrency:
@@ -19,7 +21,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # the history back to the test server's last good deploy
+          fetch-depth: 0
       - uses: ./.github/actions/setup
+      # the code the test server runs, which can be a day behind main (it
+      # deploys nightly: deploy-test-site.yml), as the seed writes that
+      # server's tables
+      - name: Check out what the test server runs
+        run: |
+          live=$(pnpm --silent --filter @empire-cleaning/server deploy:test-site live empire-test-server)
+          git checkout --quiet --detach "$live"
+          pnpm install --frozen-lockfile
+        env:
+          GH_TOKEN: ${{ github.token }}
       - run: pnpm --filter @empire-cleaning/server staff:testers
         env:
           # the test database's external URL from Render, ending

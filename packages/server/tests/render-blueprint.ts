@@ -21,7 +21,7 @@ export type Service = {
   buildFilter?: BuildFilter;
   envVars: EnvVar[];
 };
-export type Database = { name: string; plan: string; ipAllowList?: unknown[] };
+type Database = { name: string; plan: string; ipAllowList?: unknown[] };
 export type Blueprint = { databases: Database[]; services: Service[] };
 
 export const parseBlueprint = (yaml: string) => parse(yaml) as Blueprint;

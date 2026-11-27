@@ -60,8 +60,8 @@ const asProduction = (site: Blueprint): Blueprint => {
     })),
     services: renamed.services.map((service) => ({
       ...service,
-      // released by hand, never on a merge, so no build filter: one would
-      // never fire
+      // released by hand alone (README.md, Production), whatever the test
+      // site's deploys do, so no build filter: none would be read
       autoDeployTrigger: "off",
       buildFilter: undefined,
       envVars: [

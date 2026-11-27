@@ -33,14 +33,19 @@ services:
     preDeployCommand: npm --prefix packages/server run env:check && npm --prefix packages/server run db:migrate
     startCommand: npm --prefix packages/server start
     healthCheckPath: /health
-    # deploys main once CI passes, when the push changes what it's built from
-    autoDeployTrigger: checksPass
-    # Each service builds only when a push changes a file it's built from, as
-    # Render's build minutes are capped: its packages (from their package.json
-    # dependencies) and the root files every install reads, but never docs,
-    # tests or stories, which no build ships. An ignored path
-    # wins over an included one; a change to this file always deploys what it
-    # changes, and so does a manual deploy (render.com/docs/monorepo-support).
+    # Render's build minutes are capped, so the test site deploys once a night,
+    # not on every merge: the Deploy test site Action
+    # (.github/workflows/deploy-test-site.yml) deploys each service at main's
+    # newest commit that passed CI, when a file it's built from changed since
+    # its last good deploy. Its run by hand deploys at once. A change to this
+    # file is the exception: Render's Blueprint sync deploys what it changes at
+    # the merge, before CI (render.com/docs/infrastructure-as-code).
+    autoDeployTrigger: "off"
+    # The files each service is built from, which the nightly Action reads
+    # (Render reads them only for its own auto-deploys, now off): its packages
+    # (from their package.json dependencies) and the root files every install
+    # reads, but never docs, tests or stories, which no build ships. An
+    # ignored path wins over an included one (render.com/docs/monorepo-support).
     # The ignore list is the same in each service (no YAML anchors: ADR-0020)
     buildFilter:
       paths:
@@ -117,7 +122,8 @@ services:
       npx --yes pnpm@11.18.0 install --frozen-lockfile &&
       npx --yes pnpm@11.18.0 --filter-prod "@empire-cleaning/web..." build
     staticPublishPath: packages/web/dist
-    autoDeployTrigger: checksPass
+    # nightly, as the server's comment says
+    autoDeployTrigger: "off"
     # its dependencies; the server, a devDependency, is only its e2e tests'
     buildFilter:
       paths:
@@ -199,7 +205,8 @@ services:
       npx --yes pnpm@11.18.0 install --frozen-lockfile &&
       npx --yes pnpm@11.18.0 --filter-prod "@empire-cleaning/landing..." build
     staticPublishPath: packages/landing/dist
-    autoDeployTrigger: checksPass
+    # nightly, as the server's comment says
+    autoDeployTrigger: "off"
     # its dependencies; the server, a devDependency, is only its tests'
     buildFilter:
       paths:
