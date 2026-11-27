@@ -479,6 +479,7 @@ test("Office Staff see the Quote, open the home and correct its details", async 
   const save = page.getByRole("button", { name: "Save corrections" });
   await expect(save).toBeDisabled();
 
+  await page.getByRole("textbox", { name: "City" }).fill("Kew Gardens");
   await page.getByRole("textbox", { name: "Bedrooms" }).fill("4");
   await page.getByText("Heavy", { exact: true }).click();
   await page
@@ -488,6 +489,9 @@ test("Office Staff see the Quote, open the home and correct its details", async 
   await expect(page.getByText("Details corrected")).toBeVisible();
 
   await page.reload();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "41-12 Austin St, 4B, Kew Gardens, 11375",
+  );
   const details = page.getByRole("region", { name: "Home details" });
   await expect(details).toContainText("Key under the mat");
   await expect(details).toContainText("4 bedrooms");
