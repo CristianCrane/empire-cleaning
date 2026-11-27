@@ -564,7 +564,8 @@ function PartCard({
 // The Client cancels a clean still to come, seeing first what it costs: free
 // until 24 hours before, then a Late Cancellation that keeps the Deposit. A
 // plan Job is skipped instead, and the plan carries on; its late fee is the
-// plan's Deposit amount, charged or on its week's Bill (ADR-0016), as the
+// Deposit percentage of its own price (ADR-0013), charged or on its week's
+// Bill (ADR-0016), as the
 // plan's own Deposit stays held.
 function Cancel({
   job,

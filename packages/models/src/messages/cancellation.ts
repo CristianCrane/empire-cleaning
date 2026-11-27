@@ -21,8 +21,8 @@ export const CANCELLATION_CUTOFF_HOURS = 24;
 
 // What cancelling, or skipping a plan Job, costs (ADR-0010), the same rules
 // for the Office and its Client, said so it's true before and after. A plan
-// Job has no Deposit of its own: its fee is the plan's Deposit amount, and
-// the plan's Deposit stays held (ADR-0013). `fee` is `feeCents` as the
+// Job has no Deposit of its own: its fee is the Deposit percentage of its
+// own price, and the plan's Deposit stays held (ADR-0013). `fee` is `feeCents` as the
 // caller formats money.
 export type CancelCost = {
   onPlan: boolean;
