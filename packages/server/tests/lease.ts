@@ -69,7 +69,7 @@ export const takeBlock = async (
 
 // where Linux picks the local ports of outgoing connections from: a server
 // on a port in that range can be refused with nothing listening there
-// (docs/testing-log.md, 2026-11-22 and 23), so no block reaches it
+// (PRs #512 and #545), so no block reaches it
 export const ephemeralStart = (
   path = "/proc/sys/net/ipv4/ip_local_port_range",
 ) => {

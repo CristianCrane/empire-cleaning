@@ -575,7 +575,7 @@ export const pageAction = async (page: Page, name: string) => {
   // whichever the page shows, once it's the page wanted: straight after a
   // navigation the page before can still be on screen, its More actions
   // without the item, so a menu without it is closed and the page looked
-  // at again (#493 PR 14, docs/testing-log.md)
+  // at again (#493 PR 14)
   await expect(async () => {
     await expect(more.or(button).first()).toBeVisible({ timeout: 1000 });
     if ((await button.count()) > 0) return;

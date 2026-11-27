@@ -48,7 +48,7 @@ export default {
   // drawn at a power of two pixels a point, the one at or below its own: the
   // phone's 2.625 draws an icon's edge one of two ways, a few pixels apart,
   // so one commit's shots of a test differed run to run, and at 2 they
-  // don't, as scaling by 2 is exact (#488, docs/testing-log.md)
+  // don't, as scaling by 2 is exact (#488)
   projects: base.projects?.map(({ grep: _, ...project }) => {
     const scale = project.use?.deviceScaleFactor ?? 1;
     const deviceScaleFactor = 2 ** Math.floor(Math.log2(scale));

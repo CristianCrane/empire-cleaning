@@ -33,7 +33,7 @@ The full suite runs on CI, not here (`docs/adr/0026-the-full-suite-runs-on-ci.md
 - the server (not the seed test), ui, models, browser-monitoring and lint rule tests, and the web app's browser tests in `src/`;
 - every end-to-end spec the branch adds or edits, the web app's and the landing site's, and the specs named on its command line (those for the screens the change touches, `packages/web/README.md`), once each (ADR-0028).
 
-For a typical change, two specs named, it takes ~125 s alone and ~180-210 s while another checkout's runs (2026-11-20, `docs/testing-log.md`).
+For a typical change, two specs named, it takes ~125 s alone and ~180-210 s while another checkout's runs.
 
 Each spec runs in every project its tags name.
 

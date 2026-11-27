@@ -596,8 +596,8 @@ export class FakePaymentGateway implements PaymentGateway {
     if (input.amount > 0 && !reused) this.attempt(input.payerId, input.amount);
     // a card's bank leaves it processing, as `charge` does, until
     // clearCharges(): Stripe never ends one "processing" at once
-    // (docs/testing-log.md, 2026-11-26); it waits below, as one
-    // finishCards() leaves does (critical review C18)
+    // (#508 F26); it waits below, as one finishCards() leaves does
+    // (critical review C18)
     const processing =
       this.chargeFailure === "processing" && input.amount > 0 && !bank;
     if (this.chargeFailure && !processing) {
