@@ -173,6 +173,16 @@ export const changedFiles = (from: string, to: string, cwd?: string) =>
     .split("\n")
     .filter(Boolean);
 
+// a file's text at a commit, or undefined where there's none: `cat-file blob`,
+// as `git show` reads a folder too, as its listing
+export const fileAt = (at: string, path: string, cwd?: string) => {
+  try {
+    return run("git", ["cat-file", "blob", `${at}:${path}`], cwd);
+  } catch {
+    return undefined;
+  }
+};
+
 const run = (command: string, args: string[], cwd?: string) =>
   execFileSync(command, args, {
     cwd,
@@ -217,8 +227,12 @@ const isAncestor = (a: string, b: string) => {
   }
 };
 
-const servicesAt = (sha: string) =>
-  parseBlueprint(run("git", ["show", `${sha}:render.yaml`])).services;
+const servicesAt = (sha: string) => {
+  const blueprint = fileAt(sha, "render.yaml");
+  if (blueprint === undefined)
+    throw new Error(`${short(sha)} has no render.yaml`);
+  return parseBlueprint(blueprint).services;
+};
 
 // each service's hook, as an environment variable named after it
 const hookVariable = (service: string) =>
@@ -333,13 +347,7 @@ const main = async (args: string[]) => {
   }
   if (args[0] === "seed-code") {
     const [, at = "", script = ""] = args;
-    const show = (path: string) => {
-      try {
-        return run("git", ["show", `${at}:${path}`]);
-      } catch {
-        return undefined;
-      }
-    };
+    const show = (path: string) => fileAt(at, path);
     // the file the server package's script runs, e.g. db:seed's tests/seed.ts
     const entry = (
       JSON.parse(show("packages/server/package.json") ?? "{}") as {

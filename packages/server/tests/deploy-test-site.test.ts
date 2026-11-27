@@ -7,6 +7,7 @@ import {
   builds,
   changedFiles,
   decide,
+  fileAt,
   loads,
   outcome,
   seedCode,
@@ -337,5 +338,44 @@ describe("a seed's own files, as tsx loads them", () => {
     expect(() =>
       loads("packages/server/tests/seed.ts", (path) => files[path]),
     ).toThrow();
+  });
+  // review C17: seed-code's reader is git, and `git show <commit>:<folder>`
+  // succeeds with the folder's listing, so the walk took a folder for a file
+  // and never reached the index.ts tsx loads from it
+  test("stop on a folder import, as git reads a folder too", () => {
+    const repo = mkdtempSync(join(tmpdir(), "deploy-test-site-"));
+    try {
+      const git = (...args: string[]) =>
+        execFileSync(
+          "git",
+          [
+            "-c",
+            "user.name=test",
+            "-c",
+            "user.email=test@example.com",
+            ...args,
+          ],
+          { cwd: repo, encoding: "utf8" },
+        ).trim();
+      git("init", "--quiet");
+      mkdirSync(join(repo, "packages/server/tests/fakes"), { recursive: true });
+      writeFileSync(
+        join(repo, "packages/server/tests/seed.ts"),
+        'import { f } from "./fakes";\n',
+      );
+      writeFileSync(
+        join(repo, "packages/server/tests/fakes/index.ts"),
+        "export const f = 1;\n",
+      );
+      git("add", ".");
+      git("commit", "--quiet", "-m", "one");
+      expect(() =>
+        loads("packages/server/tests/seed.ts", (path) =>
+          fileAt("HEAD", path, repo),
+        ),
+      ).toThrow("can't follow packages/server/tests/fakes");
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
   });
 });
