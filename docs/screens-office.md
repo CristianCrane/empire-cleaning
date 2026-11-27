@@ -72,7 +72,7 @@ Their files are in `packages/web/src/screens/office/`.
 
 ## Office > Services
 
-`/office/services?tab=` (`ServicesScreen.tsx`), List: every Service, retired ones on a Tab. Keeps: a work list.
+`/office/services?tab=` (`ServicesScreen.tsx`), List: every Service, retired ones on a Tab.
 
 ## Office > Service, New service
 

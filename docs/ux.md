@@ -28,7 +28,7 @@ Seven types, each drawn by its layout in `packages/ui/src/layouts/` (ADR-0031): 
 
 - The title is in a phone's bar, with no breadcrumbs, and at most one primary, for making a new one.
 - Tabs are the one way it splits, each with its count, and no All (Retired and Deactivated are Tabs). The Tab, the search and how many are shown are in the URL, so Back keeps them. It opens on the first Tab holding anything, or, where the server pages (Office > Jobs, Office > Clients), on its first.
-- Search is on the Office's work lists only: at the end of the Tabs' line, a field from md and an icon on a phone, never a row of its own. It searches every Tab: the Tabs step aside for "N found in every tab", rows say where each stands, with Clear search; no match says so, with Clear search.
+- Search is on Office > Jobs, Office > Quotes and Office > Clients only: at the end of the Tabs' line, a field from md and an icon on a phone, never a row of its own. It searches every Tab: the Tabs step aside for "N found in every tab", rows say where each stands, with Clear search; no match says so, with Clear search.
 - An Office list is a Table from md and rows on a phone; the Client's and Cleaner's are rows at every width.
 - Dated rows go by month at every width. A row leads with a small DateTile, weekday and time, then what this reader tells rows apart by: the Office the Client (address and service under), a Cleaner the postcode (service under), a Client the kind of clean (the home only when they have more than one).
 - A badge only off the Tab's usual case (Needs cleaners, never Staffed); a Status column only while a row has one.
@@ -165,7 +165,7 @@ Seven types, each drawn by its layout in `packages/ui/src/layouts/` (ADR-0031): 
 
 - The logo is used exactly as drawn (`Logo`): never redrawn, cropped, recoloured beyond its dark version, or put in a lockup; where it doesn't fit, the screen changes.
 - On a phone the top bar names the section and the logo heads the ☰ menu; the sidebar centres it; the rail has none. The landing site has no header bar: language, Sign in and theme sit top right.
-- The landing site's hero leads with what we clean and where; the logo goes up into the header, smaller, and the slogan below the headline (#505).
+- The landing site's hero leads with what we clean and where; the logo goes up into the header, smaller, and the slogan below the headline (#505 builds it).
 - A section is named once on a phone: its own page hides its heading there (`Heading inBar`); a heading that says more stays (a greeting, a Job's or a Quote's name).
 - The favicon is its own mark: the logo's roof and window with its skyline, no background, light or dark.
 

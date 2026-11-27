@@ -32,7 +32,7 @@ Their files are in `packages/web/src/screens/portal/`.
 
 ## Client portal > Your quote
 
-`/portal/quotes/$quoteId` (`PortalQuote.tsx`), Record: accepting it in one step, or declining. Keeps: read like a Quote, paying under it (#165); a plan's weekdays alike in all a price card draws share one card titled with each ("Mondays at 9:00 AM and Wednesdays at 1:00 PM · Standard Clean"), as two cards alike say each price twice.
+`/portal/quotes/$quoteId` (`PortalQuote.tsx`), Record: accepting it in one step, or declining. Keeps: read like a Quote, paying under it (#165); a plan's weekdays alike share one price card titled with each ("Mondays at 9:00 AM and Wednesdays at 1:00 PM · Standard Clean"), as two would say each price twice.
 
 ## Client portal > Your plan
 
