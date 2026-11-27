@@ -192,7 +192,7 @@ _Avoid_: Cancelled, terminated, closed
 _Spanish_: finalizado
 
 **Schedule**:
-The calendar of all booked Jobs and Site Visits. Office Staff may move a booked Job straight to a new time, which, unlike a Reschedule Request, costs the Client nothing.
+The calendar of all booked Jobs and Site Visits. Office Staff may move a booked Job that hasn't started straight to a new time with room for it, which, unlike a Reschedule Request, costs the Client nothing.
 _Avoid_: Calendar, roster, bookings
 _Spanish_: calendario
 
@@ -208,7 +208,7 @@ _On screen_: none: a cleaner is offered the job, confirms it, or drops out (the 
 _Spanish_: none
 
 **Cleaner Needed**:
-One of a Job's Crew Size that no Assignment fills; within 7 days of the Job it is open to every free Cleaner, and the first to Confirm takes it (ADR-0019).
+One of a Job's Crew Size that no Assignment fills; within 7 days of the Job it is open to every free Cleaner but any who Released it or said it's not for them, and the first to Confirm takes it (ADR-0019).
 _Avoid_: Open Place, place, vacancy, shift, open job, broadcast
 _On screen_: open job; in a Job's crew, Needed ("1 of 2 confirmed, 1 needed")
 _Spanish_: trabajo disponible; in a Job's crew, Falta ("1 de 2 confirmados, falta 1")
@@ -281,7 +281,7 @@ _Avoid_: Pay period, payroll week
 _Spanish_: semana de paga
 
 **Pay Sheet**:
-What one Cleaner is owed for one Pay Week, worked out by the app from the Schedule, not from times anyone records, for Office Staff to check, pay outside the app and mark paid (ADR-0030); unlike Schedule room, it counts the time between Jobs; once paid it never changes.
+What one Cleaner is owed for one Pay Week, worked out by the app from the Schedule, not from times anyone records, for Office Staff to check, pay outside the app and mark paid (ADR-0030); unlike Schedule room, it counts a gap between Jobs no longer than the gap length, an Office setting; once paid it never changes.
 _Avoid_: Payroll, timesheet, payslip, pay stub, unpaid
 _Spanish_: hoja de paga
 
