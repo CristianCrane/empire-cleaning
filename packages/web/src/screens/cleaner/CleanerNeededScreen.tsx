@@ -26,7 +26,7 @@ export const crewSizeOf = (t: Said, job: Pick<CleanerNeeded, "crewSize">) =>
 
 // A Cleaner Needed as a Cleaner it's open to sees it (ADR-0019): what, when,
 // for how long and roughly where (its ZIP code), and how many it takes,
-// never who: its Client or its crew (GLOSSARY.md, Cleaner Needed). Confirm,
+// never who: its Client or its crew. Confirm,
 // first come first served, or Not for me, as the page's split button
 // (#493's layout D). The address and the Client come once they've taken
 // it, how we get in on the Job's day (#230).
