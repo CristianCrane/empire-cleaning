@@ -334,11 +334,6 @@ test("the API's explanation shows beside the field", async ({ page }) => {
   await chooseService(page);
   await page.getByText("A different home", { exact: true }).click();
   await describeNewHome(page, { zip: "1137" });
-  // the browser fills in the city with the rest of the address
-  await expect(page.getByRole("textbox", { name: "City" })).toHaveAttribute(
-    "autocomplete",
-    "address-level2",
-  );
   await nextStep(page);
   await describeTheHome(page);
   await page.getByRole("button", { name: "Request a quote" }).click();

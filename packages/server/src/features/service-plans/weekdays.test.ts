@@ -577,6 +577,7 @@ describe("a commercial Service Plan", () => {
           kind: "commercial",
           street: "200 Park Ave S",
           unit: "Floor 3",
+          city: "New York",
           postcode: "10003",
           premisesType,
           floorArea: null,

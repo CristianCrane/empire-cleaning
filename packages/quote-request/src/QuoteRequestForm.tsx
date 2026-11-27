@@ -557,11 +557,15 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     </ChoiceTiles>
   );
 
+  // the Office types in a caller's details, so the browser's own (Jen's) stay
+  // out of them
+  const autofill = (token: string) => (asker.kind === "office" ? "off" : token);
+
   const businessNameField = (
     <TextField
       label={words.businessName}
       name="businessName"
-      autoComplete="organization"
+      autoComplete={autofill("organization")}
       isRequired
       value={businessName}
       onChange={setBusinessName}
@@ -576,7 +580,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         label={t.fullName}
         description={premises ? words.contactNote : undefined}
         name="contact.name"
-        autoComplete={asker.kind === "office" ? "off" : "name"}
+        autoComplete={autofill("name")}
         isRequired
         value={contact.name}
         onChange={(name) => setContact({ ...contact, name })}
@@ -589,7 +593,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
           label={words.email}
           name="contact.email"
           type="email"
-          autoComplete={asker.kind === "office" ? "off" : "email"}
+          autoComplete={autofill("email")}
           isRequired={asker.kind === "guest"}
           description={words.emailNote}
           value={contact.email}
@@ -601,7 +605,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         label={t.phone}
         name="contact.phone"
         type="tel"
-        autoComplete={asker.kind === "office" ? "off" : "tel"}
+        autoComplete={autofill("tel")}
         isRequired
         description={words.phoneNote}
         value={contact.phone}
@@ -663,6 +667,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
             place={newPremises}
             unitLabel={t.premisesUnit}
             t={t}
+            autofill={autofill}
             update={(change) =>
               setNewPremises((current) => ({ ...current, ...change }))
             }
@@ -673,6 +678,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
             place={newHome}
             unitLabel={t.homeUnit}
             t={t}
+            autofill={autofill}
             update={(change) =>
               setNewHome((current) => ({ ...current, ...change }))
             }
@@ -1175,9 +1181,11 @@ function AddressFields({
   unitLabel,
   update,
   error,
+  autofill,
   t,
 }: {
   t: FormWords;
+  autofill: (token: string) => string;
   place: Pick<NewHome, AddressParts>;
   unitLabel: string;
   update: (change: Partial<Pick<NewHome, AddressParts>>) => void;
@@ -1190,7 +1198,7 @@ function AddressFields({
       <TextField
         label={t.street}
         name={field("street")}
-        autoComplete="address-line1"
+        autoComplete={autofill("address-line1")}
         isRequired
         value={place.street}
         onChange={(street) => update({ street })}
@@ -1200,7 +1208,7 @@ function AddressFields({
         label={unitLabel}
         name={field("unit")}
         width="medium"
-        autoComplete="address-line2"
+        autoComplete={autofill("address-line2")}
         value={place.unit ?? ""}
         onChange={(unit) => update({ unit })}
         errorMessage={error(field("unit"))}
@@ -1209,7 +1217,7 @@ function AddressFields({
         <TextField
           label={t.city}
           name={field("city")}
-          autoComplete="address-level2"
+          autoComplete={autofill("address-level2")}
           isRequired
           value={place.city}
           onChange={(city) => update({ city })}
@@ -1219,7 +1227,7 @@ function AddressFields({
           label={t.zip}
           name={field("postcode")}
           width="short"
-          autoComplete="postal-code"
+          autoComplete={autofill("postal-code")}
           inputMode="numeric"
           maxLength={5}
           isRequired

@@ -55,6 +55,7 @@ const premises = (premisesType: string, changes: object = {}) => ({
   kind: "commercial" as const,
   street: "200 Park Ave S",
   unit: "Floor 3",
+  city: "New York",
   postcode: "10003",
   premisesType,
   floorArea: 4500,
@@ -259,6 +260,7 @@ describe("a Quote asked for business premises", () => {
         new: premises(Office!, {
           street: home.street,
           unit: home.unit,
+          city: home.city,
           postcode: home.postcode,
         }),
       },
@@ -283,6 +285,7 @@ describe("a Quote asked for business premises", () => {
           new: premises(Office!, {
             street: home.street,
             unit: home.unit,
+            city: home.city,
             postcode: home.postcode,
           }),
         },

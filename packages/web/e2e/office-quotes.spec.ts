@@ -56,6 +56,13 @@ test("Office Staff set a new caller's language, see it on their page, and change
   await page.getByText("Español").click();
   await chooseService(page);
   await describeNewHome(page);
+  // the caller's details, so the browser offers none of the Office's own
+  for (const name of ["Full name", "Phone", "Street address", "City"]) {
+    await expect(page.getByRole("textbox", { name })).toHaveAttribute(
+      "autocomplete",
+      "off",
+    );
+  }
   await page.getByRole("button", { name: "Draft a quote" }).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
 

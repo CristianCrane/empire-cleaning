@@ -1159,6 +1159,7 @@ describe("Unpaid Bills", () => {
           id: expect.any(String),
           street: "41-12 Austin St",
           unit: "4B",
+          city: "Forest Hills",
           postcode: "11375",
         },
       },

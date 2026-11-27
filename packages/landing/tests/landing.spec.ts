@@ -212,6 +212,25 @@ test.describe("requesting a Quote", () => {
     },
   );
 
+  test("asks where in the order a browser fills an address, so it can fill it in", async ({
+    page,
+  }) => {
+    await openQuoteForm(page);
+    await fillWhere(page);
+
+    for (const [name, token] of [
+      ["Street address", "address-line1"],
+      ["Apartment or unit (optional)", "address-line2"],
+      ["City", "address-level2"],
+      ["ZIP code", "postal-code"],
+    ] as const) {
+      await expect(page.getByRole("textbox", { name })).toHaveAttribute(
+        "autocomplete",
+        token,
+      );
+    }
+  });
+
   test("says which page it was sent from, and the link the visit began with", async ({
     page,
   }) => {
