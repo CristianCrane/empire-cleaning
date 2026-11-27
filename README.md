@@ -50,7 +50,11 @@ CodeQL is GitHub's default setup (no workflow here), on `main` and every PR into
 
 # Test site
 
-`render.yaml` (ADR-0020): a push to `main` deploys it once CI passes, each service only when the push changes a file in its `buildFilter` (ADR-0035), so a docs- or tests-only push deploys nothing. Fresh seed data: run the **Reset test data** Action (`.github/workflows/reset-test-data.yml`). From nothing: `scripts/setup-test-site.sh`, once `render.yaml` is on `main`.
+`render.yaml` (ADR-0020). It deploys once a night (ADR-0037): the **Deploy test site** Action (`.github/workflows/deploy-test-site.yml`, 03:23 New York) deploys each service at `main`'s newest commit that passed CI, when a file in its `buildFilter` (ADR-0036) or its block in `render.yaml` changed since its last good deploy. Render's own auto-deploy is off, but a `render.yaml` change still deploys what it touches at the merge, before CI, as Render syncs the Blueprint.
+
+To deploy at once: run the Action by hand (Actions → Deploy test site → Run workflow; tick "Only say what would deploy" for a dry run), or in Render, a service's Manual Deploy → Deploy latest commit, which deploys `main`'s head whatever CI says. The Action deploys through each service's deploy hook, kept as secrets in the `test-site-deploy` environment, which only `main`'s runs can read; a leaked hook is regenerated on the service's Settings → Deploy Hook, then set again by `scripts/setup-test-site.sh`'s stage 9.
+
+Fresh seed data: run the **Reset test data** Action (`.github/workflows/reset-test-data.yml`). It and **Add testers** run the code the test server runs, not `main`'s head, as the seed writes its tables, so a seed change shows after its deploy. From nothing: `scripts/setup-test-site.sh`, once `render.yaml` is on `main`.
 
 # Production
 
