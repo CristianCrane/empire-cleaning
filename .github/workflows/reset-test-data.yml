@@ -12,6 +12,8 @@ on:
 
 permissions:
   contents: read
+  # what the test server runs: the deployments Render records on GitHub
+  deployments: read
 
 # never two at once against the same database
 concurrency:
@@ -38,7 +40,15 @@ jobs:
       STRIPE_WEBHOOK_SECRET: unused
     steps:
       - uses: actions/checkout@v5
+        with:
+          # the history the seed's code is picked from (test-server-code), its
+          # files fetched as read
+          fetch-depth: 0
+          filter: blob:none
       - uses: ./.github/actions/setup
+      - uses: ./.github/actions/test-server-code
+        with:
+          script: db:seed
       # the copy and the test site are seeded as if at the same moment, as
       # where the seed's cleans fall turns on the day and time
       - name: Choose when the seed runs as

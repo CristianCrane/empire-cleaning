@@ -201,13 +201,13 @@ finish() {
 run_wizard() {
 
 # Sets up the test site (#130, ADR-0020) from render.yaml: Stripe, Google,
-# Resend, Render, DNS on Vercel, the reset Action's secret, then checks it all
-# works. Run from anywhere in the repo: scripts/setup-test-site.sh
+# Resend, Render, DNS on Vercel, the reset Action's secret, the nightly
+# deploy's hooks, then checks it all works. Run from anywhere in the repo: scripts/setup-test-site.sh
 #
 # Values you paste are kept in ~/.config/empire-cleaning/test-site.env (only
 # you can read it, outside the repo) so a re-run offers them back.
 
-TOTAL_STAGES=10
+TOTAL_STAGES=11
 
 cd "$(git rev-parse --show-toplevel)"
 
@@ -335,7 +335,7 @@ note "      $APP/api/payments/webhook"
 step "Create it, then on its page Reveal the signing secret (whsec_…)."
 checked ask_secret STRIPE_WEBHOOK_SECRET "Paste the signing secret:" '^whsec_[A-Za-z0-9+/=]+$' "a whsec_ signing secret"
 write_env STRIPE_WEBHOOK_SECRET "$STRIPE_WEBHOOK_SECRET"
-note "Stripe can't reach it until the site is up; stage 10 checks a delivery."
+note "Stripe can't reach it until the site is up; stage 11 checks a delivery."
 pause
 
 # ── 4 ─────────────────────────────────────────────────────────────────────
@@ -461,6 +461,44 @@ set_secret TEST_DB_URL "$TEST_DB_URL"
 pause
 
 # ── 9 ─────────────────────────────────────────────────────────────────────
+stage "GitHub: the nightly deploy's hooks"
+say "Render doesn't deploy the test site on its own: the Deploy test site Action"
+say "does, each night, through a deploy hook on each service. Whoever has a hook"
+say "can deploy that service, so they're kept in an environment only main's"
+say "runs can read."
+if gh api -X PUT "repos/{owner}/{repo}/environments/test-site-deploy" \
+  -F "deployment_branch_policy[protected_branches]=false" \
+  -F "deployment_branch_policy[custom_branch_policies]=true" >/dev/null &&
+  { gh api -X POST "repos/{owner}/{repo}/environments/test-site-deploy/deployment-branch-policies" \
+    -f name=main -f type=branch >/dev/null 2>&1 ||
+    gh api "repos/{owner}/{repo}/environments/test-site-deploy/deployment-branch-policies" \
+      -q '.branch_policies[].name' 2>/dev/null | grep -qx main; }; then
+  printf '  %s✓%s the test-site-deploy environment, for main only\n' "$GREEN" "$RESET"
+else
+  warn "couldn't make the test-site-deploy environment; make it in the repo's"
+  warn "Settings → Environments, with Deployment branches: main only"
+fi
+open_url "https://dashboard.render.com/"
+for service in server web landing; do
+  key="RENDER_DEPLOY_HOOK_EMPIRE_TEST_${service^^}"
+  step "Open empire-test-$service → Settings → Deploy Hook, and copy its URL."
+  checked ask_secret "$key" "Paste empire-test-$service's deploy hook:" \
+    '^https://api\.render\.com/deploy/srv-[^?[:space:]]+\?key=[^[:space:]]+$' \
+    "a https://api.render.com/deploy/srv-… URL"
+  write_env "$key" "${!key}"
+  if printf '%s' "${!key}" | gh secret set "$key" --env test-site-deploy >/dev/null 2>&1; then
+    printf '  %s✓ set%s %s in test-site-deploy\n' "$GREEN" "$RESET" "$key"
+    WRITTEN_SECRET+=("$key")
+  else
+    SKIPPED+=("$key: gh secret set $key --env test-site-deploy")
+    warn "couldn't set $key; set it later: gh secret set $key --env test-site-deploy"
+  fi
+done
+note "If a hook leaks, Regenerate it on that page, then:"
+note "  gh secret set RENDER_DEPLOY_HOOK_EMPIRE_TEST_<SERVICE> --env test-site-deploy"
+pause
+
+# ── 10 ────────────────────────────────────────────────────────────────────
 stage "Seed the test data"
 say "Running the Reset test data Action puts the dev seed on the test site."
 if confirm "Run it now? (it replaces everything but Accounts and the Price List)"; then
@@ -479,7 +517,7 @@ else
 fi
 pause
 
-# ── 10 ────────────────────────────────────────────────────────────────────
+# ── 11 ────────────────────────────────────────────────────────────────────
 stage "Check it all works"
 say "Sign-in as the Office:"
 open_url "$APP/sign-in"

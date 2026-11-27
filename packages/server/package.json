@@ -30,6 +30,7 @@
     "test:watch": "vitest --watch --project server",
     "test:coverage": "vitest run --coverage --project server",
     "staff:testers": "tsx --env-file-if-exists=.env ./tests/testers.ts",
+    "deploy:test-site": "tsx tests/deploy-test-site.ts",
     "auth:create-owner": "tsx --env-file=.env ./src/features/auth/create-owner.ts",
     "e2e:servers": "tsx tests/e2e/servers.ts",
     "stripe:sandbox": "vitest run --config vitest.sandbox.config.ts",

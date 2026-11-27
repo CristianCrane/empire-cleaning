@@ -8,6 +8,8 @@ on:
 
 permissions:
   contents: read
+  # what the test server runs: the deployments Render records on GitHub
+  deployments: read
 
 # never two at once against the same database
 concurrency:
@@ -19,7 +21,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # the history the seed's code is picked from (test-server-code), its
+          # files fetched as read
+          fetch-depth: 0
+          filter: blob:none
       - uses: ./.github/actions/setup
+      - uses: ./.github/actions/test-server-code
+        with:
+          script: staff:testers
       - run: pnpm --filter @empire-cleaning/server staff:testers
         env:
           # the test database's external URL from Render, ending

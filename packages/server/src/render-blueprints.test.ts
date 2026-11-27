@@ -1,6 +1,9 @@
-import { readFileSync } from "node:fs";
-import { parse } from "yaml";
 import { describe, expect, test } from "vitest";
+import {
+  type Blueprint,
+  type EnvVar,
+  readBlueprint,
+} from "../tests/render-blueprint.ts";
 import { envSchema } from "./env.ts";
 
 // The test site (render.yaml) and production (render-production.yaml) are two
@@ -9,30 +12,8 @@ import { envSchema } from "./env.ts";
 // the test site with the differences below, and nothing else: a setting
 // changed in one file and not the other fails here.
 
-type EnvVar = {
-  key: string;
-  value?: string;
-  sync?: false;
-  generateValue?: true;
-  fromDatabase?: unknown;
-};
-type Service = {
-  name: string;
-  runtime: string;
-  autoDeployTrigger?: string;
-  buildFilter?: unknown;
-  envVars: EnvVar[];
-};
-type Database = { name: string; plan: string; ipAllowList?: unknown[] };
-type Blueprint = { databases: Database[]; services: Service[] };
-
-const blueprint = (file: string) =>
-  parse(
-    readFileSync(new URL(`../../../${file}`, import.meta.url), "utf8"),
-  ) as Blueprint;
-
-const testSite = blueprint("render.yaml");
-const production = blueprint("render-production.yaml");
+const testSite = readBlueprint("render.yaml");
+const production = readBlueprint("render-production.yaml");
 
 // every way production differs from the test site
 const asProduction = (site: Blueprint): Blueprint => {
@@ -79,8 +60,8 @@ const asProduction = (site: Blueprint): Blueprint => {
     })),
     services: renamed.services.map((service) => ({
       ...service,
-      // released by hand, never on a merge, so no build filter: one would
-      // never fire
+      // released by hand alone (README.md, Production), whatever the test
+      // site's deploys do, so no build filter: none would be read
       autoDeployTrigger: "off",
       buildFilter: undefined,
       envVars: [

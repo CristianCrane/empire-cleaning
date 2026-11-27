@@ -1,0 +1,30 @@
+name: The test server's code
+description: Checks out the code a seed runs against the test server, after ./.github/actions/setup
+
+# The test site deploys nightly (deploy-test-site.yml), so main can be a day
+# ahead of the test server, and a seed writes the tables that server reads.
+# The script picks the commit (deploy-test-site.ts, seedCode): this one when
+# the server it would build is the deployed one, else the deployed one, and
+# it stops the job when the seed waits on a deploy. The steps after this one
+# can run that commit's scripts from main's workflow: a change to how a
+# workflow calls one goes in once it's deployed. The job needs
+# `deployments: read` and main's history (checkout's fetch-depth: 0).
+inputs:
+  script:
+    description: The server package's script the job runs, as db:seed, whose own files the wait turns on
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Check out the code the seed runs
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        SCRIPT: ${{ inputs.script }}
+      run: |
+        code=$(pnpm --silent --filter @empire-cleaning/server deploy:test-site seed-code "$GITHUB_SHA" "$SCRIPT")
+        if [ "$code" != "$GITHUB_SHA" ]; then
+          git checkout --quiet --detach "$code"
+          pnpm install --frozen-lockfile
+        fi
