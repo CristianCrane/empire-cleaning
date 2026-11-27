@@ -35,9 +35,10 @@ services:
     healthCheckPath: /health
     # deploys main once CI passes, when the push changes what it's built from
     autoDeployTrigger: checksPass
-    # Each service builds only when a push changes a file it's built from
-    # (its packages' package.json, as Render's build minutes are capped), but
-    # never for docs, tests or stories, which no build ships. An ignored path
+    # Each service builds only when a push changes a file it's built from, as
+    # Render's build minutes are capped: its packages (from their package.json
+    # dependencies) and the root files every install reads, but never docs,
+    # tests or stories, which no build ships. An ignored path
     # wins over an included one; a change to this file always deploys what it
     # changes, and so does a manual deploy (render.com/docs/monorepo-support).
     # The ignore list is the same in each service (no YAML anchors: ADR-0020)
