@@ -7,4 +7,5 @@ Its format: `~/.claude/hooks/docs.mjs`'s header; its writer: `~/.claude/agents/d
 - `docs/agents/*.md`
 - `GLOSSARY.md`
 - `README.md`
+- `packages/server/README.md` (how-to)
 - `packages/*/README.md`
