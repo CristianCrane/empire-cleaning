@@ -52,7 +52,7 @@ export function CleanerNeededScreen() {
           );
         } catch (e) {
           // shows the new time if the Job moved; if it's no longer open to
-          // them, the page stays, the toast saying why
+          // them, back to Offers, where it's gone, the toast saying why
           const stillOpen = await getJson<CleanerNeeded>(
             `/api/assignments/open/${job.jobId}`,
           ).then(
@@ -62,7 +62,9 @@ export function CleanerNeededScreen() {
               return false;
             },
           );
-          if (stillOpen) await router.invalidate();
+          await (stillOpen
+            ? router.invalidate()
+            : navigate({ to: "/cleaner/offers" }));
           throw e;
         }
         await (which === "confirm"

@@ -34,6 +34,7 @@ import {
   RecordPage,
   DetailsCard,
   Facts,
+  factColumns,
   type DialogState,
   Line,
 } from "@empire-cleaning/ui";
@@ -540,13 +541,10 @@ function Details({ home }: { home: OfficePropertyView }) {
       kicker={premises ? "A business" : "A home"}
       title={<Line parts={propertyParts(home)} />}
     >
-      <Facts>
+      <Facts columns={factColumns(4)}>
         <FloorAreaFact property={home} />
-        <ConditionFact property={home} line="Condition, as last reported" />
-        <AccessFact
-          property={home}
-          line="How we get in, which the client and cleaners see"
-        />
+        <ConditionFact property={home} />
+        <AccessFact property={home} />
         <Fact
           icon={NotebookPen}
           label="Office notes"
@@ -555,7 +553,6 @@ function Details({ home }: { home: OfficePropertyView }) {
               {home.officeNotes || "None"}
             </span>
           }
-          line="Office notes, which only the office sees"
         />
       </Facts>
     </DetailsCard>

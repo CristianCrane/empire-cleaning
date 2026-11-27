@@ -212,7 +212,7 @@ test.describe("requesting a Quote", () => {
     },
   );
 
-  test("asks where in the order a browser fills an address, so it can fill it in", async ({
+  test("names each address field for the browser, so it can fill them in", async ({
     page,
   }) => {
     await openQuoteForm(page);

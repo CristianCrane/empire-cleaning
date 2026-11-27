@@ -596,9 +596,12 @@ test("a Cleaner is told when someone else took the Cleaner Needed first", async 
   await offerJob(job.id, dee.id, { confirmed: true });
   await pageAction(page, "Confirm");
 
+  // back on Offers, where it's gone, the toast saying why
+  await expect(page).toHaveURL("/cleaner/offers");
   await expect(
     page.getByText("Someone else already took this job."),
   ).toBeVisible();
+  await expect(page.getByText("Nothing open to you right now")).toBeVisible();
 });
 
 test("a Cleaner says a Cleaner Needed is not for them, and the Office sees it", async ({

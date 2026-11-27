@@ -72,6 +72,9 @@ test("Office Staff set a new caller's language, see it on their page, and change
   await pageAction(page, "Edit contact details");
   const dialog = page.getByRole("dialog", { name: "Edit contact details" });
   await expect(dialog.getByRole("radio", { name: "Español" })).toBeChecked();
+  await expect(
+    dialog.getByRole("textbox", { name: "Full name" }),
+  ).toHaveAttribute("autocomplete", "off");
   await dialog.getByText("English").click();
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Contact details saved")).toBeVisible();
