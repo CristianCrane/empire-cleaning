@@ -2,7 +2,7 @@
 
 Quote Requests and Quotes were separate: a request was the Client's ask, and each priced answer to it was its own Quote, with a resend Superseding the last. But Office Staff and Clients think of one thing, "the Quote for Casey's flat", followed from asking to booking; the split put a Requests screen and a separate list of Quotes in front of them, and a row of dead Superseded Quotes behind every resend. So there is one **Quote** for each ask: it keeps what the Client asked for, unchanged, and a series of **Revisions**, each a priced offer that is never changed once Sent, the latest Sent one being the offer. It is merged in the data too, not only on screen: with nothing in production yet the migration costs little, and a model that disagreed with what people say would cost every later change.
 
-This replaces ADR-0011's "a Quote Request is optional", and the Quote Requests of ADR-0005, ADR-0006 and ADR-0012: a Quote Office Staff start (for a caller, or a Service Plan Quote nobody asked for) simply has nothing asked recorded, or what the caller said. ADR-0011's other decisions stand: Quotes belong to Properties, a one-off and a Service Plan Quote can be open side by side, and an offer nobody asked for never changes a Quote the Client asked for, because it is a Quote of its own.
+This replaces ADR-0011's "a Quote Request is optional", and the Quote Requests of ADR-0005, ADR-0006 and ADR-0012: a Quote Office Staff start (for a caller, or a Service Plan Quote nobody asked for) simply has nothing asked recorded, or what the caller said. ADR-0011's other decisions stand.
 
 ## Consequences
 

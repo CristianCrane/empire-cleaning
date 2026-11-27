@@ -1,6 +1,6 @@
 # A Site Visit's findings can stand in for a First Clean
 
-A Service Plan can only start after a Completed First Clean, a trial for both sides that also lets Empire Cleaning check the place is as described, unless a Site Visit has already done that checking before any Quote was Sent. A business agreeing to cleans 5 or 6 days a week won't book a one-off trial first, so there the visit's recorded findings stand in for the First Clean. Which Service Plans need a Site Visit instead of a First Clean: ADR-0018.
+A Service Plan can only start after a Completed First Clean, a trial for both sides that also lets Empire Cleaning check the place is as described, unless each of its Services needs a Site Visit, which does that checking before any Quote is Sent. A business agreeing to cleans 5 or 6 days a week won't book a one-off trial first, so there the visit's recorded findings stand in for the First Clean. Which Service Plans need a Site Visit instead of a First Clean: ADR-0018.
 
 ## Consequences
 
