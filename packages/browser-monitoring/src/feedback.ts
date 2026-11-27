@@ -2,8 +2,10 @@ import * as Sentry from "@sentry/react";
 
 // Sentry's feedback button, for `startMonitoring`'s `feedback` on the test
 // sites (ADR-0020): a floating button opening a form, what they noticed and a
-// screenshot if they like. They're known by the Account ID alone, so no name
-// or email is asked. Its own entry, which the rest of this package never
+// screenshot if they like: one picture, taken and sent only when the tester
+// chooses, on the test site, which holds no real Client's details, so it's
+// allowed while session replay is off. They're known by the Account ID alone,
+// so no name or email is asked. Its own entry, which the rest of this package never
 // imports, so a build that doesn't import it carries none of its code, even
 // one that loads the package with import().
 //

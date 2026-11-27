@@ -1,6 +1,6 @@
 // The same English in two of the screens' catalogs (#397). Each copy is a
 // second Spanish to keep in step, and to have checked by the owner (#206):
-// a word several screens show has one home (docs/ux-words.md, Words). An oxlint
+// a word several screens show has one home (docs/ux-words.md, Language). An oxlint
 // rule sees one file at a time, so this reads them all: `pnpm lint` and the
 // pre-commit hook run it on the web app's files and models' messages, which
 // a screen reads beside its own catalog (`catalogFiles`).

@@ -2,8 +2,7 @@ import type { RequestHandler } from "express";
 
 // The API answers with data and redirects, never a page to show: a browser
 // opening one runs nothing, loads nothing and frames it nowhere. The web app
-// and landing site send their own (render.yaml, render-production.yaml); the
-// README says what each is for.
+// and landing site send their own (render.yaml, render-production.yaml).
 const headers = {
   "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
   "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
