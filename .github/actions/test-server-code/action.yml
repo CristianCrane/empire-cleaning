@@ -8,7 +8,7 @@ description: Checks out the code a seed runs against the test server, after ./.g
 # it stops the job when the seed waits on a deploy. The steps after this one
 # can run that commit's scripts from main's workflow: a change to how a
 # workflow calls one goes in once it's deployed. The job needs
-# `deployments: read`.
+# `deployments: read` and main's history (checkout's fetch-depth: 0).
 inputs:
   script:
     description: The server package's script the job runs, as db:seed, whose own files the wait turns on

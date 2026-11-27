@@ -91,7 +91,10 @@ export type SeedCode = { run: string } | { wait: string[] };
 const TESTS = "packages/server/tests/";
 
 // the files under tests/ a seed's `entry` loads, itself among them: the
-// seed's own code, which no deploy builds (the server's build has the rest)
+// seed's own code, which no deploy builds (the server's build has the rest).
+// It reads each relative `from`, `import "…"` and `import(…)`, and stops
+// on one it can't read (a folder, no extension), since a file it passed by
+// would change unseen beside a server change
 export const loads = (
   entry: string,
   read: (path: string) => string | undefined,
@@ -100,10 +103,10 @@ export const loads = (
   const visit = (file: string) => {
     if (!file.startsWith(TESTS) || seen.has(file)) return;
     const source = read(file);
-    if (source === undefined) return;
+    if (source === undefined) throw new Error(`can't follow ${file}`);
     seen.add(file);
     for (const [, path] of source.matchAll(
-      /(?:from|import\()\s*["'](\.\.?\/[^"']+)["']/g,
+      /(?:\bfrom|\bimport\s*\(?)\s*["'](\.\.?\/[^"']+)["']/g,
     ))
       visit(posix.join(posix.dirname(file), path!));
   };
@@ -316,17 +319,6 @@ const note = (line: string) => {
     appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${line}\n`);
 };
 
-const hasCommit = (sha: string) => {
-  try {
-    execFileSync("git", ["cat-file", "-e", `${sha}^{commit}`], {
-      stdio: "ignore",
-    });
-    return true;
-  } catch {
-    return false;
-  }
-};
-
 const fail = (lines: string[]) => {
   for (const line of lines) say(line);
   process.exitCode = 1;
@@ -360,9 +352,6 @@ const main = async (args: string[]) => {
       );
     const live = liveCommit(SERVER);
     if (!live) throw new Error(`${SERVER} has no good deploy on record`);
-    // a seed Action's checkout is shallow
-    if (!hasCommit(live))
-      run("git", ["fetch", "--quiet", "--depth=1", "origin", live]);
     const code = seedCode({
       at,
       live,
@@ -381,7 +370,9 @@ const main = async (args: string[]) => {
     note(
       code.run === at
         ? `Running ${short(at)}'s seed: the test server's code is the same as at its deploy, ${short(live)}.`
-        : `Running the test server's code, ${short(live)}: main's server changes since aren't deployed yet, and this seed is the one that server can read.`,
+        : isAncestor(at, live)
+          ? `Running the test server's code, ${short(live)}: this run's commit, ${short(at)}, is older than it.`
+          : `Running the test server's code, ${short(live)}: main's server changes since aren't deployed yet, and this seed is the one that server can read.`,
     );
     console.log(code.run);
     return;

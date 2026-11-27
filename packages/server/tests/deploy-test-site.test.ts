@@ -302,3 +302,40 @@ test("a seed's own files are those under tests/ it loads, each once", () => {
     "packages/server/tests/testers.ts",
   ]);
 });
+
+// review C15: a seed file the walk missed could change beside a server
+// change, and the Action would run the deployed seed, green, without it
+describe("a seed's own files, as tsx loads them", () => {
+  const harness = (line: string) => ({
+    "packages/server/tests/seed.ts": `${line}\nimport { a } from "./harness.ts";`,
+    "packages/server/tests/harness.ts": "export const a = 1;",
+    "packages/server/tests/setup-env.ts": "process.env.X = '1';",
+    "packages/server/tests/fakes/index.ts": "export const f = 1;",
+  });
+  test("take in a side-effect import, so its change waits beside a server change", () => {
+    const files: Record<string, string> = harness('import "./setup-env.ts";');
+    const seed = loads("packages/server/tests/seed.ts", (path) => files[path]);
+    expect(seed).toContain("packages/server/tests/setup-env.ts");
+    expect(
+      seedCode({
+        at: TARGET,
+        live: LIVE,
+        seed,
+        servicesAt: () => services,
+        isAncestor: () => false,
+        changed: () => [
+          "packages/server/src/index.ts",
+          "packages/server/tests/setup-env.ts",
+        ],
+      }),
+    ).toEqual({ wait: ["packages/server/tests/setup-env.ts"] });
+  });
+  test("stop on an import the walk can't follow, rather than pass it by", () => {
+    const files: Record<string, string> = harness(
+      'import { f } from "./fakes";',
+    );
+    expect(() =>
+      loads("packages/server/tests/seed.ts", (path) => files[path]),
+    ).toThrow();
+  });
+});

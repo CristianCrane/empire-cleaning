@@ -40,6 +40,11 @@ jobs:
       STRIPE_WEBHOOK_SECRET: unused
     steps:
       - uses: actions/checkout@v5
+        with:
+          # the history the seed's code is picked from (test-server-code), its
+          # files fetched as read
+          fetch-depth: 0
+          filter: blob:none
       - uses: ./.github/actions/setup
       - uses: ./.github/actions/test-server-code
         with:
