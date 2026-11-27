@@ -2,6 +2,12 @@
 
 Its format: `~/.claude/hooks/docs.mjs`'s header; its writer: `~/.claude/agents/doc-curator.md`.
 
+- `docs/ux.md` (rule): every screen's rules; read before any screen change.
+- `docs/ux-words.md` (rule): every word a person reads; read before any screen change, server message or email.
+- `docs/screens.md` (screen): the areas' paths and the screens outside an area; read with any screen change.
+- `docs/screens-office.md` (screen): each Office screen and the picks it keeps; read before changing one (a pick can sit on another screen's entry).
+- `docs/screens-portal.md` (screen): each Client portal screen and the picks it keeps; read before changing one.
+- `docs/screens-cleaner.md` (screen): each Cleaner area screen and the picks it keeps; read before changing one.
 - `docs/*.md`
 - `docs/adr/*.md`
 - `docs/agents/*.md`
