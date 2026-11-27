@@ -68,7 +68,7 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   says is a Toast, not a Notice on the page (a retried charge, a plan
   offered). Your card, a form page, is the exception: a payment its card
   turned down again is said in the alert already there ("We tried it
-  again.", docs/ux-log.md's #508/#499 rows).
+  again.", #508; `docs/screens.md`, Client portal > Your card).
 - **The details card** (`DetailsCard`): what it is, large, behind its tile
   (a `DateTile` for when, an `IconTile` for what, an `Avatar` for who),
   a muted line above and below; never what the page's title already says,
@@ -120,8 +120,8 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
 - **On a phone, the page's next step pinned at the foot**, above the tab
   bar, after the facts, the rest behind its arrow in a sheet; a wider
   screen keeps it in the header (`RecordPage`'s `next`). Greyed, it says
-  why in a line above it there (its `why`, `ActionFooter`), as the alert
-  that says so has scrolled away (#534).
+  why in a line above it there (its `why`, `ActionFooter`; Buttons and
+  actions).
 
 ("Layout / RecordPage", "Next Step At A Phones Foot"; "A Record: its header, two alerts, its details, its
 parts"; "A record's History last, one column"; "Records as stories")
@@ -200,8 +200,8 @@ Cleaner's Your jobs render through `HomePage`
   payment we try again ourselves, or their bank payment on its way) is
   Payments' card alone, calm: info,
   "Payment pending" and one line, that there's nothing to do (and, while
-  it pauses a plan, "Until it goes through, we won't book more cleans on your
-  plan."), and its way to see it outlined, as the page has no next step.
+  it pauses a plan, the paused plan's sentence, Words), and its way to see
+  it outlined, as the page has no next step.
   A quote that no longer waits on their answer (its Deposit going through,
   "Payment pending"; a card saved with it while it books, "Booking
   pending"; or its time filled since it was sent, "Time unavailable", its
@@ -534,6 +534,12 @@ The `ui` skill's rules hold here too; these are this product's.
   the Client's quote for good on the Office's word (a move turned down
   leaves the Job as booked), where a Client's Decline is their own word on
   their own quote.
+- **An action a wait holds back stays, greyed, saying why where it's
+  pressed** (a line under its menu item, or above a phone's foot: Record),
+  as the alert that says so may be out of view. A dialog opened before the
+  wait began refuses on the press, in the tone of the page's alert for
+  that wait, keeping what was typed; once the wait is over the refusal
+  goes, as it's no longer true (Office > Bill's `WhyNot`, #534).
 - **Continue with Google is Google's own button** (the `ui` skill: a
   third-party sign-in keeps its owner's look): their colours in light and
   dark, their logo, Roboto. Only the 44px touch height is ours.
@@ -551,6 +557,9 @@ The `ui` skill's rules hold here too; these are this product's.
   warning on the Client's pages, as trying again is theirs, and danger on
   the Office's Job and Bill, as nothing there is the Office's to do and
   the money isn't coming (#534).
+- **An alert's lead is bold only when more follows it**, and the rest runs
+  on in the same paragraph; a lead that's the whole alert is plain, as
+  every other alert reads (`whyAlert`, #534).
 
 ### Words
 
@@ -580,6 +589,24 @@ stays as it is (#336).
   enough cleaners are free then. Pick another time, or add working hours for
   a cleaner that day." No counting unless the number helps. When nothing can
   be done: "This clean was cancelled."
+- **A wait's alert says what's happening and how long it usually takes,
+  and promises neither ending**: most payments go through, some don't
+  ("…while its payment is going through, which usually takes under half
+  an hour", models' `paymentNotDone`, #534).
+- **A paused plan says what the pause does in one sentence**, wherever a
+  Client reads it (the Bill, the plan's page, Payments' and Home's cards,
+  the emails): "Until it's paid, we won't book more cleans on your plan."
+  when it asks them to pay, "Until it goes through, …" when it doesn't
+  (models' `noMoreCleans`). It's true whether or not cleans are booked, and
+  "paid" only where it's theirs to do: the user's call (#536). The terms
+  and the email warning of a pause keep the rule, a promise, "Cleans
+  already booked still go ahead" (`BOOKED_GO_AHEAD`).
+- **A weekly Bill's costs say which Bill they go on**: one owed before
+  that week's Bill is made goes on it, "goes on your bill for that week" to
+  the Client (models' `ON_WEEKS_BILL`), "goes on that week's bill" to the
+  Office (`ON_THAT_WEEKS_BILL`), as a fee goes on its Job's week, not
+  always the next Bill made; one settled after the clean, on the next
+  (#244).
 - **A field that's too long says its limit** (the `ui` skill), from the
   server's `keepUnder`: "Keep the reason under 500 characters".
 - **Words that state a rule are checked against the code** (the `ui` skill):

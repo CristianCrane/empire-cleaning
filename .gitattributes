@@ -1,5 +1,0 @@
-# Rows two branches add at once, kept from both sides (process log L181). A
-# row one side edited comes back beside its old text: `pnpm lint` fails on it
-# (packages/lint/src/log-rows.ts), and the two are folded into one row.
-docs/ux-log.md merge=union
-docs/testing-log.md merge=union
