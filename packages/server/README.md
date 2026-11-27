@@ -38,7 +38,7 @@ The test seams are in `tests/harness.ts`: `api()` (`apiAgent()` keeps cookies), 
 
 ## Monitoring
 
-To add a signal: put it in `SIGNALS` (`services/monitoring/signals.ts`) with its urgency and what it means, raise it where it happens, test it with `testMonitoring().signalled(name)` (`counted(name)` for a counted one), and add it to ADR-0007's table; if it's alerted, add its Sentry alert rule to #205 as a checklist item.
+To add a signal: put it in `SIGNALS` (`services/monitoring/signals.ts`) with its urgency and what it means, raise it where it happens, test it with `testMonitoring().signalled(name)` (`counted(name)` for a counted one); if it's alerted, add its Sentry alert rule to #205 as a checklist item.
 
 ## Emails
 

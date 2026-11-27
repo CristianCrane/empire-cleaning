@@ -9,8 +9,8 @@ import { bills, ON_THAT_WEEKS_BILL } from "./bills.ts";
 export const LATE_RESCHEDULE_HOURS = 24;
 
 // What moving a clean costs, the same rules for the Office and its Client
-// (ADR-0010). A plan Job has no Deposit of its own: its fee is the plan's
-// Deposit amount, owed with the price: charged when it's done, or on its
+// (ADR-0010). A plan Job has no Deposit of its own: its fee is the Deposit
+// percentage of its own price (ADR-0013), owed with the price: charged when it's done, or on its
 // week's Bill (ADR-0016). `fee` is `feeCents` as the caller formats money.
 export type MoveCost = {
   cost: RescheduleCost;

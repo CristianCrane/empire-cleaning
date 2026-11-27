@@ -2004,8 +2004,9 @@ export type CancelledBy = "client" | "empire";
 // What cancelling a booked Job would cost, by the Clock. The Client
 // cancelling more than 24 hours before it starts pays nothing and has their
 // Deposit refunded; within 24 hours it's a Late Cancellation, and the Deposit
-// is kept as the fee. A plan Job has no Deposit of its own: its fee is its
-// plan's Deposit amount, charged, and the held Deposit is untouched. Empire
+// is kept as the fee. A plan Job has no Deposit of its own: its fee is the
+// Deposit percentage of its own price, charged, and the held Deposit is
+// untouched (ADR-0013). Empire
 // Cleaning cancelling always refunds it in full.
 export type CancellationTerms = {
   by: CancelledBy;
@@ -2067,13 +2068,13 @@ export type JobNoAccess = {
 // What moving a Job costs, judged when the request is made (ADR-0010): free
 // 24 hours or more before it; less than that, a Late Reschedule, free the
 // first time one is confirmed for the Job and a Late Cancellation after
-// that, which keeps the Deposit as the fee while the Job still moves.
+// that, which charges the Late Cancellation fee while the Job still moves.
 export type RescheduleCost = "free" | "free_late" | "late_cancellation";
 
 export type RescheduleTerms = {
   cost: RescheduleCost;
-  // the fee if a Late Cancellation is confirmed (the Deposit, or a plan
-  // Job's plan's Deposit amount); 0 otherwise, and 0 when an earlier Late
+  // the fee if a Late Cancellation is confirmed (the Deposit, or for a plan
+  // Job the Deposit percentage of its own price); 0 otherwise, and 0 when an earlier Late
   // Reschedule has made it due already
   feeCents: number;
   // until when moving is free, by the Clock

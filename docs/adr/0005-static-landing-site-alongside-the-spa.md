@@ -11,6 +11,6 @@ The public landing page for prospective Clients is its own static site (Astro, i
 ## Consequences
 
 - The landing site is another client of the JSON API, exactly like the SPA: no business logic, authorisation or data shaping lives in it. It has no server; it's static files on any static host.
-- It uses the same design system tokens and components as the SPA, so the two look like one product. Interactive parts, chiefly the Guest Quote Request form, are React islands built from those components. All other content ships as HTML with no JavaScript.
-- A Guest submits their first Quote Request on the landing page without signing in (least Client friction). Signed-in Clients submit further Quote Requests from the Client portal, using the same form.
+- It uses the same design system tokens and components as the SPA, so the two look like one product. Interactive parts, chiefly the Quote form, are React islands built from those components. All other content ships as HTML with no JavaScript.
+- A Guest asks for their first Quote on the landing page without signing in (least Client friction). Signed-in Clients ask for further Quotes from the Client portal, using the same form.
 - The API must accept requests from the landing site's origin as well as the SPA's.

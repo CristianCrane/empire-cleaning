@@ -170,7 +170,7 @@ _On screen_: request to move
 _Spanish_: solicitud para reprogramar
 
 **Late Cancellation**:
-A Client cancelling a Job less than 24 hours before it starts (exactly 24 hours before is still free), or moving it by a second Late Reschedule; the fee is the Job's Deposit amount (ADR-0010). A one-off Job's Deposit is kept as the fee. A plan Job has no Deposit of its own, so its fee is the plan's Deposit percentage of that Job's price, charged as a Charge of its own, and the plan's held Deposit is untouched (ADR-0013).
+A Client cancelling a Job less than 24 hours before it starts (exactly 24 hours before is still free), or moving it by a second Late Reschedule (ADR-0010). A one-off Job's Deposit is kept as the fee. A plan Job has no Deposit of its own, so its fee is the plan's Deposit percentage of that Job's price, charged as a Charge of its own or on its week's Bill (ADR-0016), and the plan's held Deposit is untouched (ADR-0013).
 _Avoid_: No-show, short-notice cancellation
 _Spanish_: cancelación tardía
 
