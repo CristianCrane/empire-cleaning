@@ -2068,7 +2068,7 @@ export type JobNoAccess = {
 // What moving a Job costs, judged when the request is made (ADR-0010): free
 // 24 hours or more before it; less than that, a Late Reschedule, free the
 // first time one is confirmed for the Job and a Late Cancellation after
-// that, which keeps the Deposit as the fee while the Job still moves.
+// that, which charges the Late Cancellation fee while the Job still moves.
 export type RescheduleCost = "free" | "free_late" | "late_cancellation";
 
 export type RescheduleTerms = {
