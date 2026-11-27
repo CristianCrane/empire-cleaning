@@ -659,7 +659,7 @@ export function JobMoney({ job, lineUp }: { job: OfficeJob; lineUp: 2 | 3 }) {
     ? "Deposit, paid"
     : "Paid";
   // what's still to go on a weekly Bill: its week's before that's made,
-  // the next one's after (docs/ux.md, Words: a weekly Bill's costs, #244)
+  // the next one's after (docs/ux-words.md, Words: a weekly Bill's costs, #244)
   const toBill = job.weeklyBill && owed > 0 && !payment.unpaid;
   const dueFact = (line?: string) =>
     job.completion ? (

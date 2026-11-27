@@ -68,7 +68,7 @@ import { said } from "./words.ts";
 
 // the account's words, among the account's parts (AccountFoot), in every
 // area's language (ADR-0025): said to Clients and Cleaners alike, so their
-// Spanish addresses no one, neither usted nor tú (docs/ux.md, Language)
+// Spanish addresses no one, neither usted nor tú (docs/ux-words.md, Language)
 const words = catalog({
   en: {
     switchToArea: (area: string) => `Switch to ${area}`,

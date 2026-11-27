@@ -1,5 +1,5 @@
 // What the server and the screens both say about a Staff member
-// (docs/ux.md, Words)
+// (docs/ux-words.md, Words)
 
 // a Site Visit they have, which must go to someone else before they're
 // deactivated or lose the Cleaner role; `when` as each side formats it

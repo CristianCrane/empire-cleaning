@@ -2487,5 +2487,5 @@ export * from "./days.ts";
 // browser (ADR-0007)
 export * from "./scrub.ts";
 
-// what the server and the screens both say, written once (docs/ux.md, Words)
+// what the server and the screens both say, written once (docs/ux-words.md, Words)
 export * from "./messages/index.ts";

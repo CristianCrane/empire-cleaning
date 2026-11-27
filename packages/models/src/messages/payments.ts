@@ -4,7 +4,7 @@ import { catalog } from "../language.ts";
 
 // What the server and the screens both say about paying: a card, a payment,
 // a refund, and the price changes found when a clean is done
-// (docs/ux.md, Words)
+// (docs/ux-words.md, Words)
 
 type Changed = {
   kind: AdjustmentKind;

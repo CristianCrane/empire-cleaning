@@ -18,7 +18,7 @@ import { atRest } from "./at-rest.ts";
 
 // a phone's width on the phone project; on desktop, a tablet's, a small
 // laptop's and a laptop's, where the app's frames change: the one list of
-// them, which docs/ux.md and packages/web/README.md point to
+// them, which packages/web/README.md points to
 const WIDTHS = [
   { project: "phone", width: 412 },
   { project: "desktop", width: 768 },

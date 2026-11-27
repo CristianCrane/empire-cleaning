@@ -9,7 +9,7 @@ import { plans } from "./plans.ts";
 import { quotes } from "./quotes.ts";
 import { reschedule } from "./reschedule.ts";
 
-// What the server and the screens both say, written once (docs/ux.md,
+// What the server and the screens both say, written once (docs/ux-words.md,
 // Words): a file per subject. What a Guest, Client or Cleaner may read is in
 // English and Spanish (ADR-0025), in one catalog picked by the reader's
 // language, `messages[lang]`, or `messages.en` where only English is read

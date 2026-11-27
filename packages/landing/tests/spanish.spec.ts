@@ -48,7 +48,7 @@ for (const page of pages) {
         tab.locator('link[rel="alternate"][hreflang="x-default"]'),
       ).toHaveAttribute("href", urlOf(page, "en"));
 
-      // Spanish runs longer: it still fits the screen (docs/ux.md, Language)
+      // Spanish runs longer: it still fits the screen (docs/ux-words.md, Language)
       expect(
         await tab.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth,

@@ -61,7 +61,7 @@ import { startTour } from "./Tour.ts";
 // how the components go together on a screen: the rules the UX pass (#96)
 // settled, each picked from a prototype, shown as examples. docs/ux.md holds
 // this product's rules in words (the ui skill, the general ones), and
-// docs/screens.md the picks each screen keeps
+// the screen map (docs/screens*.md) the picks each screen keeps
 
 function Example({
   verdict,
