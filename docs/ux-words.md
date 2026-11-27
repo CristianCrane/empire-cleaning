@@ -6,6 +6,9 @@ Every word a person reads: labels, page text, screen messages, the server's that
 
 - Any other 404's text is never shown (`useAction`), so it stays as it is (#336).
 - Everyday words: a GLOSSARY term's `_On screen_` word where it has one; sentence case; terms lowercase in a sentence; a Service's name keeps its capitals.
+- A GLOSSARY entry whose term people don't say carries an `_On screen_:` line after `_Avoid_` (ADR-0027, ADR-0029): the word screens and emails use, or "none" where screens name something else instead (Assignment). It gives a case only for what the term covers (Payment Method: "card or bank" where a bank can pay), and may be a word `_Avoid_` keeps out of code (a Completed Job is "done").
+- Before writing copy, a `_Spanish_` word or a catalog from an entry, search the strings each of its readers sees for its word; where they differ, settle the entry's line first: record what screens say when every reader sees one word, or else fix the screens to one word.
+- A test's title, a variable and a comment keep the GLOSSARY term (ADR-0027): when a screen word changes, search them as well as the strings people read, and leave the term in them (a title saying "an extra" for an Adjustment read as the wrong concept once the word moved).
 - One word per concept for every reader, and one concept per word (ADR-0029, which holds the Job exception): an Add-on is an "extra", an Adjustment a "price change"; where a reader sees extras, "extra" is no adjective ("1 more hour", "upper floors").
 - To a Client we're "us" ("Please call us", not "the Office").
 - A wait's alert says what's happening and how long it usually takes, promising neither ending (models' `paymentNotDone`, #534).
@@ -21,6 +24,7 @@ Every word a person reads: labels, page text, screen messages, the server's that
 ## Language
 
 - Copy fits either language: Guest, Client and Cleaner screens are in English and Spanish (ADR-0025), and Spanish runs 20-30% longer, so shorten the label, never squeeze the layout. The layout test opens each in both.
+- A GLOSSARY entry for a term a Guest, Client or Cleaner sees carries a `_Spanish_:` line after `_Avoid_` and any `_On screen_`, in that line's shape: the Spanish word for each screen word, one per case where it gives cases (Job: "trabajo; limpieza to a Client"), "none" where it says none (Revision), and one word for the term where it has no `_On screen_` (Quote); Office-only terms (Minimum Charge, Price List) have none. Spanish copy uses these words; a new such term gets its line when it's added, and Jen checks each word on #206.
 - Dates, money, numbers, lists and plurals come from models' `formats[lang]`, never a screen's own formatter. Lists have no comma before "and", so English lists use en-GB's `Intl.ListFormat`, the rest en-US and es-US.
 - A screen's words come from its catalog in the language shown (`useSaid(words)`, `screens/words.ts`), never a `lang === "es"` branch. A word more than one screen shows is in one catalog, once: the portal's `portal/words.ts` (`p`), the Cleaner area's `cleaner/words.ts` (`c`), the rest `labels.ts`; `pnpm lint` (`catalog-copies`) fails on the same English twice.
 - A word every area shows addresses no one (Clients read usted, Cleaners tú): the Account menu, error pages, `labels.ts` and the design system's words are impersonal ("Se puede intentar de nuevo"). A word that addresses its reader goes in its area's words; English whose Spanish differs by place is listed as allowed in `catalog-copies` (#305).
