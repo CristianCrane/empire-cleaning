@@ -7,7 +7,7 @@ We chose this over Railway (static sites each need a running process), Fly.io (i
 ## Consequences
 
 - Production: the landing site at `www.empirecleaningandpro.com`, the web app at `app.empirecleaningandpro.com` with `/api` forwarded to the server; sign-in links, Stripe's webhook and the landing form all use `app…/api`. The test environment is the same at `test.` and `app.test.`. DNS stays on Vercel.
-- The test environment deploys from `main` once CI passes; production is only ever released by hand. Migrations run on every deploy.
+- The test environment deploys from `main` once CI passes, each service only when the push changes its files (ADR-0035); production is only ever released by hand. Migrations run on every deploy.
 - Production is a Blueprint of its own, `render-production.yaml` (#461): Render syncs a Blueprint whenever a push changes its file, creating and deploying what changed, so production in `render.yaml` would be created and deployed by a merge. Its Blueprint has Auto Sync off and its services never auto-deploy. Render can't share settings between Blueprints (YAML anchors aren't supported, and environment groups hold no secrets, headers or routes), so a server test holds production to the test site but for the differences it lists.
 - Each environment has its own Stripe sandbox, Google sign-in client, auth secret and Sentry environment; they share the Resend account.
 - `APP_MODE=test` marks the test environment: a banner on every page, `[TEST]` on email subjects, no search indexing, emails only to allowed addresses (the rest go to the Office inbox), Office time controls that move the Clock forward, and Sentry's feedback widget.

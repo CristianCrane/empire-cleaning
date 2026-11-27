@@ -33,15 +33,36 @@ services:
     preDeployCommand: npm --prefix packages/server run env:check && npm --prefix packages/server run db:migrate
     startCommand: npm --prefix packages/server start
     healthCheckPath: /health
-    # deploys main once CI passes
+    # deploys main once CI passes, when the push changes what it's built from
     autoDeployTrigger: checksPass
+    # Each service builds only when a push changes a file it's built from, as
+    # Render's build minutes are capped: its packages (from their package.json
+    # dependencies) and the root files every install reads, but never docs,
+    # tests or stories, which no build ships. An ignored path
+    # wins over an included one; a change to this file always deploys what it
+    # changes, and so does a manual deploy (render.com/docs/monorepo-support).
+    # The ignore list is the same in each service (no YAML anchors: ADR-0020)
     buildFilter:
       paths:
         - packages/server/**
         - packages/models/**
         - package.json
         - pnpm-lock.yaml
-        - render.yaml
+        - pnpm-workspace.yaml
+        - .npmrc
+        - tsconfig.json
+      ignoredPaths:
+        - "**/*.md"
+        - "**/*.test.ts"
+        - "**/*.test.tsx"
+        - "**/*.stories.tsx"
+        - "**/vitest*.config.ts"
+        - "**/playwright*.config.ts"
+        - "**/tests/**"
+        - "**/e2e/**"
+        - packages/ui/.storybook/**
+        # react-email's previews (`pnpm email:dev`)
+        - packages/server/emails/**
     envVars:
       - key: APP_MODE
         value: test
@@ -97,6 +118,30 @@ services:
       npx --yes pnpm@11.18.0 --filter-prod "@empire-cleaning/web..." build
     staticPublishPath: packages/web/dist
     autoDeployTrigger: checksPass
+    # its dependencies; the server, a devDependency, is only its e2e tests'
+    buildFilter:
+      paths:
+        - packages/web/**
+        - packages/ui/**
+        - packages/quote-request/**
+        - packages/browser-monitoring/**
+        - packages/models/**
+        - package.json
+        - pnpm-lock.yaml
+        - pnpm-workspace.yaml
+        - .npmrc
+        - tsconfig.json
+      ignoredPaths:
+        - "**/*.md"
+        - "**/*.test.ts"
+        - "**/*.test.tsx"
+        - "**/*.stories.tsx"
+        - "**/vitest*.config.ts"
+        - "**/playwright*.config.ts"
+        - "**/tests/**"
+        - "**/e2e/**"
+        - packages/ui/.storybook/**
+        - packages/server/emails/**
     domains:
       - app.test.empirecleaningandpro.com
     # what a page can't say for itself in a <meta>: no other site may
@@ -155,6 +200,30 @@ services:
       npx --yes pnpm@11.18.0 --filter-prod "@empire-cleaning/landing..." build
     staticPublishPath: packages/landing/dist
     autoDeployTrigger: checksPass
+    # its dependencies; the server, a devDependency, is only its tests'
+    buildFilter:
+      paths:
+        - packages/landing/**
+        - packages/ui/**
+        - packages/quote-request/**
+        - packages/browser-monitoring/**
+        - packages/models/**
+        - package.json
+        - pnpm-lock.yaml
+        - pnpm-workspace.yaml
+        - .npmrc
+        - tsconfig.json
+      ignoredPaths:
+        - "**/*.md"
+        - "**/*.test.ts"
+        - "**/*.test.tsx"
+        - "**/*.stories.tsx"
+        - "**/vitest*.config.ts"
+        - "**/playwright*.config.ts"
+        - "**/tests/**"
+        - "**/e2e/**"
+        - packages/ui/.storybook/**
+        - packages/server/emails/**
     domains:
       - test.empirecleaningandpro.com
     # what a page can't say for itself in a <meta>: no other site may

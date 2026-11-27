@@ -20,6 +20,7 @@ type Service = {
   name: string;
   runtime: string;
   autoDeployTrigger?: string;
+  buildFilter?: unknown;
   envVars: EnvVar[];
 };
 type Database = { name: string; plan: string; ipAllowList?: unknown[] };
@@ -78,8 +79,10 @@ const asProduction = (site: Blueprint): Blueprint => {
     })),
     services: renamed.services.map((service) => ({
       ...service,
-      // released by hand, never on a merge
+      // released by hand, never on a merge, so no build filter: one would
+      // never fire
       autoDeployTrigger: "off",
+      buildFilter: undefined,
       envVars: [
         ...service.envVars
           .filter(({ key }) => !testOnly.includes(key))
