@@ -45,7 +45,7 @@ Small screen-only behaviour can use Vitest browser tests (`src/**/*.test.tsx`).
 
 ### What the fake covers, and what the sandbox run does
 
-The fake never loads Stripe's form, so `e2e/card-form.sandbox.ts` types Stripe's test cards into the Payment Element against a Stripe sandbox, with the real Stripe adapter (`packages/server/tests/harness.ts`). It runs nightly (`.github/workflows/stripe-sandbox.yml`); run it by hand when `src/screens/portal/CardForm.tsx`, Stripe.js or the CSP changes, with Postgres up and a sandbox's keys in `packages/server/.env` (or `STRIPE_SANDBOX_SECRET_KEY` and `STRIPE_SANDBOX_PUBLISHABLE_KEY`): `pnpm --filter @empire-cleaning/web stripe:sandbox`. `pnpm test` and `pnpm test:change` take only `*.spec.ts`, so it's in neither.
+The fake covers every screen's handling of a payment's outcome (paid, declined, approval asked, given or refused, a bank debit clearing); it never loads Stripe's form, so `e2e/card-form.sandbox.ts` types Stripe's test cards into the Payment Element against a Stripe sandbox, with the real Stripe adapter (`packages/server/tests/harness.ts`). It runs nightly (`.github/workflows/stripe-sandbox.yml`); run it by hand when `src/screens/portal/CardForm.tsx`, Stripe.js or the CSP changes, with Postgres up and a sandbox's keys in `packages/server/.env` (or `STRIPE_SANDBOX_SECRET_KEY` and `STRIPE_SANDBOX_PUBLISHABLE_KEY`): `pnpm --filter @empire-cleaning/web stripe:sandbox`. `pnpm test` and `pnpm test:change` take only `*.spec.ts`, so it's in neither.
 
 ### Screenshots for a PR
 

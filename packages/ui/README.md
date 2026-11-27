@@ -5,8 +5,10 @@ The components the web app and landing site use (React Aria underneath); a scree
 - `@empire-cleaning/ui`: components and styles
 - `@empire-cleaning/ui/tokens.css`: styles alone, for a page without React
 - `@empire-cleaning/ui/theme`: the ThemeToggle alone, for an island
+- `@empire-cleaning/ui/language`: the design system's language alone, for an island
 - `@empire-cleaning/ui/feedback.css`: Sentry's feedback button's look, which each site places
 - `@empire-cleaning/ui/theme-boot`: the head script applying a chosen dark theme before first paint
+- `@empire-cleaning/ui/fonts`: the first screen's font files, for a page to preload
 
 An app compiles the styles with its own Tailwind (`@tailwindcss/vite`). New colours, type and sizes go in `tokens.css` only; Tailwind's palette is off.
 
