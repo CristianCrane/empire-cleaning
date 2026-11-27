@@ -10,7 +10,7 @@ The skills speak in terms of five canonical triage roles. This file maps those r
 | `ready-for-human`          | `ready-for-human`    | Requires human implementation            |
 | `wontfix`                  | `wontfix`            | Will not be actioned                     |
 
-`ready-for-human` is used only by the two standing lists, #205 (manual setup) and #206 (Jen's to-do list). When triage finds human work, add it to one of those as a checklist item instead of labelling a new issue; see "Human tasks go on two lists" in `CLAUDE.md`.
+`ready-for-human` labels only #205 and #206 (`CLAUDE.md`, Human tasks go on two lists).
 
 When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
 

@@ -5,24 +5,24 @@ A cleaning and property services business serving residential and commercial cli
 ## People
 
 **Client**:
-A person or business Empire Cleaning has a relationship with, from first asking for a Quote onward, whether or not they have bought anything. A business has a business name, and the Client's name, email and phone are those of the person Empire Cleaning deals with there. Office Staff may enter one for a caller with just a name and phone: without an email they can't sign in or be sent a Quote until Office Staff add one (ADR-0012).
+A person or business Empire Cleaning has a relationship with, from first asking for a Quote onward, whether or not they have bought anything. A business Client has a business name; its name, email and phone are its contact person's. One entered without an email can't sign in or be sent a Quote until it has one (ADR-0012).
 _Avoid_: Customer, user, lead
 _Spanish_: cliente
 
 **Property**:
-A physical location where Empire Cleaning works, belonging to exactly one Client. One address is one Property per Client, however it is typed; separate units in a building (apartments, floors) are separate Properties. A Property is either _residential_, a home described by its rooms, or _commercial_, business premises described by their Premises Type and floor area. A home asked about only for a Service not priced from rooms, such as painting, may have no rooms recorded until its Client, signed in, asks about it for one that is, or Office Staff record them. Its price-affecting details are as first given and only Office Staff correct them, from a Site Visit or otherwise.
+A physical location where Empire Cleaning works, belonging to exactly one Client. One address is one Property per Client, however it is typed; separate units in a building (apartments, floors) are separate Properties. A Property is either _residential_, a home described by its rooms, or _commercial_, business premises described by their Premises Type and floor area.
 _Avoid_: Address, site, location
 _On screen_: home, or business for business premises; place where it can be either
 _Spanish_: casa, or negocio for business premises; lugar where it can be either
 
 **Premises Type**:
-What kind of business premises a commercial Property is, such as office, retail or medical; it makes cleaning its floor area take longer or shorter, for any Service priced by area that Condition affects (ADR-0018). Office Staff keep the list on the Price List and retire a Premises Type rather than delete it.
+What kind of business premises a commercial Property is, such as office, retail or medical; it makes cleaning its floor area take longer or shorter, for any Service priced by area that Condition affects (ADR-0018). Office Staff keep the list on the Price List.
 _Avoid_: Business type, sector, category
 _On screen_: type of business
 _Spanish_: tipo de negocio
 
 **Access Instructions**:
-How Staff get into and around a Property, such as gate codes, key location and pets; maintained by the Client. Only a Job's Confirmed Cleaners see them, and only on the Job's day (in New York), as with the Client's phone; an Offered Cleaner, who may still say no, sees neither (#230). The Staff member a Site Visit is booked to sees them from the booking on.
+How Staff get into and around a Property, such as gate codes, key location and pets; maintained by the Client. Only a Job's Confirmed Cleaners see them, on its day, and a Site Visit's visitor once it's booked (ADR-0019).
 _Avoid_: Entry notes, access notes, directions
 _On screen_: how we get in
 _Spanish_: cómo entramos
@@ -44,7 +44,7 @@ _On screen_: the office; us to a Client
 _Spanish_: la oficina; nosotros to a Client
 
 **Account**:
-A sign-in identity with a proven email, created only when a person signs up by emailed link or Google, never on their behalf. Anyone may sign up. Being a Client or Staff member is separate: an Account is connected to a Client, a Staff member, or both, automatically when its proven email matches theirs, and that connection is what lets its holder act as them. Once made, a connection stays even if either email later changes. Asking for a Quote creates a Client, not an Account, and a Client the Office entered without an email has none to connect until one is added.
+A sign-in identity with a proven email, created only when a person signs up by emailed link or Google, never on their behalf. Anyone may sign up. Being a Client or Staff member is separate: an Account is connected to a Client, a Staff member, or both, automatically when its proven email matches theirs, and that connection is what lets its holder act as them.
 _Avoid_: User, login, profile
 _Spanish_: cuenta
 
@@ -53,21 +53,21 @@ An unidentified visitor who has not signed in, typically asking for a Quote.
 _Avoid_: Anonymous user, visitor
 
 **Preferred Language**:
-The language, English or Spanish, a Client or Staff member is shown screens and sent messages in; the Office workspace is always English (ADR-0025). A Guest's first Quote sets it for the new Client from the language of the page they asked on, and a Quote added to an existing Client leaves it as it is (ADR-0012). Office Staff set it for a Client they enter or Staff they invite; anyone may change their own, which changes it on every Client and Staff member their Account is connected to. Text a person writes, such as Access Instructions or a reason, is shown as written.
+The language, English or Spanish, a Client or Staff member is shown screens and sent messages in; the Office workspace is always English (ADR-0025).
 _Avoid_: Locale, language setting
 _Spanish_: idioma preferido
 
 ## Quoting
 
 **Quote**:
-Empire Cleaning's priced offer for one Property, from the moment it's asked for or Office Staff start it through to its outcome. It keeps what the Client asked for, unchanged, and its Revisions; the latest Sent Revision is the offer. It is either a _one-off Quote_, for a single Job of one Service, the one asked for unless Office Staff change it, also offering the Service it recommends instead for a first visit when the Property has no Completed Job, for the Client to pick one on acceptance; or a _Service Plan Quote_, for a Service Plan of one Service, offering a visit on each of its days, each with its own time and Crew Size, at the Plan Discount and accepted whole (ADR-0013, ADR-0018). Its first Revision sets which. A Guest's first Quote creates their Client; one from a Guest using an existing Client's email is added to that Client, without changing their details. Office Staff may start one for a caller, recording what they asked, with no receipt sent, or offer a Service Plan Quote nobody asked for (ADR-0017). A Service Plan Quote can only be offered once the Property's First Clean is Completed, or, for a Service that needs a Site Visit, once one has recorded its findings; no Quote for such a Service can be Sent before then (ADR-0014, ADR-0018). A Property has at most one open one-off Quote for each Service, and one open Service Plan Quote.
+Empire Cleaning's priced offer for one Property, from the moment it's asked for or Office Staff start it through to its outcome. It keeps what the Client asked for, unchanged, and its Revisions; the latest Sent Revision is the offer. It is either a _one-off Quote_, for a single Job of one Service, which may also offer the Service recommended for a first visit (ADR-0018); or a _Service Plan Quote_, for a Service Plan, accepted whole (ADR-0013). Its first Revision sets which.
 _Avoid_: Quote Request, enquiry, lead, estimate, proposal
 _Spanish_: cotización
 
 **Revision**:
 One priced version of a Quote: its Service, price, Labour Hours, Crew Size and proposed time, and for a Service priced by area the area, or for a Service Plan Quote its visits. Office Staff draft a Revision and send it; once Sent it is never changed, and a newer Sent Revision takes its place as the offer. Clients only ever see the latest Sent Revision.
 _Avoid_: Version, offer, Superseded Quote
-_On screen_: none: it's the quote, which the Office changes ("Change quote") and sends again ("Quote sent again"); a person never reads of a second quote
+_On screen_: none: it's the quote, which the Office changes and sends again
 _Spanish_: none
 
 **Turned Down**:
@@ -76,17 +76,17 @@ _Avoid_: Declined, rejected, refused, withdrawn
 _Spanish_: descartada
 
 **Service**:
-Something Empire Cleaning sells, such as a _Standard Clean_, a _Deep Clean_, a move-out clean, commercial cleaning or painting; Office Staff keep the list, and retire a Service rather than delete it. Each is offered for homes, businesses or both, has its own hourly rate, Minimum Charge and tax rates, and is priced either from a home's rooms, at so many hours for each, or by area, at so many hours per 1,000 sq ft. It also says whether Condition affects it, whether it can be on a Service Plan, whether a Quote for it needs a Site Visit, and which Service, if any, to recommend in its place for a first visit (ADR-0018). Changing it never reprices Sent Quotes or existing Service Plans.
+Something Empire Cleaning sells, such as a _Standard Clean_, a _Deep Clean_, a move-out clean, commercial cleaning or painting; Office Staff keep the list. Each has its own hourly rate, Minimum Charge and tax rates, and is priced either from a home's rooms or by area (ADR-0018). Changing it never reprices Sent Quotes or existing Service Plans.
 _Avoid_: Clean Type, service type, offering, package, tier
 _Spanish_: servicio
 
 **Price List**:
-The pricing rules Office Staff maintain alongside the Services, from which, with a Service, every Suggested Price is calculated: the Condition multipliers, the Premises Types, the Add-ons, the Deposit percentage, Plan Discount, validity period and usual Crew Size, and the tax rate for fees. Prices are before tax, while Clients always see prices including tax; tax rates for Jobs are on each Service, and any Add-on may be tax-exempt. Changing it never reprices Sent Quotes or existing Service Plans.
+The pricing rules Office Staff keep alongside the Services, from which, with a Service, every Suggested Price is calculated; it also holds the tax rate for fees. Prices are before tax, while Clients always see prices including tax; any Add-on may be tax-exempt. Changing it never reprices Sent Quotes or existing Service Plans.
 _Avoid_: Rate card, pricing table, tariff
 _On screen_: prices
 
 **Suggested Price**:
-The price the system calculates for a Quote: the Labour Hours estimated for its Service, Property, Condition and Add-ons, multiplied by the Service's hourly rate, and never below its Minimum Charge. A Service priced from a home's rooms adds up its own hours for each; one priced by area works from the area on the Revision, with the Premises Type for business premises (ADR-0018). Office Staff may override it to any price, giving a reason.
+The price the system calculates for a Quote: Labour Hours times the Service's hourly rate, never below its Minimum Charge; Office Staff may override it, giving a reason.
 _Avoid_: Estimate, calculated price, list price
 
 **Minimum Charge**:
@@ -107,29 +107,29 @@ _On screen_: cleaners
 _Spanish_: limpiadores
 
 **Condition**:
-How dirty a Property currently is: _light_, _moderate_ or _heavy_; it affects only the Services that say so. Stated by the Client when asking for a Quote, correctable by Staff, and reported by Cleaners when they complete a Job. The Property takes a Job's report while that Job is its latest Completed Job: completing an earlier Job late, or correcting or undoing one, leaves a later report standing. Undoing the latest gives back the Condition before its report, or an earlier Job's report made since. Service Plan Quotes assume moderate unless Staff set otherwise.
+How dirty a Property is: _light_, _moderate_ or _heavy_; given when a Quote is asked for and reported by Cleaners at completion; it affects only the Services that say so.
 _Avoid_: State, dirtiness, level
 _Spanish_: estado
 
 **Add-on**:
-A priced extra task, such as cleaning inside the oven, agreed on a Quote before a Job; distinct from an Adjustment made on the day. Each is offered with particular Services, and only those Services' prices on a Quote include it. Clients choose Add-ons by name when asking for a Quote. On the Quote, each costs what it adds to the price: nothing at the Minimum Charge, less any Plan Discount, and its share of an override. Office Staff retire an Add-on rather than delete it, so Quotes that asked for it still price it.
+A priced extra task agreed on a Quote before a Job, unlike an Adjustment made on the day; each is offered with particular Services.
 _Avoid_: Extra, upgrade, option
 _On screen_: extra
 _Spanish_: adicional
 
 **Preferred Service Area**:
-A set of postcodes close enough to Staff that Empire Cleaning prefers to work there. Distance never changes a price; whether to take on work outside these areas is Office Staff's call.
+Where Empire Cleaning prefers to work, close enough to Staff; no list of places is kept, so whether a Property is outside it is Office Staff's call, and a reason to Turn Down its Quote. Distance never changes a price.
 _Avoid_: Coverage area, zone, territory
 _On screen_: the area we clean
 _Spanish_: la zona donde limpiamos
 
 **Site Visit**:
-A free, scheduled visit by one Staff member to see a Property for a Quote, before its first Revision is Sent; required for a Service that needs one and optional otherwise (ADR-0018). It is not a Job: it is never charged and has no Assignments, though it appears on the Schedule (ADR-0015). Office Staff book, move and cancel it, telling the Client each time. It ends _Done_, when its findings (for business premises, the Premises Type, floor area and Condition) are recorded on the Property, or _Cancelled_. Office Staff may record findings as already done without a visit, for premises they know.
+A free visit by one Staff member to see a Property for a Quote, before its first Revision is Sent; required for a Service that needs one, optional otherwise; not a Job: never charged, no Assignments, but on the Schedule (ADR-0015, ADR-0018); it ends _Done_, its findings recorded on the Property, or _Cancelled_.
 _Avoid_: Walkthrough, inspection, assessment
 _Spanish_: visita previa
 
 **Quote status**:
-A Quote is _Requested_ (asked for by a Client, no Revision yet), _Draft_ (its first Revision being written by Staff), _Sent_, or closed as _Accepted_, _Declined_ (by the Client), _Expired_ (its latest Revision's validity period, 14 days unless set otherwise, has passed, or it's 24 hours or less before its proposed time, when cancelling would be a Late Cancellation; so it's sent only for a time more than 24 hours away) or _Turned Down_. Drafting changes to a Sent Quote leaves it Sent. Office Staff may revive an Expired Quote by sending a new Revision; the others are final.
+A Quote is _Requested_ (asked for by a Client, no Revision yet), _Draft_ (its first Revision being written by Staff), _Sent_, or closed as _Accepted_, _Declined_ (by the Client), _Expired_ (its validity period has passed, or it's 24 hours or less before its proposed time) or _Turned Down_.
 _Avoid_: Pending, approved, rejected, Superseded
 
 ## Work
@@ -141,13 +141,13 @@ _On screen_: job; clean to a Client, and in a message a Client may see too
 _Spanish_: trabajo; limpieza to a Client, and in a message a Client may see too
 
 **Service Plan**:
-An agreed recurring arrangement at one Property for one Service that can be on a plan, generating Jobs of it on a set recurrence: either on one day of the week every week, every 2 weeks or every 4 weeks, or every week on several days (ADR-0013, ADR-0018). Each of its days has its own time and its own visit: Labour Hours, Crew Size and price. It can only start once that Property has a Completed First Clean, or, for a Service that needs a Site Visit, once one has recorded its findings (ADR-0014, ADR-0018). Its terms change only by accepting a new Service Plan Quote for the Property, which the Client can ask for: from that Quote's proposed time, its booked Jobs are cancelled free and it carries on on the new terms, its Jobs before then going ahead as they were (and still booked on the old terms as they come within reach, whether or not it was On Hold) and its Deposit carrying over. A Client skips one of its Jobs by cancelling it, under the usual rules, and the plan carries on. Having one never stops the Property getting one-off Quotes.
+An agreed recurring arrangement at one Property for one Service that can be on a plan, generating Jobs of it on a set recurrence: either on one day of the week every week, every 2 weeks or every 4 weeks, or every week on several days (ADR-0013, ADR-0018). Each of its days has its own time and its own visit: Labour Hours, Crew Size and price. Its terms change only by accepting a new Service Plan Quote.
 _Avoid_: Subscription, contract, recurring job
 _On screen_: cleaning plan
 _Spanish_: plan de limpieza
 
 **First Clean**:
-The first one-off Job Completed at a Property of a Service that can be on a Service Plan, which a Property must have before a Service Plan can start there, unless its Service needs a Site Visit: a trial for both sides, in which the Client sees how Empire Cleaning works and Empire Cleaning checks the Property is as described before committing to recurring work. A Deep Clean is recommended, but the Client may choose a Standard Clean; a move-out clean or painting doesn't count.
+The first one-off Job Completed at a Property of a Service that can be on a Service Plan, which the Property needs before a plan can start there unless its Service needs a Site Visit (ADR-0014): a trial for both sides.
 _Avoid_: Initial clean, onboarding clean, intro clean
 _Spanish_: primera limpieza
 
@@ -164,13 +164,13 @@ _On screen_: couldn't get in; its fee is a couldn't-get-in fee
 _Spanish_: no se pudo entrar; its fee is a cargo por no poder entrar
 
 **Reschedule Request**:
-A Client's proposal to move a booked Job to a new available time, which is held for them while pending. The Job keeps its original time until Office Staff confirm the move, after which its crew are Offered the new time afresh, staying on it unless they aren't free then; Office Staff may instead turn it down, and the Client may withdraw it. If the Job stops being booked first (Cancelled, Completed or No Access), the request is closed unanswered, and the time held for it is freed; a held time also stops counting once the Job starts. One made less than 24 hours before the Job is a Late Reschedule (ADR-0010).
+A Client's proposal to move a booked Job to a new time, held for them while pending; the Job keeps its time until Office Staff confirm it, or turn it down, or the Client withdraws it; one less than 24 hours before is a Late Reschedule (ADR-0010).
 _Avoid_: Reschedule, rebooking, change request
 _On screen_: request to move
 _Spanish_: solicitud para reprogramar
 
 **Late Cancellation**:
-A Client cancelling a Job less than 24 hours before it starts (exactly 24 hours before is still free), or moving it by a second Late Reschedule (ADR-0010). A one-off Job's Deposit is kept as the fee. A plan Job has no Deposit of its own, so its fee is the plan's Deposit percentage of that Job's price, charged as a Charge of its own or on its week's Bill (ADR-0016), and the plan's held Deposit is untouched (ADR-0013).
+A Client cancelling a Job less than 24 hours before it starts (exactly 24 hours before is still free), or moving it by a second Late Reschedule (ADR-0010). A one-off Job's Deposit is kept as the fee; a plan Job's fee is the plan's Deposit percentage of its price (ADR-0013).
 _Avoid_: No-show, short-notice cancellation
 _Spanish_: cancelación tardía
 
@@ -181,34 +181,34 @@ _On screen_: late move; its fee is a late move fee
 _Spanish_: reprogramación tardía; its fee is a cargo por reprogramación tardía
 
 **On Hold**:
-A Service Plan that is temporarily generating no new Jobs while any of its Jobs, or a Bill with any of its Jobs on it, is Unpaid; a Bill with a bank payment for it on its way holds nothing while it clears. Its Jobs already booked go ahead. Once nothing is Unpaid it carries on, from its next date still to come: dates that passed while it was On Hold are never booked. On Hold plans appear in Needs attention.
+A Service Plan that is temporarily generating no new Jobs while any of its Jobs, or a Bill with any of its Jobs on it, is Unpaid. Its booked Jobs go ahead; it carries on from its next date once nothing is Unpaid.
 _Avoid_: Paused, suspended
 _On screen_: paused
 _Spanish_: en pausa
 
 **Ended**:
-A Service Plan permanently stopped by its Client, or by Office Staff for them, at any time; it never generates Jobs again, and its Property may start a new plan. Ending it cancels, free, its booked Jobs 24 hours or more away, and any booked less than 24 hours before it starts (ADR-0010); the rest go ahead. Its Deposit is applied to its final Job: the last that goes ahead or has happened, a Late Cancellation or No Access with a fee counting as having happened. That Job then counts the Deposit as its own, as a one-off Job does, and whatever the Deposit doesn't cover is still owed, while anything it doesn't need is refunded.
+A Service Plan permanently stopped by its Client, or the Office for them; its booked Jobs 24 hours or more away are cancelled free and its Deposit goes to its final Job (ADR-0010, ADR-0013).
 _Avoid_: Cancelled, terminated, closed
 _Spanish_: finalizado
 
 **Schedule**:
-The calendar of all booked Jobs and Site Visits. Office Staff may move a booked Job that hasn't started straight to a new time with room for it; this is their own action, not a Reschedule Request, so it costs the Client nothing, but like a confirmed request it Offers the new time to the Job's crew afresh and tells the Client and the crew.
+The calendar of all booked Jobs and Site Visits. Office Staff may move a booked Job that hasn't started straight to a new time with room for it, which, unlike a Reschedule Request, costs the Client nothing.
 _Avoid_: Calendar, roster, bookings
 _Spanish_: calendario
 
 **Available Hours**:
-The hours a Cleaner can work on a day: their usual hours for that day of the week, unless Office Staff have set different hours for that date, such as 0 for a holiday. A day going to 0 frees what they hold that day: their Assignments on Jobs are Released, opening to other free Cleaners, while a Site Visit of theirs has to go to someone else first; fewer hours that aren't 0 keep them. Deactivating a Staff member frees their Assignments on every Job to come the same way. A booking has room when two rules hold. Hours: its day's Cleaners' Available Hours, less the Labour Hours of Jobs already booked that day, cover the booking's Labour Hours. Headcount: the Crew Sizes of the Jobs at work at the same time (their time on site, and the new times held for Reschedule Requests), plus the booking's own Crew Size, are no more than the number of Cleaners with Available Hours that day. A Site Visit by a Cleaner with Available Hours that day is booked like a Job with a Crew Size of one, its length as its Labour Hours; one by Office Staff alone takes no room. A Site Visit can't overlap a Job or another booked Site Visit of its visitor's: a Done one doesn't count against them, and one recorded Done before its time takes no room from then on. A clean ends by midnight, so each is on one day. Anyone available that day is taken to be free at any time of it, and travel between homes isn't counted. Days are Empire Cleaning's own, in New York.
+The hours a Cleaner can work on a day: their usual hours for that day of the week, unless Office Staff have set different hours for that date, such as 0 for a holiday.
 _Avoid_: Capacity, shifts, roster
 _On screen_: working hours
 
 **Assignment**:
-The allocation of a specific Staff member to carry out a Job, made separately from, and possibly after, booking it, which puts them on its crew. A Cleaner takes a Cleaner Needed by _Confirming_ it, or Office Staff _Offer_ the Job to a named Cleaner, who is on the crew until they Confirm or _Release_ it; a Confirmed Assignment may be Released until 48 hours before the Job. Releasing leaves a Cleaner Needed again. A Job is _Unassigned_ until its whole crew is Confirmed, and cannot be Completed while Unassigned (ADR-0019).
+A Cleaner put on a Job's crew, made separately from booking it: a Cleaner _Confirms_ a Cleaner Needed, or Office Staff _Offer_ the Job to one, who Confirms or _Releases_ it; a Job is _Unassigned_ until its whole crew is Confirmed, and can't be Completed till then (ADR-0019).
 _Avoid_: Dispatch, crew allocation, accept, decline, holding a place
 _On screen_: none: a cleaner is offered the job, confirms it, or drops out (the Office sees "Dropped out")
 _Spanish_: none
 
 **Cleaner Needed**:
-One of a Job's Crew Size that no Assignment puts on its crew, as the Office sees it in "Needs 1 more cleaner". Once the Job is within 7 days of starting, it is open to every Cleaner free for it, except any who said it's not for them, and the first to Confirm takes it. Free here is stricter than for Schedule room: Available Hours that day and no Job or Site Visit of theirs overlapping it (ADR-0019). Until they Confirm, a Cleaner sees only its Service, time, Crew Size and area.
+One of a Job's Crew Size that no Assignment fills; within 7 days of the Job it is open to every free Cleaner but any who Released it or said it's not for them, and the first to Confirm takes it (ADR-0019).
 _Avoid_: Open Place, place, vacancy, shift, open job, broadcast
 _On screen_: open job; in a Job's crew, Needed ("1 of 2 confirmed, 1 needed")
 _Spanish_: trabajo disponible; in a Job's crew, Falta ("1 de 2 confirmados, falta 1")
@@ -216,79 +216,81 @@ _Spanish_: trabajo disponible; in a Job's crew, Falta ("1 de 2 confirmados, falt
 ## Payment
 
 **Payment Method**:
-A Client's saved means of payment, captured when they accept a Quote.
+A Client's saved means of payment: a card, or a bank account where one can pay.
 _Avoid_: Card, billing details
 _On screen_: card; card or bank where a bank account can pay too
 _Spanish_: tarjeta; tarjeta o banco where a bank account can pay too
 
 **Deposit**:
-A partial payment, taken when a Quote is accepted, that must succeed before anything is booked onto the Schedule. A Job's Deposit counts towards its price; a Service Plan holds one Deposit for its whole life, the Deposit percentage of one Job on each of its days, applied to its final Job when it Ends (ADR-0013).
+A partial payment taken when a Quote is accepted, before anything is booked; it counts towards a Job's price, and a Service Plan holds one for its whole life (ADR-0001, ADR-0013).
 _Avoid_: Down payment, prepayment, booking fee
 _Spanish_: depósito
 
 **Balance**:
-What is charged when a Job is Completed: its price including Adjustments, less any Deposit already paid. A negative Balance is refunded. An increase the Client approves after completion is charged then, as the rest of the Balance. For a Client billed weekly, it goes on a Bill instead (ADR-0016).
+What's charged when a Job is Completed: its price with Adjustments, less any Deposit; a negative one is refunded; a Client billed weekly gets it on a Bill (ADR-0016).
 _Avoid_: Remainder, final payment, outstanding amount
 _On screen_: the rest
 _Spanish_: el resto
 
 **Charge**:
-Money taken from a Client's Payment Method: a Deposit, a Balance, a plan Job's Late Cancellation or No Access fee, a Bill, or a Tip.
+Money taken from a Client's Payment Method: a Deposit, a Balance, a plan Job's Late Cancellation or No Access fee, a Bill, or a Tip (planned).
 _Avoid_: Payment, invoice
 _On screen_: payment
 _Spanish_: pago
 
 **Plan Discount**:
-A reduction, 10% unless set otherwise on the Quote, on the base price of each Job a Service Plan generates, compared with the same visit as a one-off Job, including any recurring Add-ons on the plan. It comes off after the Minimum Charge, so a plan visit can cost less than the Service's Minimum Charge. It does not apply to the First Clean, or to an Adjustment that adds to the price; a quoted Add-on not done comes off at what it added, after the Plan Discount.
+A reduction, 10% unless set otherwise, on each Job a Service Plan generates, against the same visit as a one-off; not on the First Clean or an Adjustment that adds to the price.
 _Avoid_: Loyalty discount, subscription discount, recurring rate
 _Spanish_: descuento del plan
 
 **Adjustment**:
-A recorded change to a Job's quoted price, with a reason, from what the assigned Staff report at completion: an Add-on done on the day, a quoted Add-on not done, or extra time. Staff never set amounts: each is priced from the Price List and Service versions the Job's Quote used, a quoted Add-on not done at what it added to the quoted price. Reductions count at once; an increase counts only once Office Staff have proposed it and the Client has approved it in the portal, within 7 days (ADR-0009).
+A recorded change to a Job's quoted price, with a reason, from what the assigned Staff report at completion: an Add-on done on the day, a quoted Add-on not done, or extra time. Staff never set amounts; a reduction counts at once, an increase once the Client approves it (ADR-0009).
 _Avoid_: Surcharge, discount, extra
 _On screen_: price change
 _Spanish_: cambio de precio
 
 **Bill**:
-Everything a commercial Client billed weekly owes for one week, Monday to Sunday: the Balances of their Jobs that started that week and were Completed, their fees, and approved Adjustments, as lines, made the following Monday (ADR-0016). It is charged to their saved Payment Method then, or, if Office Staff set it so, paid on its page by its due date. It never changes once made: mistakes are put right on the next Bill, and an unpaid one can be voided. One below zero is a credit on the next.
+Everything a commercial Client billed weekly owes for one week, Monday to Sunday, made the next Monday and charged to their Payment Method or paid on its page by its due date; it never changes once made (ADR-0016).
 _Avoid_: Invoice, statement
 _On screen_: bill; a voided one is cancelled
 _Spanish_: factura; a voided one is cancelada
 
 **Unpaid**:
 A Job whose Balance, or part of it, or whose fee failed to be charged and has not yet been recovered; or a Bill whose Charge failed, or that is still unpaid after its due date.
-_On screen_: "Unpaid"; one we try again ourselves, which asks nothing of the Client (the payment service unreachable, a card charge still processing), and a Client's payment on Client portal > Bill not known yet, "Payment pending" (Spanish "Pago pendiente"), its one line "Nothing you need to do." ("No tiene que hacer nada."); Office > Bill, while a payment on it may still take the money, says instead what that holds back: "You can't cancel this bill or record a payment while its payment is going through". A Bill whose Client's payment didn't go through reads "Unpaid" before its due date too, with why, though it isn't Unpaid till then and pauses no plan (#534)
 _Avoid_: Overdue, outstanding, failed payment
+_On screen_: unpaid; payment pending while a payment we retry ourselves isn't settled
 _Spanish_: sin pagar
 
 ## Pay
 
+Planned: #416.
+
 **Pay Rate**:
-What a Cleaner is paid for an hour of work: one for each Cleaner, set by Office Staff, and not a Service's hourly rate, which prices Quotes. A change counts from a date Office Staff pick, today unless they say otherwise; Jobs that started before it keep the old one. A Cleaner sees their own and never anyone else's. Cleaners are contractors, so pay is gross: the app keeps no tax back.
+What a Cleaner is paid for an hour, one each, set by Office Staff; not a Service's hourly rate, which prices Quotes; pay is gross, as Cleaners are contractors (ADR-0030).
 _Avoid_: Wage, salary, hourly rate
 _Spanish_: paga por hora
 
 **Job Rate**:
-A higher rate of pay for one Job, by the hour as a Pay Rate is: Office Staff set it on a Job, or on a Service Plan so the Jobs it generates from then on carry it. It covers the time on that Job only, and each Cleaner on it is paid the higher of it and their own Pay Rate, so it never cuts anyone's pay. Office Staff may change it on a Job until a Cleaner on it is marked paid for that Pay Week. A Cleaner sees it before they Confirm. It is the only extra pay tied to a Job: there are no bonuses.
+A higher hourly rate for one Job, or a plan's Jobs, set by Office Staff; each Cleaner on it gets the higher of it and their Pay Rate; the only extra pay tied to a Job.
 _Avoid_: Bonus, special rate, premium, hourly rate
 _Spanish_: paga por hora del trabajo
 
 **Pay Week**:
-The week Cleaners are paid for, which the Office pays in the week after: the same week a Bill covers (Monday to Sunday, Empire Cleaning's own days, a Job in the week it started). The first is the first full week after pay goes live; Jobs before it are never added.
+The Monday-to-Sunday week Cleaners are paid for, the same week a Bill covers, paid the week after; a Job is in the week it started.
 _Avoid_: Pay period, payroll week
 _Spanish_: semana de paga
 
 **Pay Sheet**:
-What one Cleaner is owed for one Pay Week, worked out by the app for Office Staff to check, pay outside the app, and mark paid (ADR-0030): each day's hours and pay, their share of Tips, any Other Pay, and the total. A day runs from their first Job's start to their last Job's finish, by the Schedule: each Completed Job they were Confirmed on counts from the time it was booked for to the end of its time on site (Crew Size), whenever it was marked Completed. Office Staff may correct those times for one Cleaner on one Job: a late arrival, an early leave, a Job that ran long. The time between one Job's finish and the next one's start counts, at the Cleaner's own Pay Rate, when it is no longer than the gap length, and not at all when it is longer; the gap length is one setting Office Staff keep for everyone, an hour to start. So pay is worked from Labour Hours, through each Job's time on site, and not from when a crew really arrived and left, which nobody records (ADR-0030), nor from an Adjustment's extra time, which still only changes the Client's price (ADR-0009): time a Job ran over is paid only when Office Staff correct its times. And it counts time between Jobs, which Schedule room doesn't (Available Hours). Time counts to the minute, and each day's pay is rounded to the cent. Office Staff mark it paid, saying how (cash, Zelle, check), which they can't do while the Cleaner has no Pay Rate. Once paid it never changes: a later correction goes on the next Pay Week as Other Pay. It also shows the Cleaner's total for the year so far. A Cleaner sees their own, and Office Staff can print one or export a Pay Week. Whether a No Access visit is paid, and for how much time, isn't decided yet (#206).
+What one Cleaner is owed for one Pay Week, worked out by the app from the Schedule, not from times anyone records, for Office Staff to check, pay outside the app and mark paid (ADR-0030); unlike Schedule room, it counts a gap between Jobs no longer than the gap length, an Office setting; once paid it never changes.
 _Avoid_: Payroll, timesheet, payslip, pay stub, unpaid
 _Spanish_: hoja de paga
 
 **Other Pay**:
-An amount Office Staff add to a Pay Sheet by hand, more or less, always with a note: a supply run, a correction to a week already paid. Apart from times, rates and the gap length, it is the only way pay changes.
+An amount, more or less, Office Staff add to a Pay Sheet by hand with a note, such as a supply run or a correction to a week already paid.
 _Avoid_: Adjustment, bonus, deduction, correction
 _Spanish_: otra paga
 
 **Tip**:
-Money a Client adds by card for the Cleaners on a Job, from a link in its receipt: one for a Job, within 7 days of it. Clients billed weekly aren't asked. It is charged to their Payment Method, and the Cleaners Confirmed on the Job when it was Completed share it evenly, less the payment provider's fee on that Charge; Office Staff may change the shares of one. It goes on the Pay Sheets of the Pay Week it was charged in, not the Job's, so a late one never reopens a paid Pay Sheet. Office Staff can refund it until one of those Cleaners is marked paid for that week. Cash, and money sent to a Cleaner directly, is the crew's own and never recorded (ADR-0030). Not first-time help's tours, which screens call tips ("Show tips again").
+Money a Client adds by card for the Cleaners on a Job, from its receipt's link, shared by its Confirmed crew; cash given to a Cleaner is the crew's own and never recorded (ADR-0030); not first-time help's tours, which screens call tips.
 _Avoid_: Gratuity, bonus
 _Spanish_: propina
