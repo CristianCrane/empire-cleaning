@@ -43,11 +43,7 @@ jobs:
       - uses: ./.github/actions/setup
       - uses: ./.github/actions/test-server-code
         with:
-          seeds: >-
-            packages/server/tests/seed.ts
-            packages/server/tests/testers.ts
-            packages/server/tests/fixtures.ts
-            packages/server/src/features/demo-people
+          script: db:seed
       # the copy and the test site are seeded as if at the same moment, as
       # where the seed's cleans fall turns on the day and time
       - name: Choose when the seed runs as

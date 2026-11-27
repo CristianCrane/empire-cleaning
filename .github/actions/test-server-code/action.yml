@@ -1,32 +1,30 @@
 name: The test server's code
-description: Checks out the commit the test server last deployed well, after ./.github/actions/setup, so a seed writes the tables that server has
+description: Checks out the code a seed runs against the test server, after ./.github/actions/setup
 
 # The test site deploys nightly (deploy-test-site.yml), so main can be a day
-# ahead of the test server. The steps after this one run that commit's
-# scripts from main's workflow: a change to how a workflow calls one goes in
-# only once it's deployed. The job needs `deployments: read`.
+# ahead of the test server, and a seed writes the tables that server reads.
+# The script picks the commit (deploy-test-site.ts, seedCode): this one when
+# the server it would build is the deployed one, else the deployed one, and
+# it stops the job when the seed waits on a deploy. The steps after this one
+# can run that commit's scripts from main's workflow: a change to how a
+# workflow calls one goes in once it's deployed. The job needs
+# `deployments: read`.
 inputs:
-  seeds:
-    description: The files whose data the job writes; a change to one on main that isn't deployed yet fails the job, as the job would write the old data
+  script:
+    description: The server package's script the job runs, as db:seed, whose own files the wait turns on
     required: true
 
 runs:
   using: composite
   steps:
-    - name: Check out what the test server runs
+    - name: Check out the code the seed runs
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
-        SEEDS: ${{ inputs.seeds }}
+        SCRIPT: ${{ inputs.script }}
       run: |
-        live=$(pnpm --silent --filter @empire-cleaning/server deploy:test-site live empire-test-server)
-        behind=$(gh api "repos/$GITHUB_REPOSITORY/compare/$live...$GITHUB_SHA" -q .ahead_by)
-        echo "Running the test server's code, ${live:0:8}, $behind commits behind ${GITHUB_SHA:0:8}." | tee -a "$GITHUB_STEP_SUMMARY"
-        git fetch --quiet --depth=1 origin "$live"
-        read -ra seeds <<< "$SEEDS"
-        if ! git diff --quiet "$live" "$GITHUB_SHA" -- "${seeds[@]}"; then
-          echo "A change to $(git diff --name-only "$live" "$GITHUB_SHA" -- "${seeds[@]}" | paste -sd, -) isn't on the test server yet: deploy it first (Actions → Deploy test site → Run workflow), then run this again." | tee -a "$GITHUB_STEP_SUMMARY"
-          exit 1
+        code=$(pnpm --silent --filter @empire-cleaning/server deploy:test-site seed-code "$GITHUB_SHA" "$SCRIPT")
+        if [ "$code" != "$GITHUB_SHA" ]; then
+          git checkout --quiet --detach "$code"
+          pnpm install --frozen-lockfile
         fi
-        git checkout --quiet --detach "$live"
-        pnpm install --frozen-lockfile

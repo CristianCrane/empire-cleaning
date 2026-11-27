@@ -24,7 +24,7 @@ jobs:
       - uses: ./.github/actions/setup
       - uses: ./.github/actions/test-server-code
         with:
-          seeds: packages/server/tests/testers.ts
+          script: staff:testers
       - run: pnpm --filter @empire-cleaning/server staff:testers
         env:
           # the test database's external URL from Render, ending

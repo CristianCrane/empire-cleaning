@@ -8,6 +8,7 @@
 //
 //   pnpm --filter @empire-cleaning/server deploy:test-site [--dry-run]
 //   pnpm --filter @empire-cleaning/server deploy:test-site live <service>
+//   pnpm --filter @empire-cleaning/server deploy:test-site seed-code <sha> <script>
 //
 // It reads what's live from the deployments Render records on GitHub (in
 // the environment "main - <service>"), and deploys through each service's
@@ -19,7 +20,7 @@
 
 import { execFileSync } from "node:child_process";
 import { appendFileSync } from "node:fs";
-import { matchesGlob } from "node:path";
+import { matchesGlob, posix } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import {
   type BuildFilter,
@@ -82,6 +83,69 @@ export const decide = ({
   });
 
 const short = (sha: string) => sha.slice(0, 8);
+
+const SERVER = "empire-test-server";
+
+export type SeedCode = { run: string } | { wait: string[] };
+
+const TESTS = "packages/server/tests/";
+
+// the files under tests/ a seed's `entry` loads, itself among them: the
+// seed's own code, which no deploy builds (the server's build has the rest)
+export const loads = (
+  entry: string,
+  read: (path: string) => string | undefined,
+) => {
+  const seen = new Set<string>();
+  const visit = (file: string) => {
+    if (!file.startsWith(TESTS) || seen.has(file)) return;
+    const source = read(file);
+    if (source === undefined) return;
+    seen.add(file);
+    for (const [, path] of source.matchAll(
+      /(?:from|import\()\s*["'](\.\.?\/[^"']+)["']/g,
+    ))
+      visit(posix.join(posix.dirname(file), path!));
+  };
+  visit(entry);
+  return [...seen];
+};
+
+// The commit whose code a seed Action (Reset test data, Add testers) runs at
+// `at`, as a seed writes the tables the test server reads: `at`'s own while
+// the server it would build is the one deployed (`live`), so a seed changed
+// alone runs at once; else the deployed one. A change to the seed's own files
+// (`seed`, from loads) beside a server change waits for that deploy, as
+// neither commit's seed is then right.
+export const seedCode = ({
+  at,
+  live,
+  seed,
+  servicesAt,
+  isAncestor,
+  changed,
+}: {
+  at: string;
+  live: string;
+  seed: string[];
+} & Pick<
+  Parameters<typeof decide>[0],
+  "servicesAt" | "isAncestor" | "changed"
+>): SeedCode => {
+  if (isAncestor(at, live)) return { run: live };
+  const files = changed(live, at);
+  const server = decide({
+    target: at,
+    live: { [SERVER]: live },
+    servicesAt,
+    isAncestor,
+    changed: () => files,
+  }).find(({ service }) => service === SERVER);
+  if (!server) throw new Error(`render.yaml has no ${SERVER} at ${short(at)}`);
+  if (!server.deploy) return { run: at };
+  const waiting = files.filter((file) => seed.includes(file));
+  return waiting.length > 0 ? { wait: waiting } : { run: live };
+};
 
 // A deploy's GitHub record, newest first as GitHub lists them. Render may
 // record a commit more than once (a retry, a deploy by hand), so a deploy
@@ -166,17 +230,24 @@ const branchPolicy = () => {
     return gh<{
       deployment_branch_policy: { custom_branch_policies: boolean } | null;
     }>(`repos/${REPO}/environments/${ENVIRONMENT}`).deployment_branch_policy;
-  } catch {
-    // no such environment yet
-    return null;
+  } catch (error) {
+    // no such environment yet; any other failure is said as itself
+    const { message, stderr } = error as Error & { stderr?: string };
+    if (/HTTP 404/.test(`${message}${stderr ?? ""}`)) return null;
+    throw error;
   }
 };
 const guarded = () => {
   if (!branchPolicy()?.custom_branch_policies) return false;
-  const names = gh<{ branch_policies: { name: string }[] }>(
+  const policies = gh<{ branch_policies: { name: string; type?: string }[] }>(
     `repos/${REPO}/environments/${ENVIRONMENT}/deployment-branch-policies`,
-  ).branch_policies.map(({ name }) => name);
-  return names.length === 1 && names[0] === "main";
+  ).branch_policies;
+  // a tag named main is no branch
+  return (
+    policies.length === 1 &&
+    policies[0]?.name === "main" &&
+    policies[0].type !== "tag"
+  );
 };
 
 // 202: queued behind a deploy already going, which Render records only once
@@ -238,6 +309,24 @@ const say = (line: string) => {
     appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${line}\n`);
 };
 
+// a line for the run's summary, off stdout, which carries a command's answer
+const note = (line: string) => {
+  console.error(line);
+  if (process.env.GITHUB_STEP_SUMMARY)
+    appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${line}\n`);
+};
+
+const hasCommit = (sha: string) => {
+  try {
+    execFileSync("git", ["cat-file", "-e", `${sha}^{commit}`], {
+      stdio: "ignore",
+    });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const fail = (lines: string[]) => {
   for (const line of lines) say(line);
   process.exitCode = 1;
@@ -248,6 +337,53 @@ const main = async (args: string[]) => {
     const sha = liveCommit(args[1] ?? "");
     if (!sha) throw new Error(`${args[1]} has no good deploy on record`);
     console.log(sha);
+    return;
+  }
+  if (args[0] === "seed-code") {
+    const [, at = "", script = ""] = args;
+    const show = (path: string) => {
+      try {
+        return run("git", ["show", `${at}:${path}`]);
+      } catch {
+        return undefined;
+      }
+    };
+    // the file the server package's script runs, e.g. db:seed's tests/seed.ts
+    const entry = (
+      JSON.parse(show("packages/server/package.json") ?? "{}") as {
+        scripts?: Record<string, string>;
+      }
+    ).scripts?.[script]?.match(/(?:\.\/)?(tests\/\S+\.ts)/)?.[1];
+    if (!entry)
+      throw new Error(
+        `the server package has no script ${script} running a tests/ file`,
+      );
+    const live = liveCommit(SERVER);
+    if (!live) throw new Error(`${SERVER} has no good deploy on record`);
+    // a seed Action's checkout is shallow
+    if (!hasCommit(live))
+      run("git", ["fetch", "--quiet", "--depth=1", "origin", live]);
+    const code = seedCode({
+      at,
+      live,
+      seed: loads(`packages/server/${entry}`, show),
+      servicesAt,
+      isAncestor,
+      changed: changedFiles,
+    });
+    if ("wait" in code) {
+      note(
+        `${code.wait.join(", ")} changed since the test server's deploy, ${short(live)}, and so did the server's code: deploy it first (Actions → Deploy test site → Run workflow), then run this again.`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+    note(
+      code.run === at
+        ? `Running ${short(at)}'s seed: the test server's code is the same as at its deploy, ${short(live)}.`
+        : `Running the test server's code, ${short(live)}: main's server changes since aren't deployed yet, and this seed is the one that server can read.`,
+    );
+    console.log(code.run);
     return;
   }
   const dryRun = args.includes("--dry-run");
@@ -276,7 +412,14 @@ const main = async (args: string[]) => {
   const unset = deploying
     .map(hookVariable)
     .filter((variable) => !process.env[variable]);
-  const limited = guarded();
+  let limited: boolean;
+  try {
+    limited = guarded();
+  } catch (error) {
+    return fail([
+      `Couldn't read the ${ENVIRONMENT} environment's branch rules, so no hook is used: ${(error as Error).message}`,
+    ]);
+  }
   if (!limited || unset.length > 0)
     return fail([
       ...(limited

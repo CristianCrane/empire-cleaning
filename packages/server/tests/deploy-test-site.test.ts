@@ -3,7 +3,14 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { builds, changedFiles, decide, outcome } from "./deploy-test-site.ts";
+import {
+  builds,
+  changedFiles,
+  decide,
+  loads,
+  outcome,
+  seedCode,
+} from "./deploy-test-site.ts";
 import { readBlueprint, type Service } from "./render-blueprint.ts";
 
 // what the nightly deploy builds for a change, on render.yaml's own filters
@@ -220,4 +227,78 @@ test("a deploy Render marks inactive is still going, not live", () => {
   expect(outcome([{ id: 6, sha: TARGET, state: "inactive" }], 5, TARGET)).toBe(
     "going",
   );
+});
+
+// which commit's code a seed Action runs (review C14: the seeds sit in
+// tests/, which no deploy builds, so one changed alone must run at once)
+describe("a seed Action runs", () => {
+  const seed = [
+    "packages/server/tests/seed.ts",
+    "packages/server/tests/harness.ts",
+  ];
+  const code = (files: string[], ancestor = false) =>
+    seedCode({
+      at: TARGET,
+      live: LIVE,
+      seed,
+      servicesAt: () => services,
+      isAncestor: () => ancestor,
+      changed: () => files,
+    });
+  test("its own commit, when a seed changed alone", () => {
+    expect(code(["packages/server/tests/testers.ts"])).toEqual({
+      run: TARGET,
+    });
+  });
+  test("its own commit, when only another service changed", () => {
+    expect(
+      code(["packages/web/src/main.tsx", "packages/server/tests/seed.ts"]),
+    ).toEqual({ run: TARGET });
+  });
+  test("the deployed code, while a server change waits for its deploy", () => {
+    expect(code(["packages/server/src/index.ts"])).toEqual({ run: LIVE });
+  });
+  test("the deployed code, when only tests the seed doesn't load changed beside it", () => {
+    expect(
+      code([
+        "packages/server/src/index.ts",
+        "packages/server/tests/e2e/shots.ts",
+      ]),
+    ).toEqual({ run: LIVE });
+  });
+  test("nothing, when a seed changed beside a server change not deployed", () => {
+    expect(
+      code([
+        "packages/server/src/index.ts",
+        "packages/server/tests/harness.ts",
+      ]),
+    ).toEqual({ wait: ["packages/server/tests/harness.ts"] });
+  });
+  test("the deployed code, from a commit older than it", () => {
+    expect(code(["packages/server/tests/seed.ts"], true)).toEqual({
+      run: LIVE,
+    });
+  });
+});
+
+test("a seed's own files are those under tests/ it loads, each once", () => {
+  const files: Record<string, string> = {
+    "packages/server/tests/seed.ts":
+      'import { a } from "./harness.ts";\nimport { b } from "../src/server.ts";\nawait import("./testers.ts");',
+    "packages/server/tests/harness.ts":
+      'import type { S } from "./seed.ts";\nimport { c } from "./fakes/clock.ts";',
+    "packages/server/tests/fakes/clock.ts": "export const c = 1;",
+    "packages/server/tests/testers.ts": "export const t = 1;",
+    // the server's build carries src/, so the walk stops there
+    "packages/server/src/server.ts": "export const b = 1;",
+    "packages/server/tests/e2e/shots.ts": 'import "../seed.ts";',
+  };
+  expect(
+    loads("packages/server/tests/seed.ts", (path) => files[path]).sort(),
+  ).toEqual([
+    "packages/server/tests/fakes/clock.ts",
+    "packages/server/tests/harness.ts",
+    "packages/server/tests/seed.ts",
+    "packages/server/tests/testers.ts",
+  ]);
 });
