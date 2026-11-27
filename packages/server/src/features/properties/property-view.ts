@@ -1,14 +1,33 @@
+import { sql } from "drizzle-orm";
 import { inLanguage } from "@empire-cleaning/models";
-import type { PriceList, PropertyView } from "@empire-cleaning/models";
+import type {
+  Address,
+  AddressParts,
+  PriceList,
+  PropertyView,
+} from "@empire-cleaning/models";
 import { currentLanguage } from "#services/request";
-import type { Property } from "./properties.schema.ts";
+import { properties, type Property } from "./properties.schema.ts";
 
-// "41-12 Austin St, 4B, 11375", as emails write it
-export const addressOf = (p: {
-  street: string;
-  unit?: string | null;
-  postcode: string;
-}) => [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
+// the address written out whole, as emails write it (the rule: models)
+export { addressOf } from "@empire-cleaning/models";
+
+// a Property's address, as each view that shows it carries it
+export const addressFields = (p: Pick<Property, AddressParts>): Address => ({
+  street: p.street,
+  unit: p.unit,
+  postcode: p.postcode,
+});
+
+// the same, as a select's columns
+export const addressColumns = {
+  street: properties.street,
+  unit: properties.unit,
+  postcode: properties.postcode,
+};
+
+// the address as addressOf writes it, for a search to match what's shown
+export const addressSql = sql`concat_ws(', ', ${properties.street}, ${properties.unit}, ${properties.postcode})`;
 
 // a Premises Type's name, from the Price List (which keeps every one,
 // retired too), in the reply's language (ADR-0025)
@@ -24,9 +43,7 @@ const premisesTypeName = (list: PriceList, key: string) =>
 export const toPropertyView = (p: Property, list: PriceList): PropertyView => {
   const base = {
     id: p.id,
-    street: p.street,
-    unit: p.unit,
-    postcode: p.postcode,
+    ...addressFields(p),
     floorArea: p.floorArea,
     condition: p.condition,
     accessInstructions: p.accessInstructions,

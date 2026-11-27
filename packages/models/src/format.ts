@@ -175,6 +175,14 @@ export const howLong = (
   return quarterHours(hours) === hours ? text : t.about(text);
 };
 
+// a place's address as every screen and email writes it out whole:
+// "41-12 Austin St, 4B, 11375"
+export const addressOf = (p: {
+  street: string;
+  unit?: string | null;
+  postcode: string;
+}) => [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
+
 // a part of a row's line after its first, which reads on from the dot
 // before it as a sentence does, in lower case: "Deep Clean · about 1¾ h";
 // an initialism keeps its capitals, as a name does: "ZIP code 11375"

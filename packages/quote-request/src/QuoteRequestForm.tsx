@@ -35,7 +35,12 @@ import type {
   ServiceOffer,
   Weekday,
 } from "@empire-cleaning/models";
-import { PICK_TIMES, formats, messages } from "@empire-cleaning/models";
+import {
+  addressOf,
+  PICK_TIMES,
+  formats,
+  messages,
+} from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -198,9 +203,6 @@ type Draft<T> = T extends object ? { [K in keyof T]: T[K] | null } : T | null;
 
 // a preferred start, from the times a picker offers, 5am to 11pm
 const startTimes = PICK_TIMES.filter((t) => t >= "05:00" && t <= "23:00");
-
-const addressOf = (p: Pick<PropertyView, "street" | "unit" | "postcode">) =>
-  [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
 
 // the fields on the second step: what the place is and where. A message
 // from the API for any of them sends the form back there.

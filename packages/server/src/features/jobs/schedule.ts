@@ -37,6 +37,7 @@ import { clock } from "../../services/clock/index.ts";
 import { assignmentStatusOf, crewOf } from "../assignments/crew.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
+import { addressFields } from "../properties/property-view.ts";
 import { rescheduleRequests } from "../reschedule/reschedule.schema.ts";
 import { siteVisits } from "../site-visits/site-visits.schema.ts";
 import { siteVisitViews } from "../site-visits/views.ts";
@@ -160,9 +161,7 @@ export const jobViews = async (
     },
     property: {
       id: property.id,
-      street: property.street,
-      unit: property.unit,
-      postcode: property.postcode,
+      ...addressFields(property),
     },
     assignment: assignment.get(job.id)!,
     crew: crews.get(job.id)!,

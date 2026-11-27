@@ -18,6 +18,7 @@ import type {
 } from "@empire-cleaning/models";
 import type { Time } from "@internationalized/date";
 import {
+  addressOf,
   catalog,
   clockTime,
   dayOf,
@@ -37,10 +38,6 @@ import { labels } from "./labels.ts";
 import { jobStatusIcon, NeedsCleanersIcon } from "./icons.ts";
 import type { StatusTone } from "@empire-cleaning/ui";
 
-export const addressOf = (
-  p: Pick<PropertyView, "street" | "unit" | "postcode">,
-) => [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
-
 // things, those that read alike together, in the order they come: one
 // kind when all read alike (a plan's weekdays by length, a send's by crew)
 export const alike = <T>(things: T[], key: (thing: T) => string) => {
@@ -53,6 +50,9 @@ export const alike = <T>(things: T[], key: (thing: T) => string) => {
 // a row's line of parts as text, where a slot takes only text; a row's
 // own line is the kit's Line
 export { lineOf };
+
+// a place's address written out whole (the rule: models)
+export { addressOf };
 
 // a Job's crew, or that it has none yet
 export const crewOf = (crew: { name: string }[]) =>

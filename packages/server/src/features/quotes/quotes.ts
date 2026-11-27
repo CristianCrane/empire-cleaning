@@ -76,7 +76,11 @@ import {
 } from "../price-list/suggested-price.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { lockProperty } from "../properties/locking.ts";
-import { addressOf, toPropertyView } from "../properties/property-view.ts";
+import {
+  addressFields,
+  addressOf,
+  toPropertyView,
+} from "../properties/property-view.ts";
 import { planChangeOf } from "../service-plans/changing.ts";
 import {
   servicePlans,
@@ -942,9 +946,7 @@ export const clientQuote = async (
     status,
     property: {
       id: property.id,
-      street: property.street,
-      unit: property.unit,
-      postcode: property.postcode,
+      ...addressFields(property),
     },
     ...pricesShown(revision, rows),
     crewSize: offer.crewSize,
@@ -993,9 +995,7 @@ export const clientQuoteView = async (
     status: quote.status === "turned_down" ? "turned_down" : "requested",
     property: {
       id: property.id,
-      street: property.street,
-      unit: property.unit,
-      postcode: property.postcode,
+      ...addressFields(property),
     },
     asked: askedOf(quote, addOns.get(id) ?? [], list.services)!,
     createdAt: quote.madeAt.toISOString(),

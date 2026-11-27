@@ -219,6 +219,11 @@ export type PremisesView = PropertyBase & {
 
 export type PropertyView = HomeView | PremisesView;
 
+// the parts of a Property's address, as each view that shows it carries them
+// (written out whole by addressOf)
+export type AddressParts = "street" | "unit" | "postcode";
+export type Address = Pick<PropertyView, AddressParts>;
+
 // Where a Quote stands for a Site Visit while no Revision of it has been
 // Sent and its Property has no findings: business premises need one before
 // they're quoted (ADR-0014), and a home may have one booked. Null otherwise.
@@ -600,7 +605,7 @@ export type ScheduledJob = {
   // Labour Hours divided by Crew Size
   hoursOnSite: number;
   client: ClientName;
-  property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
+  property: Pick<PropertyView, "id" | AddressParts>;
   // whether its whole crew is Confirmed (#9)
   assignment: AssignmentStatus;
   // who is on its crew, Offered or Confirmed, by name
@@ -673,7 +678,7 @@ export type SiteVisitView = {
   // (whyVisitCantGo)
   visitor: { id: string; name: string; roles: StaffRole[] } | null;
   client: ClientName;
-  property: Pick<PropertyView, "id" | "street" | "unit" | "postcode" | "kind">;
+  property: Pick<PropertyView, "id" | AddressParts | "kind">;
   bookedAt: string;
   doneAt: string | null;
   cancelledAt: string | null;
@@ -730,7 +735,7 @@ export type ClientSiteVisit = {
   id: string;
   startsAt: string;
   minutes: number;
-  property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
+  property: Pick<PropertyView, "id" | AddressParts>;
   // who's coming, by first name
   visitorName: string;
 };
@@ -741,10 +746,7 @@ export type CleanerSiteVisit = {
   startsAt: string;
   minutes: number;
   client: ClientName & { phone: string };
-  property: Pick<
-    PropertyView,
-    "id" | "street" | "unit" | "postcode" | "accessInstructions"
-  >;
+  property: Pick<PropertyView, "id" | AddressParts | "accessInstructions">;
 };
 
 export type CleanerSiteVisits = {
@@ -1031,7 +1033,7 @@ export type QuoteView = {
   revisionId: string;
   kind: QuoteKind;
   status: QuoteStatus;
-  property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
+  property: Pick<PropertyView, "id" | AddressParts>;
   // a one-off Quote's: its Service, after the one recommended in its place
   // for a first visit where that's offered. A Service Plan Quote's: one for
   // each weekday, in the order its plan's days list them, at the plan
@@ -1080,7 +1082,7 @@ export type QuoteView = {
 export type AskedQuoteView = {
   id: string;
   status: "requested" | "turned_down";
-  property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
+  property: Pick<PropertyView, "id" | AddressParts>;
   asked: QuoteAsked;
   // when it was asked, on the server's Clock
   createdAt: string;
@@ -1591,7 +1593,7 @@ export type ClientJob = {
   crewSize: number;
   // Labour Hours divided by Crew Size
   hoursOnSite: number;
-  property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
+  property: Pick<PropertyView, "id" | AddressParts>;
   // the Service Plan it was generated for, which cancelling it skips; null
   // for a one-off Job
   servicePlanId: string | null;
@@ -1709,7 +1711,7 @@ export type CleanerJob = {
   serviceName: string;
   hoursOnSite: number;
   addOns: string[];
-  property: Pick<PropertyView, "street" | "unit" | "postcode">;
+  property: Address;
   client: { firstName: string };
   // what's held back until this Cleaner has Confirmed and it's the Job's
   // day (in New York, by the Clock), then given here; null till both hold
@@ -2144,7 +2146,7 @@ export type ServicePlanSummary = {
   recurrence: Recurrence;
   // on its current terms, earliest first
   days: TimedPlanDay[];
-  property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
+  property: Pick<PropertyView, "id" | AddressParts>;
   // its next booked Job, if one is on the Schedule
   nextStartsAt: string | null;
 };

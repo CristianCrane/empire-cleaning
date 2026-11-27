@@ -50,6 +50,7 @@ import { lockProperty } from "../properties/locking.ts";
 import { closePendingRequests } from "../reschedule/closing.ts";
 import { servicePlanVisits } from "../service-plans/service-plans.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
+import { addressFields } from "../properties/property-view.ts";
 import {
   rescheduleRequestOf,
   rescheduleTermsOf,
@@ -828,9 +829,7 @@ const clientJobOf = async (job: Job, property: Property) => ({
   hoursOnSite: hoursOnSiteOf(job),
   property: {
     id: property.id,
-    street: property.street,
-    unit: property.unit,
-    postcode: property.postcode,
+    ...addressFields(property),
   },
 });
 

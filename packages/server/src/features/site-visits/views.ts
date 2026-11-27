@@ -1,17 +1,15 @@
 import { asc, eq, type SQL } from "drizzle-orm";
-import type { SiteVisitView } from "@empire-cleaning/models";
+import type { AddressParts, SiteVisitView } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
+import { addressFields } from "../properties/property-view.ts";
 import { staff } from "../staff/staff.schema.ts";
 import { siteVisits, type SiteVisit } from "./site-visits.schema.ts";
 
 export const toSiteVisitView = (
   visit: SiteVisit,
-  property: Pick<
-    typeof properties.$inferSelect,
-    "id" | "street" | "unit" | "postcode" | "kind"
-  >,
+  property: Pick<typeof properties.$inferSelect, "id" | AddressParts | "kind">,
   client: Pick<typeof clients.$inferSelect, "id" | "name" | "businessName">,
   visitor: SiteVisitView["visitor"],
 ): SiteVisitView => ({
@@ -28,9 +26,7 @@ export const toSiteVisitView = (
   },
   property: {
     id: property.id,
-    street: property.street,
-    unit: property.unit,
-    postcode: property.postcode,
+    ...addressFields(property),
     kind: property.kind,
   },
   bookedAt: visit.bookedAt.toISOString(),
