@@ -1,27 +1,16 @@
 # Request a Quote form
 
-The one Request a Quote form (#3), used by the landing site for Guests, and by Client portal > Request a quote and Welcome for signed-in people. It's built from the design system and posts to `POST /api/quotes/ask`.
+The one Request a Quote form, used by the landing site, the Client portal and the Office. It posts to `POST /api/quotes/ask`, and the API is its only validator.
 
 ```tsx
 <QuoteRequestForm
-  asker={{ kind: "guest" }} // or { kind: "account" } / { kind: "client", properties }
-  lang="es" // the page's language, or a Client's Preferred Language; "en" for the Office
-  apiUrl="https://…" // "" (the default) when served alongside the API
-  headingLevel={2} // one below the heading the form sits under (default 3)
-  onSubmitted={(receipt) => …} // receipt.emailedTo is where the Quote will go
+  asker={{ kind: "guest" }} // or { kind: "account" }, { kind: "client", properties, open?, businessName? }, { kind: "office", client }
+  apiUrl="https://…" // "" (the default) when served beside the API
+  headingLevel={2} // one below the heading it sits under (default 3)
+  onSubmitted={(receipt) => …}
 />
 ```
 
-It's in `lang`, English or Spanish (ADR-0025): its words are one catalog (`src/words.ts`), the Office's own words for a caller beside it in English, and every request it makes says the language (`Accept-Language`), so the API's messages and the names of the Services, extras and types of business it lists come in it too.
+The rest of its props, each with its comment: `src/QuoteRequestForm.tsx`. Its language is the `LanguageProvider`'s around it (the page's, or a Client's Preferred Language; English for the Office), and its words are in `src/words.ts`.
 
-It asks in steps, so only a few questions show at once (#96): what and where (one question for a house, apartment, townhouse or business premises, then the address), then about the place, then who is asking, when the form needs that (a Guest, a signed-up Account or a new caller; a Client's details are known). Next checks the step's required fields. A message from the API takes the form back to the step with that field. Optional extras (floor area, how we get in, a note) wait behind "+ Add …" links until they're wanted. Short choices are segmented controls and chips rather than a box per option.
-
-It starts by asking whether it's about a home or business premises (#72). A home is described by its rooms and Condition, with any Add-ons for homes and a wish for regular visits; business premises by the business's name, a Premises Type (loaded from `GET /api/price-list/premises-types`), an optional floor area, and either the weekdays and preferred start time to clean or a one-off. Their Condition and Add-ons are agreed after a Site Visit, so they aren't asked.
-
-A signed-in Client's form lists their homes, with `waiting` (the ids of homes whose request is still waiting) shown but not selectable; asking again about a waiting home is refused by the API with a message the form shows.
-
-The form lists the Add-ons on offer by name ("Any extras?"), loaded from `GET /api/price-list/add-ons`, with no prices: those are on the Quote. If they can't be loaded the section is simply absent.
-
-What the form can't read from the API (a body that isn't JSON) counts as not loaded (a list) or not sent (the request, which the form says), and is passed to the browser's `reportError`, which the host's Sentry reports once it has started (ADR-0007: on the landing site, Sentry starts after the page has loaded); `empire/report-unexpected` (`packages/lint`) holds every catch to it.
-
-The API is the only validator. The form shows the API's field messages beside the matching fields, plus the browser's own checks for required fields. A Guest's request is sent without cookies, so someone signed in to the app is still treated as a Guest on the landing page. The form is tested end to end where it's used: `packages/landing/tests` and `packages/web/e2e`.
+It has no tests of its own: it's tested end to end where it's used, `packages/landing/tests` and `packages/web/e2e`.

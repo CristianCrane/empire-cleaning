@@ -1,51 +1,27 @@
-# dev mode
-
-1. start the db (docker):
+# Dev
 
 ```shell
-pnpm run db:up
+pnpm db:up                                   # Postgres in Docker, and the test Postgres on port 5433
+pnpm dev                                     # every app, watching: the web app on :5173, the landing site on :4321
+pnpm --filter @empire-cleaning/ui storybook  # the design system's catalogue, on :6006
+pnpm db:down                                 # when done
 ```
 
-2. concurrently start all the apps in dev mode (watch + hot reloading):
+Tests:
 
 ```shell
-pnpm run dev
+pnpm test:change e2e/bills.spec.ts  # before a PR, with the Checks (CI)
+pnpm test                           # quick: design system, server and a few end-to-end journeys
+pnpm test:full                      # every test
 ```
 
-3. browse the design system catalogue (Storybook, http://localhost:6006); the web app runs on http://localhost:5173 and the landing site on http://localhost:4321:
+Each runs one package at a time and reports every failure; the browser tests need Chromium (`packages/ui/README.md`). The full suite runs on CI (ADR-0026).
 
-```shell
-pnpm --filter @empire-cleaning/ui storybook
-```
-
-4. run the tests (the browser tests need Chromium; see packages/ui/README.md). `pnpm db:up` also starts a separate Postgres for tests, in memory and with disk syncing off, on port 5433:
-
-```shell
-pnpm test:change e2e/bills.spec.ts   # before a PR, with the Checks (CI, below): see below
-pnpm test                            # quick: design system, server and a handful of end-to-end journeys
-pnpm test:full                       # every test
-```
-
-All three run one package at a time and report every failure. See each package's README for what it covers.
-
-The full suite runs on CI, not here (`docs/adr/0026-the-full-suite-runs-on-ci.md`). Before a PR, `pnpm test:change` runs:
-
-- the server (not the seed test), ui, models, browser-monitoring and lint rule tests, and the web app's browser tests in `src/`;
-- every end-to-end spec the branch adds or edits, the web app's and the landing site's, and the specs named on its command line (those for the screens the change touches, `packages/web/README.md`), once each (ADR-0028).
-
-For a typical change, two specs named, it takes ~125 s alone and ~180-210 s while another checkout's runs.
-
-Each spec runs in every project its tags name.
-
-5. clean up when finished:
-
-```shell
-pnpm run db:down
-```
+`pnpm test:change` runs the package tests and every end-to-end spec the branch adds or edits, plus the specs you name (those for the screens you changed: `packages/web/README.md`), once each (`scripts/test-change.sh`). With two specs named it takes ~125 s alone and ~180-210 s beside another checkout's run.
 
 # CI
 
-Every pull request, into `main` or stacked on another's branch, and every push to `main`, runs `.github/workflows/ci.yml`. When a stacked PR's base merges and GitHub moves it onto `main`, that runs nothing: it keeps its checks, and its next push runs them against `main` (`ci.yml` says why). Each part is its own check, and they run in parallel; the slower suites are split across several jobs (shards, each counted in its matrix). A final check, All checks, passes only when every other one did, and it's the one `main` requires. A newer push to the same pull request cancels the run still going. To run the same locally (with `pnpm db:up` for the Postgres the tests use):
+Every PR and every push to `main` runs `.github/workflows/ci.yml`, each check in parallel; All checks passes only when every other one did, and is the one `main` requires. To run each locally (`pnpm db:up` first for the tests' Postgres):
 
 | Check                | Locally                                                                                                               |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------- |
@@ -57,51 +33,31 @@ Every pull request, into `main` or stacked on another's branch, and every push t
 | Landing site tests   | `pnpm --filter @empire-cleaning/landing test`                                                                         |
 | Docs                 | `node ~/.claude/hooks/docs.mjs check --base origin/main` (`docs/map.md`)                                              |
 
-What the Checks job is for:
+Fixing a check:
 
-| Step                                                        | Catches                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Typecheck (`pnpm check`)                                    | Type errors, in every package. On top of `strict`: unused imports, variables and parameters (one kept for its place is named `_req`), a case falling through, and an index read that may find nothing (`noUncheckedIndexedAccess`: write `days[0]!` when it can't). `exactOptionalPropertyTypes` stays off: nearly all it found was `undefined` passed to React Aria's optional props. The landing site's is `astro check`, which covers its `.astro` files too, on TypeScript 6 (its own `typescript`) until `@astrojs/check` takes 7. |
-| Lint (`pnpm lint`)                                          | Code that is wrong, with type information: oxlint's correctness rules, promises nobody awaits, a switch with no `default` missing a case, the rules of React hooks (use `useEffectEvent` for what an effect reads but shouldn't re-run for), and our own rules (`packages/lint`: a caught error is reported unless expected; words that differ by language come from a catalog, never a branch on the language, in `.astro` markup too; the same English in no two of the screens' catalogs; and a screen placing the page's parts itself rather than through its layout). It's oxlint (`.oxlintrc.json`, which says why each rule is on or off) because typescript-eslint can't read TypeScript 7, then `packages/lint/src/astro-markup.ts` for the markup oxlint can't see, and `packages/lint/src/catalog-copies.ts` for copies across files, which a rule, reading one file at a time, can't see.                                                                                 |
-| Unused files, exports and dependencies (`pnpm lint:unused`) | What nothing uses across the workspace: a file nothing imports, an export no other file reads, a dependency nothing loads (knip, `knip.jsonc`).                                                                                                                                                                                                                                                                                                                                                                                         |
-| Formatting (`pnpm format:check`)                            | Code Prettier would lay out differently; `pnpm format` fixes it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| Package consistency (`pnpm check:packages`)                 | Packages disagreeing on a dependency's version, or misdeclaring each other (manypkg); and a lockfile holding two copies of a package where one would do (`pnpm dedupe --check`; `pnpm dedupe` fixes it), as a bump that brings its own newer Vite beside the workspace's leaves (#443: the two Vites' plugin types failed the landing typecheck).                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| Migrations match the schema (`pnpm db:generate`)            | A schema change without its migration: generating one must find nothing new to write under `packages/server/drizzle`. It needs no environment, so it also fails if a schema file starts loading the server's (#389).                                                                                                                                                                                                                                                                                                                    |
-| Lint rule tests                                             | Our own lint rules, through oxlint's `RuleTester`, and the `.astro` markup check (`pnpm --filter @empire-cleaning/lint test`): JS plugins are in alpha in oxlint, so an update that changes their API fails here.                                                                                                                                                                                                                                                                                                                                                      |
-| Scrubbing tests                                             | What may reach Sentry and the logs, and the browsers' Sentry setup.                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+- `pnpm format` fixes the format check; `pnpm dedupe` fixes the lockfile's two copies (`check:packages`).
+- A schema change needs its migration (`pnpm db:generate`), which needs no environment, so it also fails when a schema file starts loading the server's (#389).
+- An index read that can't miss is written `days[0]!` (`noUncheckedIndexedAccess`); what an effect reads but shouldn't re-run for goes in `useEffectEvent` (`react/exhaustive-deps`); a parameter kept for its place is `_req`.
+- Why each lint rule is on or off: `.oxlintrc.json`.
 
-The typecheck, the lint and the format check (and the hook below) read `packages/` only: the typecheck runs each package's own, the lint's path starts there, and `.prettierignore` leaves Prettier only the TypeScript and Astro under it, so a `prettier --write` on a doc from the repo root changes nothing. So new TypeScript goes in a workspace package, a tool's too (`packages/lint`), not beside the scripts.
+The typecheck, lint and format check read `packages/` only, so new TypeScript, a tool's too, goes in a workspace package, not beside the scripts. Each package exports its TypeScript source (`exports` in its `package.json`), so nothing is built first.
 
-Before each commit, a git hook (`.githooks/pre-commit`, which `pnpm install` turns on) runs the lint and the format check on the staged files under `packages/` (and the catalog copies check on every catalog, as a copy spans files), so most of what fails those two steps never reaches a commit. `git commit --no-verify` skips it.
+The pre-commit hook (`.githooks/pre-commit`, on after `pnpm install`) runs the lint and format check on staged files under `packages/`; `git commit --no-verify` skips it.
 
-CI starts `postgres_test` from `docker-compose.yml` and needs no secrets (email, payments and the clock are faked in tests). No package is built before another: each exports its TypeScript source (`exports` in its `package.json`), which the others' tools compile. When an end-to-end check fails, its Playwright report and the failed tests' traces are kept as an artifact on the run; open a trace with `pnpm --filter @empire-cleaning/web exec playwright show-trace <trace.zip>`.
+A failed end-to-end check keeps its Playwright report and traces as an artifact on the run: `pnpm --filter @empire-cleaning/web exec playwright show-trace <trace.zip>`.
 
-CodeQL is GitHub's default setup, not a workflow here: it scans `main` and every pull request into `main` (a stacked one from its first push after it's moved onto `main`), and its alerts are under the repo's Security tab (`gh api repos/CristianCrane/empire-cleaning/code-scanning/alerts`). A pull request's scan reports only on the lines it changes (the `pr-diff-range` extension in its SARIF), so a pull request that doesn't touch an alert's line passes with the alert still in the code. Its passing shows a fix only when the diff covers the alert's line. The alert itself closes on `main`'s next scan (#292).
+CodeQL is GitHub's default setup (no workflow here), on `main` and every PR into it; alerts: `gh api repos/CristianCrane/empire-cleaning/code-scanning/alerts`. A PR's scan reports only on the lines it changes, so its pass shows a fix only when the diff covers the alert's line; the alert closes on `main`'s next scan.
 
 # Test site
 
-The test site (ADR-0020) is described in `render.yaml`: the server, its Postgres and the two static sites on Render, at `test.empirecleaningandpro.com` (landing) and `app.test.empirecleaningandpro.com` (web app, with `/api` rewritten to the server). A push to `main` deploys it once CI passes, and migrations run before each new server starts, once its environment checks out (`env:check`). Production is never deployed automatically.
-
-`APP_MODE=test` makes it say so: a banner on every page, `[TEST]` on every email subject, and no search indexing. Its email goes only to `EMAIL_ALLOWED` addresses; the rest goes to the Office inbox with the intended recipient in the subject. To put fresh seed data on it, run the **Reset test data** Action (`.github/workflows/reset-test-data.yml`).
-
-To set it up from nothing (Stripe sandbox and webhook, Google sign-in client, Resend key, the Render Blueprint, DNS on Vercel, the reset Action's `TEST_DB_URL` secret), run `scripts/setup-test-site.sh` once `render.yaml` is on `main`. It walks each step in the browser and checks the site works at the end.
+`render.yaml` (ADR-0020): a push to `main` deploys it once CI passes. Fresh seed data: run the **Reset test data** Action (`.github/workflows/reset-test-data.yml`). From nothing: `scripts/setup-test-site.sh`, once `render.yaml` is on `main`.
 
 # Production
 
-Production is `render-production.yaml`, a Render Blueprint of its own (ADR-0020): the test site's services, named `empire-prod-*`, at `www.empirecleaningandpro.com` (Render sends the bare domain and `http://` there) and `app.empirecleaningandpro.com`, with production's own secrets, no `EMAIL_ALLOWED`, Cloudflare's analytics on the landing site, and a database reachable only from inside Render. In `render.yaml` it would be created and deployed by the next merge, as Render syncs a Blueprint whenever a push changes its file; so production's Blueprint has Auto Sync off, and its services never deploy by themselves. `packages/server/src/render-blueprints.test.ts` fails when the two files differ in anything but the differences it lists, or when either server lacks a setting `env:check` needs or sets one the server doesn't read: a change to one file goes in the other too.
+`render-production.yaml`, its Auto Sync off. A change to one Blueprint goes in the other too: `packages/server/src/render-blueprints.test.ts` fails on any difference it doesn't list.
 
-To release: in Render, open production's Blueprint and press Manual Sync if `render-production.yaml` changed since the last release, then Manual Deploy → Deploy latest commit on `empire-prod-server` (which migrates before it starts), `empire-prod-web` and `empire-prod-landing`. Creating it is on #205.
+To release: in Render, open production's Blueprint, press Manual Sync if `render-production.yaml` changed since the last release, then Manual Deploy → Deploy latest commit on `empire-prod-server` (it migrates before it starts), `empire-prod-web` and `empire-prod-landing`. Creating it is on #205.
 
 # Security headers
 
-Every response says what a browser may do with it (#225):
-
-| Header                                                                     | Where it's set                                                                                                                   | What it's for                                                                                                                                                                                                                                                                                                  |
-| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Content-Security-Policy`                                                  | Web app: `packages/web/vite.config.ts`. Landing: `packages/landing/astro.config.ts`. Both are a `<meta>` in each page, built in. | The only scripts, frames and connections a page may use: its own files, Stripe and the card form's font stylesheet from Google Fonts (web app), the API (landing), Sentry, and Cloudflare's analytics beacon (landing, in a build with its token). An injected script doesn't run. Inline styles are allowed. Not in dev. The end-to-end tests fail if a page has anything blocked. |
-| `Content-Security-Policy: frame-ancestors 'none'`, `X-Frame-Options: DENY` | Both sites: `render.yaml`, `render-production.yaml`. Server: `src/middleware/security-headers.ts`.                               | No other site can show ours in a frame and trick people into clicking (clickjacking). A `<meta>` can't say this, so the host does.                                                                                                                                                                             |
-| `Strict-Transport-Security`                                                | Both Blueprints, server                                                                                                          | Browsers only ever use HTTPS for the site, for a year.                                                                                                                                                                                                                                                         |
-| `X-Content-Type-Options: nosniff`                                          | Both Blueprints, server                                                                                                          | A file is only ever treated as the type it says, so an upload or JSON answer can't be run as a script.                                                                                                                                                                                                         |
-| `Referrer-Policy`                                                          | Both Blueprints (`strict-origin-when-cross-origin`), server (`no-referrer`)                                                      | Other sites learn at most which site a visitor came from, never the page (whose address could hold a sign-in link).                                                                                                                                                                                            |
-
-The server's answers are data, never pages, so its own policy is `default-src 'none'`, and it doesn't send `X-Powered-By`. After a change, check the browser console on the test site while signing in (Google and email link), saving a card (and Link), paying a Bill by bank debit and sending the Quote form.
+Set (#225) in `packages/web/vite.config.ts` and `packages/landing/astro.config.ts` (the CSP, a `<meta>`), `render.yaml` and `render-production.yaml` (the static sites), and `packages/server/src/middleware/security-headers.ts`; each says what it's for. After a change to one, check the browser console on the test site while signing in (Google and email link), saving a card (and Link), paying a Bill by bank debit and sending the Quote form.

@@ -14,7 +14,11 @@ How each package's tests run is in its README.
 
 **Check accessibility with `expectAccessible(page)` from the package's harness, never axe directly** (lint stops a spec importing `@axe-core/playwright`). It waits until nothing is animating and, in web, until what it checks is fully opaque, as text checked mid-fade fails on contrast at random (main red after #228). In web, a selector checks part of the page: `expectAccessible(page, "[role=dialog]")`. Web's also fails on a frame of another origin, such as Stripe's card form, which axe can't check. The design system's story tests run axe their own way (`packages/ui/README.md`).
 
+**Every screen is in `packages/web/e2e/layout.spec.ts`, in its wordiest state too, not only as it opens, and a Guest's or Client's in Spanish too (`expectFitsInBoth`).** It opens each at every width from 320px to 1440px, and only it sees text squeezed out of sight, as the other tests read the DOM. Office > Draft quote's longest picker button ran the page to 423 px wide unseen (PR #545).
+
 **After an edit on Office > Draft quote, wait for `saved(page)` before opening or measuring anything built from it**, such as its open times. A save reloads what's keyed on it (`saves`), which redraws it, so a `boundingBox()` or element handle read during that redraw can belong to a node that's already gone. Web-first assertions retry; `boundingBox()` reads only once. A test that didn't wait failed 2 of 20 under load (#373, PR #376).
+
+**A test moves time with `setClock` (the API's clock and every browser's), never the browser's clock alone.** `page.clock.pauseAt` stops the page's timers and animation frames too, so a test pauses only around the load it times: a phone's ☰ menu never finished closing (#454).
 
 **Switch area with `switchArea(page, area)` from the harness, never by pressing "Switch to …" and waiting on the URL.** Show the person's account first (`openAccount`); `switchArea` presses Switch to and waits until the new area is on screen. The URL changes at once but the old area stays until the new one is ready, so a test going on at the URL can press something in the old area, which the new one throws away. It passed alone and timed out in every full local run (#310).
 

@@ -84,7 +84,7 @@ Seven types, each drawn by its layout in `packages/ui/src/layouts/` (ADR-0031): 
 - Short of room, the badge drops under the title, then the button, so the title breaks only where it can't fit alone (#534 U6).
 - From md the header sticks once the window's top reaches the title row's actions: title, badge and the same actions, lined up with the page's column, with room for what the step rests on (a Form page's price below xl, saved state); a List's New stays on its row. Printed, the title alone.
 - Every page in an area keeps AppLayout's readable column, `max-w-5xl` (960 px). A Record fills it and its `ActionFooter` lines up, as does a Form page with an aside (#493 G4.4); a Record gets no narrower cap (the user's pick, drawn on Office > Job). A Form page with no aside is a form's width, header too.
-- What loads holds its room (`ChoiceTilesLoading`).
+- What loads holds its room (`ChoiceTilesLoading`). On the landing site nothing moves as it loads, as layout shift is one of Google's Core Web Vitals: the Quote form's first step is drawn at build time, inert; the reviews' buttons show wherever scripting is on; the first screen's fonts are preloaded.
 - Sections, not Cards, go around Lists and Tables: a title on the page above an untitled Card or List.
 - The landing site's bands alternate plain then raised by place, not section (`band.ts`); a card takes its band's other colour; the Quote form is always on a raised band.
 

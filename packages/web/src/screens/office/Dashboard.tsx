@@ -71,7 +71,8 @@ const unpaidRow = (
 
 // how often a Dashboard left open asks again, while it can be seen: a new
 // Quote request shows within a minute (the Office is emailed of it too).
-// Coming back to the tab asks at once (main.tsx)
+// Coming back to the tab asks at once (main.tsx). Live updates (websockets)
+// weren't worth it: a request is promised a Quote within a working day
 const REFRESH_MS = MINUTE_MS;
 
 // Today's tiles that open in place, as its URL names them

@@ -1,23 +1,16 @@
 # Design system
 
-`@empire-cleaning/ui` is the one look shared by the web app (`packages/web`) and the landing site (`packages/landing`). Screens use its components, never `react-aria-components` or raw colours directly.
+The components the web app and landing site use (React Aria underneath); a screen never uses `react-aria-components` or raw colours (`src/index.ts`'s header). Its entries:
 
-- `@empire-cleaning/ui`: the components (and the styles, imported once by the app).
-- `@empire-cleaning/ui/tokens.css`: just the styles, for pages without React (the landing site).
-- `@empire-cleaning/ui/theme`: just the ThemeToggle, so an island ships only that.
-- `@empire-cleaning/ui/feedback.css`: the look of Sentry's feedback button and form on the test sites (packages/browser-monitoring); each site places it.
-- `@empire-cleaning/ui/theme-boot`: the inline `<head>` script that applies a chosen dark theme before first paint.
+- `@empire-cleaning/ui`: components and styles
+- `@empire-cleaning/ui/tokens.css`: styles alone, for a page without React
+- `@empire-cleaning/ui/theme`: the ThemeToggle alone, for an island
+- `@empire-cleaning/ui/language`: the design system's language alone, for an island
+- `@empire-cleaning/ui/feedback.css`: Sentry's feedback button's look, which each site places
+- `@empire-cleaning/ui/theme-boot`: the head script applying a chosen dark theme before first paint
+- `@empire-cleaning/ui/fonts`: the first screen's font files, for a page to preload
 
-Apps compile the styles with their own Tailwind (`@tailwindcss/vite`); `tokens.css` points Tailwind at this package's sources.
-
-- **Tokens** live in one file, `tokens.css`: colours (each written once as `light-dark(<light>, <dark>)`), type, radii and the 44px touch size. Components use semantic Tailwind utilities (`bg-surface`, `text-fg-muted`, `bg-primary`), so they work in both themes automatically. Tailwind's own palette is switched off, so an off-brand colour can't slip in.
-- **Brand**: the green, charcoal and ink from the Empire Cleaning logo. Barlow for reading, and Barlow Condensed in capitals for headings.
-- **Components** are built on [React Aria Components](https://react-spectrum.adobe.com/react-aria/), which handles keyboard, screen reader and touch behaviour: Button, Link, Breadcrumbs, TextField, NumberField, Checkbox, RadioGroup, Select, DatePicker, TimeField, Calendar, Form and Actions, Table, List, Card, Heading, StatusBadge, Notice, Dialog, Menu, ActionSheet, Toast, AppLayout and ThemeToggle. `startTour` runs a spotlight tour of a screen on [driver.js](https://driverjs.com), its popover styled in our tokens (`tour.css`). EmbeddedField labels an input that belongs to someone else, such as the payment provider's payment form, so it reads like the other fields: framed in our field's box for a single input, or unframed for a form that draws its own boxes.
-- **Layouts** live in `src/layouts/`: AppLayout, an area's frame, and a layout for each screen type, which every screen of that type renders through (`docs/ux.md`, Screen types; ADR-0031). Each: the Record's, RecordPage (with its DetailsCard), the List's, ListPage (with its DatedItem, and DatedLists, its months, which a Section's dated rows use too), the Form page's, FormPage (with its FormPart), the Message page's, MessagePage, the Home's, HomePage (with its AnswerCard and tiles), the Settings page's, SettingsPage (with its SettingsList), the Calendar's, CalendarPage, and Sign in's, SignInPage; PageHeader is the header every type with one shares (its actions in PageActions: the next step's SplitButton, whose arrow opens a Menu from md and an ActionSheet on a phone, or RareActions' ⋯ when nothing is next; and the header that sticks from md once the window's top reaches the title row's actions, a Form page's price and whether it's saved beside its button), PageFrame the frame of a page outside an area (the logo above), and Alerts what a page says above itself. A layout places the page's parts (breadcrumbs, the page's h1, ActionFooter); a screen that places one itself, PageHeader included, or lays out a facts grid by hand, fails lint (`empire/screen-layout`, `packages/lint`). Their stories are under Layout.
-- **Links and routing**: `Link`, AppLayout's nav and MessagePage's `home` navigate through the app's router. The app wraps itself in `RouterProvider` and declares its link type by augmenting `RouterConfig` on `@empire-cleaning/ui`; the web app does this in `packages/web/src/links.ts`.
-- **Actions**: put the main action last. On a phone it stacks at the bottom, nearest the thumb; on larger screens it sits on the right. In a Dialog, the Dialog places the row (`Dialog.tsx`).
-- **Phone first**: tap targets are at least 44px, fields use 16px text (so phones don't zoom in), dialogs rise as bottom sheets, and AppLayout puts navigation in a bottom tab bar on phones, a rail of icons, each named under it, from tablet width (md) and a sidebar from laptop width (lg) up. Use List for collections on a phone and Table for wide Office data.
-- **Theme** is light unless someone chooses dark with the ThemeToggle, and each device remembers that choice. The device's own light or dark setting isn't followed (`theme.tsx`).
+An app compiles the styles with its own Tailwind (`@tailwindcss/vite`). New colours, type and sizes go in `tokens.css` only; Tailwind's palette is off.
 
 ## Catalogue
 
@@ -25,18 +18,15 @@ Apps compile the styles with their own Tailwind (`@tailwindcss/vite`); `tokens.c
 pnpm --filter @empire-cleaning/ui storybook
 ```
 
-Storybook runs on http://localhost:6006 and shows every component in every state. Use the toolbar to switch theme and viewport, and the Accessibility panel to see the checks. Each component's stories sit next to it in `*.stories.tsx`.
+On http://localhost:6006, every component in every state; the toolbar switches theme and viewport, and the Accessibility panel shows the checks. Stories sit beside each component (`*.stories.tsx`), the layouts' under Layout.
 
 ## Testing
 
-Every test runs in a real Chromium through Playwright (Vitest browser mode), never a simulated DOM. Vitest's default frame is 414px wide, so everything is also tested at phone width.
-
-- **Component tests** (`*.test.tsx`) cover behaviour and layout that stories can't show well, using `vitest-browser-react`. `tokens.test.tsx` checks that every text and background pair meets WCAG AA contrast in both themes.
-- **Every story is also a test**, run twice: once in the light theme and once in dark. Each run renders the story, plays its `play` interactions, and runs an axe accessibility check that fails on any violation, including contrast, labels, landmarks and heading order.
-
 ```sh
-pnpm --filter @empire-cleaning/ui test    # or `pnpm test` at the root for every package
+pnpm --filter @empire-cleaning/ui test
 ```
+
+In a real Chromium (Vitest browser mode), at 414px by default. Every story is a test, in light and dark, playing its `play` and running axe, which fails on any violation. Component tests (`*.test.tsx`, `vitest-browser-react`) cover what a story can't show.
 
 ### Browser setup (once per machine)
 
@@ -44,9 +34,7 @@ pnpm --filter @empire-cleaning/ui test    # or `pnpm test` at the root for every
 pnpm --filter @empire-cleaning/ui test:install-browser
 ```
 
-On Ubuntu, Debian or CI, use `npx playwright install --with-deps chromium` instead, which also installs the system libraries.
-
-On NixOS, Playwright's downloaded Chromium needs `programs.nix-ld.enable = true` and these libraries in your NixOS config (not the project):
+On Ubuntu, Debian or CI: `npx playwright install --with-deps chromium`. On NixOS, Playwright's Chromium needs `programs.nix-ld.enable = true` and these libraries in your NixOS config:
 
 ```nix
 programs.nix-ld.libraries = with pkgs; [

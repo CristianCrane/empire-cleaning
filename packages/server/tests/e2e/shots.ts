@@ -2,8 +2,8 @@
 // end-to-end test, the web app's or the landing site's, run on the branch's
 // merge base and on this checkout, each through its own checkout's
 // shots.config.ts and harness, its screenshots pushed to the orphan pr-media
-// branch. How to use it, and what each side does: packages/web/README.md,
-// Testing, "Screenshots for a PR"; USAGE below.
+// branch. How to use it: packages/web/README.md, Testing, "Screenshots for a
+// PR"; USAGE below.
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {

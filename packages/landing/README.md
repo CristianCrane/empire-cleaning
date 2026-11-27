@@ -1,48 +1,38 @@
 # Landing site
 
-The public page for prospective Clients at empirecleaningandpro.com: a static site built with Astro and prerendered to HTML, so it loads instantly and search engines can read it (ADR-0005). It replaces the old Next.js site and takes nothing from it.
+Astro, prerendered to static HTML (ADR-0005). `pnpm dev` at the repo root starts it on http://localhost:4321; `pnpm --filter @empire-cleaning/landing build` writes `dist/`.
 
-`pnpm dev` at the repo root starts it on http://localhost:4321. `pnpm --filter @empire-cleaning/landing build` writes the static site to `dist/`, ready for any static host.
+## Set at build time
 
-- **Look:** the design system's tokens and components (`@empire-cleaning/ui`). React components render to plain HTML at build time.
-- **JavaScript:** none of our own, except two interactive islands and two small scripts, beside Sentry's and Cloudflare's below:
-  - the theme boot, inline in every page's head, so a visitor's chosen theme shows from the first paint (`@empire-cleaning/ui/theme-boot`)
-  - the theme toggle, loaded once the browser is idle
-  - the Guest Request a Quote form (`@empire-cleaning/quote-request`), loaded once the browser is idle, so it's ready before almost anyone scrolls or jumps down to it
-  - the reviews' Previous and Next buttons and their count (plain script in `Reviews.astro`); without it every review is still there, one at a time in a strip you swipe or scroll
+- `PUBLIC_API_URL`: the API the Quote form posts to, http://localhost:3000 unless set; the server allows the site's origin by its `LANDING_ORIGIN_URL`.
+- `PUBLIC_SENTRY_DSN`: without it, no Sentry.
+- `PUBLIC_APP_MODE`: Sentry's environment; `test` adds the feedback button.
+- `PUBLIC_CF_ANALYTICS_TOKEN`: Cloudflare's beacon, production only, set on production's landing service (`render-production.yaml`).
+- `SENTRY_AUTH_TOKEN` and `SENTRY_ORG`: source maps go to Sentry's `landing` project.
 
-- **Nothing moves as it loads** (layout shift is one of Google's Core Web Vitals). The form's first step is drawn into the page at build time, inert, its Service tiles blank until they arrive; the reviews' buttons show from the first paint wherever scripting is on (`@media (scripting: enabled)`); the first screen's fonts are preloaded (`@empire-cleaning/ui/fonts`). With JavaScript off, the Quote section offers the phone number instead of the form.
+## Where content lives
 
-  The form posts to the API at `PUBLIC_API_URL` (set at build time; by default http://localhost:3000), which allows the landing site's origin (`LANDING_ORIGIN_URL` on the server).
+- Reviews: `src/reviews.ts`, real Google reviews, word for word.
+- The business's details and words: `src/business.ts`; the Services: `src/services.ts`.
+- Every page's address in each language: `src/routes.ts` (`pathOf`).
+- A content module's Spanish twin sits beside it (`queens.es.ts`), its facts taken from the English by `twin()`.
+- The components' words: `src/words.ts`.
+- The policies: `src/legal`; a change to what one says gets a new `effective` date.
 
-- **Errors** go to Sentry (ADR-0007, `packages/browser-monitoring`), started by every page (`src/monitoring.ts`, from `src/layouts/Page.astro`) once the browser is idle, with no form values or personal details. Only a build with `PUBLIC_SENTRY_DSN` has it, in a chunk of its own, so dev and test builds send nothing and pages carry none of it; `PUBLIC_APP_MODE` is its environment. With `SENTRY_AUTH_TOKEN` and `SENTRY_ORG`, source maps go to Sentry's `landing` project, never published. Every build marks its files as ours, token or not, a few bytes each (`monitoringBuild`, `packages/browser-monitoring`).
-- **Analytics:** Cloudflare Web Analytics counts visits, from its beacon on every page (`src/analytics.ts`, from `src/layouts/Page.astro`), a module script, so the page waits for none of it. Only a build with `PUBLIC_CF_ANALYTICS_TOKEN` loads it and lets the Content-Security-Policy allow it, so dev, the tests and the test site load and allow none. Production's token, for Cloudflare's site `www.empirecleaningandpro.com`, is `e1c9a5e3ae014527a7c226b3d9d8e606`: it's set on production's landing service (`render-production.yaml`). It isn't secret: every page carries it. Which pages and links bring Quote Requests is the Quote's own (`src/source.ts`).
-- **Feedback, on the test site only:** every page has Sentry's Send feedback button, bottom right (nothing else on these pages is fixed), so the owner can flag a wrong word or claim where they read it, with a screenshot on a computer. Its code and look come in only when `PUBLIC_APP_MODE` is `test` (`src/feedback.ts`); other builds carry and publish none of them.
-- **Reviews** live in `src/reviews.ts`: real Google reviews, word for word, which the owner swaps there.
-- **Business details** (name, phone, hours, languages, its pages on Facebook, Instagram, Yelp and Google) and its words (the area served, hours as printed, page title, description and heading) live in `src/business.ts`, and the Services in `src/services.ts`, shared by the page, its search data and its tests.
-- **In English and Spanish** (ADR-0025): every page is in English at its address and in Spanish under `/es/`, with Spanish slugs (`/es/servicios/limpieza-profunda/`). `src/routes.ts` lists every page and gives its address in each language (`pathOf`), which the routes (one per kind of page, `src/pages/[...area].astro` and the like), the canonical and `hreflang` links, the search data, every link and the tests all read. A page's language is its address's, `Astro.currentLocale`. Each content module (an area, a service page, a guide, the FAQs) has a Spanish twin beside it (`queens.es.ts`), with every word and none of the facts, which `twin()` takes from the English; the components' own words are in `src/words.ts`. The header's switch leads to the page's twin. Reviews stay as written; the Quote form asks in the page's language (#302). The Spanish is a draft the owner checks on #206.
-- **Policies** (#462): the Privacy policy and the Terms of service (`src/legal`, a page each, `/privacy/` and `/terms/`, `/es/privacidad/` and `/es/terminos/`), linked from every page's foot and the app's Sign in page, whose names and addresses are models' `legalPages`. Each says only what the app does: the Privacy policy what the server stores and the services it sends to, the Terms the rules in the app's own words, the FAQ's answers and models' messages read rather than restated. A change to what one says gets a new `effective` date. Neither is legal advice; the owner checks both on #206.
-- **Prototypes** of a page, on a prototype-* branch: `src/prototypes/<screen>.ts` and `.astro`, written as `src/prototype.ts` says and drawn at `/prototype/<screen>/` by `src/pages/[...prototype].astro` (`docs/ux.md`, Changing a screen). Main has none, so it builds no such page, and the bar for stepping through one is an island in `pnpm dev` alone.
-- **Search:** title and description, Open Graph tags for link previews, structured data built from the business details (`src/structured-data.ts`: the business with its areas, hours, languages, Services and pages elsewhere, and the site), icons and a web manifest, a 404 page, `robots.txt` and a generated sitemap. No review stars in the structured data: Google ignores a business's own.
+The typecheck is `astro check`, on TypeScript 6 (its own `typescript` in `package.json`) until `@astrojs/check` takes 7: move it then.
+
+## Prototypes
+
+On a `prototype-*` branch: `src/prototypes/<screen>.ts` and `.astro`, written as `src/prototype.ts` says, drawn at `/prototype/<screen>/`. The bar for stepping through one is in `pnpm dev` alone.
 
 ## Testing
 
-`pnpm --filter @empire-cleaning/landing test` builds the site, serves the result and tests it with Playwright in a real Chromium, on a phone (everything) and a desktop (the tests tagged `@desktop`, where layout matters; `@smoke` is the quick set). The Request a Quote form talks to the real API and a database of its own (`empire_e2e_landing_test_r<run>_0`, see the server README), so Postgres must be up (`pnpm db:up`). The tests cover:
+```sh
+pnpm --filter @empire-cleaning/landing test
+```
 
-- every section, in light and dark
-- an axe accessibility check in both themes
-- the page working with JavaScript switched off
-- the Quote form holding its room as it loads, with no layout shift, its Services slowed down
-- a Guest asking for a Quote, and the API's field errors showing beside each field
-- the reviews stepping one at a time, wrapping round at either end
-- the theme toggle and the form being the only islands
-- no sideways scrolling
-- the search data
-- the policies: their parts, date and words read from where the rules live (`tests/legal.spec.ts`)
-- every page's Spanish twin: its language, `hreflang` links both ways, the switch between them, both in the sitemap, and that it fits the screen (`tests/spanish.spec.ts`)
+It builds the site, serves it and tests it in a real Chromium: phone (every test) and desktop (`@desktop`), `@smoke` the quick set. The Quote form talks to the real API and a database of its own, so Postgres must be up (`pnpm db:up`).
 
-**Tests run in parallel against the one API and database, and nothing resets them.** A test that sends the Quote form asks with `newEmail()` from `tests/harness.ts`, as a Client of its own, so it sees only its own Quotes and emails (`emailsTo`), however many times it runs. There are 2 workers (why: ADR-0032); `--workers` sets it.
+Tests run in parallel against one API and database that nothing resets: a test that sends the form asks as its own Client, with `newEmail()` from `tests/harness.ts`, and reads its emails with `emailsTo`. 2 workers (ADR-0032); `--workers` sets it.
 
-Check accessibility with `expectAccessible(page)` from `tests/harness.ts`: `docs/testing.md` has the rule and the bug behind it.
-
-The browser setup is the same as the design system's (see `packages/ui/README.md`). Install the browser with `pnpm --filter @empire-cleaning/landing test:install-browser`.
+Browser setup: the design system's README; `pnpm --filter @empire-cleaning/landing test:install-browser`.

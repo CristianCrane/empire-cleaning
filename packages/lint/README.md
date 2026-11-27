@@ -1,61 +1,39 @@
 # Lint rules
 
-The repo's own lint rules, `empire/…`, as one oxlint JS plugin (`src/index.ts`, `.oxlintrc.json`'s `jsPlugins`, run by `pnpm lint`): each rule is a file of its own, registered there. JS plugins are in alpha in oxlint and not bound by semver, so each rule is tested through oxlint's own `RuleTester` (`pnpm --filter @empire-cleaning/lint test`, in CI's Checks job), and an oxlint update that changes the plugin API fails there. oxlint reads only an `.astro` file's frontmatter and `<script>`s, so `pnpm lint` and the pre-commit hook also run `src/astro-markup.ts` on the `.astro` files, which runs `words-from-catalog` over their markup (below), and `src/catalog-copies.ts` over the screens' catalogs, as a copy spans files (below). Their own tests are plain vitest.
+The repo's own lint rules, `empire/…`: one oxlint JS plugin (`src/index.ts`, a rule a file, registered there; `.oxlintrc.json`'s `jsPlugins`, which also sets where each is on). `pnpm lint` runs them, with `src/astro-markup.ts` (an `.astro` file's markup, which oxlint can't read) and `src/catalog-copies.ts` (across files).
+
+```sh
+pnpm --filter @empire-cleaning/lint test
+```
+
+The rules are tested through oxlint's `RuleTester`, as JS plugins are alpha and an oxlint update can break them; the other two with plain vitest.
 
 ## `empire/report-unexpected`
 
-Every error a screen catches but didn't expect goes to Sentry (#351). A `catch` clause, a `.catch(handler)` and the second handler of a `.then(ok, handler)` each rethrow, or call the package's reporter (the rule's `reporters` option, set per package in `.oxlintrc.json`):
-
-- the web app: `reportUnexpected` (`packages/web/src/monitoring.ts`), which skips the API's answers and a card that couldn't be used
-- the Quote form and the landing site: the browser's `reportError`, which skips nothing itself; the host's Sentry picks it up once it has started (ADR-0007)
-- the design system: none, so a catch there rethrows or says why it expects its throw
-- everywhere: Sentry drops a dropped connection
-
-A handler passed by name (`.catch(reportUnexpected)`) passes when it's the reporter. A call anywhere in the handler counts, but not one in a function the handler makes, which may never run. A catch that only ever expects its throw says why, as blocked storage does in `packages/ui/src/stored.ts`:
+A `catch`, `.catch(handler)` or `.then(ok, handler)` rethrows or calls its package's reporter (`reporters` in `.oxlintrc.json`): the web app's `reportUnexpected` (`packages/web/src/monitoring.ts`), the browser's `reportError` in the Quote form and landing site, none in the design system. A handler passed by name counts when it's the reporter; a call inside a function the handler makes doesn't. A catch that only ever expects its throw says why, as `packages/ui/src/stored.ts` does:
 
 ```ts
 // oxlint-disable-next-line empire/report-unexpected -- blocked storage, expected
 ```
 
-The rule is on in `packages/{web,quote-request,landing,ui}/src`, but not in tests or stories. The server reports through its own Sentry.
+On in `packages/{web,quote-request,landing,ui}/src`, not tests or stories.
 
 ## `empire/words-from-catalog`
 
-Words that differ by language come from a catalog, never a branch on the language (ADR-0025, #388). A branch (`lang === "es" ? "Hola" : "Hi"`) skips the typecheck that fails the build on a missing Spanish string, and its plurals skip `formats[lang].plural`. Write the words in `catalog()` (`packages/models/src/language.ts`) and look them up by the language: `words[lang].greeting(name)`.
+Words that differ by language come from a catalog (ADR-0025): write them in `catalog()` (`packages/models/src/language.ts`) and look them up, `words[lang].greeting(name)`, never a branch on the language. A branch picking no words, or picking the other language (`lang === "en" ? "es" : "en"`), passes. A non-word string under a branch (a locale tag, an Intl option) goes in a table by language too, as `locales` does, and so do a test's expected words in each language. It runs on `.astro` markup too, where an `oxlint-disable` comment doesn't reach.
 
-A JS plugin gets no types, so the rule knows a language by what it's compared with: one of models' `LANGUAGES` codes. It flags a ternary, `&&`, `||`, `if` or `switch` on such a comparison when a branch holds words:
-
-- the comparison either way round, with `===`, `!==`, `==` or `!=`, under any name (`lang`, `client.preferredLanguage`, `currentLanguage()`), inside a bigger test (`formal && lang === "es"`, `!(…)`), or kept in a `const` (`const es = lang === "es"`)
-- words are a string, template or JSX text anywhere under a branch, with a letter, that isn't a language code; what a branch compares with, an object's key, a member's name and a type aren't words
-
-It allows a branch that picks no words (`inLanguage`), and one that picks the other language: `lang === "en" ? "es" : "en"` (the landing header).
-
-In an `.astro` file's markup (`{lang === "es" ? "Hola" : "Hi"}`, an attribute, a branch in a `.map`) the same checks run from `src/astro-markup.ts`, on the file as Astro's compiler parses it, with the same message and `file:line:col`. A `const` there is found by its name across the file, frontmatter and markup alike; a name bound twice (again as a `const`, a parameter or a destructured name) isn't followed. An `oxlint-disable` comment doesn't reach markup.
-
-What it can't see:
-
-- a language compared with anything but a code: `lang === other`, `lang.startsWith("es")`, a boolean kept by `let` or passed in (`isSpanish`)
-- words a branch reaches through a call: `lang === "es" ? spanish() : english()`
-
-As it looks deep, it also flags a string under a branch that isn't words, such as an Intl option or a locale tag (`lang === "en" ? "en_US" : "es_US"`): that goes in a table by language too, as `locales` does. The rule is on everywhere, tests included: a test's expected words in each language go in a table by language, not a branch.
+It can't see a language compared with anything but a code, a boolean kept by `let` or passed in, or words reached through a call: the rule holds there unchecked.
 
 ## `empire/screen-layout`
 
-A screen renders through the layout for its type (ADR-0031, `docs/ux.md`, Screen types), never placing the page's parts itself. It's an error on each part a screen places:
+A screen renders through its type's layout (ADR-0031, `docs/ux.md`, Screen types), never placing the kit's `Breadcrumbs`, `ActionFooter` or `PageHeader`, the page's title (`Heading level={1}` or `<h1>`) or a facts grid (a `<dl>` with `grid`, but two columns of amounts, `grid-cols-[1fr_auto]`), dialogs included: there's to be one facts grid, the kit's. A new layout goes in `packages/ui/src/layouts/`, where it doesn't run.
 
-- the kit's `Breadcrumbs`, `ActionFooter` and shared `PageHeader`, under whatever name they're imported as, or through `import * as`
-- the page's title: the kit's `Heading` at `level={1}`, `inBar` or not, or an `<h1>`
-- a facts grid: a `<dl>` with `grid` among its class names, but for two columns of amounts (`grid-cols-[1fr_auto]`), a receipt or a price's lines rather than facts. It's flagged in a screen's dialogs too: there's to be one facts grid, the kit's (#432)
+On in `packages/web/src/screens`, not tests, stories, the test site's People screen (it has no type) or a prototype (`*.prototype.tsx`, which draws a layout's parts by hand to try them).
 
-The layouts that place them live in the kit, `packages/ui/src/layouts/`, where the rule doesn't run: that's its allowed set, so a new layout changes nothing here. It's on in `packages/web/src/screens`, but not in tests or stories, or on the test site's People page, which has no type, or in a prototype (`*.prototype.tsx`, `docs/ux.md`), which draws a layout's parts by hand to try them. It's an error, so a new screen that builds its own page fails the Checks: it was a warning while the layout slices moved every type onto its layout (#426), and became one once the Calendar had its own (#437).
-
-What it can't see: a level not written as `1` (`level={level}`, a spread), class names made by a call (`cn(…)`), and a part a screen reaches through a component of the kit's that isn't a layout.
+It can't see a level not written as `1`, class names made by a call, or a part reached through a kit component that isn't a layout.
 
 ## `catalog-copies`
 
-The same English in two of the screens' catalogs is a second Spanish to keep in step, and to have checked by the owner (#206, #397). A word several screens show has one home (`docs/ux-words.md`, Language): the portal's in `packages/web/src/screens/portal/words.ts` (`p`), the Cleaner area's in `cleaner/words.ts` (`c`), the rest in `labels.ts`, part of `screenWords`, or models' messages when the server says it too. `src/catalog-copies.ts` reads every `catalog({ en })` in `packages/web/src` (not a prototype's, `*.prototype.tsx`, whose words are made up) and `packages/models/src/messages` (models' messages are in what a screen says, `said`) and prints each English string that's in more than one catalog, with every file and key it's in:
+The same English in two of the screens' catalogs (`packages/web/src`, not a prototype's, and `packages/models/src/messages`) is a second Spanish to keep in step: give it one home (`docs/ux-words.md`, Language). It prints each copy with every file and key.
 
-- a string, a template (its placeholders as `${…}`: `Pay bill ${n}` is `Pay bill ${…}`) and a string in a placeholder each count, under any key, in a function or through `satisfies` or `as`; one with no letter doesn't
-- the same words twice in one catalog (two states of a Quote, both "Asked for") are one place to keep in step, so aren't a copy
-
-Words whose Spanish differs in two places, as they agree with a different noun (a Bill is Pagada, a charge Pagado) or speak to a Client (usted) in one and a Cleaner (tú) in the other, go on its `allowed` list, with every file it's in and why; a third file still fails, and an entry that's no longer a copy fails until it's taken out.
+A copy whose Spanish differs in each place (it agrees with a different noun, or speaks to a Client as usted and a Cleaner as tú) goes on its `allowed` list with every file and why; a third file still fails, and an entry no longer a copy fails until it's taken out.
