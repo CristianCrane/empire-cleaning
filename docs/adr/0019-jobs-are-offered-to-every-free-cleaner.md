@@ -12,7 +12,7 @@ We chose this over Cleaners volunteering and Office Staff picking from them, whi
 - A Confirmed Assignment that is Released leaves a Cleaner Needed, open to every free Cleaner but the one who Released it; the 48-hour Release cutoff is unchanged. Office Staff taking someone off a Job Releases it for them, so it isn't open to them either, though the Office can still Offer it to them (#242).
 - A Cleaner deactivated, or whose day goes to 0 hours, has their Assignments there Released and opened to the others (#158, #242).
 - When a Job moves, its crew are Offered the new time and stay on it, except anyone not free then, who leave a Cleaner Needed.
-- Before Confirming, a Cleaner sees a Cleaner Needed's Service, time, time on site, Crew Size and area (town and postcode), never its street address, Access Instructions, Client or prices.
+- Before Confirming, a Cleaner sees a Cleaner Needed's Service, time, time on site, Crew Size and area (city and ZIP code, ADR-0035), never its street address, Access Instructions, Client or prices.
 - Cleaners get one email at 7am in New York, only on days when a Job is newly open to them, listing all their Cleaners Needed, new ones first; a Cleaner Needed on a Job starting within 48 hours is emailed at once.
 - A Job nobody Confirms stays Unassigned and appears in Needs attention from 48 hours before, as before.
 - Once Staff have skills per Service (#123), only those with the Job's Service are free for it.
