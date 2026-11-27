@@ -15,6 +15,8 @@ const apiUrl = process.env.API_URL ?? "http://localhost:3000";
 // (https://docs.stripe.com/security/guide.md#content-security-policy)
 const stripeScripts = ["https://js.stripe.com", "https://*.js.stripe.com"];
 const stripeFrames = [...stripeScripts, "https://hooks.stripe.com"];
+// unexercised: Stripe.js calls its API from its own frames, and with this
+// left out the sandbox run's 6 cases passed (#331)
 const stripeApi = ["https://api.stripe.com"];
 // Stripe.js fetches the card form's font stylesheet from our page, to hand to
 // its frame (FONTS in src/screens/portal/CardForm.tsx)

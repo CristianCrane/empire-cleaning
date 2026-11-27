@@ -110,8 +110,8 @@ export const Rail: Story = {
     const account = within(document.body).getByRole("dialog", {
       name: "Account",
     });
-    // the popover fades in, so wait for it to be seen (docs/testing-log.md,
-    // 2026-11-13)
+    // the popover is at opacity 0 for its first frame, reduced motion or
+    // not, and toBeVisible counts that hidden: wait for it to be seen (#440)
     await waitFor(() =>
       expect(
         within(account).getByRole("button", { name: "Sign out" }),
