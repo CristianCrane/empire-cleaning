@@ -8,7 +8,7 @@ How the engineering skills should consume this repo's domain documentation when 
 - **`GLOSSARY-MAP.md`** at the repo root if it exists: it points at one `GLOSSARY.md` per context. Read each one relevant to the topic.
 - **`docs/adr/`**: read ADRs that touch the area you're about to work in. In multi-context repos, also check `src/<context>/docs/adr/` for context-scoped decisions.
 
-If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates them lazily when terms or decisions actually get resolved.
+If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. A term or decision settled in your work goes to the doc curator as a note (a decision's with the user's words and what it rules out), not into these files: `docs/map.md` lists them, so only the curator writes them.
 
 ## File structure
 
@@ -46,7 +46,7 @@ What a person reads is the exception: labels, page text, messages and emails use
 
 A spec's issues are written from its new terms' glossary entries, once those are written (on their branch is enough), not beside them from the same session: the entries' `_Avoid_` lists and wording are settled in their review, and issues written at the same time keep the session's words. #416 to #420 said "unpaid" for a gap that doesn't count and "special hourly rate" for a Job Rate, and differed from the entry on when a Job Rate can change, each put right by hand afterwards (PR #422, review F5, F8 to F10).
 
-If the concept you need isn't in the glossary yet, that's a signal: either you're inventing language the project doesn't use (reconsider) or there's a real gap (note it for `/domain-modeling`).
+If the concept you need isn't in the glossary yet, that's a signal: either you're inventing language the project doesn't use (reconsider) or there's a real gap (leave the doc curator a note for it).
 
 ## Spanish words
 

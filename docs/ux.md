@@ -959,18 +959,16 @@ stays as it is (#336).
    in Spanish too, through `expectFitsInBoth`). Moving a screen onto its
    layout drops nothing by accident (the `ui` skill, "Reworking a
    screen"): #432's review found three such drops, and #434's two more. A
-   part dropped on purpose gives its reason in its `docs/ux-log.md` row.
-5. **Record it**: a row in `docs/ux-log.md`, its Picked and Why each
-   in one or two sentences (500 characters, which `pnpm lint` checks), its
-   PR or issue holding the rest, as agents search the log and read each
-   row they find whole; a new rule above (a
-   type's own under its entry in Screen types), and a
-   pattern in Storybook, if it carries over to other screens; and in
-   `docs/screens.md`, a new route's row in the Route index and its entry, or
-   the entry of a screen whose parts or their order change.
+   part dropped on purpose gives its reason in the PR.
+5. **Record it**: in `docs/screens.md`, the pick on its screen's entry,
+   the entry of a screen whose parts or their order change, and a
+   new route's entry and its row in the Route index; a new rule above,
+   with its why (a type's own under its entry in Screen types), and a
+   pattern in Storybook, if it carries over to other screens. The PR holds
+   the rest.
 
 Steps 2 and 3 are for a new UX question: a new flow, or a new look for a
 screen. Any other change (one to how a flow behaves, a wording change, one
 that only applies these rules) has no prototype to pick from: its design
 is reviewed before its code, as the `ui` skill's Settling a screen sizes
-it, and it still gets a row in `docs/ux-log.md`.
+it, and it's still recorded as step 5 says.
