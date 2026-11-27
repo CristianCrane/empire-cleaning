@@ -1476,6 +1476,35 @@ export type PaymentMethodView = {
 export type ClientPaymentKind =
   "deposit" | "balance" | "adjustment" | "fee" | "bill" | "refund";
 
+// what a Client's card or weekly Bill takes next, for their Payments page
+// while they owe nothing now (GET /api/payments/mine/next), or null
+export type NextCharge =
+  // a clean charged once it's done: what it will charge then, and its start
+  | { kind: "clean"; cents: number; startsAt: string }
+  // cleans done, on the next weekly Bill: what it holds so far, its day,
+  // and how it's paid
+  | { kind: "bill"; cents: number; billOn: IsoDate; payment: BillPayment }
+  // a clean booked on a weekly Bill: the earliest that Bill can be made, as
+  // what it holds isn't known till then
+  | {
+      kind: "billedClean";
+      startsAt: string;
+      billOn: IsoDate;
+      payment: BillPayment;
+    };
+
+// a payment a Client's card is for, as Your card names it (#499): a clean,
+// by its day, or a weekly Bill, by its number
+export type CardPayment = { id: string; cents: number } & (
+  { kind: "clean"; startsAt: string } | { kind: "bill"; number: string }
+);
+
+// what saving a card took, as it tries again each payment the card failed
+// to take (PUT /api/payment-methods/mine): what it took of each, and each
+// still going through, at what's still owed of it, which it may yet take
+// or not
+export type CardRetried = { took: CardPayment[]; goingThrough: CardPayment[] };
+
 // money that moved between a Client and us, for their Payments page
 // (GET /api/payments/mine). It was for a Job, a Service Plan's
 // Deposit, or a Bill; a refund was for what its Charge was for. A Quote's
@@ -1872,9 +1901,18 @@ export type JobPayment = {
 // "refused", the same, once they turned it down at their bank there, so
 // it's theirs to try again or pay with another card;
 // "waiting", nothing, as we try again ourselves (ADR-0022); "no_card",
-// adding one; "late", paying the Bill on its page
+// adding one (none is saved, or it's expired); "late", paying the Bill on
+// its page
 export type UnpaidKind =
   "declined" | "approve" | "refused" | "waiting" | "no_card" | "late";
+
+// what sort of 409 the API answers, where its words alone can't tell a
+// screen: "approve", a payment that's the Client's to approve at their
+// bank, whether the Office asked for it or they turned it down there
+// (#534 Q7); "notTaken", their saved card's own answer, that it took
+// nothing and why, as against a payment no longer there to try (#508's
+// review F31)
+export type ConflictKind = "approve" | "notTaken";
 
 // since when it's been Unpaid, and why: a clause for after "didn't go
 // through" ("the card has expired"), or null when there's no more to say.
@@ -1917,7 +1955,7 @@ export type ClientPastJob = ClientJob & {
   // what a Cancelled or No Access one cost; 0 if nothing
   feeCents: number;
   // why it's Unpaid, if it is
-  unpaid: UnpaidKind | null;
+  unpaid: Unpaid | null;
   // what an Unpaid one still owes; 0 otherwise
   owedCents: number;
   // increases proposed to them, waiting on their answer
@@ -2362,7 +2400,7 @@ export type BillPayOutcome =
 // on their bank's approval in the browser with `secret`, then POST
 // .../balance/finish (#534 Q7)
 export type JobPayOutcome =
-  | { status: "done"; job: ClientJob }
+  | { status: "done"; job: ClientJobDetail }
   | { status: "needs_approval"; secret: string };
 
 // POST /api/bills/mine/:id/payment/finish, or /api/jobs/mine/:id/balance/

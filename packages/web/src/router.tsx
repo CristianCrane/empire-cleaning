@@ -20,6 +20,7 @@ import type {
   ClientJobDetail,
   ClientPastJob,
   ClientPayment,
+  NextCharge,
   ClientUpcomingJob,
   ClientQuoteView,
   ClientView,
@@ -46,7 +47,6 @@ import type {
   StaffDetail,
   StaffMember,
 } from "@empire-cleaning/models";
-import { asksTheClient } from "@empire-cleaning/models";
 import {
   LanguageProvider,
   Link,
@@ -125,7 +125,10 @@ import { PortalCleans, cleansTabs } from "./screens/portal/PortalCleans.tsx";
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
 import type { HomeData } from "./screens/portal/whats-next.ts";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
-import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
+import {
+  PortalPaymentMethod,
+  cardOwes,
+} from "./screens/portal/PortalPaymentMethod.tsx";
 import { PortalProperty } from "./screens/portal/PortalProperty.tsx";
 import {
   PortalPayments,
@@ -813,7 +816,7 @@ const portalPaymentsRoute = createRoute({
   path: "/payments",
   validateSearch: homeUrl(paymentsTiles),
   loader: async () => {
-    const [plans, pastJobs, bills, paymentMethod, history, quotes] =
+    const [plans, pastJobs, bills, paymentMethod, history, quotes, next] =
       await Promise.all([
         getJson<ServicePlanSummary[]>("/api/service-plans/mine"),
         getJson<ClientPastJob[]>("/api/jobs/mine/past"),
@@ -822,8 +825,9 @@ const portalPaymentsRoute = createRoute({
         getJson<ClientPayment[]>("/api/payments/mine"),
         // a Deposit going through is money on its way (#534)
         getJson<QuoteSummary[]>("/api/quotes/mine"),
+        getJson<NextCharge | null>("/api/payments/mine/next"),
       ]);
-    return { plans, pastJobs, bills, paymentMethod, history, quotes };
+    return { plans, pastJobs, bills, paymentMethod, history, quotes, next };
   },
   component: PortalPayments,
 });
@@ -841,21 +845,12 @@ const portalPaymentMethodRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/payment-method",
   loader: async () => {
-    const [saved, pastJobs] = await Promise.all([
+    const [saved, pastJobs, bills] = await Promise.all([
       ownPaymentMethod(),
       getJson<ClientPastJob[]>("/api/jobs/mine/past"),
+      getJson<BillSummary[]>("/api/bills/mine"),
     ]);
-    // the cleans a card puts right; one waiting on the payment service we
-    // try again ourselves, and one their bank wants them to approve is
-    // approved on its own page, where trying it here would only ask again
-    // (#534 Q7). One they turned down there is here: its "Use a different
-    // card" leads here, to try this card again or save another
-    return {
-      saved,
-      unpaid: pastJobs.filter(
-        (j) => j.unpaid && asksTheClient(j.unpaid) && j.unpaid !== "approve",
-      ),
-    };
+    return { saved, unpaid: cardOwes(pastJobs, bills) };
   },
   component: PortalPaymentMethod,
 });

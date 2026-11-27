@@ -333,11 +333,7 @@ export function PickOpenTime({
               <Notice
                 tone={problem?.tone ?? "info"}
                 action={
-                  <Button
-                    variant="text"
-                    size="sm"
-                    onPress={() => showPicked(picked!)}
-                  >
+                  <Button variant="text" onPress={() => showPicked(picked!)}>
                     Show it
                   </Button>
                 }
@@ -367,7 +363,6 @@ export function PickOpenTime({
                       roomForAll && (
                         <Button
                           variant="text"
-                          size="sm"
                           onPress={() => onPick(roomForAll)}
                         >
                           Pick that time

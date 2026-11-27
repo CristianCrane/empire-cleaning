@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import { CircleCheck, Receipt } from "lucide-react";
+import { Receipt } from "lucide-react";
 import { catalog, type ClientPayment } from "@empire-cleaning/models";
 import {
   Button,
@@ -17,6 +17,7 @@ import { useHomeUrl } from "../home-search.ts";
 import { HeroCard, whyAlert } from "./HeroCard.tsx";
 import {
   moneyNow,
+  nextAnswer,
   owedAnswer,
   paymentRow,
   signedMoney,
@@ -27,8 +28,6 @@ import { useSaid } from "../words.ts";
 // in the Client's language (ADR-0025)
 const words = catalog({
   en: {
-    allPaid: "You're all paid up",
-    nothingOwed: "Nothing owed",
     bankOnWay: (bill: string | null) =>
       bill
         ? `Your bank payment for bill ${bill} is on its way.`
@@ -39,8 +38,6 @@ const words = catalog({
     paymentsIn: (month: string) => `All payments, ${month}`,
   },
   es: {
-    allPaid: "Está al día",
-    nothingOwed: "No debe nada",
     bankOnWay: (bill: string | null) =>
       bill
         ? `Su pago bancario de la factura ${bill} está en camino.`
@@ -53,9 +50,10 @@ const words = catalog({
 });
 
 // The Client's Payments, a Home (docs/ux.md, Screen types): what they owe
-// now, or that it's nothing, in one card with its one Button; then every
-// payment behind a tile, opened in place. Their card has a fixed way in, in
-// the header, and a tile. (UX pass, #96; #435)
+// now, in one card with its one Button, or, owing nothing, what's taken
+// next (#508); then every
+// payment behind a tile, opened in place. Their card's way in is a
+// tile. (UX pass, #96; #435; #499's UX review U3)
 
 // its tiles that open in place, as its URL names them
 export const paymentsTiles = ["history"] as const;
@@ -79,19 +77,7 @@ export function PortalPayments() {
       // to one place, side by side, read as two (#534's UX review U7)
       alerts={[whyAlert(owing?.why)]}
       answer={
-        <HeroCard
-          hero={
-            owing
-              ? owing.hero
-              : {
-                  label: t.w.allPaid,
-                  icon: CircleCheck,
-                  tone: "success",
-                  headline: t.w.nothingOwed,
-                  lines: [],
-                }
-          }
-        />
+        <HeroCard hero={owing ? owing.hero : nextAnswer(data.next, t.lang)} />
       }
       // a bank debit on its way names its Bill only when the card above
       // doesn't, as it names it with its amount (#534's UX review U16); a

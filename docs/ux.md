@@ -66,7 +66,9 @@ Visit, a Bill, a Staff member. It renders through `RecordPage`
   success), the rest behind "Show N more". Each is one Notice with at most
   one action (no alert in an alert: the `ui` skill). What an action's failure
   says is a Toast, not a Notice on the page (a retried charge, a plan
-  offered).
+  offered). Your card, a form page, is the exception: a payment its card
+  turned down again is said in the alert already there ("We tried it
+  again.", #508; `docs/screens.md`, Client portal > Your card).
 - **The details card** (`DetailsCard`): what it is, large, behind its tile
   (a `DateTile` for when, an `IconTile` for what, an `Avatar` for who),
   a muted line above and below; never what the page's title already says,
@@ -175,7 +177,7 @@ Cleaner's Your jobs render through `HomePage`
   quote) stands aside while the card asks something out of the usual of
   them (below; #493). Payments has none: its Your card tile is the way
   there, as a button to the same place beside it read as two ways (#534's
-  UX review U7).
+  UX review U7, #499's U3).
 - **One answer card** (`AnswerCard`): what's next or what's owed, read left
   to right behind its tile (a `DateTile` for when, an `IconTile` for
   what), the kind of answer muted above, the answer large, a line or two,
@@ -189,7 +191,9 @@ Cleaner's Your jobs render through `HomePage`
   by when), and the card says what to do, its amount and its primary, so
   each fact shows once: the facts before the decision, read top to bottom
   (#493's D2, `prototype-home-alert`). What the card holds steps out of
-  the tiles meanwhile; while it asks something out of the usual (money
+  the tiles meanwhile, but for money: the Office's Money tile counts all
+  that's owed, the card's too, as a grey Money tile while money is owed
+  would read as nothing owed (#508's U8, the user's call); while it asks something out of the usual (money
   owed that asks, a price change, a crew who couldn't get in), the title
   row's action stands aside too. A paused plan with nothing to do is the
   plan's card, its alert calm (info), its way to the plan outlined. Money owed that asks nothing (a
@@ -220,8 +224,9 @@ Cleaner's Your jobs render through `HomePage`
   booking, leads the quotes ready, so its alert and card are about one
   quote.
   With nothing waiting anywhere,
-  offers to answer included, it's a green all-clear card, as a screen says only what's true (the
-  `ui` skill). The Office's is its first
+  offers to answer included, it says what's taken next (Next payment, Next bill)
+  or, with nothing to come, To pay: Nothing, never "all paid up" while money
+  is still to be charged, as a screen says only what's true (the `ui` skill; #508). The Office's is its first
   to-do, the server's order.
 - **News** under it, an info Notice each, never an action (a move asked
   for, a bank payment on its way).
@@ -233,7 +238,8 @@ Cleaner's Your jobs render through `HomePage`
   is judged by, how many in its hint: the Office's Money shows what's
   owed, as its count read as money, the 11-20 audit's Today 3; #507) and opens them in place under the tiles, one at a time, pressed again to close (the
   Office's to-dos by kind and the day's Jobs, a Cleaner's Coming up, every
-  payment). A tile with none is greyed out. Which one is open is in the
+  payment). A tile with none is greyed out, a link's too (Offers with none
+  waiting). Which one is open is in the
   URL (`?open=`), so Back from a row comes back to it. What's waiting on a
   Client (a quote, a price change to OK) is a tile rather than cut for a
   shortcut, so it stays in reach, unless the card holds it. Lists of past things live on

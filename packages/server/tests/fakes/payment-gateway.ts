@@ -133,7 +133,8 @@ export class FakePaymentGateway implements PaymentGateway {
       paymentMethodId: string | null;
       byCard: boolean;
       saves: boolean;
-      finishing?: boolean;
+      // processing, left so by finishCards() or failCharges("processing")
+      finishing: "cards" | "charges" | null;
     }
   >();
   // Charges the Client's bank wanted them to approve (APPROVE), each left
@@ -168,19 +169,24 @@ export class FakePaymentGateway implements PaymentGateway {
   private nextId = 1;
 
   // every Charge and Deposit is declined with `reason` until
-  // failCharges(null); "processing" leaves a Charge processing instead, as
-  // Stripe does, until clearCharges()
+  // failCharges(null); "processing" leaves a Charge, or a card payment made
+  // with the Client there, processing instead, as Stripe does, until
+  // clearCharges()
   failCharges(reason: string | null = "card_declined") {
     this.chargeFailure = reason;
   }
 
-  // every Charge left processing goes through
+  // every Charge left processing goes through, and every card payment made
+  // with the Client there is taken as it's next read
   clearCharges() {
     for (const [key, charge] of this.processing) {
       this.charges.push(charge);
       this.made.set(key, taken(charge.chargeId));
     }
     this.processing.clear();
+    for (const waiting of this.waiting.values()) {
+      if (waiting.finishing === "charges") waiting.finishing = null;
+    }
   }
 
   // someone refunds `amount` of a Charge in the provider's dashboard, as
@@ -588,7 +594,13 @@ export class FakePaymentGateway implements PaymentGateway {
         : undefined;
     // the same payment confirmed again is no new one
     if (input.amount > 0 && !reused) this.attempt(input.payerId, input.amount);
-    if (this.chargeFailure) {
+    // a card's bank leaves it processing, as `charge` does, until
+    // clearCharges(): Stripe never ends one "processing" at once
+    // (docs/testing-log.md, 2026-11-26); it waits below, as one
+    // finishCards() leaves does (critical review C18)
+    const processing =
+      this.chargeFailure === "processing" && input.amount > 0 && !bank;
+    if (this.chargeFailure && !processing) {
       if (input.amount > 0) this.made.set(key, failed(this.chargeFailure));
       return failed(this.chargeFailure);
     }
@@ -623,11 +635,20 @@ export class FakePaymentGateway implements PaymentGateway {
     const byCard =
       "token" in source &&
       (card === "approvalOnSetup" || card === "alwaysApproval");
-    const finishes = this.cardsFinishing && input.amount > 0;
-    if (
-      ("token" in source && (this.approval || byCard || finishes)) ||
-      (savedId && card === "alwaysApproval")
-    ) {
+    const asks =
+      ("token" in source && (this.approval || byCard)) ||
+      (savedId && card === "alwaysApproval");
+    // which switch it's left processing by, until that switch lets it go;
+    // a card that asks the Client asks first, as Stripe does, whichever
+    // switch would leave it processing (critical review C20, C21)
+    const finishes = asks
+      ? null
+      : processing
+        ? "charges"
+        : this.cardsFinishing && "token" in source && input.amount > 0
+          ? "cards"
+          : null;
+    if (finishes || asks) {
       const ref = reused ?? this.id(input.amount > 0 ? "pi" : "seti");
       this.waiting.set(ref, {
         input,
@@ -674,7 +695,10 @@ export class FakePaymentGateway implements PaymentGateway {
     // the next payment (critical review C10)
     const answered = this.replies.get(`outcome:${ref}`);
     if (answered) return answered.reply as PaymentResult;
-    if (waiting.finishing && this.cardsFinishing) {
+    if (
+      (waiting.finishing === "cards" && this.cardsFinishing) ||
+      waiting.finishing === "charges"
+    ) {
       return finishing(ref, "card");
     }
     if (!waiting.byCard && this.approval === "processing") {

@@ -33,7 +33,7 @@ const wideColumns = [
 const tileGrid = (count: number) =>
   `grid grid-cols-2 gap-3 ${wideColumns[Math.min(Math.max(count, 1), 4) - 1]} [&>li:last-child:nth-child(odd)]:col-span-2 sm:[&>li:last-child:nth-child(odd)]:col-span-1`;
 
-// A Home's one answer, read left to right: its tile (a DateTile for when,
+// A Home's one answer, read left to right, on a phone too: its tile (a DateTile for when,
 // an IconTile for what), the kind of answer it is (muted, above), the
 // answer large, a line or two, and its Buttons, the page's one primary
 // last (or none, when the answer asks nothing of the reader). With a label it's a region by that name. All clear, it's a green
@@ -55,21 +55,30 @@ export function AnswerCard({
   return (
     <Card labelledBy={label ? labelId : undefined}>
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
-        {tile}
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          {label && (
-            <Heading level={2} size={4} id={labelId} className="text-fg-muted">
-              {label}
-            </Heading>
-          )}
-          <p className="text-2xl font-semibold text-fg sm:text-3xl">
-            {headline}
-          </p>
-          {lines.map((line, i) => (
-            <p key={i} className="text-fg-muted [overflow-wrap:anywhere]">
-              {line}
+        {/* the tile beside the answer on a phone too, so the answer leads
+            the card, not a row of decoration (#508's UX review U5) */}
+        <div className="flex min-w-0 flex-1 items-start gap-4 sm:items-center sm:gap-6">
+          <div className="shrink-0">{tile}</div>
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            {label && (
+              <Heading
+                level={2}
+                size={4}
+                id={labelId}
+                className="text-fg-muted"
+              >
+                {label}
+              </Heading>
+            )}
+            <p className="text-2xl font-semibold text-fg sm:text-3xl">
+              {headline}
             </p>
-          ))}
+            {lines.map((line, i) => (
+              <p key={i} className="text-fg-muted [overflow-wrap:anywhere]">
+                {line}
+              </p>
+            ))}
+          </div>
         </div>
         {actions && (
           <div className="flex shrink-0 flex-wrap gap-2 self-start sm:flex-col sm:items-stretch sm:self-center">
@@ -85,7 +94,8 @@ export function AnswerCard({
 // links there, the count in its hint; where they don't, it shows how many
 // and opens them in place, under the tiles: its `rows`, or for rows of a
 // shape of their own (Payments' Statement) its `panel`, then `more` (the
-// way to where all of them are). A tile with none is greyed out
+// way to where all of them are). A tile with none is greyed out: a link's
+// says so with `isDisabled`
 export type HomeTile = {
   id: string;
   icon: LucideIcon;
@@ -101,7 +111,11 @@ export type HomeTile = {
       panel?: ReactNode;
       more?: ReactNode;
     }
-  | { href: LinkProps["href"]; externalHref?: undefined }
+  | {
+      href: LinkProps["href"];
+      externalHref?: undefined;
+      isDisabled?: boolean;
+    }
   | { externalHref: string; href?: undefined }
 );
 
@@ -193,6 +207,7 @@ export function HomeTiles({
                 hint={tile.hint ?? ""}
                 href={tile.href}
                 externalHref={tile.externalHref}
+                isDisabled={"isDisabled" in tile && tile.isDisabled}
               />
             )}
           </li>

@@ -208,8 +208,8 @@ export const Mixed: Story = {
         answer={
           <AnswerCard
             tile={<IconTile icon={CircleCheck} tone="success" size="lg" />}
-            label="You're all paid up"
-            headline="Nothing owed"
+            label="To pay"
+            headline="Nothing"
           />
         }
         notices={<Notice>Your bank payment of $230.00 is on its way.</Notice>}

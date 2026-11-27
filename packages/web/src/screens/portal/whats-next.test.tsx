@@ -9,6 +9,8 @@ import type {
   PropertyView,
   QuoteSummary,
   ServicePlanSummary,
+  Unpaid,
+  UnpaidKind,
   UnsentQuoteSummary,
 } from "@empire-cleaning/models";
 import { whatsNext, type HomeData } from "./whats-next.ts";
@@ -43,6 +45,12 @@ const job = (over: Partial<ClientUpcomingJob> = {}): ClientUpcomingJob => ({
   servicePlanId: null,
   movingTo: null,
   ...over,
+});
+// a past clean's payment that didn't go through, of a kind
+const unpaid = (kind: UnpaidKind): Unpaid => ({
+  since: "2026-10-20T16:00:00.000Z",
+  kind,
+  why: null,
 });
 const pastJob = (over: Partial<ClientPastJob> = {}): ClientPastJob => ({
   ...job({ id: "past", startsAt: "2026-10-20T13:00:00.000Z" }),
@@ -289,7 +297,7 @@ describe("Home's hero, with nothing booked", () => {
   test("leads with what's owed when a Service Plan is paused for it", () => {
     const paused = next({
       plans: [plan({ status: "on_hold", nextStartsAt: null })],
-      pastJobs: [pastJob({ unpaid: "declined", owedCents: 18450 })],
+      pastJobs: [pastJob({ unpaid: unpaid("declined"), owedCents: 18450 })],
     });
     expect(paused.hero).toMatchObject({
       label: "To pay",
@@ -314,7 +322,7 @@ describe("Home's hero, with nothing booked", () => {
   test("says a Service Plan is paused on a payment the service is trying again, calmly, as there's nothing to do", () => {
     const { hero, why, asks } = next({
       plans: [plan({ status: "on_hold", nextStartsAt: null })],
-      pastJobs: [pastJob({ unpaid: "waiting", owedCents: 18450 })],
+      pastJobs: [pastJob({ unpaid: unpaid("waiting"), owedCents: 18450 })],
     });
     expect(hero).toMatchObject({
       label: "Your cleaning plan",
@@ -479,7 +487,11 @@ describe("Home's card: what waits on the Client leads (#493)", () => {
     const { hero, tiles } = next({
       jobs: [job()],
       pastJobs: [
-        pastJob({ unpaid: "declined", owedCents: 18450, waiting: changes(1) }),
+        pastJob({
+          unpaid: unpaid("declined"),
+          owedCents: 18450,
+          waiting: changes(1),
+        }),
       ],
     });
     expect(hero).toMatchObject({ label: "To pay", headline: "$184.50" });
@@ -1007,7 +1019,7 @@ describe("Home's card: what's owed first, when it asks anything of them", () => 
     const { hero, tiles } = next({
       plans: [plan({ status: "on_hold" })],
       jobs: [job({ servicePlanId: "plan" })],
-      pastJobs: [pastJob({ unpaid: "declined", owedCents: 18450 })],
+      pastJobs: [pastJob({ unpaid: unpaid("declined"), owedCents: 18450 })],
     });
     expect(hero).toMatchObject({
       label: "To pay",
@@ -1022,7 +1034,7 @@ describe("Home's card: what's owed first, when it asks anything of them", () => 
     const { hero } = next({
       plans: [plan({ status: "on_hold", nextStartsAt: null })],
       siteVisits: [visit],
-      pastJobs: [pastJob({ unpaid: "declined", owedCents: 18450 })],
+      pastJobs: [pastJob({ unpaid: unpaid("declined"), owedCents: 18450 })],
     });
     expect(hero).toMatchObject({
       label: "To pay",
@@ -1033,7 +1045,7 @@ describe("Home's card: what's owed first, when it asks anything of them", () => 
   test("a clean waiting on the payment service asks nothing of them", () => {
     const { hero, tiles } = next({
       jobs: [job()],
-      pastJobs: [pastJob({ unpaid: "waiting", owedCents: 18450 })],
+      pastJobs: [pastJob({ unpaid: unpaid("waiting"), owedCents: 18450 })],
     });
     expect(hero.label).toBe("Your next clean");
     expect(tiles.find((s) => s.label === "Your card")).toMatchObject({

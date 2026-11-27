@@ -1,5 +1,6 @@
 import {
   bookJob,
+  bookedClean,
   emailsTo,
   expect,
   failCharges,
@@ -82,6 +83,24 @@ test(
     await expect(page.getByText(casey.name)).toBeVisible();
   },
 );
+
+test("after the Deposit, Payments says what's still to be charged, never all paid up", async ({
+  page,
+}) => {
+  await bookedClean(olive);
+  await signedInAs(page, casey.email);
+  await page.goto("/portal/payments");
+  // nothing owed now, and the rest of the clean's price is still to come,
+  // charged once it's done (#508)
+  const next = page.getByRole("region", { name: "Next payment" });
+  // the clean's price less its Deposit: its receipt's "Payment pending
+  // $269.47" once done (portal-clean.spec)
+  await expect(next).toContainText("$269.47");
+  await expect(next).toContainText(
+    "Charged to your card after your Mon, Jan 12 clean",
+  );
+  await expect(page.getByText(/all paid up|Nothing owed/)).toHaveCount(0);
+});
 
 test("a declined Deposit books nothing, and another try goes through", async ({
   page,
@@ -835,7 +854,7 @@ test("a Client whose Deposit is going through sees it pending on Payments, with 
   await expect(
     page.getByText("Deposit for Deep Clean · Nothing you need to do."),
   ).toBeVisible();
-  await expect(page.getByText("You're all paid up")).toHaveCount(0);
+  await expect(page.getByText("Nothing", { exact: true })).toHaveCount(0);
   await expect(
     page.getByRole("link", { name: "See your quote" }),
   ).toHaveAttribute("href", new URL(quote).pathname);
@@ -870,7 +889,9 @@ test("a Client whose Deposit was given back as the time filled up sees it and it
   await expect(titleBadge(page, "Time unavailable")).toBeVisible();
 
   await page.goto("/portal/payments");
-  await expect(page.getByText("You're all paid up")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "To pay" }).getByText("Nothing"),
+  ).toBeVisible();
   await openTile(page, "All payments");
   const rows = listRows(page, "All payments");
   await expect(rows).toHaveCount(2);

@@ -304,7 +304,8 @@ function useNow(job: ClientJobDetail): {
     needed: approving,
     refused,
     ...jobApproval(job.id),
-    paid: () => t.w.cleanPaid,
+    // taken, or still going through (#508's review F26)
+    paid: (now) => (now.payment.unpaid ? t.p.pending : t.w.cleanPaid),
   });
   const approve = approving && approval;
   const updateCard: PageAction | false = !!payment.unpaid &&

@@ -1,7 +1,6 @@
 import { useLoaderData, useRouter } from "@tanstack/react-router";
 import {
   asksTheClient,
-  type BillPayOutcome,
   type BillView,
   catalog,
   onItsPage,
@@ -18,7 +17,6 @@ import {
   type DialogState,
   type PageAction,
 } from "@empire-cleaning/ui";
-import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { pausedPlans } from "../format.ts";
@@ -30,8 +28,12 @@ import {
 } from "../BillParts.tsx";
 import { useWhilePaying } from "../paying.ts";
 import { usePaymentForm } from "./CardForm.tsx";
-import { useSaid } from "../words.ts";
-import { approveAlert, useApprovePayment } from "./approve-payment.tsx";
+import { useSaid, type Said } from "../words.ts";
+import {
+  approveAlert,
+  billApproval,
+  useApprovePayment,
+} from "./approve-payment.tsx";
 
 // in the Client's language (ADR-0025)
 const words = catalog({
@@ -47,8 +49,6 @@ const words = catalog({
       `Your bank hasn't approved your payment yet. Approve it in your bank's app, or press ${press} to start over: the first payment is called off, so you're only charged once.`,
     bankOnWay: "Your bank payment is on its way",
     paid: "Thank you, your bill is paid",
-    // the payment service hasn't said yet, so the page says Payment pending
-    pending: "Your payment is pending",
     payThis: "Pay this bill",
     // beside Approve payment: by card or bank debit, in its dialog
     payAnother: "Pay another way",
@@ -63,7 +63,6 @@ const words = catalog({
       `Su banco aún no ha aprobado su pago. Apruébelo en la aplicación de su banco, o pulse ${press} para empezar de nuevo: el primer pago se cancela, así que solo se le cobra una vez.`,
     bankOnWay: "Su pago bancario está en camino",
     paid: "Gracias, su factura está pagada",
-    pending: "Su pago está pendiente",
     payThis: "Pagar esta factura",
     payAnother: "Pagar de otra forma",
     pay: (amount: string) => `Pagar ${amount}`,
@@ -96,17 +95,7 @@ export function PortalBill() {
   const approve = useApprovePayment({
     needed: approving,
     refused,
-    start: async () => {
-      const outcome = await postJson<BillPayOutcome>(
-        `/api/bills/mine/${bill.id}/payment`,
-        {},
-      );
-      return outcome.status === "done" ? outcome.bill : outcome;
-    },
-    finish: (approved) =>
-      postJson<BillView>(`/api/bills/mine/${bill.id}/payment/finish`, {
-        approved,
-      }),
+    ...billApproval(bill.id),
     paid: paidToast(t),
   });
   const pay: PageAction | false = bill.payable && {
@@ -231,9 +220,12 @@ function useStanding(
             kind === "no_card" ? null : t.p.card,
             why,
           )}{" "}
+          {/* paying it here puts it right too, whatever the card's problem */}
           {kind === "declined"
             ? t.w.payOr(t.UPDATE_AND_RETRY)
-            : t.clientFix[kind]}
+            : kind === "no_card"
+              ? t.w.payOr(t.SAVE_AND_RETRY)
+              : t.clientFix[kind]}
           {paused}
         </>
       ),
@@ -254,12 +246,13 @@ function useStanding(
 
 // what paying it came to, as a toast: paid, a bank debit on its way, or
 // pending while the payment service hasn't said
-const paidToast = (t: { w: (typeof words)["en"] }) => (paid: BillView) =>
-  paid.status === "paid"
-    ? t.w.paid
-    : paid.status === "processing"
-      ? t.w.bankOnWay
-      : t.w.pending;
+const paidToast =
+  (t: Said & { w: (typeof words)["en"] }) => (paid: BillView) =>
+    paid.status === "paid"
+      ? t.w.paid
+      : paid.status === "processing"
+        ? t.w.bankOnWay
+        : t.p.pending;
 
 // paying it here, by card or bank debit: a card pays at once, a bank debit
 // is processing until it clears
@@ -286,22 +279,14 @@ function PayForm({ bill, close }: { bill: BillView; close: () => void }) {
   });
   const action = useAction(t.p.didntWork, { reloadOnFailure: true });
 
+  const { start, finish } = billApproval(bill.id);
   const pay = async () => {
     const ok = await action.run(
       () =>
         payment.pay({
-          start: async (token) => {
-            const outcome = await postJson<BillPayOutcome>(
-              `/api/bills/mine/${bill.id}/payment`,
-              { token },
-            );
-            return outcome.status === "done" ? outcome.bill : outcome;
-          },
+          start,
           // the server calls one not approved off, or finds it taken
-          finish: (refused) =>
-            postJson<BillView>(`/api/bills/mine/${bill.id}/payment/finish`, {
-              approved: !refused,
-            }),
+          finish: (refused) => finish(!refused),
         }),
       paidToast(t),
     );

@@ -1,21 +1,20 @@
 // the JSON API, on the same origin (Vite forwards /api to the server)
 
+import type { ConflictKind } from "@empire-cleaning/models";
 import { languageHeader } from "./language.ts";
 
 export class ApiError extends Error {
   readonly status: number;
   // the API's per-field messages, keyed by the field's path (e.g. "email")
   readonly fieldErrors: Record<string, string>;
-  // what sort of 409 it is, where its message alone can't tell a screen:
-  // "approve", a payment that's the Client's to approve at their bank,
-  // whether the Office asked for it or they turned it down there (#534 Q7)
-  readonly kind?: "approve";
+  // what sort of 409 it is, where its message alone can't tell a screen
+  readonly kind?: ConflictKind;
 
   constructor(
     status: number,
     message: string,
     fieldErrors = {},
-    kind?: "approve",
+    kind?: ConflictKind,
   ) {
     super(message);
     this.status = status;

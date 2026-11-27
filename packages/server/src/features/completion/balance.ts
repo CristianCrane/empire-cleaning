@@ -136,7 +136,7 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
     string,
     { bill: Bill; cents: number; refundedCents: number }
   >();
-  for (const { bill, line } of await billLinesOf(job.id, tx))
+  for (const { bill, line } of await billLinesOf([job.id], tx))
     onBills.set(bill.id, {
       bill,
       cents: (onBills.get(bill.id)?.cents ?? 0) + line.amountCents,
@@ -218,6 +218,12 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
   };
 };
 
+// what a booked Job will owe once it's done, by the rule settling it then
+// charges: its price with what counts, less its Deposit and anything paid,
+// refunded at the provider or billed
+export const owedOnceDone = async (job: Job, tx: Tx | typeof db = db) =>
+  (await ledgerOf({ ...job, status: "completed" }, tx)).owedCents;
+
 // whether all a Job's money is in: it owes nothing, isn't Unpaid, and any
 // Bill that billed it (billed weekly) is paid. Till then, a plan offer for
 // its home waits (WEB-5)
@@ -297,6 +303,10 @@ export type Settled = {
   refundedCents: number;
   // why taking what's owed failed: the Job is now Unpaid
   failure: string | null;
+  // what it still owes when taking it failed, nothing more having moved,
+  // so a retry names it without reading again after this commits
+  // (critical review C13); 0 when it didn't fail
+  leftCents: number;
   // whether this settling made it Unpaid, when it wasn't before
   becameUnpaid: boolean;
   // the card it was taken from, or would have been
@@ -417,19 +427,20 @@ export const settleJob = async (
         : null,
       callOff,
     );
-    const found = "unknown" in earlier ? [] : earlier;
+    // what a lost reply took counts as charged now, as it's found, also
+    // when a later attempt's end isn't known yet (critical review C15)
+    const found = earlier.recorded;
     const ledger = found.length > 0 ? await ledgerOf(job!, tx) : before;
     // a refund unheard holds the Job's money, and only a charge it held
     // back, which the Client owes, makes the Job Unpaid: one we owe them
     // doesn't (#534 critical review C8)
-    const unknown =
-      "unknown" in earlier
-        ? earlier.unknown === "approving"
-          ? waiting
-          : earlier.unknown
-        : given.unknown && before.owedCents > 0
-          ? UNREACHABLE
-          : null;
+    const unknown = earlier.unknown
+      ? earlier.unknown === "approving"
+        ? waiting
+        : earlier.unknown
+      : given.unknown && before.owedCents > 0
+        ? UNREACHABLE
+        : null;
     const settled: Settled = {
       // what a lost reply took or gave back counts now, as it's found
       chargedCents: found.reduce((sum, c) => sum + c.amountCents, 0),
@@ -437,6 +448,7 @@ export const settleJob = async (
       // it may yet move the money, so nothing more moves meanwhile; billed,
       // nothing moves anyway, and the Clock asks after it (ADR-0022)
       failure: unknown && !billed ? unknown : null,
+      leftCents: 0,
       becameUnpaid: false,
       paymentMethod: method && cardIn(method),
       plan: null,
@@ -506,6 +518,7 @@ export const settleJob = async (
     }
 
     if (settled.failure) {
+      settled.leftCents = ledger.owedCents;
       settled.becameUnpaid = nowTheirs(
         job!.unpaidSince ? (job!.unpaidReason ?? "") : null,
         settled.failure,
@@ -565,6 +578,7 @@ export const settleAfterChange = async (
       chargedCents: 0,
       refundedCents: 0,
       failure: null,
+      leftCents: 0,
       becameUnpaid: false,
       paymentMethod: null,
       plan,

@@ -426,8 +426,8 @@ function RecordsAsStories() {
                   </p>
                 ),
                 action: (
-                  <Button variant="text" size="sm">
-                    <Mail aria-hidden size={16} />
+                  <Button variant="text">
+                    <Mail aria-hidden size={18} />
                     Email Max a link to add a card
                   </Button>
                 ),
@@ -519,8 +519,8 @@ function NoticesHoldOneAction() {
             </Notice>
             <Notice
               action={
-                <Button variant="text" size="sm">
-                  <Mail aria-hidden size={16} />
+                <Button variant="text">
+                  <Mail aria-hidden size={18} />
                   Email Kim a link to add a card
                 </Button>
               }
@@ -784,13 +784,7 @@ function ToursPointNeverPush() {
         </Example>
         <Example verdict="Don't">
           <div className="flex flex-col gap-4">
-            <Notice
-              action={
-                <Button variant="text" size="sm">
-                  Got it
-                </Button>
-              }
-            >
+            <Notice action={<Button variant="text">Got it</Button>}>
               Your quote is waiting. Open it to choose your clean and book.
             </Notice>
             <Card>
@@ -1078,8 +1072,8 @@ function OwedFirst() {
         <Example verdict="Do">
           <AnswerCard
             tile={<IconTile icon={CircleCheck} tone="success" size="lg" />}
-            label="You're all paid up"
-            headline="Nothing owed"
+            label="To pay"
+            headline="Nothing"
           />
           <HomeTiles
             label="Your payments"

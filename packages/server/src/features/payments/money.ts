@@ -52,14 +52,19 @@ import {
 export type ChargeFor =
   { jobId: string; kind: "balance" | "fee" } | { billId: string; kind: "bill" };
 
-// what charging came to: how much was taken, or why nothing more was
-export type Taken = { ok: true; cents: number } | { ok: false; reason: string };
+// what charging came to: how much was taken, and the Charges it recorded,
+// an earlier try's among them; or why nothing more was
+export type Taken =
+  | { ok: true; cents: number; recorded: Charge[] }
+  | { ok: false; reason: string };
 
 // why nothing was taken when the provider didn't answer
 export const UNREACHABLE = "the payment provider couldn't be reached";
+// the provider's, for a charge it leaves processing (ADR-0022)
+export const PROCESSING = "processing";
 // why nothing was taken when what the provider made of it isn't known yet:
 // a later try asks again
-export const WAITING_ON_PROVIDER = [UNREACHABLE, "processing"];
+export const WAITING_ON_PROVIDER = [UNREACHABLE, PROCESSING];
 // why nothing was taken from a Client with no card saved
 export const NO_CARD = "no Payment Method is saved";
 
@@ -177,6 +182,13 @@ const savedCardOf = (asked: Asked) => {
   }
 };
 
+// whether a payment asked for was with a card or bank account typed in on
+// its page, not their saved card: only that reads "Paid on this page"; one
+// with their saved card is charged to it, wherever they pressed (#508's UX
+// review U16)
+export const typedIn = (request: unknown) =>
+  savedCardOf(request as Asked) === null;
+
 // whether an earlier attempt asks what a try would ask now: as much, on the
 // same saved card. A Deposit on a card typed in names a token, used once,
 // which can't be told from the next one, so only the amount counts. A Job
@@ -209,7 +221,7 @@ type Outcome =
 type Earlier = Exclude<Outcome, { status: "finishing" }>;
 const asEarlier = (outcome: Outcome): Earlier =>
   outcome.status === "finishing"
-    ? { status: "unknown", reason: "processing" }
+    ? { status: "unknown", reason: PROCESSING }
     : outcome;
 
 // written outside the caller's transaction, so it stands whatever that does
@@ -387,7 +399,7 @@ const approving = async (
       return { status: "unknown", reason: "approving" };
     // the bank finishing it: read like a processing Charge's, till it ends
     case "finishing":
-      return { status: "unknown", reason: "processing" };
+      return { status: "unknown", reason: PROCESSING };
     case "unknown":
       return { status: "unknown", reason: approval.reason };
     case "ended":
@@ -679,8 +691,10 @@ const record = async (
 
 /**
  * Records what earlier attempts for a Job or Bill took that no Charge
- * records yet, asking the provider how each ended: the Charges, or why
- * that isn't known yet. `owed` is what the Job or Bill owes without them,
+ * records yet, asking the provider how each ended: the Charges, and, if it
+ * stopped at one whose end isn't known yet, why. The Charges recorded before
+ * it stopped are saved with the rest, so they're said either way (critical
+ * review C15). `owed` is what the Job or Bill owes without them,
  * on the card a try would ask now (outcomeOf); each found taken takes it
  * down. One waiting on the Client's bank is called off as `callOff` says
  * (approving).
@@ -690,19 +704,20 @@ export const recordTakenEarlier = async (
   chargeFor: ChargeFor,
   owed: Now,
   callOff: CallingOff | null = null,
-): Promise<Charge[] | { unknown: string }> => {
+): Promise<{ recorded: Charge[]; unknown?: string }> => {
   const recorded: Charge[] = [];
   let now = owed;
   for (const earlier of await openAttempts(tx, forIdOf(chargeFor))) {
     const outcome = await outcomeOf(earlier, now, callOff);
-    if (outcome.status === "unknown") return { unknown: outcome.reason };
+    if (outcome.status === "unknown")
+      return { recorded, unknown: outcome.reason };
     if (outcome.status === "taken") {
       recorded.push(await record(tx, chargeFor, outcome.attempt, null));
       if (now)
         now = { ...now, amount: now.amount - outcome.attempt.amountCents };
     }
   }
-  return recorded;
+  return { recorded };
 };
 
 // what's charged: a Client's saved Payment Method; or, on a Bill's page,
@@ -836,9 +851,9 @@ export const chargeSaved = async (
     callOff,
   );
   // it may yet take the money, so nothing more is asked for meanwhile
-  if ("unknown" in earlier) return { ok: false, reason: earlier.unknown };
-  let cents = earlier.reduce((sum, c) => sum + c.amountCents, 0);
-  if (cents >= amount) return { ok: true, cents };
+  if (earlier.unknown) return { ok: false, reason: earlier.unknown };
+  const cents = earlier.recorded.reduce((sum, c) => sum + c.amountCents, 0);
+  if (cents >= amount) return { ok: true, cents, recorded: earlier.recorded };
 
   const payerId = await payerFor(client).catch((error: unknown) => {
     monitoring.signal("payment_gateway_error", {
@@ -860,11 +875,15 @@ export const chargeSaved = async (
     return { ok: false, reason: "needs_approval", secret: outcome.secret };
   }
   if (outcome.status === "finishing") {
-    return { ok: false, reason: "processing" };
+    return { ok: false, reason: PROCESSING };
   }
   if (outcome.status !== "taken") return { ok: false, reason: outcome.reason };
-  await record(tx, chargeFor, outcome.attempt, item);
-  return { ok: true, cents: cents + outcome.attempt.amountCents };
+  const charge = await record(tx, chargeFor, outcome.attempt, item);
+  return {
+    ok: true,
+    cents: cents + charge.amountCents,
+    recorded: [...earlier.recorded, charge],
+  };
 };
 
 // what taking a Deposit came to: as the provider says, a Client's going
@@ -994,7 +1013,7 @@ export const takeDepositOnce = async (
     case "finishing":
       return asked.call === "deposit"
         ? outcome
-        : { status: "failed", reason: "processing" };
+        : { status: "failed", reason: PROCESSING };
     default:
       return outcome;
   }
