@@ -50,7 +50,7 @@ CodeQL is GitHub's default setup (no workflow here), on `main` and every PR into
 
 # Test site
 
-`render.yaml` (ADR-0020): a push to `main` deploys it once CI passes. Fresh seed data: run the **Reset test data** Action (`.github/workflows/reset-test-data.yml`). From nothing: `scripts/setup-test-site.sh`, once `render.yaml` is on `main`.
+`render.yaml` (ADR-0020): a push to `main` deploys it once CI passes, each service only when the push changes a file in its `buildFilter` (ADR-0035), so a docs- or tests-only push deploys nothing. Fresh seed data: run the **Reset test data** Action (`.github/workflows/reset-test-data.yml`). From nothing: `scripts/setup-test-site.sh`, once `render.yaml` is on `main`.
 
 # Production
 
