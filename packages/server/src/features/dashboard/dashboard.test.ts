@@ -60,7 +60,11 @@ describe("Needs attention", () => {
       quote: {
         status: "requested",
         asked: { condition: "moderate", wantsRegularService: true },
-        property: { street: home.street, postcode: home.postcode },
+        property: {
+          street: home.street,
+          city: home.city,
+          postcode: home.postcode,
+        },
       },
     });
   });

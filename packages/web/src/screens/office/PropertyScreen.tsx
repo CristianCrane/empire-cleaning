@@ -34,6 +34,7 @@ import {
   RecordPage,
   DetailsCard,
   Facts,
+  factColumns,
   type DialogState,
   Line,
 } from "@empire-cleaning/ui";
@@ -124,6 +125,7 @@ export function PropertyScreen() {
             tone: "warning",
             children: roomsMissing("Correct"),
           },
+        home.city === null && { key: "city", children: CITY_MISSING },
         newTerms && {
           key: "terms",
           children: `${newTermsLine[newTerms.status as keyof typeof newTermsLine]}.`,
@@ -171,6 +173,11 @@ const quoteInTheWay = (home: OfficePropertyView) => {
 // a business, seen before it's quoted (ADR-0014); seeing it records what
 // it is
 const SEE_IT_FIRST = `${needsVisit("This business")} Book one, or record what you know about it already.`;
+
+// a Property saved before cities were asked (#139): Cleaners read only its
+// ZIP code until the Office adds one
+const CITY_MISSING =
+  "Its city isn't filled in yet. Correct it so cleaners see where it is.";
 
 // a home asked about first for a Service not priced from its rooms
 const roomsMissing = (fix: "Correct" | "Enter") =>
@@ -512,6 +519,7 @@ function useCorrection<T extends Record<string, unknown>>(
   return {
     details,
     change,
+    saved,
     hasChanges: Object.keys(changes).length > 0,
     save,
     fieldErrors: action.fieldErrors,
@@ -533,13 +541,10 @@ function Details({ home }: { home: OfficePropertyView }) {
       kicker={premises ? "A business" : "A home"}
       title={<Line parts={propertyParts(home)} />}
     >
-      <Facts>
+      <Facts columns={factColumns(4)}>
         <FloorAreaFact property={home} />
-        <ConditionFact property={home} line="Condition, as last reported" />
-        <AccessFact
-          property={home}
-          line="How we get in, which the client and cleaners see"
-        />
+        <ConditionFact property={home} />
+        <AccessFact property={home} />
         <Fact
           icon={NotebookPen}
           label="Office notes"
@@ -548,15 +553,15 @@ function Details({ home }: { home: OfficePropertyView }) {
               {home.officeNotes || "None"}
             </span>
           }
-          line="Office notes, which only the office sees"
         />
       </Facts>
     </DetailsCard>
   );
 }
 
-// correcting what it is, in a dialog. The address is the Property's
-// identity, so it isn't corrected
+// correcting where it is and what it is, in a dialog. Its street, unit and
+// ZIP code are the Property's identity, so they aren't corrected; its city
+// is (#139)
 function CorrectDetails({
   home,
   premisesTypes,
@@ -593,15 +598,18 @@ function CorrectDetails({
   );
 }
 
+// its city first, as where it is changes no price, then what it is under
+// the line saying that does
 function CorrectionForm({
   correction,
   close,
   children,
 }: {
-  correction: ReturnType<typeof useCorrection>;
+  correction: ReturnType<typeof useCorrection<{ city: string }>>;
   close: () => void;
   children: ReactNode;
 }) {
+  const { details, change, saved } = correction;
   return (
     <Form
       validationErrors={correction.fieldErrors}
@@ -610,6 +618,14 @@ function CorrectionForm({
         if (await correction.save()) close();
       }}
     >
+      <TextField
+        label="City"
+        name="city"
+        autoComplete="off"
+        isRequired={saved.city !== ""}
+        value={details.city}
+        onChange={(city) => change({ city })}
+      />
       <p className="text-sm text-fg-muted">
         Correcting what it is changes the price of quotes made from now on.
       </p>
@@ -695,6 +711,7 @@ function HomeDetails({
       storeys: home.storeys,
       pets: home.pets ?? false,
       floorArea: home.floorArea,
+      city: home.city ?? "",
       condition: home.condition,
       officeNotes: officeNotes ?? "",
       accessInstructions: home.accessInstructions ?? "",
@@ -761,6 +778,7 @@ function PremisesDetails({
   const correction = useCorrection(premises, {
     premisesType: premises.premisesType.key,
     floorArea: premises.floorArea,
+    city: premises.city ?? "",
     condition: premises.condition,
     officeNotes: officeNotes ?? "",
     accessInstructions: premises.accessInstructions ?? "",

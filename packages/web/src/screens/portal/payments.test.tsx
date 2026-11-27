@@ -64,7 +64,13 @@ const going = (over: Partial<QuoteSummary> = {}): QuoteSummary =>
     kind: "one_off",
     status: "sent",
     service: { key: "deep", name: "Deep Clean", method: "rooms" },
-    property: { id: "home", street: "12 Elm St", unit: null, postcode: "" },
+    property: {
+      id: "home",
+      street: "12 Elm St",
+      unit: null,
+      city: null,
+      postcode: "",
+    },
     proposedStartsAt: "2026-11-09T14:00:00.000Z",
     paying: {
       status: "goingThrough",

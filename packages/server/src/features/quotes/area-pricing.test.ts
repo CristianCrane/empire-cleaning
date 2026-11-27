@@ -277,6 +277,7 @@ describe("a Quote for a Service priced by area", () => {
         new: {
           kind: "commercial",
           street: "200 Park Ave S",
+          city: "New York",
           postcode: "10003",
           premisesType: types.Medical,
           floorArea: 2000,

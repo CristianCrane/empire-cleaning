@@ -115,6 +115,7 @@ const toCleanersNeeded = (open: Opening[]): CleanerNeeded[] =>
     serviceName: job.serviceName,
     hoursOnSite: job.hoursOnSite,
     crewSize: job.crewSize,
+    city: job.property.city,
     postcode: job.property.postcode,
   }));
 

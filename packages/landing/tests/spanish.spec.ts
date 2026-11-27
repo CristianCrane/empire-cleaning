@@ -133,6 +133,7 @@ test("a Guest asks for a Quote in Spanish, sees the API's messages in Spanish, a
   await page
     .getByRole("textbox", { name: "Dirección" })
     .fill("41-12 Austin St");
+  await page.getByRole("textbox", { name: "Ciudad" }).fill("Forest Hills");
   // four digits: only the API says what's wrong
   await page.getByRole("textbox", { name: "Código postal" }).fill("1137");
   await next(page);

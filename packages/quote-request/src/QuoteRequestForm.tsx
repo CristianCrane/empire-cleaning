@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import type {
   AddOnChoice,
+  AddressParts,
   Condition,
   HomeRooms,
   Language,
@@ -35,7 +36,12 @@ import type {
   ServiceOffer,
   Weekday,
 } from "@empire-cleaning/models";
-import { PICK_TIMES, formats, messages } from "@empire-cleaning/models";
+import {
+  addressOf,
+  PICK_TIMES,
+  formats,
+  messages,
+} from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -170,6 +176,7 @@ const blankHome = (usual: boolean): HomeDraft => ({
   type: usual ? "house" : null,
   street: "",
   unit: "",
+  city: "",
   postcode: "",
   floorArea: null,
   accessInstructions: "",
@@ -184,6 +191,7 @@ const blankPremises: NewPremises = {
   kind: "commercial",
   street: "",
   unit: "",
+  city: "",
   postcode: "",
   premisesType: "",
   floorArea: null,
@@ -199,13 +207,10 @@ type Draft<T> = T extends object ? { [K in keyof T]: T[K] | null } : T | null;
 // a preferred start, from the times a picker offers, 5am to 11pm
 const startTimes = PICK_TIMES.filter((t) => t >= "05:00" && t <= "23:00");
 
-const addressOf = (p: Pick<PropertyView, "street" | "unit" | "postcode">) =>
-  [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
-
 // the fields on the second step: what the place is and where. A message
 // from the API for any of them sends the form back there.
 const WHERE_FIELDS =
-  /^(property\.existing|property\.new\.(type|street|unit|postcode))$/;
+  /^(property\.existing|property\.new\.(type|street|unit|city|postcode))$/;
 
 // the Request a Quote form, shared by the landing page (Guests), the Client
 // portal and the Office (callers). It asks in steps, so only a few fields
@@ -552,11 +557,15 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     </ChoiceTiles>
   );
 
+  // the Office types in a caller's details, so the browser's own (Jen's) stay
+  // out of them
+  const autofill = (token: string) => (asker.kind === "office" ? "off" : token);
+
   const businessNameField = (
     <TextField
       label={words.businessName}
       name="businessName"
-      autoComplete="organization"
+      autoComplete={autofill("organization")}
       isRequired
       value={businessName}
       onChange={setBusinessName}
@@ -571,7 +580,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         label={t.fullName}
         description={premises ? words.contactNote : undefined}
         name="contact.name"
-        autoComplete={asker.kind === "office" ? "off" : "name"}
+        autoComplete={autofill("name")}
         isRequired
         value={contact.name}
         onChange={(name) => setContact({ ...contact, name })}
@@ -584,7 +593,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
           label={words.email}
           name="contact.email"
           type="email"
-          autoComplete={asker.kind === "office" ? "off" : "email"}
+          autoComplete={autofill("email")}
           isRequired={asker.kind === "guest"}
           description={words.emailNote}
           value={contact.email}
@@ -596,7 +605,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         label={t.phone}
         name="contact.phone"
         type="tel"
-        autoComplete={asker.kind === "office" ? "off" : "tel"}
+        autoComplete={autofill("tel")}
         isRequired
         description={words.phoneNote}
         value={contact.phone}
@@ -658,6 +667,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
             place={newPremises}
             unitLabel={t.premisesUnit}
             t={t}
+            autofill={autofill}
             update={(change) =>
               setNewPremises((current) => ({ ...current, ...change }))
             }
@@ -668,6 +678,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
             place={newHome}
             unitLabel={t.homeUnit}
             t={t}
+            autofill={autofill}
             update={(change) =>
               setNewHome((current) => ({ ...current, ...change }))
             }
@@ -938,6 +949,17 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     moved.current = true;
   }, [at]);
 
+  // a refusal then takes it on to the first field the API refused, so its
+  // explanation is on screen however far down the step it sits
+  const form = useRef<HTMLFormElement>(null);
+  const [refusals, setRefusals] = useState(0);
+  useEffect(() => {
+    if (refusals)
+      form.current
+        ?.querySelector<HTMLElement>('[aria-invalid="true"]')
+        ?.focus();
+  }, [refusals]);
+
   const send = async () => {
     setSending(true);
     setFailed(false);
@@ -956,6 +978,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     } else if (result.fieldErrors) {
       setFieldErrors(result.fieldErrors);
       setStep(Math.min(...Object.keys(result.fieldErrors).map(stepOf)));
+      setRefusals((n) => n + 1);
       // an Add-on withdrawn since the form loaded: say so, and show what is
       // on offer now
       const addOnError = Object.keys(result.fieldErrors).some((path) =>
@@ -982,6 +1005,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     ];
     return (
       <Form
+        ref={form}
         validationErrors={fieldErrors}
         onSubmit={(e) => {
           e.preventDefault();
@@ -1019,6 +1043,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
 
   return (
     <Form
+      ref={form}
       validationErrors={fieldErrors}
       // Next submits too, so the browser checks the step's required fields
       onSubmit={(e) => {
@@ -1162,21 +1187,22 @@ function NewPremisesFields({
   );
 }
 
-// a Property's address: street, unit and ZIP code. The unit is optional but
-// stays in view: it's part of the address, not something extra.
+// a Property's address: street, unit, city and ZIP code, in the order a
+// browser fills them. The unit is optional but stays in view: it's part of
+// the address, not something extra.
 function AddressFields({
   place,
   unitLabel,
   update,
   error,
+  autofill,
   t,
 }: {
   t: FormWords;
-  place: Pick<NewHome, "street" | "unit" | "postcode">;
+  autofill: (token: string) => string;
+  place: Pick<NewHome, AddressParts>;
   unitLabel: string;
-  update: (
-    change: Partial<Pick<NewHome, "street" | "unit" | "postcode">>,
-  ) => void;
+  update: (change: Partial<Pick<NewHome, AddressParts>>) => void;
   error: (path: string) => string | undefined;
 }) {
   const field = (name: string) => `property.new.${name}`;
@@ -1186,27 +1212,36 @@ function AddressFields({
       <TextField
         label={t.street}
         name={field("street")}
-        autoComplete="address-line1"
+        autoComplete={autofill("address-line1")}
         isRequired
         value={place.street}
         onChange={(street) => update({ street })}
         errorMessage={error(field("street"))}
       />
+      <TextField
+        label={unitLabel}
+        name={field("unit")}
+        width="medium"
+        autoComplete={autofill("address-line2")}
+        value={place.unit ?? ""}
+        onChange={(unit) => update({ unit })}
+        errorMessage={error(field("unit"))}
+      />
       <FieldRow>
         <TextField
-          label={unitLabel}
-          name={field("unit")}
-          width="medium"
-          autoComplete="address-line2"
-          value={place.unit ?? ""}
-          onChange={(unit) => update({ unit })}
-          errorMessage={error(field("unit"))}
+          label={t.city}
+          name={field("city")}
+          autoComplete={autofill("address-level2")}
+          isRequired
+          value={place.city}
+          onChange={(city) => update({ city })}
+          errorMessage={error(field("city"))}
         />
         <TextField
           label={t.zip}
           name={field("postcode")}
           width="short"
-          autoComplete="postal-code"
+          autoComplete={autofill("postal-code")}
           inputMode="numeric"
           maxLength={5}
           isRequired

@@ -175,6 +175,26 @@ export const howLong = (
   return quarterHours(hours) === hours ? text : t.about(text);
 };
 
+// a place's address as every screen and email writes it out whole:
+// "41-12 Austin St, 4B, Forest Hills, 11375", or with no city for a place
+// saved before cities were asked
+export const addressOf = (p: {
+  street: string;
+  unit?: string | null;
+  city?: string | null;
+  postcode: string;
+}) => [p.street, p.unit, p.city, p.postcode].filter(Boolean).join(", ");
+
+// roughly where a place is, as a Cleaner reads it before Confirming (no
+// street until then, ADR-0019): "Forest Hills, 11375", or the catalog's
+// ZIP code words alone where no city is known yet ("ZIP code 11375"). A
+// city is shown as it was typed, so a row that writes its parts in line
+// (inLine) runs only the ZIP words through it
+export const areaOf = (
+  t: { zip: (postcode: string) => string },
+  p: { city: string | null; postcode: string },
+) => (p.city ? `${p.city}, ${p.postcode}` : t.zip(p.postcode));
+
 // a part of a row's line after its first, which reads on from the dot
 // before it as a sentence does, in lower case: "Deep Clean · about 1¾ h";
 // an initialism keeps its capitals, as a name does: "ZIP code 11375"

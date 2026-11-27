@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+  areaOf,
   firstNameOf,
   formats,
   oneStop,
@@ -157,4 +158,14 @@ test("inLine reads a part on from the dot before it", () => {
   expect(inLine("3 h")).toBe("3 h");
   expect(inLine("ZIP code 11375")).toBe("ZIP code 11375");
   expect(inLine("Código postal 11375")).toBe("código postal 11375");
+});
+
+test("areaOf gives a place's city as typed, or its ZIP code words without one", () => {
+  const zip = { zip: (postcode: string) => `código postal ${postcode}` };
+  expect(areaOf(zip, { city: "Forest Hills", postcode: "11375" })).toBe(
+    "Forest Hills, 11375",
+  );
+  expect(areaOf(zip, { city: null, postcode: "11375" })).toBe(
+    "código postal 11375",
+  );
 });

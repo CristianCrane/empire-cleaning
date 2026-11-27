@@ -313,6 +313,7 @@ test("the request form offers the Add-ons by name, and the choice reaches the Of
   await page
     .getByRole("textbox", { name: "Street address" })
     .fill("35-06 Ditmars Blvd");
+  await page.getByRole("textbox", { name: "City" }).fill("Forest Hills");
   await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
   await nextStep(page);
 

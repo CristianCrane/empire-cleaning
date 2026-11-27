@@ -313,16 +313,15 @@ test("a Cleaner reading in Spanish takes an open job and marks it done, in tú",
     page.getByRole("tab", { name: /Disponibles para ti/ }),
   ).toHaveAttribute("aria-selected", "true");
   const open = listRows(page, "Ofertas");
-  // its ZIP code read on from the time, in lower case: "ZIP code" keeps its
-  // capitals in English
-  await expect(open).toContainText(/vie 9:00\sa\.m\.\s·\scódigo postal \d{5}/);
+  // roughly where, read on from the time, its city as it was typed
+  await expect(open).toContainText(/vie 9:00\sa\.m\.\s·\sForest Hills, \d{5}/);
   // the Service by its Spanish name
   await expect(open).toContainText("Limpieza profunda");
   await open.click();
   await expect(page.getByText("Disponible", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("region", { name: "Detalles del trabajo" }),
-  ).toContainText("Código postal");
+  ).toContainText("Forest Hills");
   await expectAccessible(page);
   await pageAction(page, "Confirmar");
 

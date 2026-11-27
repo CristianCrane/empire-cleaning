@@ -10,7 +10,7 @@ export const lang = languageOf(process.env.EMAIL_LANG);
 
 export const client = { name: "Casey Client", email: "casey@example.com" };
 export const cleaner = "Cory Cleaner";
-export const address = "41-12 Austin St, 4B, 11375";
+export const address = "41-12 Austin St, 4B, Forest Hills, 11375";
 export const jobId = "8b175f41-4cb2-481c-af0c-260413da69da";
 
 export const monday = new Date("2026-01-12T14:00:00Z");

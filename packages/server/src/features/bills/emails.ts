@@ -92,9 +92,9 @@ const lineWords = catalog({
 });
 
 // A line in `lang`, for the Bill's email: "Deep Clean at 41-12 Austin St,
-// 4B, 11375, Monday, January 12 at 9:00 AM", "Inside the oven, not done:
-// …", "Corrected: Late cancellation fee: …", "Credit from EC-000011". On
-// its page (`onPage`), a row, a Job's are short: "Deep Clean, Mon, Jan 12,
+// 4B, Forest Hills, 11375, Monday, January 12 at 9:00 AM", "Inside the
+// oven, not done: …", "Corrected: Late cancellation fee: …", "Credit from
+// EC-000011". On its page (`onPage`), a row, a Job's are short: "Deep Clean, Mon, Jan 12,
 // 9:00 AM", its home when `onPage.home` says (billView: when its Jobs are
 // at more than one of the Client's homes; #534's UX review U8, F16). One
 // about the Job the row above names (`onPage.named`) says only what it is,
@@ -494,8 +494,8 @@ export type SettledJob = {
 };
 
 // a Job, as its lines on a Bill name it, and a fee for one that didn't
-// happen: "Deep Clean at 41-12 Austin St, 4B, 11375, Monday, January 12 at
-// 9:00 AM"; on the Bill's page (`onPage`), short, as lineLabel says
+// happen: "Deep Clean at 41-12 Austin St, 4B, Forest Hills, 11375, Monday,
+// January 12 at 9:00 AM"; on the Bill's page (`onPage`), short, as lineLabel says
 export const jobNamed = (
   lang: Language,
   { clean, fee }: { clean: Clean; fee: SettledJob["fee"] },

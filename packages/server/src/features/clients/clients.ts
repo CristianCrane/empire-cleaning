@@ -24,7 +24,7 @@ import { connectSignedUpAccount } from "../auth/connections.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { propertyStatuses } from "../properties/property-history.ts";
 import { openQuotesAt } from "../quotes/quote-state.ts";
-import { toPropertyView } from "../properties/property-view.ts";
+import { addressSql, toPropertyView } from "../properties/property-view.ts";
 import { quotesForClient } from "../quotes/quote-state.ts";
 import { clients, emailChanges } from "./clients.schema.ts";
 import { clientStandings, standingOfClient } from "./standing.ts";
@@ -372,8 +372,7 @@ export const listClients = async ({
             .where(
               and(
                 eq(properties.clientId, clients.id),
-                // the address as it's shown: "41-12 Austin St, 4B, 11375"
-                sql`concat_ws(', ', ${properties.street}, ${properties.unit}, ${properties.postcode}) ilike ${pattern}`,
+                ilike(addressSql, pattern),
               ),
             ),
         ),

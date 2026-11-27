@@ -4,6 +4,7 @@ import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { properties } from "../properties/properties.schema.ts";
+import { addressFields } from "../properties/property-view.ts";
 import { rescheduleRequests } from "../reschedule/reschedule.schema.ts";
 import { servicePlanVisits } from "../service-plans/service-plans.schema.ts";
 import { jobs } from "./jobs.schema.ts";
@@ -97,9 +98,7 @@ export const upcomingJobsFor = async (
     hoursOnSite: hoursOnSiteOf(job),
     property: {
       id: property.id,
-      street: property.street,
-      unit: property.unit,
-      postcode: property.postcode,
+      ...addressFields(property),
     },
     servicePlanId,
     movingTo: movingTo?.toISOString() ?? null,

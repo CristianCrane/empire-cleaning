@@ -149,7 +149,13 @@ function InviteForm({ close }: { close: () => void }) {
       <p className="text-fg-muted">
         We'll email them a link to sign up with this email.
       </p>
-      <TextField label="Name" name="name" isRequired autoFocus />
+      <TextField
+        label="Name"
+        name="name"
+        autoComplete="off"
+        isRequired
+        autoFocus
+      />
       <TextField
         label="Email"
         name="email"

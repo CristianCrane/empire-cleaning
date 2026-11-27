@@ -36,6 +36,7 @@ const describeNewHome = async (
   if (unit) {
     await page.getByRole("textbox", { name: /^Apartment or unit/ }).fill(unit);
   }
+  await page.getByRole("textbox", { name: "City" }).fill("Forest Hills");
   await page.getByRole("textbox", { name: "ZIP code" }).fill(zip);
 };
 
@@ -62,7 +63,7 @@ test(
     // Home says what's next: their Quote being prepared
     await expect(page.getByText("We're working on it")).toBeVisible();
     await expect(
-      page.getByText(/at 35-06 Ditmars Blvd, 11375, asked/),
+      page.getByText(/at 35-06 Ditmars Blvd, Forest Hills, 11375, asked/),
     ).toBeVisible();
   },
 );
@@ -84,6 +85,7 @@ test("the form starts blank for someone new, and asks each answer before going o
   await page
     .getByRole("textbox", { name: "Street address" })
     .fill("35-06 Ditmars Blvd");
+  await page.getByRole("textbox", { name: "City" }).fill("Forest Hills");
   await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
   await next.click();
   await expect(step).toHaveText("Step 2 of 4");
@@ -139,7 +141,7 @@ test("a home with a Quote open can't be asked about again, and points to it", as
   // Quote is on the way
   await chooseService(page);
   const existing = page.getByRole("radio", {
-    name: /41-12 Austin St, 4B, 11375/,
+    name: /41-12 Austin St, 4B, Forest Hills, 11375/,
   });
   await expect(existing).toBeDisabled();
   await expect(
@@ -169,7 +171,9 @@ test("a home with a Quote open can't be asked about again, and points to it", as
   await expect(page).toHaveURL("/portal/request");
 
   // the way on is the Quote they have
-  await page.getByRole("link", { name: "41-12 Austin St, 4B, 11375" }).click();
+  await page
+    .getByRole("link", { name: "41-12 Austin St, 4B, Forest Hills, 11375" })
+    .click();
   await expect(page).toHaveURL(/\/portal\/quotes\/[0-9a-f-]{36}$/);
   await expect(page.getByText("We're working on your quote")).toBeVisible();
 });
@@ -253,10 +257,12 @@ test("a Client asks about a second home", async ({ page }) => {
   await page.goto("/portal/details");
   const homes = page.getByRole("grid", { name: "Your homes" });
   await expect(
-    homes.getByRole("row", { name: /41-12 Austin St, 4B, 11375/ }),
+    homes.getByRole("row", {
+      name: /41-12 Austin St, 4B, Forest Hills, 11375/,
+    }),
   ).toBeVisible();
   await expect(
-    homes.getByRole("row", { name: /35-06 Ditmars Blvd, 11375/ }),
+    homes.getByRole("row", { name: /35-06 Ditmars Blvd, Forest Hills, 11375/ }),
   ).toContainText("Quote asked for");
 });
 
@@ -303,6 +309,7 @@ test("a Client who first asked in Spanish asks again in Spanish, the API's messa
   await page.getByText("Otra casa", { exact: true }).click();
   await page.getByText("Apartamento", { exact: true }).click();
   await page.getByRole("textbox", { name: "Dirección" }).fill("7 Elm St");
+  await page.getByRole("textbox", { name: "Ciudad" }).fill("Forest Hills");
   await page.getByRole("textbox", { name: "Código postal" }).fill("1137");
   await page.getByRole("button", { name: "Siguiente", exact: true }).click();
   await expect(page.getByText("Paso 3 de 3")).toBeVisible();
@@ -465,13 +472,14 @@ test("Office Staff see the Quote, open the home and correct its details", async 
 
   await expect(page).toHaveURL(/\/office\/properties\//);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "41-12 Austin St, 4B, 11375",
+    "41-12 Austin St, 4B, Forest Hills, 11375",
   );
   // read first, corrected in a dialog
   await pageAction(page, "Correct details");
   const save = page.getByRole("button", { name: "Save corrections" });
   await expect(save).toBeDisabled();
 
+  await page.getByRole("textbox", { name: "City" }).fill("Kew Gardens");
   await page.getByRole("textbox", { name: "Bedrooms" }).fill("4");
   await page.getByText("Heavy", { exact: true }).click();
   await page
@@ -481,6 +489,9 @@ test("Office Staff see the Quote, open the home and correct its details", async 
   await expect(page.getByText("Details corrected")).toBeVisible();
 
   await page.reload();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "41-12 Austin St, 4B, Kew Gardens, 11375",
+  );
   const details = page.getByRole("region", { name: "Home details" });
   await expect(details).toContainText("Key under the mat");
   await expect(details).toContainText("4 bedrooms");
@@ -521,7 +532,7 @@ test(
     await goTo(page, "Quotes");
     await page.getByText("Casey Client").click();
     const crumbs = page.getByLabel("Breadcrumbs");
-    const address = "41-12 Austin St, 4B, 11375";
+    const address = "41-12 Austin St, 4B, Forest Hills, 11375";
     // a Quote sits below its home, which sits below its Client
     await expect(crumbs.getByText("Quote", { exact: true })).toHaveAttribute(
       "aria-current",
@@ -637,7 +648,9 @@ test(
     );
     await page.reload();
     const details = page.getByRole("region", { name: "Home details" });
-    await expect(details).toContainText("41-12 Austin St, 4B, 11375");
+    await expect(details).toContainText(
+      "41-12 Austin St, 4B, Forest Hills, 11375",
+    );
     await expect(
       page.getByRole("button", { name: "Edit how we get in" }),
     ).toBeVisible();

@@ -88,6 +88,7 @@ type Field =
   | "the business name"
   | "the street address"
   | "the unit"
+  | "the city"
   | "the description"
   | "the reason"
   | "the note"
@@ -108,6 +109,7 @@ const fieldsEs: Record<Exclude<Field, "it">, string> = {
   "the business name": "El nombre del negocio debe",
   "the street address": "La dirección debe",
   "the unit": "El apartamento o la unidad debe",
+  "the city": "La ciudad debe",
   "the description": "La descripción debe",
   "the reason": "El motivo debe",
   "the note": "La nota debe",

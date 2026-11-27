@@ -370,7 +370,7 @@ describe("accepting a Service Plan Quote on several weekdays", () => {
       .sent.filter((m) => m.to === casey.email)
       .find((m) => /has started/.test(m.subject))!;
     expect(confirmation.text).toContain(
-      "a Standard Clean at 41-12 Austin St, 4B, 11375 every week, on Mondays at 9:00\u00a0AM and Wednesdays at 1:00\u00a0PM",
+      "a Standard Clean at 41-12 Austin St, 4B, Forest Hills, 11375 every week, on Mondays at 9:00\u00a0AM and Wednesdays at 1:00\u00a0PM",
     );
   });
 
@@ -577,6 +577,7 @@ describe("a commercial Service Plan", () => {
           kind: "commercial",
           street: "200 Park Ave S",
           unit: "Floor 3",
+          city: "New York",
           postcode: "10003",
           premisesType,
           floorArea: null,

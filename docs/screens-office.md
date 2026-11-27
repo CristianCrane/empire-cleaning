@@ -44,7 +44,7 @@ Their files are in `packages/web/src/screens/office/`.
 
 ## Office > Property
 
-`/office/properties/$propertyId` (`PropertyScreen.tsx`), Record: a home or premises, with its details, cleaning plan, Site Visit and history. Keeps: History entries dated to the day and time.
+`/office/properties/$propertyId` (`PropertyScreen.tsx`), Record: a Property's details, cleaning plan, Site Visit, history. Keeps: History dated to the day and time; facts just named; a missing city's info alert; Correct details says who sees each field, City first, above the price line, required once set, never street, unit or ZIP code (ADR-0035).
 
 ## Office > Ended cleaning plan
 

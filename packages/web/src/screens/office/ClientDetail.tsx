@@ -430,6 +430,7 @@ function EditContact({
           <TextField
             label={client.businessName ? "Contact's full name" : "Full name"}
             name="name"
+            autoComplete="off"
             defaultValue={client.name}
             isRequired
             autoFocus

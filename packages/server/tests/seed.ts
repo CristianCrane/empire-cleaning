@@ -199,6 +199,7 @@ const contact = (tag: string, name: string) => ({
 
 const home = (
   street: string,
+  city: string,
   postcode: string,
   over: Partial<NewHome> = {},
 ): NewHome => ({
@@ -206,6 +207,7 @@ const home = (
   type: "apartment",
   street,
   unit: null,
+  city,
   postcode,
   bedrooms: 2,
   bathrooms: 1,
@@ -280,10 +282,15 @@ async function seed() {
 
   const list = await currentPriceList();
   const officeType = list.premisesTypes[0]!.key;
-  const premises = (street: string, postcode: string): NewPremises => ({
+  const premises = (
+    street: string,
+    city: string,
+    postcode: string,
+  ): NewPremises => ({
     kind: "commercial",
     street,
     unit: null,
+    city,
     postcode,
     premisesType: officeType,
     floorArea: null,
@@ -331,7 +338,7 @@ async function seed() {
   await ask(
     contact("priya", "Priya Shah"),
     {
-      new: home("214-15 42nd Ave", "11361", {
+      new: home("214-15 42nd Ave", "Bayside", "11361", {
         type: "house",
         bedrooms: 3,
         storeys: 2,
@@ -357,7 +364,7 @@ async function seed() {
   await at(on(-2));
   const park = await ask(
     contact("park", "Lee Park"),
-    { new: premises("1-50 50th Ave", "11101") },
+    { new: premises("1-50 50th Ave", "Long Island City", "11101") },
     { businessName: "Park & Co Law", condition: undefined },
   );
   await bookSiteVisit(
@@ -378,7 +385,7 @@ async function seed() {
   const ana = await enterCallerAsk(by, {
     contact: contact("ana", "Ana Lima"),
     property: {
-      new: home("62-14 Saunders St", "11374", {
+      new: home("62-14 Saunders St", "Rego Park", "11374", {
         type: "townhouse",
         storeys: 2,
         pets: true,
@@ -402,7 +409,7 @@ async function seed() {
   // ---- Sent ----
   await at(on(-8));
   const sam = await ask(contact("sam", "Sam Ng"), {
-    new: home("45-21 Bell Blvd", "11361", {
+    new: home("45-21 Bell Blvd", "Bayside", "11361", {
       type: "house",
       bedrooms: 4,
       bathrooms: 2,
@@ -414,14 +421,18 @@ async function seed() {
   await at(on(-4));
   const jo = await ask(
     contact("jo", "Jo Wright"),
-    { new: home("35-20 Leverich St", "11372", { unit: "3F" }) },
+    {
+      new: home("35-20 Leverich St", "Jackson Heights", "11372", {
+        unit: "3F",
+      }),
+    },
     { condition: "light" },
   );
   await draftAndSend(jo.id, { sent: on(-2), startIn: 11, time: "14:00" });
 
   await at(on(-5));
   const kim = await ask(contact("kim", "Kim Osei"), {
-    new: home("83-40 Abingdon Rd", "11415", { type: "house" }),
+    new: home("83-40 Abingdon Rd", "Kew Gardens", "11415", { type: "house" }),
   });
   await draftAndSend(kim.id, { sent: on(-3), startIn: 12, time: "10:00" });
   // a new Revision being drafted on the Sent Quote
@@ -433,7 +444,7 @@ async function seed() {
   const ruth = await ask(
     contact("ruth", "Ruth Adler"),
     {
-      new: home("11 Arleigh Rd", "11021", {
+      new: home("11 Arleigh Rd", "Great Neck", "11021", {
         type: "house",
         bedrooms: 5,
         bathrooms: 3,
@@ -445,7 +456,7 @@ async function seed() {
 
   await at(on(-27));
   const chris = await ask(contact("chris", "Chris Vo"), {
-    new: home("30-58 32nd St", "11102", { unit: "2" }),
+    new: home("30-58 32nd St", "Astoria", "11102", { unit: "2" }),
   });
   await draftAndSend(chris.id, {
     sent: on(-25),
@@ -456,7 +467,7 @@ async function seed() {
   // ---- Turned Down: closed, so only on the Client's page ----
   await at(on(-4));
   const gail = await ask(contact("gail", "Gail Turner"), {
-    new: home("14 Palisade Ave", "10701"),
+    new: home("14 Palisade Ave", "Yonkers", "10701"),
   });
   await turnDownQuote(gail.id, "out_of_area", by);
 
@@ -464,7 +475,7 @@ async function seed() {
   const max = contact("max", "Max Rivera");
   const firstClean = await firstCleanDone(
     max,
-    home("69-10 Yellowstone Blvd", "11375", { unit: "5J" }),
+    home("69-10 Yellowstone Blvd", "Forest Hills", "11375", { unit: "5J" }),
     -20,
     -12,
   );
@@ -478,7 +489,7 @@ async function seed() {
 
   // ---- on a Service Plan, its next clean Skipped (below) ----
   const nina = contact("nina", "Nina Brooks");
-  const ninaHouse = home("71-15 Juno St", "11375", {
+  const ninaHouse = home("71-15 Juno St", "Forest Hills", "11375", {
     type: "house",
     bedrooms: 3,
   });
@@ -542,13 +553,16 @@ async function seed() {
   };
   await regular(
     contact("helen", "Helen Kowalski"),
-    home("69-50 Exeter St", "11375", { type: "house", bedrooms: 3 }),
+    home("69-50 Exeter St", "Forest Hills", "11375", {
+      type: "house",
+      bedrooms: 3,
+    }),
     maria!.id,
     { startIn: -28, time: "09:00" },
   );
   await regular(
     contact("thompson", "Marcus Thompson"),
-    home("32-11 81st St", "11370", {
+    home("32-11 81st St", "East Elmhurst", "11370", {
       type: "house",
       bedrooms: 4,
       bathrooms: 2,
@@ -559,7 +573,7 @@ async function seed() {
   );
   await regular(
     contact("sofia", "Sofia Papadopoulos"),
-    home("23-15 31st Rd", "11106", { unit: "2R" }),
+    home("23-15 31st Rd", "Astoria", "11106", { unit: "2R" }),
     daniela!.id,
     { startIn: -25, time: "10:00" },
   );
@@ -570,7 +584,7 @@ async function seed() {
   const bellWho = contact("bell", "Rachel Bell");
   const bellAsk = await ask(
     bellWho,
-    { new: premises("214-02 41st Ave", "11361") },
+    { new: premises("214-02 41st Ave", "Bayside", "11361") },
     {
       businessName: "Bell Blvd Pediatrics",
       condition: undefined,
@@ -668,7 +682,7 @@ async function seed() {
   // Cleaners
   await bookedJob(
     contact("olga", "Olga Petrova"),
-    home("98-41 64th Rd", "11374", { type: "house", bedrooms: 3 }),
+    home("98-41 64th Rd", "Rego Park", "11374", { type: "house", bedrooms: 3 }),
     -3,
     12,
   );
@@ -677,7 +691,10 @@ async function seed() {
   // to free Cleaners; the Client asked to move it once, and was turned down
   const pair = await bookedJob(
     contact("pete", "Pete Morales"),
-    home("25-11 Crescent St", "11102", { type: "house", bedrooms: 4 }),
+    home("25-11 Crescent St", "Astoria", "11102", {
+      type: "house",
+      bedrooms: 4,
+    }),
     -10,
     7,
     { crewSize: 2 },
@@ -705,7 +722,10 @@ async function seed() {
   // Pete's crew of two leaves nobody else
   const moving = await bookedJob(
     contact("rosa", "Rosa Diaz"),
-    home("61-20 188th St", "11365", { type: "house", bedrooms: 3 }),
+    home("61-20 188th St", "Fresh Meadows", "11365", {
+      type: "house",
+      bedrooms: 3,
+    }),
     -9,
     4,
   );
@@ -725,7 +745,10 @@ async function seed() {
   // increase to review, and one proposed to the Client
   const adjusted = await bookedJob(
     contact("grace", "Grace Lee"),
-    home("40-22 Little Neck Pkwy", "11363", { type: "house", bedrooms: 3 }),
+    home("40-22 Little Neck Pkwy", "Little Neck", "11363", {
+      type: "house",
+      bedrooms: 3,
+    }),
     -12,
     -4,
     { addOns: [firstAddOn!.key] },
@@ -757,7 +780,10 @@ async function seed() {
   // Completed, but the Balance couldn't be charged
   const unpaid = await bookedJob(
     contact("tia", "Tia Moore"),
-    home("88-10 Elmhurst Ave", "11373", { type: "house", bedrooms: 3 }),
+    home("88-10 Elmhurst Ave", "Elmhurst", "11373", {
+      type: "house",
+      bedrooms: 3,
+    }),
     -15,
     -6,
   );
@@ -773,7 +799,10 @@ async function seed() {
   // cancelled for the Client the evening before: a Late Cancellation
   const late = await bookedJob(
     contact("uma", "Uma Shah"),
-    home("192-04 46th Ave", "11358", { type: "house", bedrooms: 3 }),
+    home("192-04 46th Ave", "Flushing", "11358", {
+      type: "house",
+      bedrooms: 3,
+    }),
     -14,
     -2,
   );
@@ -792,7 +821,10 @@ async function seed() {
   // more than the three Cleaners can do
   const ours = await bookedJob(
     contact("vic", "Vic Hale"),
-    home("248-10 Union Tpke", "11426", { type: "house", bedrooms: 3 }),
+    home("248-10 Union Tpke", "Bellerose", "11426", {
+      type: "house",
+      bedrooms: 3,
+    }),
     -10,
     9,
   );
@@ -808,7 +840,7 @@ async function seed() {
   // the Cleaner couldn't get in
   const locked = await bookedJob(
     contact("wes", "Wes Grant"),
-    home("102-17 Queens Blvd", "11375", { unit: "6B" }),
+    home("102-17 Queens Blvd", "Forest Hills", "11375", { unit: "6B" }),
     -9,
     -1,
   );
@@ -824,7 +856,10 @@ async function seed() {
   // weekday, with Maria
   const offered = await bookedJob(
     contact("erin", "Erin Ford"),
-    home("21-40 Steinway St", "11105", { type: "house", bedrooms: 3 }),
+    home("21-40 Steinway St", "Astoria", "11105", {
+      type: "house",
+      bedrooms: 3,
+    }),
     -4,
     17,
   );

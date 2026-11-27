@@ -8,7 +8,13 @@ import type {
 } from "@empire-cleaning/models";
 import { quoteTitle, standingOf, type PropertiesData } from "./properties.ts";
 
-const home = { id: "home", street: "", unit: null, postcode: "" };
+const home = {
+  id: "home",
+  street: "",
+  unit: null,
+  city: null,
+  postcode: "",
+};
 const elsewhere = { ...home, id: "elsewhere" };
 
 // Monday 2 November 2026, 9am in New York

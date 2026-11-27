@@ -16,4 +16,4 @@ Their files are in `packages/web/src/screens/cleaner/`.
 
 ## Cleaner > Cleaner needed
 
-`/cleaner/open/$jobId` (`CleanerNeededScreen.tsx`), Record: a Job open to them, to take (#148). Keeps: Confirm as on Cleaner > Job; the ZIP code only, and Crew as how many, never who.
+`/cleaner/open/$jobId` (`CleanerNeededScreen.tsx`), Record: a Job open to them, to take (#148). Keeps: Confirm as on Cleaner > Job, but one taken meanwhile goes back to Offers, the toast saying why; the city and ZIP code only (`areaOf`), and Crew as how many, never who.

@@ -162,6 +162,7 @@ function EditStaff({
           <TextField
             label="Name"
             name="name"
+            autoComplete="off"
             defaultValue={member.name}
             isRequired
             autoFocus

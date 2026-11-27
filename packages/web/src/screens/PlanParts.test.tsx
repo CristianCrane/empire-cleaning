@@ -26,6 +26,7 @@ const plan = (days: PlanDayView[]) =>
       id: "home",
       street: "41-12 Austin St",
       unit: "4B",
+      city: "Forest Hills",
       postcode: "11375",
     },
     nextStartsAt: null,

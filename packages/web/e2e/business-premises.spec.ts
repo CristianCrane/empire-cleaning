@@ -41,6 +41,7 @@ const describeNewPremises = async (page: Page) => {
   await page
     .getByRole("textbox", { name: "Street address" })
     .fill("200 Park Ave S");
+  await page.getByRole("textbox", { name: "City" }).fill("New York");
   await page.getByRole("textbox", { name: "ZIP code" }).fill("10003");
   await nextStep(page);
   await choose(page, /Type of business/, "Office");
@@ -254,6 +255,7 @@ test("Office Staff quote a business caller from New quote", async ({
     .getByText("Commercial cleaning", { exact: true })
     .click();
   await page.getByRole("textbox", { name: "Street address" }).fill("9 Main St");
+  await page.getByRole("textbox", { name: "City" }).fill("Forest Hills");
   await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
   await choose(page, /Type of business/, "Retail");
   await page.getByText("One-off", { exact: true }).click();

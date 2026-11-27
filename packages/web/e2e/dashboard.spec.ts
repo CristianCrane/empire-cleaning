@@ -41,7 +41,9 @@ test(
     // the one to-do is the card's, and Quotes counts it
     const first = page.getByRole("region", { name: "First up" });
     await expect(first).toContainText("Casey Client");
-    await expect(first).toContainText("41-12 Austin St, 4B, 11375");
+    await expect(first).toContainText(
+      "41-12 Austin St, 4B, Forest Hills, 11375",
+    );
     await expect(page.getByRole("button", { name: /^Quotes/ })).toHaveText(
       /Quotes\s*1\s*1 asked for/,
     );

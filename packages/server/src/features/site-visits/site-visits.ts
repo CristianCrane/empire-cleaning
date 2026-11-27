@@ -37,7 +37,11 @@ import {
   offersPremisesType,
 } from "../price-list/price-list.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
-import { addressOf, toPropertyView } from "../properties/property-view.ts";
+import {
+  addressFields,
+  addressOf,
+  toPropertyView,
+} from "../properties/property-view.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
 import { quotes } from "../quotes/quotes.schema.ts";
 import { staff, type Staff } from "../staff/staff.schema.ts";
@@ -502,9 +506,7 @@ export const clientSiteVisits = async (
     minutes: visit.minutes,
     property: {
       id: property.id,
-      street: property.street,
-      unit: property.unit,
-      postcode: property.postcode,
+      ...addressFields(property),
     },
     visitorName: firstNameOf(visitor.name),
   }));
@@ -539,9 +541,7 @@ export const visitsFor = async (
     },
     property: {
       id: property.id,
-      street: property.street,
-      unit: property.unit,
-      postcode: property.postcode,
+      ...addressFields(property),
       accessInstructions: property.accessInstructions,
     },
   }));

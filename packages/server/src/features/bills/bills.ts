@@ -102,6 +102,7 @@ import {
   type Retried,
 } from "../payments/unpaid.ts";
 import { properties } from "../properties/properties.schema.ts";
+import { addressColumns } from "../properties/property-view.ts";
 import { currentPriceList, namedByKey } from "../price-list/price-list.ts";
 import { changedOf } from "../completion/emails.ts";
 import { jobQuotes } from "../quotes/job-quotes.ts";
@@ -502,9 +503,7 @@ const plansOn = async (billId: string, tx: Tx | typeof db = db) =>
       startedAt: servicePlans.startedAt,
       property: {
         id: properties.id,
-        street: properties.street,
-        unit: properties.unit,
-        postcode: properties.postcode,
+        ...addressColumns,
       },
     })
     .from(billLines)

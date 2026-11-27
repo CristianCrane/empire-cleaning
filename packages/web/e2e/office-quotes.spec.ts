@@ -41,6 +41,7 @@ const chooseService = async (page: Page, name = "Standard Clean") =>
 const describeNewHome = async (page: Page, street = "35-06 Ditmars Blvd") => {
   await page.getByText("Apartment", { exact: true }).click();
   await page.getByRole("textbox", { name: "Street address" }).fill(street);
+  await page.getByRole("textbox", { name: "City" }).fill("Astoria");
   await page.getByRole("textbox", { name: "ZIP code" }).fill("11105");
 };
 
@@ -55,6 +56,13 @@ test("Office Staff set a new caller's language, see it on their page, and change
   await page.getByText("Español").click();
   await chooseService(page);
   await describeNewHome(page);
+  // the caller's details, so the browser offers none of the Office's own
+  for (const name of ["Full name", "Phone", "Street address", "City"]) {
+    await expect(page.getByRole("textbox", { name })).toHaveAttribute(
+      "autocomplete",
+      "off",
+    );
+  }
   await page.getByRole("button", { name: "Draft a quote" }).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
 
@@ -64,6 +72,9 @@ test("Office Staff set a new caller's language, see it on their page, and change
   await pageAction(page, "Edit contact details");
   const dialog = page.getByRole("dialog", { name: "Edit contact details" });
   await expect(dialog.getByRole("radio", { name: "Español" })).toBeChecked();
+  await expect(
+    dialog.getByRole("textbox", { name: "Full name" }),
+  ).toHaveAttribute("autocomplete", "off");
   await dialog.getByText("English").click();
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Contact details saved")).toBeVisible();
@@ -174,7 +185,7 @@ test(
     await expect(
       page
         .getByLabel("Breadcrumbs")
-        .getByRole("link", { name: "35-06 Ditmars Blvd, 11105" }),
+        .getByRole("link", { name: "35-06 Ditmars Blvd, Astoria, 11105" }),
     ).toBeVisible();
     expect(await emailsTo(casey.email)).toHaveLength(sent);
   },
@@ -197,6 +208,7 @@ test(
             type: "apartment",
             street: "41-12 Austin St",
             unit: "4B",
+            city: "Forest Hills",
             postcode: "11375",
           },
         },

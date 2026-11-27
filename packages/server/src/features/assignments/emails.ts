@@ -1,4 +1,5 @@
 import {
+  areaOf,
   catalog,
   type CleanerNeeded,
   formats,
@@ -150,14 +151,15 @@ export const releasedEmail = ({
 // languages, for the email to name in its own
 export type NeededJob = Omit<CleanerNeeded, "serviceName"> & { service: Named };
 
-// "Deep Clean · Thursday, January 8 at 9:00 AM · ZIP code 11375 · about 1¾
-// hours · with 2 cleaners", its parts set apart as a row's on their screens
+// "Deep Clean · Thursday, January 8 at 9:00 AM · Forest Hills, 11375 · about
+// 1¾ hours · with 2 cleaners", its parts set apart as a row's on their
+// screens
 const lineFor = (lang: Language, job: NeededJob) => {
   const w = words[lang].needed;
   return lineOf([
     inLanguage(lang, job.service).name,
     formats[lang].formatWhen(new Date(job.startsAt)),
-    w.zip(job.postcode),
+    areaOf(w, job),
     howLong(w, job.hoursOnSite),
     w.crew(job.crewSize),
   ]);

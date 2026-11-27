@@ -25,6 +25,7 @@ const home = {
   id: "home",
   street: "12 Elm St",
   unit: "4B",
+  city: "Forest Hills",
   postcode: "11375",
   accessInstructions: "Key under the mat",
 } as PropertyView;
@@ -32,6 +33,7 @@ const at = {
   id: home.id,
   street: home.street,
   unit: home.unit,
+  city: home.city,
   postcode: home.postcode,
 };
 
@@ -180,7 +182,7 @@ describe("Home's hero, with nothing booked", () => {
       label: "Your quote",
       headline: "We're working on it",
       lines: [
-        "Deep Clean at 12 Elm St, 4B, 11375, asked Sat, Oct 31",
+        "Deep Clean at 12 Elm St, 4B, Forest Hills, 11375, asked Sat, Oct 31",
         "We'll email it to you, usually within a working day, and it shows here.",
       ],
       action: { label: "See what you asked for" },
@@ -207,7 +209,7 @@ describe("Home's hero, with nothing booked", () => {
       headline: "Deep Clean $391.04",
       lines: [
         "For Sun, Nov 8, 10:00\u00a0AM",
-        "At 12 Elm St, 4B, 11375",
+        "At 12 Elm St, 4B, Forest Hills, 11375",
         "Open until Fri, Nov 13",
       ],
       action: { label: "See your quote" },
@@ -358,7 +360,7 @@ describe("Home's hero, with something booked", () => {
       startsAt: TUESDAY,
       headline: "Tue, Nov 3, 9:00\u00a0AM",
       lines: [
-        "Standard Clean at 12 Elm St, 4B, 11375",
+        "Standard Clean at 12 Elm St, 4B, Forest Hills, 11375",
         "Part of your cleaning plan, every 2 weeks",
         "2½ h",
       ],
@@ -680,8 +682,11 @@ const paid = (
     ...over,
   });
 const going = paid({ status: "goingThrough" });
-const FOR = ["For Sun, Nov 8, 10:00 AM", "At 12 Elm St, 4B, 11375"];
-const ON = "on Sun, Nov 8, 10:00 AM at 12 Elm St, 4B, 11375";
+const FOR = [
+  "For Sun, Nov 8, 10:00 AM",
+  "At 12 Elm St, 4B, Forest Hills, 11375",
+];
+const ON = "on Sun, Nov 8, 10:00 AM at 12 Elm St, 4B, Forest Hills, 11375";
 const NEW_QUOTE = "We'll send you a new quote for another time.";
 const planQuote = (
   over: Partial<OfferedQuoteSummary> = {},
@@ -763,7 +768,7 @@ describe("Home, while a quote's deposit is going through (#534)", () => {
         quotes: [{ ...planQuote(), paying: going.paying }],
       }).news,
     ).toEqual([
-      "Your deposit for your cleaning plan at 12 Elm St, 4B, 11375 is pending. We'll email you as soon as it's booked, usually within half an hour.",
+      "Your deposit for your cleaning plan at 12 Elm St, 4B, Forest Hills, 11375 is pending. We'll email you as soon as it's booked, usually within half an hour.",
     ]);
   });
 
@@ -774,14 +779,14 @@ describe("Home, while a quote's deposit is going through (#534)", () => {
       lines: [
         "Depósito de Standard Clean · No tiene que hacer nada.",
         expect.any(String),
-        "En 12 Elm St, 4B, 11375",
+        "En 12 Elm St, 4B, Forest Hills, 11375",
       ],
       action: { label: "Ver su cotización" },
     });
     expect(
       whatsNext(data({ jobs: [job()], quotes: [going] }), "es", NOW).news,
     ).toEqual([
-      "Su depósito de la Standard Clean del dom, 8 de nov, 10:00 a.m. en 12 Elm St, 4B, 11375 está pendiente. Le enviaremos un correo en cuanto quede reservada, normalmente en menos de media hora.",
+      "Su depósito de la Standard Clean del dom, 8 de nov, 10:00 a.m. en 12 Elm St, 4B, Forest Hills, 11375 está pendiente. Le enviaremos un correo en cuanto quede reservada, normalmente en menos de media hora.",
     ]);
   });
 });
@@ -842,7 +847,7 @@ describe("Home, as a quote's deposit waits on their bank or ends unbooked (#534)
         quotes: [{ ...planQuote(), paying: failed.paying }],
       }).why?.lead,
     ).toBe(
-      "Your payment for your cleaning plan at 12 Elm St, 4B, 11375 didn't go through (the card has expired).",
+      "Your payment for your cleaning plan at 12 Elm St, 4B, Forest Hills, 11375 didn't go through (the card has expired).",
     );
     expect(
       next({
@@ -938,7 +943,7 @@ describe("Home, with a quote whose time filled since it was sent (#534)", () => 
       headline: "We'll send a new quote",
       lines: [
         "Sun, Nov 8, 10:00\u00a0AM has filled up, so your quote for Standard Clean can't be accepted.",
-        "At 12 Elm St, 4B, 11375",
+        "At 12 Elm St, 4B, Forest Hills, 11375",
       ],
       action: { label: "See your quote", secondary: true },
     });
@@ -954,7 +959,7 @@ describe("Home, with a quote whose time filled since it was sent (#534)", () => 
   test("a plan's names the days, not one time, and its home", () => {
     expect(next({ quotes: [planQuote({ bookable: [] })] }).hero.lines).toEqual([
       "One of the days your plan starts on has filled up, so its quote can't be accepted.",
-      "At 12 Elm St, 4B, 11375",
+      "At 12 Elm St, 4B, Forest Hills, 11375",
     ]);
     // a change to the plan they have: its new days
     expect(
@@ -968,12 +973,12 @@ describe("Home, with a quote whose time filled since it was sent (#534)", () => 
 
   test("under something ahead of it, News naming the quote", () => {
     expect(next({ jobs: [job()], quotes: [fullyBooked] }).news).toEqual([
-      `Sun, Nov 8, 10:00 AM has filled up, so your quote for Standard Clean at 12 Elm St, 4B, 11375 can't be accepted. ${NEW_QUOTE}`,
+      `Sun, Nov 8, 10:00 AM has filled up, so your quote for Standard Clean at 12 Elm St, 4B, Forest Hills, 11375 can't be accepted. ${NEW_QUOTE}`,
     ]);
     expect(
       next({ jobs: [job()], quotes: [planQuote({ bookable: [] })] }).news,
     ).toEqual([
-      `One of the days your cleaning plan at 12 Elm St, 4B, 11375 starts on has filled up, so its quote can't be accepted. ${NEW_QUOTE}`,
+      `One of the days your cleaning plan at 12 Elm St, 4B, Forest Hills, 11375 starts on has filled up, so its quote can't be accepted. ${NEW_QUOTE}`,
     ]);
     expect(
       next({
@@ -981,7 +986,7 @@ describe("Home, with a quote whose time filled since it was sent (#534)", () => 
         quotes: [planQuote({ bookable: [], homePlanId: "plan" })],
       }).news,
     ).toEqual([
-      "One of the new days for your cleaning plan at 12 Elm St, 4B, 11375 has filled up, so the change can't be accepted. Your plan stays as it is, and we'll send you a new quote for another time.",
+      "One of the new days for your cleaning plan at 12 Elm St, 4B, Forest Hills, 11375 has filled up, so the change can't be accepted. Your plan stays as it is, and we'll send you a new quote for another time.",
     ]);
   });
 
@@ -1009,7 +1014,7 @@ describe("Home, with a quote whose time filled since it was sent (#534)", () => 
     });
     expect(hero.label).toBe("Payment pending");
     expect(news).toEqual([
-      `Sun, Nov 8, 10:00 AM has filled up, so your quote for Deep Clean at 12 Elm St, 4B, 11375 can't be accepted. ${NEW_QUOTE}`,
+      `Sun, Nov 8, 10:00 AM has filled up, so your quote for Deep Clean at 12 Elm St, 4B, Forest Hills, 11375 can't be accepted. ${NEW_QUOTE}`,
     ]);
   });
 });

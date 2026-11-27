@@ -556,7 +556,7 @@ test(
     await expect(row).toHaveCount(1);
     await expect(row).toContainText("Jan 8");
     // roughly where, then what
-    await expect(row).toContainText("Thu 9:00 AM · ZIP code 11375");
+    await expect(row).toContainText("Thu 9:00 AM · Forest Hills, 11375");
     await expect(row).toContainText("Deep Clean · 6 h · just you");
 
     await row.click();
@@ -566,7 +566,7 @@ test(
     );
     await expect(
       page.getByRole("region", { name: "Job details" }),
-    ).toContainText("ZIP code 11375");
+    ).toContainText("Forest Hills, 11375");
     // no address, Access Instructions, Client or prices before Confirming
     await expect(page.locator("main")).not.toContainText("Austin St");
     await expect(page.locator("main")).not.toContainText("Ring 4B");
@@ -596,9 +596,12 @@ test("a Cleaner is told when someone else took the Cleaner Needed first", async 
   await offerJob(job.id, dee.id, { confirmed: true });
   await pageAction(page, "Confirm");
 
+  // back on Offers, where it's gone, the toast saying why
+  await expect(page).toHaveURL("/cleaner/offers");
   await expect(
     page.getByText("Someone else already took this job."),
   ).toBeVisible();
+  await expect(page.getByText("Nothing open to you right now")).toBeVisible();
 });
 
 test("a Cleaner says a Cleaner Needed is not for them, and the Office sees it", async ({

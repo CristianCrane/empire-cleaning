@@ -37,6 +37,7 @@ import { whyStarted } from "../jobs/rules.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { jobView, scheduleOn, scheduledJobs } from "../jobs/schedule.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
+import { addressFields } from "../properties/property-view.ts";
 import { servicePlansDue } from "../quotes/quote-state.ts";
 import {
   rescheduleRequestOf,
@@ -392,11 +393,7 @@ const cleanerJobs = async (
         .name,
       hoursOnSite: hoursOnSiteOf(job),
       addOns: addOns.get(job.id)!,
-      property: {
-        street: property.street,
-        unit: property.unit,
-        postcode: property.postcode,
-      },
+      property: addressFields(property),
       client: { firstName: firstNameOf(client.name) },
       // only once Confirmed, and then only on the day: an Offered Cleaner,
       // who may still say no, gets neither (#230)

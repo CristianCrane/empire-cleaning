@@ -56,6 +56,7 @@ import { passed } from "../jobs/rules.ts";
 import { charges } from "../payments/payments.schema.ts";
 import { unpaidKind } from "../payments/unpaid.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
+import { addressFields } from "../properties/property-view.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
 import { optionsIn } from "../quotes/quote-state.ts";
 import {
@@ -688,9 +689,7 @@ const summariesOf = async (plans: ServicePlan[]) => {
           })),
           property: {
             id: home.id,
-            street: home.street,
-            unit: home.unit,
-            postcode: home.postcode,
+            ...addressFields(home),
           },
           nextStartsAt: nextOf.get(plan.id)?.toISOString() ?? null,
         },

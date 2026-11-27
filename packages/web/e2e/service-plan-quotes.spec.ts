@@ -82,6 +82,7 @@ const askAgain = async () => {
           type: "apartment",
           street: "41-12 Austin St",
           unit: "4B",
+          city: "Forest Hills",
           postcode: "11375",
           bedrooms: 2,
           bathrooms: 1.5,
@@ -186,7 +187,7 @@ test(
     // offered unprompted: it belongs to the home, not a request
     await page
       .getByLabel("Breadcrumbs")
-      .getByRole("link", { name: "41-12 Austin St, 4B, 11375" })
+      .getByRole("link", { name: "41-12 Austin St, 4B, Forest Hills, 11375" })
       .click();
     await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
 
@@ -222,7 +223,9 @@ test(
     // the time and the home, each its own line (#534's UX review U5)
     await expect(client.getByText(/^For Mon, Jan 19, 9:00\sAM$/)).toBeVisible();
     await expect(
-      client.getByText("At 41-12 Austin St, 4B, 11375", { exact: true }),
+      client.getByText("At 41-12 Austin St, 4B, Forest Hills, 11375", {
+        exact: true,
+      }),
     ).toBeVisible();
   },
 );
@@ -282,7 +285,7 @@ test("the Client screen lists each home, whose own page holds its history and of
 
   await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "41-12 Austin St, 4B, 11375",
+    "41-12 Austin St, 4B, Forest Hills, 11375",
   );
   // its details, and its Quotes and Jobs in its History under them
   await expect(
@@ -386,7 +389,7 @@ test("the Client and Property screens pass an accessibility check", async ({
     .click();
   await page.reload();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "41-12 Austin St, 4B, 11375",
+    "41-12 Austin St, 4B, Forest Hills, 11375",
   );
   await expectAccessible(page);
 });
@@ -474,6 +477,7 @@ test("a home whose First Clean isn't Completed is answered with a one-off Quote"
           kind: "residential",
           type: "house",
           street: "9 Elm St",
+          city: "Forest Hills",
           postcode: "11375",
           bedrooms: 3,
           bathrooms: 2,

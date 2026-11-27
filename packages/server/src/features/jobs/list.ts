@@ -13,6 +13,7 @@ import type { JobList, JobsTab } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
+import { addressSql } from "../properties/property-view.ts";
 import { jobs } from "./jobs.schema.ts";
 import { jobViews } from "./schedule.ts";
 
@@ -51,8 +52,7 @@ export const listJobs = async ({
         ilike(clients.name, pattern),
         ilike(clients.businessName, pattern),
         ilike(clients.email, pattern),
-        // the address as it's shown: "41-12 Austin St, 4B, 11375"
-        sql`concat_ws(', ', ${properties.street}, ${properties.unit}, ${properties.postcode}) ilike ${pattern}`,
+        ilike(addressSql, pattern),
       )
     : undefined;
   const [page, tallies] = await Promise.all([

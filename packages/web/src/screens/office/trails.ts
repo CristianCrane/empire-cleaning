@@ -1,12 +1,16 @@
 import type { Crumb } from "@empire-cleaning/ui";
-import type { ClientName, PropertyView } from "@empire-cleaning/models";
+import type {
+  AddressParts,
+  ClientName,
+  PropertyView,
+} from "@empire-cleaning/models";
 import { linkTo } from "../../links.ts";
 import { addressOf, clientName } from "../format.ts";
 
 // The Office's breadcrumbs below its Clients section: from the section, every
 // step (docs/ux.md, Screen types). A page's own crumb, last, is its own.
 
-type Home = Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
+type Home = Pick<PropertyView, "id" | AddressParts>;
 
 // each step, by name, so a trail that leaves one out says which
 export const clientsCrumb: Crumb = {

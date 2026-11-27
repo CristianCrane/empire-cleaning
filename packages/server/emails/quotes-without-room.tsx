@@ -8,7 +8,7 @@ export default preview(
       { client: client.name, address, startsAt: monday },
       {
         client: "Olive Owner",
-        address: "200 Park Ave S, Floor 3, 10003",
+        address: "200 Park Ave S, Floor 3, New York, 10003",
         startsAt: monday,
       },
     ],
