@@ -556,7 +556,7 @@ test(
     await expect(row).toHaveCount(1);
     await expect(row).toContainText("Jan 8");
     // roughly where, then what
-    await expect(row).toContainText("Thu 9:00 AM · ZIP code 11375");
+    await expect(row).toContainText("Thu 9:00 AM · Forest Hills, 11375");
     await expect(row).toContainText("Deep Clean · 6 h · just you");
 
     await row.click();
@@ -566,7 +566,7 @@ test(
     );
     await expect(
       page.getByRole("region", { name: "Job details" }),
-    ).toContainText("ZIP code 11375");
+    ).toContainText("Forest Hills, 11375");
     // no address, Access Instructions, Client or prices before Confirming
     await expect(page.locator("main")).not.toContainText("Austin St");
     await expect(page.locator("main")).not.toContainText("Ring 4B");

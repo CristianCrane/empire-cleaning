@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import type {
   AddOnChoice,
+  AddressParts,
   Condition,
   HomeRooms,
   Language,
@@ -175,6 +176,7 @@ const blankHome = (usual: boolean): HomeDraft => ({
   type: usual ? "house" : null,
   street: "",
   unit: "",
+  city: "",
   postcode: "",
   floorArea: null,
   accessInstructions: "",
@@ -189,6 +191,7 @@ const blankPremises: NewPremises = {
   kind: "commercial",
   street: "",
   unit: "",
+  city: "",
   postcode: "",
   premisesType: "",
   floorArea: null,
@@ -207,7 +210,7 @@ const startTimes = PICK_TIMES.filter((t) => t >= "05:00" && t <= "23:00");
 // the fields on the second step: what the place is and where. A message
 // from the API for any of them sends the form back there.
 const WHERE_FIELDS =
-  /^(property\.existing|property\.new\.(type|street|unit|postcode))$/;
+  /^(property\.existing|property\.new\.(type|street|unit|city|postcode))$/;
 
 // the Request a Quote form, shared by the landing page (Guests), the Client
 // portal and the Office (callers). It asks in steps, so only a few fields
@@ -1164,8 +1167,9 @@ function NewPremisesFields({
   );
 }
 
-// a Property's address: street, unit and ZIP code. The unit is optional but
-// stays in view: it's part of the address, not something extra.
+// a Property's address: street, unit, city and ZIP code, in the order a
+// browser fills them. The unit is optional but stays in view: it's part of
+// the address, not something extra.
 function AddressFields({
   place,
   unitLabel,
@@ -1174,11 +1178,9 @@ function AddressFields({
   t,
 }: {
   t: FormWords;
-  place: Pick<NewHome, "street" | "unit" | "postcode">;
+  place: Pick<NewHome, AddressParts>;
   unitLabel: string;
-  update: (
-    change: Partial<Pick<NewHome, "street" | "unit" | "postcode">>,
-  ) => void;
+  update: (change: Partial<Pick<NewHome, AddressParts>>) => void;
   error: (path: string) => string | undefined;
 }) {
   const field = (name: string) => `property.new.${name}`;
@@ -1194,15 +1196,24 @@ function AddressFields({
         onChange={(street) => update({ street })}
         errorMessage={error(field("street"))}
       />
+      <TextField
+        label={unitLabel}
+        name={field("unit")}
+        width="medium"
+        autoComplete="address-line2"
+        value={place.unit ?? ""}
+        onChange={(unit) => update({ unit })}
+        errorMessage={error(field("unit"))}
+      />
       <FieldRow>
         <TextField
-          label={unitLabel}
-          name={field("unit")}
-          width="medium"
-          autoComplete="address-line2"
-          value={place.unit ?? ""}
-          onChange={(unit) => update({ unit })}
-          errorMessage={error(field("unit"))}
+          label={t.city}
+          name={field("city")}
+          autoComplete="address-level2"
+          isRequired
+          value={place.city}
+          onChange={(city) => update({ city })}
+          errorMessage={error(field("city"))}
         />
         <TextField
           label={t.zip}

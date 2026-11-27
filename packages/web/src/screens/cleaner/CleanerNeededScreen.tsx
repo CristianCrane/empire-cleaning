@@ -1,4 +1,4 @@
-import { catalog, howLong } from "@empire-cleaning/models";
+import { areaOf, catalog, howLong } from "@empire-cleaning/models";
 import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
 import type { CleanerNeeded } from "@empire-cleaning/models";
 import { Check, Clock, Users, X } from "lucide-react";
@@ -25,9 +25,9 @@ export const crewSizeOf = (t: Said, job: Pick<CleanerNeeded, "crewSize">) =>
   job.crewSize === 1 ? t.c.justYou : t.cleaners(job.crewSize);
 
 // A Cleaner Needed as a Cleaner it's open to sees it (ADR-0019): what, when,
-// for how long and roughly where (its ZIP code), and how many it takes,
-// never who: its Client or its crew. Confirm,
-// first come first served, or Not for me, as the page's split button
+// for how long and roughly where (its city and ZIP code), and how many it
+// takes, never who: its Client or its crew. Confirm, first come first
+// served, or Not for me, as the page's split button
 // (#493's layout D). The address and the Client come once they've taken
 // it, how we get in on the Job's day (#230).
 export function CleanerNeededScreen() {
@@ -101,7 +101,7 @@ export function CleanerNeededScreen() {
         },
       ]}
     >
-      <JobLead job={job} where={c.zip(job.postcode)}>
+      <JobLead job={job} where={areaOf(c, job)}>
         <Facts>
           <Fact
             icon={Clock}

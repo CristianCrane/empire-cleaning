@@ -80,7 +80,7 @@ import {
 
 const name = "Casey Cliente";
 const email = "casey@example.com";
-const address = "41-12 Austin St, 4B, 11375";
+const address = "41-12 Austin St, 4B, Forest Hills, 11375";
 const jobId = "8b175f41-4cb2-481c-af0c-260413da69da";
 const monday = new Date("2026-01-12T14:00:00Z");
 const wednesday = new Date("2026-01-14T18:30:00Z");
@@ -198,13 +198,19 @@ const visit = {
   place: "home" as const,
 };
 
-// a Job open to a Cleaner, as the Cleaners Needed email lists it
-const needed = (crewSize: number, hoursOnSite: number) => ({
+// a Job open to a Cleaner, as the Cleaners Needed email lists it, its
+// city unknown for a Property saved before cities were asked
+const needed = (
+  crewSize: number,
+  hoursOnSite: number,
+  city: string | null = "Forest Hills",
+) => ({
   jobId,
   startsAt: monday.toISOString(),
   service: clean.service,
   hoursOnSite,
   crewSize,
+  city,
   postcode: "11375",
 });
 
@@ -217,7 +223,7 @@ const emailsIn = (lang: Language): Email[] => [
     cleanersNeededEmail(lang, {
       name,
       soon,
-      jobs: [needed(2, 3.5), needed(1, 2)],
+      jobs: [needed(2, 3.5), needed(1, 2, null)],
     }),
   ]),
   crewMovedEmail(lang, { name, jobId, clean, from: wednesday }),

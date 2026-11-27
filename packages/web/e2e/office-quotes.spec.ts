@@ -41,6 +41,7 @@ const chooseService = async (page: Page, name = "Standard Clean") =>
 const describeNewHome = async (page: Page, street = "35-06 Ditmars Blvd") => {
   await page.getByText("Apartment", { exact: true }).click();
   await page.getByRole("textbox", { name: "Street address" }).fill(street);
+  await page.getByRole("textbox", { name: "City" }).fill("Astoria");
   await page.getByRole("textbox", { name: "ZIP code" }).fill("11105");
 };
 
@@ -174,7 +175,7 @@ test(
     await expect(
       page
         .getByLabel("Breadcrumbs")
-        .getByRole("link", { name: "35-06 Ditmars Blvd, 11105" }),
+        .getByRole("link", { name: "35-06 Ditmars Blvd, Astoria, 11105" }),
     ).toBeVisible();
     expect(await emailsTo(casey.email)).toHaveLength(sent);
   },
@@ -197,6 +198,7 @@ test(
             type: "apartment",
             street: "41-12 Austin St",
             unit: "4B",
+            city: "Forest Hills",
             postcode: "11375",
           },
         },

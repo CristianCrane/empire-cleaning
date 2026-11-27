@@ -3,9 +3,9 @@ import { partsShown } from "@empire-cleaning/models";
 
 type Part = ReactNode | false | null | undefined;
 
-// A row's line of parts, set apart by dots: "41-12 Austin St, 4B, 11375 ·
-// Standard Clean $194.89 · waiting since today" (docs/ux.md, Lists and
-// tables). Each part stays whole where it fits, and a wrap never leaves a dot
+// A row's line of parts, set apart by dots: "41-12 Austin St, 4B, Forest
+// Hills, 11375 · Standard Clean $194.89 · waiting since today" (docs/ux.md,
+// Lists and tables). Each part stays whole where it fits, and a wrap never leaves a dot
 // at a line's end or start: each dot sits in the gap before its part, and
 // the gap of a part that starts a line falls in the margin this line hides.
 // Its text reads "A · B · C". Where a slot takes only text, models' lineOf,

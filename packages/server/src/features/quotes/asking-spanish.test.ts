@@ -19,7 +19,7 @@ describe("asking in Spanish", () => {
   test("gives the form's messages in Spanish, and in English to a request that names no language", async () => {
     const tooLong = guestAsk({
       contact: { ...casey, name: "x".repeat(101) },
-      property: { new: { ...home, postcode: "1137" } },
+      property: { new: { ...home, city: "x".repeat(101), postcode: "1137" } },
     });
 
     const es = await inSpanish().send(tooLong).expect(400);
@@ -34,10 +34,12 @@ describe("asking in Spanish", () => {
       );
     expect(issues(es)).toEqual({
       "contact.name": "El nombre debe tener menos de 100 caracteres",
+      "property.new.city": "La ciudad debe tener menos de 100 caracteres",
       "property.new.postcode": "Escriba un código postal de 5 dígitos",
     });
     expect(issues(en)).toEqual({
       "contact.name": "Keep the name under 100 characters",
+      "property.new.city": "Keep the city under 100 characters",
       "property.new.postcode": "Enter a 5-digit ZIP code",
     });
     // whatever the browser prefers after it
@@ -59,6 +61,7 @@ describe("asking in Spanish", () => {
               kind: "commercial",
               street: "1 Main St",
               unit: null,
+              city: "Forest Hills",
               postcode: "11375",
               premisesType: crypto.randomUUID(),
               floorArea: null,
@@ -121,7 +124,7 @@ describe("asking in Spanish", () => {
     expect(receipt.subject).toBe("Recibimos su solicitud de cotización");
     expect(receipt.text).toMatch(/^Hola, Casey:\n\n/);
     expect(receipt.text).toContain(
-      "Gracias por pedirnos una cotización para 41-12 Austin St, 4B, 11375. Le enviaremos su cotización a casey@example.com",
+      "Gracias por pedirnos una cotización para 41-12 Austin St, 4B, Forest Hills, 11375. Le enviaremos su cotización a casey@example.com",
     );
     expect(receipt.html).toContain('lang="es"');
   });

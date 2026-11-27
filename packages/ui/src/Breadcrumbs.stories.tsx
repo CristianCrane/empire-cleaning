@@ -34,7 +34,7 @@ export const ThreeLevels: Story = {
     trail: [
       { label: "Home", href: "#home" },
       { label: "Your homes", href: "#homes" },
-      { label: "41-12 Austin St, 4B, 11375" },
+      { label: "41-12 Austin St, 4B, Forest Hills, 11375" },
     ],
   },
 };

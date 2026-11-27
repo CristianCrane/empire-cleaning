@@ -93,6 +93,7 @@ describe("Cleaners Needed", () => {
         serviceName: "Deep Clean",
         hoursOnSite: 3,
         crewSize: 2,
+        city: "Forest Hills",
         postcode: "11375",
       },
     ]);
@@ -312,11 +313,13 @@ describe("Releasing a Confirmed Assignment", () => {
   });
 
   test("of a Job within 48 hours emails everyone free for it at once", async () => {
-    // 9am on Tuesday the 6th, 29 hours away
+    // 9am on Tuesday the 6th, 29 hours away, at a home saved before cities
+    // were asked, so read by its ZIP code alone
     const job = await bookedJob({
       startsAt: "2026-01-06T14:00:00Z",
       labourHours: 3,
       crewSize: 1,
+      city: null,
     });
     const cory = await staffMember("Cory Cleaner");
     const dee = await staffMember("Dee Cleaner");
@@ -367,7 +370,7 @@ describe("The morning email of Cleaners Needed", () => {
       [
         "Deep Clean",
         "Thursday, January 8 at 9:00\u00a0AM",
-        "ZIP code 11375",
+        "Forest Hills, 11375",
         "3 hours",
         "with 2 cleaners",
       ].join("\u00a0·\u00a0"),

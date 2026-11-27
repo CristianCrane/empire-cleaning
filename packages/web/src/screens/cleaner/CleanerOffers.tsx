@@ -1,4 +1,5 @@
 import {
+  areaOf,
   catalog,
   howLong,
   inLine,
@@ -63,13 +64,15 @@ export function CleanerOffers() {
   const tab = tabShown(offerTabs, url.tab, count);
 
   type Offer = (typeof offered)[number] | (typeof open)[number];
+  // roughly where, read on from the time before it: "Forest Hills, 11375",
+  // or "código postal 11375" with no city; a city stays as it was typed
+  const zipInLine = { zip: (postcode: string) => inLine(c.zip(postcode)) };
   const row = (job: Offer): ListRow =>
     "jobId" in job
       ? {
           id: job.jobId,
           at: job.startsAt,
-          // read on from the time before it: "código postal 11375"
-          title: inLine(c.zip(job.postcode)),
+          title: areaOf(zipInLine, job),
           description: (
             <Line
               parts={[
@@ -88,7 +91,7 @@ export function CleanerOffers() {
       : {
           id: job.id,
           at: job.startsAt,
-          title: inLine(c.zip(job.property.postcode)),
+          title: areaOf(zipInLine, job.property),
           description: (
             <Line
               parts={[job.serviceName, inLine(howLong(t, job.hoursOnSite))]}

@@ -153,6 +153,7 @@ test("the recurring page's Quote asks for regular visits already", async ({
   await page
     .getByRole("textbox", { name: "Street address" })
     .fill("41-12 Austin St");
+  await page.getByRole("textbox", { name: "City" }).fill("Forest Hills");
   await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
   await page.getByRole("button", { name: "Next", exact: true }).click();
 

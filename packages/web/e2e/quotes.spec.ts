@@ -420,7 +420,7 @@ test("a home's History names the Service a Quote was sent for", async ({
     .getByRole("row", { name: /41-12 Austin St/ })
     .click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "41-12 Austin St, 4B, 11375",
+    "41-12 Austin St, 4B, Forest Hills, 11375",
   );
   await expect(
     page

@@ -51,7 +51,7 @@ describe("a Guest asking for a Quote", () => {
 
     const receipt = testEmail().lastTo("casey@example.com");
     expect(receipt.subject).toBe("We got your request for a quote");
-    expect(receipt.text).toContain("41-12 Austin St, 4B, 11375");
+    expect(receipt.text).toContain("41-12 Austin St, 4B, Forest Hills, 11375");
     expect(receipt.text).toContain(
       "We'll email your quote to casey@example.com",
     );
@@ -104,7 +104,9 @@ describe("a Guest asking for a Quote", () => {
     const res = await submit(
       guestAsk({
         contact: { ...casey, email: "casey@", phone: "555" },
-        property: { new: { ...home, postcode: "1137", bathrooms: 1.25 } },
+        property: {
+          new: { ...home, city: " ", postcode: "1137", bathrooms: 1.25 },
+        },
       }),
     );
 
@@ -119,6 +121,7 @@ describe("a Guest asking for a Quote", () => {
     expect(issues).toMatchObject({
       "contact.email": "Enter a full email address, like name@example.com",
       "contact.phone": "Enter a phone number with its area code",
+      "property.new.city": "Enter the city",
       "property.new.postcode": "Enter a 5-digit ZIP code",
       "property.new.bathrooms": "Use whole or half bathrooms, like 1.5",
     });
@@ -494,7 +497,7 @@ describe("one open Quote per home", () => {
       "About your request for a quote",
     ]);
     expect(mail[1]!.text).toContain(
-      "You've already asked us for a quote for 41-12 Austin St, 4B, 11375. We'll email it to casey@example.com soon.",
+      "You've already asked us for a quote for 41-12 Austin St, 4B, Forest Hills, 11375. We'll email it to casey@example.com soon.",
     );
     expect((await ownHomes("casey@example.com")).quotes).toHaveLength(1);
   });
@@ -557,7 +560,7 @@ describe("the Office's email", () => {
     for (const to of ["olive@example.com", "dana@example.com"]) {
       const notice = testEmail().lastTo(to);
       expect(notice.subject).toBe("New quote request from Casey Client");
-      expect(notice.text).toContain("41-12 Austin St, 4B, 11375");
+      expect(notice.text).toContain("41-12 Austin St, 4B, Forest Hills, 11375");
       expect(notice.text.match(/https?:\/\/\S+/g)).toEqual([
         expect.stringMatching(
           new RegExp(`/office/quotes/${body.id}\\?lang=en$`),
@@ -871,6 +874,7 @@ describe("Office Staff", () => {
         pets: false,
         floorArea: 1400,
         condition: "heavy",
+        city: "Kew Gardens",
       })
       .expect(200);
 
@@ -883,6 +887,7 @@ describe("Office Staff", () => {
       pets: false,
       floorArea: 1400,
       condition: "heavy",
+      city: "Kew Gardens",
       street: "41-12 Austin St",
     });
   });

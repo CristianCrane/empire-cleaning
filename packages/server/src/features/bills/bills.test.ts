@@ -232,7 +232,7 @@ describe("making Bills", () => {
     // and each line with the short time, one about the clean above saying
     // only what it is (#534's UX review U8, F16); its email has each in
     // full, below
-    expect(bill.home).toBe("41-12 Austin St, 4B, 11375");
+    expect(bill.home).toBe("41-12 Austin St, 4B, Forest Hills, 11375");
     expect(bill.lines.map((l) => l.label)).toEqual([
       "Deep Clean, Wed, Jan 7, 9:00\u00a0AM",
       "Deposit paid",
@@ -2099,7 +2099,7 @@ describe("putting Bills right", () => {
     ).body as BillView;
     // which say where once, as Casey has her home and her premises, and
     // the Deposit only what it is, under its clean
-    expect(theirs.home).toBe("41-12 Austin St, 4B, 11375");
+    expect(theirs.home).toBe("41-12 Austin St, 4B, Forest Hills, 11375");
     expect(theirs.lines.map((l) => l.label).sort()).toEqual([
       "Corrección: Depósito pagado",
       expect.stringMatching(/^Corrección: Limpieza profunda, /),
@@ -2523,7 +2523,7 @@ describe("a Bill's lines", () => {
     change: null,
     clean: {
       service: { name: "Deep Clean", nameEs: "Limpieza profunda" },
-      address: "41-12 Austin St, 4B, 11375",
+      address: "41-12 Austin St, 4B, Forest Hills, 11375",
       startsAt: new Date(WEDNESDAY_9AM),
     },
     creditFrom: null,
@@ -2542,7 +2542,7 @@ describe("a Bill's lines", () => {
       "Deposit paid: Deep Clean, Wed, Jan 7, 9:00\u00a0AM",
     );
     expect(lineLabel("en", deposit)).toMatch(
-      /^Deposit paid: Deep Clean at 41-12 Austin St, 4B, 11375, Wednesday/,
+      /^Deposit paid: Deep Clean at 41-12 Austin St, 4B, Forest Hills, 11375, Wednesday/,
     );
   });
 
@@ -2551,10 +2551,10 @@ describe("a Bill's lines", () => {
       "Deep Clean, Wed, Jan 7, 9:00\u00a0AM",
     );
     expect(lineLabel("en", line, { home: true })).toBe(
-      "Deep Clean at 41-12 Austin St, 4B, 11375, Wed, Jan 7, 9:00\u00a0AM",
+      "Deep Clean at 41-12 Austin St, 4B, Forest Hills, 11375, Wed, Jan 7, 9:00\u00a0AM",
     );
     expect(lineLabel("en", line)).toBe(
-      "Deep Clean at 41-12 Austin St, 4B, 11375, Wednesday, January 7 at 9:00\u00a0AM",
+      "Deep Clean at 41-12 Austin St, 4B, Forest Hills, 11375, Wednesday, January 7 at 9:00\u00a0AM",
     );
   });
 
@@ -2569,7 +2569,7 @@ describe("a Bill's lines", () => {
         .body as BillView;
     // a home and premises: the Bill's cleans, all at the home, name it once
     const both = await mine();
-    expect(both.home).toBe("41-12 Austin St, 4B, 11375");
+    expect(both.home).toBe("41-12 Austin St, 4B, Forest Hills, 11375");
     expect(both.lines.map((l) => l.label).sort()).toEqual([
       "Deep Clean, Wed, Jan 7, 9:00\u00a0AM",
       "Deposit paid",
@@ -2585,7 +2585,7 @@ describe("a Bill's lines", () => {
       "Deposit paid",
     ]);
     const ours = await billOf(office, bill!.id);
-    expect(ours.home).toBe("41-12 Austin St, 4B, 11375");
+    expect(ours.home).toBe("41-12 Austin St, 4B, Forest Hills, 11375");
   });
 });
 

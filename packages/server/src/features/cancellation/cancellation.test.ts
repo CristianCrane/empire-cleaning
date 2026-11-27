@@ -447,7 +447,7 @@ describe("No Access", () => {
     expect(email.text).toContain('("Nobody home and the gate was locked")');
     expect(email.text).toContain("As with a late cancellation, your");
     expect(testEmail().lastTo("olive@example.com").subject).toBe(
-      "Couldn't get in at 41-12 Austin St, 4B, 11375",
+      "Couldn't get in at 41-12 Austin St, 4B, Forest Hills, 11375",
     );
 
     // and it can't then be Completed, cancelled or recorded again

@@ -102,6 +102,7 @@ for (const theme of ["light", "dark"] as const) {
         await page
           .getByRole("textbox", { name: "Street address" })
           .fill("41-12 Austin St");
+        await page.getByRole("textbox", { name: "City" }).fill("Forest Hills");
         await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
         await next(page);
         // the Add-ons arrive from the API a moment after the step
@@ -161,6 +162,7 @@ test.describe("requesting a Quote", () => {
     await page
       .getByRole("textbox", { name: "Street address" })
       .fill("41-12 Austin St");
+    await page.getByRole("textbox", { name: "City" }).fill("Forest Hills");
     await page.getByRole("textbox", { name: "ZIP code" }).fill(zip);
   };
 
@@ -367,7 +369,7 @@ test.describe("requesting a Quote", () => {
       "About your request for a quote",
     ]);
     expect(mail[1]!.text).toContain(
-      "You've already asked us for a quote for 41-12 Austin St, 11375.",
+      "You've already asked us for a quote for 41-12 Austin St, Forest Hills, 11375.",
     );
   });
 
@@ -407,6 +409,7 @@ test.describe("requesting a Quote", () => {
     await page
       .getByRole("textbox", { name: "Street address" })
       .fill("41-12 Austin St");
+    await page.getByRole("textbox", { name: "City" }).fill("Forest Hills");
     await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
     await next(page);
     const extras = page.getByRole("group", { name: "Any extras?" });
@@ -518,6 +521,7 @@ test.describe("requesting a Quote", () => {
     await page
       .getByRole("textbox", { name: "Street address" })
       .fill("41-12 Austin St");
+    await page.getByRole("textbox", { name: "City" }).fill("Forest Hills");
     await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
     await next(page);
 
@@ -550,6 +554,7 @@ test.describe("requesting a Quote", () => {
     await page
       .getByRole("textbox", { name: "Street address" })
       .fill("200 Park Ave S");
+    await page.getByRole("textbox", { name: "City" }).fill("New York");
     await page.getByRole("textbox", { name: "ZIP code" }).fill("10003");
     await next(page);
     // a Site Visit finds these, so they aren't asked
@@ -579,7 +584,7 @@ test.describe("requesting a Quote", () => {
       page.getByText(`We'll email your quote to ${email}`),
     ).toBeVisible();
     const [receipt] = await emailsTo(email);
-    expect(receipt?.text).toContain("200 Park Ave S, 10003");
+    expect(receipt?.text).toContain("200 Park Ave S, New York, 10003");
   });
 
   test("required details are asked for before anything is sent", async ({

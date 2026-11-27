@@ -147,7 +147,9 @@ test(
     const lines = page.getByRole("region", { name: "Bill details" });
     // the Office reads where, once, as all its cleans were at one home, and
     // the lines say what and when (#534's review F16, UX review U8)
-    await expect(lines).toContainText("41-12 Austin St, 4B, 11375");
+    await expect(lines).toContainText(
+      "41-12 Austin St, 4B, Forest Hills, 11375",
+    );
     await expect(
       lines.getByRole("link", { name: /^Deep Clean, Wed, Jan 7, / }),
     ).toBeVisible();
@@ -235,7 +237,9 @@ test(
     // Casey has her home and her premises, so it says where, once, as its
     // cleans were all at one; with one property it wouldn't (#534's UX
     // review U8; bills.test.ts)
-    await expect(details).toContainText("41-12 Austin St, 4B, 11375");
+    await expect(details).toContainText(
+      "41-12 Austin St, 4B, Forest Hills, 11375",
+    );
     await expect(
       details.getByRole("link", {
         name: "Deep Clean, Wed, Jan 7, 9:00 AM",

@@ -73,6 +73,7 @@ export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 type NewAddress = {
   street: string;
   unit?: string | null;
+  city: string;
   postcode: string;
   accessInstructions?: string | null;
 };
@@ -195,6 +196,8 @@ type PropertyBase = {
   id: string;
   street: string;
   unit: string | null;
+  // none on a place saved before cities were asked, until the Office adds one
+  city: string | null;
   postcode: string;
   floorArea: number | null;
   // the latest known; none for business premises until a Site Visit (or
@@ -221,7 +224,7 @@ export type PropertyView = HomeView | PremisesView;
 
 // the parts of a Property's address, as each view that shows it carries them
 // (written out whole by addressOf)
-export type AddressParts = "street" | "unit" | "postcode";
+export type AddressParts = "street" | "unit" | "city" | "postcode";
 export type Address = Pick<PropertyView, AddressParts>;
 
 // Where a Quote stands for a Site Visit while no Revision of it has been
@@ -1772,7 +1775,9 @@ export type CleanerNeeded = {
   serviceName: string;
   hoursOnSite: number;
   crewSize: number;
-  // the Property's postcode, for roughly where
+  // the Property's city (none until one is known) and postcode, for
+  // roughly where (areaOf)
+  city: string | null;
   postcode: string;
 };
 
@@ -2273,7 +2278,8 @@ export type ClientBillingInput = {
 // takes it
 export type SettledJobView = {
   jobId: string;
-  // "Deep Clean at 41-12 Austin St, 4B, 11375, Wednesday, January 7 at 9:00 AM"
+  // "Deep Clean at 41-12 Austin St, 4B, Forest Hills, 11375, Wednesday,
+  // January 7 at 9:00 AM"
   label: string;
   chargedCents: number;
   refundedCents: number;

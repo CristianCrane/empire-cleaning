@@ -25,6 +25,7 @@ const home = {
   id: "home",
   street: "12 Elm St",
   unit: "4B",
+  city: "Forest Hills",
   postcode: "11375",
   accessInstructions: "Key under the mat",
 } as PropertyView;
@@ -32,6 +33,7 @@ const at = {
   id: home.id,
   street: home.street,
   unit: home.unit,
+  city: home.city,
   postcode: home.postcode,
 };
 

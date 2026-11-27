@@ -120,7 +120,7 @@ describe("Offering Assignments", () => {
     expect(email.subject).toBe("You've been offered a job");
     expect(email.text).toContain("Hi Cory,");
     expect(email.text).toMatch(
-      /When: Thursday, January 8 at 9:00\u00a0AM\nWhere: \d+ Austin St, 4B, 11375\nService: Deep Clean/,
+      /When: Thursday, January 8 at 9:00\u00a0AM\nWhere: \d+ Austin St, 4B, Forest Hills, 11375\nService: Deep Clean/,
     );
     expect(email.text).toContain(
       `http://localhost:5173/cleaner/jobs/${job.id}`,

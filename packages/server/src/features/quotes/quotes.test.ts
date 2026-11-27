@@ -974,6 +974,7 @@ describe("a Client's Quotes", () => {
         id: draft.property.id,
         street: home.street,
         unit: home.unit ?? null,
+        city: home.city,
         postcode: home.postcode,
       },
       asked: expect.objectContaining({ condition: "moderate" }),
@@ -1173,7 +1174,7 @@ describe("Expiry", () => {
     // a Guest gets the usual reply, and the Client's inbox why (#243)
     await submit(guestAsk()).expect(201);
     expect(testEmail().lastTo(casey.email).text).toContain(
-      "We've already sent you a quote for 41-12 Austin St, 4B, 11375. You'll find it in your account.",
+      "We've already sent you a quote for 41-12 Austin St, 4B, Forest Hills, 11375. You'll find it in your account.",
     );
 
     testClock().set(new Date(first.offer!.expiresAt!));

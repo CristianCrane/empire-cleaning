@@ -13,6 +13,7 @@ export default preview(
         service: { name: "Deep Clean", nameEs: "Limpieza profunda" },
         hoursOnSite: 3,
         crewSize: 2,
+        city: "Forest Hills",
         postcode: "11375",
       },
       {
@@ -21,6 +22,8 @@ export default preview(
         service: { name: "Standard Clean", nameEs: "Limpieza estándar" },
         hoursOnSite: 2,
         crewSize: 1,
+        // a place saved before cities were asked
+        city: null,
         postcode: "11374",
       },
     ],

@@ -19,6 +19,7 @@ const words = catalog({
     name: "Enter your name",
     email: "Enter a full email address, like name@example.com",
     street: "Enter the street address",
+    city: "Enter the city",
     zip: "Enter a 5-digit ZIP code",
     area: "Enter the area in sq ft",
     wholeFeet: "Use whole sq ft",
@@ -44,6 +45,7 @@ const words = catalog({
     name: "Escriba su nombre",
     email: "Escriba un correo electrónico completo, como nombre@ejemplo.com",
     street: "Escriba la dirección",
+    city: "Escriba la ciudad",
     zip: "Escriba un código postal de 5 dígitos",
     area: "Escriba el área en pies cuadrados",
     wholeFeet: "Use pies cuadrados enteros",
@@ -99,6 +101,14 @@ const note = (max: number, what?: Parameters<typeof keepUnder>[1]) =>
 // how the crew gets in, the Client's to keep (Office Staff may too)
 export const accessInstructions = note(2000);
 
+// a place's town, as its people write it ("Forest Hills"), not checked
+// against a list (#139)
+const city = z
+  .string(say(words, "city"))
+  .trim()
+  .min(1, say(words, "city"))
+  .max(100, keepUnder(100, "the city"));
+
 const address = {
   street: z
     .string()
@@ -106,6 +116,7 @@ const address = {
     .min(1, say(words, "street"))
     .max(200, keepUnder(200, "the street address")),
   unit: z.string().trim().max(50, keepUnder(50, "the unit")).nullish(),
+  city,
   postcode: z
     .string()
     .trim()
@@ -368,11 +379,11 @@ export const clientSubmission = z
 // clears them
 export const officeNotes = note(4000, "the notes");
 
-// the Office correcting a Property's details (the address is its identity,
-// so it isn't correctable, and nor is whether it's a home); send only what
-// changes
+// the Office correcting a Property's details, its city among them (the
+// street, unit and ZIP code are its identity, so they aren't correctable,
+// and nor is whether it's a home); send only what changes
 export const homeCorrectionSchema = homeDetailsSchema
-  .extend({ condition: conditionSchema, officeNotes })
+  .extend({ city, condition: conditionSchema, officeNotes })
   .partial()
   .refine((changes) => Object.keys(changes).length > 0, "Nothing to change");
 
@@ -380,6 +391,7 @@ export const premisesCorrectionSchema = z
   .object({
     premisesType,
     floorArea: floorArea.nullable(),
+    city,
     condition: conditionSchema,
     officeNotes,
   })

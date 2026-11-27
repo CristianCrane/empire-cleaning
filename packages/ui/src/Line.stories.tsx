@@ -6,7 +6,7 @@ const meta = {
   component: Line,
   args: {
     parts: [
-      "41-12 Austin St, 4B, 11375",
+      "41-12 Austin St, 4B, Forest Hills, 11375",
       "Standard Clean $194.89",
       "waiting since today",
     ],

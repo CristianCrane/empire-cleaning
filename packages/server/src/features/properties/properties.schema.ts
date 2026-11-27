@@ -40,6 +40,9 @@ export const properties = pgTable(
     kind: propertyKind("kind").notNull().default("residential"),
     street: text("street").notNull(),
     unit: text("unit"),
+    // none on a Property saved before cities were asked (#139), until the
+    // Office adds one
+    city: text("city"),
     postcode: text("postcode").notNull(),
     // the address, normalised (see address.ts): one address is one home per Client
     addressKey: text("address_key").notNull(),

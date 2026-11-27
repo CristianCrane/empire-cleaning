@@ -51,6 +51,7 @@ export const home: NewHome = {
   type: "apartment",
   street: "41-12 Austin St",
   unit: "4B",
+  city: "Forest Hills",
   postcode: "11375",
   bedrooms: 2,
   bathrooms: 1.5,
@@ -138,11 +139,14 @@ export const bookedJob = async ({
   labourHours,
   crewSize = 2,
   serviceKey = SEEDED.deep,
+  // null for a home saved before cities were asked (#139)
+  city = home.city,
 }: {
   startsAt: string;
   labourHours: number;
   crewSize?: number;
   serviceKey?: string;
+  city?: string | null;
 }) => {
   homes += 1;
   const client = await createClient({
@@ -154,6 +158,7 @@ export const bookedJob = async ({
     .insert(properties)
     .values({
       ...home,
+      city,
       street: `${homes} Austin St`,
       clientId: client.id,
       condition: "moderate",
@@ -396,6 +401,7 @@ export const addPremises = async (clientId: string) => {
   const premises = {
     street: "200 Park Ave S",
     unit: "Floor 3",
+    city: "New York",
     postcode: "10003",
   };
   await db.insert(properties).values({

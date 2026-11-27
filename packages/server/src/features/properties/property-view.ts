@@ -16,6 +16,7 @@ export { addressOf } from "@empire-cleaning/models";
 export const addressFields = (p: Pick<Property, AddressParts>): Address => ({
   street: p.street,
   unit: p.unit,
+  city: p.city,
   postcode: p.postcode,
 });
 
@@ -23,11 +24,12 @@ export const addressFields = (p: Pick<Property, AddressParts>): Address => ({
 export const addressColumns = {
   street: properties.street,
   unit: properties.unit,
+  city: properties.city,
   postcode: properties.postcode,
 };
 
 // the address as addressOf writes it, for a search to match what's shown
-export const addressSql = sql`concat_ws(', ', ${properties.street}, ${properties.unit}, ${properties.postcode})`;
+export const addressSql = sql`concat_ws(', ', ${properties.street}, ${properties.unit}, ${properties.city}, ${properties.postcode})`;
 
 // a Premises Type's name, from the Price List (which keeps every one,
 // retired too), in the reply's language (ADR-0025)

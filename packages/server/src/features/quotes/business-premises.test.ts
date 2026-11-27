@@ -97,7 +97,7 @@ describe("a Quote asked for business premises", () => {
     expect(res.status).toBe(201);
     expect(res.body.emailedTo).toBe(casey.email);
     expect(testEmail().lastTo(casey.email).text).toContain(
-      "200 Park Ave S, Floor 3, 10003",
+      "200 Park Ave S, Floor 3, New York, 10003",
     );
     const detail = await onlyQuote(office);
     expect(detail).toMatchObject({
@@ -268,7 +268,7 @@ describe("a Quote asked for business premises", () => {
 
     expect(res.status).toBe(409);
     expect(res.body.message).toBe(
-      "41-12 Austin St, 4B, 11375 is already your home with us. Pick it from the list to ask about it.",
+      "41-12 Austin St, 4B, Forest Hills, 11375 is already your home with us. Pick it from the list to ask about it.",
     );
   });
 
@@ -297,7 +297,7 @@ describe("a Quote asked for business premises", () => {
     const mail = testEmail().lastTo(casey.email);
     expect(mail.subject).toBe("About your request for a quote");
     expect(mail.text).toContain(
-      "41-12 Austin St, 4B, 11375 is already your home with us. Sign in and pick it from the list to ask about it.",
+      "41-12 Austin St, 4B, Forest Hills, 11375 is already your home with us. Sign in and pick it from the list to ask about it.",
     );
   });
 
