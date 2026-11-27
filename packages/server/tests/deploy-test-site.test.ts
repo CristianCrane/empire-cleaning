@@ -209,3 +209,15 @@ describe("the deploy just started, among Render's records of its commit", () => 
     expect(outcome(records, 5, TARGET)).toBe(expected);
   });
 });
+
+// Review C9: Render's test environments are production environments on
+// GitHub (production_environment: true), so GitHub never marks a superseded
+// success inactive there, and the one "inactive" Render has posted on this
+// repo (deployment 7416707435, empire-test-db, 2026-10-29) came mid-deploy,
+// before its success. An inactive deploy isn't a live one yet, as
+// liveCommit, which counts only "success", also says.
+test("a deploy Render marks inactive is still going, not live", () => {
+  expect(outcome([{ id: 6, sha: TARGET, state: "inactive" }], 5, TARGET)).toBe(
+    "going",
+  );
+});

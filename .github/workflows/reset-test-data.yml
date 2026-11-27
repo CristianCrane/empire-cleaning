@@ -40,20 +40,14 @@ jobs:
       STRIPE_WEBHOOK_SECRET: unused
     steps:
       - uses: actions/checkout@v5
-        with:
-          # the history back to the test server's last good deploy
-          fetch-depth: 0
       - uses: ./.github/actions/setup
-      # the code the test server runs, which can be a day behind main (it
-      # deploys nightly: deploy-test-site.yml), as the seed writes that
-      # server's tables
-      - name: Check out what the test server runs
-        run: |
-          live=$(pnpm --silent --filter @empire-cleaning/server deploy:test-site live empire-test-server)
-          git checkout --quiet --detach "$live"
-          pnpm install --frozen-lockfile
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - uses: ./.github/actions/test-server-code
+        with:
+          seeds: >-
+            packages/server/tests/seed.ts
+            packages/server/tests/testers.ts
+            packages/server/tests/fixtures.ts
+            packages/server/src/features/demo-people
       # the copy and the test site are seeded as if at the same moment, as
       # where the seed's cleans fall turns on the day and time
       - name: Choose when the seed runs as

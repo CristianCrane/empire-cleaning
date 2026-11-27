@@ -92,7 +92,9 @@ export const outcome = (records: Recorded[], before: number, sha: string) => {
     (record) => record.id > before && record.sha === sha,
   );
   if (!ours) return "unrecorded";
-  if (ours.state === "success" || ours.state === "inactive") return "live";
+  // success alone, as liveCommit counts it: Render has marked a deploy
+  // inactive before it finished
+  if (ours.state === "success") return "live";
   if (ours.state === "failure" || ours.state === "error") return "failed";
   return "going";
 };
@@ -155,29 +157,53 @@ const servicesAt = (sha: string) =>
 const hookVariable = (service: string) =>
   `RENDER_DEPLOY_HOOK_${service.toUpperCase().replaceAll("-", "_")}`;
 
-const trigger = async (service: string, sha: string) => {
-  const hook = process.env[hookVariable(service)];
-  if (!hook)
-    throw new Error(
-      `${hookVariable(service)} isn't set: the test-site-deploy environment's secrets (#205) hold each service's deploy hook`,
-    );
+// The environment holding the hooks must take main's runs alone: GitHub
+// makes one with no rules when a run names it first, and any branch's
+// workflow could then read them
+const ENVIRONMENT = "test-site-deploy";
+const branchPolicy = () => {
+  try {
+    return gh<{
+      deployment_branch_policy: { custom_branch_policies: boolean } | null;
+    }>(`repos/${REPO}/environments/${ENVIRONMENT}`).deployment_branch_policy;
+  } catch {
+    // no such environment yet
+    return null;
+  }
+};
+const guarded = () => {
+  if (!branchPolicy()?.custom_branch_policies) return false;
+  const names = gh<{ branch_policies: { name: string }[] }>(
+    `repos/${REPO}/environments/${ENVIRONMENT}/deployment-branch-policies`,
+  ).branch_policies.map(({ name }) => name);
+  return names.length === 1 && names[0] === "main";
+};
+
+// 202: queued behind a deploy already going, which Render records only once
+// it starts
+const trigger = async (hook: string, sha: string) => {
   const url = new URL(hook);
   url.searchParams.set("ref", sha);
   const response = await fetch(url, { method: "POST" });
-  // 202: queued behind a deploy already going
-  if (response.status !== 200 && response.status !== 202)
-    throw new Error(
-      `Render refused ${service}'s deploy hook: ${response.status} ${(await response.text()).slice(0, 200)}`,
-    );
+  if (response.status === 200 || response.status === 202)
+    return { queued: response.status === 202 };
+  throw new Error(
+    `Render refused the deploy hook: ${response.status} ${(await response.text()).slice(0, 200)}`,
+  );
 };
 
 const MINUTE_MS = 60_000;
 // Render records a deploy about a second after it starts, and a build takes
-// up to a few minutes (the server's is the longest)
+// up to about 3 minutes (the server's, the longest)
 const RECORDED_WITHIN_MS = 3 * MINUTE_MS;
 const DONE_WITHIN_MS = 20 * MINUTE_MS;
 
-const waitFor = async (service: string, before: number, sha: string) => {
+const waitFor = async (
+  service: string,
+  before: number,
+  sha: string,
+  queued: boolean,
+) => {
   const started = Date.now();
   for (;;) {
     const result = outcome(
@@ -192,12 +218,16 @@ const waitFor = async (service: string, before: number, sha: string) => {
     if (result === "live") return;
     if (result === "failed")
       throw new Error(`${service}'s deploy of ${short(sha)} failed on Render`);
-    if (result === "unrecorded" && waited > RECORDED_WITHIN_MS)
+    if (result === "unrecorded" && !queued && waited > RECORDED_WITHIN_MS)
       throw new Error(
         `Render didn't record ${service}'s deploy on GitHub, so the next run can't tell what's live`,
       );
     if (waited > DONE_WITHIN_MS)
-      throw new Error(`${service}'s deploy is still going after 20 minutes`);
+      throw new Error(
+        result === "unrecorded"
+          ? `${service}'s deploy, queued behind another on Render, hadn't started after 20 minutes`
+          : `${service}'s deploy is still going after 20 minutes`,
+      );
     await sleep(20_000);
   }
 };
@@ -206,6 +236,11 @@ const say = (line: string) => {
   console.log(line);
   if (process.env.GITHUB_STEP_SUMMARY)
     appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${line}\n`);
+};
+
+const fail = (lines: string[]) => {
+  for (const line of lines) say(line);
+  process.exitCode = 1;
 };
 
 const main = async (args: string[]) => {
@@ -217,10 +252,10 @@ const main = async (args: string[]) => {
   }
   const dryRun = args.includes("--dry-run");
   const target = greenCommit();
-  if (!target) {
-    say("None of main's last 50 merges passed CI, so nothing deploys.");
-    return;
-  }
+  if (!target)
+    return fail([
+      "None of main's last 50 merges passed CI, so nothing deploys: fix main's CI first.",
+    ]);
   const decisions = decide({
     target,
     live: Object.fromEntries(
@@ -233,20 +268,43 @@ const main = async (args: string[]) => {
   say(`Main's newest commit that passed CI: ${short(target)}`);
   for (const { service, deploy, why } of decisions)
     say(`- ${service}: ${deploy ? "deploys" : "stays"}, as ${why}`);
-  const deploying = decisions.filter(({ deploy }) => deploy);
-  if (dryRun || deploying.length === 0) return;
-  const before = Object.fromEntries(
-    deploying.map(({ service }) => [service, records(service)[0]?.id ?? 0]),
+  const deploying = decisions.flatMap(({ service, deploy }) =>
+    deploy ? [service] : [],
   );
-  for (const { service } of deploying) await trigger(service, target);
+  if (dryRun || deploying.length === 0) return;
+  // every problem a run can see before it starts a deploy, at once
+  const unset = deploying
+    .map(hookVariable)
+    .filter((variable) => !process.env[variable]);
+  const limited = guarded();
+  if (!limited || unset.length > 0)
+    return fail([
+      ...(limited
+        ? []
+        : [
+            `The ${ENVIRONMENT} environment isn't limited to main, so its hooks aren't used: scripts/setup-test-site.sh's stage 9 sets it up (#205)`,
+          ]),
+      ...unset.map(
+        (variable) =>
+          `${variable} isn't set: it's ${ENVIRONMENT}'s secret, the service's deploy hook (#205)`,
+      ),
+    ]);
   const results = await Promise.allSettled(
-    deploying.map(({ service }) => waitFor(service, before[service]!, target)),
+    deploying.map(async (service) => {
+      const before = records(service)[0]?.id ?? 0;
+      const { queued } = await trigger(
+        process.env[hookVariable(service)]!,
+        target,
+      ).catch((error: Error) => {
+        throw new Error(`${service}: ${error.message}`);
+      });
+      await waitFor(service, before, target, queued);
+    }),
   );
   const failed = results.flatMap((result) =>
     result.status === "rejected" ? [String(result.reason)] : [],
   );
-  for (const line of failed) say(line);
-  if (failed.length > 0) process.exitCode = 1;
+  if (failed.length > 0) fail(failed);
   else say("Each deploy is live.");
 };
 

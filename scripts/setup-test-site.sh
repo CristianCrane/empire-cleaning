@@ -488,12 +488,14 @@ for service in server web landing; do
   write_env "$key" "${!key}"
   if printf '%s' "${!key}" | gh secret set "$key" --env test-site-deploy >/dev/null 2>&1; then
     printf '  %s✓ set%s %s in test-site-deploy\n' "$GREEN" "$RESET" "$key"
+    WRITTEN_SECRET+=("$key")
   else
     SKIPPED+=("$key: gh secret set $key --env test-site-deploy")
     warn "couldn't set $key; set it later: gh secret set $key --env test-site-deploy"
   fi
 done
-note "If a hook leaks, Regenerate it on that page and run this stage again."
+note "If a hook leaks, Regenerate it on that page, then:"
+note "  gh secret set RENDER_DEPLOY_HOOK_EMPIRE_TEST_<SERVICE> --env test-site-deploy"
 pause
 
 # ── 10 ────────────────────────────────────────────────────────────────────
