@@ -949,6 +949,17 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     moved.current = true;
   }, [at]);
 
+  // a refusal then takes it on to the first field the API refused, so its
+  // explanation is on screen however far down the step it sits
+  const form = useRef<HTMLFormElement>(null);
+  const [refusals, setRefusals] = useState(0);
+  useEffect(() => {
+    if (refusals)
+      form.current
+        ?.querySelector<HTMLElement>('[aria-invalid="true"]')
+        ?.focus();
+  }, [refusals]);
+
   const send = async () => {
     setSending(true);
     setFailed(false);
@@ -967,6 +978,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     } else if (result.fieldErrors) {
       setFieldErrors(result.fieldErrors);
       setStep(Math.min(...Object.keys(result.fieldErrors).map(stepOf)));
+      setRefusals((n) => n + 1);
       // an Add-on withdrawn since the form loaded: say so, and show what is
       // on offer now
       const addOnError = Object.keys(result.fieldErrors).some((path) =>
@@ -993,6 +1005,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     ];
     return (
       <Form
+        ref={form}
         validationErrors={fieldErrors}
         onSubmit={(e) => {
           e.preventDefault();
@@ -1030,6 +1043,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
 
   return (
     <Form
+      ref={form}
       validationErrors={fieldErrors}
       // Next submits too, so the browser checks the step's required fields
       onSubmit={(e) => {
