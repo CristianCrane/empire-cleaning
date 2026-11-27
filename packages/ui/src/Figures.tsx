@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { twMerge } from "./utils.ts";
 
-// A list of figures, each a label and its value (docs/ux.md, Figures): a
+// A list of figures, each a label and its value (docs/ux.md, Lists and tables): a
 // price's hours and Deposit, how a price is worked out, a receipt. The one
 // ledger, in a column at most 28rem wide at its card's start, so on a wide
 // card each value sits near its label rather than across the card (the

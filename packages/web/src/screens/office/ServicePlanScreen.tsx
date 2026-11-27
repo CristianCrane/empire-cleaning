@@ -59,8 +59,8 @@ export const officePlanLinks = {
 const endPath = (plan: OfficeServicePlan) =>
   `/api/service-plans/${plan.id}/end`;
 
-// A Service Plan on a page of its own, a Record (docs/ux.md): an Ended one,
-// or one opened from Today. A current one is also on its home's page
+// An Ended Service Plan's page, a Record (docs/ux.md, Screen types,
+// Record); a current one's path goes to its home's (the router)
 export function ServicePlanScreen() {
   const plan = useLoaderData({ from: "/office/service-plans/$planId" });
   const { start, starting } = useStartDraft();

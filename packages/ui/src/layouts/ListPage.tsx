@@ -289,10 +289,10 @@ export function byMonth<X>(lang: Language, items: X[], at: (x: X) => string) {
   return months;
 }
 
-// A dated row (docs/ux.md, "Dated things a person scans are grouped by
-// month"): a small DateTile, then the weekday and time, then `title`, what
-// the person looking tells it apart by, left out when the page above says
-// it for every row (a plan's cleans). The tile is decorative, so its date
+// A dated row (docs/ux.md, Screen types, List): a small DateTile, then the
+// weekday and time, then `title`, what the person looking tells it apart
+// by, left out when the page above says it for every row (a plan's
+// cleans). The tile is decorative, so its date
 // is said to a screen reader before the time
 export function DatedItem({
   id,
