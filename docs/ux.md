@@ -15,7 +15,7 @@ Seven types, each drawn by its layout in `packages/ui/src/layouts/` (ADR-0031): 
 
 ### Record
 
-- At most two alerts, most pressing first (danger, warning, info, success), the rest behind "Show N more". An action's failure is a Toast, not a Notice. The exception is Client portal > Your card: a retried payment turned down again is said in the alert already there ("We tried it again.", #508).
+- At most two alerts, most pressing first (danger, warning, info, success), the rest behind "Show N more". An action's failure is a Toast, not a Notice; one that leaves the page untrue sends the reader somewhere true, the Toast saying why (a Cleaner Needed someone else took: back to Offers), else the page stays for a retry. The exception is Client portal > Your card: a retried payment turned down again is said in the alert already there ("We tried it again.", #508).
 - The details card shows what it is, large, behind its tile (DateTile when, IconTile what, Avatar who), never what the title says (a Staff member's leads with their role, #548 U46). Time, address and contact are facts, not parts. It takes as many columns as its facts need, so none sits alone (`factColumns`, #553).
 - Each part is a Section, its action on its title line. An empty part offers its action (`ActionRow`), unless that action is the page's next step, when the part waits. Each action shows once.
 - Money is one part: one line a fact, "How it's worked out" folded. A Job's price changes are their own part, after How it went.
@@ -142,6 +142,7 @@ Seven types, each drawn by its layout in `packages/ui/src/layouts/` (ADR-0031): 
 
 - Forms ask quietly, a few at a time: tinted fields with a bottom line; SegmentedControl, ChipGroup or ChoiceTiles for short choices; optional fields behind "+ Add …"; long forms in steps, who's asking last. The Office on the phone gets one page, in a call's order.
 - A form starts blank for someone new (an answer picked for them says something about their place they never said), each required answer asked before Next. A place on file starts at what's recorded; a form one person fills often (the Office's) at their usual answers (#493 G2.3).
+- A stepped form the server refuses goes back to the step of the first refused field, the focus on that field, so its explanation is on screen on a phone too (`QuoteRequestForm`).
 - An address asks Street address, the unit (optional, yet in view, as it's part of the address), then City beside ZIP code, in the order browsers fill them (`AddressFields`, each with its `autoComplete`). The Office types a caller's details, not its own, so its forms turn autofill off (`autoComplete="off"`), the address too. The city is required and kept as typed (ADR-0035).
 - A form keeps a form's width (42rem, `max-w-form`) and a field its answer's (the user on #493's Welcome at 1440: "too wide for a form field to span"): a Form page with no aside and its header, a form's dialog, the landing Quote form's band. No field box or SegmentedControl track is wider. On a phone every field is full width.
 - From sm a short field is sized to hold its longest answer whole (`Field.tsx`'s `width`): ~8 characters 9rem, ~14 13rem, a few words 20rem. A `FieldRow` is no wider than a form, its columns 13rem or more; ChoiceTiles are a form's width.
