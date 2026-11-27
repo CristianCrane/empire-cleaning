@@ -284,10 +284,13 @@ test.describe("requesting a Quote", () => {
 
     await page.getByRole("button", { name: "Request a quote" }).click();
 
-    // back on the step with the field
+    // back on the step with the field, which takes the focus, so its
+    // explanation is in view however far down the step it sits
     const zip = page.getByRole("textbox", { name: "ZIP code" });
     await expect(zip).toHaveAttribute("aria-invalid", "true");
     await expect(zip).toHaveAccessibleDescription(/Enter a 5-digit ZIP code/);
+    await expect(zip).toBeFocused();
+    await expect(zip).toBeInViewport();
     expect(await emailsTo(email)).toEqual([]);
   });
 
