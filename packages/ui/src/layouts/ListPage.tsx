@@ -71,8 +71,8 @@ export type ListColumn<T> = {
   cell: (item: T) => ReactNode;
 };
 
-// an Office work list's search: it looks through every Tab, and says how
-// many it found
+// an Office list's search (Office > Jobs, Quotes and Clients): it looks
+// through every Tab, and says how many it found
 export type ListSearch = {
   label: string;
   placeholder: string;

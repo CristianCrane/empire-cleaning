@@ -241,9 +241,9 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-// An Office work list: Tabs with counts, no All; a search that looks
-// through every Tab; by month; 50, then Show more; the status only where
-// it isn't usual (Needs cleaners)
+// An Office list that searches (Office > Jobs): Tabs with counts, no
+// All; a search that looks through every Tab; by month; 50, then Show
+// more; the status only where it isn't usual (Needs cleaners)
 export const OfficeWorkList: Story = {
   render: () => <OfficeJobs />,
   play: async ({ canvasElement }) => {
