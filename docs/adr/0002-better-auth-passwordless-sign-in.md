@@ -4,6 +4,6 @@ Accounts are handled by Better Auth, an open-source library storing its data in 
 
 ## Consequences
 
-- Superseded in part by ADR-0006: Accounts are created only by signing up (not with the Quote Request), and Quote emails link to the Quote without signing anyone in.
+- When Accounts are made, and what Quote emails sign in to: ADR-0006.
 - Sending email is a core dependency: sign-in links and every notification go by email.
 - A future native Cleaner app must be able to authenticate against the same Accounts, so sign-in must not depend on browser cookies alone.

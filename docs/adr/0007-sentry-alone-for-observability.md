@@ -1,43 +1,26 @@
 # Sentry alone for errors, performance, uptime and heartbeats, behind our own monitoring interface
 
-Errors, performance traces, uptime checks and heartbeats all go to Sentry, on its free plan, with every alert sent by email to the one person running the system. The rest of the code never talks to Sentry directly: it goes through `#services/monitoring` (`error`, `signal`, `measure`, `heartbeat`), with a Sentry adapter behind it and a fake in tests, just as with email, the Clock and the Payment Gateway (ADR-0004). We chose one hosted tool over adding Better Stack for uptime and phone push (a second tool, and its push alerts need a paid seat), over self-hosting Prometheus and Grafana (monitoring that would itself need monitoring, and fail along with the app), and over Datadog or New Relic (far beyond a small business's budget). Nothing here depends on the host, which was chosen later (ADR-0020).
+Errors, traces, measures, uptime and heartbeats go to Sentry, on its free plan, every alert emailed to the one person running it. The code reaches Sentry only through `#services/monitoring` (`error`, `signal`, `measure`, `heartbeat`), a Sentry adapter behind it and a fake in tests, as with email, the Clock and the Payment Gateway (ADR-0004). We chose one hosted tool over adding Better Stack for uptime and phone push (a second tool, whose push alerts need a paid seat), over self-hosting Prometheus and Grafana (monitoring that would itself need monitoring, and fail along with the app), and over Datadog or New Relic (far beyond our budget).
 
 ## What's watched
 
-- **Errors**: the API, the web app, and the landing site's Quote form. Only 5xx responses, unhandled errors and failures we catch but didn't expect count; 4xx responses (validation, sign-in, 409 conflicts such as a declined card) are normal business and appear only in the logs. In the browser, an error nothing of ours caught, with no frame from our own builds (an extension, Stripe.js, Google's sign-in), is dropped: every build marks its code for Sentry's third-party filter (#458). One passed to the browser's `reportError` looks uncaught to Sentry, so it's kept when its own stack has a frame of ours or none in any script (only the browser's own code).
-- **Performance**: about 20% of API requests and browser page loads are traced, which shows slow queries and slow calls to Stripe and Resend. One alert: the API's p95 over 1 s for 10 minutes. Releases are tagged with the git commit and source maps uploaded at build. That alert and the pools' below are Metric Monitors, which the free plan allows (set up with #205).
-- **Measures** (added with #284): named numbers, sampled every 10 s and sent as Sentry Application Metrics gauges, which a Metric Monitor can alert on by their min, max or average over a window. For each database pool: connections in use, idle, requests waiting, and the longest wait for a connection since the last sample. One alert for each pool (`db` and `apart`: a Metric Monitor can't group by an attribute, so each pool has its own): `db.pool.waiting`'s minimum above 0 for the whole window, 5 minutes (the shortest Sentry offers), meaning requests have queued for a connection the whole time, though none may yet have waited the 10 s it takes to give up. We chose gauges over spans (Sentry's `pg-pool.connect` span shows a traced request's wait, but only 20% are traced and spans carry no counts, so a short run dry can be missed) and over a periodic log line (Render's logs, which nothing alerts on). The volume is set by the sample rate, not traffic: ~2M a month, inside the free plan's 5 GB.
-- **Uptime**: one monitor on the API's `/health`, at the server's own address (`https://empire-test-server.onrender.com/health` on the test site), as the app's domain forwards only `/api/*`. It runs `select 1` with a 2 s timeout and returns 503 if the database can't answer. It doesn't check Stripe or Resend: their outages are signals, not us being down.
-- **Heartbeat**: one cron monitor for the in-process scheduler as a whole, which checks in after each tick in which every due job succeeded. A stopped timer or a failing job both miss the check-in.
-- **Business signals**: named, not free-form, each urgent or not. Those someone may need to act on are sent as Sentry events tagged with their urgency; a counted one is a Sentry counter (Application Metrics) and logged at info, never an event, so it opens no issue and no email calls it an error (#458: `refunded_at_provider` as an event opened an issue, and Sentry's summary email told the owner the server "had multiple errors"):
+- **Errors**: in the API, the web app and the landing site's Quote form, only 5xx responses, unhandled errors and failures we catch but didn't expect count; 4xx responses are normal business and only logged. A browser error with no frame from our own builds is dropped.
+- **Performance**: about 20% of API requests and page loads are traced, with one alert: the API's p95 over 1 s for 10 minutes. Releases are tagged with the commit, and source maps uploaded at build.
+- **Measures**: each database pool's gauges (in use, idle, waiting, longest wait), every 10 s. One Metric Monitor per pool alerts when `db.pool.waiting`'s minimum stays above 0 for 5 minutes: requests queued the whole time. We chose gauges over spans (only 20% are traced and spans carry no counts, so a short run dry can be missed) and over a periodic log line (nothing alerts on Render's logs).
+- **Uptime**: one monitor on the API's `/health`, at the server's own address, as the app's domain forwards only `/api/*`. It runs `select 1` and returns 503 if the database can't answer. It leaves out Stripe and Resend, whose outages are signals.
+- **Heartbeat**: one cron monitor for the whole scheduler, checked in after each tick whose due jobs succeeded.
+- **Business signals**: named, never free-form, each urgent, in bulk or counted, listed in `SIGNALS` (`services/monitoring/signals.ts`). A counted one is a Sentry counter, never an event, so it opens no issue and no email calls it an error.
 
-| Signal | Means | Urgency |
-|---|---|---|
-| `payment_gateway_error` | the payment provider is unreachable or erroring (not a decline) | urgent |
-| `refund_failed` | money was taken, booking failed, and the refund didn't go through | urgent |
-| `heartbeat_missed` | a scheduled job has stopped running | urgent |
-| `email_send_failed` | the email service refused a message or was unreachable | urgent at more than 3 in 15 minutes (sign-in links stop), otherwise not |
-| `charge_declined` | a Client's card was declined | counted (a Sentry counter), never alerted |
-| `dispute_opened` | a Client disputed a Charge with their bank, which has a deadline to answer (added with #41) | urgent |
-| `refunded_at_provider` | a Charge was refunded in the payment provider's dashboard, not by us (added with #41) | counted (a Sentry counter), never alerted |
-| `rate_cap_reached` | a site-wide cap on emails to typed addresses (sign-in links, Guest Quote Requests, new-email links) was reached, so real people are being refused until the hour is up (added with #243) | urgent, at most once an hour for each cap |
-| `db_pool_exhausted` | a request gave up waiting for a database connection, as every one in its pool was in use; requests are failing (added with #284). Raised only for pg's "timeout exceeded when trying to connect": "Connection terminated due to connection timeout" is the database not answering, which the uptime monitor covers, and stays an error. Each failed request is thrown on as already signalled, so it isn't also an error | urgent, at most once a minute for each pool |
+Urgent alerts come from rules and monitors named `URGENT: …`, as Sentry's email subject can't carry the urgency, and a Gmail filter matches "URGENT" from Sentry's sender. Every rule and monitor watches the `test` environment until go-live.
 
-Urgent alerts come from rules and monitors named `URGENT: …`. Sentry's email subject can't carry it (its template is per project and can't name the rule), so the name shows in an issue alert's body ("triggered by URGENT: …") and in a Metric Monitor's subject, and a Gmail filter matches "URGENT" from Sentry's sender. Every rule and monitor watches the `test` environment until go-live.
+## Client data and logs
 
-## Client data
-
-No Client's personal details go to Sentry: people are identified by Client, Staff or Account ID only. Request bodies, emails, phone numbers, addresses and Access Instructions are stripped from events, and session replay is off.
-
-## Logs
-
-Structured JSON from `pino` to stdout, kept by the host, with a request ID on every line that is also put on every Sentry event, and the same redaction. No log vendor until searching the host's logs proves painful.
+Sentry gets Client, Staff and Account IDs, never personal details: request bodies, emails, phone numbers, addresses and Access Instructions are stripped, and session replay is off. Logs are JSON from `pino` to stdout, kept by the host, with a request ID on every line and every Sentry event, redacted the same way. No log vendor until searching the host's logs proves painful.
 
 ## Consequences
 
-- An exception to "the same variables are required in every mode": Sentry's keys are required in production only. Without them, `#services/monitoring` logs to the console and sends nothing, so development and tests never alert anyone.
-- The landing site and the web app aren't uptime-checked: static files on a CDN rarely fail on their own, and the one free uptime monitor is better spent on the API. Browser errors are still reported once their JavaScript loads.
-- One heartbeat for the whole scheduler means an alert says that some job stopped, not which one; the logs say which.
-- Email can be missed at night. Before real Clients depend on the system, add phone push for urgent alerts. Because urgency is already a tag, that's routing, not code.
-- To watch the static sites or give each job its own heartbeat, pay for more Sentry monitors (pay-as-you-go, or the Team plan).
-- Sentry's free plan has one user and a monthly error allowance. Its Metric Monitors (20) were enough for setup (#205), but have no window under 5 minutes and no grouping, so each new pool or measure to watch is a monitor of its own.
+- Sentry's keys are required in production only, an exception to "the same variables in every mode": without them, development and tests send nothing.
+- The static sites aren't uptime-checked: files on a CDN rarely fail on their own, and the one free uptime monitor is better spent on the API. Watching them, or a heartbeat per job, means paying for more monitors.
+- One heartbeat says some job stopped, not which; the logs say which.
+- Email can be missed at night: add phone push for urgent alerts before real Clients depend on the system. Urgency is already a tag, so that's routing, not code.
+- The free plan has one user and a monthly error allowance, and a Metric Monitor can't group, so each new pool or measure is a monitor of its own.

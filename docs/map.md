@@ -10,7 +10,7 @@ Its format: `~/.claude/hooks/docs.mjs`'s header; its writer: `~/.claude/agents/d
 - `docs/screens-cleaner.md` (screen): each Cleaner area screen and the picks it keeps; read before changing one.
 - `packages/server/README.md` (how-to): setting up, testing and monitoring the server; read before working in it.
 - `docs/*.md`
-- `docs/adr/*.md`
+- `docs/adr/*.md` (decision): each call that rules something out, with why; read the ones a change touches before making it.
 - `docs/agents/*.md`
 - `GLOSSARY.md`
 - `README.md`

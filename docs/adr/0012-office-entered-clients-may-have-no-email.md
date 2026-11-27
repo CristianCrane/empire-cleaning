@@ -1,6 +1,6 @@
 # A Client the Office enters for a caller may have no email
 
-Office Staff quote people who phone (#34): they find the caller among the Clients or enter them, describe the home, and land in Office > Draft quote. Some callers have no email, or won't give one, so a Client the Office enters needs only a name and phone. Their Quote Request is recorded as usual, marked as entered by the Office, and no receipt is emailed, because the Office is quoting them straight away.
+Office Staff quote people who phone (#34): they find the caller among the Clients or enter them, describe the home, and land in Office > Draft quote. Some callers have no email, or won't give one, so a Client the Office enters needs only a name and phone. How the Office's Quote for them starts, with no receipt as the Office is quoting them straight away: ADR-0017.
 
 A Client without an email has no way in. An Account needs a proven email matching theirs (ADR-0006), a Quote goes by email and is accepted signed in (ADR-0008), and every notice is an email. So a Quote for such a Client can be drafted but not sent, and Office > Draft quote says why. Office Staff add the email on Office > Client, and from then on everything works as for any Client, including connecting an Account that signed up with that email. An email can be changed but never removed, so a Client who had one keeps one.
 
@@ -13,4 +13,4 @@ A Client without an email has no way in. An Account needs a proven email matchin
 
 - `clients.email` may be null. Emails to a Client without one are simply not sent; with sending refused for their Quotes, they can't reach the steps whose emails matter.
 - Payers (Stripe customers) can be created without an email.
-- A caller's request with an existing Client's email is added to that Client without changing their details, as a Guest's is.
+- A caller's Quote with an existing Client's email is added to that Client without changing their details, as a Guest's is.
