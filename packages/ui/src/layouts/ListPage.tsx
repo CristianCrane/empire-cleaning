@@ -71,8 +71,8 @@ export type ListColumn<T> = {
   cell: (item: T) => ReactNode;
 };
 
-// an Office work list's search: it looks through every Tab, and says how
-// many it found
+// an Office list's search (Office > Jobs, Quotes and Clients): it looks
+// through every Tab, and says how many it found
 export type ListSearch = {
   label: string;
   placeholder: string;
@@ -289,10 +289,10 @@ export function byMonth<X>(lang: Language, items: X[], at: (x: X) => string) {
   return months;
 }
 
-// A dated row (docs/ux.md, "Dated things a person scans are grouped by
-// month"): a small DateTile, then the weekday and time, then `title`, what
-// the person looking tells it apart by, left out when the page above says
-// it for every row (a plan's cleans). The tile is decorative, so its date
+// A dated row (docs/ux.md, Screen types, List): a small DateTile, then the
+// weekday and time, then `title`, what the person looking tells it apart
+// by, left out when the page above says it for every row (a plan's
+// cleans). The tile is decorative, so its date
 // is said to a screen reader before the time
 export function DatedItem({
   id,

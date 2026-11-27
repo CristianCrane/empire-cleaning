@@ -1730,9 +1730,9 @@ export const billView = async (
   const on = (await paymentOn("bill", [bill.id]))(bill.id);
   const lines = await linesToSay(bill);
   // where its cleans were, for the Office, and for a Client only when they
-  // have more than one home, as their rows say (docs/ux.md, Lists): once,
-  // as a fact, when they were all at one, else on each row (#534's UX
-  // review U8, F16)
+  // have more than one home, as their rows say (docs/ux.md, Screen types,
+  // List): once, as a fact, when they were all at one, else on each row
+  // (#534's UX review U8, F16)
   const tells = clientId ? (await homesOf(clientId)) > 1 : true;
   const homes = new Set(
     lines.flatMap((l) => (l.clean ? [l.clean.address] : [])),

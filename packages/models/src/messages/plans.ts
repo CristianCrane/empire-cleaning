@@ -4,7 +4,7 @@ import { formats, theTimeEs } from "../format.ts";
 import { catalog } from "../language.ts";
 
 // What the server and the screens both say about when a Service Plan's
-// cleans come round (docs/ux.md, Words). A weekday's clean is said in the
+// cleans come round (docs/ux-words.md, Words). A weekday's clean is said in the
 // plural, which no formatter gives: "Mondays", "los lunes"
 
 const en = formats.en;

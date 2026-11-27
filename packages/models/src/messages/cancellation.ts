@@ -3,7 +3,7 @@ import { catalog } from "../language.ts";
 import { ON_THAT_WEEKS_BILL } from "./bills.ts";
 
 // What the server and the screens both say about cancelling or skipping a
-// clean, and about one we couldn't get in for (docs/ux.md, Words)
+// clean, and about one we couldn't get in for (docs/ux-words.md, Words)
 
 // why a plan clean was cancelled with its plan, in each language
 const PLAN_CANCELLED: Record<PlanCancelled, string> = {

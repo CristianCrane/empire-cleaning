@@ -14,7 +14,7 @@ import { APPROVE } from "../../services/payment-gateway/index.ts";
 import { NO_CARD, NOT_APPROVED, PROCESSING, UNREACHABLE } from "./money.ts";
 
 // Why a Job or a Bill is Unpaid, from the reason stored with it, in words a
-// person reads (docs/ux.md, Words). The stored reason is the payment
+// person reads (docs/ux-words.md, Words). The stored reason is the payment
 // provider's code, or one of ours below, and stays as it is: open-payments.ts
 // finds the payments it tries again by it.
 

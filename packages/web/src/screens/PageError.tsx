@@ -15,7 +15,7 @@ import { NotFound } from "./NotFound.tsx";
 // else (a server error, the connection dropping) can be tried again. No
 // details: they're no use to a Client. A failure in the app itself, not the
 // API's answer, is reported. Every area shows it, so its Spanish addresses
-// no one (docs/ux.md, Language).
+// no one (docs/ux-words.md, Language).
 const words = catalog({
   en: {
     title: "Something went wrong",

@@ -311,7 +311,8 @@ export type PlanCleanTerms = { day: PlanDayTerms; option: QuoteOption };
 
 // a Service Plan Quote's weekdays as the Client's cards show them: those
 // alike in all a card draws (its Service and every figure) share one, so
-// two cards never say the same thing twice (docs/ux.md, Numbers)
+// two cards never say the same thing twice (docs/screens-portal.md,
+// Client portal > Your quote)
 export const planCards = (
   days: PlanDayTerms[],
   options: QuoteOption[],

@@ -12,7 +12,7 @@ We first created Accounts on people's behalf (with the Quote Request, by invitat
 ## Consequences
 
 - Anyone may sign up. An Account connected to nothing sees the Quote Request form, and a pointer to sign in with the email they used if they asked for a Quote before.
-- Quote emails link to the Quote's page and carry no sign-in power. A signed-in browser shows the Quote; otherwise the person signs in and returns to it. This replaces ADR-0002's "every Quote email carries a link that signs them in straight to that Quote".
+- Quote emails link to Client portal > Your quote and carry no sign-in power. A signed-in browser shows the Quote; otherwise the person signs in and returns to it. This replaces ADR-0002's "every Quote email carries a link that signs them in straight to that Quote".
 - One Account may be connected to both a Client and Staff.
 - Roles live on the Staff record, not the Account. Being a Client comes from the connection to a Client.
 - A Guest's Quote Request with an existing Client's email is added to that Client without changing their details, or those of a Property it names (#243): a Condition or rooms it states stay on the Quote, for Office Staff to record. Only the signed-in Client restates a home's Condition, or gives rooms it lacks. The Office reviews every Quote, so junk costs little, and asking again needs no step.

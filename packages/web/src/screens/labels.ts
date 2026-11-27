@@ -1,12 +1,12 @@
 import { catalog, type JobStatus, theTimeEs } from "@empire-cleaning/models";
 
-// Words several screens show as they are, each once (docs/ux.md, Words):
+// Words several screens show as they are, each once (docs/ux-words.md, Words):
 // part of `screenWords` (format.ts). They're apart from format.ts, which
 // imports the Quote form and so the design system, so that first-time
 // help's tours can say them too (tours.ts). A word only portal screens share
 // is portal/words.ts's, and one only the Cleaner area's is
 // cleaner/words.ts's. A word here is said to anyone, so it addresses no one,
-// neither usted nor tú (docs/ux.md, Language).
+// neither usted nor tú (docs/ux-words.md, Language).
 export const labels = catalog({
   en: {
     notKnownYet: "Not known yet",

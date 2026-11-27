@@ -25,7 +25,7 @@ The files `docs/map.md` lists are the doc curator's alone, so each fact sits in 
 
 ## UX
 
-Before designing, prototyping, reviewing or changing any screen, or writing words a person reads (a server message, an email), load the `ui` skill, then read `docs/ux.md`: this product's UX rules, and how a new UX question is settled (prototype, pick, build, record). Before reworking a screen, read its entry in `docs/screens.md`, the picks it keeps and the rules it names, so a choice isn't undone by accident: a pick can sit on another screen's entry (where a failed charge is retried is Payment Method's, though Home's alert follows it). Record a new decision as `docs/ux.md`'s Changing a screen says.
+Before designing, prototyping, reviewing or changing any screen, or writing words a person reads (a server message, an email), load the `ui` skill, then read the UX files `docs/map.md` says to read for it: this product's rules, its words, and the screen's entry in the screen map, so a pick isn't undone by accident. A pick can sit on another screen's entry (where a failed charge is retried is Client portal > Your card's, though Client portal > Home's alert follows it). Record a new decision as `docs/ux.md`'s Changing a screen says.
 
 A PR that changes a screen shows it before and after: `pnpm pr:shots <spec> "<test title>"` makes the screenshots and prints the table for the PR body (`packages/web/README.md`, Testing).
 

@@ -623,7 +623,7 @@ const same = (specs: string[], context: Context) => {
 };
 
 // where a prototype is, by its package: the web app's anywhere under its
-// screens, the landing site's in its prototypes folder (docs/ux.md)
+// screens, the landing site's in its prototypes folder (packages/web/README.md, Prototypes)
 const prototypeIn = (screen: string) => {
   const web = readdirSync(join(top, "packages/web/src/screens"), {
     recursive: true,

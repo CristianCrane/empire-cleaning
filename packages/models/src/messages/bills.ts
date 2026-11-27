@@ -3,7 +3,7 @@ import { catalog } from "../language.ts";
 import { because } from "./payments.ts";
 
 // What the server and the screens both say about a weekly Bill
-// (docs/ux.md, Words)
+// (docs/ux-words.md, Words)
 
 // when a weekly Bill is made, and how the Client pays it (ADR-0016): as they
 // read it, or as the Office does

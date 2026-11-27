@@ -37,7 +37,7 @@ import {
 // sideways, or a button or link under a bar fixed over the page (the
 // phone's tab bar, #425). And it reads each screen's text for a doubled
 // stop: es-US writes "9:00 a.m.", so a sentence ending on a time without
-// oneStop or stopAfter shows "a.m.." (docs/ux.md, Language).
+// oneStop or stopAfter shows "a.m.." (docs/ux-words.md, Language).
 const widths = [320, 375, 412, 640, 768, 1024, 1280, 1440];
 
 const problemsAt = (page: Page) =>
@@ -256,7 +256,7 @@ const expectFitsEveryWidth = async (page: Page, path: string) => {
   expect.soft(problems).toEqual([]);
 };
 
-// the same, then in Spanish (ADR-0025, docs/ux.md: Spanish runs 20–30%
+// the same, then in Spanish (ADR-0025, docs/ux-words.md, Language: Spanish runs 20–30%
 // longer), for a Guest's, Client's or Cleaner's screen: the signed-in
 // person's Preferred Language, or before sign-in the language of the page that linked
 // here (?lang=es). English again after

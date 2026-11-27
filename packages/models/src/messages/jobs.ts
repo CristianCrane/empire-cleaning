@@ -3,7 +3,7 @@ import { upperFirst } from "../format.ts";
 import { catalog } from "../language.ts";
 
 // What the server and the screens both say about a time for a clean
-// (docs/ux.md, Words)
+// (docs/ux-words.md, Words)
 
 export const jobs = catalog({
   en: {

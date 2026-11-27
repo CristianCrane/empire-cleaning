@@ -5,7 +5,7 @@ import { catalog } from "../language.ts";
 import { because } from "./payments.ts";
 
 // What the server and the screens both say about a Quote
-// (docs/ux.md, Words)
+// (docs/ux-words.md, Words)
 
 const startOf = (kind: PropertyKind) =>
   kind === "commercial" ? "This business" : "This home";

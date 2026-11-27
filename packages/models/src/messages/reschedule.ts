@@ -3,7 +3,7 @@ import { catalog } from "../language.ts";
 import { bills, ON_THAT_WEEKS_BILL } from "./bills.ts";
 
 // What the server and the screens both say about moving a clean
-// (docs/ux.md, Words)
+// (docs/ux-words.md, Words)
 
 // moving a clean this close to it is a Late Reschedule (ADR-0010)
 export const LATE_RESCHEDULE_HOURS = 24;

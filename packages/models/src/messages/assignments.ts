@@ -1,7 +1,7 @@
 import { catalog } from "../language.ts";
 
 // What the server and the screens both say about a Cleaner's jobs
-// (docs/ux.md, Words). Cleaners are tú in Spanish (ADR-0025)
+// (docs/ux-words.md, Words). Cleaners are tú in Spanish (ADR-0025)
 
 // a Confirmed Assignment can't be Released this close to the Job: the
 // Office needs time to find someone else

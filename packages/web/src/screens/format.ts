@@ -96,7 +96,7 @@ export const formatHours = (hours: number) =>
 
 // hours the Office types or prices at a rate, as she types them: the Price
 // list's, a working-out's sums, cleaning hours, extra time, a cleaner's
-// working day: 1.125 -> "1.125 h" (docs/ux.md, "A length of time")
+// working day: 1.125 -> "1.125 h" (docs/ux-words.md, Words)
 export const typedHours = (hours: number) =>
   `${Math.round(hours * 10000) / 10000} h`;
 
@@ -126,7 +126,7 @@ export const quoteStatusLabel = {
   turned_down: "Turned down",
 };
 
-// one meaning per colour (docs/ux.md, Notices): done is success
+// one meaning per colour (docs/ux.md, Status and colour): done is success
 export const quoteStatusTone = {
   requested: "warning",
   draft: "neutral",
